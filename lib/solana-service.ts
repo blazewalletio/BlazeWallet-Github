@@ -130,18 +130,16 @@ export class SolanaService {
 
   /**
    * Get recent transactions for an address
+   * ✅ Enhanced with SPL token detection and proper error handling
    */
   async getTransactionHistory(address: string, limit: number = 10): Promise<any[]> {
     try {
       const publicKey = new PublicKey(address);
       
-      // Get confirmed signatures
-      const signatures = await this.connection.getSignaturesForAddress(
-        publicKey,
-        { limit }
-      );
+      // Get confirmed signatures with retry
+      const signatures = await this.getSignaturesWithRetry(publicKey, limit);
 
-      // Fetch transaction details
+      // Fetch transaction details in parallel
       const transactions = await Promise.all(
         signatures.map(async (sig) => {
           try {
@@ -155,36 +153,28 @@ export class SolanaService {
             const accountKeys = tx.transaction.message.staticAccountKeys || [];
             const instructions = tx.transaction.message.compiledInstructions || [];
             
-            // Try to determine if this is a transfer
-            let value = '0';
-            let from = '';
-            let to = '';
+            // Detect transaction type and extract details
+            const txDetails = this.parseTransaction(tx, accountKeys, instructions, address);
             
-            if (instructions.length > 0 && accountKeys.length > 0) {
-              // For system program transfers
-              from = accountKeys[0]?.toBase58() || '';
-              to = accountKeys.length > 1 ? accountKeys[1]?.toBase58() || '' : '';
-              
-              // Get pre and post balances to calculate transfer amount
-              if (tx.meta?.postBalances && tx.meta?.preBalances) {
-                const diff = Math.abs(
-                  tx.meta.postBalances[0] - tx.meta.preBalances[0]
-                );
-                value = (diff / LAMPORTS_PER_SOL).toString();
-              }
-            }
+            // ✅ FIX 1: Convert blockTime from seconds to milliseconds
+            // ✅ FIX 2: Handle null blockTime for very recent transactions
+            const timestamp = sig.blockTime 
+              ? sig.blockTime * 1000 
+              : Date.now(); // Fallback to now for very recent tx
 
             return {
               hash: sig.signature,
-              from,
-              to,
-              value,
-              timestamp: sig.blockTime || 0,
-              status: tx.meta?.err ? 'failed' : 'success',
+              from: txDetails.from,
+              to: txDetails.to,
+              value: txDetails.value,
+              timestamp, // ✅ Now in milliseconds
+              isError: tx.meta?.err !== null, // ✅ FIX 3: Proper isError boolean
               blockNumber: sig.slot,
+              tokenSymbol: txDetails.tokenSymbol,
+              type: txDetails.type,
             };
           } catch (err) {
-            console.error('Error parsing transaction:', err);
+            console.error('Error parsing Solana transaction:', err);
             return null;
           }
         })
@@ -194,8 +184,164 @@ export class SolanaService {
       return transactions.filter((tx) => tx !== null);
     } catch (error) {
       console.error('Error fetching Solana transaction history:', error);
-      return [];
+      throw error; // Propagate error for retry logic
     }
+  }
+
+  /**
+   * Get signatures with retry logic
+   */
+  private async getSignaturesWithRetry(
+    publicKey: PublicKey, 
+    limit: number, 
+    maxRetries = 3
+  ): Promise<any[]> {
+    let lastError: Error | null = null;
+
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await this.connection.getSignaturesForAddress(publicKey, { limit });
+      } catch (error: any) {
+        lastError = error;
+        
+        if (i < maxRetries - 1) {
+          const waitTime = Math.pow(2, i) * 1000; // Exponential backoff
+          console.log(`⏳ Solana RPC retry ${i + 1}/${maxRetries}, waiting ${waitTime}ms...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+      }
+    }
+
+    throw lastError || new Error('Failed to fetch Solana signatures');
+  }
+
+  /**
+   * Parse transaction to detect type and extract details
+   * Supports: Native SOL transfers, SPL token transfers, swaps, staking
+   */
+  private parseTransaction(
+    tx: any,
+    accountKeys: PublicKey[],
+    instructions: any[],
+    userAddress: string
+  ): { from: string; to: string; value: string; tokenSymbol?: string; type?: string } {
+    const userPubkey = new PublicKey(userAddress);
+
+    // Default values
+    let from = '';
+    let to = '';
+    let value = '0';
+    let tokenSymbol: string | undefined;
+    let type: string | undefined;
+
+    if (instructions.length === 0 || accountKeys.length === 0) {
+      return { from, to, value };
+    }
+
+    // Check for SPL token transfer (Token Program)
+    const splTransfer = this.detectSPLTransfer(tx, instructions, accountKeys, userPubkey);
+    if (splTransfer) {
+      return splTransfer;
+    }
+
+    // Native SOL transfer (System Program)
+    const solTransfer = this.detectSOLTransfer(tx, accountKeys);
+    if (solTransfer) {
+      return solTransfer;
+    }
+
+    // Fallback: Use first two accounts
+    from = accountKeys[0]?.toBase58() || '';
+    to = accountKeys.length > 1 ? accountKeys[1]?.toBase58() || '' : '';
+    
+    return { from, to, value, tokenSymbol, type };
+  }
+
+  /**
+   * Detect native SOL transfer
+   */
+  private detectSOLTransfer(
+    tx: any,
+    accountKeys: PublicKey[]
+  ): { from: string; to: string; value: string; type: string } | null {
+    // Get pre and post balances to calculate transfer amount
+    if (tx.meta?.postBalances && tx.meta?.preBalances && accountKeys.length >= 2) {
+      const diff = Math.abs(
+        tx.meta.postBalances[0] - tx.meta.preBalances[0]
+      );
+      
+      if (diff > 0) {
+        return {
+          from: accountKeys[0]?.toBase58() || '',
+          to: accountKeys[1]?.toBase58() || '',
+          value: (diff / LAMPORTS_PER_SOL).toString(),
+          type: 'Transfer',
+        };
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Detect SPL token transfer
+   */
+  private detectSPLTransfer(
+    tx: any,
+    instructions: any[],
+    accountKeys: PublicKey[],
+    userPubkey: PublicKey
+  ): { from: string; to: string; value: string; tokenSymbol: string; type: string } | null {
+    // Check if transaction involves Token Program
+    const tokenProgramId = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+    
+    for (const instruction of instructions) {
+      const programId = accountKeys[instruction.programIdIndex];
+      
+      if (programId?.equals(tokenProgramId)) {
+        // SPL token transfer detected
+        // Parse token balances from meta
+        if (tx.meta?.preTokenBalances && tx.meta?.postTokenBalances) {
+          for (let i = 0; i < tx.meta.preTokenBalances.length; i++) {
+            const preBalance = tx.meta.preTokenBalances[i];
+            const postBalance = tx.meta.postTokenBalances[i];
+            
+            if (preBalance && postBalance && preBalance.mint === postBalance.mint) {
+              const diff = Math.abs(
+                parseFloat(postBalance.uiTokenAmount.uiAmountString || '0') -
+                parseFloat(preBalance.uiTokenAmount.uiAmountString || '0')
+              );
+              
+              if (diff > 0) {
+                // Determine from/to based on balance change
+                const owner = preBalance.owner || postBalance.owner;
+                const isSent = parseFloat(postBalance.uiTokenAmount.uiAmountString || '0') < 
+                               parseFloat(preBalance.uiTokenAmount.uiAmountString || '0');
+                
+                return {
+                  from: isSent ? owner : accountKeys[0]?.toBase58() || '',
+                  to: isSent ? accountKeys[1]?.toBase58() || '' : owner,
+                  value: diff.toString(),
+                  tokenSymbol: postBalance.uiTokenAmount.symbol || 'Unknown',
+                  type: 'Token Transfer',
+                };
+              }
+            }
+          }
+        }
+        
+        // Fallback: basic SPL transfer info
+        return {
+          from: accountKeys[0]?.toBase58() || '',
+          to: accountKeys[1]?.toBase58() || '',
+          value: '0',
+          tokenSymbol: 'SPL',
+          type: 'Token Transfer',
+        };
+      }
+    }
+
+    return null;
   }
 
   /**

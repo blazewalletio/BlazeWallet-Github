@@ -13,8 +13,10 @@ import {
   Check
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
-import { BlockchainService } from '@/lib/blockchain';
+import { MultiChainService } from '@/lib/multi-chain-service';
 import { CHAINS } from '@/lib/chains';
+import { transactionCache } from '@/lib/transaction-cache';
+import { apiQueue } from '@/lib/api-queue';
 
 interface Transaction {
   hash: string;
@@ -23,10 +25,13 @@ interface Transaction {
   value: string;
   timestamp: number;
   isError: boolean;
+  tokenSymbol?: string;
+  type?: string;
 }
 
 export default function TransactionHistory() {
-  const { address, currentChain } = useWalletStore();
+  const { getCurrentAddress, currentChain } = useWalletStore();
+  const displayAddress = getCurrentAddress();
   const chain = CHAINS[currentChain];
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,16 +39,35 @@ export default function TransactionHistory() {
 
   useEffect(() => {
     loadTransactions();
-  }, [address, currentChain]);
+  }, [displayAddress, currentChain]);
 
   const loadTransactions = async () => {
-    if (!address) return;
+    if (!displayAddress) return;
     
     setLoading(true);
     try {
-      const blockchain = new BlockchainService(currentChain as any);
-      const txs = await blockchain.getTransactionHistory(address, 10);
+      // Check cache first
+      const cacheKey = `${currentChain}:${displayAddress}`;
+      const cached = await transactionCache.get(cacheKey);
+      
+      if (cached) {
+        console.log(`✅ Loaded ${cached.length} transactions from cache for ${currentChain}`);
+        setTransactions(cached);
+        setLoading(false);
+        return;
+      }
+
+      // Load from API with rate limiting
+      const txs = await apiQueue.add(async () => {
+        const blockchain = new MultiChainService(currentChain);
+        return await blockchain.getTransactionHistory(displayAddress, 10);
+      });
+
       setTransactions(txs);
+      
+      // Cache for 30 minutes
+      await transactionCache.set(cacheKey, txs, 30 * 60 * 1000);
+      
       console.log(`✅ Successfully loaded ${txs.length} transactions for ${currentChain}`);
     } catch (error) {
       console.error(`❌ Error loading transactions for ${currentChain}:`, error);
@@ -70,6 +94,11 @@ export default function TransactionHistory() {
     if (minutes < 60) return `${minutes}m geleden`;
     if (hours < 24) return `${hours}u geleden`;
     return `${days}d geleden`;
+  };
+
+  const formatAddress = (address: string): string => {
+    if (!address) return '';
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
   if (loading) {
@@ -106,9 +135,10 @@ export default function TransactionHistory() {
       <div className="space-y-2">
         <AnimatePresence>
           {transactions.map((tx, index) => {
-            const isSent = tx.from.toLowerCase() === address?.toLowerCase();
+            const isSent = tx.from.toLowerCase() === displayAddress?.toLowerCase();
             const otherAddress = isSent ? tx.to : tx.from;
             const value = parseFloat(tx.value);
+            const symbol = tx.tokenSymbol || chain.nativeCurrency.symbol;
 
             return (
               <motion.div
@@ -140,7 +170,7 @@ export default function TransactionHistory() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-semibold">
-                        {tx.isError ? 'Failed' : isSent ? 'Sent' : 'Receiveen'}
+                        {tx.isError ? 'Failed' : tx.type || (isSent ? 'Sent' : 'Received')}
                       </span>
                       {!tx.isError && (
                         <CheckCircle2 className="w-4 h-4 text-theme-primary" />
@@ -148,7 +178,7 @@ export default function TransactionHistory() {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-theme-text-secondary">
                       <span className="font-mono truncate">
-                        {BlockchainService.formatAddress(otherAddress)}
+                        {formatAddress(otherAddress)}
                       </span>
                       <button
                         onClick={() => copyHash(tx.hash)}
@@ -176,7 +206,7 @@ export default function TransactionHistory() {
                           ? 'text-theme-primary' 
                           : 'text-theme-primary'
                     }`}>
-                      {isSent ? '-' : '+'}{value.toFixed(6)} {chain.nativeCurrency.symbol}
+                      {isSent ? '-' : '+'}{value.toFixed(6)} {symbol}
                     </div>
                     <a
                       href={`${chain.explorerUrl}/tx/${tx.hash}`}
