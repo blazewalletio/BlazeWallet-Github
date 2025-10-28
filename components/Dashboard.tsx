@@ -204,6 +204,7 @@ export default function Dashboard() {
         const splTokens = await solanaService.getSPLTokenBalances(displayAddress);
         
         console.log(`[${timestamp}] ✅ Found ${splTokens.length} SPL tokens with balance`);
+        console.log(`[${timestamp}] 📊 SPL Tokens:`, splTokens);
         
         if (splTokens.length > 0) {
           // ✅ STEP 4: Fetch prices for SPL tokens
@@ -218,10 +219,16 @@ export default function Dashboard() {
           tokensWithValue = await Promise.all(
             splTokens.map(async (token: any) => {
               const price = splPricesMap[token.symbol] || 0;
-              const balanceUSD = parseFloat(token.balance || '0') * price;
+              const balanceNum = parseFloat(token.balance || '0');
+              const balanceUSD = balanceNum * price;
               const change24h = await priceService.get24hChange(token.symbol);
               
-              console.log(`[${timestamp}] 💰 ${token.symbol}: ${token.balance} × $${price} = $${balanceUSD.toFixed(2)}`);
+              console.log(`[${timestamp}] 💰 ${token.symbol}:`, {
+                balance: token.balance,
+                price: price,
+                balanceUSD: balanceUSD.toFixed(2),
+                logo: token.logo
+              });
               
               return {
                 ...token,
@@ -231,6 +238,8 @@ export default function Dashboard() {
               };
             })
           );
+          
+          console.log(`[${timestamp}] ✅ Final tokensWithValue:`, tokensWithValue);
         }
         
       } else if (popularTokens.length > 0 && displayAddress) {
@@ -741,8 +750,21 @@ export default function Dashboard() {
                 className="glass p-4 rounded-xl flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-slate-700 to-slate-600 rounded-full flex items-center justify-center text-xl">
-                    {token.logo || token.symbol[0]}
+                  <div className="w-12 h-12 bg-gradient-to-br from-slate-700 to-slate-600 rounded-full flex items-center justify-center text-xl overflow-hidden">
+                    {token.logo && token.logo.startsWith('http') ? (
+                      <img 
+                        src={token.logo} 
+                        alt={token.symbol}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          // Fallback to symbol if image fails to load
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.parentElement!.textContent = token.symbol[0];
+                        }}
+                      />
+                    ) : (
+                      token.logo || token.symbol[0]
+                    )}
                   </div>
                   <div>
                     <div className="font-semibold">{token.name}</div>
