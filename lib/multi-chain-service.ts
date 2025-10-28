@@ -99,5 +99,17 @@ export class MultiChainService {
     }
     return 'EVM address (0x...)';
   }
+
+  /**
+   * Get SPL token balances (Solana only)
+   * Returns all SPL tokens with non-zero balance, enriched with metadata
+   */
+  async getSPLTokenBalances(address: string): Promise<any[]> {
+    if (this.isSolana() && this.solanaService) {
+      return await this.solanaService.getSPLTokenBalances(address);
+    }
+    // Return empty array for non-Solana chains
+    return [];
+  }
 }
 
