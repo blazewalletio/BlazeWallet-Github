@@ -763,18 +763,15 @@ export default function Dashboard() {
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xl overflow-hidden">
                     {(() => {
-                      const logoUrl = token.logo;
+                      let logoUrl = token.logo;
                       
-                      // Debug logging for SPL tokens
-                      if (token.symbol === 'WIF') {
-                        console.log('🐶 WIF TOKEN DEBUG:', {
-                          logo: token.logo,
-                          logoType: typeof token.logo,
-                          logoLength: token.logo?.length,
-                          startsWithHttp: logoUrl?.startsWith('http'),
-                          startsWithIpfs: logoUrl?.startsWith('ipfs'),
-                          fullToken: token
-                        });
+                      // Fix IPFS URLs: Convert to working gateway
+                      if (logoUrl && logoUrl.includes('.ipfs.nftstorage.link')) {
+                        // Extract IPFS hash from URL like: https://bafkreib...ipfs.nftstorage.link
+                        const ipfsHash = logoUrl.split('https://')[1].split('.ipfs.nftstorage.link')[0];
+                        // Use Cloudflare IPFS gateway (more reliable)
+                        logoUrl = `https://cloudflare-ipfs.com/ipfs/${ipfsHash}`;
+                        console.log(`🔄 Converted IPFS URL for ${token.symbol}:`, { original: token.logo, new: logoUrl });
                       }
                       
                       if (logoUrl && (
