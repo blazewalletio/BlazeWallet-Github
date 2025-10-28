@@ -25,6 +25,7 @@ export interface Chain {
   };
   color: string;
   icon: string;
+  logoUrl?: string;
   isTestnet?: boolean;
 }
 

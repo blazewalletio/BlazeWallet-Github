@@ -715,10 +715,22 @@ export default function Dashboard() {
           >
             <div className="flex items-center gap-4">
               <div 
-                className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold"
+                className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold overflow-hidden"
                 style={{ background: chain.color }}
               >
-                {chain.icon}
+                {chain.logoUrl ? (
+                  <img 
+                    src={chain.logoUrl} 
+                    alt={chain.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.parentElement!.textContent = chain.icon;
+                    }}
+                  />
+                ) : (
+                  chain.icon
+                )}
               </div>
               <div>
                 <div className="font-semibold">{chain.nativeCurrency.name}</div>
@@ -1077,15 +1089,27 @@ export default function Dashboard() {
                   className="flex items-center gap-2 glass-card px-3 sm:px-4 py-2 rounded-xl hover:bg-gray-50 min-w-0"
                 >
                   <div 
-                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-base sm:text-lg flex-shrink-0"
+                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-base sm:text-lg flex-shrink-0 overflow-hidden"
                     style={{ background: chain.color }}
                   >
-                    {chain.icon}
-                      </div>
+                    {chain.logoUrl ? (
+                      <img 
+                        src={chain.logoUrl} 
+                        alt={chain.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.parentElement!.textContent = chain.icon;
+                        }}
+                      />
+                    ) : (
+                      chain.icon
+                    )}
+                  </div>
                   <div className="text-left min-w-0">
                     <div className="text-xs sm:text-sm font-semibold text-gray-900">{chain.shortName}</div>
                     <div className="text-xs text-gray-500 font-mono truncate">{formattedAddress}</div>
-                        </div>
+                  </div>
                   <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 flex-shrink-0" />
                 </motion.button>
                       </div>

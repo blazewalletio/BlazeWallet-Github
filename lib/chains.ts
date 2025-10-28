@@ -14,6 +14,7 @@ export const CHAINS: Record<string, Chain> = {
     },
     color: '#627EEA',
     icon: 'Ξ',
+    logoUrl: '/crypto-eth.png',
   },
   polygon: {
     id: 137,
@@ -28,6 +29,7 @@ export const CHAINS: Record<string, Chain> = {
     },
     color: '#8247E5',
     icon: '⬡',
+    logoUrl: '/crypto-polygon.png',
   },
   arbitrum: {
     id: 42161,
@@ -42,6 +44,7 @@ export const CHAINS: Record<string, Chain> = {
     },
     color: '#28A0F0',
     icon: '◆',
+    logoUrl: '/crypto-arbitrum.png',
   },
   base: {
     id: 8453,
@@ -56,6 +59,7 @@ export const CHAINS: Record<string, Chain> = {
     },
     color: '#0052FF',
     icon: '🔵',
+    logoUrl: '/crypto-base.png',
   },
   sepolia: {
     id: 11155111,
@@ -70,6 +74,7 @@ export const CHAINS: Record<string, Chain> = {
     },
     color: '#627EEA',
     icon: 'Ξ',
+    logoUrl: '/crypto-eth.png',
     isTestnet: true,
   },
   bsc: {
@@ -85,6 +90,7 @@ export const CHAINS: Record<string, Chain> = {
     },
     color: '#F3BA2F',
     icon: '💎',
+    logoUrl: '/crypto-bnb.png',
   },
   bscTestnet: {
     id: 97,
@@ -99,6 +105,7 @@ export const CHAINS: Record<string, Chain> = {
     },
     color: '#F3BA2F',
     icon: '🧪',
+    logoUrl: '/crypto-bnb.png',
     isTestnet: true,
   },
   solana: {
@@ -114,6 +121,7 @@ export const CHAINS: Record<string, Chain> = {
     },
     color: '#9945FF',
     icon: '◎',
+    logoUrl: '/crypto-solana.png',
   },
 };
 
@@ -126,28 +134,28 @@ export const POPULAR_TOKENS: Record<string, any[]> = {
       symbol: 'USDT',
       name: 'Tether USD',
       decimals: 6,
-      logo: '💵',
+      logo: '/crypto-usdt.png',
     },
     {
       address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
       symbol: 'USDC',
       name: 'USD Coin',
       decimals: 6,
-      logo: '💲',
+      logo: '/crypto-usdc.png',
     },
     {
       address: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
       symbol: 'WBTC',
       name: 'Wrapped Bitcoin',
       decimals: 8,
-      logo: '₿',
+      logo: '/crypto-wbtc.png',
     },
     {
       address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
       symbol: 'LINK',
       name: 'Chainlink',
       decimals: 18,
-      logo: '🔗',
+      logo: '/crypto-link.png',
     },
   ],
   polygon: [
@@ -156,14 +164,14 @@ export const POPULAR_TOKENS: Record<string, any[]> = {
       symbol: 'USDT',
       name: 'Tether USD',
       decimals: 6,
-      logo: '💵',
+      logo: '/crypto-usdt.png',
     },
     {
       address: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174',
       symbol: 'USDC',
       name: 'USD Coin',
       decimals: 6,
-      logo: '💲',
+      logo: '/crypto-usdc.png',
     },
   ],
   arbitrum: [
@@ -172,14 +180,14 @@ export const POPULAR_TOKENS: Record<string, any[]> = {
       symbol: 'USDT',
       name: 'Tether USD',
       decimals: 6,
-      logo: '💵',
+      logo: '/crypto-usdt.png',
     },
     {
       address: '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8',
       symbol: 'USDC',
       name: 'USD Coin',
       decimals: 6,
-      logo: '💲',
+      logo: '/crypto-usdc.png',
     },
   ],
   base: [
@@ -188,7 +196,7 @@ export const POPULAR_TOKENS: Record<string, any[]> = {
       symbol: 'USDC',
       name: 'USD Coin',
       decimals: 6,
-      logo: '💲',
+      logo: '/crypto-usdc.png',
     },
   ],
   bsc: [
@@ -197,14 +205,14 @@ export const POPULAR_TOKENS: Record<string, any[]> = {
       symbol: 'USDT',
       name: 'Tether USD',
       decimals: 18,
-      logo: '💵',
+      logo: '/crypto-usdt.png',
     },
     {
       address: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
       symbol: 'USDC',
       name: 'USD Coin',
       decimals: 18,
-      logo: '💲',
+      logo: '/crypto-usdc.png',
     },
     {
       address: '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56',
@@ -231,14 +239,14 @@ export const POPULAR_TOKENS: Record<string, any[]> = {
       symbol: 'USDC',
       name: 'USD Coin',
       decimals: 6,
-      logo: '💲',
+      logo: '/crypto-usdc.png',
     },
     {
       address: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
       symbol: 'USDT',
       name: 'Tether USD',
       decimals: 6,
-      logo: '💵',
+      logo: '/crypto-usdt.png',
     },
     {
       address: '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R',

@@ -63,10 +63,22 @@ export default function ChainSelector({ isOpen, onClose }: ChainSelectorProps) {
                   >
                     <div className="flex items-center gap-4">
                       <div
-                        className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold"
+                        className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold overflow-hidden"
                         style={{ background: chain.color }}
                       >
-                        {chain.icon}
+                        {chain.logoUrl ? (
+                          <img 
+                            src={chain.logoUrl} 
+                            alt={chain.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              e.currentTarget.parentElement!.textContent = chain.icon;
+                            }}
+                          />
+                        ) : (
+                          chain.icon
+                        )}
                       </div>
                       <div className="text-left">
                         <div className="font-semibold flex items-center gap-2">

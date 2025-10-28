@@ -102,10 +102,22 @@ export default function DebugPanel({ externalOpen = false, onExternalClose }: { 
             <div className="text-slate-400 text-xs mb-1">Netwerk</div>
             <div className="flex items-center gap-2">
               <div 
-                className="w-6 h-6 rounded-full flex items-center justify-center text-sm"
+                className="w-6 h-6 rounded-full flex items-center justify-center text-sm overflow-hidden"
                 style={{ background: chain.color }}
               >
-                {chain.icon}
+                {chain.logoUrl ? (
+                  <img 
+                    src={chain.logoUrl} 
+                    alt={chain.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.parentElement!.textContent = chain.icon;
+                    }}
+                  />
+                ) : (
+                  chain.icon
+                )}
               </div>
               <div>
                 <div className="font-semibold">{chain.name}</div>
