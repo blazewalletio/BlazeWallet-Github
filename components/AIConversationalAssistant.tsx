@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { aiService } from '@/lib/ai-service';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Send, Loader2, X } from 'lucide-react';
+import { MessageSquare, Send, Loader2, ArrowLeft } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -23,7 +23,7 @@ export default function AIConversationalAssistant({
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: 'Hoi! 👋 Ik ben je persoonlijke crypto expert. Stel me alles over crypto, DeFi, of je wallet!',
+      content: 'Hi! 👋 I\'m your personal crypto expert. Ask me anything about crypto, DeFi, or your wallet!',
       timestamp: new Date(),
     },
   ]);
@@ -32,10 +32,10 @@ export default function AIConversationalAssistant({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const quickQuestions = [
-    "Wat is gas?",
-    "Wat is slippage?",
-    "Leg impermanent loss uit",
-    "Wat zijn smart contracts?",
+    "What is gas?",
+    "What is slippage?",
+    "Explain impermanent loss",
+    "What are smart contracts?",
   ];
 
   useEffect(() => {
@@ -73,7 +73,7 @@ export default function AIConversationalAssistant({
     } catch (error) {
       const errorMessage: Message = {
         role: 'assistant',
-        content: 'Sorry, er ging iets fout. Probeer het opnieuw.',
+        content: 'Sorry, something went wrong. Please try again.',
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -87,7 +87,7 @@ export default function AIConversationalAssistant({
     setMessages([
       {
         role: 'assistant',
-        content: 'Gesprek gewist! Waar kan ik je mee helpen?',
+        content: 'Conversation cleared! How can I help you?',
         timestamp: new Date(),
       },
     ]);
@@ -95,51 +95,43 @@ export default function AIConversationalAssistant({
 
   return (
     <AnimatePresence>
-      {(
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
-          />
-          
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-2xl h-[600px] max-h-[90vh] bg-white rounded-2xl border border-gray-200 shadow-xl pointer-events-auto flex flex-col"
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-gray-50 overflow-hidden flex flex-col"
+      >
+        <div className="flex-1 flex flex-col max-w-6xl mx-auto w-full">
+          {/* Header */}
+          <div className="flex-shrink-0 p-6 pb-4">
+            <button
+              onClick={onClose}
+              className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors mb-4"
             >
-              {/* Header */}
-              <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-2xl flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center">
-                    <MessageSquare className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900">Crypto Expert</h2>
-                    <p className="text-xs text-gray-600">24/7 AI support</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleClearConversation}
-                    className="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-xs text-gray-700 font-medium transition-colors"
-                  >
-                    Wis chat
-                  </button>
-                  <button
-                    onClick={onClose}
-                    className="text-gray-600 hover:text-gray-900 transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
+              <ArrowLeft className="w-5 h-5" />
+              Back to Dashboard
+            </button>
 
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
+                  <MessageSquare className="w-6 h-6 text-orange-500" />
+                  Crypto Expert
+                </h2>
+                <p className="text-gray-600">24/7 AI support chat</p>
+              </div>
+              <button
+                onClick={handleClearConversation}
+                className="px-4 py-2 rounded-lg bg-white border border-gray-200 hover:border-gray-300 text-sm text-gray-700 font-medium transition-colors"
+              >
+                Clear chat
+              </button>
+            </div>
+          </div>
+
+          {/* Chat Container */}
+          <div className="flex-1 px-6 pb-6 overflow-hidden flex flex-col">
+            <div className="flex-1 bg-white border border-gray-200 rounded-2xl overflow-hidden flex flex-col">
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 <AnimatePresence mode="popLayout">
@@ -154,19 +146,19 @@ export default function AIConversationalAssistant({
                       <div
                         className={`max-w-[80%] rounded-2xl p-4 ${
                           message.role === 'user'
-                            ? 'bg-gradient-to-br from-cyan-500 to-blue-500 text-white'
+                            ? 'bg-gradient-to-br from-orange-500 to-yellow-500 text-white'
                             : 'bg-gray-50 text-gray-900 border border-gray-200'
                         }`}
                       >
                         {message.role === 'assistant' && (
                           <div className="flex items-center gap-2 mb-2">
-                            <MessageSquare className="w-4 h-4 text-cyan-500" />
-                            <span className="text-xs text-cyan-600 font-medium">Crypto Expert</span>
+                            <MessageSquare className="w-4 h-4 text-orange-500" />
+                            <span className="text-xs text-orange-500 font-medium">Crypto Expert</span>
                           </div>
                         )}
                         <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
                         <p className={`text-xs mt-2 ${message.role === 'user' ? 'text-white/70' : 'text-gray-500'}`}>
-                          {message.timestamp.toLocaleTimeString('nl-NL', { 
+                          {message.timestamp.toLocaleTimeString('en-US', { 
                             hour: '2-digit', 
                             minute: '2-digit' 
                           })}
@@ -184,8 +176,8 @@ export default function AIConversationalAssistant({
                   >
                     <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200">
                       <div className="flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 text-cyan-500 animate-spin" />
-                        <span className="text-sm text-gray-600">Aan het typen...</span>
+                        <Loader2 className="w-4 h-4 text-orange-500 animate-spin" />
+                        <span className="text-sm text-gray-600">Typing...</span>
                       </div>
                     </div>
                   </motion.div>
@@ -196,8 +188,8 @@ export default function AIConversationalAssistant({
 
               {/* Quick Questions */}
               {messages.length === 1 && (
-                <div className="flex-shrink-0 px-6 pb-2">
-                  <p className="text-xs text-gray-600 mb-2">Snelle vragen:</p>
+                <div className="flex-shrink-0 px-6 pb-4 border-t border-gray-200">
+                  <p className="text-xs text-gray-600 mb-3 mt-4 font-medium">Quick questions:</p>
                   <div className="flex flex-wrap gap-2">
                     {quickQuestions.map((question, i) => (
                       <button
@@ -214,21 +206,21 @@ export default function AIConversationalAssistant({
               )}
 
               {/* Input */}
-              <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-white rounded-b-2xl">
+              <div className="flex-shrink-0 p-4 border-t border-gray-200">
                 <div className="relative">
                   <input
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                    placeholder="Stel me een vraag..."
-                    className="w-full px-4 py-3 pr-12 rounded-xl bg-white border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    placeholder="Ask me a question..."
+                    className="w-full px-4 py-3 pr-12 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                     disabled={loading}
                   />
                   <button
                     onClick={() => handleSend()}
                     disabled={loading || !input.trim()}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-transform"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-gradient-to-r from-orange-500 to-yellow-500 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-transform"
                   >
                     {loading ? (
                       <Loader2 className="w-4 h-4 text-white animate-spin" />
@@ -238,13 +230,13 @@ export default function AIConversationalAssistant({
                   </button>
                 </div>
                 <p className="text-xs text-gray-500 mt-2 text-center">
-                  💡 Druk op Enter om te versturen
+                  💡 Press Enter to send
                 </p>
               </div>
-            </motion.div>
+            </div>
           </div>
-        </>
-      )}
+        </div>
+      </motion.div>
     </AnimatePresence>
   );
 }

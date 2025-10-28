@@ -193,6 +193,56 @@
   padding-bottom: max(80px, env(safe-area-inset-bottom));
 }
 
+/* Top safe area for mobile notches */
+.pt-safe {
+  padding-top: max(16px, env(safe-area-inset-top));
+}
 
+/* Bottom safe area for mobile */
+.pb-safe {
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+/* Left safe area for mobile */
+.pl-safe {
+  padding-left: max(16px, env(safe-area-inset-left));
+}
+
+/* Right safe area for mobile */
+.pr-safe {
+  padding-right: max(16px, env(safe-area-inset-right));
+}
+
+/* Optimized floating animation for carousel - GPU accelerated */
+@keyframes float {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate3d(0, -10px, 0) rotate(2deg);
+  }
+  50% {
+    transform: translate3d(0, -20px, 0) rotate(0deg);
+  }
+  75% {
+    transform: translate3d(0, -10px, 0) rotate(-2deg);
+  }
+}
+
+/* Subtle pulse for center logo - GPU accelerated */
+@keyframes pulse-subtle {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, 0, 0) scale(1.05);
+  }
+}
+
+/* Hardware acceleration for smooth animations */
+.gpu-accelerated {
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
 
 

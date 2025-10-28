@@ -21,6 +21,7 @@ export default function Home() {
   const [showQRLogin, setShowQRLogin] = useState(false);
   const [showRecoveryPhrase, setShowRecoveryPhrase] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [setupPassword, setSetupPassword] = useState<string | undefined>(undefined); // Store password temporarily for biometric setup
   const { importWallet, hasPassword, isLocked, wallet, hasBiometric, isBiometricEnabled } = useWalletStore();
 
   useEffect(() => {
@@ -43,12 +44,16 @@ export default function Home() {
   useEffect(() => {
     // Check wallet state on load - wait for isMobile to be set
     const checkWallet = async () => {
-      const storedAddress = localStorage.getItem('wallet_address');
+      // ✅ Check for encrypted_wallet (not wallet_address) to detect wallet existence
+      // This works for both old users (who have wallet_address) and new users (who don't)
+      const hasEncryptedWallet = localStorage.getItem('encrypted_wallet');
+      const storedAddress = localStorage.getItem('wallet_address'); // For backward compat / logging
       const hasPasswordStored = localStorage.getItem('has_password') === 'true';
       const biometricEnabled = localStorage.getItem('biometric_enabled') === 'true';
       
-            console.log('🔍 Checking wallet state:', { storedAddress, hasPasswordStored, biometricEnabled, isMobile });
+            console.log('🔍 Checking wallet state:', { hasEncryptedWallet: !!hasEncryptedWallet, storedAddress, hasPasswordStored, biometricEnabled, isMobile });
             console.log('🔍 LocalStorage check:', {
+              encrypted_wallet: !!localStorage.getItem('encrypted_wallet'), // Don't log actual value
               wallet_address: localStorage.getItem('wallet_address'),
               wallet_mnemonic: localStorage.getItem('wallet_mnemonic'),
               has_password: localStorage.getItem('has_password'),
@@ -58,24 +63,69 @@ export default function Home() {
               force_password_setup: localStorage.getItem('force_password_setup')
             });
       
-      if (storedAddress) {
+      // ✅ Use encrypted_wallet as source of truth for wallet existence
+      if (hasEncryptedWallet || storedAddress) {
         if (hasPasswordStored) {
           // Wallet exists with password protection
           setHasWallet(true);
           
-          // Check device and authentication method
+          // Check if wallet is already unlocked in this session
+          const unlockedThisSession = sessionStorage.getItem('wallet_unlocked_this_session') === 'true';
+          
+          if (unlockedThisSession) {
+            console.log('✅ Wallet already unlocked this session - skipping unlock modal');
+            // Wallet is already unlocked, explicitly prevent password modal
+            setShowPasswordUnlock(false); // ✅ Explicitly prevent modal
+            return;
+          }
+          
+          // Check if biometric is enabled AND device is mobile
           console.log('🔍 Auth flow decision:', { biometricEnabled, isMobile });
           
-          // Always show password unlock modal first
-          // It has biometric button built-in for convenience
-          console.log('🔑 Showing password unlock modal');
-          setShowPasswordUnlock(true);
+          if (biometricEnabled && isMobile) {
+            // Biometric is enabled on mobile - try direct biometric unlock
+            console.log('👤 Biometric enabled - attempting direct Face ID/Touch ID unlock');
+            
+            try {
+              const { unlockWithBiometric } = useWalletStore.getState();
+              await unlockWithBiometric();
+              
+              console.log('✅ Wallet unlocked with biometrics successfully');
+              // Wallet is now unlocked, explicitly prevent password modal from showing
+              setShowPasswordUnlock(false); // ✅ FIX: Explicitly prevent modal
+              // No need to call setHasWallet(true) - wallet is already loaded
+              return;
+              
+            } catch (error: any) {
+              console.log('⚠️ Biometric unlock failed, showing password modal:', error.message);
+              // Check if biometric is still enabled after the error
+              // (it might have been auto-cleared if data was corrupt)
+              const stillEnabled = localStorage.getItem('biometric_enabled') === 'true';
+              console.log('🔍 Biometric still enabled after error?', stillEnabled);
+              
+              // Fall back to password unlock modal
+              setShowPasswordUnlock(true);
+            }
+          } else {
+            // No biometric or desktop - show password unlock modal
+            console.log('🔑 Showing password unlock modal');
+            setShowPasswordUnlock(true);
+          }
         } else {
           // Wallet exists but no password set - check for old unencrypted mnemonic
           const storedMnemonic = localStorage.getItem('wallet_mnemonic');
           const justImported = localStorage.getItem('wallet_just_imported') === 'true';
           const justCreated = localStorage.getItem('wallet_just_created') === 'true';
           const forcePasswordSetup = localStorage.getItem('force_password_setup') === 'true';
+          const createdWithEmail = localStorage.getItem('wallet_created_with_email') === 'true';
+          
+          // Skip password setup if wallet was created with email (password already set)
+          if (createdWithEmail) {
+            console.log('✅ Wallet created with email - skipping password setup');
+            setHasWallet(true);
+            // Wallet is already unlocked, no need for password modal
+            return;
+          }
           
           if (storedMnemonic || justImported || justCreated || forcePasswordSetup) {
             try {
@@ -157,10 +207,11 @@ export default function Home() {
           {/* Password Setup Modal */}
           <PasswordSetupModal
             isOpen={showPasswordSetup}
-            onComplete={() => {
+            onComplete={(password) => {
               setShowPasswordSetup(false);
               // After password setup, offer biometric setup on mobile
               if (isMobile) {
+                setSetupPassword(password); // Store password temporarily
                 setShowBiometricSetup(true);
               }
             }}
@@ -171,14 +222,18 @@ export default function Home() {
             isOpen={showBiometricSetup}
             mode="register"
             username="BLAZE User"
+            password={setupPassword} // Pass password for secure storage
             onSuccess={() => {
               setShowBiometricSetup(false);
+              setSetupPassword(undefined); // Clear password from memory
             }}
             onCancel={() => {
               setShowBiometricSetup(false);
+              setSetupPassword(undefined); // Clear password from memory
             }}
             onRegister={() => {
               setShowBiometricSetup(false);
+              setSetupPassword(undefined); // Clear password from memory
             }}
           />
           

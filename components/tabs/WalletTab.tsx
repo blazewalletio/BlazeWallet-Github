@@ -317,13 +317,12 @@ export default function WalletTab() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.1 }}
             whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.05 }}
             onClick={() => setShowBuyModal(true)}
-            className="glass-card card-hover p-4 text-center"
+            className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
           >
-            <div className="w-12 h-12 mx-auto bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center mb-2">
-              <CreditCard className="w-6 h-6 text-white" />
-            </div>
-            <div className="text-sm font-semibold text-gray-900">Buy</div>
+            <CreditCard className="w-8 h-8 mx-auto text-white mb-2" />
+            <div className="text-sm font-bold text-white">Buy</div>
           </motion.button>
 
           <motion.button
@@ -331,13 +330,12 @@ export default function WalletTab() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.15 }}
             whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.05 }}
             onClick={() => setShowSendModal(true)}
-            className="glass-card card-hover p-4 text-center"
+            className="bg-gradient-to-br from-rose-500 to-orange-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
           >
-            <div className="w-12 h-12 mx-auto bg-gradient-to-br from-rose-500 to-orange-500 rounded-xl flex items-center justify-center mb-2">
-              <ArrowUpRight className="w-6 h-6 text-white" />
-            </div>
-            <div className="text-sm font-semibold text-gray-900">Send</div>
+            <ArrowUpRight className="w-8 h-8 mx-auto text-white mb-2" />
+            <div className="text-sm font-bold text-white">Send</div>
           </motion.button>
 
           <motion.button
@@ -345,13 +343,12 @@ export default function WalletTab() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2 }}
             whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.05 }}
             onClick={() => setShowReceiveModal(true)}
-            className="glass-card card-hover p-4 text-center"
+            className="bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
           >
-            <div className="w-12 h-12 mx-auto bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center mb-2">
-              <ArrowDownLeft className="w-6 h-6 text-white" />
-            </div>
-            <div className="text-sm font-semibold text-gray-900">Receive</div>
+            <ArrowDownLeft className="w-8 h-8 mx-auto text-white mb-2" />
+            <div className="text-sm font-bold text-white">Receive</div>
           </motion.button>
 
           <motion.button
@@ -359,13 +356,12 @@ export default function WalletTab() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.25 }}
             whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.05 }}
             onClick={() => setShowSwapModal(true)}
-            className="glass-card card-hover p-4 text-center"
+            className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
           >
-            <div className="w-12 h-12 mx-auto bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mb-2">
-              <Repeat className="w-6 h-6 text-white" />
-            </div>
-            <div className="text-sm font-semibold text-gray-900">Swap</div>
+            <Repeat className="w-8 h-8 mx-auto text-white mb-2" />
+            <div className="text-sm font-bold text-white">Swap</div>
           </motion.button>
         </div>
 

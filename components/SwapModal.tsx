@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ArrowDown, Flame, AlertCircle, Loader2, RefreshCw, CheckCircle } from 'lucide-react';
+import { ArrowDown, Flame, AlertCircle, Loader2, RefreshCw, CheckCircle } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
+import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { CHAINS, POPULAR_TOKENS } from '@/lib/chains';
 import { SwapService } from '@/lib/swap-service';
 import { ethers } from 'ethers';
@@ -30,6 +31,9 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
 
   const chain = CHAINS[currentChain];
   const popularTokens = POPULAR_TOKENS[currentChain] || [];
+
+  // Block body scroll when overlay is open
+  useBlockBodyScroll(isOpen);
 
   // Set default toToken when modal opens
   useEffect(() => {
@@ -111,7 +115,7 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
 
   const handleSwap = async () => {
     if (!wallet || !quote || !fromAmount) {
-      setError('Wallet, quote of amount ontbreekt');
+      setError('Wallet, quote or amount missing');
       return;
     }
 
@@ -157,7 +161,7 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
         await tx.wait();
         txHash = tx.hash;
       } else {
-        throw new Error('Direct swappen niet mogelijk. Voeg 1inch API key toe (zie ONEINCH_API_SETUP.md) of gebruik een externe DEX.');
+        throw new Error('Direct swapping not possible. Add 1inch API key (see ONEINCH_API_SETUP.md) or use external DEX.');
       }
 
       console.log('✅ Swap successful:', txHash);
@@ -174,7 +178,7 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
 
     } catch (err: any) {
       console.error('Swap error:', err);
-      setError(err.message || 'Swap mislukt');
+      setError(err.message || 'Swap failed');
     } finally {
       setIsSwapping(false);
     }
@@ -206,7 +210,7 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
   const getProviderColor = (): string => {
     switch (swapProvider) {
       case '1inch':
-        return 'text-orange-400';
+        return 'text-orange-500';
       case 'price-estimate':
         return 'text-gray-600';
       default:
@@ -227,75 +231,66 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
 
   return (
     <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
+      >
+        <div className="max-w-4xl mx-auto p-6">
+          {/* Back Button */}
+          <button
             onClick={onClose}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
-          />
-          
-          {/* Modal */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
           >
-            <div className="pointer-events-auto">
-              <div className="w-full max-w-md glass-card rounded-2xl max-h-[90vh] overflow-y-auto">
-                {/* Header */}
-                <div className="sticky top-0 glass backdrop-blur-xl border-b border-white/10 px-6 py-4 rounded-t-2xl">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-lg flex items-center justify-center">
-                        <Flame className="w-4 h-4 text-white" />
-                      </div>
-                      <h2 className="text-xl font-semibold">Swap</h2>
-                    </div>
-                    <button
-                      onClick={onClose}
-                      className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
+            ← Back
+          </button>
 
-                <div className="p-6">
+          {/* Header */}
+          <div className="mb-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
+                <Flame className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Swap</h2>
+                <p className="text-sm text-gray-600">
+                  Exchange tokens at the best rates
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="max-w-2xl mx-auto space-y-6">
 
           {/* Success Message */}
           {success && (
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="mb-4 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-3"
+              className="glass-card p-4 bg-emerald-50 border border-emerald-200 flex items-center gap-3"
             >
-              <CheckCircle className="w-5 h-5 text-emerald-400" />
-              <p className="text-sm text-emerald-300">Swap successful!</p>
+              <CheckCircle className="w-6 h-6 text-emerald-500" />
+              <p className="text-sm font-medium text-emerald-700">Swap successful!</p>
             </motion.div>
           )}
 
           {/* From Token */}
-          <div className="glass-card mb-2">
-            <div className="text-xs text-gray-600 mb-2">From</div>
-            <div className="flex items-center gap-3">
+          <div className="glass-card p-6">
+            <div className="text-sm font-medium text-gray-600 mb-3">From</div>
+            <div className="flex items-center gap-4">
               <input
                 type="number"
                 value={fromAmount}
                 onChange={(e) => setFromAmount(e.target.value)}
                 placeholder="0.0"
-                className="flex-1 bg-transparent text-2xl font-bold outline-none min-w-0"
+                className="flex-1 bg-transparent text-3xl font-bold outline-none min-w-0 text-gray-900"
                 disabled={isSwapping}
               />
               <select
                 value={fromToken}
                 onChange={(e) => setFromToken(e.target.value)}
-                className="bg-gray-100/50 px-3 py-2 rounded-xl font-semibold outline-none flex-shrink-0 max-w-[120px] border border-gray-200 hover:bg-gray-100 transition-colors"
+                className="bg-gray-100 px-4 py-3 rounded-xl font-semibold outline-none flex-shrink-0 border border-gray-200 hover:bg-white hover:border-orange-300 transition-all text-gray-900"
                 disabled={isSwapping}
               >
                 <option value="native">{chain.nativeCurrency.symbol}</option>
@@ -306,13 +301,13 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
                 ))}
               </select>
             </div>
-            <div className="text-xs text-slate-500 mt-2">
+            <div className="text-sm text-gray-500 mt-3">
               Balance: {balance} {chain.nativeCurrency.symbol}
             </div>
           </div>
 
           {/* Swap Arrow */}
-          <div className="flex justify-center -my-2 relative z-10">
+          <div className="flex justify-center -my-3 relative z-10">
             <button
               onClick={() => {
                 // Swap tokens
@@ -320,31 +315,31 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
                 setFromToken(toToken === '' ? 'native' : toToken);
                 setToToken(temp === 'native' ? (popularTokens[0]?.address || '') : temp);
               }}
-              className="p-3 glass-card hover:bg-gray-50 rounded-full transition-colors"
+              className="p-4 glass-card hover:bg-white hover:shadow-md rounded-full transition-all border border-gray-200"
               disabled={isSwapping}
             >
-              <ArrowDown className="w-5 h-5" />
+              <ArrowDown className="w-6 h-6 text-orange-500" />
             </button>
           </div>
 
           {/* To Token */}
-          <div className="glass-card mb-4">
-            <div className="text-xs text-gray-600 mb-2">To</div>
-            <div className="flex items-center gap-3">
+          <div className="glass-card p-6">
+            <div className="text-sm font-medium text-gray-600 mb-3">To</div>
+            <div className="flex items-center gap-4">
               <input
                 type="text"
                 value={toAmount}
                 readOnly
                 placeholder="0.0"
-                className="flex-1 bg-transparent text-2xl font-bold outline-none text-emerald-400 min-w-0"
+                className="flex-1 bg-transparent text-3xl font-bold outline-none text-emerald-500 min-w-0"
               />
               <select
                 value={toToken}
                 onChange={(e) => setToToken(e.target.value)}
-                className="bg-gray-100/50 px-3 py-2 rounded-xl font-semibold outline-none flex-shrink-0 max-w-[120px] border border-gray-200 hover:bg-gray-100 transition-colors"
+                className="bg-gray-100 px-4 py-3 rounded-xl font-semibold outline-none flex-shrink-0 border border-gray-200 hover:bg-white hover:border-orange-300 transition-all text-gray-900"
                 disabled={isSwapping}
               >
-                <option value="">Token</option>
+                <option value="">Select token</option>
                 {popularTokens.map(token => (
                   <option key={token.address} value={token.address}>
                     {token.symbol}
@@ -359,24 +354,25 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="glass-card mb-4 text-sm"
+              className="glass-card p-6 space-y-3 text-sm"
             >
-              <div className="flex justify-between mb-2">
-                <span className="text-gray-600">Rate:</span>
-                <span className="font-medium">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Exchange rate</span>
+                <span className="font-semibold text-gray-900">
                   1 {getTokenSymbol(fromToken)} = {getExchangeRate()} {getTokenSymbol(toToken)}
                 </span>
               </div>
-              <div className="flex justify-between mb-2">
-                <span className="text-gray-600">Estimated gas:</span>
-                <span className="font-medium">{(parseInt(quote.estimatedGas || '180000') / 1000).toFixed(0)}k</span>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Estimated gas</span>
+                <span className="font-semibold text-gray-900">{(parseInt(quote.estimatedGas || '180000') / 1000).toFixed(0)}k</span>
               </div>
+              <div className="h-px bg-gray-200"></div>
               <div className="flex justify-between">
                 <span className="text-gray-600 flex items-center gap-1">
-                  <Flame className="w-3 h-3" />
-                  Powered by:
+                  <Flame className="w-4 h-4" />
+                  Powered by
                 </span>
-                <span className={`font-medium ${getProviderColor()}`}>
+                <span className={`font-semibold ${getProviderColor()}`}>
                   {getProviderLabel()}
                 </span>
               </div>
@@ -385,9 +381,9 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
 
           {/* Loading State */}
           {isLoadingQuote && (
-            <div className="flex items-center justify-center gap-2 text-orange-600 mb-4">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-sm">Fetching quote...</span>
+            <div className="flex items-center justify-center gap-3 text-orange-600 py-4">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="text-sm font-medium">Fetching best rate...</span>
             </div>
           )}
 
@@ -396,19 +392,19 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 mb-4 flex items-start gap-2"
+              className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3"
             >
-              <AlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-rose-300">{error}</p>
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <p className="text-sm font-medium text-red-700">{error}</p>
             </motion.div>
           )}
 
           {/* Info */}
-          <div className={`${swapProvider === '1inch' ? 'bg-orange-500/10 border-orange-500/20' : 'bg-amber-500/10 border-amber-500/20'} border rounded-xl p-3 mb-4`}>
-            <p className={`text-xs ${swapProvider === '1inch' ? 'text-orange-300' : 'text-amber-300'}`}>
-              <Flame className="w-3 h-3 inline mr-1" />
+          <div className={`glass-card p-4 ${swapProvider === '1inch' ? 'bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200' : 'bg-amber-50 border-amber-200'} border`}>
+            <p className={`text-sm ${swapProvider === '1inch' ? 'text-orange-700' : 'text-amber-700'}`}>
+              <Flame className="w-4 h-4 inline mr-2" />
               {swapProvider === '1inch' ? 
-                '1inch: Best rates by comparing 100+ DEXes 🚀' : 
+                '1inch finds the best rates by comparing 100+ DEXes 🚀' : 
                 'Add 1inch API key for real swaps (see ONEINCH_API_SETUP.md)'
               }
             </p>
@@ -419,7 +415,7 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
             whileTap={{ scale: canSwap() ? 0.98 : 1 }}
             onClick={handleSwap}
             disabled={!canSwap()}
-            className="w-full py-3 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all"
+            className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl"
           >
             {isSwapping ? (
               <>
@@ -434,21 +430,13 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
             )}
           </motion.button>
 
-                  {/* Additional Info */}
-                  <p className="text-xs text-slate-500 mt-3 text-center">
-                    Always check the details before you swap. Slippage: 1%
-                  </p>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </>
-      )}
+          {/* Additional Info */}
+          <p className="text-xs text-gray-500 text-center">
+            Always verify the details before swapping. Slippage tolerance: 1%
+          </p>
+          </div>
+        </div>
+      </motion.div>
     </AnimatePresence>
   );
 }
-
-
-
-
-

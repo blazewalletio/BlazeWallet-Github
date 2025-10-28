@@ -58,9 +58,10 @@ export default function TabContent({
   fetchData,
   isRefreshing
 }: TabContentProps) {
-  const { address, balance, currentChain } = useWalletStore();
+  const { address, balance, currentChain, getCurrentAddress } = useWalletStore();
+  const displayAddress = getCurrentAddress(); // ✅ Get correct address for current chain
   const chain = CHAINS[currentChain];
-  const formattedAddress = address ? BlockchainService.formatAddress(address) : '';
+  const formattedAddress = displayAddress ? BlockchainService.formatAddress(displayAddress) : '';
   const isPositiveChange = change24h >= 0;
 
   // Modal states for each tab
@@ -74,6 +75,30 @@ export default function TabContent({
   const [showPresale, setShowPresale] = useState(false);
 
   const [showBalance, setShowBalance] = useState(true);
+
+  // Priority List status
+  const [isPriorityListLive, setIsPriorityListLive] = useState(false);
+
+  // Check Priority List status
+  useEffect(() => {
+    const checkPriorityListStatus = async () => {
+      try {
+        const response = await fetch('/api/priority-list');
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+          setIsPriorityListLive(result.data.isRegistrationOpen || false);
+        }
+      } catch (error) {
+        console.error('Error checking priority list status:', error);
+      }
+    };
+
+    checkPriorityListStatus();
+    // Check every 60 seconds
+    const interval = setInterval(checkPriorityListStatus, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Wallet Tab Content
   const WalletTab = () => (
@@ -295,15 +320,58 @@ export default function TabContent({
       <motion.button
         whileTap={{ scale: 0.95 }}
         onClick={() => setShowPresale(true)}
-        className="w-full glass-card p-6 rounded-2xl text-left hover:bg-orange-50 transition-colors group border-2 border-orange-200"
+        className={`w-full glass-card p-6 rounded-2xl text-left transition-all group border-2 relative overflow-hidden ${
+          isPriorityListLive 
+            ? 'border-green-300 hover:bg-green-50' 
+            : 'border-orange-200 hover:bg-orange-50'
+        }`}
       >
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-            <Rocket className="w-6 h-6 text-white" />
+        {/* Background gradient effect */}
+        <div className={`absolute inset-0 transition-opacity ${
+          isPriorityListLive 
+            ? 'bg-gradient-to-r from-green-500/5 to-emerald-500/5' 
+            : 'bg-gradient-to-r from-orange-500/5 to-yellow-500/5'
+        }`} />
+        
+        <div className="relative z-10 flex items-center gap-4">
+          <div className="relative flex-shrink-0">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${
+              isPriorityListLive
+                ? 'bg-gradient-to-r from-green-500 to-emerald-600'
+                : 'bg-gradient-to-r from-orange-500 to-yellow-500'
+            }`}>
+              <Rocket className="w-6 h-6 text-white" />
+            </div>
+            
+            {/* LIVE badge */}
+            {isPriorityListLive && (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="absolute -top-1 -right-1 px-1.5 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded-full shadow-lg"
+                style={{
+                  animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+                }}
+              >
+                LIVE
+              </motion.div>
+            )}
           </div>
+          
           <div className="flex-1">
-            <div className="font-bold text-gray-900 mb-1">BLAZE Presale</div>
-            <div className="text-sm text-gray-600">Early access to tokens</div>
+            <div className="font-bold text-gray-900 mb-1 flex items-center gap-2">
+              BLAZE Presale
+              {isPriorityListLive && (
+                <span className="text-xs font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+                  Registration Open
+                </span>
+              )}
+            </div>
+            <div className={`text-sm ${
+              isPriorityListLive ? 'text-green-700' : 'text-gray-600'
+            }`}>
+              {isPriorityListLive ? '🔥 Priority List is LIVE!' : 'Early access to tokens'}
+            </div>
           </div>
           <ChevronRight className="w-5 h-5 text-gray-400" />
         </div>

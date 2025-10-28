@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Rocket, TrendingUp, Users, Clock, CheckCircle, AlertCircle, Loader2, Crown } from 'lucide-react';
+import { Rocket, TrendingUp, Users, Clock, CheckCircle, AlertCircle, Loader2, Crown, Sparkles } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { PresaleService } from '@/lib/presale-service';
 import { PRESALE_CONSTANTS, CURRENT_PRESALE } from '@/lib/presale-config';
@@ -249,26 +249,68 @@ export default function PresaleDashboard() {
 
       {/* Priority List Status Banner */}
       {priorityStatus.isRegistrationOpen && (
-        <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <Crown className="w-5 h-5 text-orange-400" />
-              <div>
-                <h3 className="font-semibold text-orange-400">Priority List Registration Open!</h3>
-                <p className="text-sm text-orange-300">
-                  Register now for 48-hour early access to the presale starting November 3, 2025
-                </p>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative overflow-hidden bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-1"
+        >
+          {/* Animated background effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-green-400/0 via-white/10 to-green-400/0 animate-pulse" />
+          
+          <div className="relative bg-white rounded-xl p-5 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              {/* Left content */}
+              <div className="flex items-start gap-4 flex-1">
+                {/* Icon */}
+                <div className="flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <Crown className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+                </div>
+                
+                {/* Text content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-900">
+                      Priority List Registration Open!
+                    </h3>
+                    <span className="flex-shrink-0 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded-full animate-pulse">
+                      LIVE
+                    </span>
+                  </div>
+                  <p className="text-sm sm:text-base text-gray-600 leading-relaxed">
+                    Register now for <span className="font-semibold text-green-600">48-hour early access</span> to the presale starting November 3, 2025
+                  </p>
+                  
+                  {/* Stats row */}
+                  {priorityStatus.stats && (
+                    <div className="flex items-center gap-4 mt-3 text-xs sm:text-sm text-gray-500">
+                      <div className="flex items-center gap-1.5">
+                        <Users className="w-4 h-4 text-green-600" />
+                        <span className="font-semibold text-gray-900">{priorityStatus.stats.total_registered || 0}</span>
+                        <span>registered</span>
+                      </div>
+                      {priorityStatus.stats.total_registered < 500 && (
+                        <div className="flex items-center gap-1.5">
+                          <Sparkles className="w-4 h-4 text-yellow-500" />
+                          <span className="font-semibold text-gray-900">{500 - priorityStatus.stats.total_registered}</span>
+                          <span>Early Bird spots left</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
+              
+              {/* Button */}
+              <button
+                onClick={() => setShowPriorityListModal(true)}
+                className="w-full sm:w-auto flex-shrink-0 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Crown className="w-5 h-5" />
+                <span>{priorityStatus.isInPriorityList ? 'View Status' : 'Register Now'}</span>
+              </button>
             </div>
-            <button
-              onClick={() => setShowPriorityListModal(true)}
-              className="px-4 py-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 rounded-lg font-semibold text-white flex items-center gap-2 transition-all"
-            >
-              <Crown className="w-4 h-4" />
-              {priorityStatus.isInPriorityList ? 'View Status' : 'Register Now'}
-            </button>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {priorityStatus.isPriorityOnlyPhase && (
@@ -303,26 +345,66 @@ export default function PresaleDashboard() {
 
       {/* Always show Priority List button if not in active phase */}
       {!priorityStatus.isRegistrationOpen && !priorityStatus.isPriorityOnlyPhase && (
-        <div className="bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 rounded-xl p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <Crown className="w-5 h-5 text-orange-400" />
-              <div>
-                <h3 className="font-semibold text-orange-400">Priority List - Coming Soon!</h3>
-                <p className="text-sm text-orange-300">
-                  Registration opens October 23, 2025 at 11:00 - Get 48-hour early access!
-                </p>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative overflow-hidden bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl p-1"
+        >
+          {/* Animated background effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-orange-400/0 via-white/10 to-orange-400/0 animate-pulse" />
+          
+          <div className="relative bg-white rounded-xl p-5 sm:p-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              {/* Left content */}
+              <div className="flex items-start gap-4 flex-1">
+                {/* Icon */}
+                <div className="flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center shadow-lg">
+                  <Crown className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+                </div>
+                
+                {/* Text content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-900">
+                      Priority List - Coming Soon!
+                    </h3>
+                    <span className="flex-shrink-0 px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-bold rounded-full">
+                      UPCOMING
+                    </span>
+                  </div>
+                  <p className="text-sm sm:text-base text-gray-600 leading-relaxed">
+                    Registration opens <span className="font-semibold text-orange-600">October 23, 2025 at 11:00</span> - Get 48-hour early access!
+                  </p>
+                  
+                  {/* Benefits */}
+                  <div className="flex flex-wrap items-center gap-3 mt-3 text-xs sm:text-sm">
+                    <div className="flex items-center gap-1.5 text-gray-600">
+                      <CheckCircle className="w-4 h-4 text-orange-500" />
+                      <span>Early access</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-gray-600">
+                      <Sparkles className="w-4 h-4 text-yellow-500" />
+                      <span>Early Bird bonus</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-gray-600">
+                      <TrendingUp className="w-4 h-4 text-green-500" />
+                      <span>Best price</span>
+                    </div>
+                  </div>
+                </div>
               </div>
+              
+              {/* Button */}
+              <button
+                onClick={() => setShowPriorityListModal(true)}
+                className="w-full sm:w-auto flex-shrink-0 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <Crown className="w-5 h-5" />
+                <span>{priorityStatus.isInPriorityList ? 'View Status' : 'Learn More'}</span>
+              </button>
             </div>
-            <button
-              onClick={() => setShowPriorityListModal(true)}
-              className="px-4 py-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 rounded-lg font-semibold text-white flex items-center gap-2 transition-all whitespace-nowrap"
-            >
-              <Crown className="w-4 h-4" />
-              {priorityStatus.isInPriorityList ? 'View Status' : 'Learn More'}
-            </button>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Countdown Widget - When registration is coming soon */}

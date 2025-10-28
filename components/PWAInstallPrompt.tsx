@@ -95,21 +95,21 @@ export default function PWAInstallPrompt() {
         <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-4 shadow-2xl border border-slate-700">
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-gradient-to-br from-theme-primary to-theme-primary rounded-xl flex items-center justify-center">
                 <Download className="w-6 h-6 text-white" />
               </div>
               <div>
                 <h3 className="text-lg font-bold text-white">
                   Installeer BLAZE Wallet
                 </h3>
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-theme-text-muted">
                   {deviceType === 'mobile' ? 'Voor snelle toegang' : 'Voor desktop toegang'}
                 </p>
               </div>
             </div>
             <button
               onClick={handleDismiss}
-              className="text-slate-400 hover:text-white transition-colors"
+              className="text-theme-text-muted hover:text-white transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -133,20 +133,20 @@ export default function PWAInstallPrompt() {
           <div className="flex space-x-2">
             <button
               onClick={handleInstall}
-              className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2"
+              className="flex-1 bg-gradient-to-r from-theme-primary to-theme-primary hover:from-theme-primary hover:to-theme-primary text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2"
             >
               <Download className="w-4 h-4" />
               <span>Installeer</span>
             </button>
             <button
               onClick={handleDismiss}
-              className="px-4 py-3 text-slate-400 hover:text-white transition-colors rounded-xl"
+              className="px-4 py-3 text-theme-text-muted hover:text-white transition-colors rounded-xl"
             >
               Later
             </button>
           </div>
 
-          <div className="mt-3 text-xs text-slate-500 text-center">
+          <div className="mt-3 text-xs text-theme-text-muted text-center">
             {deviceType === 'mobile' 
               ? 'Tap het installatie-icoon in je browser' 
               : 'Click the install icon in your browser address bar'

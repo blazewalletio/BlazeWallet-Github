@@ -15,17 +15,30 @@ export async function GET(request: Request) {
   try {
     // Symbol to CoinGecko ID mapping
     const symbolToId: Record<string, string> = {
+      // Native tokens
       ETH: 'ethereum',
+      SOL: 'solana',
       MATIC: 'matic-network',
       BNB: 'binancecoin',
       TBNB: 'binancecoin', // Testnet BNB uses same price as mainnet BNB
+      ARB: 'arbitrum',
+      BASE: 'base',
+      // Stablecoins (work on all chains including Solana)
       USDT: 'tether',
       USDC: 'usd-coin',
       BUSD: 'binance-usd',
+      // Other popular tokens
       WBTC: 'wrapped-bitcoin',
       LINK: 'chainlink',
-      ARB: 'arbitrum',
-      BASE: 'base',
+      // Solana SPL Tokens
+      RAY: 'raydium',
+      BONK: 'bonk',
+      JUP: 'jupiter-exchange-solana',
+      WIF: 'dogwifcoin',
+      JTO: 'jito-governance-token',
+      PYTH: 'pyth-network',
+      ORCA: 'orca',
+      MNGO: 'mango-markets',
     };
 
     const coinIds = symbols
@@ -43,7 +56,7 @@ export async function GET(request: Request) {
         headers: {
           'Accept': 'application/json',
         },
-        next: { revalidate: 60 }, // Cache for 60 seconds
+        next: { revalidate: 10 }, // ✅ Cache for 10 seconds only (ultra-fresh)
       }
     );
 
@@ -53,7 +66,7 @@ export async function GET(request: Request) {
 
     const data = await response.json();
 
-    // Convert back to symbol-keyed format
+    // Convert back to symbol-keyed format that PriceService expects
     const result: Record<string, { price: number; change24h: number }> = {};
     symbols.forEach(symbol => {
       const coinId = symbolToId[symbol.toUpperCase()];
@@ -65,16 +78,8 @@ export async function GET(request: Request) {
       }
     });
 
-    // Also create a simplified format for presale service compatibility
-    const prices: Record<string, number> = {};
-    symbols.forEach(symbol => {
-      const coinId = symbolToId[symbol.toUpperCase()];
-      if (coinId && data[coinId]) {
-        prices[symbol] = data[coinId].usd || 0;
-      }
-    });
-
-    return NextResponse.json({ prices, detailed: result });
+    // ✅ Return flat format: { "SOL": { price: 202.5, change24h: 0.2 } }
+    return NextResponse.json(result);
 
   } catch (error) {
     console.error('Error fetching prices:', error);

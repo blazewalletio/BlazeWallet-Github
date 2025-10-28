@@ -105,7 +105,7 @@ export const CHAINS: Record<string, Chain> = {
     id: 101,
     name: 'Solana',
     shortName: 'SOL',
-    rpcUrl: 'https://api.mainnet-beta.solana.com',
+    rpcUrl: 'https://solana-mainnet.g.alchemy.com/v2/demo', // ✅ More reliable RPC
     explorerUrl: 'https://explorer.solana.com',
     nativeCurrency: {
       name: 'Solana',
@@ -221,6 +221,38 @@ export const POPULAR_TOKENS: Record<string, any[]> = {
       name: 'Blaze Token',
       decimals: 18,
       logo: '🔥',
+    },
+  ],
+  // Solana SPL Tokens - fetched dynamically via SolanaService.getSPLTokenBalances()
+  // Note: These are just for reference, actual SPL tokens are loaded from chain
+  solana: [
+    {
+      address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+      symbol: 'USDC',
+      name: 'USD Coin',
+      decimals: 6,
+      logo: '💲',
+    },
+    {
+      address: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
+      symbol: 'USDT',
+      name: 'Tether USD',
+      decimals: 6,
+      logo: '💵',
+    },
+    {
+      address: '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R',
+      symbol: 'RAY',
+      name: 'Raydium',
+      decimals: 6,
+      logo: '🌊',
+    },
+    {
+      address: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
+      symbol: 'BONK',
+      name: 'Bonk',
+      decimals: 5,
+      logo: '🐶',
     },
   ],
 };

@@ -73,7 +73,7 @@ export default function DeployContract() {
 
   return (
     <div className="max-w-2xl mx-auto p-6">
-      <div className="bg-gray-50/50 backdrop-blur-sm rounded-2xl p-6 border border-gray-200/50">
+      <div className="bg-theme-bg-secondary/50 backdrop-blur-sm rounded-2xl p-6 border border-theme-border-primary/50">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <div className="w-12 h-12 bg-gradient-primary rounded-xl flex items-center justify-center">
@@ -81,16 +81,16 @@ export default function DeployContract() {
           </div>
           <div>
             <h2 className="text-2xl font-bold">Deploy BLAZE Token</h2>
-            <p className="text-gray-600 text-sm">Deploy directly from BLAZE Wallet</p>
+            <p className="text-theme-text-secondary text-sm">Deploy directly from BLAZE Wallet</p>
           </div>
         </div>
 
         {/* Wallet Info */}
         {wallet && (
-          <div className="mb-6 p-4 bg-white/50 rounded-xl">
-            <div className="text-sm text-gray-600 mb-1">Deploying from:</div>
+          <div className="mb-6 p-4 bg-theme-bg-card/50 rounded-xl">
+            <div className="text-sm text-theme-text-secondary mb-1">Deploying from:</div>
             <div className="font-mono text-sm">{wallet.address}</div>
-            <div className="text-sm text-gray-600 mt-2">Network: {chain.name}</div>
+            <div className="text-sm text-theme-text-secondary mt-2">Network: {chain.name}</div>
           </div>
         )}
 
@@ -119,20 +119,20 @@ export default function DeployContract() {
             animate={{ opacity: 1, scale: 1 }}
             className="text-center"
           >
-            <div className="mb-4 p-6 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-              <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
-              <h3 className="text-xl font-semibold text-emerald-400 mb-2">Successfully Deployed!</h3>
-              <p className="text-gray-600 text-sm mb-4">Your BLAZE Token is now live on {chain.name}</p>
+            <div className="mb-4 p-6 bg-theme-primary/10 border border-theme-border/20 rounded-xl">
+              <CheckCircle2 className="w-12 h-12 text-theme-primary mx-auto mb-3" />
+              <h3 className="text-xl font-semibold text-theme-primary mb-2">Successfully Deployed!</h3>
+              <p className="text-theme-text-secondary text-sm mb-4">Your BLAZE Token is now live on {chain.name}</p>
               
-              <div className="p-3 bg-white/50 rounded-lg">
-                <div className="text-xs text-gray-600 mb-1">Contract Address:</div>
+              <div className="p-3 bg-theme-bg-card/50 rounded-lg">
+                <div className="text-xs text-theme-text-secondary mb-1">Contract Address:</div>
                 <div className="font-mono text-sm break-all">{deployed}</div>
               </div>
 
               <div className="flex gap-2 mt-4">
                 <button
                   onClick={copyAddress}
-                  className="flex-1 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                  className="flex-1 py-2 bg-theme-bg-card hover:bg-theme-bg-secondary rounded-lg flex items-center justify-center gap-2 transition-colors"
                 >
                   {copied ? (
                     <>
@@ -150,7 +150,7 @@ export default function DeployContract() {
                   href={`${chain.explorerUrl}/address/${deployed}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                  className="flex-1 py-2 bg-theme-primary hover:bg-theme-primary rounded-lg flex items-center justify-center gap-2 transition-colors"
                 >
                   <ExternalLink className="w-4 h-4" />
                   View on Explorer
@@ -163,7 +163,7 @@ export default function DeployContract() {
                 setDeployed('');
                 setError('');
               }}
-              className="text-gray-600 hover:text-white text-sm transition-colors"
+              className="text-theme-text-secondary hover:text-white text-sm transition-colors"
             >
               Deploy Another Token
             </button>
@@ -177,21 +177,21 @@ export default function DeployContract() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="mt-4 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-start gap-3"
+              className="mt-4 p-4 bg-theme-primary/10 border border-theme-border/20 rounded-xl flex items-start gap-3"
             >
-              <AlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-theme-primary flex-shrink-0 mt-0.5" />
               <div>
-                <div className="font-semibold text-rose-400 mb-1">Deployment Failed</div>
-                <div className="text-sm text-gray-700">{error}</div>
+                <div className="font-semibold text-theme-primary mb-1">Deployment Failed</div>
+                <div className="text-sm text-theme-text-primary">{error}</div>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
         {/* Info */}
-        <div className="mt-6 p-4 bg-white/50 rounded-xl">
+        <div className="mt-6 p-4 bg-theme-bg-card/50 rounded-xl">
           <h4 className="font-semibold mb-2">ℹ️ How it works</h4>
-          <ul className="text-sm text-gray-600 space-y-1">
+          <ul className="text-sm text-theme-text-secondary space-y-1">
             <li>• Uses your BLAZE Wallet private key</li>
             <li>• Deploys directly to blockchain</li>
             <li>• You pay gas fees from your balance</li>

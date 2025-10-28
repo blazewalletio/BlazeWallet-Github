@@ -64,10 +64,10 @@ export default function NFTMintDashboard() {
   // Helper function to get gradient based on collection name
   const getGradient = (name: string) => {
     const nameLower = name.toLowerCase();
-    if (nameLower.includes('neon')) return 'from-blue-500 to-cyan-500';
-    if (nameLower.includes('galaxy')) return 'from-purple-500 to-pink-500';
-    if (nameLower.includes('diamond')) return 'from-yellow-400 to-orange-500';
-    return 'from-blue-500 to-cyan-500';
+    if (nameLower.includes('neon')) return 'from-purple-500 to-pink-500';
+    if (nameLower.includes('galaxy')) return 'from-blue-500 to-cyan-500';
+    if (nameLower.includes('diamond')) return 'from-orange-500 to-yellow-500';
+    return 'from-green-500 to-emerald-500';
   };
 
   // Helper function to get benefits based on rarity
@@ -122,7 +122,7 @@ export default function NFTMintDashboard() {
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
-          <Palette className="w-6 h-6 text-purple-400" />
+          <Palette className="w-6 h-6 text-orange-500" />
           NFT Collection
         </h2>
         <p className="text-gray-600">
@@ -131,14 +131,14 @@ export default function NFTMintDashboard() {
       </div>
 
       {/* Info Banner */}
-      <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-4">
+      <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
         <div className="flex items-start gap-3">
-          <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-            <Sparkles className="w-4 h-4 text-purple-400" />
+          <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+            <Sparkles className="w-4 h-4 text-orange-500" />
           </div>
           <div>
-            <h3 className="font-semibold text-purple-400 mb-1">NFT Benefits</h3>
-            <p className="text-sm text-purple-300">
+            <h3 className="font-semibold text-orange-700 mb-1">NFT Benefits</h3>
+            <p className="text-sm text-orange-600">
               Each NFT skin unlocks exclusive themes, features, and benefits. The rarer the skin, the more perks you get!
             </p>
           </div>
@@ -148,29 +148,29 @@ export default function NFTMintDashboard() {
       {/* Loading State */}
       {isLoading && (
         <div className="flex items-center justify-center py-12">
-          <div className="w-8 h-8 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto" />
           <span className="ml-3 text-gray-600">Loading NFT data...</span>
         </div>
       )}
 
       {/* Error State */}
       {error && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
           <div>
-            <h3 className="font-semibold text-red-400 mb-1">Error</h3>
-            <p className="text-sm text-red-300">{error}</p>
+            <h3 className="font-semibold text-red-700 mb-1">Error</h3>
+            <p className="text-sm text-red-600">{error}</p>
           </div>
         </div>
       )}
 
       {/* Success State */}
       {success && (
-        <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 flex items-center gap-3">
-          <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+          <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
           <div>
-            <h3 className="font-semibold text-green-400 mb-1">Success</h3>
-            <p className="text-sm text-green-300">{success}</p>
+            <h3 className="font-semibold text-green-700 mb-1">Success</h3>
+            <p className="text-sm text-green-600">{success}</p>
           </div>
         </div>
       )}
@@ -229,7 +229,7 @@ export default function NFTMintDashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/30 rounded-xl p-6"
+            className="bg-gradient-to-br from-orange-500/20 to-yellow-500/20 border border-orange-500/30 rounded-xl p-6"
           >
             <div className="flex items-center gap-2 text-orange-400 mb-2">
               <Sparkles className="w-5 h-5" />
@@ -261,15 +261,15 @@ export default function NFTMintDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
                 onClick={() => setSelectedSkin(index)}
-                className={`relative border-2 rounded-xl p-6 cursor-pointer transition-all ${
+                className={`relative border-2 rounded-xl p-6 cursor-pointer transition-all bg-white ${
                   isSelected
-                    ? 'border-purple-500 bg-purple-500/10'
+                    ? 'border-orange-500 shadow-lg shadow-orange-500/20'
                     : 'border-gray-200 hover:border-gray-300 hover:shadow-lg'
                 } ${!collection.active ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {/* Rarity Badge */}
-                <div className={`absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-bold ${
-                  rarity === 'Legendary' ? 'bg-gradient-to-r from-orange-500 to-red-500' :
+                <div className={`absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-bold text-white ${
+                  rarity === 'Legendary' ? 'bg-gradient-to-r from-orange-500 to-yellow-500' :
                   rarity === 'Epic' ? 'bg-gradient-to-r from-purple-500 to-pink-500' :
                   rarity === 'Rare' ? 'bg-gradient-to-r from-blue-500 to-cyan-500' :
                   'bg-gradient-to-r from-slate-500 to-slate-600'
@@ -281,7 +281,7 @@ export default function NFTMintDashboard() {
                 <div className={`w-full h-48 rounded-xl bg-gradient-to-br ${gradient} mb-4 flex items-center justify-center relative overflow-hidden`}>
                   <div className="absolute inset-0 bg-black/20" />
                   <div className="text-center relative z-10">
-                    <div className="w-20 h-20 mx-auto mb-2 bg-white/20 rounded-xl flex items-center justify-center">
+                    <div className="w-20 h-20 mx-auto mb-2 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
                       <Sparkles className="w-10 h-10 text-white/80" />
                     </div>
                     <div className="text-white font-bold text-lg">{collection.name}</div>
@@ -298,7 +298,7 @@ export default function NFTMintDashboard() {
                     <h4 className="text-sm font-semibold">Benefits:</h4>
                     {benefits.map((benefit, i) => (
                       <div key={i} className="text-xs text-gray-600 flex items-center gap-2">
-                        <div className="w-1 h-1 bg-purple-400 rounded-full" />
+                        <div className="w-1 h-1 bg-orange-500 rounded-full" />
                         {benefit}
                       </div>
                     ))}
@@ -318,13 +318,13 @@ export default function NFTMintDashboard() {
                     
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
-                        className={`h-full bg-gradient-to-r ${gradient}`}
+                        className={`h-full bg-gradient-to-r ${gradient} rounded-full transition-all duration-500`}
                         style={{ width: `${collection.progress}%` }}
                       />
                     </div>
 
                     {!collection.active && (
-                      <div className="text-xs text-red-500 font-semibold mt-2">
+                      <div className="text-xs text-red-600 font-semibold mt-2">
                         Collection not active
                       </div>
                     )}
@@ -350,7 +350,7 @@ export default function NFTMintDashboard() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-card p-6"
+          className="bg-white border border-gray-200 rounded-xl p-6"
         >
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -368,7 +368,7 @@ export default function NFTMintDashboard() {
           <button
             onClick={handleMint}
             disabled={isMinting || !collections[selectedSkin].active}
-            className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+            className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
           >
             {isMinting ? (
               <>

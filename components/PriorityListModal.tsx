@@ -270,59 +270,56 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
     return 'orange';
   };
 
+  if (!isOpen) return null;
+
   return (
     <AnimatePresence>
-      {isOpen && (
-        <>
-          {showConfetti && (
-            <Confetti
-              width={window.innerWidth}
-              height={window.innerHeight}
-              recycle={false}
-              numberOfPieces={500}
-            />
-          )}
+      {showConfetti && (
+        <Confetti
+          width={window.innerWidth}
+          height={window.innerHeight}
+          recycle={false}
+          numberOfPieces={500}
+        />
+      )}
 
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
+      >
+        <div className="max-w-4xl mx-auto p-6">
+          {/* Back Button */}
+          <button
             onClick={onClose}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
-          />
-          
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl border border-gray-200 shadow-soft-xl pointer-events-auto"
-            >
-              {/* Header */}
-              <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-2xl flex justify-between items-center z-10">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                    <Rocket className="w-6 h-6 text-orange-500" />
-                    BLAZE Priority List
-                  </h2>
-                  <p className="text-sm text-gray-600 mt-1">Early access to the presale</p>
-                </div>
-                <button
-                  onClick={onClose}
-                  className="text-gray-600 hover:text-gray-900 transition-colors"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
+            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
+          >
+            ← Back
+          </button>
 
-              <div className="p-6 space-y-6">
+          {/* Header */}
+          <div className="mb-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
+                <Rocket className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">BLAZE Priority List</h2>
+                <p className="text-sm text-gray-600">
+                  Get 48-hour early access to the presale
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="max-w-3xl mx-auto space-y-6">
                 {/* Status Banner */}
-                <div className={`rounded-xl p-4 border ${
-                  getStatusColor() === 'green' ? 'bg-green-50 border-green-200' :
-                  getStatusColor() === 'blue' ? 'bg-blue-50 border-blue-200' :
-                  getStatusColor() === 'purple' ? 'bg-purple-50 border-purple-200' :
-                  'bg-orange-50 border-orange-200'
+                <div className={`glass-card p-6 border ${
+                  getStatusColor() === 'green' ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' :
+                  getStatusColor() === 'blue' ? 'bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200' :
+                  getStatusColor() === 'purple' ? 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200' :
+                  'bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200'
                 }`}>
                   <div className="flex items-center gap-3">
                     <Clock className={`w-5 h-5 ${
@@ -350,33 +347,33 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
                     <motion.div 
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="bg-gray-50 border border-gray-200 rounded-xl p-4"
+                      className="glass-card p-5 border border-gray-200"
                     >
-                      <Users className="w-5 h-5 text-blue-500 mb-2" />
-                      <div className="text-2xl font-bold text-gray-900">{data.stats.total_registered}</div>
-                      <div className="text-xs text-gray-600">Registered</div>
+                      <Users className="w-6 h-6 text-blue-500 mb-2" />
+                      <div className="text-3xl font-bold text-gray-900">{data.stats.total_registered}</div>
+                      <div className="text-xs text-gray-600 font-medium">Registered</div>
                     </motion.div>
 
                     <motion.div 
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.1 }}
-                      className="bg-gray-50 border border-gray-200 rounded-xl p-4"
+                      className="glass-card p-5 border border-gray-200"
                     >
-                      <Sparkles className="w-5 h-5 text-yellow-500 mb-2" />
-                      <div className="text-2xl font-bold text-gray-900">{data.stats.early_bird_count}</div>
-                      <div className="text-xs text-gray-600">Early Birds</div>
+                      <Sparkles className="w-6 h-6 text-yellow-500 mb-2" />
+                      <div className="text-3xl font-bold text-gray-900">{data.stats.early_bird_count}</div>
+                      <div className="text-xs text-gray-600 font-medium">Early Birds</div>
                     </motion.div>
 
                     <motion.div 
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.2 }}
-                      className="bg-gray-50 border border-gray-200 rounded-xl p-4"
+                      className="glass-card p-5 border border-gray-200"
                     >
-                      <Gift className="w-5 h-5 text-purple-500 mb-2" />
-                      <div className="text-2xl font-bold text-gray-900">{data.stats.referral_count}</div>
-                      <div className="text-xs text-gray-600">Referrals</div>
+                      <Gift className="w-6 h-6 text-purple-500 mb-2" />
+                      <div className="text-3xl font-bold text-gray-900">{data.stats.referral_count}</div>
+                      <div className="text-xs text-gray-600 font-medium">Referrals</div>
                     </motion.div>
                   </div>
                 )}
@@ -607,9 +604,9 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
                 )}
 
                 {/* Benefits */}
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                  <h3 className="font-semibold text-gray-900 mb-3">Priority List Benefits</h3>
-                  <div className="space-y-2 text-sm text-gray-600">
+                <div className="glass-card p-6 border border-gray-200">
+                  <h3 className="font-semibold text-gray-900 mb-4 text-lg">Priority List Benefits</h3>
+                  <div className="space-y-3 text-sm text-gray-700">
                     <div className="flex items-start gap-2">
                       <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
                       <span>48-hour early access to presale</span>
@@ -634,9 +631,9 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
                 </div>
 
                 {/* Timeline */}
-                <div className="border-t border-gray-200 pt-4">
-                  <h3 className="font-semibold text-gray-900 mb-3">Timeline</h3>
-                  <div className="space-y-3 text-sm">
+                <div className="glass-card p-6 border border-gray-200">
+                  <h3 className="font-semibold text-gray-900 mb-4 text-lg">Timeline</h3>
+                  <div className="space-y-4 text-sm">
                     <div className="flex items-center gap-3">
                       <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
                       <div>
@@ -668,10 +665,8 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
                   </div>
                 )}
               </div>
-            </motion.div>
-          </div>
-        </>
-      )}
+            </div>
+          </motion.div>
     </AnimatePresence>
   );
 }

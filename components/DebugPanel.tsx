@@ -1,18 +1,41 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bug, X, Copy, Check, ExternalLink } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { CHAINS } from '@/lib/chains';
 import { BlockchainService } from '@/lib/blockchain';
 
-export default function DebugPanel() {
+export default function DebugPanel({ externalOpen = false, onExternalClose }: { externalOpen?: boolean; onExternalClose?: () => void }) {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [manualBalance, setManualBalance] = useState<string>('');
   const [isChecking, setIsChecking] = useState(false);
+  const [isPWA, setIsPWA] = useState(false);
   const { address, balance, currentChain } = useWalletStore();
+
+  // Sync with external open state (from Settings)
+  useEffect(() => {
+    if (externalOpen) {
+      setIsOpen(true);
+    }
+  }, [externalOpen]);
+
+  const handleClose = () => {
+    setIsOpen(false);
+    if (onExternalClose) {
+      onExternalClose();
+    }
+  };
+
+  // Detect if running as PWA
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      setIsPWA(isStandalone);
+    }
+  }, []);
 
   const chain = CHAINS[currentChain];
   const blockchain = new BlockchainService(currentChain as any);
@@ -44,7 +67,7 @@ export default function DebugPanel() {
       <motion.button
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-24 left-4 z-50 glass-card p-3 rounded-full shadow-lg hover:bg-white/10"
+        className={`hidden lg:block fixed ${isPWA ? 'bottom-32' : 'bottom-24'} left-4 z-50 glass-card p-3 rounded-full shadow-lg hover:bg-white/10`}
         title="Debug Panel"
       >
         <Bug className="w-5 h-5 text-primary-400" />
@@ -58,7 +81,7 @@ export default function DebugPanel() {
         initial={{ opacity: 0, x: -100 }}
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: -100 }}
-        className="fixed bottom-24 left-4 z-50 glass-card p-4 rounded-2xl shadow-2xl w-[90vw] max-w-md max-h-[80vh] overflow-y-auto"
+        className={`fixed ${isPWA ? 'bottom-32' : 'bottom-24'} left-4 z-50 glass-card p-4 rounded-2xl shadow-2xl w-[90vw] max-w-md max-h-[80vh] overflow-y-auto`}
       >
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">
@@ -66,7 +89,7 @@ export default function DebugPanel() {
             <h3 className="font-bold">Debug Info</h3>
           </div>
           <button
-            onClick={() => setIsOpen(false)}
+            onClick={handleClose}
             className="glass p-2 rounded-lg hover:bg-white/10"
           >
             <X className="w-4 h-4" />

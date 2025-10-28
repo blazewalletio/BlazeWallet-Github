@@ -94,7 +94,7 @@ export default function CashbackTracker() {
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
-          <Gift className="w-6 h-6 text-green-400" />
+          <Gift className="w-6 h-6 text-orange-500" />
           Cashback Rewards
         </h2>
         <p className="text-gray-600">
@@ -105,29 +105,29 @@ export default function CashbackTracker() {
       {/* Loading State */}
       {isLoading && (
         <div className="flex items-center justify-center py-12">
-          <div className="w-8 h-8 border-2 border-green-500/30 border-t-green-500 rounded-full animate-spin" />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto" />
           <span className="ml-3 text-gray-600">Loading cashback data...</span>
         </div>
       )}
 
       {/* Error State */}
       {error && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
           <div>
-            <h3 className="font-semibold text-red-400 mb-1">Error</h3>
-            <p className="text-sm text-red-300">{error}</p>
+            <h3 className="font-semibold text-red-700 mb-1">Error</h3>
+            <p className="text-sm text-red-600">{error}</p>
           </div>
         </div>
       )}
 
       {/* Success State */}
       {success && (
-        <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 flex items-center gap-3">
-          <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+          <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
           <div>
-            <h3 className="font-semibold text-green-400 mb-1">Success</h3>
-            <p className="text-sm text-green-300">{success}</p>
+            <h3 className="font-semibold text-green-700 mb-1">Success</h3>
+            <p className="text-sm text-green-600">{success}</p>
           </div>
         </div>
       )}
@@ -154,14 +154,14 @@ export default function CashbackTracker() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-gray-50/50 border border-gray-200 rounded-xl p-6"
+            className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/30 rounded-xl p-6"
           >
             <div className="flex items-center gap-2 text-blue-400 mb-2">
               <TrendingUp className="w-5 h-5" />
               <span className="text-sm font-semibold">This Month</span>
             </div>
-            <div className="text-3xl font-bold">{stats.thisMonthFormatted.toFixed(4)} BLAZE</div>
-            <div className="text-sm text-green-400 mt-1">
+            <div className="text-3xl font-bold text-blue-400">{stats.thisMonthFormatted.toFixed(4)} BLAZE</div>
+            <div className="text-sm text-gray-600 mt-1">
               {stats.totalEarnedFormatted > 0 ? `+${((stats.thisMonthFormatted / stats.totalEarnedFormatted) * 100).toFixed(0)}% of total` : '0% of total'}
             </div>
           </motion.div>
@@ -170,7 +170,7 @@ export default function CashbackTracker() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-gray-50/50 border border-gray-200 rounded-xl p-6"
+            className="bg-gradient-to-br from-orange-500/20 to-yellow-500/20 border border-orange-500/30 rounded-xl p-6"
           >
             <div className="flex items-center gap-2 text-orange-400 mb-2">
               <Zap className="w-5 h-5" />
@@ -186,13 +186,13 @@ export default function CashbackTracker() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-gray-50/50 border border-gray-200 rounded-xl p-6"
+            className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-xl p-6"
           >
             <div className="flex items-center gap-2 text-purple-400 mb-2">
               <TrendingUp className="w-5 h-5" />
               <span className="text-sm font-semibold">Transactions</span>
             </div>
-            <div className="text-3xl font-bold">{stats.transactions}</div>
+            <div className="text-3xl font-bold text-purple-400">{stats.transactions}</div>
             <div className="text-sm text-gray-600 mt-1">
               Total rewarded
             </div>
@@ -201,11 +201,11 @@ export default function CashbackTracker() {
       )}
 
       {/* How it Works */}
-      <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl p-6">
+      <div className="bg-gradient-to-br from-orange-500/10 to-yellow-500/10 border border-orange-500/20 rounded-xl p-6">
         <h3 className="font-semibold mb-4">How Cashback Works</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
           <div>
-            <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mb-3">
+            <div className="w-12 h-12 bg-orange-500/20 rounded-full flex items-center justify-center mb-3">
               <span className="text-2xl">💸</span>
             </div>
             <h4 className="font-semibold mb-1">Make a Transaction</h4>
@@ -214,7 +214,7 @@ export default function CashbackTracker() {
             </p>
           </div>
           <div>
-            <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mb-3">
+            <div className="w-12 h-12 bg-orange-500/20 rounded-full flex items-center justify-center mb-3">
               <span className="text-2xl">🎁</span>
             </div>
             <h4 className="font-semibold mb-1">Earn 2% Cashback</h4>
@@ -223,7 +223,7 @@ export default function CashbackTracker() {
             </p>
           </div>
           <div>
-            <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center mb-3">
+            <div className="w-12 h-12 bg-orange-500/20 rounded-full flex items-center justify-center mb-3">
               <span className="text-2xl">💰</span>
             </div>
             <h4 className="font-semibold mb-1">Claim Rewards</h4>
@@ -236,7 +236,7 @@ export default function CashbackTracker() {
 
       {/* Recent Cashback */}
       {recentCashback.length > 0 && (
-        <div className="bg-gray-50/50 border border-gray-200 rounded-xl p-6">
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
           <h3 className="font-semibold mb-4">Recent Cashback</h3>
           <div className="space-y-3">
             {recentCashback.map((item, index) => (
@@ -246,23 +246,23 @@ export default function CashbackTracker() {
               >
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    item.status === 'confirmed' ? 'bg-green-500/20' :
-                    item.status === 'pending' ? 'bg-orange-500/20' :
-                    'bg-gray-500/20'
+                    item.status === 'confirmed' ? 'bg-green-100' :
+                    item.status === 'pending' ? 'bg-orange-100' :
+                    'bg-gray-100'
                   }`}>
                     <Gift className={`w-5 h-5 ${
-                      item.status === 'confirmed' ? 'text-green-400' :
-                      item.status === 'pending' ? 'text-orange-400' :
-                      'text-gray-400'
+                      item.status === 'confirmed' ? 'text-green-500' :
+                      item.status === 'pending' ? 'text-orange-500' :
+                      'text-gray-500'
                     }`} />
                   </div>
                   <div>
                     <div className="font-semibold capitalize">{item.transactionType} Cashback</div>
-                    <div className="text-sm text-gray-600">{formatTimeAgo(item.timestamp)}</div>
+                    <div className="text-sm text-gray-500">{formatTimeAgo(item.timestamp)}</div>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-semibold text-green-400">
+                  <div className="font-semibold text-green-600">
                     +{item.cashbackAmountFormatted.toFixed(4)} BLAZE
                   </div>
                   <div className="text-xs text-gray-500">
@@ -277,7 +277,7 @@ export default function CashbackTracker() {
 
       {/* No Cashback */}
       {!isLoading && recentCashback.length === 0 && (
-        <div className="bg-gray-50/50 border border-gray-200 rounded-xl p-6 text-center">
+        <div className="bg-white border border-gray-200 rounded-xl p-6 text-center">
           <Gift className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-600 mb-2">No Cashback Yet</h3>
           <p className="text-gray-500">Start making transactions to earn cashback rewards!</p>
@@ -293,7 +293,7 @@ export default function CashbackTracker() {
           whileTap={{ scale: 0.98 }}
           onClick={handleClaim}
           disabled={isClaiming}
-          className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 rounded-xl font-semibold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full py-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl font-semibold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {isClaiming ? (
             <>

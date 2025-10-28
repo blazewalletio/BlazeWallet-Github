@@ -79,7 +79,7 @@ export default function TransactionHistory() {
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <div key={i} className="animate-pulse">
-              <div className="h-16 bg-gray-50/50 rounded-xl"></div>
+              <div className="h-16 bg-theme-bg-secondary/50 rounded-xl"></div>
             </div>
           ))}
         </div>
@@ -91,7 +91,7 @@ export default function TransactionHistory() {
     return (
       <div className="glass-card p-6">
         <h3 className="text-lg font-semibold mb-4">Recent transactions</h3>
-        <div className="text-center py-8 text-gray-600">
+        <div className="text-center py-8 text-theme-text-secondary">
           <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
           <p>No transactions yet</p>
           <p className="text-sm mt-1">Your transactions will appear here once you make them</p>
@@ -116,23 +116,23 @@ export default function TransactionHistory() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05 }}
-                className="glass p-4 rounded-xl hover:bg-white/5 transition-colors group"
+                className="glass p-4 rounded-xl hover:bg-theme-bg-card/5 transition-colors group"
               >
                 <div className="flex items-center gap-4">
                   {/* Icon */}
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                     tx.isError 
-                      ? 'bg-rose-500/20' 
+                      ? 'bg-theme-primary/20' 
                       : isSent 
-                        ? 'bg-orange-500/20' 
-                        : 'bg-emerald-500/20'
+                        ? 'bg-theme-primary/20' 
+                        : 'bg-theme-primary/20'
                   }`}>
                     {tx.isError ? (
-                      <XCircle className="w-5 h-5 text-rose-400" />
+                      <XCircle className="w-5 h-5 text-theme-primary" />
                     ) : isSent ? (
-                      <ArrowUpRight className="w-5 h-5 text-orange-400" />
+                      <ArrowUpRight className="w-5 h-5 text-theme-primary" />
                     ) : (
-                      <ArrowDownLeft className="w-5 h-5 text-emerald-400" />
+                      <ArrowDownLeft className="w-5 h-5 text-theme-primary" />
                     )}
                   </div>
 
@@ -143,10 +143,10 @@ export default function TransactionHistory() {
                         {tx.isError ? 'Failed' : isSent ? 'Sent' : 'Receiveen'}
                       </span>
                       {!tx.isError && (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <CheckCircle2 className="w-4 h-4 text-theme-primary" />
                       )}
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <div className="flex items-center gap-2 text-sm text-theme-text-secondary">
                       <span className="font-mono truncate">
                         {BlockchainService.formatAddress(otherAddress)}
                       </span>
@@ -156,13 +156,13 @@ export default function TransactionHistory() {
                         title="Copy transaction hash"
                       >
                         {copiedHash === tx.hash ? (
-                          <Check className="w-3 h-3 text-emerald-400" />
+                          <Check className="w-3 h-3 text-theme-primary" />
                         ) : (
                           <Copy className="w-3 h-3" />
                         )}
                       </button>
                     </div>
-                    <div className="text-xs text-slate-500 mt-1">
+                    <div className="text-xs text-theme-text-muted mt-1">
                       {formatTime(tx.timestamp)}
                     </div>
                   </div>
@@ -171,10 +171,10 @@ export default function TransactionHistory() {
                   <div className="text-right">
                     <div className={`font-semibold ${
                       tx.isError 
-                        ? 'text-slate-500' 
+                        ? 'text-theme-text-muted' 
                         : isSent 
-                          ? 'text-orange-400' 
-                          : 'text-emerald-400'
+                          ? 'text-theme-primary' 
+                          : 'text-theme-primary'
                     }`}>
                       {isSent ? '-' : '+'}{value.toFixed(6)} {chain.nativeCurrency.symbol}
                     </div>
@@ -182,7 +182,7 @@ export default function TransactionHistory() {
                       href={`${chain.explorerUrl}/tx/${tx.hash}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-xs text-purple-400 hover:text-purple-300 flex items-center gap-1 justify-end mt-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="text-xs text-theme-primary hover:text-theme-primary flex items-center gap-1 justify-end mt-1 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <span>View</span>
                       <ExternalLink className="w-3 h-3" />

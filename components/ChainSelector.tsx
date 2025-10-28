@@ -45,7 +45,7 @@ export default function ChainSelector({ isOpen, onClose }: ChainSelectorProps) {
                 <motion.button
                   whileTap={{ scale: 0.9 }}
                   onClick={onClose}
-                  className="glass p-2 rounded-lg hover:bg-gray-50"
+                  className="glass p-2 rounded-lg hover:bg-theme-bg-secondary"
                 >
                   <X className="w-5 h-5" />
                 </motion.button>
@@ -57,7 +57,7 @@ export default function ChainSelector({ isOpen, onClose }: ChainSelectorProps) {
                     key={key}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => handleSelectChain(key)}
-                    className={`w-full glass p-4 rounded-xl flex items-center justify-between hover:bg-gray-50 transition-all ${
+                    className={`w-full glass p-4 rounded-xl flex items-center justify-between hover:bg-theme-bg-secondary transition-all ${
                       currentChain === key ? 'ring-2 ring-primary-500' : ''
                     }`}
                   >
@@ -77,13 +77,13 @@ export default function ChainSelector({ isOpen, onClose }: ChainSelectorProps) {
                             </span>
                           )}
                         </div>
-                        <div className="text-sm text-gray-600">{chain.nativeCurrency.symbol}</div>
+                        <div className="text-sm text-theme-text-secondary">{chain.nativeCurrency.symbol}</div>
                       </div>
                     </div>
                     
                     <div className="flex items-center gap-3">
                       {key === 'polygon' && (
-                        <div className="flex items-center gap-1 text-xs text-emerald-400">
+                        <div className="flex items-center gap-1 text-xs text-theme-primary">
                           <Zap className="w-3 h-3" />
                           Goedkoop
                         </div>
@@ -98,8 +98,8 @@ export default function ChainSelector({ isOpen, onClose }: ChainSelectorProps) {
                 ))}
               </div>
 
-              <div className="mt-6 glass-card bg-blue-500/10 border-blue-500/20">
-                <p className="text-blue-700 text-sm">
+              <div className="mt-6 glass-card bg-theme-primary/10 border-theme-border/20">
+                <p className="text-theme-primary text-sm">
                   💡 Tip: Gebruik Polygon of Base voor goedkope transacties!
                 </p>
               </div>

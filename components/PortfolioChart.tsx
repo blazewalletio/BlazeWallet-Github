@@ -36,7 +36,7 @@ export default function PortfolioChart({ data, timeframe = '1D' }: PortfolioChar
               className={`px-3 py-1 rounded-lg text-sm font-semibold transition-all ${
                 selectedTimeframe === tf
                   ? 'bg-primary-500 text-white'
-                  : 'glass hover:bg-gray-50'
+                  : 'glass hover:bg-theme-bg-secondary'
               }`}
             >
               {tf}

@@ -9,7 +9,8 @@ import {
   Lock, Gift, Vote, Users, Palette, LogOut
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
-import { BlockchainService } from '@/lib/blockchain';
+import { MultiChainService } from '@/lib/multi-chain-service'; // ✅ Use MultiChainService
+import { BlockchainService } from '@/lib/blockchain'; // Keep for formatAddress utility
 import { TokenService } from '@/lib/token-service';
 import { PriceService } from '@/lib/price-service';
 import { CHAINS, POPULAR_TOKENS } from '@/lib/chains';
@@ -49,15 +50,19 @@ import BottomNavigation, { TabType } from './BottomNavigation';
 
 export default function Dashboard() {
   const { 
-    address, 
+    address, // EVM address (for backward compat)
     balance, 
     updateBalance, 
     currentChain, 
     tokens,
     updateTokens,
     updateActivity,
-    lockWallet 
+    lockWallet,
+    getCurrentAddress // ✅ NEW: Get correct address for current chain
   } = useWalletStore();
+  
+  // Get the correct address for the current chain (Solana or EVM)
+  const displayAddress = getCurrentAddress();
 
   // Founder/Developer wallet addresses (add your addresses here)
   const founderAddresses = [
@@ -66,7 +71,7 @@ export default function Dashboard() {
     // Add more founder/developer addresses as needed
   ].map(addr => addr.toLowerCase());
 
-  // Check if current wallet is a founder/developer
+  // Check if current wallet is a founder/developer (EVM only)
   const isFounder = address && founderAddresses.includes(address.toLowerCase());
   
   const [showBalance, setShowBalance] = useState(true);
@@ -78,6 +83,7 @@ export default function Dashboard() {
   const [showChainSelector, setShowChainSelector] = useState(false);
   const [showTokenSelector, setShowTokenSelector] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showDebugPanel, setShowDebugPanel] = useState(false); // NEW: Debug panel state
   const [showQuickPay, setShowQuickPay] = useState(false);
   const [showFounderDeploy, setShowFounderDeploy] = useState(false);
   const [showStaking, setShowStaking] = useState(false);
@@ -89,9 +95,14 @@ export default function Dashboard() {
   const [showPresale, setShowPresale] = useState(false);
   const [showVesting, setShowVesting] = useState(false);
   const [totalValueUSD, setTotalValueUSD] = useState(0);
+  const [nativePriceUSD, setNativePriceUSD] = useState(0); // ✅ NEW: Store native token price
+  const [lastPriceUpdate, setLastPriceUpdate] = useState<Date | null>(null); // ✅ NEW: Track last update time
   const [change24h, setChange24h] = useState(2.5);
   const [chartData, setChartData] = useState<number[]>([]);
   const [selectedTimeRange, setSelectedTimeRange] = useState<number | null>(24); // Default: 24 hours
+  
+  // Priority List status
+  const [isPriorityListLive, setIsPriorityListLive] = useState(false);
   
   // AI Features state
   const [showAIAssistant, setShowAIAssistant] = useState(false);
@@ -104,71 +115,168 @@ export default function Dashboard() {
 
   // Bottom navigation state
   const [activeTab, setActiveTab] = useState<TabType>('wallet');
+  
+  // PWA detection
+  const [isPWA, setIsPWA] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      setIsPWA(isStandalone);
+    }
+  }, []);
 
   const chain = CHAINS[currentChain];
-  const blockchain = new BlockchainService(currentChain as any);
+  const blockchain = new MultiChainService(currentChain); // ✅ Use MultiChainService
   const tokenService = new TokenService(chain.rpcUrl);
   const priceService = new PriceService();
   const portfolioHistory = getPortfolioHistory();
 
   const fetchData = async (force = false) => {
-    if (!address) return;
+    if (!displayAddress) return; // ✅ Use displayAddress instead of address
     
     // Prevent multiple simultaneous refreshes
     if (isRefreshing) return;
     
     setIsRefreshing(true);
     
+    // ✅ If manual refresh (force=true), clear cache for ultra-fresh data
+    if (force) {
+      console.log('🔄 [Dashboard] Manual refresh - clearing cache');
+      priceService.clearCache();
+    }
+    
     try {
       // Force refresh - bypass any caching
       const timestamp = Date.now();
-      console.log(`[${timestamp}] Fetching balance for ${address} on ${currentChain}`);
+      console.log(`\n========== FETCH DATA START [${timestamp}] ==========`);
+      console.log(`🌐 Chain: ${currentChain} (${chain.name})`);
+      console.log(`📍 Display Address: ${displayAddress}`);
+      console.log(`🔧 Chain Config:`, {
+        name: chain.name,
+        symbol: chain.nativeCurrency.symbol,
+        rpcUrl: chain.rpcUrl
+      });
       
-      // Fetch native balance
-      const bal = await blockchain.getBalance(address);
-      console.log(`[${timestamp}] Balance received: ${bal} ${chain.nativeCurrency.symbol}`);
+      // ✅ STEP 1: Fetch native balance
+      console.log(`\n--- STEP 1: Fetch Native Balance ---`);
+      console.log(`[${timestamp}] 🚀 Calling blockchain.getBalance(${displayAddress})...`);
+      const bal = await blockchain.getBalance(displayAddress);
+      console.log(`[${timestamp}] ✅ Balance received: ${bal} ${chain.nativeCurrency.symbol}`);
       updateBalance(bal);
 
-      // Fetch native price
-      const nativePrice = await priceService.getPrice(chain.nativeCurrency.symbol);
-      const nativeValueUSD = parseFloat(bal) * nativePrice;
+      // ✅ STEP 2: Fetch ALL prices in ONE batch request (optimized!)
+      console.log(`\n--- STEP 2: Fetch Prices (Batch) ---`);
+      const popularTokens = POPULAR_TOKENS[currentChain] || [];
+      const allSymbols = [chain.nativeCurrency.symbol];
       
-      console.log(`[${timestamp}] Native balance details:`, {
+      // Add token symbols (EVM only, Solana has no SPL tokens implemented yet)
+      if (currentChain !== 'solana' && popularTokens.length > 0) {
+        allSymbols.push(...popularTokens.map(t => t.symbol));
+      }
+      
+      console.log(`[${timestamp}] 📡 Fetching prices for: ${allSymbols.join(', ')}`);
+      const pricesMap = await priceService.getMultiplePrices(allSymbols);
+      console.log(`[${timestamp}] 💰 Prices received:`, pricesMap);
+      
+      // Extract native price
+      const nativePrice = pricesMap[chain.nativeCurrency.symbol] || 0;
+      setNativePriceUSD(nativePrice); // ✅ STORE native price in state!
+      setLastPriceUpdate(new Date()); // ✅ STORE last update timestamp
+      
+      const nativeValueUSD = parseFloat(bal) * nativePrice;
+      console.log(`[${timestamp}] 💵 Native token value:`, {
         balance: bal,
         symbol: chain.nativeCurrency.symbol,
         priceUSD: nativePrice,
-        valueUSD: nativeValueUSD
+        valueUSD: nativeValueUSD.toFixed(2)
       });
 
-      // Fetch token balances
-      const popularTokens = POPULAR_TOKENS[currentChain] || [];
-      if (popularTokens.length > 0) {
+      // ✅ STEP 3: Fetch token balances (chain-specific)
+      let tokensWithValue: Token[] = [];
+      
+      if (currentChain === 'solana') {
+        // ✅ SOLANA: Fetch SPL tokens
+        console.log(`\n--- STEP 3: Fetch SPL Token Balances (Solana) ---`);
+        console.log(`[${timestamp}] 🪙 Fetching SPL tokens from chain...`);
+        
+        const solanaService = blockchain as any; // Access Solana-specific methods
+        const splTokens = await solanaService.getSPLTokenBalances(displayAddress);
+        
+        console.log(`[${timestamp}] ✅ Found ${splTokens.length} SPL tokens with balance`);
+        
+        if (splTokens.length > 0) {
+          // ✅ STEP 4: Fetch prices for SPL tokens
+          console.log(`\n--- STEP 4: Fetch SPL Token Prices ---`);
+          const splSymbols = splTokens.map((t: any) => t.symbol);
+          console.log(`[${timestamp}] 📡 Fetching prices for SPL tokens: ${splSymbols.join(', ')}`);
+          
+          const splPricesMap = await priceService.getMultiplePrices(splSymbols);
+          console.log(`[${timestamp}] 💰 SPL prices received:`, splPricesMap);
+          
+          // Combine SPL tokens with prices
+          tokensWithValue = await Promise.all(
+            splTokens.map(async (token: any) => {
+              const price = splPricesMap[token.symbol] || 0;
+              const balanceUSD = parseFloat(token.balance || '0') * price;
+              const change24h = await priceService.get24hChange(token.symbol);
+              
+              console.log(`[${timestamp}] 💰 ${token.symbol}: ${token.balance} × $${price} = $${balanceUSD.toFixed(2)}`);
+              
+              return {
+                ...token,
+                priceUSD: price,
+                balanceUSD: balanceUSD.toFixed(2),
+                change24h,
+              };
+            })
+          );
+        }
+        
+      } else if (popularTokens.length > 0 && displayAddress) {
+        // ✅ EVM: Fetch ERC20 tokens
+        console.log(`\n--- STEP 3: Fetch Token Balances (EVM) ---`);
+        console.log(`[${timestamp}] 🪙 Fetching balances for ${popularTokens.length} ERC20 tokens...`);
+        
         const tokensWithBalance = await tokenService.getMultipleTokenBalances(
           popularTokens,
-          address
+          displayAddress
         );
         
-        // Fetch token prices
+        console.log(`[${timestamp}] ✅ Token balances received:`, tokensWithBalance.map(t => `${t.symbol}: ${t.balance}`));
+        
+        // ✅ STEP 4: Combine with prices (already fetched in batch!)
+        console.log(`\n--- STEP 4: Calculate Token USD Values ---`);
         const tokensWithPrices = await Promise.all(
           tokensWithBalance.map(async (token) => {
-            const price = await priceService.getPrice(token.symbol);
+            const price = pricesMap[token.symbol] || 0;
             const balanceUSD = parseFloat(token.balance || '0') * price;
+            const change24h = await priceService.get24hChange(token.symbol);
+            
+            console.log(`[${timestamp}] 💰 ${token.symbol}: ${token.balance} × $${price} = $${balanceUSD.toFixed(2)}`);
+            
             return {
               ...token,
               priceUSD: price,
               balanceUSD: balanceUSD.toFixed(2),
-              change24h: await priceService.get24hChange(token.symbol),
+              change24h,
             };
           })
         );
 
         // Only show tokens with balance > 0
-        const tokensWithValue = tokensWithPrices.filter(
+        tokensWithValue = tokensWithPrices.filter(
           t => parseFloat(t.balance || '0') > 0
         );
-        updateTokens(tokensWithValue);
+      }
 
-        // Calculate total portfolio value
+      // ✅ STEP 5: Update tokens and calculate total portfolio value
+      console.log(`\n--- STEP 5: Calculate Total Portfolio Value ---`);
+      
+      if (tokensWithValue.length > 0) {
+        updateTokens(tokensWithValue);
+        
+        // Calculate total portfolio value (native + tokens)
         const tokensTotalUSD = tokensWithValue.reduce(
           (sum, token) => sum + parseFloat(token.balanceUSD || '0'),
           0
@@ -176,25 +284,47 @@ export default function Dashboard() {
         const totalValue = nativeValueUSD + tokensTotalUSD;
         setTotalValueUSD(totalValue);
         
-        // Save to portfolio history
-        portfolioHistory.addSnapshot(totalValue, address, currentChain);
-      } else {
-        setTotalValueUSD(nativeValueUSD);
+        console.log(`[${timestamp}] 📊 Portfolio Summary:`, {
+          nativeValueUSD: nativeValueUSD.toFixed(2),
+          tokensTotalUSD: tokensTotalUSD.toFixed(2),
+          tokensCount: tokensWithValue.length,
+          totalValueUSD: totalValue.toFixed(2)
+        });
         
         // Save to portfolio history
-        portfolioHistory.addSnapshot(nativeValueUSD, address, currentChain);
+        if (displayAddress) {
+          portfolioHistory.addSnapshot(totalValue, displayAddress, currentChain);
+        }
+      } else {
+        // No tokens - native value IS total value
+        updateTokens([]); // Clear tokens
+        setTotalValueUSD(nativeValueUSD);
+        
+        console.log(`[${timestamp}] 📊 Portfolio Summary (Native Only):`, {
+          totalValueUSD: nativeValueUSD.toFixed(2)
+        });
+        
+        // Save to portfolio history
+        if (displayAddress) {
+          portfolioHistory.addSnapshot(nativeValueUSD, displayAddress, currentChain);
+        }
       }
 
-      // Get 24h change
+      // ✅ STEP 6: Get 24h change for native token
+      console.log(`\n--- STEP 6: Fetch 24h Change ---`);
       const nativeChange = await priceService.get24hChange(chain.nativeCurrency.symbol);
       setChange24h(nativeChange);
+      console.log(`[${timestamp}] 📈 24h Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
       
       // Update chart data from history based on selected time range
       updateChartData();
+      
+      console.log(`========== FETCH DATA COMPLETE [${Date.now() - timestamp}ms] ==========\n`);
     
       
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('❌ Error fetching data:', error);
+      console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
     } finally {
       // ALWAYS stop refresh spinner, even if there's an error
       setIsRefreshing(false);
@@ -217,9 +347,30 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchData(true); // Force refresh on mount
-    const interval = setInterval(() => fetchData(true), 30000); // Update every 30 seconds
+    const interval = setInterval(() => fetchData(true), 10000); // ✅ Update every 10 seconds (ultra-fresh)
     return () => clearInterval(interval);
-  }, [address, currentChain]);
+  }, [displayAddress, currentChain]); // ✅ Use displayAddress (changes when chain switches)
+
+  // Check Priority List status
+  useEffect(() => {
+    const checkPriorityListStatus = async () => {
+      try {
+        const response = await fetch('/api/priority-list');
+        const result = await response.json();
+        
+        if (result.success && result.data) {
+          setIsPriorityListLive(result.data.isRegistrationOpen || false);
+        }
+      } catch (error) {
+        console.error('Error checking priority list status:', error);
+      }
+    };
+
+    checkPriorityListStatus();
+    // Check every 60 seconds
+    const interval = setInterval(checkPriorityListStatus, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Track user activity
   useEffect(() => {
@@ -246,7 +397,8 @@ export default function Dashboard() {
     updateChartData();
   }, [selectedTimeRange]);
 
-  const formattedAddress = address ? BlockchainService.formatAddress(address) : '';
+  // ✅ Format the CURRENT chain address (not just EVM address)
+  const formattedAddress = displayAddress ? BlockchainService.formatAddress(displayAddress) : '';
   const isPositiveChange = change24h >= 0;
 
   // Render content based on active tab
@@ -333,6 +485,13 @@ export default function Dashboard() {
                        " total"}
                     </span>
                   </div>
+                  
+                  {/* ✅ Last updated timestamp */}
+                  {lastPriceUpdate && (
+                    <div className="text-xs text-gray-400 mt-1">
+                      Updated {Math.floor((Date.now() - lastPriceUpdate.getTime()) / 1000)}s ago
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -403,19 +562,56 @@ export default function Dashboard() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="md:hidden glass-card card-hover relative overflow-hidden"
+            className={`md:hidden glass-card card-hover relative overflow-hidden border-2 transition-all ${
+              isPriorityListLive 
+                ? 'border-green-300' 
+                : 'border-orange-200'
+            }`}
             onClick={() => setShowPresale(true)}
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-orange-500/10 to-yellow-500/10" />
+            <div className={`absolute inset-0 ${
+              isPriorityListLive
+                ? 'bg-gradient-to-r from-green-500/10 to-emerald-500/10'
+                : 'bg-gradient-to-r from-orange-500/10 to-yellow-500/10'
+            }`} />
             <div className="relative z-10 p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
-                    <Rocket className="w-6 h-6 text-white" />
+                  <div className="relative flex-shrink-0">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                      isPriorityListLive
+                        ? 'bg-gradient-to-r from-green-500 to-emerald-600'
+                        : 'bg-gradient-to-r from-orange-500 to-yellow-500'
+                    }`}>
+                      <Rocket className="w-6 h-6 text-white" />
+                    </div>
+                    {isPriorityListLive && (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="absolute -top-1 -right-1 px-1.5 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded-full shadow-lg"
+                        style={{
+                          animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+                        }}
+                      >
+                        LIVE
+                      </motion.div>
+                    )}
                   </div>
                   <div>
-                    <div className="font-semibold text-gray-900 text-lg">BLAZE Presale</div>
-                    <div className="text-sm text-gray-600">Early access to tokens</div>
+                    <div className="font-semibold text-gray-900 text-lg flex items-center gap-2">
+                      BLAZE Presale
+                      {isPriorityListLive && (
+                        <span className="text-[10px] font-semibold text-green-600 bg-green-100 px-1.5 py-0.5 rounded-full">
+                          LIVE
+                        </span>
+                      )}
+                    </div>
+                    <div className={`text-sm ${
+                      isPriorityListLive ? 'text-green-700 font-medium' : 'text-gray-600'
+                    }`}>
+                      {isPriorityListLive ? '🔥 Priority List is LIVE!' : 'Early access to tokens'}
+                    </div>
                   </div>
                 </div>
                 <ChevronRight className="w-5 h-5 text-gray-400" />
@@ -430,13 +626,12 @@ export default function Dashboard() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.1 }}
               whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.05 }}
               onClick={() => setShowBuyModal(true)}
-              className="glass-card card-hover p-4 text-center"
+              className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
             >
-              <div className="w-12 h-12 mx-auto bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center mb-2">
-                <CreditCard className="w-6 h-6 text-white" />
-              </div>
-              <div className="text-sm font-semibold text-gray-900">Buy</div>
+              <CreditCard className="w-8 h-8 mx-auto text-white mb-2" />
+              <div className="text-sm font-bold text-white">Buy</div>
             </motion.button>
 
             <motion.button
@@ -444,13 +639,12 @@ export default function Dashboard() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.15 }}
               whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.05 }}
               onClick={() => setShowSendModal(true)}
-              className="glass-card card-hover p-4 text-center"
+              className="bg-gradient-to-br from-rose-500 to-orange-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
             >
-              <div className="w-12 h-12 mx-auto bg-gradient-to-br from-rose-500 to-orange-500 rounded-xl flex items-center justify-center mb-2">
-                <ArrowUpRight className="w-6 h-6 text-white" />
-              </div>
-              <div className="text-sm font-semibold text-gray-900">Send</div>
+              <ArrowUpRight className="w-8 h-8 mx-auto text-white mb-2" />
+              <div className="text-sm font-bold text-white">Send</div>
             </motion.button>
 
             <motion.button
@@ -458,13 +652,12 @@ export default function Dashboard() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2 }}
               whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.05 }}
               onClick={() => setShowReceiveModal(true)}
-              className="glass-card card-hover p-4 text-center"
+              className="bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
             >
-              <div className="w-12 h-12 mx-auto bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center mb-2">
-                <ArrowDownLeft className="w-6 h-6 text-white" />
-              </div>
-              <div className="text-sm font-semibold text-gray-900">Receive</div>
+              <ArrowDownLeft className="w-8 h-8 mx-auto text-white mb-2" />
+              <div className="text-sm font-bold text-white">Receive</div>
             </motion.button>
 
             <motion.button
@@ -472,13 +665,12 @@ export default function Dashboard() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.25 }}
               whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.05 }}
               onClick={() => setShowSwapModal(true)}
-              className="glass-card card-hover p-4 text-center"
+              className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
             >
-              <div className="w-12 h-12 mx-auto bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mb-2">
-                <Repeat className="w-6 h-6 text-white" />
-              </div>
-              <div className="text-sm font-semibold text-gray-900">Swap</div>
+              <Repeat className="w-8 h-8 mx-auto text-white mb-2" />
+              <div className="text-sm font-bold text-white">Swap</div>
             </motion.button>
           </div>
 
@@ -528,7 +720,7 @@ export default function Dashboard() {
             </div>
             <div className="text-right">
               <div className="font-semibold">
-                ${(parseFloat(balance) * (totalValueUSD > 0 ? totalValueUSD / (parseFloat(balance) + tokens.reduce((sum, t) => sum + parseFloat(t.balance || '0'), 0)) : 0)).toFixed(2)}
+                ${(parseFloat(balance) * nativePriceUSD).toFixed(2)}
               </div>
               <div className={`text-sm ${isPositiveChange ? 'text-emerald-400' : 'text-rose-400'}`}>
                 {isPositiveChange ? '+' : ''}{change24h.toFixed(2)}%
@@ -881,11 +1073,11 @@ export default function Dashboard() {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setShowPresale(true)}
-                  className="hidden md:flex px-3 py-2 rounded-xl items-center gap-2 bg-gradient-to-r from-orange-500 to-yellow-500 text-white hover:from-orange-600 hover:to-yellow-600 shadow-soft"
+                  className="hidden md:flex px-4 py-2.5 sm:py-3 rounded-xl items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all"
                   title="Join Presale"
                 >
-                  <Rocket className="w-5 h-5" />
-                  <span className="text-sm font-semibold">Presale</span>
+                  <Rocket className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="text-sm font-semibold whitespace-nowrap">Presale Blaze Token</span>
                 </motion.button>
                 <motion.button
                   whileTap={{ scale: 0.95 }}
@@ -947,7 +1139,14 @@ export default function Dashboard() {
       <SwapModal isOpen={showSwapModal} onClose={() => setShowSwapModal(false)} />
       <ChainSelector isOpen={showChainSelector} onClose={() => setShowChainSelector(false)} />
       <TokenSelector isOpen={showTokenSelector} onClose={() => setShowTokenSelector(false)} />
-      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
+      <SettingsModal 
+        isOpen={showSettings} 
+        onClose={() => setShowSettings(false)} 
+        onOpenDebug={() => {
+          setShowSettings(false);
+          setShowDebugPanel(true);
+        }}
+      />
       <QuickPayModal isOpen={showQuickPay} onClose={() => setShowQuickPay(false)} />
       
       {/* AI Feature Modals */}
@@ -1238,7 +1437,10 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
       
-      <DebugPanel />
+      <DebugPanel 
+        externalOpen={showDebugPanel} 
+        onExternalClose={() => setShowDebugPanel(false)} 
+      />
       
       {/* Floating Quick Pay Button */}
       <motion.button
@@ -1247,7 +1449,7 @@ export default function Dashboard() {
         transition={{ delay: 0.5, type: "spring", stiffness: 200 }}
         whileTap={{ scale: 0.9 }}
         onClick={() => setShowQuickPay(true)}
-        className="fixed bottom-24 right-6 z-40 w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-500 rounded-full shadow-2xl flex items-center justify-center subtle-glow hover:scale-110 transition-transform duration-300"
+        className={`fixed ${isPWA ? 'bottom-32' : 'bottom-24'} right-6 z-40 w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-500 rounded-full shadow-2xl flex items-center justify-center subtle-glow hover:scale-110 transition-transform duration-300`}
         title="Quick Pay"
       >
         <Zap className="w-8 h-8 text-white" />

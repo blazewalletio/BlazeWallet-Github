@@ -70,36 +70,36 @@ export default function CountdownWidget({
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl p-4"
+        className="bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl p-3 sm:p-4"
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Clock className="w-5 h-5" />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Clock className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
             <div>
-              <div className="font-semibold">{title}</div>
+              <div className="font-semibold text-sm sm:text-base">{title}</div>
               {subtitle && <div className="text-xs opacity-90 mt-0.5">{subtitle}</div>}
             </div>
           </div>
-          <div className="flex gap-2 font-mono font-bold">
+          <div className="flex gap-1.5 sm:gap-2 font-mono font-bold w-full sm:w-auto justify-end">
             {timeLeft.days > 0 && (
               <div className="text-center">
-                <div className="text-2xl">{timeLeft.days}</div>
-                <div className="text-xs opacity-75">days</div>
+                <div className="text-lg sm:text-2xl">{timeLeft.days}</div>
+                <div className="text-[10px] sm:text-xs opacity-75">days</div>
               </div>
             )}
             <div className="text-center">
-              <div className="text-2xl">{String(timeLeft.hours).padStart(2, '0')}</div>
-              <div className="text-xs opacity-75">hrs</div>
+              <div className="text-lg sm:text-2xl">{String(timeLeft.hours).padStart(2, '0')}</div>
+              <div className="text-[10px] sm:text-xs opacity-75">hrs</div>
             </div>
-            <div className="text-2xl">:</div>
+            <div className="text-lg sm:text-2xl">:</div>
             <div className="text-center">
-              <div className="text-2xl">{String(timeLeft.minutes).padStart(2, '0')}</div>
-              <div className="text-xs opacity-75">min</div>
+              <div className="text-lg sm:text-2xl">{String(timeLeft.minutes).padStart(2, '0')}</div>
+              <div className="text-[10px] sm:text-xs opacity-75">min</div>
             </div>
-            <div className="text-2xl">:</div>
+            <div className="text-lg sm:text-2xl">:</div>
             <div className="text-center">
-              <div className="text-2xl">{String(timeLeft.seconds).padStart(2, '0')}</div>
-              <div className="text-xs opacity-75">sec</div>
+              <div className="text-lg sm:text-2xl">{String(timeLeft.seconds).padStart(2, '0')}</div>
+              <div className="text-[10px] sm:text-xs opacity-75">sec</div>
             </div>
           </div>
         </div>
@@ -112,75 +112,75 @@ export default function CountdownWidget({
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="bg-gradient-to-br from-orange-50 via-yellow-50 to-red-50 border border-orange-200 rounded-2xl p-8"
+      className="bg-gradient-to-br from-orange-50 via-yellow-50 to-red-50 border border-orange-200 rounded-2xl p-4 sm:p-6 md:p-8"
     >
-      <div className="text-center space-y-6">
+      <div className="text-center space-y-4 sm:space-y-6">
         {/* Icon */}
         <div className="flex justify-center">
-          <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center">
-            <Rocket className="w-8 h-8 text-white" />
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-orange-500 to-red-500 rounded-full flex items-center justify-center">
+            <Rocket className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
           </div>
         </div>
 
         {/* Title */}
-        <div>
-          <h3 className="text-3xl font-bold text-gray-900 mb-2">{title}</h3>
-          {subtitle && <p className="text-gray-600">{subtitle}</p>}
+        <div className="px-2">
+          <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2">{title}</h3>
+          {subtitle && <p className="text-sm sm:text-base text-gray-600">{subtitle}</p>}
         </div>
 
         {/* Countdown */}
         {!isComplete ? (
-          <div className="flex justify-center gap-4">
+          <div className="flex justify-center gap-2 sm:gap-3 md:gap-4 px-2">
             {timeLeft.days > 0 && (
               <motion.div
                 key="days"
                 initial={{ scale: 0.9 }}
                 animate={{ scale: 1 }}
-                className="bg-white rounded-xl p-4 min-w-[80px] shadow-sm"
+                className="bg-white rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 flex-1 max-w-[70px] sm:max-w-[80px] shadow-sm"
               >
-                <div className="text-4xl font-bold text-orange-600">{timeLeft.days}</div>
-                <div className="text-xs text-gray-600 mt-1 uppercase tracking-wider">Days</div>
+                <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-orange-600 break-words">{timeLeft.days}</div>
+                <div className="text-[10px] sm:text-xs text-gray-600 mt-1 uppercase tracking-wider">Days</div>
               </motion.div>
             )}
             <motion.div
               key="hours"
               animate={{ scale: [1, 1.05, 1] }}
               transition={{ duration: 1, repeat: Infinity }}
-              className="bg-white rounded-xl p-4 min-w-[80px] shadow-sm"
+              className="bg-white rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 flex-1 max-w-[70px] sm:max-w-[80px] shadow-sm"
             >
-              <div className="text-4xl font-bold text-orange-600">
+              <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-orange-600 break-words">
                 {String(timeLeft.hours).padStart(2, '0')}
               </div>
-              <div className="text-xs text-gray-600 mt-1 uppercase tracking-wider">Hours</div>
+              <div className="text-[10px] sm:text-xs text-gray-600 mt-1 uppercase tracking-wider">Hours</div>
             </motion.div>
             <motion.div
               key="minutes"
               animate={{ scale: [1, 1.05, 1] }}
               transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
-              className="bg-white rounded-xl p-4 min-w-[80px] shadow-sm"
+              className="bg-white rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 flex-1 max-w-[70px] sm:max-w-[80px] shadow-sm"
             >
-              <div className="text-4xl font-bold text-orange-600">
+              <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-orange-600 break-words">
                 {String(timeLeft.minutes).padStart(2, '0')}
               </div>
-              <div className="text-xs text-gray-600 mt-1 uppercase tracking-wider">Minutes</div>
+              <div className="text-[10px] sm:text-xs text-gray-600 mt-1 uppercase tracking-wider">Minutes</div>
             </motion.div>
             <motion.div
               key="seconds"
               animate={{ scale: [1, 1.05, 1] }}
               transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
-              className="bg-white rounded-xl p-4 min-w-[80px] shadow-sm"
+              className="bg-white rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 flex-1 max-w-[70px] sm:max-w-[80px] shadow-sm"
             >
-              <div className="text-4xl font-bold text-orange-600">
+              <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-orange-600 break-words">
                 {String(timeLeft.seconds).padStart(2, '0')}
               </div>
-              <div className="text-xs text-gray-600 mt-1 uppercase tracking-wider">Seconds</div>
+              <div className="text-[10px] sm:text-xs text-gray-600 mt-1 uppercase tracking-wider">Seconds</div>
             </motion.div>
           </div>
         ) : (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="text-2xl font-bold text-green-600"
+            className="text-xl sm:text-2xl font-bold text-green-600"
           >
             🎉 It's live!
           </motion.div>

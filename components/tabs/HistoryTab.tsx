@@ -8,16 +8,16 @@ export default function HistoryTab() {
   return (
     <>
       {/* Header */}
-      <div className="sticky top-0 z-30 backdrop-blur-xl bg-white/95 border-b border-gray-200 shadow-sm">
+      <div className="sticky top-0 z-30 backdrop-blur-xl bg-theme-bg-card/95 border-b border-theme-border-primary shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-theme-primary to-theme-primary flex items-center justify-center">
                 <Activity className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Activity</h1>
-                <p className="text-sm text-gray-500">Transaction history</p>
+                <h1 className="text-xl font-bold text-theme-text-primary">Activity</h1>
+                <p className="text-sm text-theme-text-muted">Transaction history</p>
               </div>
             </div>
           </div>
@@ -48,8 +48,8 @@ export default function HistoryTab() {
                 <div className={`w-12 h-12 rounded-xl bg-${stat.color}-100 flex items-center justify-center mx-auto mb-3`}>
                   <Icon className={`w-6 h-6 text-${stat.color}-600`} />
                 </div>
-                <div className="text-2xl font-bold text-gray-900 mb-1">{stat.value}</div>
-                <div className="text-sm text-gray-500">{stat.label}</div>
+                <div className="text-2xl font-bold text-theme-text-primary mb-1">{stat.value}</div>
+                <div className="text-sm text-theme-text-muted">{stat.label}</div>
               </motion.div>
             );
           })}
@@ -76,7 +76,7 @@ export default function HistoryTab() {
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl whitespace-nowrap transition-all ${
                   filter.active
                     ? 'bg-primary-600 text-white shadow-soft'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    : 'bg-theme-bg-secondary text-theme-text-primary hover:bg-theme-bg-secondary'
                 }`}
               >
                 <Icon className="w-4 h-4" />

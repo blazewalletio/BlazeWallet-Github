@@ -48,7 +48,7 @@ export default function StakingDashboard() {
       apy: 20,
       lockDays: 365,
       icon: Crown,
-      color: 'from-orange-500 to-red-500',
+      color: 'from-orange-500 to-yellow-500',
       description: 'Maximum rewards',
     },
   ];
@@ -232,8 +232,11 @@ export default function StakingDashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading staking data...</p>
+        </div>
       </div>
     );
   }
@@ -243,7 +246,7 @@ export default function StakingDashboard() {
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
-          <Lock className="w-6 h-6 text-orange-400" />
+          <Lock className="w-6 h-6 text-orange-500" />
           Stake BLAZE
         </h2>
         <p className="text-gray-600">
@@ -251,14 +254,14 @@ export default function StakingDashboard() {
         </p>
       </div>
 
-      {/* Alerts - Improved readability */}
+      {/* Error/Success Messages */}
       <AnimatePresence>
         {error && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4"
+            className="bg-red-50 border border-red-200 rounded-lg p-4"
           >
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
@@ -280,7 +283,7 @@ export default function StakingDashboard() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4"
+            className="bg-green-50 border border-green-200 rounded-lg p-4"
           >
             <div className="flex items-start gap-3">
               <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
@@ -298,21 +301,21 @@ export default function StakingDashboard() {
         )}
       </AnimatePresence>
 
-      {/* Stats Overview - Improved readability */}
+      {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-orange-50 border border-orange-200 rounded-lg p-6"
+          className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-xl p-6"
         >
-          <div className="flex items-center gap-2 text-orange-600 mb-2">
+          <div className="flex items-center gap-2 text-purple-400 mb-2">
             <Lock className="w-5 h-5" />
             <span className="text-sm font-semibold">Your Staked</span>
           </div>
-          <div className="text-3xl font-bold text-orange-600">
+          <div className="text-3xl font-bold text-purple-400">
             {stakingStats?.userStakedFormatted.toFixed(2) || '0'} BLAZE
           </div>
-          <div className="text-sm text-orange-700 mt-1">
+          <div className="text-sm text-gray-600 mt-1">
             {stakeInfo ? `Lock: ${stakeInfo.lockPeriodName}` : 'No active stake'}
           </div>
         </motion.div>
@@ -321,16 +324,16 @@ export default function StakingDashboard() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-green-50 border border-green-200 rounded-lg p-6"
+          className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-xl p-6"
         >
-          <div className="flex items-center gap-2 text-green-600 mb-2">
+          <div className="flex items-center gap-2 text-green-400 mb-2">
             <TrendingUp className="w-5 h-5" />
             <span className="text-sm font-semibold">Pending Rewards</span>
           </div>
-          <div className="text-3xl font-bold text-green-600">
+          <div className="text-3xl font-bold text-green-400">
             {stakingStats?.pendingRewardsFormatted.toFixed(4) || '0'} BLAZE
           </div>
-          <div className="text-sm text-green-700 mt-1">
+          <div className="text-sm text-gray-600 mt-1">
             APY: {stakingStats?.stakingAPY || 0}%
           </div>
         </motion.div>
@@ -339,16 +342,16 @@ export default function StakingDashboard() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="bg-purple-50 border border-purple-200 rounded-lg p-6"
+          className="bg-gradient-to-br from-orange-500/20 to-yellow-500/20 border border-orange-500/30 rounded-xl p-6"
         >
-          <div className="flex items-center gap-2 text-purple-600 mb-2">
+          <div className="flex items-center gap-2 text-orange-400 mb-2">
             <Crown className="w-5 h-5" />
             <span className="text-sm font-semibold">Status</span>
           </div>
-          <div className="text-2xl font-bold text-purple-600">
+          <div className="text-2xl font-bold text-orange-400">
             {stakingStats?.isPremium ? 'Premium ✨' : 'Standard'}
           </div>
-          <div className="text-sm text-purple-700 mt-1">
+          <div className="text-sm text-gray-600 mt-1">
             {stakingStats?.isPremium ? 'Premium benefits active' : 'Stake 1000+ for premium'}
           </div>
         </motion.div>
@@ -359,24 +362,24 @@ export default function StakingDashboard() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white/5 border border-white/10 rounded-xl p-6"
+          className="bg-white border border-gray-200 rounded-xl p-6"
         >
           <h3 className="text-lg font-semibold mb-4">Current Stake</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <div className="text-sm text-gray-400">Amount</div>
+              <div className="text-sm text-gray-500">Amount</div>
               <div className="text-lg font-semibold">{stakeInfo.amountFormatted.toFixed(2)} BLAZE</div>
             </div>
             <div>
-              <div className="text-sm text-gray-400">Lock Period</div>
+              <div className="text-sm text-gray-500">Lock Period</div>
               <div className="text-lg font-semibold">{stakeInfo.lockPeriodName}</div>
             </div>
             <div>
-              <div className="text-sm text-gray-400">APY</div>
-              <div className="text-lg font-semibold text-green-400">{stakeInfo.apy}%</div>
+              <div className="text-sm text-gray-500">APY</div>
+              <div className="text-lg font-semibold text-green-600">{stakeInfo.apy}%</div>
             </div>
             <div>
-              <div className="text-sm text-gray-400">Unlock Date</div>
+              <div className="text-sm text-gray-500">Unlock Date</div>
               <div className="text-lg font-semibold">
                 {stakeInfo.isLocked ? stakeInfo.unlockDate.toLocaleDateString() : 'Anytime'}
               </div>
@@ -387,7 +390,7 @@ export default function StakingDashboard() {
             <button
               onClick={handleUnstake}
               disabled={!stakeInfo.canUnstake || isUnstaking}
-              className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 py-3 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
             >
               {isUnstaking ? (
                 <>
@@ -402,7 +405,7 @@ export default function StakingDashboard() {
             <button
               onClick={handleClaimRewards}
               disabled={isClaiming || (stakingStats?.pendingRewardsFormatted || 0) === 0}
-              className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
             >
               {isClaiming ? (
                 <>
@@ -424,14 +427,14 @@ export default function StakingDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/5 border border-white/10 rounded-xl p-6"
+        className="bg-white border border-gray-200 rounded-xl p-6"
       >
         <h3 className="text-lg font-semibold mb-4">
           {stakeInfo ? 'Stake More' : 'Start Staking'}
         </h3>
 
         <div className="space-y-4">
-          {/* Amount Input - Improved readability */}
+          {/* Amount Input */}
           <div>
             <label className="text-sm text-gray-700 mb-2 block font-medium">Amount to Stake</label>
             <div className="relative">
@@ -440,18 +443,18 @@ export default function StakingDashboard() {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
-                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 pr-20 text-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-20 text-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               />
               <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">
                 BLAZE
               </div>
             </div>
-            <div className="text-sm text-gray-600 mt-1">
+            <div className="text-sm text-gray-500 mt-1">
               Available: {parseFloat(balance).toFixed(2)} BLAZE
             </div>
           </div>
 
-          {/* Staking Plans - Improved readability */}
+          {/* Staking Plans */}
           <div>
             <label className="text-sm text-gray-700 mb-2 block font-medium">Select Plan</label>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -463,10 +466,10 @@ export default function StakingDashboard() {
                     key={plan.lockPeriod}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setSelectedPlan(plan.lockPeriod)}
-                    className={`p-4 rounded-lg border-2 transition-all ${
+                    className={`p-4 rounded-xl border-2 transition-all ${
                       isSelected
-                        ? `bg-gradient-to-br ${plan.color} border-gray-300 text-white`
-                        : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
+                        ? `bg-gradient-to-br ${plan.color} border-transparent text-white`
+                        : 'bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-900'
                     }`}
                   >
                     <Icon className="w-6 h-6 mb-2" />
@@ -481,7 +484,7 @@ export default function StakingDashboard() {
             </div>
           </div>
 
-          {/* Projected Rewards - Improved readability */}
+          {/* Projected Rewards */}
           {amount && parseFloat(amount) > 0 && (
             <motion.div
               initial={{ opacity: 0 }}
@@ -501,7 +504,7 @@ export default function StakingDashboard() {
           <button
             onClick={handleStake}
             disabled={!amount || parseFloat(amount) <= 0 || isStaking}
-            className="w-full py-4 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
           >
             {isStaking ? (
               <>
@@ -518,25 +521,25 @@ export default function StakingDashboard() {
         </div>
       </motion.div>
 
-      {/* Info Cards - Improved readability */}
+      {/* Info Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h4 className="font-semibold mb-2 flex items-center gap-2 text-blue-800">
-            <Zap className="w-4 h-4 text-blue-600" />
+          <h4 className="font-semibold mb-2 flex items-center gap-2 text-blue-700">
+            <Zap className="w-4 h-4" />
             How Staking Works
           </h4>
-          <p className="text-sm text-blue-700">
+          <p className="text-sm text-blue-600">
             Lock your BLAZE tokens for a chosen period to earn rewards. Longer lock periods = higher APY. 
             Rewards are calculated and distributed automatically.
           </p>
         </div>
 
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-          <h4 className="font-semibold mb-2 flex items-center gap-2 text-purple-800">
-            <Crown className="w-4 h-4 text-purple-600" />
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+          <h4 className="font-semibold mb-2 flex items-center gap-2 text-orange-700">
+            <Crown className="w-4 h-4" />
             Premium Benefits
           </h4>
-          <p className="text-sm text-purple-700">
+          <p className="text-sm text-orange-600">
             Hold 1000+ BLAZE (staked or unstaked) to unlock premium features: 50% NFT discount, 
             2x cashback, and exclusive governance voting power.
           </p>

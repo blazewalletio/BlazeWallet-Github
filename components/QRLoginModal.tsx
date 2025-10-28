@@ -121,7 +121,7 @@ export default function QRLoginModal({ isOpen, onSuccess, onCancel }: QRLoginMod
           className="bg-slate-900 rounded-2xl p-6 w-full max-w-md border border-slate-800"
         >
           <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-theme-primary to-theme-primary rounded-full flex items-center justify-center mx-auto mb-4">
               {status === 'approved' ? (
                 <CheckCircle className="w-8 h-8 text-white" />
               ) : status === 'expired' ? (
@@ -138,7 +138,7 @@ export default function QRLoginModal({ isOpen, onSuccess, onCancel }: QRLoginMod
                'Inloggen met mobiele app'}
             </h2>
             
-            <p className="text-slate-400">
+            <p className="text-theme-text-muted">
               {status === 'approved' ? 'Logging you in now...' :
                status === 'expired' ? 'The QR code has expired. Generate a new one.' :
                status === 'error' ? 'Er is een fout opgetreden.' :
@@ -148,24 +148,24 @@ export default function QRLoginModal({ isOpen, onSuccess, onCancel }: QRLoginMod
 
           {status === 'generating' && (
             <div className="flex items-center justify-center py-8">
-              <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-8 h-8 border-2 border-theme-border border-t-transparent rounded-full animate-spin"></div>
             </div>
           )}
 
           {status === 'waiting' && qrCode && (
             <div className="space-y-4">
               <div className="flex justify-center">
-                <div className="bg-white p-4 rounded-xl">
+                <div className="bg-theme-bg-card p-4 rounded-xl">
                   <img src={qrCode} alt="QR Code" className="w-48 h-48" />
                 </div>
               </div>
               
-              <div className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-4">
-                <div className="flex items-center space-x-2 text-blue-400 mb-2">
+              <div className="bg-theme-primary/20 border border-theme-border/30 rounded-xl p-4">
+                <div className="flex items-center space-x-2 text-theme-primary mb-2">
                   <QrCode className="w-5 h-5" />
                   <span className="font-medium">Stappen:</span>
                 </div>
-                <ol className="text-sm text-blue-300 space-y-1">
+                <ol className="text-sm text-theme-primary space-y-1">
                   <li>1. Open BLAZE Wallet on your phone</li>
                   <li>2. Tik op "Desktop Login"</li>
                   <li>3. Scan this QR code</li>
@@ -177,7 +177,7 @@ export default function QRLoginModal({ isOpen, onSuccess, onCancel }: QRLoginMod
 
           {status === 'approved' && (
             <div className="flex justify-center py-8">
-              <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center">
+              <div className="w-16 h-16 bg-theme-primary rounded-full flex items-center justify-center">
                 <CheckCircle className="w-8 h-8 text-white" />
               </div>
             </div>
@@ -185,8 +185,8 @@ export default function QRLoginModal({ isOpen, onSuccess, onCancel }: QRLoginMod
 
           {status === 'expired' && (
             <div className="space-y-4">
-              <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-xl p-4">
-                <div className="flex items-center space-x-2 text-yellow-400">
+              <div className="bg-theme-primary/20 border border-theme-border/30 rounded-xl p-4">
+                <div className="flex items-center space-x-2 text-theme-primary">
                   <AlertCircle className="w-5 h-5" />
                   <span className="text-sm">QR code has expired</span>
                 </div>
@@ -195,8 +195,8 @@ export default function QRLoginModal({ isOpen, onSuccess, onCancel }: QRLoginMod
           )}
 
           {status === 'error' && error && (
-            <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-4">
-              <div className="flex items-center space-x-2 text-red-400">
+            <div className="bg-theme-primary/20 border border-theme-border/30 rounded-xl p-4">
+              <div className="flex items-center space-x-2 text-theme-primary">
                 <AlertCircle className="w-5 h-5" />
                 <span className="text-sm">{error}</span>
               </div>
@@ -207,7 +207,7 @@ export default function QRLoginModal({ isOpen, onSuccess, onCancel }: QRLoginMod
             {status === 'waiting' && (
               <button
                 onClick={handleRefresh}
-                className="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2"
+                className="flex-1 bg-slate-800 hover:bg-theme-bg-card border border-slate-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2"
               >
                 <RefreshCw className="w-4 h-4" />
                 <span>Refresh</span>
@@ -217,7 +217,7 @@ export default function QRLoginModal({ isOpen, onSuccess, onCancel }: QRLoginMod
             {(status === 'expired' || status === 'error') && (
               <button
                 onClick={handleRefresh}
-                className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2"
+                className="flex-1 bg-gradient-to-r from-theme-primary to-theme-primary hover:from-theme-primary hover:to-theme-primary text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2"
               >
                 <RefreshCw className="w-4 h-4" />
                 <span>New QR Code</span>
@@ -227,7 +227,7 @@ export default function QRLoginModal({ isOpen, onSuccess, onCancel }: QRLoginMod
             {status !== 'approved' && (
               <button
                 onClick={handleCancel}
-                className="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200"
+                className="flex-1 bg-slate-800 hover:bg-theme-bg-card border border-slate-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200"
               >
                 Annuleren
               </button>
@@ -235,7 +235,7 @@ export default function QRLoginModal({ isOpen, onSuccess, onCancel }: QRLoginMod
           </div>
 
           <div className="mt-4 text-center">
-            <div className="flex items-center justify-center space-x-2 text-slate-400 text-sm">
+            <div className="flex items-center justify-center space-x-2 text-theme-text-muted text-sm">
               <Shield className="w-4 h-4" />
               <span>Veilige cross-device authenticatie</span>
             </div>

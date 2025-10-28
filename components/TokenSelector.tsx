@@ -54,7 +54,7 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
                 <motion.button
                   whileTap={{ scale: 0.9 }}
                   onClick={onClose}
-                  className="glass p-2 rounded-lg hover:bg-gray-50"
+                  className="glass p-2 rounded-lg hover:bg-theme-bg-secondary"
                 >
                   <X className="w-5 h-5" />
                 </motion.button>
@@ -62,7 +62,7 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
 
               {/* Search */}
               <div className="relative mb-6">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-600" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-theme-text-secondary" />
                 <input
                   type="text"
                   value={searchQuery}
@@ -74,13 +74,13 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
 
               {/* Popular Tokens */}
               <div className="space-y-3 overflow-y-auto max-h-[50vh] mb-6">
-                <h3 className="text-sm font-semibold text-gray-600 mb-3">Populaire tokens</h3>
+                <h3 className="text-sm font-semibold text-theme-text-secondary mb-3">Populaire tokens</h3>
                 {filteredTokens.map((token) => (
                   <motion.button
                     key={token.address}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => handleAddToken(token)}
-                    className="w-full glass p-4 rounded-xl flex items-center justify-between hover:bg-gray-50"
+                    className="w-full glass p-4 rounded-xl flex items-center justify-between hover:bg-theme-bg-secondary"
                   >
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 bg-gradient-to-br from-slate-700 to-slate-600 rounded-full flex items-center justify-center text-lg">
@@ -88,15 +88,15 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
                       </div>
                       <div className="text-left">
                         <div className="font-semibold">{token.symbol}</div>
-                        <div className="text-sm text-gray-600">{token.name}</div>
+                        <div className="text-sm text-theme-text-secondary">{token.name}</div>
                       </div>
                     </div>
-                    <Plus className="w-5 h-5 text-gray-600" />
+                    <Plus className="w-5 h-5 text-theme-text-secondary" />
                   </motion.button>
                 ))}
 
                 {filteredTokens.length === 0 && (
-                  <div className="text-center py-8 text-gray-600">
+                  <div className="text-center py-8 text-theme-text-secondary">
                     <div className="text-3xl mb-2">🔍</div>
                     <p className="text-sm">No tokens found</p>
                   </div>
@@ -104,8 +104,8 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
               </div>
 
               {/* Custom Token Address */}
-              <div className="glass-card bg-blue-500/10 border-blue-500/20">
-                <p className="text-blue-700 text-xs mb-2">Custom token contract address:</p>
+              <div className="glass-card bg-theme-primary/10 border-theme-border/20">
+                <p className="text-theme-primary text-xs mb-2">Custom token contract address:</p>
                 <input
                   type="text"
                   value={customAddress}

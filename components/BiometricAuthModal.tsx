@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Fingerprint, Shield, AlertCircle, CheckCircle, X } from 'lucide-react';
 import { WebAuthnService } from '@/lib/webauthn-service';
+import { BiometricStore } from '@/lib/biometric-store';
 import { useWalletStore } from '@/lib/wallet-store';
 
 interface BiometricAuthModalProps {
@@ -13,6 +14,7 @@ interface BiometricAuthModalProps {
   onRegister?: () => void;
   mode: 'authenticate' | 'register';
   username?: string;
+  password?: string; // Password to store for biometric unlock
 }
 
 export default function BiometricAuthModal({ 
@@ -21,12 +23,14 @@ export default function BiometricAuthModal({
   onCancel, 
   onRegister,
   mode,
-  username = 'BLAZE User'
+  username = 'BLAZE User',
+  password
 }: BiometricAuthModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [webauthnService] = useState(() => WebAuthnService.getInstance());
+  const [biometricStore] = useState(() => BiometricStore.getInstance());
   const [isSupported, setIsSupported] = useState(false);
   const [isAvailable, setIsAvailable] = useState(false);
   const { unlockWithBiometric } = useWalletStore();
@@ -62,6 +66,19 @@ export default function BiometricAuthModal({
         
         if (result.success && result.credential) {
           webauthnService.storeCredential(result.credential);
+          
+          // ✅ SECURITY: Store password for biometric unlock AFTER credential registration
+          // This ensures password can only be retrieved with biometric authentication
+          if (password) {
+            console.log('💾 Storing password for biometric access...');
+            const stored = await biometricStore.storePassword(password);
+            if (!stored) {
+              console.warn('⚠️ Failed to store password for biometric access');
+            } else {
+              console.log('✅ Password stored securely for biometric unlock');
+            }
+          }
+          
           setSuccess(true);
           setTimeout(() => {
             onSuccess();
@@ -116,121 +133,119 @@ export default function BiometricAuthModal({
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        initial={{ opacity: 0, x: 100 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -100 }}
+        transition={{ duration: 0.3 }}
+        className="fixed inset-0 bg-gray-50 z-50 overflow-y-auto flex items-center justify-center p-4"
       >
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.9, opacity: 0 }}
-          className="bg-slate-900 rounded-2xl p-6 w-full max-w-md border border-slate-800"
-        >
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              {success ? (
-                <CheckCircle className="w-8 h-8 text-white" />
-              ) : (
-                <Fingerprint className="w-8 h-8 text-white" />
-              )}
-            </div>
-            
-            <h2 className="text-2xl font-bold text-white mb-2">
-              {mode === 'register' ? 'Biometrie instellen' : 'Biometrische toegang'}
-            </h2>
-            
-            <p className="text-slate-400">
-              {mode === 'register' 
-                ? 'Stel vingerafdruk of Face ID in voor snelle toegang'
-                : 'Gebruik je vingerafdruk of Face ID om toegang te krijgen'
-              }
-            </p>
-          </div>
-
-          {!isSupported && (
-            <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-4 mb-4">
-              <div className="flex items-center space-x-2 text-red-400">
-                <AlertCircle className="w-5 h-5" />
-                <span className="text-sm font-medium">WebAuthn not supported</span>
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-8">
+            <div className="text-center mb-6">
+              <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                {success ? (
+                  <CheckCircle className="w-10 h-10 text-white" />
+                ) : (
+                  <Fingerprint className="w-10 h-10 text-white" />
+                )}
               </div>
-              <p className="text-sm text-red-300 mt-1">
-                Biometric authentication is not available in this browser.
+              
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                {mode === 'register' ? 'Biometrie instellen' : 'Biometrische toegang'}
+              </h2>
+              
+              <p className="text-gray-600">
+                {mode === 'register' 
+                  ? 'Stel vingerafdruk of Face ID in voor snelle toegang'
+                  : 'Gebruik je vingerafdruk of Face ID om toegang te krijgen'
+                }
               </p>
             </div>
-          )}
 
-          {isSupported && !isAvailable && (
-            <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-xl p-4 mb-4">
-              <div className="flex items-center space-x-2 text-yellow-400">
-                <AlertCircle className="w-5 h-5" />
-                <span className="text-sm font-medium">Biometrics not available</span>
+            {!isSupported && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+                <div className="flex items-center gap-2 text-red-600">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                  <span className="text-sm font-medium">WebAuthn not supported</span>
+                </div>
+                <p className="text-sm text-red-600 mt-1">
+                  Biometric authentication is not available in this browser.
+                </p>
               </div>
-              <p className="text-sm text-yellow-300 mt-1">
-                Dit apparaat ondersteunt geen vingerafdruk of Face ID authenticatie.
-              </p>
-            </div>
-          )}
+            )}
 
-          {error && (
-            <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-4 mb-4">
-              <div className="flex items-center space-x-2 text-red-400">
-                <AlertCircle className="w-5 h-5" />
-                <span className="text-sm">{error}</span>
+            {isSupported && !isAvailable && (
+              <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4">
+                <div className="flex items-center gap-2 text-orange-600">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                  <span className="text-sm font-medium">Biometrics not available</span>
+                </div>
+                <p className="text-sm text-orange-600 mt-1">
+                  Dit apparaat ondersteunt geen vingerafdruk of Face ID authenticatie.
+                </p>
               </div>
-            </div>
-          )}
+            )}
 
-          {success && (
-            <div className="bg-green-900/20 border border-green-500/30 rounded-xl p-4 mb-4">
-              <div className="flex items-center space-x-2 text-green-400">
-                <CheckCircle className="w-5 h-5" />
-                <span className="text-sm">
-                  {mode === 'register' ? 'Biometrics successfully set up!' : 'Access granted!'}
-                </span>
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
+                <div className="flex items-center gap-2 text-red-600">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                  <span className="text-sm">{error}</span>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div className="space-y-3">
-            <button
-              onClick={handleBiometricAuth}
-              disabled={isLoading || !isSupported || !isAvailable}
-              className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2"
-            >
-              {isLoading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>
-                  <Fingerprint className="w-5 h-5" />
-                  <span>
-                    {mode === 'register' 
-                      ? 'Biometrie instellen' 
-                      : 'Vingerafdruk / Face ID'
-                    }
+            {success && (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4">
+                <div className="flex items-center gap-2 text-green-600">
+                  <CheckCircle className="w-5 h-5 flex-shrink-0" />
+                  <span className="text-sm">
+                    {mode === 'register' ? 'Biometrics successfully set up!' : 'Access granted!'}
                   </span>
-                </>
-              )}
-            </button>
+                </div>
+              </div>
+            )}
 
-            <button
-              onClick={handleSkip}
-              className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2"
-            >
-              <X className="w-4 h-4" />
-              <span>
-                {mode === 'register' ? 'Overslaan' : 'Annuleren'}
-              </span>
-            </button>
-          </div>
+            <div className="space-y-3">
+              <button
+                onClick={handleBiometricAuth}
+                disabled={isLoading || !isSupported || !isAvailable}
+                className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+              >
+                {isLoading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Fingerprint className="w-5 h-5" />
+                    <span>
+                      {mode === 'register' 
+                        ? 'Biometrie instellen' 
+                        : 'Vingerafdruk / Face ID'
+                      }
+                    </span>
+                  </>
+                )}
+              </button>
 
-          <div className="mt-6 text-center">
-            <div className="flex items-center justify-center space-x-2 text-slate-400 text-sm">
-              <Shield className="w-4 h-4" />
-              <span>Your biometric data stays secure on this device</span>
+              <button
+                onClick={handleSkip}
+                className="w-full bg-white hover:bg-gray-50 border-2 border-gray-200 text-gray-900 font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                <X className="w-4 h-4" />
+                <span>
+                  {mode === 'register' ? 'Overslaan' : 'Annuleren'}
+                </span>
+              </button>
+            </div>
+
+            <div className="mt-6 text-center">
+              <div className="flex items-center justify-center gap-2 text-gray-500 text-sm">
+                <Shield className="w-4 h-4" />
+                <span>Your biometric data stays secure on this device</span>
+              </div>
             </div>
           </div>
-        </motion.div>
+        </div>
       </motion.div>
     </AnimatePresence>
   );

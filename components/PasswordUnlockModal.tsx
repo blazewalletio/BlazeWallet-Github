@@ -24,9 +24,12 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   useEffect(() => {
     const checkBiometric = async () => {
       if (typeof window !== 'undefined') {
-        // Check both localStorage flag and if credentials/password are stored
+        // ✅ Use BiometricStore.hasStoredPassword() for consistent validation
+        const { BiometricStore } = await import('@/lib/biometric-store');
+        const biometricStore = BiometricStore.getInstance();
+        
         const enabled = localStorage.getItem('biometric_enabled') === 'true';
-        const hasStoredPassword = localStorage.getItem('biometric_protected_password') !== null;
+        const hasStoredPassword = biometricStore.hasStoredPassword(); // ✅ Uses corrupt data validation
         
         // Also check for WebAuthn credentials
         const credentialsStr = localStorage.getItem('webauthn_credentials');
@@ -34,8 +37,8 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         
         console.log('🔍 Biometric check:', { enabled, hasStoredPassword, hasCredentials });
         
-        // Show biometric button if enabled AND (has stored password OR has credentials)
-        const available = enabled && (hasStoredPassword || hasCredentials);
+        // Show biometric button if enabled AND has stored password AND has credentials
+        const available = enabled && hasStoredPassword && hasCredentials;
         setBiometricAvailable(available);
       }
     };
@@ -56,9 +59,39 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
 
     setIsLoading(true);
     try {
-      await unlockWithPassword(password);
-      onComplete();
-    } catch (error) {
+      // Check if wallet was created with email
+      const createdWithEmail = localStorage.getItem('wallet_created_with_email') === 'true';
+      const email = localStorage.getItem('wallet_email');
+
+      if (createdWithEmail && email) {
+        // For email wallets, decrypt using Supabase auth method
+        const { signInWithEmail } = await import('@/lib/supabase-auth');
+        const result = await signInWithEmail(email, password);
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Invalid password');
+        }
+
+        // Wallet is now decrypted and loaded
+        if (result.mnemonic) {
+          const { importWallet } = useWalletStore.getState();
+          await importWallet(result.mnemonic);
+        }
+        
+        // Set session flag to skip unlock modal on page refresh during same session
+        sessionStorage.setItem('wallet_unlocked_this_session', 'true');
+        
+        onComplete();
+      } else {
+        // For seed phrase wallets, use traditional unlock
+        await unlockWithPassword(password);
+        
+        // Set session flag
+        sessionStorage.setItem('wallet_unlocked_this_session', 'true');
+        
+        onComplete();
+      }
+    } catch (error: any) {
       setAttempts(prev => prev + 1);
       setError(`Invalid password. Attempt ${attempts + 1}/3`);
     } finally {
@@ -72,8 +105,20 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     try {
       const { unlockWithBiometric } = useWalletStore.getState();
       await unlockWithBiometric();
+      
+      // Set session flag
+      sessionStorage.setItem('wallet_unlocked_this_session', 'true');
+      
       onComplete();
     } catch (error: any) {
+      // Check if biometric is still available after the error
+      // (it might have been auto-cleared if data was corrupt)
+      const stillEnabled = localStorage.getItem('biometric_enabled') === 'true';
+      if (!stillEnabled) {
+        console.log('🚨 Biometric disabled after error - hiding biometric button');
+        setBiometricAvailable(false);
+      }
+      
       setError(error.message || "Biometric authentication failed");
     } finally {
       setIsLoading(false);
@@ -85,104 +130,102 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        initial={{ opacity: 0, x: 100 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -100 }}
+        transition={{ duration: 0.3 }}
+        className="fixed inset-0 bg-gray-50 z-50 overflow-y-auto flex items-center justify-center p-4"
       >
-        <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.9, opacity: 0 }}
-          className="bg-slate-900 rounded-2xl p-6 w-full max-w-md border border-slate-800"
-        >
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Shield className="w-8 h-8 text-white" />
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-8">
+            <div className="text-center mb-6">
+              <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <Shield className="w-10 h-10 text-white" />
+              </div>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                Unlock wallet
+              </h2>
+              <p className="text-gray-600">
+                Enter your password to access your wallet
+              </p>
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">
-              Unlock wallet
-            </h2>
-            <p className="text-slate-400">
-              Enter your password to access your wallet
-            </p>
-          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 pr-12 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  placeholder="Enter your password"
-                  required
-                  autoFocus
-                />
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-gray-50 border-2 border-gray-300 rounded-xl px-4 py-3 pr-12 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
+                    placeholder="Enter your password"
+                    required
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
+
+              {error && (
+                <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl p-3">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isLoading || !password}
+                className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center shadow-lg hover:shadow-xl"
+              >
+                {isLoading ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  "Unlock"
+                )}
+              </button>
+
+              {/* Biometric Authentication Button - Only show if enabled */}
+              {biometricAvailable && (
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-white"
+                  onClick={handleBiometricAuth}
+                  disabled={isLoading}
+                  className="w-full bg-white hover:bg-gray-50 disabled:bg-gray-50 disabled:cursor-not-allowed border-2 border-gray-200 text-gray-900 font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  <Fingerprint className="w-5 h-5" />
+                  <span>Fingerprint / Face ID</span>
                 </button>
-              </div>
+              )}
+            </form>
+
+            <div className="mt-6 text-center">
+              <button
+                onClick={onFallback}
+                className="text-gray-600 hover:text-gray-900 text-sm underline transition-colors"
+              >
+                Recover with recovery phrase
+              </button>
             </div>
 
-            {error && (
-              <div className="flex items-center space-x-2 text-red-400 text-sm">
-                <AlertCircle className="w-4 h-4" />
-                <span>{error}</span>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={isLoading || !password}
-              className="w-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 flex items-center justify-center"
-            >
-              {isLoading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                "Unlock"
-              )}
-            </button>
-
-            {/* Biometric Authentication Button - Only show if enabled */}
-            {biometricAvailable && (
-              <button
-                type="button"
-                onClick={handleBiometricAuth}
-                disabled={isLoading}
-                className="w-full bg-slate-800 hover:bg-slate-700 disabled:bg-slate-700 disabled:cursor-not-allowed border border-slate-600 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2"
-              >
-                <Fingerprint className="w-5 h-5" />
-                <span>Fingerprint / Face ID</span>
-              </button>
-            )}
-          </form>
-
-          <div className="mt-6 text-center">
-            <button
-              onClick={onFallback}
-              className="text-slate-400 hover:text-white text-sm underline"
-            >
-              Recover with recovery phrase
-            </button>
+            <div className="mt-4 text-center">
+              <p className="text-xs text-gray-500">
+                Your wallet is encrypted and stored on this device.
+                <br />
+                Your password is never sent to our servers.
+              </p>
+            </div>
           </div>
-
-          <div className="mt-4 text-center">
-            <p className="text-xs text-slate-500">
-              Your wallet is encrypted and stored on this device.
-              <br />
-              Your password is never sent to our servers.
-            </p>
-          </div>
-        </motion.div>
+        </div>
       </motion.div>
     </AnimatePresence>
   );

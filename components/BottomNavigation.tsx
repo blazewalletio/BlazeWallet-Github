@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Wallet, 
@@ -18,6 +18,16 @@ interface BottomNavigationProps {
 }
 
 export default function BottomNavigation({ activeTab, onTabChange }: BottomNavigationProps) {
+  const [isPWA, setIsPWA] = useState(false);
+
+  // Detect if running as PWA
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      setIsPWA(isStandalone);
+    }
+  }, []);
+
   const tabs = [
     {
       id: 'wallet' as TabType,
@@ -47,8 +57,10 @@ export default function BottomNavigation({ activeTab, onTabChange }: BottomNavig
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t border-gray-200 shadow-lg">
-      <div className="max-w-4xl mx-auto px-2 py-2">
+    <div className={`fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t border-gray-200 shadow-lg ${
+      isPWA ? 'pb-safe' : 'pb-2'
+    }`}>
+      <div className={`max-w-4xl mx-auto px-3 ${isPWA ? 'py-3' : 'py-2'}`}>
         <div className="flex justify-around">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -58,7 +70,9 @@ export default function BottomNavigation({ activeTab, onTabChange }: BottomNavig
               <motion.button
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
-                className={`relative flex flex-col items-center justify-center py-2 px-3 rounded-xl transition-all duration-200 min-w-0 flex-1 ${
+                className={`relative flex flex-col items-center justify-center ${
+                  isPWA ? 'py-3 px-4' : 'py-2 px-3'
+                } rounded-xl transition-all duration-200 min-w-0 flex-1 ${
                   isActive 
                     ? 'text-primary-600' 
                     : 'text-gray-500 hover:text-gray-700'
@@ -67,7 +81,7 @@ export default function BottomNavigation({ activeTab, onTabChange }: BottomNavig
               >
                 <div className="relative">
                   <Icon 
-                    className={`w-5 h-5 transition-colors duration-200 ${
+                    className={`${isPWA ? 'w-6 h-6' : 'w-5 h-5'} transition-colors duration-200 ${
                       isActive ? 'text-primary-600' : 'text-gray-500'
                     }`} 
                   />
@@ -85,7 +99,9 @@ export default function BottomNavigation({ activeTab, onTabChange }: BottomNavig
                   </AnimatePresence>
                 </div>
                 
-                <span className={`text-xs font-medium mt-1 transition-colors duration-200 ${
+                <span className={`${isPWA ? 'text-[11px] sm:text-xs' : 'text-[10px]'} font-medium ${
+                  isPWA ? 'mt-1.5' : 'mt-1'
+                } transition-colors duration-200 ${
                   isActive ? 'text-primary-600' : 'text-gray-500'
                 }`}>
                   {tab.label}

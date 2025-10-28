@@ -1,11 +1,11 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CreditCard, Banknote, ShieldCheck, Flame, ExternalLink } from 'lucide-react';
+import { CreditCard, Banknote, ShieldCheck, Flame, ExternalLink } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
+import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { CHAINS } from '@/lib/chains';
 import { TransakService } from '@/lib/transak-service';
-import { useState } from 'react';
 
 interface BuyModalProps {
   isOpen: boolean;
@@ -16,6 +16,9 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
   const { address, currentChain } = useWalletStore();
   const chain = CHAINS[currentChain];
   const supportedAssets = TransakService.getSupportedAssets(chain.id);
+
+  // Block body scroll when overlay is open
+  useBlockBodyScroll(isOpen);
 
   const handleBuy = async (currencyCode?: string) => {
     if (!address) {
@@ -67,74 +70,64 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
         }
   };
 
+  if (!isOpen) return null;
+
   return (
     <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
+      >
+        <div className="max-w-4xl mx-auto p-6">
+          {/* Back Button */}
+          <button
             onClick={onClose}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
-          />
-          
-          {/* Modal */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
           >
-            <div className="pointer-events-auto">
-              <div className="w-full max-w-md glass-card rounded-2xl max-h-[90vh] overflow-y-auto">
-                {/* Header */}
-                <div className="sticky top-0 glass backdrop-blur-xl border-b border-white/10 px-6 py-4 rounded-t-2xl">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-lg flex items-center justify-center">
-                        <Flame className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-semibold">Buy crypto</h2>
-                        <p className="text-xs text-gray-400">
-                          With iDEAL, credit card or bank transfer
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={onClose}
-                      className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
+            ← Back
+          </button>
 
-                <div className="p-6">
+          {/* Header */}
+          <div className="mb-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
+                <Flame className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Buy crypto</h2>
+                <p className="text-sm text-gray-600">
+                  With iDEAL, credit card or bank transfer
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-6">
 
             {/* Features */}
-            <div className="grid grid-cols-3 gap-3 mb-6">
-              <div className="text-center p-3 bg-orange-500/10 rounded-xl">
-                <Flame className="w-6 h-6 text-orange-400 mx-auto mb-2" />
-                <p className="text-xs text-gray-700">Instant</p>
-              </div>
-              <div className="text-center p-3 bg-emerald-500/10 rounded-xl">
-                <ShieldCheck className="w-6 h-6 text-emerald-400 mx-auto mb-2" />
-                <p className="text-xs text-gray-700">Secure</p>
-              </div>
-              <div className="text-center p-3 bg-purple-500/10 rounded-xl">
-                <CreditCard className="w-6 h-6 text-purple-400 mx-auto mb-2" />
-                <p className="text-xs text-gray-700">Easy</p>
+            <div className="glass-card p-6">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center p-4 bg-orange-500/10 rounded-xl">
+                  <Flame className="w-8 h-8 text-orange-500 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-gray-900">Instant</p>
+                </div>
+                <div className="text-center p-4 bg-emerald-500/10 rounded-xl">
+                  <ShieldCheck className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-gray-900">Secure</p>
+                </div>
+                <div className="text-center p-4 bg-purple-500/10 rounded-xl">
+                  <CreditCard className="w-8 h-8 text-purple-500 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-gray-900">Easy</p>
+                </div>
               </div>
             </div>
 
             {/* Popular Assets */}
-            <div className="mb-6">
-              <h3 className="text-sm font-semibold text-gray-600 mb-3">Popular crypto</h3>
-              <div className="grid grid-cols-2 gap-3">
+            <div className="glass-card p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Popular crypto</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {supportedAssets.slice(0, 6).map((currencyCode) => {
                   const displayName = TransakService.getDisplayName(currencyCode);
                   return (
@@ -142,15 +135,15 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
                       key={currencyCode}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => handleBuy(currencyCode)}
-                      className="p-4 bg-gray-50/50 hover:bg-gray-50 rounded-xl transition-colors text-left"
+                      className="p-4 bg-gray-50 hover:bg-white rounded-xl transition-all text-left border border-gray-200 hover:border-orange-300 hover:shadow-md"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-lg font-bold">
+                        <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-full flex items-center justify-center text-lg font-bold text-white">
                           {displayName.charAt(0)}
                         </div>
                         <div>
-                          <p className="font-semibold">{displayName}</p>
-                          <p className="text-xs text-gray-600">Buy</p>
+                          <p className="font-semibold text-gray-900">{displayName}</p>
+                          <p className="text-xs text-gray-600">Buy now</p>
                         </div>
                       </div>
                     </motion.button>
@@ -160,35 +153,35 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
             </div>
 
             {/* Payment Methods */}
-            <div className="mb-6">
-              <h3 className="text-sm font-semibold text-gray-600 mb-3">Payment methods</h3>
-              <div className="flex flex-wrap gap-2">
-                <div className="px-3 py-2 bg-gray-50/50 rounded-lg text-sm">
-                  <Banknote className="w-4 h-4 inline mr-1" />
+            <div className="glass-card p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment methods</h3>
+              <div className="flex flex-wrap gap-3">
+                <div className="px-4 py-3 bg-gray-50 rounded-xl text-sm font-medium text-gray-900 border border-gray-200">
+                  <Banknote className="w-4 h-4 inline mr-2" />
                   iDEAL
                 </div>
-                <div className="px-3 py-2 bg-gray-50/50 rounded-lg text-sm">
-                  <CreditCard className="w-4 h-4 inline mr-1" />
+                <div className="px-4 py-3 bg-gray-50 rounded-xl text-sm font-medium text-gray-900 border border-gray-200">
+                  <CreditCard className="w-4 h-4 inline mr-2" />
                   Credit card
                 </div>
-                <div className="px-3 py-2 bg-gray-50/50 rounded-lg text-sm">
-                  Bank
+                <div className="px-4 py-3 bg-gray-50 rounded-xl text-sm font-medium text-gray-900 border border-gray-200">
+                  Bank transfer
                 </div>
-                <div className="px-3 py-2 bg-gray-50/50 rounded-lg text-sm">
+                <div className="px-4 py-3 bg-gray-50 rounded-xl text-sm font-medium text-gray-900 border border-gray-200">
                   SEPA
                 </div>
               </div>
             </div>
 
             {/* Info */}
-            <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 mb-6">
-              <div className="flex gap-3">
-                <ShieldCheck className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
-                <div className="text-sm">
-                  <p className="text-orange-300 font-medium mb-1">🔥 Powered by Transak</p>
-                  <p className="text-gray-600 text-xs">
+            <div className="glass-card p-6 bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border border-orange-200">
+              <div className="flex gap-4">
+                <ShieldCheck className="w-6 h-6 text-orange-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-orange-600 font-semibold mb-2">🔥 Powered by Transak</p>
+                  <p className="text-gray-700 text-sm leading-relaxed">
                     Globally trusted fiat-to-crypto service. Crypto is sent directly to your BLAZE Wallet.
-                    Fees: ~0.99% - 2.99% per transaction.
+                    Transaction fees: ~0.99% - 2.99%.
                   </p>
                 </div>
               </div>
@@ -198,7 +191,7 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={() => handleBuy()}
-              className="w-full py-3 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all"
+              className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold text-lg flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl"
             >
               <Flame className="w-5 h-5" />
               Start buying
@@ -206,15 +199,12 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
             </motion.button>
 
             {/* Disclaimer */}
-            <p className="text-xs text-slate-500 text-center mt-4">
-              By clicking you go to Transak. BLAZE Wallet does not store payment details.
+            <p className="text-xs text-gray-500 text-center mt-4">
+              By clicking you will be redirected to Transak. BLAZE Wallet does not store your payment details.
             </p>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </>
-      )}
+          </div>
+        </div>
+      </motion.div>
     </AnimatePresence>
   );
 }
