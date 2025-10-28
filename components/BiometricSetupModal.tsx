@@ -83,29 +83,41 @@ export default function BiometricSetupModal({ isOpen, onClose, onSuccess }: Biom
       const webauthnService = WebAuthnService.getInstance();
       const biometricStore = BiometricStore.getInstance();
       
-      // ✅ Get address from wallet store (not localStorage)
-      const currentAddress = useWalletStore.getState().getCurrentAddress();
-      const displayName = currentAddress || 'BLAZE User';
+      // ✅ WALLET-SPECIFIC: Get identifier for THIS wallet
+      const walletIdentifier = useWalletStore.getState().getWalletIdentifier();
+      if (!walletIdentifier) {
+        throw new Error('Cannot determine wallet identifier for biometric setup');
+      }
       
-      // Register WebAuthn credential
-      const result = await webauthnService.register('blaze-user', displayName);
+      // ✅ WALLET-SPECIFIC: Detect wallet type
+      const createdWithEmail = localStorage.getItem('wallet_created_with_email') === 'true';
+      const walletType: 'email' | 'seed' = createdWithEmail ? 'email' : 'seed';
+      
+      // Create display name (first 8 chars for EVM, email for email wallets)
+      const displayName = walletType === 'email' 
+        ? (localStorage.getItem('wallet_email') || 'BLAZE User')
+        : `Wallet ${walletIdentifier.substring(0, 8)}...`;
+      
+      console.log(`🔐 Setting up biometric for ${walletType} wallet:`, displayName);
+      
+      // ✅ WALLET-SPECIFIC: Register WebAuthn credential with wallet identifier
+      const result = await webauthnService.register(walletIdentifier, displayName, walletType);
       
       if (!result.success || !result.credential) {
         throw new Error(result.error || 'Biometric registration was cancelled or not allowed');
       }
       
-      // Store credential
-      webauthnService.storeCredential(result.credential);
+      // ✅ WALLET-SPECIFIC: Store credential indexed by wallet identifier
+      webauthnService.storeCredential(result.credential, walletIdentifier);
       
-      // Store password for biometric unlock
-      const stored = await biometricStore.storePassword(password);
+      // ✅ WALLET-SPECIFIC: Store password for THIS wallet only
+      const stored = await biometricStore.storePassword(password, walletIdentifier);
       
       if (!stored) {
         throw new Error('Failed to store password for biometric access');
       }
       
-      // Mark biometric as enabled
-      localStorage.setItem('biometric_enabled', 'true');
+      console.log(`✅ Biometric enabled for wallet: ${walletIdentifier.substring(0, 8)}...`);
       
       // Success!
       setStep('success');

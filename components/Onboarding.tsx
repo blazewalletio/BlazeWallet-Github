@@ -1319,19 +1319,35 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                         const webauthnService = WebAuthnService.getInstance();
                         const biometricStore = BiometricStore.getInstance();
                         
-                        console.log('🔐 Registering biometric credential...');
-                        const result = await webauthnService.register('blaze-user', 'BLAZE User');
+                        // ✅ WALLET-SPECIFIC: Get identifier for THIS wallet
+                        const { useWalletStore } = await import('@/lib/wallet-store');
+                        const walletIdentifier = useWalletStore.getState().getWalletIdentifier();
+                        if (!walletIdentifier) {
+                          throw new Error('Cannot determine wallet identifier for biometric setup');
+                        }
+                        
+                        // ✅ WALLET-SPECIFIC: Detect wallet type
+                        const createdWithEmail = localStorage.getItem('wallet_created_with_email') === 'true';
+                        const walletType: 'email' | 'seed' = createdWithEmail ? 'email' : 'seed';
+                        
+                        // Create display name
+                        const displayName = walletType === 'email' 
+                          ? (localStorage.getItem('wallet_email') || 'BLAZE User')
+                          : `Wallet ${walletIdentifier.substring(0, 8)}...`;
+                        
+                        console.log(`🔐 Registering biometric credential for ${walletType} wallet...`);
+                        const result = await webauthnService.register(walletIdentifier, displayName, walletType);
                         
                         if (!result.success || !result.credential) {
                           throw new Error(result.error || 'Biometric registration failed');
                         }
                         
-                        // Store credential
-                        webauthnService.storeCredential(result.credential);
+                        // ✅ WALLET-SPECIFIC: Store credential indexed by wallet identifier
+                        webauthnService.storeCredential(result.credential, walletIdentifier);
                         
-                        // Store password for biometric unlock
+                        // ✅ WALLET-SPECIFIC: Store password for THIS wallet only
                         console.log('💾 Storing password for biometric access...');
-                        const stored = await biometricStore.storePassword(storedPassword);
+                        const stored = await biometricStore.storePassword(storedPassword, walletIdentifier);
                         
                         if (!stored) {
                           throw new Error('Failed to store password for biometric access');

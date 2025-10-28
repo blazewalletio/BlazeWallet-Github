@@ -27,11 +27,31 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
   const [biometricError, setBiometricError] = useState('');
   const [showBiometricSetup, setShowBiometricSetup] = useState(false);
 
-  // Check biometric status on mount
+  // Check biometric status on mount - WALLET-SPECIFIC
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const enabled = localStorage.getItem('biometric_enabled') === 'true';
-      setBiometricEnabled(enabled);
+    if (typeof window !== 'undefined' && isOpen) {
+      // ✅ WALLET-SPECIFIC: Check biometric for THIS wallet only
+      const checkBiometric = async () => {
+        try {
+          const { useWalletStore } = await import('@/lib/wallet-store');
+          const { BiometricStore } = await import('@/lib/biometric-store');
+          
+          const walletIdentifier = useWalletStore.getState().getWalletIdentifier();
+          if (walletIdentifier) {
+            const biometricStore = BiometricStore.getInstance();
+            const enabled = biometricStore.hasStoredPassword(walletIdentifier);
+            setBiometricEnabled(enabled);
+            console.log(`🔍 Biometric check for wallet ${walletIdentifier.substring(0, 8)}...: ${enabled}`);
+          } else {
+            setBiometricEnabled(false);
+          }
+        } catch (error) {
+          console.error('Error checking biometric status:', error);
+          setBiometricEnabled(false);
+        }
+      };
+      
+      checkBiometric();
       
       const mobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       setIsMobile(mobile);
@@ -65,17 +85,23 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
       // Import services
       const { WebAuthnService } = await import('@/lib/webauthn-service');
       const { BiometricStore } = await import('@/lib/biometric-store');
+      const { useWalletStore } = await import('@/lib/wallet-store');
       
       const webauthnService = WebAuthnService.getInstance();
       const biometricStore = BiometricStore.getInstance();
       
-      // Remove credentials and password
-      webauthnService.removeCredentials();
-      biometricStore.removePassword();
+      // ✅ WALLET-SPECIFIC: Get identifier for THIS wallet
+      const walletIdentifier = useWalletStore.getState().getWalletIdentifier();
+      if (!walletIdentifier) {
+        throw new Error('Cannot determine wallet identifier');
+      }
       
-      // Mark biometric as disabled
-      localStorage.removeItem('biometric_enabled');
+      // ✅ WALLET-SPECIFIC: Remove credentials and password for THIS wallet only
+      webauthnService.removeCredential(walletIdentifier);
+      biometricStore.removePassword(walletIdentifier);
+      
       setBiometricEnabled(false);
+      console.log(`✅ Biometric disabled for wallet: ${walletIdentifier.substring(0, 8)}...`);
       
     } catch (error: any) {
       setBiometricError(error.message || 'Failed to disable biometric authentication');

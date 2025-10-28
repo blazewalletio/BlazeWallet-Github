@@ -1,6 +1,11 @@
 /**
  * WebAuthn Service for Biometric Authentication
  * Provides secure biometric authentication using WebAuthn API
+ * 
+ * ✅ WALLET-SPECIFIC CREDENTIALS:
+ * - Email wallets: userId = Supabase user_id (UUID)
+ * - Seed wallets: userId = EVM address (0x...)
+ * - Each wallet gets its own unique biometric credential
  */
 
 export interface WebAuthnCredential {
@@ -9,6 +14,8 @@ export interface WebAuthnCredential {
   counter: number;
   createdAt: number;
   lastUsed: number;
+  walletIdentifier: string; // ✅ NEW: Links credential to specific wallet
+  walletType: 'email' | 'seed'; // ✅ NEW: Tracks wallet type
 }
 
 export interface WebAuthnResponse {
@@ -53,9 +60,18 @@ export class WebAuthnService {
   }
 
   /**
-   * Register a new biometric credential
+   * Register a new biometric credential for a specific wallet
+   * ✅ WALLET-SPECIFIC: Each wallet gets unique credential
+   * 
+   * @param walletIdentifier - Supabase user_id (email) or EVM address (seed)
+   * @param displayName - Human-readable name for the credential
+   * @param walletType - 'email' or 'seed'
    */
-  public async register(userId: string, username: string): Promise<WebAuthnResponse> {
+  public async register(
+    walletIdentifier: string, 
+    displayName: string,
+    walletType: 'email' | 'seed'
+  ): Promise<WebAuthnResponse> {
     if (!this.isSupported()) {
       return { success: false, error: 'WebAuthn not supported' };
     }
@@ -71,6 +87,9 @@ export class WebAuthnService {
       const challenge = new Uint8Array(32);
       window.crypto.getRandomValues(challenge);
 
+      // ✅ WALLET-SPECIFIC: Use walletIdentifier as userId (unique per wallet!)
+      const userId = new TextEncoder().encode(walletIdentifier);
+
       // Create credential
       const credential = await navigator.credentials.create({
         publicKey: {
@@ -80,9 +99,9 @@ export class WebAuthnService {
             id: window.location.hostname,
           },
           user: {
-            id: new TextEncoder().encode(userId),
-            name: username,
-            displayName: username,
+            id: userId, // ✅ WALLET-SPECIFIC: Unique per wallet
+            name: displayName,
+            displayName: displayName,
           },
           pubKeyCredParams: [
             { alg: -7, type: "public-key" }, // ES256
@@ -109,7 +128,9 @@ export class WebAuthnService {
         publicKey: this.arrayBufferToBase64(publicKeyCredential.getPublicKey()!),
         counter: 0,
         createdAt: Date.now(),
-        lastUsed: 0
+        lastUsed: 0,
+        walletIdentifier, // ✅ NEW: Store wallet identifier
+        walletType // ✅ NEW: Store wallet type
       };
 
       return { success: true, credential: credentialData };
@@ -170,7 +191,9 @@ export class WebAuthnService {
         publicKey: '', // Not needed for authentication
         counter: 0,
         createdAt: 0,
-        lastUsed: Date.now()
+        lastUsed: Date.now(),
+        walletIdentifier: '', // Will be updated in storeCredential
+        walletType: 'email' // Will be updated in storeCredential
       };
 
       return { success: true, credential: credentialData };
@@ -222,59 +245,104 @@ export class WebAuthnService {
   }
 
   /**
-   * Check if user has registered biometric credentials
+   * Check if user has registered biometric credentials for a specific wallet
+   * ✅ WALLET-SPECIFIC: Checks for specific wallet only
    */
-  public async hasRegisteredCredentials(): Promise<boolean> {
+  public async hasRegisteredCredentials(walletIdentifier: string): Promise<boolean> {
     try {
-      const credentials = await this.getStoredCredentials();
-      return credentials.length > 0;
+      const credential = this.getStoredCredential(walletIdentifier);
+      return credential !== null;
     } catch (error) {
       return false;
     }
   }
 
   /**
-   * Store credential data securely
+   * Store credential data for a specific wallet
+   * ✅ WALLET-INDEXED: Each wallet has its own credential
    */
-  public storeCredential(credential: WebAuthnCredential): void {
+  public storeCredential(credential: WebAuthnCredential, walletIdentifier: string): void {
     if (typeof window === 'undefined') return;
     
     try {
-      const stored = this.getStoredCredentials();
-      const existingIndex = stored.findIndex(c => c.id === credential.id);
+      // Get all biometric data
+      const allData = this.getAllBiometricData();
       
-      if (existingIndex >= 0) {
-        stored[existingIndex] = credential;
-      } else {
-        stored.push(credential);
-      }
+      // Store credential indexed by wallet identifier
+      allData[walletIdentifier] = {
+        credential,
+        enabled: true,
+        setupAt: Date.now()
+      };
       
-      localStorage.setItem('webauthn_credentials', JSON.stringify(stored));
+      localStorage.setItem('biometric_data', JSON.stringify(allData));
+      console.log(`✅ Biometric credential stored for wallet: ${walletIdentifier.substring(0, 8)}...`);
     } catch (error) {
       console.error('Error storing WebAuthn credential:', error);
     }
   }
 
   /**
-   * Get stored credentials
+   * Get stored credential for a specific wallet
+   * ✅ WALLET-SPECIFIC: Returns only credential for this wallet
    */
-  public getStoredCredentials(): WebAuthnCredential[] {
-    if (typeof window === 'undefined') return [];
+  public getStoredCredential(walletIdentifier: string): WebAuthnCredential | null {
+    if (typeof window === 'undefined') return null;
     
     try {
-      const stored = localStorage.getItem('webauthn_credentials');
-      return stored ? JSON.parse(stored) : [];
+      const allData = this.getAllBiometricData();
+      const walletData = allData[walletIdentifier];
+      
+      if (!walletData || !walletData.credential) {
+        return null;
+      }
+      
+      return walletData.credential;
     } catch (error) {
-      console.error('Error retrieving WebAuthn credentials:', error);
-      return [];
+      console.error('Error retrieving WebAuthn credential:', error);
+      return null;
     }
   }
 
   /**
-   * Remove stored credentials
+   * Get ALL biometric data (for migration and management)
    */
-  public removeCredentials(): void {
+  private getAllBiometricData(): Record<string, any> {
+    if (typeof window === 'undefined') return {};
+    
+    try {
+      const stored = localStorage.getItem('biometric_data');
+      return stored ? JSON.parse(stored) : {};
+    } catch (error) {
+      console.error('Error retrieving biometric data:', error);
+      return {};
+    }
+  }
+
+  /**
+   * Remove credential for a specific wallet
+   * ✅ WALLET-SPECIFIC: Only removes credential for this wallet
+   */
+  public removeCredential(walletIdentifier: string): void {
     if (typeof window === 'undefined') return;
+    
+    try {
+      const allData = this.getAllBiometricData();
+      delete allData[walletIdentifier];
+      localStorage.setItem('biometric_data', JSON.stringify(allData));
+      console.log(`✅ Biometric credential removed for wallet: ${walletIdentifier.substring(0, 8)}...`);
+    } catch (error) {
+      console.error('Error removing WebAuthn credential:', error);
+    }
+  }
+
+  /**
+   * Remove ALL credentials (for wallet reset)
+   */
+  public removeAllCredentials(): void {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem('biometric_data');
+    // Also remove old format for cleanup
     localStorage.removeItem('webauthn_credentials');
   }
 

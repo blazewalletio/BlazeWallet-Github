@@ -183,6 +183,7 @@ export async function signUpWithEmail(
       localStorage.setItem('has_password', 'true'); // Password is already set via email
       localStorage.setItem('encrypted_wallet', encryptedWallet); // Store encrypted version
       localStorage.setItem('wallet_created_with_email', 'true'); // Flag to skip password setup modal
+      localStorage.setItem('supabase_user_id', authData.user!.id); // ✅ NEW: Store Supabase user ID for biometric binding
       // Session flag to skip unlock modal in same session
       sessionStorage.setItem('wallet_unlocked_this_session', 'true');
       // ✅ SECURITY: Addresses are NEVER stored - they're derived from mnemonic on unlock
@@ -244,6 +245,7 @@ export async function signInWithEmail(
       localStorage.setItem('has_password', 'true'); // Password is verified
       localStorage.setItem('encrypted_wallet', walletData.encrypted_wallet);
       localStorage.setItem('wallet_created_with_email', 'true'); // Flag to skip password setup modal
+      localStorage.setItem('supabase_user_id', authData.user!.id); // ✅ NEW: Store Supabase user ID for biometric binding
       // Session flag to skip unlock modal in same session
       sessionStorage.setItem('wallet_unlocked_this_session', 'true');
       // ✅ SECURITY: Addresses are NEVER stored - they're derived from mnemonic on unlock

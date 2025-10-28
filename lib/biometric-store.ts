@@ -2,9 +2,11 @@
  * Biometric-Protected Storage
  * Stores encrypted password that can only be accessed via biometric authentication
  * 
- * SECURITY IMPROVEMENTS:
- * - No longer stores encryption key in localStorage
- * - Key is derived from device-specific biometric credential
+ * ✅ WALLET-SPECIFIC SECURITY:
+ * - Each wallet gets its OWN biometric credential
+ * - Email wallets: Indexed by Supabase user_id
+ * - Seed wallets: Indexed by EVM address
+ * - No encryption key stored - derived from device-specific credential
  * - Password can only be decrypted after successful biometric authentication
  */
 
@@ -66,24 +68,28 @@ export class BiometricStore {
   }
 
   /**
-   * Store password protected by biometric authentication
+   * Store password protected by biometric authentication FOR A SPECIFIC WALLET
+   * ✅ WALLET-INDEXED: Each wallet has separate encrypted password
    * Uses AES-256-GCM encryption with key derived from WebAuthn credential
    * Key is NEVER stored - derived on-demand from credential ID
+   * 
+   * @param password - The password to encrypt
+   * @param walletIdentifier - Supabase user_id (email) or EVM address (seed)
    */
-  public async storePassword(password: string): Promise<boolean> {
+  public async storePassword(password: string, walletIdentifier: string): Promise<boolean> {
     try {
       if (typeof window === 'undefined') return false;
 
-      secureLog.sensitive('Storing password with biometric protection...');
+      secureLog.sensitive(`Storing password with biometric protection for wallet: ${walletIdentifier.substring(0, 8)}...`);
 
-      // Get WebAuthn credentials (must be registered first)
-      const credentials = this.webauthnService.getStoredCredentials();
-      if (credentials.length === 0) {
-        throw new Error('No biometric credentials found. Register biometrics first.');
+      // Get WebAuthn credential for this specific wallet
+      const credential = this.webauthnService.getStoredCredential(walletIdentifier);
+      if (!credential) {
+        throw new Error('No biometric credentials found for this wallet. Register biometrics first.');
       }
 
       // Derive encryption key from credential ID (device-specific, never stored)
-      const key = await this.deriveKeyFromCredential(credentials[0].id);
+      const key = await this.deriveKeyFromCredential(credential.id);
 
       // Encrypt password with AES-GCM
       const encoder = new TextEncoder();
@@ -104,9 +110,17 @@ export class BiometricStore {
 
       // Store as base64 (only IV + encrypted data, NO key)
       const base64 = btoa(String.fromCharCode(...combined));
-      localStorage.setItem('biometric_protected_password', base64);
+      
+      // ✅ WALLET-INDEXED STORAGE
+      const allData = this.getAllBiometricData();
+      if (!allData[walletIdentifier]) {
+        allData[walletIdentifier] = {};
+      }
+      allData[walletIdentifier].encrypted_password = base64;
+      allData[walletIdentifier].enabled = true;
+      localStorage.setItem('biometric_data', JSON.stringify(allData));
 
-      secureLog.info('Password stored securely (key derived from biometric credential, not stored)');
+      secureLog.info(`Password stored securely for wallet: ${walletIdentifier.substring(0, 8)}... (key derived from biometric credential, not stored)`);
       return true;
       
     } catch (error) {
@@ -116,24 +130,27 @@ export class BiometricStore {
   }
 
   /**
-   * Retrieve password after biometric authentication
+   * Retrieve password after biometric authentication FOR A SPECIFIC WALLET
+   * ✅ WALLET-SPECIFIC: Only retrieves password for this wallet
    * Decrypts with AES-GCM using key derived from WebAuthn credential
    * Key is NEVER stored - derived on-demand after successful biometric auth
+   * 
+   * @param walletIdentifier - Supabase user_id (email) or EVM address (seed)
    */
-  public async retrievePassword(): Promise<string | null> {
+  public async retrievePassword(walletIdentifier: string): Promise<string | null> {
     try {
       if (typeof window === 'undefined') return null;
       
-      secureLog.sensitive('Retrieving password with biometric authentication...');
+      secureLog.sensitive(`Retrieving password with biometric authentication for wallet: ${walletIdentifier.substring(0, 8)}...`);
 
-      // Check if biometric credentials exist
-      const credentials = this.webauthnService.getStoredCredentials();
-      if (credentials.length === 0) {
-        throw new Error('Face ID is not set up. Go to Settings to enable it.');
+      // Check if biometric credential exists for this wallet
+      const credential = this.webauthnService.getStoredCredential(walletIdentifier);
+      if (!credential) {
+        throw new Error('Face ID is not set up for this wallet. Go to Settings to enable it.');
       }
 
       // Authenticate with biometrics (Face ID / Touch ID)
-      const result = await this.webauthnService.authenticate(credentials[0].id);
+      const result = await this.webauthnService.authenticate(credential.id);
       if (!result.success) {
         // ✅ DO NOT clear biometric data on auth failure!
         // User might have cancelled, timed out, or temporary Safari issue
@@ -144,18 +161,22 @@ export class BiometricStore {
 
       secureLog.info('Biometric authentication successful');
 
-      // Retrieve encrypted password
-      const encrypted = localStorage.getItem('biometric_protected_password');
-      if (!encrypted) {
-        throw new Error('Face ID data is missing. Please set it up again in Settings.');
+      // Retrieve encrypted password for this wallet
+      const allData = this.getAllBiometricData();
+      const walletData = allData[walletIdentifier];
+      
+      if (!walletData || !walletData.encrypted_password) {
+        throw new Error('Face ID data is missing for this wallet. Please set it up again in Settings.');
       }
+
+      const encrypted = walletData.encrypted_password;
 
       // ✅ VALIDATE base64 data BEFORE decoding
       if (!/^[A-Za-z0-9+/=]+$/.test(encrypted)) {
         secureLog.error('Invalid biometric data detected - contains invalid characters');
-        // Clear corrupt data
-        localStorage.removeItem('biometric_protected_password');
-        localStorage.removeItem('biometric_enabled');
+        // Clear corrupt data for THIS wallet only
+        delete allData[walletIdentifier];
+        localStorage.setItem('biometric_data', JSON.stringify(allData));
         throw new Error('Face ID data is corrupted. Please set it up again in Settings.');
       }
 
@@ -165,8 +186,8 @@ export class BiometricStore {
         combined = Uint8Array.from(atob(encrypted), c => c.charCodeAt(0));
       } catch (e) {
         secureLog.error('Failed to decode base64 data');
-        localStorage.removeItem('biometric_protected_password');
-        localStorage.removeItem('biometric_enabled');
+        delete allData[walletIdentifier];
+        localStorage.setItem('biometric_data', JSON.stringify(allData));
         throw new Error('Face ID data is corrupted. Please set it up again in Settings.');
       }
 
@@ -175,7 +196,7 @@ export class BiometricStore {
       const encryptedData = combined.slice(12);
 
       // Derive key from credential ID (same key as when stored)
-      const key = await this.deriveKeyFromCredential(credentials[0].id);
+      const key = await this.deriveKeyFromCredential(credential.id);
 
       // Decrypt password with error handling
       let decrypted;
@@ -199,7 +220,7 @@ export class BiometricStore {
       const decoder = new TextDecoder();
       const password = decoder.decode(decrypted);
 
-      secureLog.info('Password retrieved and decrypted successfully');
+      secureLog.info(`Password retrieved and decrypted successfully for wallet: ${walletIdentifier.substring(0, 8)}...`);
       return password;
 
     } catch (error: any) {
@@ -209,34 +230,82 @@ export class BiometricStore {
   }
 
   /**
-   * Remove stored password
+   * Remove stored password for a specific wallet
+   * ✅ WALLET-SPECIFIC: Only removes data for this wallet
    */
-  public removePassword(): void {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('biometric_protected_password');
+  public removePassword(walletIdentifier: string): void {
+    if (typeof window === 'undefined') return;
+    
+    try {
+      const allData = this.getAllBiometricData();
+      if (allData[walletIdentifier]) {
+        delete allData[walletIdentifier].encrypted_password;
+        if (Object.keys(allData[walletIdentifier]).length === 0) {
+          delete allData[walletIdentifier];
+        }
+        localStorage.setItem('biometric_data', JSON.stringify(allData));
+      }
+    } catch (error) {
+      console.error('Error removing password:', error);
     }
   }
 
   /**
-   * Check if password is stored
+   * Check if password is stored for a specific wallet
+   * ✅ WALLET-SPECIFIC: Checks only for this wallet
    */
-  public hasStoredPassword(): boolean {
+  public hasStoredPassword(walletIdentifier: string): boolean {
     if (typeof window === 'undefined') return false;
-    const encrypted = localStorage.getItem('biometric_protected_password');
     
-    // ✅ VALIDATE that stored password is valid base64
-    if (!encrypted) return false;
-    
-    // Check if it's valid base64
-    if (!/^[A-Za-z0-9+/=]+$/.test(encrypted)) {
-      secureLog.error('🚨 CORRUPT biometric data detected in hasStoredPassword - auto-cleaning');
-      // Auto-clean corrupt data
-      localStorage.removeItem('biometric_protected_password');
-      localStorage.removeItem('biometric_enabled');
+    try {
+      const allData = this.getAllBiometricData();
+      const walletData = allData[walletIdentifier];
+      
+      if (!walletData || !walletData.encrypted_password) {
+        return false;
+      }
+      
+      const encrypted = walletData.encrypted_password;
+      
+      // Check if it's valid base64
+      if (!/^[A-Za-z0-9+/=]+$/.test(encrypted)) {
+        secureLog.error(`🚨 CORRUPT biometric data detected for wallet ${walletIdentifier.substring(0, 8)}... - auto-cleaning`);
+        // Auto-clean corrupt data for this wallet
+        delete allData[walletIdentifier];
+        localStorage.setItem('biometric_data', JSON.stringify(allData));
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error checking stored password:', error);
       return false;
     }
+  }
+
+  /**
+   * Get ALL biometric data (for migration and management)
+   */
+  private getAllBiometricData(): Record<string, any> {
+    if (typeof window === 'undefined') return {};
     
-    return true;
+    try {
+      const stored = localStorage.getItem('biometric_data');
+      return stored ? JSON.parse(stored) : {};
+    } catch (error) {
+      console.error('Error retrieving biometric data:', error);
+      return {};
+    }
+  }
+
+  /**
+   * Remove ALL biometric data (for complete reset)
+   */
+  public removeAllData(): void {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem('biometric_data');
+    // Also remove old format for cleanup
+    localStorage.removeItem('biometric_protected_password');
+    localStorage.removeItem('biometric_enabled');
   }
 }
-

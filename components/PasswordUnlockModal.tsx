@@ -24,22 +24,24 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   useEffect(() => {
     const checkBiometric = async () => {
       if (typeof window !== 'undefined') {
-        // ✅ Use BiometricStore.hasStoredPassword() for consistent validation
+        // ✅ WALLET-SPECIFIC: Use wallet identifier to check biometric status
         const { BiometricStore } = await import('@/lib/biometric-store');
+        const { useWalletStore } = await import('@/lib/wallet-store');
         const biometricStore = BiometricStore.getInstance();
         
-        const enabled = localStorage.getItem('biometric_enabled') === 'true';
-        const hasStoredPassword = biometricStore.hasStoredPassword(); // ✅ Uses corrupt data validation
+        // Get wallet identifier for this wallet
+        const walletIdentifier = useWalletStore.getState().getWalletIdentifier();
+        if (!walletIdentifier) {
+          setBiometricAvailable(false);
+          return;
+        }
         
-        // Also check for WebAuthn credentials
-        const credentialsStr = localStorage.getItem('webauthn_credentials');
-        const hasCredentials = !!(credentialsStr && JSON.parse(credentialsStr).length > 0);
+        const hasStoredPassword = biometricStore.hasStoredPassword(walletIdentifier); // ✅ Wallet-specific check
         
-        console.log('🔍 Biometric check:', { enabled, hasStoredPassword, hasCredentials });
+        console.log(`🔍 Biometric check for wallet ${walletIdentifier.substring(0, 8)}...:`, hasStoredPassword);
         
-        // Show biometric button if enabled AND has stored password AND has credentials
-        const available = enabled && hasStoredPassword && hasCredentials;
-        setBiometricAvailable(available);
+        // Show biometric button if has stored password for this wallet
+        setBiometricAvailable(hasStoredPassword);
       }
     };
     

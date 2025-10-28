@@ -62,16 +62,27 @@ export default function BiometricAuthModal({
     try {
       if (mode === 'register') {
         // Register new biometric credential
-        const result = await webauthnService.register('blaze-user', username);
+        // ✅ WALLET-SPECIFIC: Get identifier for THIS wallet
+        const walletIdentifier = useWalletStore.getState().getWalletIdentifier();
+        if (!walletIdentifier) {
+          throw new Error('Cannot determine wallet identifier for biometric setup');
+        }
+        
+        // ✅ WALLET-SPECIFIC: Detect wallet type
+        const createdWithEmail = localStorage.getItem('wallet_created_with_email') === 'true';
+        const walletType: 'email' | 'seed' = createdWithEmail ? 'email' : 'seed';
+        
+        const result = await webauthnService.register(walletIdentifier, username, walletType);
         
         if (result.success && result.credential) {
-          webauthnService.storeCredential(result.credential);
+          // ✅ WALLET-SPECIFIC: Store credential indexed by wallet identifier
+          webauthnService.storeCredential(result.credential, walletIdentifier);
           
           // ✅ SECURITY: Store password for biometric unlock AFTER credential registration
           // This ensures password can only be retrieved with biometric authentication
           if (password) {
             console.log('💾 Storing password for biometric access...');
-            const stored = await biometricStore.storePassword(password);
+            const stored = await biometricStore.storePassword(password, walletIdentifier);
             if (!stored) {
               console.warn('⚠️ Failed to store password for biometric access');
             } else {
@@ -88,14 +99,20 @@ export default function BiometricAuthModal({
         }
       } else {
         // Authenticate with existing credential
-        const credentials = webauthnService.getStoredCredentials();
+        // ✅ WALLET-SPECIFIC: Get identifier for THIS wallet
+        const walletIdentifier = useWalletStore.getState().getWalletIdentifier();
+        if (!walletIdentifier) {
+          throw new Error('Cannot determine wallet identifier');
+        }
         
-        if (credentials.length === 0) {
+        const credential = webauthnService.getStoredCredential(walletIdentifier);
+        
+        if (!credential) {
           setError('Geen biometrische credentials gevonden. Registreer eerst je biometrie.');
           return;
         }
 
-        const result = await webauthnService.authenticate(credentials[0].id);
+        const result = await webauthnService.authenticate(credential.id);
         
         if (result.success) {
           // Unlock wallet with biometric authentication

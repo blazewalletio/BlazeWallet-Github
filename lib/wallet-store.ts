@@ -41,6 +41,7 @@ export interface WalletState {
   updateActivity: () => void;
   checkAutoLock: () => void;
   getCurrentAddress: () => string | null; // Helper to get current chain address
+  getWalletIdentifier: () => string | null; // ✅ NEW: Get identifier for biometric binding
 }
 
 export const useWalletStore = create<WalletState>((set, get) => ({
@@ -217,13 +218,19 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     try {
       const biometricStore = BiometricStore.getInstance();
       
-      // Check if biometric password is stored
-      if (!biometricStore.hasStoredPassword()) {
-        throw new Error('Face ID data is missing. Please set it up again in Settings.');
+      // ✅ WALLET-SPECIFIC: Get identifier for THIS wallet
+      const walletIdentifier = get().getWalletIdentifier();
+      if (!walletIdentifier) {
+        throw new Error('Cannot determine wallet identifier for biometric unlock');
+      }
+      
+      // Check if biometric password is stored for THIS wallet
+      if (!biometricStore.hasStoredPassword(walletIdentifier)) {
+        throw new Error('Face ID is not set up for this wallet. Go to Settings to enable it.');
       }
 
-      // Retrieve password using biometric authentication (Face ID / Touch ID)
-      const password = await biometricStore.retrievePassword();
+      // Retrieve password using biometric authentication (Face ID / Touch ID) FOR THIS WALLET
+      const password = await biometricStore.retrievePassword(walletIdentifier);
       if (!password) {
         throw new Error('Could not retrieve password');
       }
@@ -338,27 +345,35 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   enableBiometric: async () => {
     try {
       const webauthnService = WebAuthnService.getInstance();
-      const { address } = get();
       
-      if (!address) {
-        throw new Error('Geen wallet gevonden om biometrie in te stellen');
+      // ✅ WALLET-SPECIFIC: Get identifier for THIS wallet
+      const walletIdentifier = get().getWalletIdentifier();
+      if (!walletIdentifier) {
+        throw new Error('Cannot determine wallet identifier for biometric setup');
       }
+      
+      // ✅ WALLET-SPECIFIC: Detect wallet type
+      const createdWithEmail = typeof window !== 'undefined' 
+        ? localStorage.getItem('wallet_created_with_email') === 'true'
+        : false;
+      const walletType: 'email' | 'seed' = createdWithEmail ? 'email' : 'seed';
+      
+      // Create display name
+      const displayName = walletType === 'email' 
+        ? (localStorage.getItem('wallet_email') || 'BLAZE User')
+        : `Wallet ${walletIdentifier.substring(0, 8)}...`;
 
-      const result = await webauthnService.register('blaze-user', address);
+      const result = await webauthnService.register(walletIdentifier, displayName, walletType);
       
       if (result.success && result.credential) {
-        webauthnService.storeCredential(result.credential);
+        // ✅ WALLET-SPECIFIC: Store credential indexed by wallet identifier
+        webauthnService.storeCredential(result.credential, walletIdentifier);
         
         set({
           hasBiometric: true,
           isBiometricEnabled: true,
           lastActivity: Date.now(),
         });
-
-        // Store biometric enabled flag
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('biometric_enabled', 'true');
-        }
       } else {
         throw new Error(result.error || 'Biometrie setup mislukt');
       }
@@ -424,21 +439,30 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       localStorage.removeItem('encrypted_wallet');
       localStorage.removeItem('password_hash');
       localStorage.removeItem('has_password');
+      localStorage.removeItem('wallet_created_with_email');
+      localStorage.removeItem('wallet_email');
+      localStorage.removeItem('supabase_user_id'); // ✅ NEW: Remove Supabase user ID
+      localStorage.removeItem('wallet_just_created');
+      localStorage.removeItem('wallet_just_imported');
+      localStorage.removeItem('force_password_setup');
+      
+      // ✅ NEW: Clean up old biometric format
       localStorage.removeItem('biometric_enabled');
-      localStorage.removeItem('biometric_protected_password'); // ✅ NEW: Remove biometric password
-      localStorage.removeItem('wallet_created_with_email'); // ✅ NEW: Remove email wallet flag
-      localStorage.removeItem('wallet_email'); // ✅ NEW: Remove stored email
-      localStorage.removeItem('wallet_just_created'); // ✅ NEW: Remove onboarding flags
-      localStorage.removeItem('wallet_just_imported'); // ✅ NEW: Remove onboarding flags
-      localStorage.removeItem('force_password_setup'); // ✅ NEW: Remove onboarding flags
+      localStorage.removeItem('biometric_protected_password');
       
       // Clear session storage
-      sessionStorage.removeItem('wallet_unlocked_this_session'); // ✅ NEW: Clear session flag
-      sessionStorage.removeItem('pending_biometric_password'); // ✅ NEW: Clear pending password
+      sessionStorage.removeItem('wallet_unlocked_this_session');
+      sessionStorage.removeItem('pending_biometric_password');
+      sessionStorage.removeItem('last_activity'); // ✅ NEW: Clear activity timestamp
       
-      // Remove WebAuthn credentials
+      // ✅ NEW: Remove ALL biometric credentials (new wallet-indexed format)
       const webauthnService = WebAuthnService.getInstance();
-      webauthnService.removeCredentials();
+      webauthnService.removeAllCredentials();
+      
+      // ✅ NEW: Remove ALL biometric data (new wallet-indexed format)
+      const biometricStore = BiometricStore.getInstance();
+      biometricStore.removeAllData();
+
       
       secureLog.info('Wallet reset - all data cleared');
     }
@@ -519,6 +543,33 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     const { currentChain, address, solanaAddress } = get();
     // Return Solana address for Solana chain, EVM address for all others
     return currentChain === 'solana' ? solanaAddress : address;
+  },
+
+  /**
+   * Get wallet identifier for biometric binding
+   * ✅ EMAIL WALLETS: Returns Supabase user_id
+   * ✅ SEED WALLETS: Returns EVM address
+   */
+  getWalletIdentifier: () => {
+    if (typeof window === 'undefined') return null;
+    
+    // Check if this is an email wallet
+    const createdWithEmail = localStorage.getItem('wallet_created_with_email') === 'true';
+    
+    if (createdWithEmail) {
+      // Email wallet: Use Supabase user_id
+      const supabaseUserId = localStorage.getItem('supabase_user_id');
+      if (supabaseUserId) {
+        return supabaseUserId;
+      }
+      // Fallback: If no user_id stored, use email (for backward compat)
+      const email = localStorage.getItem('wallet_email');
+      return email;
+    } else {
+      // Seed phrase wallet: Use EVM address
+      const { address } = get();
+      return address;
+    }
   },
 }));
 
