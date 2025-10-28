@@ -278,3 +278,6 @@ export class PriceService {
     this.cache.clear();
   }
 }
+
+// Export singleton instance
+export const priceService = new PriceService();

@@ -2,12 +2,26 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Loader2, CheckCircle2, Flame } from 'lucide-react';
+import { ArrowRight, Loader2, CheckCircle2, Flame, ChevronDown } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { MultiChainService } from '@/lib/multi-chain-service';
-import { BlockchainService } from '@/lib/blockchain'; // Keep for formatAddress utility
+import { BlockchainService } from '@/lib/blockchain';
+import { CHAINS } from '@/lib/chains';
+import { priceService } from '@/lib/price-service';
 import ParticleEffect from './ParticleEffect';
+
+interface Asset {
+  symbol: string;
+  name: string;
+  balance: string;
+  decimals: number;
+  logo?: string;
+  address?: string; // For ERC20/SPL tokens (undefined for native)
+  priceUSD: number;
+  valueUSD: number;
+  isNative: boolean;
+}
 
 interface SendModalProps {
   isOpen: boolean;
@@ -15,8 +29,16 @@ interface SendModalProps {
 }
 
 export default function SendModal({ isOpen, onClose }: SendModalProps) {
-  const { wallet, balance, currentChain, mnemonic } = useWalletStore();
+  const { wallet, currentChain, mnemonic, getCurrentAddress } = useWalletStore();
   const [step, setStep] = useState<'input' | 'confirm' | 'sending' | 'success'>('input');
+  
+  // ✅ NEW: Chain & Asset Selection
+  const [selectedChain, setSelectedChain] = useState(currentChain);
+  const [availableAssets, setAvailableAssets] = useState<Asset[]>([]);
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [isLoadingAssets, setIsLoadingAssets] = useState(false);
+  
+  // Existing states
   const [toAddress, setToAddress] = useState('');
   const [amount, setAmount] = useState('');
   const [gasPrice, setGasPrice] = useState<{ slow: string; standard: string; fast: string } | null>(null);
@@ -25,17 +47,113 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
   const [txHash, setTxHash] = useState('');
   const [showSuccessParticles, setShowSuccessParticles] = useState(false);
 
-  // ✅ Use MultiChainService with current chain
-  const blockchain = new MultiChainService(currentChain);
+  const blockchain = new MultiChainService(selectedChain);
 
-  // Block body scroll when overlay is open
   useBlockBodyScroll(isOpen);
 
+  // ✅ Fetch assets when modal opens or chain changes
   useEffect(() => {
     if (isOpen) {
+      setSelectedChain(currentChain); // Reset to current chain
+      fetchAssetsForChain(currentChain);
       fetchGasPrice();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && selectedChain) {
+      fetchAssetsForChain(selectedChain);
+      fetchGasPrice();
+    }
+  }, [selectedChain]);
+
+  // ✅ Fetch all assets (native + tokens) for selected chain
+  const fetchAssetsForChain = async (chain: string) => {
+    setIsLoadingAssets(true);
+    try {
+      const displayAddress = getCurrentAddress();
+      if (!displayAddress) {
+        console.error('❌ No wallet address available');
+        setIsLoadingAssets(false);
+        return;
+      }
+
+      const chainConfig = CHAINS[chain];
+      const chainService = new MultiChainService(chain);
+      
+      // Fetch native token balance
+      const nativeBalance = await chainService.getBalance(displayAddress);
+      
+      // Fetch native token price
+      const nativeSymbol = chainConfig.nativeCurrency.symbol;
+      const prices = await priceService.getMultiplePrices([nativeSymbol]);
+      const nativePrice = prices[nativeSymbol] || 0;
+      
+      const assets: Asset[] = [
+        {
+          symbol: nativeSymbol,
+          name: chainConfig.nativeCurrency.name,
+          balance: nativeBalance,
+          decimals: chainConfig.nativeCurrency.decimals,
+          logo: chainConfig.logoUrl,
+          isNative: true,
+          priceUSD: nativePrice,
+          valueUSD: parseFloat(nativeBalance) * nativePrice,
+        }
+      ];
+
+      // Fetch tokens (ERC20 for EVM, SPL for Solana)
+      if (chain === 'solana') {
+        // Fetch SPL tokens
+        const solanaService = chainService as any;
+        if (solanaService.getSPLTokenBalances) {
+          const splTokens = await solanaService.getSPLTokenBalances(displayAddress);
+          
+          // Get prices for SPL tokens
+          const splSymbols = splTokens.map((t: any) => t.symbol);
+          const splPrices = await priceService.getMultiplePrices(splSymbols);
+          
+          splTokens.forEach((token: any) => {
+            const price = splPrices[token.symbol] || 0;
+            const balance = parseFloat(token.balance || '0');
+            assets.push({
+              symbol: token.symbol,
+              name: token.name,
+              balance: token.balance,
+              decimals: token.decimals,
+              logo: token.logo,
+              address: token.address,
+              isNative: false,
+              priceUSD: price,
+              valueUSD: balance * price,
+            });
+          });
+        }
+      } else {
+        // Fetch ERC20 tokens for EVM chains
+        // TODO: Implement ERC20 token fetching (similar to Dashboard)
+        // For now, we'll just use native token
+      }
+
+      // Sort by USD value (highest first)
+      assets.sort((a, b) => b.valueUSD - a.valueUSD);
+      
+      setAvailableAssets(assets);
+      
+      // Auto-select asset with highest value
+      if (assets.length > 0) {
+        setSelectedAsset(assets[0]);
+      }
+      
+      console.log(`✅ Loaded ${assets.length} assets for ${chain}:`, assets);
+    } catch (error) {
+      console.error('❌ Failed to fetch assets:', error);
+      setAvailableAssets([]);
+      setSelectedAsset(null);
+    } finally {
+      setIsLoadingAssets(false);
+    }
+  };
 
   const fetchGasPrice = async () => {
     const prices = await blockchain.getGasPrice();
@@ -43,15 +161,26 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
   };
 
   const handleMaxAmount = () => {
-    // Reserve some for gas
-    const max = Math.max(0, parseFloat(balance) - 0.001);
-    setAmount(max.toFixed(6));
+    if (!selectedAsset) return;
+    
+    // For native tokens, reserve some for gas
+    if (selectedAsset.isNative) {
+      const max = Math.max(0, parseFloat(selectedAsset.balance) - 0.001);
+      setAmount(max.toFixed(6));
+    } else {
+      // For tokens, can send full balance
+      setAmount(selectedAsset.balance);
+    }
   };
 
   const handleContinue = () => {
     setError('');
     
-    // ✅ Use MultiChainService for address validation
+    if (!selectedAsset) {
+      setError('Please select an asset to send');
+      return;
+    }
+    
     if (!blockchain.isValidAddress(toAddress)) {
       setError(`Invalid ${blockchain.getAddressFormatHint()}`);
       return;
@@ -63,7 +192,7 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
       return;
     }
 
-    if (amountNum > parseFloat(balance)) {
+    if (amountNum > parseFloat(selectedAsset.balance)) {
       setError('Insufficient balance');
       return;
     }
@@ -72,10 +201,9 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
   };
 
   const handleSend = async () => {
-    if (!gasPrice) return;
+    if (!gasPrice || !selectedAsset) return;
     
-    // ✅ For Solana: use mnemonic, for EVM: use wallet
-    const isSolana = currentChain === 'solana';
+    const isSolana = selectedChain === 'solana';
     if (isSolana && !mnemonic) {
       setError('Mnemonic required for Solana transactions');
       return;
@@ -91,7 +219,7 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
     try {
       const gas = gasPrice[selectedGas];
       
-      // ✅ Send transaction with correct wallet/mnemonic format
+      // Send transaction
       const tx = await blockchain.sendTransaction(
         isSolana ? mnemonic! : wallet!,
         toAddress,
@@ -99,13 +227,11 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
         gas
       );
       
-      // ✅ Handle different response types (Solana returns string, EVM returns TransactionResponse)
       const hash = typeof tx === 'string' ? tx : tx.hash;
       setTxHash(hash);
       setStep('success');
       setShowSuccessParticles(true);
       
-      // Wait for confirmation (EVM only)
       if (typeof tx !== 'string' && tx.wait) {
         await tx.wait();
       }
@@ -122,11 +248,22 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
     setError('');
     setTxHash('');
     setShowSuccessParticles(false);
+    setSelectedChain(currentChain);
+    setAvailableAssets([]);
+    setSelectedAsset(null);
     onClose();
   };
 
-  const estimatedFee = gasPrice ? 
-    (parseFloat(gasPrice[selectedGas]) * 21000 / 1e9).toFixed(6) : '0';
+  const estimatedFee = gasPrice && selectedAsset
+    ? selectedAsset.isNative
+      ? (parseFloat(gasPrice[selectedGas]) * 21000 / 1e9).toFixed(6)
+      : (parseFloat(gasPrice[selectedGas]) * 65000 / 1e9).toFixed(6) // ERC20 uses more gas
+    : '0';
+
+  const getExplorerUrl = (hash: string) => {
+    const chainConfig = CHAINS[selectedChain];
+    return `${chainConfig.explorerUrl}/tx/${hash}`;
+  };
 
   if (!isOpen) return null;
 
@@ -140,7 +277,7 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
       >
         <div className="min-h-full flex flex-col">
           <div className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 pt-safe pb-safe">
-            {/* Back Button - with safe area padding */}
+            {/* Back Button */}
             <div className="pt-4 pb-2">
               <button
                 onClick={handleClose}
@@ -169,6 +306,67 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
 
           {step === 'input' && (
             <div className="glass-card p-6 space-y-6">
+              {/* ✅ NEW: Chain Selector */}
+              <div>
+                <label className="text-sm font-medium text-gray-900 mb-2 block">
+                  From network
+                </label>
+                <div className="relative">
+                  <select
+                    value={selectedChain}
+                    onChange={(e) => setSelectedChain(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl font-medium text-gray-900 appearance-none cursor-pointer hover:border-orange-300 transition-colors focus:outline-none focus:border-orange-500"
+                  >
+                    {Object.entries(CHAINS).map(([key, chain]) => (
+                      <option key={key} value={key}>
+                        {chain.icon} {chain.name}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* ✅ NEW: Asset Selector */}
+              <div>
+                <label className="text-sm font-medium text-gray-900 mb-2 block">
+                  Asset to send
+                </label>
+                {isLoadingAssets ? (
+                  <div className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl flex items-center justify-center">
+                    <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
+                    <span className="ml-2 text-gray-600">Loading assets...</span>
+                  </div>
+                ) : availableAssets.length === 0 ? (
+                  <div className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-600 text-center">
+                    No assets available
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <select
+                      value={selectedAsset?.symbol}
+                      onChange={(e) => {
+                        const asset = availableAssets.find(a => a.symbol === e.target.value);
+                        setSelectedAsset(asset || null);
+                      }}
+                      className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl font-medium text-gray-900 appearance-none cursor-pointer hover:border-orange-300 transition-colors focus:outline-none focus:border-orange-500"
+                    >
+                      {availableAssets.map((asset) => (
+                        <option key={asset.symbol} value={asset.symbol}>
+                          {asset.symbol} - {parseFloat(asset.balance).toFixed(6)} (${asset.valueUSD.toFixed(2)})
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                  </div>
+                )}
+                {selectedAsset && (
+                  <div className="text-sm text-gray-600 mt-2">
+                    ≈ ${selectedAsset.valueUSD.toFixed(2)} USD
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="text-sm font-medium text-gray-900 mb-2 block">
                   To address
@@ -177,7 +375,7 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
                   type="text"
                   value={toAddress}
                   onChange={(e) => setToAddress(e.target.value)}
-                  placeholder="0x..."
+                  placeholder={selectedChain === 'solana' ? 'Solana address...' : '0x...'}
                   className="input-field font-mono text-sm"
                 />
               </div>
@@ -185,10 +383,10 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <label className="text-sm font-medium text-gray-900">
-                    Amount (ETH)
+                    Amount {selectedAsset ? `(${selectedAsset.symbol})` : ''}
                   </label>
                   <span className="text-sm text-gray-600">
-                    Available: {parseFloat(balance).toFixed(6)} ETH
+                    Available: {selectedAsset ? parseFloat(selectedAsset.balance).toFixed(6) : '0'} {selectedAsset?.symbol}
                   </span>
                 </div>
                 <div className="relative">
@@ -199,49 +397,54 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
                     placeholder="0.00"
                     step="0.000001"
                     className="input-field pr-20"
+                    disabled={!selectedAsset}
                   />
                   <button
                     onClick={handleMaxAmount}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-600 hover:text-orange-700 text-sm font-semibold"
+                    disabled={!selectedAsset}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-600 hover:text-orange-700 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     MAX
                   </button>
                 </div>
-                {amount && (
+                {amount && selectedAsset && (
                   <div className="text-sm text-gray-600 mt-2">
-                    ≈ ${(parseFloat(amount) * 1700).toFixed(2)}
+                    ≈ ${(parseFloat(amount) * selectedAsset.priceUSD).toFixed(2)}
                   </div>
                 )}
               </div>
 
-              <div>
-                <label className="text-sm font-medium text-gray-900 mb-3 block">
-                  Gas speed
-                </label>
-                <div className="grid grid-cols-3 gap-3">
-                  {gasPrice && ['slow', 'standard', 'fast'].map((speed) => (
-                    <button
-                      key={speed}
-                      onClick={() => setSelectedGas(speed as any)}
-                      className={`p-3 rounded-xl text-center transition-all border-2 ${
-                        selectedGas === speed
-                          ? 'bg-orange-50 border-orange-500'
-                          : 'bg-gray-50 border-gray-200 hover:border-orange-300'
-                      }`}
-                    >
-                      <div className="text-xs text-gray-600 capitalize mb-1 font-medium">
-                        {speed === 'slow' ? 'Slow' : speed === 'standard' ? 'Standard' : 'Fast'}
-                      </div>
-                      <div className="font-semibold text-xs text-gray-900 break-words">
-                        {parseFloat(gasPrice[speed as keyof typeof gasPrice]).toFixed(2)}
-                      </div>
-                      <div className="text-[10px] text-gray-500 mt-0.5">
-                        Gwei
-                      </div>
-                    </button>
-                  ))}
+              {/* Gas speed (only for non-Solana chains) */}
+              {selectedChain !== 'solana' && (
+                <div>
+                  <label className="text-sm font-medium text-gray-900 mb-3 block">
+                    Gas speed
+                  </label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {gasPrice && ['slow', 'standard', 'fast'].map((speed) => (
+                      <button
+                        key={speed}
+                        onClick={() => setSelectedGas(speed as any)}
+                        className={`p-3 rounded-xl text-center transition-all border-2 ${
+                          selectedGas === speed
+                            ? 'bg-orange-50 border-orange-500'
+                            : 'bg-gray-50 border-gray-200 hover:border-orange-300'
+                        }`}
+                      >
+                        <div className="text-xs text-gray-600 capitalize mb-1 font-medium">
+                          {speed === 'slow' ? 'Slow' : speed === 'standard' ? 'Standard' : 'Fast'}
+                        </div>
+                        <div className="font-semibold text-xs text-gray-900 break-words">
+                          {parseFloat(gasPrice[speed as keyof typeof gasPrice]).toFixed(2)}
+                        </div>
+                        <div className="text-[10px] text-gray-500 mt-0.5">
+                          Gwei
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded-xl p-4">
@@ -251,7 +454,7 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
 
               <button
                 onClick={handleContinue}
-                disabled={!toAddress || !amount}
+                disabled={!toAddress || !amount || !selectedAsset}
                 className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-lg transition-all shadow-lg hover:shadow-xl"
               >
                 Continue
@@ -260,13 +463,18 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
             </div>
           )}
 
-          {step === 'confirm' && (
+          {step === 'confirm' && selectedAsset && (
             <div className="space-y-6">
               <div className="glass-card p-6 bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border border-orange-200">
                 <div className="text-sm text-gray-600 mb-1">You're sending</div>
-                <div className="text-4xl font-bold text-gray-900 mb-1">{amount} ETH</div>
+                <div className="text-4xl font-bold text-gray-900 mb-1">
+                  {amount} {selectedAsset.symbol}
+                </div>
                 <div className="text-sm text-gray-600">
-                  ≈ ${(parseFloat(amount) * 1700).toFixed(2)}
+                  ≈ ${(parseFloat(amount) * selectedAsset.priceUSD).toFixed(2)}
+                </div>
+                <div className="text-xs text-gray-500 mt-2">
+                  on {CHAINS[selectedChain].name}
                 </div>
               </div>
 
@@ -277,13 +485,25 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Gas fee</span>
-                  <span className="font-medium text-gray-900">{estimatedFee} ETH</span>
+                  <span className="font-medium text-gray-900">
+                    {estimatedFee} {CHAINS[selectedChain].nativeCurrency.symbol}
+                  </span>
                 </div>
                 <div className="h-px bg-gray-200" />
                 <div className="flex justify-between font-semibold text-base">
                   <span className="text-gray-900">Total</span>
-                  <span className="text-gray-900">{(parseFloat(amount) + parseFloat(estimatedFee)).toFixed(6)} ETH</span>
+                  <span className="text-gray-900">
+                    {selectedAsset.isNative 
+                      ? (parseFloat(amount) + parseFloat(estimatedFee)).toFixed(6)
+                      : amount
+                    } {selectedAsset.symbol}
+                  </span>
                 </div>
+                {!selectedAsset.isNative && (
+                  <div className="text-xs text-gray-500">
+                    + {estimatedFee} {CHAINS[selectedChain].nativeCurrency.symbol} gas fee
+                  </div>
+                )}
               </div>
 
               {error && (
@@ -335,12 +555,12 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
               
               {txHash && (
                 <a
-                  href={`https://etherscan.io/tx/${txHash}`}
+                  href={getExplorerUrl(txHash)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-orange-600 hover:text-orange-700 text-sm font-mono block mb-6 break-all hover:underline"
                 >
-                  View on Etherscan →
+                  View on {CHAINS[selectedChain].name} explorer →
                 </a>
               )}
 
