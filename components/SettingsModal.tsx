@@ -35,6 +35,17 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
         try {
           const { useWalletStore } = await import('@/lib/wallet-store');
           const { BiometricStore } = await import('@/lib/biometric-store');
+          const { WebAuthnService } = await import('@/lib/webauthn-service');
+          
+          const webauthnService = WebAuthnService.getInstance();
+          
+          // ✅ CHECK: Only show biometric on production domain
+          if (!webauthnService.isOnProductionDomain()) {
+            console.log('🚫 Biometric disabled: Not on production domain (my.blazewallet.io)');
+            setBiometricEnabled(false);
+            setIsMobile(false);
+            return;
+          }
           
           const walletIdentifier = useWalletStore.getState().getWalletIdentifier();
           if (walletIdentifier) {

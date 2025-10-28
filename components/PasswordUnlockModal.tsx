@@ -27,7 +27,17 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         // ✅ WALLET-SPECIFIC: Use wallet identifier to check biometric status
         const { BiometricStore } = await import('@/lib/biometric-store');
         const { useWalletStore } = await import('@/lib/wallet-store');
+        const { WebAuthnService } = await import('@/lib/webauthn-service');
+        
         const biometricStore = BiometricStore.getInstance();
+        const webauthnService = WebAuthnService.getInstance();
+        
+        // ✅ CHECK: Only show biometric on production domain
+        if (!webauthnService.isOnProductionDomain()) {
+          console.log('🚫 Biometric disabled: Not on production domain (my.blazewallet.io)');
+          setBiometricAvailable(false);
+          return;
+        }
         
         // Get wallet identifier for this wallet
         const walletIdentifier = useWalletStore.getState().getWalletIdentifier();

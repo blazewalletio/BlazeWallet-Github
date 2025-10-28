@@ -45,6 +45,16 @@ export class WebAuthnService {
   }
 
   /**
+   * Check if we're on the production domain for biometric support
+   * Biometric credentials are domain-specific, so we only allow them on production
+   */
+  public isOnProductionDomain(): boolean {
+    if (typeof window === 'undefined') return false;
+    const hostname = window.location.hostname;
+    return hostname === 'my.blazewallet.io' || hostname === 'localhost';
+  }
+
+  /**
    * Check if platform authenticator (biometrics) is available
    */
   public async isPlatformAuthenticatorAvailable(): Promise<boolean> {
@@ -83,6 +93,10 @@ export class WebAuthnService {
         return { success: false, error: 'Biometric authentication not available on this device' };
       }
 
+      // ✅ PRODUCTION DOMAIN: Always use my.blazewallet.io for WebAuthn
+      // This ensures credentials work across all deployments
+      const rpId = 'my.blazewallet.io';
+      
       // Generate challenge
       const challenge = new Uint8Array(32);
       window.crypto.getRandomValues(challenge);
@@ -96,7 +110,7 @@ export class WebAuthnService {
           challenge: challenge,
           rp: {
             name: "BLAZE Wallet",
-            id: window.location.hostname,
+            id: rpId, // ✅ FIXED: Always use production domain
           },
           user: {
             id: userId, // ✅ WALLET-SPECIFIC: Unique per wallet
