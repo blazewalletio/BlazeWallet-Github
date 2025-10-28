@@ -23,6 +23,7 @@ import ChainSelector from './ChainSelector';
 import TokenSelector from './TokenSelector';
 import PortfolioChart from './PortfolioChart';
 import SettingsModal from './SettingsModal';
+import PasswordUnlockModal from './PasswordUnlockModal'; // ✅ NEW: For lock/unlock flow
 import DebugPanel from './DebugPanel';
 import AnimatedNumber from './AnimatedNumber';
 import QuickPayModal from './QuickPayModal';
@@ -84,6 +85,7 @@ export default function Dashboard() {
   const [showTokenSelector, setShowTokenSelector] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false); // NEW: Debug panel state
+  const [showPasswordUnlock, setShowPasswordUnlock] = useState(false); // ✅ NEW: Password unlock modal state
   const [showQuickPay, setShowQuickPay] = useState(false);
   const [showFounderDeploy, setShowFounderDeploy] = useState(false);
   const [showStaking, setShowStaking] = useState(false);
@@ -1163,13 +1165,12 @@ export default function Dashboard() {
                   whileTap={{ scale: 0.95 }}
                   onClick={() => {
                     lockWallet();
-                    // Reload page to show unlock screen
-                    window.location.reload();
+                    setShowPasswordUnlock(true); // ✅ Show unlock modal immediately
                   }}
-                  className="glass-card p-2.5 sm:p-3 rounded-xl hover:bg-red-50 text-red-600"
-                  title="Wallet vergrendelen"
+                  className="glass-card p-2.5 sm:p-3 rounded-xl hover:bg-orange-50 text-orange-600"
+                  title="Lock wallet"
                 >
-                  <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <Lock className="w-4 h-4 sm:w-5 sm:h-5" />
                 </motion.button>
                     </div>
                       </div>
@@ -1505,6 +1506,21 @@ export default function Dashboard() {
       <DebugPanel 
         externalOpen={showDebugPanel} 
         onExternalClose={() => setShowDebugPanel(false)} 
+      />
+      
+      {/* Password Unlock Modal - for lock/unlock flow */}
+      <PasswordUnlockModal
+        isOpen={showPasswordUnlock}
+        onComplete={() => {
+          console.log('✅ Wallet unlocked successfully - refreshing data');
+          setShowPasswordUnlock(false);
+          fetchData(true); // Refresh all wallet data
+        }}
+        onFallback={() => {
+          // User wants to use recovery phrase instead
+          console.log('⚠️ User requested fallback to recovery phrase');
+          // Keep modal open, user will use recovery phrase option in modal
+        }}
       />
       
       {/* Floating Quick Pay Button */}

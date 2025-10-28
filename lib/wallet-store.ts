@@ -366,6 +366,13 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       mnemonic: null,
       isLocked: true,
     });
+    
+    // ✅ Clean up session state to ensure unlock modal appears
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('wallet_unlocked_this_session');
+      sessionStorage.removeItem('pending_biometric_password');
+      secureLog.info('🔒 Wallet locked - session state cleaned');
+    }
   },
 
   unlockWallet: async (mnemonic: string) => {
