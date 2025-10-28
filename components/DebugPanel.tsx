@@ -102,8 +102,7 @@ export default function DebugPanel({ externalOpen = false, onExternalClose }: { 
             <div className="text-slate-400 text-xs mb-1">Netwerk</div>
             <div className="flex items-center gap-2">
               <div 
-                className="w-6 h-6 rounded-full flex items-center justify-center text-sm overflow-hidden"
-                style={{ background: chain.color }}
+                className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-sm overflow-hidden"
               >
                 {chain.logoUrl ? (
                   <img 

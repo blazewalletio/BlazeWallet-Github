@@ -156,8 +156,7 @@ export default function WalletTab() {
             <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
               <motion.div className="flex items-center gap-2 glass-card px-3 sm:px-4 py-2 rounded-xl min-w-0">
                 <div 
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-base sm:text-lg flex-shrink-0 overflow-hidden"
-                  style={{ background: chain.color }}
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white flex items-center justify-center text-base sm:text-lg flex-shrink-0 overflow-hidden"
                 >
                   {chain.logoUrl ? (
                     <img 
@@ -409,8 +408,7 @@ export default function WalletTab() {
             >
               <div className="flex items-center gap-4">
                 <div 
-                  className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold overflow-hidden"
-                  style={{ background: chain.color }}
+                  className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-xl font-bold overflow-hidden"
                 >
                   {chain.logoUrl ? (
                     <img 

@@ -715,8 +715,7 @@ export default function Dashboard() {
           >
             <div className="flex items-center gap-4">
               <div 
-                className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold overflow-hidden"
-                style={{ background: chain.color }}
+                className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-xl font-bold overflow-hidden"
               >
                 {chain.logoUrl ? (
                   <img 
@@ -762,21 +761,29 @@ export default function Dashboard() {
                 className="glass p-4 rounded-xl flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-slate-700 to-slate-600 rounded-full flex items-center justify-center text-xl overflow-hidden">
-                    {token.logo && token.logo.startsWith('http') ? (
-                      <img 
-                        src={token.logo} 
-                        alt={token.symbol}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          // Fallback to symbol if image fails to load
-                          e.currentTarget.style.display = 'none';
-                          e.currentTarget.parentElement!.textContent = token.symbol[0];
-                        }}
-                      />
-                    ) : (
-                      token.logo || token.symbol[0]
-                    )}
+                  <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xl overflow-hidden">
+                    {(() => {
+                      const logoUrl = token.logo;
+                      if (logoUrl && (
+                        logoUrl.startsWith('http') ||
+                        logoUrl.startsWith('ipfs') ||
+                        logoUrl.startsWith('data:')
+                      )) {
+                        return (
+                          <img 
+                            src={logoUrl} 
+                            alt={token.symbol}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Fallback to symbol if image fails to load
+                              e.currentTarget.style.display = 'none';
+                              e.currentTarget.parentElement!.textContent = token.symbol[0];
+                            }}
+                          />
+                        );
+                      }
+                      return logoUrl || token.symbol[0];
+                    })()}
                   </div>
                   <div>
                     <div className="font-semibold">{token.name}</div>
@@ -1089,8 +1096,7 @@ export default function Dashboard() {
                   className="flex items-center gap-2 glass-card px-3 sm:px-4 py-2 rounded-xl hover:bg-gray-50 min-w-0"
                 >
                   <div 
-                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-base sm:text-lg flex-shrink-0 overflow-hidden"
-                    style={{ background: chain.color }}
+                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white flex items-center justify-center text-base sm:text-lg flex-shrink-0 overflow-hidden"
                   >
                     {chain.logoUrl ? (
                       <img 
