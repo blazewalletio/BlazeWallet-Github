@@ -764,6 +764,19 @@ export default function Dashboard() {
                   <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xl overflow-hidden">
                     {(() => {
                       const logoUrl = token.logo;
+                      
+                      // Debug logging for SPL tokens
+                      if (token.symbol === 'WIF') {
+                        console.log('🐶 WIF TOKEN DEBUG:', {
+                          logo: token.logo,
+                          logoType: typeof token.logo,
+                          logoLength: token.logo?.length,
+                          startsWithHttp: logoUrl?.startsWith('http'),
+                          startsWithIpfs: logoUrl?.startsWith('ipfs'),
+                          fullToken: token
+                        });
+                      }
+                      
                       if (logoUrl && (
                         logoUrl.startsWith('http') ||
                         logoUrl.startsWith('ipfs') ||
@@ -775,6 +788,7 @@ export default function Dashboard() {
                             alt={token.symbol}
                             className="w-full h-full object-cover"
                             onError={(e) => {
+                              console.error(`❌ Failed to load logo for ${token.symbol}:`, logoUrl);
                               // Fallback to symbol if image fails to load
                               e.currentTarget.style.display = 'none';
                               e.currentTarget.parentElement!.textContent = token.symbol[0];
@@ -782,6 +796,8 @@ export default function Dashboard() {
                           />
                         );
                       }
+                      
+                      console.log(`⚠️ Using fallback for ${token.symbol}, logo:`, logoUrl);
                       return logoUrl || token.symbol[0];
                     })()}
                   </div>
