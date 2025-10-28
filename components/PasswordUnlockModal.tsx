@@ -19,6 +19,12 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   const [attempts, setAttempts] = useState(0);
   const { unlockWithPassword } = useWalletStore();
   const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [debugLogs, setDebugLogs] = useState<string[]>([]); // ✅ DEBUG: Visual logs for mobile
+  
+  const addDebugLog = (log: string) => {
+    setDebugLogs(prev => [...prev, `${new Date().toLocaleTimeString()}: ${log}`]);
+    console.log(log);
+  };
 
   // Check if biometric is available on mount
   useEffect(() => {
@@ -114,39 +120,49 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   const handleBiometricAuth = async () => {
     setIsLoading(true);
     setError('');
+    setDebugLogs([]); // Clear previous logs
+    
     try {
-      console.log('🔐 [PasswordUnlockModal] Starting biometric unlock...');
+      addDebugLog('🔐 Starting biometric unlock...');
       
       // ✅ DEBUG: Check wallet identifier BEFORE unlock
       const walletIdentifier = useWalletStore.getState().getWalletIdentifier();
-      console.log('🔍 [PasswordUnlockModal] Wallet identifier:', walletIdentifier);
+      addDebugLog(`🔍 Wallet identifier: ${walletIdentifier ? walletIdentifier.substring(0, 20) + '...' : 'NULL'}`);
       
       // Check wallet type
       const createdWithEmail = localStorage.getItem('wallet_created_with_email') === 'true';
       const walletEmail = localStorage.getItem('wallet_email');
       const supabaseUserId = localStorage.getItem('supabase_user_id');
-      console.log('🔍 [PasswordUnlockModal] Wallet type check:', {
-        createdWithEmail,
-        walletEmail,
-        supabaseUserId: supabaseUserId ? supabaseUserId.substring(0, 8) + '...' : 'NOT SET',
-        walletIdentifier: walletIdentifier ? walletIdentifier.substring(0, 8) + '...' : 'NULL'
-      });
+      addDebugLog(`🔍 Email wallet: ${createdWithEmail}`);
+      addDebugLog(`🔍 Email: ${walletEmail}`);
+      addDebugLog(`🔍 Supabase ID: ${supabaseUserId ? supabaseUserId.substring(0, 20) + '...' : 'NOT SET'}`);
+      
+      // Check biometric data
+      const biometricDataStr = localStorage.getItem('biometric_data');
+      if (biometricDataStr) {
+        const biometricData = JSON.parse(biometricDataStr);
+        const keys = Object.keys(biometricData);
+        addDebugLog(`🔍 Biometric data keys: ${keys.length > 0 ? keys.map(k => k.substring(0, 20) + '...').join(', ') : 'NONE'}`);
+      } else {
+        addDebugLog('🔍 Biometric data: NOT FOUND');
+      }
       
       if (!walletIdentifier) {
         throw new Error('Cannot determine wallet identifier. Please ensure wallet data is properly saved.');
       }
       
+      addDebugLog('🔐 Calling unlockWithBiometric...');
       const { unlockWithBiometric } = useWalletStore.getState();
       await unlockWithBiometric();
       
-      console.log('✅ [PasswordUnlockModal] Biometric unlock successful');
+      addDebugLog('✅ Biometric unlock successful!');
       
       // Set session flag
       sessionStorage.setItem('wallet_unlocked_this_session', 'true');
       
       onComplete();
     } catch (error: any) {
-      console.error('❌ [PasswordUnlockModal] Biometric unlock error:', error);
+      addDebugLog(`❌ Error: ${error.message}`);
       
       // Check if biometric is still available after the error
       // (it might have been auto-cleared if data was corrupt)
@@ -156,7 +172,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       
       if (walletIdentifier) {
         const hasStoredPassword = biometricStore.hasStoredPassword(walletIdentifier);
-        console.log('🔍 [PasswordUnlockModal] After error check:', { hasStoredPassword });
+        addDebugLog(`🔍 After error - hasStoredPassword: ${hasStoredPassword}`);
         setBiometricAvailable(hasStoredPassword);
       } else {
         setBiometricAvailable(false);
@@ -250,6 +266,24 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
                 </button>
               )}
             </form>
+
+            {/* ✅ DEBUG LOGS - Visible on mobile */}
+            {debugLogs.length > 0 && (
+              <div className="mt-4 bg-gray-900 text-green-400 p-4 rounded-xl text-xs font-mono max-h-64 overflow-y-auto">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-bold text-white">🔍 Debug Logs:</span>
+                  <button
+                    onClick={() => setDebugLogs([])}
+                    className="text-gray-400 hover:text-white text-xs"
+                  >
+                    Clear
+                  </button>
+                </div>
+                {debugLogs.map((log, i) => (
+                  <div key={i} className="mb-1">{log}</div>
+                ))}
+              </div>
+            )}
 
             <div className="mt-6 text-center">
               <button
