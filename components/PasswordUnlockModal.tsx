@@ -105,19 +105,50 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     setIsLoading(true);
     setError('');
     try {
+      console.log('🔐 [PasswordUnlockModal] Starting biometric unlock...');
+      
+      // ✅ DEBUG: Check wallet identifier BEFORE unlock
+      const walletIdentifier = useWalletStore.getState().getWalletIdentifier();
+      console.log('🔍 [PasswordUnlockModal] Wallet identifier:', walletIdentifier);
+      
+      // Check wallet type
+      const createdWithEmail = localStorage.getItem('wallet_created_with_email') === 'true';
+      const walletEmail = localStorage.getItem('wallet_email');
+      const supabaseUserId = localStorage.getItem('supabase_user_id');
+      console.log('🔍 [PasswordUnlockModal] Wallet type check:', {
+        createdWithEmail,
+        walletEmail,
+        supabaseUserId: supabaseUserId ? supabaseUserId.substring(0, 8) + '...' : 'NOT SET',
+        walletIdentifier: walletIdentifier ? walletIdentifier.substring(0, 8) + '...' : 'NULL'
+      });
+      
+      if (!walletIdentifier) {
+        throw new Error('Cannot determine wallet identifier. Please ensure wallet data is properly saved.');
+      }
+      
       const { unlockWithBiometric } = useWalletStore.getState();
       await unlockWithBiometric();
+      
+      console.log('✅ [PasswordUnlockModal] Biometric unlock successful');
       
       // Set session flag
       sessionStorage.setItem('wallet_unlocked_this_session', 'true');
       
       onComplete();
     } catch (error: any) {
+      console.error('❌ [PasswordUnlockModal] Biometric unlock error:', error);
+      
       // Check if biometric is still available after the error
       // (it might have been auto-cleared if data was corrupt)
-      const stillEnabled = localStorage.getItem('biometric_enabled') === 'true';
-      if (!stillEnabled) {
-        console.log('🚨 Biometric disabled after error - hiding biometric button');
+      const { BiometricStore } = await import('@/lib/biometric-store');
+      const biometricStore = BiometricStore.getInstance();
+      const walletIdentifier = useWalletStore.getState().getWalletIdentifier();
+      
+      if (walletIdentifier) {
+        const hasStoredPassword = biometricStore.hasStoredPassword(walletIdentifier);
+        console.log('🔍 [PasswordUnlockModal] After error check:', { hasStoredPassword });
+        setBiometricAvailable(hasStoredPassword);
+      } else {
         setBiometricAvailable(false);
       }
       

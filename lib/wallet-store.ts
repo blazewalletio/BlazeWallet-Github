@@ -220,17 +220,25 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       
       // ✅ WALLET-SPECIFIC: Get identifier for THIS wallet
       const walletIdentifier = get().getWalletIdentifier();
+      console.log('🔐 [wallet-store] unlockWithBiometric - walletIdentifier:', walletIdentifier);
+      
       if (!walletIdentifier) {
         throw new Error('Cannot determine wallet identifier for biometric unlock');
       }
       
       // Check if biometric password is stored for THIS wallet
-      if (!biometricStore.hasStoredPassword(walletIdentifier)) {
+      const hasPassword = biometricStore.hasStoredPassword(walletIdentifier);
+      console.log('🔍 [wallet-store] hasStoredPassword check:', hasPassword);
+      
+      if (!hasPassword) {
         throw new Error('Face ID is not set up for this wallet. Go to Settings to enable it.');
       }
 
       // Retrieve password using biometric authentication (Face ID / Touch ID) FOR THIS WALLET
+      console.log('🔐 [wallet-store] Calling retrievePassword...');
       const password = await biometricStore.retrievePassword(walletIdentifier);
+      console.log('✅ [wallet-store] Password retrieved successfully');
+      
       if (!password) {
         throw new Error('Could not retrieve password');
       }
@@ -242,6 +250,8 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       const email = typeof window !== 'undefined'
         ? localStorage.getItem('wallet_email')
         : null;
+
+      console.log('🔍 [wallet-store] Wallet type:', { createdWithEmail, email });
 
       if (createdWithEmail && email) {
         // Email wallet: use Supabase auth to decrypt

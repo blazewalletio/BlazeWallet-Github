@@ -141,16 +141,22 @@ export class BiometricStore {
     try {
       if (typeof window === 'undefined') return null;
       
+      console.log(`🔐 [BiometricStore] retrievePassword called for wallet: ${walletIdentifier.substring(0, 8)}...`);
       secureLog.sensitive(`Retrieving password with biometric authentication for wallet: ${walletIdentifier.substring(0, 8)}...`);
 
       // Check if biometric credential exists for this wallet
       const credential = this.webauthnService.getStoredCredential(walletIdentifier);
+      console.log('🔍 [BiometricStore] Credential lookup:', credential ? 'FOUND' : 'NOT FOUND');
+      
       if (!credential) {
         throw new Error('Face ID is not set up for this wallet. Go to Settings to enable it.');
       }
 
       // Authenticate with biometrics (Face ID / Touch ID)
+      console.log('🔐 [BiometricStore] Starting WebAuthn authentication...');
       const result = await this.webauthnService.authenticate(credential.id);
+      console.log('🔍 [BiometricStore] WebAuthn result:', result.success ? 'SUCCESS' : 'FAILED');
+      
       if (!result.success) {
         // ✅ DO NOT clear biometric data on auth failure!
         // User might have cancelled, timed out, or temporary Safari issue
@@ -164,6 +170,8 @@ export class BiometricStore {
       // Retrieve encrypted password for this wallet
       const allData = this.getAllBiometricData();
       const walletData = allData[walletIdentifier];
+      
+      console.log('🔍 [BiometricStore] Wallet data lookup:', walletData ? 'FOUND' : 'NOT FOUND');
       
       if (!walletData || !walletData.encrypted_password) {
         throw new Error('Face ID data is missing for this wallet. Please set it up again in Settings.');
@@ -184,6 +192,7 @@ export class BiometricStore {
       let combined;
       try {
         combined = Uint8Array.from(atob(encrypted), c => c.charCodeAt(0));
+        console.log('✅ [BiometricStore] Base64 decode successful');
       } catch (e) {
         secureLog.error('Failed to decode base64 data');
         delete allData[walletIdentifier];
@@ -196,11 +205,14 @@ export class BiometricStore {
       const encryptedData = combined.slice(12);
 
       // Derive key from credential ID (same key as when stored)
+      console.log('🔐 [BiometricStore] Deriving encryption key...');
       const key = await this.deriveKeyFromCredential(credential.id);
+      console.log('✅ [BiometricStore] Key derived successfully');
 
       // Decrypt password with error handling
       let decrypted;
       try {
+        console.log('🔐 [BiometricStore] Decrypting password...');
         decrypted = await window.crypto.subtle.decrypt(
           {
             name: 'AES-GCM',
@@ -209,6 +221,7 @@ export class BiometricStore {
           key,
           encryptedData
         );
+        console.log('✅ [BiometricStore] Password decrypted successfully');
       } catch (e) {
         // ✅ DO NOT clear biometric data here!
         // This could be a temporary error (user cancelled, timeout, Safari quirk)
@@ -221,10 +234,12 @@ export class BiometricStore {
       const password = decoder.decode(decrypted);
 
       secureLog.info(`Password retrieved and decrypted successfully for wallet: ${walletIdentifier.substring(0, 8)}...`);
+      console.log(`✅ [BiometricStore] Complete success for wallet: ${walletIdentifier.substring(0, 8)}...`);
       return password;
 
     } catch (error: any) {
       secureLog.error('Error retrieving password:', error);
+      console.error('❌ [BiometricStore] Error:', error.message);
       throw error;
     }
   }
