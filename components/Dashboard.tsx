@@ -765,20 +765,11 @@ export default function Dashboard() {
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xl overflow-hidden">
                     {(() => {
-                      let logoUrl = token.logo;
-                      
-                      // Fix IPFS URLs: Convert to working gateway
-                      if (logoUrl && logoUrl.includes('.ipfs.nftstorage.link')) {
-                        // Extract IPFS hash from URL like: https://bafkreib...ipfs.nftstorage.link
-                        const ipfsHash = logoUrl.split('https://')[1].split('.ipfs.nftstorage.link')[0];
-                        // Use Cloudflare IPFS gateway (more reliable)
-                        logoUrl = `https://cloudflare-ipfs.com/ipfs/${ipfsHash}`;
-                        console.log(`🔄 Converted IPFS URL for ${token.symbol}:`, { original: token.logo, new: logoUrl });
-                      }
+                      const logoUrl = token.logo;
                       
                       if (logoUrl && (
                         logoUrl.startsWith('http') ||
-                        logoUrl.startsWith('ipfs') ||
+                        logoUrl.startsWith('/') || // ✅ Support local files (e.g. /crypto-wif.png)
                         logoUrl.startsWith('data:')
                       )) {
                         return (

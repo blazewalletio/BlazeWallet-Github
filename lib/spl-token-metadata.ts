@@ -68,7 +68,7 @@ export const POPULAR_SPL_TOKENS: Record<string, SPLTokenMetadata> = {
     symbol: 'WIF',
     name: 'dogwifhat',
     decimals: 6,
-    logoURI: 'https://bafkreibk3covs5ltyqxa272uodhculbr6kea6betidfwy3ajsav2vjzyum.ipfs.nftstorage.link',
+    logoURI: '/crypto-wif.png', // ✅ LOCAL FILE: No more IPFS issues!
     coingeckoId: 'dogwifcoin',
   },
   // JTO - Jito
