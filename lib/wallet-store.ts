@@ -557,29 +557,39 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
   /**
    * Get wallet identifier for biometric binding
-   * ✅ EMAIL WALLETS: Returns Supabase user_id
+   * ✅ EMAIL WALLETS: Returns Supabase user_id (priority) or email (fallback)
    * ✅ SEED WALLETS: Returns EVM address
+   * 
+   * 🔧 FIXED: Priority order ensures consistency during onboarding and unlock
+   * - Priority 1: supabase_user_id (most reliable, always set for email wallets)
+   * - Priority 2: email (fallback for email wallets)
+   * - Priority 3: EVM address (for seed phrase wallets)
    */
   getWalletIdentifier: () => {
     if (typeof window === 'undefined') return null;
     
-    // Check if this is an email wallet
-    const createdWithEmail = localStorage.getItem('wallet_created_with_email') === 'true';
-    
-    if (createdWithEmail) {
-      // Email wallet: Use Supabase user_id
-      const supabaseUserId = localStorage.getItem('supabase_user_id');
-      if (supabaseUserId) {
-        return supabaseUserId;
-      }
-      // Fallback: If no user_id stored, use email (for backward compat)
-      const email = localStorage.getItem('wallet_email');
-      return email;
-    } else {
-      // Seed phrase wallet: Use EVM address
-      const { address } = get();
-      return address;
+    // ✅ PRIORITY 1: Supabase user_id (most reliable for email wallets)
+    // This is ALWAYS set by signUpWithEmail() / signInWithEmail()
+    // Ensures consistency during onboarding AND after refresh
+    const supabaseUserId = localStorage.getItem('supabase_user_id');
+    if (supabaseUserId) {
+      return supabaseUserId;
     }
+    
+    // ✅ PRIORITY 2: Email (fallback for email wallets if user_id missing)
+    // Backward compatible with older setups
+    const createdWithEmail = localStorage.getItem('wallet_created_with_email') === 'true';
+    if (createdWithEmail) {
+      const email = localStorage.getItem('wallet_email');
+      if (email) {
+        return email;
+      }
+    }
+    
+    // ✅ PRIORITY 3: EVM address (for seed phrase wallets)
+    // Only used if no email wallet data exists
+    const { address } = get();
+    return address;
   },
 }));
 
