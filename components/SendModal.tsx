@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Loader2, CheckCircle2, Flame, ChevronDown } from 'lucide-react';
+import { ArrowRight, Loader2, CheckCircle2, Flame, ChevronDown, Check } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { MultiChainService } from '@/lib/multi-chain-service';
@@ -17,7 +17,7 @@ interface Asset {
   balance: string;
   decimals: number;
   logo?: string;
-  address?: string; // For ERC20/SPL tokens (undefined for native)
+  address?: string;
   priceUSD: number;
   valueUSD: number;
   isNative: boolean;
@@ -32,13 +32,15 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
   const { wallet, currentChain, mnemonic, getCurrentAddress } = useWalletStore();
   const [step, setStep] = useState<'input' | 'confirm' | 'sending' | 'success'>('input');
   
-  // ✅ NEW: Chain & Asset Selection
   const [selectedChain, setSelectedChain] = useState(currentChain);
   const [availableAssets, setAvailableAssets] = useState<Asset[]>([]);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [isLoadingAssets, setIsLoadingAssets] = useState(false);
   
-  // Existing states
+  // Dropdown states
+  const [showChainDropdown, setShowChainDropdown] = useState(false);
+  const [showAssetDropdown, setShowAssetDropdown] = useState(false);
+  
   const [toAddress, setToAddress] = useState('');
   const [amount, setAmount] = useState('');
   const [gasPrice, setGasPrice] = useState<{ slow: string; standard: string; fast: string } | null>(null);
@@ -51,10 +53,9 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
 
   useBlockBodyScroll(isOpen);
 
-  // ✅ Fetch assets when modal opens or chain changes
   useEffect(() => {
     if (isOpen) {
-      setSelectedChain(currentChain); // Reset to current chain
+      setSelectedChain(currentChain);
       fetchAssetsForChain(currentChain);
       fetchGasPrice();
     }
@@ -67,7 +68,6 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
     }
   }, [selectedChain]);
 
-  // ✅ Fetch all assets (native + tokens) for selected chain
   const fetchAssetsForChain = async (chain: string) => {
     setIsLoadingAssets(true);
     try {
@@ -81,10 +81,7 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
       const chainConfig = CHAINS[chain];
       const chainService = new MultiChainService(chain);
       
-      // Fetch native token balance
       const nativeBalance = await chainService.getBalance(displayAddress);
-      
-      // Fetch native token price
       const nativeSymbol = chainConfig.nativeCurrency.symbol;
       const prices = await priceService.getMultiplePrices([nativeSymbol]);
       const nativePrice = prices[nativeSymbol] || 0;
@@ -102,14 +99,10 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
         }
       ];
 
-      // Fetch tokens (ERC20 for EVM, SPL for Solana)
       if (chain === 'solana') {
-        // Fetch SPL tokens
         const solanaService = chainService as any;
         if (solanaService.getSPLTokenBalances) {
           const splTokens = await solanaService.getSPLTokenBalances(displayAddress);
-          
-          // Get prices for SPL tokens
           const splSymbols = splTokens.map((t: any) => t.symbol);
           const splPrices = await priceService.getMultiplePrices(splSymbols);
           
@@ -129,18 +122,11 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
             });
           });
         }
-      } else {
-        // Fetch ERC20 tokens for EVM chains
-        // TODO: Implement ERC20 token fetching (similar to Dashboard)
-        // For now, we'll just use native token
       }
 
-      // Sort by USD value (highest first)
       assets.sort((a, b) => b.valueUSD - a.valueUSD);
-      
       setAvailableAssets(assets);
       
-      // Auto-select asset with highest value
       if (assets.length > 0) {
         setSelectedAsset(assets[0]);
       }
@@ -163,12 +149,10 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
   const handleMaxAmount = () => {
     if (!selectedAsset) return;
     
-    // For native tokens, reserve some for gas
     if (selectedAsset.isNative) {
       const max = Math.max(0, parseFloat(selectedAsset.balance) - 0.001);
       setAmount(max.toFixed(6));
     } else {
-      // For tokens, can send full balance
       setAmount(selectedAsset.balance);
     }
   };
@@ -219,7 +203,6 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
     try {
       const gas = gasPrice[selectedGas];
       
-      // Send transaction
       const tx = await blockchain.sendTransaction(
         isSolana ? mnemonic! : wallet!,
         toAddress,
@@ -251,13 +234,15 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
     setSelectedChain(currentChain);
     setAvailableAssets([]);
     setSelectedAsset(null);
+    setShowChainDropdown(false);
+    setShowAssetDropdown(false);
     onClose();
   };
 
   const estimatedFee = gasPrice && selectedAsset
     ? selectedAsset.isNative
       ? (parseFloat(gasPrice[selectedGas]) * 21000 / 1e9).toFixed(6)
-      : (parseFloat(gasPrice[selectedGas]) * 65000 / 1e9).toFixed(6) // ERC20 uses more gas
+      : (parseFloat(gasPrice[selectedGas]) * 65000 / 1e9).toFixed(6)
     : '0';
 
   const getExplorerUrl = (hash: string) => {
@@ -266,6 +251,8 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
   };
 
   if (!isOpen) return null;
+
+  const selectedChainConfig = CHAINS[selectedChain];
 
   return (
     <AnimatePresence>
@@ -277,7 +264,6 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
       >
         <div className="min-h-full flex flex-col">
           <div className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 pt-safe pb-safe">
-            {/* Back Button */}
             <div className="pt-4 pb-2">
               <button
                 onClick={handleClose}
@@ -287,7 +273,6 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
               </button>
             </div>
 
-            {/* Header */}
             <div className="mb-6">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -306,58 +291,170 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
 
           {step === 'input' && (
             <div className="glass-card p-6 space-y-6">
-              {/* ✅ NEW: Chain Selector */}
+              {/* ✨ STYLED: Chain Selector with Logo */}
               <div>
                 <label className="text-sm font-medium text-gray-900 mb-2 block">
                   From network
                 </label>
                 <div className="relative">
-                  <select
-                    value={selectedChain}
-                    onChange={(e) => setSelectedChain(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl font-medium text-gray-900 appearance-none cursor-pointer hover:border-orange-300 transition-colors focus:outline-none focus:border-orange-500"
+                  <button
+                    onClick={() => setShowChainDropdown(!showChainDropdown)}
+                    className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-medium text-gray-900 hover:border-orange-300 transition-colors focus:outline-none focus:border-orange-500 flex items-center justify-between"
                   >
-                    {Object.entries(CHAINS).map(([key, chain]) => (
-                      <option key={key} value={key}>
-                        {chain.icon} {chain.name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                    <div className="flex items-center gap-3">
+                      {selectedChainConfig.logoUrl ? (
+                        <img 
+                          src={selectedChainConfig.logoUrl} 
+                          alt={selectedChainConfig.name}
+                          className="w-6 h-6 rounded-full"
+                        />
+                      ) : (
+                        <span className="text-xl">{selectedChainConfig.icon}</span>
+                      )}
+                      <span>{selectedChainConfig.name}</span>
+                    </div>
+                    <ChevronDown className="w-5 h-5 text-gray-400" />
+                  </button>
+                  
+                  {showChainDropdown && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="absolute z-10 w-full mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-xl overflow-hidden"
+                    >
+                      {Object.entries(CHAINS).map(([key, chain]) => (
+                        <button
+                          key={key}
+                          onClick={() => {
+                            setSelectedChain(key);
+                            setShowChainDropdown(false);
+                          }}
+                          className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors ${
+                            selectedChain === key ? 'bg-orange-50' : ''
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            {chain.logoUrl ? (
+                              <img 
+                                src={chain.logoUrl} 
+                                alt={chain.name}
+                                className="w-6 h-6 rounded-full"
+                              />
+                            ) : (
+                              <span className="text-xl">{chain.icon}</span>
+                            )}
+                            <span className="font-medium text-gray-900">{chain.name}</span>
+                          </div>
+                          {selectedChain === key && (
+                            <Check className="w-5 h-5 text-orange-500" />
+                          )}
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
                 </div>
               </div>
 
-              {/* ✅ NEW: Asset Selector */}
+              {/* ✨ STYLED: Asset Selector with Logo */}
               <div>
                 <label className="text-sm font-medium text-gray-900 mb-2 block">
                   Asset to send
                 </label>
                 {isLoadingAssets ? (
-                  <div className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl flex items-center justify-center">
+                  <div className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl flex items-center justify-center">
                     <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
                     <span className="ml-2 text-gray-600">Loading assets...</span>
                   </div>
                 ) : availableAssets.length === 0 ? (
-                  <div className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-600 text-center">
+                  <div className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl text-gray-600 text-center">
                     No assets available
                   </div>
                 ) : (
                   <div className="relative">
-                    <select
-                      value={selectedAsset?.symbol}
-                      onChange={(e) => {
-                        const asset = availableAssets.find(a => a.symbol === e.target.value);
-                        setSelectedAsset(asset || null);
-                      }}
-                      className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl font-medium text-gray-900 appearance-none cursor-pointer hover:border-orange-300 transition-colors focus:outline-none focus:border-orange-500"
+                    <button
+                      onClick={() => setShowAssetDropdown(!showAssetDropdown)}
+                      className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-medium text-gray-900 hover:border-orange-300 transition-colors focus:outline-none focus:border-orange-500 flex items-center justify-between"
                     >
-                      {availableAssets.map((asset) => (
-                        <option key={asset.symbol} value={asset.symbol}>
-                          {asset.symbol} - {parseFloat(asset.balance).toFixed(6)} (${asset.valueUSD.toFixed(2)})
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                      {selectedAsset && (
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center overflow-hidden border border-gray-200">
+                            {selectedAsset.logo ? (
+                              <img 
+                                src={selectedAsset.logo.startsWith('/') ? selectedAsset.logo : selectedAsset.logo} 
+                                alt={selectedAsset.symbol}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.parentElement!.textContent = selectedAsset.symbol[0];
+                                }}
+                              />
+                            ) : (
+                              <span className="text-sm font-bold">{selectedAsset.symbol[0]}</span>
+                            )}
+                          </div>
+                          <div className="text-left">
+                            <div className="font-semibold">{selectedAsset.symbol}</div>
+                            <div className="text-xs text-gray-500">
+                              {parseFloat(selectedAsset.balance).toFixed(6)}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      <ChevronDown className="w-5 h-5 text-gray-400" />
+                    </button>
+                    
+                    {showAssetDropdown && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="absolute z-10 w-full mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-80 overflow-y-auto"
+                      >
+                        {availableAssets.map((asset) => (
+                          <button
+                            key={asset.symbol}
+                            onClick={() => {
+                              setSelectedAsset(asset);
+                              setShowAssetDropdown(false);
+                            }}
+                            className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors ${
+                              selectedAsset?.symbol === asset.symbol ? 'bg-orange-50' : ''
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center overflow-hidden border border-gray-200">
+                                {asset.logo ? (
+                                  <img 
+                                    src={asset.logo.startsWith('/') ? asset.logo : asset.logo} 
+                                    alt={asset.symbol}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none';
+                                      e.currentTarget.parentElement!.textContent = asset.symbol[0];
+                                    }}
+                                  />
+                                ) : (
+                                  <span className="text-sm font-bold">{asset.symbol[0]}</span>
+                                )}
+                              </div>
+                              <div className="text-left">
+                                <div className="font-semibold text-gray-900">{asset.symbol}</div>
+                                <div className="text-xs text-gray-500">
+                                  {parseFloat(asset.balance).toFixed(6)}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm font-medium text-gray-900">
+                                ${asset.valueUSD.toFixed(2)}
+                              </div>
+                              {selectedAsset?.symbol === asset.symbol && (
+                                <Check className="w-5 h-5 text-orange-500 ml-2 inline" />
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
                   </div>
                 )}
                 {selectedAsset && (
@@ -414,7 +511,6 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
                 )}
               </div>
 
-              {/* Gas speed (only for non-Solana chains) */}
               {selectedChain !== 'solana' && (
                 <div>
                   <label className="text-sm font-medium text-gray-900 mb-3 block">
