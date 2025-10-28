@@ -174,14 +174,22 @@ export class WebAuthnService {
     }
 
     try {
+      console.log('🔐 [WebAuthnService] authenticate() called');
+      console.log('🔍 [WebAuthnService] credentialId type:', typeof credentialId);
+      console.log('🔍 [WebAuthnService] credentialId length:', credentialId?.length);
+      console.log('🔍 [WebAuthnService] credentialId first 50 chars:', credentialId?.substring(0, 50));
+      
       // Generate challenge
       const challenge = new Uint8Array(32);
       window.crypto.getRandomValues(challenge);
 
       // Convert credential ID
+      console.log('🔐 [WebAuthnService] Converting credential ID to ArrayBuffer...');
       const credentialIdBuffer = this.base64ToArrayBuffer(credentialId);
+      console.log('✅ [WebAuthnService] Credential ID converted, buffer length:', credentialIdBuffer.byteLength);
 
       // Authenticate
+      console.log('🔐 [WebAuthnService] Calling navigator.credentials.get()...');
       const credential = await navigator.credentials.get({
         publicKey: {
           challenge: challenge,
@@ -196,9 +204,12 @@ export class WebAuthnService {
       }) as PublicKeyCredential;
 
       if (!credential) {
+        console.log('❌ [WebAuthnService] credentials.get() returned null');
         return { success: false, error: 'Authentication failed' };
       }
 
+      console.log('✅ [WebAuthnService] credentials.get() succeeded!');
+      
       // Update last used time
       const credentialData: WebAuthnCredential = {
         id: credential.id,
@@ -213,7 +224,9 @@ export class WebAuthnService {
       return { success: true, credential: credentialData };
 
     } catch (error: any) {
-      console.error('WebAuthn authentication error:', error);
+      console.error('❌ [WebAuthnService] authentication error:', error);
+      console.error('❌ [WebAuthnService] error.name:', error.name);
+      console.error('❌ [WebAuthnService] error.message:', error.message);
       
       // Handle specific error cases
       if (error.name === 'NotAllowedError') {
