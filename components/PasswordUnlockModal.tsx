@@ -162,9 +162,9 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       console.log = (...args: any[]) => {
         if (!capturing) {
           const msg = args.join(' ');
-          if (msg.includes('[BiometricStore]') || msg.includes('[wallet-store]')) {
+          if (msg.includes('[BiometricStore]') || msg.includes('[wallet-store]') || msg.includes('[WebAuthnService]')) {
             capturing = true;
-            addDebugLog(msg.replace('[BiometricStore]', '🔐').replace('[wallet-store]', '🔐'));
+            addDebugLog(msg.replace('[BiometricStore]', '🔐').replace('[wallet-store]', '🔐').replace('[WebAuthnService]', '🔐'));
             capturing = false;
           }
         }
@@ -173,7 +173,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       console.error = (...args: any[]) => {
         if (!capturing) {
           const msg = args.join(' ');
-          if (msg.includes('[BiometricStore]') || msg.includes('[wallet-store]')) {
+          if (msg.includes('[BiometricStore]') || msg.includes('[wallet-store]') || msg.includes('[WebAuthnService]')) {
             capturing = true;
             addDebugLog(`❌ ${msg}`);
             capturing = false;
