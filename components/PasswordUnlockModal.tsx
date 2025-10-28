@@ -153,7 +153,32 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       
       addDebugLog('🔐 Calling unlockWithBiometric...');
       const { unlockWithBiometric } = useWalletStore.getState();
-      await unlockWithBiometric();
+      
+      // Temporarily override console.log to capture biometric-store logs
+      const originalLog = console.log;
+      const originalError = console.error;
+      console.log = (...args: any[]) => {
+        const msg = args.join(' ');
+        if (msg.includes('[BiometricStore]') || msg.includes('[wallet-store]')) {
+          addDebugLog(msg);
+        }
+        originalLog(...args);
+      };
+      console.error = (...args: any[]) => {
+        const msg = args.join(' ');
+        if (msg.includes('[BiometricStore]') || msg.includes('[wallet-store]')) {
+          addDebugLog(`❌ ${msg}`);
+        }
+        originalError(...args);
+      };
+      
+      try {
+        await unlockWithBiometric();
+      } finally {
+        // Restore original console methods
+        console.log = originalLog;
+        console.error = originalError;
+      }
       
       addDebugLog('✅ Biometric unlock successful!');
       
