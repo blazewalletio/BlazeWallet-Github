@@ -157,17 +157,27 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       // Temporarily override console.log to capture biometric-store logs
       const originalLog = console.log;
       const originalError = console.error;
+      let capturing = false; // Prevent infinite loop
+      
       console.log = (...args: any[]) => {
-        const msg = args.join(' ');
-        if (msg.includes('[BiometricStore]') || msg.includes('[wallet-store]')) {
-          addDebugLog(msg);
+        if (!capturing) {
+          const msg = args.join(' ');
+          if (msg.includes('[BiometricStore]') || msg.includes('[wallet-store]')) {
+            capturing = true;
+            addDebugLog(msg.replace('[BiometricStore]', '🔐').replace('[wallet-store]', '🔐'));
+            capturing = false;
+          }
         }
         originalLog(...args);
       };
       console.error = (...args: any[]) => {
-        const msg = args.join(' ');
-        if (msg.includes('[BiometricStore]') || msg.includes('[wallet-store]')) {
-          addDebugLog(`❌ ${msg}`);
+        if (!capturing) {
+          const msg = args.join(' ');
+          if (msg.includes('[BiometricStore]') || msg.includes('[wallet-store]')) {
+            capturing = true;
+            addDebugLog(`❌ ${msg}`);
+            capturing = false;
+          }
         }
         originalError(...args);
       };

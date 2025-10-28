@@ -18,11 +18,11 @@
   "/api/prices-binance/route": "app/api/prices-binance/route.js",
   "/api/cashback/transactions/route": "app/api/cashback/transactions/route.js",
   "/api/cashback/stats/route": "app/api/cashback/stats/route.js",
-  "/api/swap/transaction/route": "app/api/swap/transaction/route.js",
   "/api/referral/transactions/route": "app/api/referral/transactions/route.js",
   "/api/referral/data/route": "app/api/referral/data/route.js",
-  "/api/swap/quote/route": "app/api/swap/quote/route.js",
   "/api/referral/stats/route": "app/api/referral/stats/route.js",
+  "/api/swap/quote/route": "app/api/swap/quote/route.js",
+  "/api/swap/transaction/route": "app/api/swap/transaction/route.js",
   "/apple-icon.png/route": "app/apple-icon.png/route.js",
   "/icon.png/route": "app/icon.png/route.js"
 }
