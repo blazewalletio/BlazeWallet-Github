@@ -19,12 +19,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   const [attempts, setAttempts] = useState(0);
   const { unlockWithPassword } = useWalletStore();
   const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [debugLogs, setDebugLogs] = useState<string[]>([]); // ✅ DEBUG: Visual logs for mobile
-  
-  const addDebugLog = (log: string) => {
-    setDebugLogs(prev => [...prev, `${new Date().toLocaleTimeString()}: ${log}`]);
-    console.log(log);
-  };
 
   // Check if biometric is available on mount
   useEffect(() => {
@@ -120,94 +114,30 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   const handleBiometricAuth = async () => {
     setIsLoading(true);
     setError('');
-    setDebugLogs([]); // Clear previous logs
     
     try {
-      addDebugLog('🔐 Starting biometric unlock...');
-      
-      // ✅ DEBUG: Check wallet identifier BEFORE unlock
+      // Get wallet identifier
       const walletIdentifier = useWalletStore.getState().getWalletIdentifier();
-      addDebugLog(`🔍 Wallet identifier: ${walletIdentifier ? walletIdentifier.substring(0, 20) + '...' : 'NULL'}`);
-      
-      // Check wallet type
-      const createdWithEmail = localStorage.getItem('wallet_created_with_email') === 'true';
-      const walletEmail = localStorage.getItem('wallet_email');
-      const supabaseUserId = localStorage.getItem('supabase_user_id');
-      addDebugLog(`🔍 Email wallet: ${createdWithEmail}`);
-      addDebugLog(`🔍 Email: ${walletEmail}`);
-      addDebugLog(`🔍 Supabase ID: ${supabaseUserId ? supabaseUserId.substring(0, 20) + '...' : 'NOT SET'}`);
-      
-      // Check biometric data
-      const biometricDataStr = localStorage.getItem('biometric_data');
-      if (biometricDataStr) {
-        const biometricData = JSON.parse(biometricDataStr);
-        const keys = Object.keys(biometricData);
-        addDebugLog(`🔍 Biometric data keys: ${keys.length > 0 ? keys.map(k => k.substring(0, 20) + '...').join(', ') : 'NONE'}`);
-      } else {
-        addDebugLog('🔍 Biometric data: NOT FOUND');
-      }
       
       if (!walletIdentifier) {
         throw new Error('Cannot determine wallet identifier. Please ensure wallet data is properly saved.');
       }
       
-      addDebugLog('🔐 Calling unlockWithBiometric...');
       const { unlockWithBiometric } = useWalletStore.getState();
-      
-      // Temporarily override console.log to capture biometric-store logs
-      const originalLog = console.log;
-      const originalError = console.error;
-      let capturing = false; // Prevent infinite loop
-      
-      console.log = (...args: any[]) => {
-        if (!capturing) {
-          const msg = args.join(' ');
-          if (msg.includes('[BiometricStore]') || msg.includes('[wallet-store]') || msg.includes('[WebAuthnService]')) {
-            capturing = true;
-            addDebugLog(msg.replace('[BiometricStore]', '🔐').replace('[wallet-store]', '🔐').replace('[WebAuthnService]', '🔐'));
-            capturing = false;
-          }
-        }
-        originalLog(...args);
-      };
-      console.error = (...args: any[]) => {
-        if (!capturing) {
-          const msg = args.join(' ');
-          if (msg.includes('[BiometricStore]') || msg.includes('[wallet-store]') || msg.includes('[WebAuthnService]')) {
-            capturing = true;
-            addDebugLog(`❌ ${msg}`);
-            capturing = false;
-          }
-        }
-        originalError(...args);
-      };
-      
-      try {
-        await unlockWithBiometric();
-      } finally {
-        // Restore original console methods
-        console.log = originalLog;
-        console.error = originalError;
-      }
-      
-      addDebugLog('✅ Biometric unlock successful!');
+      await unlockWithBiometric();
       
       // Set session flag
       sessionStorage.setItem('wallet_unlocked_this_session', 'true');
       
       onComplete();
     } catch (error: any) {
-      addDebugLog(`❌ Error: ${error.message}`);
-      
       // Check if biometric is still available after the error
-      // (it might have been auto-cleared if data was corrupt)
       const { BiometricStore } = await import('@/lib/biometric-store');
       const biometricStore = BiometricStore.getInstance();
       const walletIdentifier = useWalletStore.getState().getWalletIdentifier();
       
       if (walletIdentifier) {
         const hasStoredPassword = biometricStore.hasStoredPassword(walletIdentifier);
-        addDebugLog(`🔍 After error - hasStoredPassword: ${hasStoredPassword}`);
         setBiometricAvailable(hasStoredPassword);
       } else {
         setBiometricAvailable(false);
@@ -301,24 +231,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
                 </button>
               )}
             </form>
-
-            {/* ✅ DEBUG LOGS - Visible on mobile */}
-            {debugLogs.length > 0 && (
-              <div className="mt-4 bg-gray-900 text-green-400 p-4 rounded-xl text-xs font-mono max-h-64 overflow-y-auto">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-bold text-white">🔍 Debug Logs:</span>
-                  <button
-                    onClick={() => setDebugLogs([])}
-                    className="text-gray-400 hover:text-white text-xs"
-                  >
-                    Clear
-                  </button>
-                </div>
-                {debugLogs.map((log, i) => (
-                  <div key={i} className="mb-1">{log}</div>
-                ))}
-              </div>
-            )}
 
             <div className="mt-6 text-center">
               <button
