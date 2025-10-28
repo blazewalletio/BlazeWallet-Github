@@ -387,9 +387,12 @@ export class WebAuthnService {
 
   /**
    * Utility: Convert Base64 to ArrayBuffer
+   * Supports both base64 and base64url formats
    */
   private base64ToArrayBuffer(base64: string): ArrayBuffer {
-    const binary = window.atob(base64);
+    // Convert base64url to base64 (replace - with + and _ with /)
+    const base64Standard = base64.replace(/-/g, '+').replace(/_/g, '/');
+    const binary = window.atob(base64Standard);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) {
       bytes[i] = binary.charCodeAt(i);
