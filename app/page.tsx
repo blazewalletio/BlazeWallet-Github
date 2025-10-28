@@ -73,10 +73,58 @@ export default function Home() {
           const unlockedThisSession = sessionStorage.getItem('wallet_unlocked_this_session') === 'true';
           
           if (unlockedThisSession) {
-            console.log('✅ Wallet already unlocked this session - skipping unlock modal');
-            // Wallet is already unlocked, explicitly prevent password modal
-            setShowPasswordUnlock(false); // ✅ Explicitly prevent modal
-            return;
+            // ✅ OPTIE A+: Check session timeout (30 minutes)
+            const lastActivity = sessionStorage.getItem('last_activity');
+            const now = Date.now();
+            const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+            
+            if (lastActivity) {
+              const timeSince = now - parseInt(lastActivity);
+              
+              if (timeSince > SESSION_TIMEOUT) {
+                console.log('⏰ Session expired (inactive for ' + Math.round(timeSince / 60000) + ' minutes) - clearing session');
+                sessionStorage.clear();
+                // Fall through to normal unlock flow below
+              } else {
+                console.log('🔄 Session active (last activity: ' + Math.round(timeSince / 1000) + 's ago) - attempting auto-unlock');
+                
+                // Update activity timestamp
+                sessionStorage.setItem('last_activity', now.toString());
+                
+                // Attempt auto-unlock based on user's preferred method
+                if (biometricEnabled && isMobile) {
+                  // Biometric is enabled on mobile - try direct biometric unlock
+                  console.log('👤 Biometric enabled - attempting direct Face ID/Touch ID unlock');
+                  
+                  try {
+                    const { unlockWithBiometric } = useWalletStore.getState();
+                    await unlockWithBiometric();
+                    
+                    console.log('✅ Wallet unlocked with biometrics successfully');
+                    setShowPasswordUnlock(false);
+                    return;
+                    
+                  } catch (error: any) {
+                    console.log('⚠️ Biometric unlock failed, showing password modal:', error.message);
+                    const stillEnabled = localStorage.getItem('biometric_enabled') === 'true';
+                    console.log('🔍 Biometric still enabled after error?', stillEnabled);
+                    
+                    // Fall back to password unlock modal
+                    setShowPasswordUnlock(true);
+                    return;
+                  }
+                } else {
+                  // No biometric or desktop - show password unlock modal
+                  console.log('🔑 Showing password unlock modal (session active)');
+                  setShowPasswordUnlock(true);
+                  return;
+                }
+              }
+            } else {
+              // No last_activity timestamp - set it and continue with normal flow
+              console.log('📝 No activity timestamp found - setting initial timestamp');
+              sessionStorage.setItem('last_activity', now.toString());
+            }
           }
           
           // Check if biometric is enabled AND device is mobile

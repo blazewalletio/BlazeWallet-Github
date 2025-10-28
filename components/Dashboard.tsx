@@ -121,10 +121,34 @@ export default function Dashboard() {
   // PWA detection
   const [isPWA, setIsPWA] = useState(false);
 
+  // ✅ OPTIE A+: Activity tracking for session management
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
       setIsPWA(isStandalone);
+      
+      // Update activity timestamp on user interactions
+      const updateActivity = () => {
+        sessionStorage.setItem('last_activity', Date.now().toString());
+      };
+      
+      // Track various user interactions
+      window.addEventListener('click', updateActivity);
+      window.addEventListener('keydown', updateActivity);
+      window.addEventListener('scroll', updateActivity);
+      window.addEventListener('touchstart', updateActivity);
+      
+      // Set initial activity timestamp if not present
+      if (!sessionStorage.getItem('last_activity')) {
+        updateActivity();
+      }
+      
+      return () => {
+        window.removeEventListener('click', updateActivity);
+        window.removeEventListener('keydown', updateActivity);
+        window.removeEventListener('scroll', updateActivity);
+        window.removeEventListener('touchstart', updateActivity);
+      };
     }
   }, []);
 

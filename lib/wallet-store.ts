@@ -202,6 +202,12 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         lastActivity: Date.now(),
       });
 
+      // Set session flag + activity timestamp
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('wallet_unlocked_this_session', 'true');
+        sessionStorage.setItem('last_activity', Date.now().toString());
+      }
+
     } catch (error) {
       throw new Error('Ongeldig wachtwoord of beschadigde data');
     }
@@ -262,9 +268,10 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           lastActivity: Date.now(),
         });
 
-        // Set session flag
+        // Set session flag + activity timestamp
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('wallet_unlocked_this_session', 'true');
+          sessionStorage.setItem('last_activity', Date.now().toString());
         }
 
         secureLog.info('Email wallet unlocked with biometrics');
@@ -313,9 +320,10 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           lastActivity: Date.now(),
         });
 
-        // Set session flag
+        // Set session flag + activity timestamp
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('wallet_unlocked_this_session', 'true');
+          sessionStorage.setItem('last_activity', Date.now().toString());
         }
 
         secureLog.info('Seed phrase wallet unlocked with biometrics');
