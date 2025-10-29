@@ -171,7 +171,10 @@ export class SolanaService {
               isError: tx.meta?.err !== null, // ✅ FIX 3: Proper isError boolean
               blockNumber: sig.slot,
               tokenSymbol: txDetails.tokenSymbol,
+              tokenName: txDetails.tokenName,  // ✅ FIX: Pass token name
               type: txDetails.type,
+              mint: txDetails.mint,            // ✅ FIX: Pass mint address
+              logoUrl: txDetails.logoUrl,      // ✅ FIX: Pass logo URL for watermark
             };
           } catch (err) {
             console.error('Error parsing Solana transaction:', err);
@@ -279,7 +282,7 @@ export class SolanaService {
           to: accountKeys[1]?.toBase58() || '',
           value: (diff / LAMPORTS_PER_SOL).toString(),
           type: 'Transfer',
-          logoUrl: '/crypto-sol.png',  // ✅ NEW: Solana logo for native SOL transfers
+          logoUrl: '/crypto-solana.png',  // ✅ Correct filename for Solana logo
         };
       }
     }
