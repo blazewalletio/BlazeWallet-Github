@@ -225,7 +225,7 @@ export class SolanaService {
     accountKeys: PublicKey[],
     instructions: any[],
     userAddress: string
-  ): Promise<{ from: string; to: string; value: string; tokenSymbol?: string; tokenName?: string; type?: string; mint?: string }> {
+  ): Promise<{ from: string; to: string; value: string; tokenSymbol?: string; tokenName?: string; tokenLogo?: string; type?: string; mint?: string }> {
     const userPubkey = new PublicKey(userAddress);
 
     // Default values
@@ -234,6 +234,7 @@ export class SolanaService {
     let value = '0';
     let tokenSymbol: string | undefined;
     let tokenName: string | undefined;
+    let tokenLogo: string | undefined;
     let type: string | undefined;
 
     if (instructions.length === 0 || accountKeys.length === 0) {
@@ -256,7 +257,7 @@ export class SolanaService {
     from = accountKeys[0]?.toBase58() || '';
     to = accountKeys.length > 1 ? accountKeys[1]?.toBase58() || '' : '';
     
-    return { from, to, value, tokenSymbol, tokenName, type };
+    return { from, to, value, tokenSymbol, tokenName, tokenLogo, type };
   }
 
   /**
@@ -294,7 +295,7 @@ export class SolanaService {
     instructions: any[],
     accountKeys: PublicKey[],
     userPubkey: PublicKey
-  ): Promise<{ from: string; to: string; value: string; tokenSymbol: string; tokenName?: string; type: string; mint?: string } | null> {
+  ): Promise<{ from: string; to: string; value: string; tokenSymbol: string; tokenName?: string; tokenLogo?: string; type: string; mint?: string } | null> {
     // Check if transaction involves Token Program
     const tokenProgramId = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
     
@@ -333,6 +334,7 @@ export class SolanaService {
                   value: diff.toString(),
                   tokenSymbol: metadata.symbol,  // ✅ Now gets "WIF", "NPCS", "USDC" etc
                   tokenName: metadata.name,      // ✅ NEW: Full token name (e.g., "NPC Solana", "dogwifhat")
+                  tokenLogo: metadata.logoURI,   // ✅ NEW: Token logo URL
                   type: 'Token Transfer',
                   mint: mint,  // ✅ Store mint for reference
                 };
