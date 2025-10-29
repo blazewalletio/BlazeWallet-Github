@@ -14,13 +14,16 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'edge'; // Use Edge runtime for better performance
 
+// ✅ Alchemy API Key for Ethereum (Rick's key)
+const ALCHEMY_API_KEY = 'V9A0m8eB58qyWJpajs6Y';
+
 // Alchemy RPC URLs for each chain
 const ALCHEMY_RPCS: Record<string, string> = {
-  ethereum: 'https://eth-mainnet.g.alchemy.com/v2/demo',
-  polygon: 'https://polygon-mainnet.g.alchemy.com/v2/demo',
-  arbitrum: 'https://arb-mainnet.g.alchemy.com/v2/demo',
-  base: 'https://base-mainnet.g.alchemy.com/v2/demo',
-  optimism: 'https://opt-mainnet.g.alchemy.com/v2/demo',
+  ethereum: `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
+  polygon: `https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
+  arbitrum: `https://arb-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
+  base: `https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
+  optimism: `https://opt-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
 };
 
 // Fallback public RPC URLs (if Alchemy fails)

@@ -184,6 +184,13 @@ class AlchemyTokenService {
       });
       
       const blockData = await blockResponse.json();
+      
+      // ✅ Check if we got a valid block number
+      if (!blockData.result || blockData.error) {
+        console.error(`❌ [DirectRPC] Failed to get block number:`, blockData.error);
+        return [];
+      }
+      
       const currentBlock = parseInt(blockData.result, 16);
       
       // Scan last 10,000 blocks for Transfer events TO this address
