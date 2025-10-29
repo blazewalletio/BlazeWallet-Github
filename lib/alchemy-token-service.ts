@@ -285,7 +285,11 @@ class AlchemyTokenService {
         );
         
         // Filter out null results and add to main array
-        tokens.push(...batchTokens.filter((t): t is EVMToken => t !== null));
+        batchTokens.forEach(token => {
+          if (token !== null) {
+            tokens.push(token);
+          }
+        });
       }
 
       console.log(`✅ [DirectRPC] Successfully processed ${tokens.length} tokens with balance`);
