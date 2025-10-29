@@ -127,15 +127,26 @@ class JupiterTokenCache {
     try {
       console.log('🔍 [SPLTokenMetadata] Fetching Jupiter token list...');
       
-      // ✅ FIX: Remove ?tags=verified to get ALL tokens (~15,000 instead of ~500)
-      // This includes unverified tokens like NPC and other legitimate tokens
-      const response = await fetch('https://tokens.jup.ag/tokens');
+      // ✅ FIX: Use server-side API proxy to avoid CORS/DNS issues
+      // This fetches ALL tokens (~15,000) for comprehensive coverage
+      const response = await fetch('/api/jupiter-tokens', {
+        // Client-side fetch with cache
+        cache: 'default',
+      });
       
       if (!response.ok) {
-        throw new Error(`Jupiter API error: ${response.status}`);
+        throw new Error(`Jupiter API proxy error: ${response.status}`);
       }
 
-      const tokens: any[] = await response.json();
+      const data = await response.json();
+      
+      // Handle error response format
+      if (data.error) {
+        throw new Error(data.message || 'Jupiter API returned error');
+      }
+      
+      // Handle both direct array and wrapped response
+      const tokens: any[] = Array.isArray(data) ? data : (data.tokens || []);
       
       console.log(`🪐 [SPLTokenMetadata] Loaded ${tokens.length} tokens from Jupiter API`);
       
