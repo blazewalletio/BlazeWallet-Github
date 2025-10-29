@@ -27,8 +27,9 @@ const ALCHEMY_RPCS: Record<string, string> = {
 };
 
 // Fallback public RPC URLs (if Alchemy fails)
+// ✅ Using CloudFlare's free public RPC - no API key required!
 const FALLBACK_RPCS: Record<string, string> = {
-  ethereum: 'https://rpc.ankr.com/eth', // ✅ Try Ankr instead of LlamaRPC
+  ethereum: 'https://cloudflare-eth.com', // ✅ CloudFlare - truly free, no rate limits for basic calls
   polygon: 'https://polygon-rpc.com',
   arbitrum: 'https://arb1.arbitrum.io/rpc',
   base: 'https://mainnet.base.org',
