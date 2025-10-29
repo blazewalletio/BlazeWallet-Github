@@ -203,7 +203,7 @@ class AlchemyTokenService {
             topics: [
               transferTopic, // Transfer event
               null, // from (any address)
-              '0x000000000000000000000000' + address.slice(2) // to (our address, padded to 32 bytes)
+              '0x000000000000000000000000' + address.toLowerCase().slice(2) // to (our address, lowercase and padded to 32 bytes)
             ]
           }],
         }),
@@ -248,7 +248,7 @@ class AlchemyTokenService {
                   method: 'eth_call',
                   params: [{
                     to: tokenAddress,
-                    data: '0x70a08231000000000000000000000000' + address.slice(2) // balanceOf(address)
+                    data: '0x70a08231000000000000000000000000' + address.toLowerCase().slice(2) // balanceOf(address) - address must be lowercase
                   }, 'latest'],
                 }),
               });
