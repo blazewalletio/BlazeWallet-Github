@@ -293,6 +293,7 @@ export class SolanaService {
   /**
    * Detect SPL token transfer
    * ✅ NOW WITH METADATA LOOKUP for correct token names/symbols
+   * ✅ FIXED: Guaranteed logoUrl fallback to prevent undefined
    */
   private async detectSPLTransfer(
     tx: any,
@@ -340,7 +341,7 @@ export class SolanaService {
                   tokenName: metadata.name,      // ✅ Full token name (e.g., "NPC Solana", "dogwifhat")
                   type: 'Token Transfer',
                   mint: mint,                    // ✅ Store mint for reference
-                  logoUrl: metadata.logoURI,     // ✅ NEW: Logo URL for UI watermark
+                  logoUrl: metadata.logoURI || '/crypto-solana.png', // ✅ FIX: Guaranteed fallback!
                 };
               }
             }
@@ -354,6 +355,7 @@ export class SolanaService {
           value: '0',
           tokenSymbol: 'SPL',
           type: 'Token Transfer',
+          logoUrl: '/crypto-solana.png', // ✅ FIX: Always provide fallback
         };
       }
     }

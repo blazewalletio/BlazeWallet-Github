@@ -116,18 +116,23 @@ export const POPULAR_SPL_TOKENS: Record<string, SPLTokenMetadata> = {
 };
 
 /**
- * ✅ NEW: Persistent Jupiter Token Cache with IndexedDB
- * 24-hour cache with stale-while-revalidate support
+ * 🚀 OPTIE 1: Lazy Token Registry with On-Demand IndexedDB Lookup
+ * 
+ * Key Features:
+ * - NO memory loading of 287k tokens (instant startup!)
+ * - Direct IndexedDB queries with mint index
+ * - Background sync without blocking UI
+ * - Scales to millions of tokens
  */
 class JupiterTokenCache {
-  private dbName = 'blaze_jupiter_cache';
+  private dbName = 'blaze_jupiter_cache_v2'; // ✅ New version to force fresh schema
   private storeName = 'tokens';
+  private metaStoreName = 'metadata';
   private db: IDBDatabase | null = null;
-  private memoryCache: Map<string, SPLTokenMetadata> | null = null;
-  private cacheTime: number = 0;
-  private cacheDuration = 24 * 60 * 60 * 1000; // ✅ 24 hours (was 1 hour)
   private initPromise: Promise<void> | null = null;
-  private isFetching = false; // ✅ Prevent concurrent fetches
+  private isSyncing = false; // Track background sync
+  private lastSyncTime = 0;
+  private cacheDuration = 24 * 60 * 60 * 1000; // 24 hours
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -136,7 +141,7 @@ class JupiterTokenCache {
   }
 
   /**
-   * Initialize IndexedDB for persistent caching
+   * Initialize IndexedDB with mint index for fast queries
    */
   private async initDB(): Promise<void> {
     return new Promise((resolve) => {
@@ -146,7 +151,7 @@ class JupiterTokenCache {
         return;
       }
 
-      const request = indexedDB.open(this.dbName, 1);
+      const request = indexedDB.open(this.dbName, 2); // Version 2 with metadata store
 
       request.onerror = () => {
         console.error('❌ Failed to open Jupiter cache DB:', request.error);
@@ -155,124 +160,102 @@ class JupiterTokenCache {
 
       request.onsuccess = () => {
         this.db = request.result;
-        console.log('✅ IndexedDB initialized for Jupiter token cache');
+        console.log('✅ IndexedDB initialized for Jupiter token cache (lazy mode)');
         
-        // ✅ Load cache from IndexedDB on startup
-        this.loadFromDB().then(() => {
-          console.log('⚡ Jupiter tokens loaded from persistent cache');
-          resolve();
-        });
+        // Check if we need to sync in background
+        this.checkAndSync().then(() => resolve());
       };
 
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
         
+        // Create or update tokens store
         if (!db.objectStoreNames.contains(this.storeName)) {
-          const objectStore = db.createObjectStore(this.storeName, { keyPath: 'mint' });
-          objectStore.createIndex('symbol', 'symbol', { unique: false });
-          console.log('✅ Created IndexedDB object store for Jupiter tokens');
+          const tokenStore = db.createObjectStore(this.storeName, { keyPath: 'mint' });
+          tokenStore.createIndex('mint', 'mint', { unique: true }); // ✅ Index for fast lookup
+          tokenStore.createIndex('symbol', 'symbol', { unique: false });
+          console.log('✅ Created Jupiter tokens store with mint index');
+        }
+        
+        // Create metadata store for sync tracking
+        if (!db.objectStoreNames.contains(this.metaStoreName)) {
+          const metaStore = db.createObjectStore(this.metaStoreName, { keyPath: 'key' });
+          console.log('✅ Created metadata store for sync tracking');
         }
       };
     });
   }
 
   /**
-   * ✅ Load cache from IndexedDB (called on startup)
+   * 🎯 NEW: Get single token metadata directly from IndexedDB
+   * This is the KEY method - instant lookup without loading all tokens!
    */
-  private async loadFromDB(): Promise<void> {
-    if (!this.db) return;
-
-    try {
-      const tokens = await new Promise<SPLTokenMetadata[]>((resolve, reject) => {
-        const transaction = this.db!.transaction([this.storeName], 'readonly');
-        const objectStore = transaction.objectStore(this.storeName);
-        const request = objectStore.getAll();
-
-        request.onsuccess = () => resolve(request.result || []);
-        request.onerror = () => reject(request.error);
-      });
-
-      if (tokens.length > 0) {
-        this.memoryCache = new Map();
-        tokens.forEach(token => {
-          this.memoryCache!.set(token.mint, token);
-        });
-        this.cacheTime = Date.now(); // Assume recently cached
-        console.log(`⚡ Loaded ${tokens.length} Jupiter tokens from IndexedDB`);
-      }
-    } catch (error) {
-      console.warn('Failed to load Jupiter cache from IndexedDB:', error);
-    }
-  }
-
-  /**
-   * ✅ Save cache to IndexedDB (background operation)
-   */
-  private async saveToDB(tokens: Map<string, SPLTokenMetadata>): Promise<void> {
-    if (!this.db) return;
-
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const transaction = this.db!.transaction([this.storeName], 'readwrite');
-        const objectStore = transaction.objectStore(this.storeName);
-        
-        // Clear old data
-        objectStore.clear();
-        
-        // Insert new data
-        tokens.forEach(token => {
-          objectStore.put(token);
-        });
-
-        transaction.oncomplete = () => resolve();
-        transaction.onerror = () => reject(transaction.error);
-      });
-
-      console.log(`💾 Saved ${tokens.size} Jupiter tokens to IndexedDB`);
-    } catch (error) {
-      console.warn('Failed to save Jupiter cache to IndexedDB:', error);
-    }
-  }
-
-  async getTokenList(): Promise<Map<string, SPLTokenMetadata>> {
-    // Wait for DB initialization
+  async getMintMetadata(mint: string): Promise<SPLTokenMetadata | null> {
     if (this.initPromise) {
       await this.initPromise;
     }
 
-    // ✅ STALE-WHILE-REVALIDATE: Return cached data immediately
-    const now = Date.now();
-    const isStale = !this.memoryCache || (now - this.cacheTime > this.cacheDuration);
+    if (!this.db) return null;
 
-    if (this.memoryCache && this.memoryCache.size > 0) {
-      console.log(`⚡ Using ${isStale ? 'stale' : 'fresh'} Jupiter cache (${this.memoryCache.size} tokens)`);
-      
-      // If stale, refresh in background
-      if (isStale && !this.isFetching) {
-        console.log('🔄 Refreshing Jupiter token list in background...');
-        this.refreshCache(); // Fire and forget
-      }
-      
-      return this.memoryCache;
+    try {
+      const token = await new Promise<SPLTokenMetadata | undefined>((resolve, reject) => {
+        const transaction = this.db!.transaction([this.storeName], 'readonly');
+        const objectStore = transaction.objectStore(this.storeName);
+        const request = objectStore.get(mint); // Direct lookup by mint!
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+
+      return token || null;
+    } catch (error) {
+      console.warn(`IndexedDB lookup failed for ${mint}:`, error);
+      return null;
     }
-
-    // No cache - fetch now
-    return await this.refreshCache();
   }
 
   /**
-   * ✅ Refresh cache (can be called in background)
+   * Check if sync is needed and trigger in background
    */
-  private async refreshCache(): Promise<Map<string, SPLTokenMetadata>> {
-    if (this.isFetching) {
-      // Already fetching, return current cache or empty map
-      return this.memoryCache || new Map();
-    }
-
-    this.isFetching = true;
+  private async checkAndSync(): Promise<void> {
+    if (!this.db) return;
 
     try {
-      console.log('🔍 [SPLTokenMetadata] Fetching Jupiter token list...');
+      // Check last sync time from metadata store
+      const meta = await new Promise<any>((resolve) => {
+        const transaction = this.db!.transaction([this.metaStoreName], 'readonly');
+        const objectStore = transaction.objectStore(this.metaStoreName);
+        const request = objectStore.get('lastSync');
+        
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => resolve(null);
+      });
+
+      this.lastSyncTime = meta?.timestamp || 0;
+      const now = Date.now();
+      const isStale = now - this.lastSyncTime > this.cacheDuration;
+
+      if (isStale) {
+        console.log('🔄 Jupiter token cache is stale, syncing in background...');
+        this.syncInBackground(); // Fire and forget
+      } else {
+        console.log(`⚡ Jupiter token cache is fresh (synced ${Math.floor((now - this.lastSyncTime) / 3600000)}h ago)`);
+      }
+    } catch (error) {
+      console.warn('Failed to check sync status:', error);
+    }
+  }
+
+  /**
+   * Sync Jupiter tokens in background WITHOUT blocking
+   */
+  private async syncInBackground(): Promise<void> {
+    if (this.isSyncing || !this.db) return;
+
+    this.isSyncing = true;
+
+    try {
+      console.log('🔄 [Background] Fetching Jupiter token list...');
       
       const response = await fetch('/api/jupiter-tokens', {
         cache: 'default',
@@ -283,90 +266,112 @@ class JupiterTokenCache {
       }
 
       const data = await response.json();
-      
-      if (data.error) {
-        throw new Error(data.message || 'Jupiter API returned error');
-      }
-      
       const tokens: any[] = Array.isArray(data) ? data : (data.tokens || []);
       
-      console.log(`🪐 [SPLTokenMetadata] Loaded ${tokens.length} tokens from Jupiter API`);
+      console.log(`🪐 [Background] Got ${tokens.length} tokens from Jupiter API`);
       
-      // Convert to Map for fast lookup
-      const tokenMap = new Map<string, SPLTokenMetadata>();
-      
-      tokens.forEach((token) => {
-        if (token.address) {
-          tokenMap.set(token.address, {
-            mint: token.address,
-            symbol: token.symbol || 'UNKNOWN',
-            name: token.name || 'Unknown Token',
-            decimals: token.decimals || 9,
-            logoURI: token.logoURI,
-            coingeckoId: token.extensions?.coingeckoId,
+      // Save to IndexedDB in batches (non-blocking)
+      const batchSize = 1000;
+      let saved = 0;
+
+      for (let i = 0; i < tokens.length; i += batchSize) {
+        const batch = tokens.slice(i, i + batchSize);
+        
+        await new Promise<void>((resolve, reject) => {
+          const transaction = this.db!.transaction([this.storeName], 'readwrite');
+          const objectStore = transaction.objectStore(this.storeName);
+          
+          batch.forEach((token) => {
+            if (token.address) {
+              objectStore.put({
+                mint: token.address,
+                symbol: token.symbol || 'UNKNOWN',
+                name: token.name || 'Unknown Token',
+                decimals: token.decimals || 9,
+                logoURI: token.logoURI,
+                coingeckoId: token.extensions?.coingeckoId,
+              });
+            }
           });
-        }
+
+          transaction.oncomplete = () => {
+            saved += batch.length;
+            resolve();
+          };
+          transaction.onerror = () => reject(transaction.error);
+        });
+
+        // Yield to UI every batch
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+
+      // Update sync timestamp
+      await new Promise<void>((resolve, reject) => {
+        const transaction = this.db!.transaction([this.metaStoreName], 'readwrite');
+        const objectStore = transaction.objectStore(this.metaStoreName);
+        objectStore.put({ key: 'lastSync', timestamp: Date.now() });
+        
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
       });
 
-      this.memoryCache = tokenMap;
-      this.cacheTime = Date.now();
+      this.lastSyncTime = Date.now();
+      console.log(`✅ [Background] Synced ${saved} Jupiter tokens to IndexedDB`);
       
-      // ✅ Save to IndexedDB in background
-      this.saveToDB(tokenMap);
-      
-      console.log(`✅ [SPLTokenMetadata] Cached ${tokenMap.size} tokens from Jupiter`);
-      
-      return tokenMap;
     } catch (error) {
-      console.error('❌ [SPLTokenMetadata] Failed to fetch Jupiter token list:', error);
-      
-      // Return existing cache or empty map
-      if (!this.memoryCache) {
-        this.memoryCache = new Map();
-      }
-      
-      return this.memoryCache;
+      console.error('❌ [Background] Failed to sync Jupiter tokens:', error);
     } finally {
-      this.isFetching = false;
+      this.isSyncing = false;
     }
   }
 
-  clearCache() {
-    this.memoryCache = null;
-    this.cacheTime = 0;
+  /**
+   * Legacy method for compatibility - now triggers background sync
+   */
+  async getTokenList(): Promise<Map<string, SPLTokenMetadata>> {
+    console.warn('⚠️ getTokenList() is deprecated - use getMintMetadata() for instant lookup');
     
-    // Clear IndexedDB
-    if (this.db) {
-      const transaction = this.db.transaction([this.storeName], 'readwrite');
-      const objectStore = transaction.objectStore(this.storeName);
-      objectStore.clear();
-      console.log('🧹 Cleared Jupiter token cache');
+    // Trigger sync if needed
+    if (this.initPromise) {
+      await this.initPromise;
     }
+    
+    return new Map(); // Return empty map, no longer loading all tokens
+  }
+
+  clearCache() {
+    if (!this.db) return;
+    
+    const transaction = this.db.transaction([this.storeName, this.metaStoreName], 'readwrite');
+    transaction.objectStore(this.storeName).clear();
+    transaction.objectStore(this.metaStoreName).clear();
+    
+    this.lastSyncTime = 0;
+    console.log('🧹 Cleared Jupiter token cache');
   }
 }
 
 const jupiterCache = new JupiterTokenCache();
 
 /**
- * Get metadata for an SPL token
- * Uses hybrid approach: Hardcoded → Jupiter Cache → Fallback
+ * 🚀 Get metadata for an SPL token (INSTANT via IndexedDB lookup!)
+ * Uses hybrid approach: Hardcoded → Direct IndexedDB Query → Fallback
  */
 export async function getSPLTokenMetadata(mint: string): Promise<SPLTokenMetadata> {
-  // Try 1: Check hardcoded popular tokens (instant)
+  // Try 1: Check hardcoded popular tokens (instant, zero latency)
   if (POPULAR_SPL_TOKENS[mint]) {
     return POPULAR_SPL_TOKENS[mint];
   }
 
-  // Try 2: Check Jupiter cache (instant after first load)
+  // Try 2: Direct IndexedDB lookup (instant, no memory load!)
   try {
-    const jupiterTokens = await jupiterCache.getTokenList();
-    const jupiterToken = jupiterTokens.get(mint);
+    const jupiterToken = await jupiterCache.getMintMetadata(mint);
     
     if (jupiterToken) {
       return jupiterToken;
     }
   } catch (error) {
-    console.warn(`⚠️ [SPLTokenMetadata] Jupiter cache failed for ${mint}`, error);
+    console.warn(`⚠️ [SPLTokenMetadata] IndexedDB lookup failed for ${mint}`, error);
   }
 
   // Fallback: Return basic metadata with mint address
@@ -376,42 +381,48 @@ export async function getSPLTokenMetadata(mint: string): Promise<SPLTokenMetadat
     symbol: mint.slice(0, 4) + '...' + mint.slice(-4),
     name: 'Unknown Token',
     decimals: 9,
+    logoURI: '/crypto-solana.png', // ✅ FIX: Fallback logo to prevent undefined
   };
 }
 
 /**
- * Get metadata for multiple SPL tokens (batch optimized)
+ * 🚀 Get metadata for multiple SPL tokens (parallel IndexedDB lookups!)
  */
 export async function getMultipleSPLTokenMetadata(
   mints: string[]
 ): Promise<Map<string, SPLTokenMetadata>> {
   const result = new Map<string, SPLTokenMetadata>();
 
-  // ✅ Load Jupiter cache once for all tokens (instant after first load)
-  const jupiterTokens = await jupiterCache.getTokenList();
+  // Fetch all in parallel (IndexedDB can handle concurrent reads!)
+  await Promise.all(
+    mints.map(async (mint) => {
+      // Try hardcoded first
+      if (POPULAR_SPL_TOKENS[mint]) {
+        result.set(mint, POPULAR_SPL_TOKENS[mint]);
+        return;
+      }
 
-  for (const mint of mints) {
-    // Try hardcoded first
-    if (POPULAR_SPL_TOKENS[mint]) {
-      result.set(mint, POPULAR_SPL_TOKENS[mint]);
-      continue;
-    }
+      // Try direct IndexedDB lookup
+      try {
+        const jupiterToken = await jupiterCache.getMintMetadata(mint);
+        if (jupiterToken) {
+          result.set(mint, jupiterToken);
+          return;
+        }
+      } catch (error) {
+        console.warn(`Failed to lookup ${mint}:`, error);
+      }
 
-    // Try Jupiter cache
-    const jupiterToken = jupiterTokens.get(mint);
-    if (jupiterToken) {
-      result.set(mint, jupiterToken);
-      continue;
-    }
-
-    // Fallback
-    result.set(mint, {
-      mint,
-      symbol: mint.slice(0, 4) + '...' + mint.slice(-4),
-      name: 'Unknown Token',
-      decimals: 9,
-    });
-  }
+      // Fallback
+      result.set(mint, {
+        mint,
+        symbol: mint.slice(0, 4) + '...' + mint.slice(-4),
+        name: 'Unknown Token',
+        decimals: 9,
+        logoURI: '/crypto-solana.png', // ✅ FIX: Fallback logo
+      });
+    })
+  );
 
   return result;
 }
