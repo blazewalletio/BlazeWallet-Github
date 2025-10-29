@@ -171,6 +171,8 @@ export class SolanaService {
               isError: tx.meta?.err !== null, // ✅ FIX 3: Proper isError boolean
               blockNumber: sig.slot,
               tokenSymbol: txDetails.tokenSymbol,
+              tokenName: txDetails.tokenName,     // ✅ NEW: Token name
+              tokenLogo: txDetails.tokenLogo,     // ✅ NEW: Token logo for diagonal fade effect
               type: txDetails.type,
             };
           } catch (err) {
