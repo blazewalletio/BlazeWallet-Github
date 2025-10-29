@@ -153,8 +153,8 @@ export class SolanaService {
             const accountKeys = tx.transaction.message.staticAccountKeys || [];
             const instructions = tx.transaction.message.compiledInstructions || [];
             
-            // Detect transaction type and extract details
-            const txDetails = this.parseTransaction(tx, accountKeys, instructions, address);
+            // Detect transaction type and extract details - ✅ NOW with await
+            const txDetails = await this.parseTransaction(tx, accountKeys, instructions, address);
             
             // ✅ FIX 1: Convert blockTime from seconds to milliseconds
             // ✅ FIX 2: Handle null blockTime for very recent transactions
@@ -217,14 +217,15 @@ export class SolanaService {
 
   /**
    * Parse transaction to detect type and extract details
+   * ✅ NOW ASYNC to support metadata lookup in detectSPLTransfer()
    * Supports: Native SOL transfers, SPL token transfers, swaps, staking
    */
-  private parseTransaction(
+  private async parseTransaction(
     tx: any,
     accountKeys: PublicKey[],
     instructions: any[],
     userAddress: string
-  ): { from: string; to: string; value: string; tokenSymbol?: string; type?: string } {
+  ): Promise<{ from: string; to: string; value: string; tokenSymbol?: string; type?: string; mint?: string }> {
     const userPubkey = new PublicKey(userAddress);
 
     // Default values
@@ -238,8 +239,8 @@ export class SolanaService {
       return { from, to, value };
     }
 
-    // Check for SPL token transfer (Token Program)
-    const splTransfer = this.detectSPLTransfer(tx, instructions, accountKeys, userPubkey);
+    // Check for SPL token transfer (Token Program) - ✅ NOW with await
+    const splTransfer = await this.detectSPLTransfer(tx, instructions, accountKeys, userPubkey);
     if (splTransfer) {
       return splTransfer;
     }
@@ -285,13 +286,14 @@ export class SolanaService {
 
   /**
    * Detect SPL token transfer
+   * ✅ NOW WITH METADATA LOOKUP for correct token names/symbols
    */
-  private detectSPLTransfer(
+  private async detectSPLTransfer(
     tx: any,
     instructions: any[],
     accountKeys: PublicKey[],
     userPubkey: PublicKey
-  ): { from: string; to: string; value: string; tokenSymbol: string; type: string } | null {
+  ): Promise<{ from: string; to: string; value: string; tokenSymbol: string; type: string; mint?: string } | null> {
     // Check if transaction involves Token Program
     const tokenProgramId = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
     
@@ -313,6 +315,12 @@ export class SolanaService {
               );
               
               if (diff > 0) {
+                // ✅ FIX: Extract mint and fetch metadata
+                const mint = postBalance.mint || preBalance.mint;
+                
+                // Fetch token metadata (uses hardcoded + Jupiter API + fallback)
+                const metadata = await getSPLTokenMetadata(mint);
+                
                 // Determine from/to based on balance change
                 const owner = preBalance.owner || postBalance.owner;
                 const isSent = parseFloat(postBalance.uiTokenAmount.uiAmountString || '0') < 
@@ -322,8 +330,9 @@ export class SolanaService {
                   from: isSent ? owner : accountKeys[0]?.toBase58() || '',
                   to: isSent ? accountKeys[1]?.toBase58() || '' : owner,
                   value: diff.toString(),
-                  tokenSymbol: postBalance.uiTokenAmount.symbol || 'Unknown',
+                  tokenSymbol: metadata.symbol,  // ✅ Now gets "WIF", "NPC", "USDC" etc
                   type: 'Token Transfer',
+                  mint: mint,  // ✅ Store mint for reference
                 };
               }
             }
