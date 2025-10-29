@@ -16,6 +16,7 @@ import { PriceService } from '@/lib/price-service';
 import { CHAINS, POPULAR_TOKENS } from '@/lib/chains';
 import { Token } from '@/lib/types';
 import { tokenBalanceCache } from '@/lib/token-balance-cache'; // ✅ NEW: Token cache
+import { refreshTokenMetadata } from '@/lib/spl-token-metadata'; // ✅ NEW: Manual token refresh
 import SendModal from './SendModal';
 import ReceiveModal from './ReceiveModal';
 import SwapModal from './SwapModal';
@@ -118,6 +119,9 @@ export default function Dashboard() {
 
   // Bottom navigation state
   const [activeTab, setActiveTab] = useState<TabType>('wallet');
+  
+  // ✅ NEW: Token refresh state
+  const [refreshingToken, setRefreshingToken] = useState<string | null>(null);
   
   // PWA detection
   const [isPWA, setIsPWA] = useState(false);
@@ -431,6 +435,48 @@ export default function Dashboard() {
       if (rangeChange !== 0) {
         setChange24h(rangeChange);
       }
+    }
+  };
+
+  /**
+   * 🔄 NEW: Manually refresh unknown token metadata
+   */
+  const handleRefreshToken = async (tokenAddress: string) => {
+    if (!tokenAddress || refreshingToken) return;
+    
+    setRefreshingToken(tokenAddress);
+    
+    try {
+      console.log(`🔄 Refreshing metadata for token: ${tokenAddress}`);
+      
+      // Fetch fresh metadata from Jupiter
+      const metadata = await refreshTokenMetadata(tokenAddress);
+      
+      if (metadata) {
+        console.log(`✅ Got metadata: ${metadata.name} (${metadata.symbol})`);
+        
+        // Update token in local state
+        updateTokens(tokens.map(token => {
+          if (token.address === tokenAddress) {
+            return {
+              ...token,
+              name: metadata.name,
+              symbol: metadata.symbol,
+              logo: metadata.logoURI || token.logo,
+            };
+          }
+          return token;
+        }));
+        
+        // Refresh full data to update cache
+        await fetchData(false);
+      } else {
+        console.warn('❌ Failed to fetch token metadata');
+      }
+    } catch (error) {
+      console.error('❌ Error refreshing token:', error);
+    } finally {
+      setRefreshingToken(null);
     }
   };
 
@@ -828,62 +874,90 @@ export default function Dashboard() {
             </div>
           </motion.div>
 
-          {/* ERC-20 Tokens */}
+          {/* ERC-20 Tokens / SPL Tokens */}
           <AnimatePresence>
-            {tokens.map((token, index) => (
-              <motion.div
-                key={token.address}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ delay: index * 0.05 }}
-                whileTap={{ scale: 0.98 }}
-                className="glass p-4 rounded-xl flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xl overflow-hidden">
-                    {(() => {
-                      const logoUrl = token.logo;
-                      
-                      if (logoUrl && (
-                        logoUrl.startsWith('http') ||
-                        logoUrl.startsWith('/') || // ✅ Support local files (e.g. /crypto-wif.png)
-                        logoUrl.startsWith('data:')
-                      )) {
-                        return (
-                          <img 
-                            src={logoUrl} 
-                            alt={token.symbol}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              console.error(`❌ Failed to load logo for ${token.symbol}:`, logoUrl);
-                              // Fallback to symbol if image fails to load
-                              e.currentTarget.style.display = 'none';
-                              e.currentTarget.parentElement!.textContent = token.symbol[0];
-                            }}
-                          />
-                        );
-                      }
-                      
-                      console.log(`⚠️ Using fallback for ${token.symbol}, logo:`, logoUrl);
-                      return logoUrl || token.symbol[0];
-                    })()}
-                  </div>
-                  <div>
-                    <div className="font-semibold">{token.name}</div>
-                    <div className="text-sm text-slate-400">
-                      {parseFloat(token.balance || '0').toFixed(4)} {token.symbol}
+            {tokens.map((token, index) => {
+              const isUnknownToken = token.name === 'Unknown Token' && currentChain === 'solana';
+              const isRefreshing = refreshingToken === token.address;
+              
+              return (
+                <motion.div
+                  key={token.address}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ delay: index * 0.05 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="glass p-4 rounded-xl flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer relative group"
+                >
+                  {/* ✅ NEW: Refresh button for unknown tokens */}
+                  {isUnknownToken && (
+                    <motion.button
+                      whileTap={{ scale: 0.9 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRefreshToken(token.address);
+                      }}
+                      disabled={isRefreshing}
+                      className="absolute top-2 right-2 p-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+                      title="Refresh token metadata from Jupiter"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    </motion.button>
+                  )}
+                  
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xl overflow-hidden">
+                      {(() => {
+                        const logoUrl = token.logo;
+                        
+                        if (logoUrl && (
+                          logoUrl.startsWith('http') ||
+                          logoUrl.startsWith('/') || // ✅ Support local files (e.g. /crypto-wif.png)
+                          logoUrl.startsWith('data:')
+                        )) {
+                          return (
+                            <img 
+                              src={logoUrl} 
+                              alt={token.symbol}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                console.error(`❌ Failed to load logo for ${token.symbol}:`, logoUrl);
+                                // Fallback to symbol if image fails to load
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.parentElement!.textContent = token.symbol[0];
+                              }}
+                            />
+                          );
+                        }
+                        
+                        console.log(`⚠️ Using fallback for ${token.symbol}, logo:`, logoUrl);
+                        return logoUrl || token.symbol[0];
+                      })()}
+                    </div>
+                    <div>
+                      <div className="font-semibold flex items-center gap-2">
+                        {token.name}
+                        {isUnknownToken && (
+                          <span className="text-xs text-orange-500 bg-orange-100 px-2 py-0.5 rounded-full">
+                            Unknown
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-sm text-slate-400">
+                        {parseFloat(token.balance || '0').toFixed(4)} {token.symbol}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="text-right">
-                  <div className="font-semibold">${token.balanceUSD}</div>
-                  <div className={`text-sm ${(token.change24h || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {(token.change24h || 0) >= 0 ? '+' : ''}{(token.change24h || 0).toFixed(2)}%
+                  <div className="text-right">
+                    <div className="font-semibold">${token.balanceUSD}</div>
+                    <div className={`text-sm ${(token.change24h || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {(token.change24h || 0) >= 0 ? '+' : ''}{(token.change24h || 0).toFixed(2)}%
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
 
           {tokens.length === 0 && (

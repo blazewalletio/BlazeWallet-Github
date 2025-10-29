@@ -349,6 +349,64 @@ class JupiterTokenCache {
     this.lastSyncTime = 0;
     console.log('🧹 Cleared Jupiter token cache');
   }
+
+  /**
+   * 🔄 NEW: Force refresh single token metadata from Jupiter API
+   * Saves to IndexedDB for permanent storage
+   */
+  async refreshSingleToken(mint: string): Promise<SPLTokenMetadata | null> {
+    if (this.initPromise) {
+      await this.initPromise;
+    }
+
+    if (!this.db) {
+      console.error('IndexedDB not available for token refresh');
+      return null;
+    }
+
+    try {
+      console.log(`🔄 [Manual Refresh] Fetching metadata for ${mint}...`);
+      
+      // Fetch from Jupiter API (single token)
+      const response = await fetch(`https://tokens.jup.ag/token/${mint}`);
+      
+      if (!response.ok) {
+        throw new Error(`Jupiter API error: ${response.status}`);
+      }
+
+      const tokenData = await response.json();
+      
+      if (!tokenData || !tokenData.address) {
+        throw new Error('Invalid token data received');
+      }
+
+      const metadata: SPLTokenMetadata = {
+        mint: tokenData.address,
+        symbol: tokenData.symbol || 'UNKNOWN',
+        name: tokenData.name || 'Unknown Token',
+        decimals: tokenData.decimals || 9,
+        logoURI: tokenData.logoURI,
+        coingeckoId: tokenData.extensions?.coingeckoId,
+      };
+
+      // Save to IndexedDB (permanent storage)
+      await new Promise<void>((resolve, reject) => {
+        const transaction = this.db!.transaction([this.storeName], 'readwrite');
+        const objectStore = transaction.objectStore(this.storeName);
+        objectStore.put(metadata);
+        
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+      });
+
+      console.log(`✅ [Manual Refresh] Saved metadata for ${metadata.symbol} (${metadata.name})`);
+      
+      return metadata;
+    } catch (error) {
+      console.error(`❌ [Manual Refresh] Failed for ${mint}:`, error);
+      return null;
+    }
+  }
 }
 
 const jupiterCache = new JupiterTokenCache();
@@ -432,4 +490,12 @@ export async function getMultipleSPLTokenMetadata(
  */
 export function clearSPLTokenCache() {
   jupiterCache.clearCache();
+}
+
+/**
+ * 🔄 NEW: Manually refresh token metadata from Jupiter
+ * Use this for "Unknown Token" entries that need manual update
+ */
+export async function refreshTokenMetadata(mint: string): Promise<SPLTokenMetadata | null> {
+  return await jupiterCache.refreshSingleToken(mint);
 }

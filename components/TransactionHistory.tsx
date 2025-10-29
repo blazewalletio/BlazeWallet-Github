@@ -178,7 +178,7 @@ export default function TransactionHistory() {
                   <div 
                     className="absolute -right-6 top-1/2 -translate-y-1/2 w-28 h-28 sm:w-32 sm:h-32 pointer-events-none"
                     style={{
-                      opacity: tx.isError ? 0.03 : 0.08,
+                      opacity: tx.isError ? 0.05 : 0.15, // ✅ Increased visibility: 0.08 → 0.15
                       maskImage: 'linear-gradient(135deg, transparent 30%, black 70%)',
                       WebkitMaskImage: 'linear-gradient(135deg, transparent 30%, black 70%)',
                     }}
