@@ -1,18 +1,23 @@
 /**
- * IndexedDB-based Transaction Cache
+ * Enhanced IndexedDB-based Transaction Cache
  * 
  * Features:
- * - 30-minute TTL for transaction history
+ * - Stale-While-Revalidate pattern for instant loading
+ * - Smart cache versioning for automatic invalidation
+ * - 30-minute TTL with stale data tolerance
  * - Automatic cleanup of expired entries
  * - Fallback to memory cache if IndexedDB unavailable
  * - Reduces API calls by 80-95%
  */
+
+const CACHE_VERSION = 2; // ✅ Increment to invalidate old cache format
 
 interface CachedTransaction {
   key: string;
   data: any[];
   timestamp: number;
   expiresAt: number;
+  version: number; // ✅ NEW: Track cache format version
 }
 
 class TransactionCache {
@@ -39,7 +44,7 @@ class TransactionCache {
         return;
       }
 
-      const request = indexedDB.open(this.dbName, 1);
+      const request = indexedDB.open(this.dbName, 2); // ✅ Increment DB version
 
       request.onerror = () => {
         console.error('❌ Failed to open IndexedDB:', request.error);
@@ -48,7 +53,7 @@ class TransactionCache {
 
       request.onsuccess = () => {
         this.db = request.result;
-        console.log('✅ IndexedDB initialized for transaction cache');
+        console.log('✅ IndexedDB initialized for transaction cache (v2)');
         this.cleanupExpired(); // Clean up on init
         resolve();
       };
@@ -56,19 +61,25 @@ class TransactionCache {
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
         
-        if (!db.objectStoreNames.contains(this.storeName)) {
-          const objectStore = db.createObjectStore(this.storeName, { keyPath: 'key' });
-          objectStore.createIndex('expiresAt', 'expiresAt', { unique: false });
-          console.log('✅ Created IndexedDB object store for transactions');
+        // ✅ Clear old cache on version upgrade
+        if (db.objectStoreNames.contains(this.storeName)) {
+          db.deleteObjectStore(this.storeName);
+          console.log('🔄 Cleared old transaction cache (version upgrade)');
         }
+        
+        const objectStore = db.createObjectStore(this.storeName, { keyPath: 'key' });
+        objectStore.createIndex('expiresAt', 'expiresAt', { unique: false });
+        objectStore.createIndex('version', 'version', { unique: false }); // ✅ NEW: Version index
+        console.log('✅ Created IndexedDB object store for transactions (v2)');
       };
     });
   }
 
   /**
-   * Get cached transactions
+   * ✅ NEW: Get cached data with stale-while-revalidate support
+   * Returns stale data immediately if available, even if expired
    */
-  async get(key: string): Promise<any[] | null> {
+  async getStale(key: string): Promise<{ data: any[] | null; isStale: boolean }> {
     // Wait for DB initialization
     if (this.initPromise) {
       await this.initPromise;
@@ -77,18 +88,27 @@ class TransactionCache {
     // Try IndexedDB first
     if (this.db) {
       try {
-        return await this.getFromDB(key);
+        const result = await this.getFromDBWithStale(key);
+        return result;
       } catch (error) {
         console.warn('IndexedDB read failed, trying memory cache:', error);
       }
     }
 
     // Fallback to memory cache
-    return this.getFromMemory(key);
+    return this.getFromMemoryWithStale(key);
   }
 
   /**
-   * Set cached transactions
+   * Get cached transactions (strict - returns null if expired)
+   */
+  async get(key: string): Promise<any[] | null> {
+    const result = await this.getStale(key);
+    return result.isStale ? null : result.data;
+  }
+
+  /**
+   * Set cached transactions with version tracking
    */
   async set(key: string, data: any[], ttl: number): Promise<void> {
     const now = Date.now();
@@ -97,6 +117,7 @@ class TransactionCache {
       data,
       timestamp: now,
       expiresAt: now + ttl,
+      version: CACHE_VERSION, // ✅ Store current version
     };
 
     // Wait for DB initialization
@@ -157,34 +178,44 @@ class TransactionCache {
         const index = objectStore.index('expiresAt');
         const request = index.openCursor(IDBKeyRange.upperBound(now));
 
+        let deletedCount = 0;
+
         request.onsuccess = (event) => {
           const cursor = (event.target as IDBRequest).result;
           if (cursor) {
             cursor.delete();
+            deletedCount++;
             cursor.continue();
           } else {
+            if (deletedCount > 0) {
+              console.log(`🧹 Cleaned up ${deletedCount} expired transaction cache entries`);
+            }
             resolve();
           }
         };
 
         request.onerror = () => reject(request.error);
       });
-
-      console.log('✅ Cleaned up expired transaction cache entries');
     } catch (error) {
       console.warn('Failed to cleanup expired entries:', error);
     }
 
     // Cleanup memory cache
+    let memoryDeletedCount = 0;
     for (const [key, cached] of this.memoryCache.entries()) {
       if (cached.expiresAt < now) {
         this.memoryCache.delete(key);
+        memoryDeletedCount++;
       }
+    }
+    
+    if (memoryDeletedCount > 0) {
+      console.log(`🧹 Cleaned up ${memoryDeletedCount} expired memory cache entries`);
     }
   }
 
-  // IndexedDB helpers
-  private async getFromDB(key: string): Promise<any[] | null> {
+  // ✅ NEW: IndexedDB helpers with stale support
+  private async getFromDBWithStale(key: string): Promise<{ data: any[] | null; isStale: boolean }> {
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction([this.storeName], 'readonly');
       const objectStore = transaction.objectStore(this.storeName);
@@ -194,23 +225,36 @@ class TransactionCache {
         const cached = request.result as CachedTransaction | undefined;
         
         if (!cached) {
-          resolve(null);
+          resolve({ data: null, isStale: false });
           return;
         }
 
-        // Check if expired
-        if (cached.expiresAt < Date.now()) {
-          // Delete expired entry
+        // ✅ Check version - invalidate if old format
+        if (cached.version !== CACHE_VERSION) {
+          console.log(`🔄 Cache version mismatch (${cached.version} vs ${CACHE_VERSION}), invalidating...`);
           this.deleteFromDB(key);
-          resolve(null);
+          resolve({ data: null, isStale: false });
           return;
         }
 
-        resolve(cached.data);
+        const now = Date.now();
+        const isExpired = cached.expiresAt < now;
+        
+        // ✅ Return data even if expired (stale-while-revalidate)
+        resolve({ 
+          data: cached.data, 
+          isStale: isExpired 
+        });
       };
 
       request.onerror = () => reject(request.error);
     });
+  }
+
+  // Old strict method (for backward compatibility)
+  private async getFromDB(key: string): Promise<any[] | null> {
+    const result = await this.getFromDBWithStale(key);
+    return result.isStale ? null : result.data;
   }
 
   private async setToDB(cached: CachedTransaction): Promise<void> {
@@ -235,21 +279,34 @@ class TransactionCache {
     });
   }
 
-  // Memory cache helpers
-  private getFromMemory(key: string): any[] | null {
+  // ✅ NEW: Memory cache helpers with stale support
+  private getFromMemoryWithStale(key: string): { data: any[] | null; isStale: boolean } {
     const cached = this.memoryCache.get(key);
     
     if (!cached) {
-      return null;
+      return { data: null, isStale: false };
     }
 
-    // Check if expired
-    if (cached.expiresAt < Date.now()) {
+    // ✅ Check version
+    if (cached.version !== CACHE_VERSION) {
       this.memoryCache.delete(key);
-      return null;
+      return { data: null, isStale: false };
     }
 
-    return cached.data;
+    const now = Date.now();
+    const isExpired = cached.expiresAt < now;
+
+    // ✅ Return data even if expired
+    return { 
+      data: cached.data, 
+      isStale: isExpired 
+    };
+  }
+
+  // Old strict method (for backward compatibility)
+  private getFromMemory(key: string): any[] | null {
+    const result = this.getFromMemoryWithStale(key);
+    return result.isStale ? null : result.data;
   }
 
   private setToMemory(cached: CachedTransaction): void {
@@ -259,4 +316,3 @@ class TransactionCache {
 
 // Singleton instance
 export const transactionCache = new TransactionCache();
-

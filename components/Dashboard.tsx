@@ -15,6 +15,7 @@ import { TokenService } from '@/lib/token-service';
 import { PriceService } from '@/lib/price-service';
 import { CHAINS, POPULAR_TOKENS } from '@/lib/chains';
 import { Token } from '@/lib/types';
+import { tokenBalanceCache } from '@/lib/token-balance-cache'; // ✅ NEW: Token cache
 import SendModal from './SendModal';
 import ReceiveModal from './ReceiveModal';
 import SwapModal from './SwapModal';
@@ -159,34 +160,57 @@ export default function Dashboard() {
   const portfolioHistory = getPortfolioHistory();
 
   const fetchData = async (force = false) => {
-    if (!displayAddress) return; // ✅ Use displayAddress instead of address
+    if (!displayAddress) return;
     
     // Prevent multiple simultaneous refreshes
     if (isRefreshing) return;
     
-    setIsRefreshing(true);
+    const timestamp = Date.now();
+    console.log(`\n========== FETCH DATA START [${timestamp}] ==========`);
     
-    // ✅ If manual refresh (force=true), clear cache for ultra-fresh data
+    // ✅ STALE-WHILE-REVALIDATE: Check cache first
+    const { tokens: cachedTokens, nativeBalance: cachedBalance, isStale } = 
+      await tokenBalanceCache.getStale(currentChain, displayAddress);
+    
+    if (cachedTokens && cachedBalance) {
+      // ✅ Show cached data INSTANTLY
+      console.log(`⚡ Loaded from cache (${isStale ? 'stale' : 'fresh'}): ${cachedTokens.length} tokens, balance: ${cachedBalance}`);
+      
+      updateBalance(cachedBalance);
+      updateTokens(cachedTokens);
+      
+      // Calculate total from cached data
+      const cachedTotal = cachedTokens.reduce(
+        (sum, token) => sum + parseFloat(token.balanceUSD || '0'),
+        0
+      );
+      setTotalValueUSD(cachedTotal);
+      
+      // If data is fresh and not forced refresh, we're done!
+      if (!isStale && !force) {
+        console.log('✅ Using fresh cached data, skipping fetch');
+        return;
+      }
+      
+      // ✅ If stale or forced, continue to refresh in background
+      console.log('🔄 Refreshing data in background...');
+    } else {
+      // No cached data - show loading state
+      setIsRefreshing(true);
+    }
+    
+    // ✅ If manual refresh, clear price cache for ultra-fresh data
     if (force) {
-      console.log('🔄 [Dashboard] Manual refresh - clearing cache');
+      console.log('🔄 [Dashboard] Manual refresh - clearing price cache');
       priceService.clearCache();
     }
     
     try {
-      // Force refresh - bypass any caching
-      const timestamp = Date.now();
-      console.log(`\n========== FETCH DATA START [${timestamp}] ==========`);
       console.log(`🌐 Chain: ${currentChain} (${chain.name})`);
       console.log(`📍 Display Address: ${displayAddress}`);
-      console.log(`🔧 Chain Config:`, {
-        name: chain.name,
-        symbol: chain.nativeCurrency.symbol,
-        rpcUrl: chain.rpcUrl
-      });
       
       // ✅ STEP 1: Fetch native balance
       console.log(`\n--- STEP 1: Fetch Native Balance ---`);
-      console.log(`[${timestamp}] 🚀 Calling blockchain.getBalance(${displayAddress})...`);
       const bal = await blockchain.getBalance(displayAddress);
       console.log(`[${timestamp}] ✅ Balance received: ${bal} ${chain.nativeCurrency.symbol}`);
       updateBalance(bal);
@@ -310,7 +334,7 @@ export default function Dashboard() {
       
       if (tokensWithValue.length > 0) {
         updateTokens(tokensWithValue);
-        
+
         // Calculate total portfolio value (native + tokens)
         const tokensTotalUSD = tokensWithValue.reduce(
           (sum, token) => sum + parseFloat(token.balanceUSD || '0'),
@@ -350,6 +374,16 @@ export default function Dashboard() {
       const nativeChange = await priceService.get24hChange(chain.nativeCurrency.symbol);
       setChange24h(nativeChange);
       console.log(`[${timestamp}] 📈 24h Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
+      
+      // ✅ NEW: Cache the fresh data for next load (15min TTL)
+      await tokenBalanceCache.set(
+        currentChain, 
+        displayAddress, 
+        tokensWithValue, 
+        bal,
+        15 * 60 * 1000 // 15 minutes
+      );
+      console.log('💾 Cached fresh token and balance data');
       
       // Update chart data from history based on selected time range
       updateChartData();
@@ -618,7 +652,7 @@ export default function Dashboard() {
                         ? 'bg-gradient-to-r from-green-500 to-emerald-600'
                         : 'bg-gradient-to-r from-orange-500 to-yellow-500'
                     }`}>
-                      <Rocket className="w-6 h-6 text-white" />
+                    <Rocket className="w-6 h-6 text-white" />
                     </div>
                     {isPriorityListLive && (
                       <motion.div
@@ -1141,11 +1175,11 @@ export default function Dashboard() {
                     ) : (
                       chain.icon
                     )}
-                  </div>
+                      </div>
                   <div className="text-left min-w-0">
                     <div className="text-xs sm:text-sm font-semibold text-gray-900">{chain.shortName}</div>
                     <div className="text-xs text-gray-500 font-mono truncate">{formattedAddress}</div>
-                  </div>
+                        </div>
                   <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 flex-shrink-0" />
                 </motion.button>
                       </div>

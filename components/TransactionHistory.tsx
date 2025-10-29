@@ -47,35 +47,50 @@ export default function TransactionHistory() {
   const loadTransactions = async () => {
     if (!displayAddress) return;
     
-    setLoading(true);
-    try {
-      // Check cache first
-      const cacheKey = `${currentChain}:${displayAddress}`;
-      const cached = await transactionCache.get(cacheKey);
+    const cacheKey = `${currentChain}:${displayAddress}`;
+    
+    // ✅ STALE-WHILE-REVALIDATE: Check cache first (including stale data)
+    const { data: cachedData, isStale } = await transactionCache.getStale(cacheKey);
+    
+    if (cachedData && cachedData.length > 0) {
+      // ✅ Show cached data INSTANTLY (even if stale)
+      console.log(`⚡ Loaded ${cachedData.length} transactions from cache (${isStale ? 'stale' : 'fresh'}) for ${currentChain}`);
+      setTransactions(cachedData);
+      setLoading(false); // ✅ Stop loading immediately
       
-      if (cached) {
-        console.log(`✅ Loaded ${cached.length} transactions from cache for ${currentChain}`);
-        setTransactions(cached);
-        setLoading(false);
+      // If data is fresh, we're done!
+      if (!isStale) {
         return;
       }
+      
+      // ✅ If stale, continue to refresh in background (no loading state!)
+      console.log('🔄 Refreshing stale transaction data in background...');
+    } else {
+      // No cached data - show loading state
+      setLoading(true);
+    }
 
+    try {
       // Load from API with rate limiting
       const txs = await apiQueue.add(async () => {
         const blockchain = new MultiChainService(currentChain);
         return await blockchain.getTransactionHistory(displayAddress, 10);
       });
 
+      // ✅ Update with fresh data (smooth transition, no jarring reload)
       setTransactions(txs);
       
       // Cache for 30 minutes
       await transactionCache.set(cacheKey, txs, 30 * 60 * 1000);
       
-      console.log(`✅ Successfully loaded ${txs.length} transactions for ${currentChain}`);
+      console.log(`✅ Successfully loaded ${txs.length} fresh transactions for ${currentChain}`);
     } catch (error) {
       console.error(`❌ Error loading transactions for ${currentChain}:`, error);
-      // Still set empty array so UI shows "no transactions" instead of loading state
-      setTransactions([]);
+      
+      // ✅ If we have stale data, keep showing it despite error
+      if (!cachedData || cachedData.length === 0) {
+        setTransactions([]);
+      }
     }
     setLoading(false);
   };
