@@ -27,8 +27,9 @@ interface Transaction {
   isError: boolean;
   tokenSymbol?: string;
   tokenName?: string;
-  tokenLogo?: string;
   type?: string;
+  mint?: string;
+  logoUrl?: string;
 }
 
 export default function TransactionHistory() {
@@ -48,10 +49,16 @@ export default function TransactionHistory() {
     
     setLoading(true);
     try {
-      // ✅ TEMP FIX: Clear cache to get fresh data with tokenLogo field
+      // Check cache first
       const cacheKey = `${currentChain}:${displayAddress}`;
-      await transactionCache.remove(cacheKey);
-      console.log('🗑️ Cleared transaction cache to fetch fresh data with logos');
+      const cached = await transactionCache.get(cacheKey);
+      
+      if (cached) {
+        console.log(`✅ Loaded ${cached.length} transactions from cache for ${currentChain}`);
+        setTransactions(cached);
+        setLoading(false);
+        return;
+      }
 
       // Load from API with rate limiting
       const txs = await apiQueue.add(async () => {
@@ -97,39 +104,6 @@ export default function TransactionHistory() {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
-  // Get logo URL for transaction (token or chain logo)
-  const getTransactionLogo = (tx: Transaction): string | null => {
-    // Priority 1: Use tokenLogo if available (from metadata)
-    if (tx.tokenLogo) {
-      // Handle IPFS URLs
-      if (tx.tokenLogo.startsWith('ipfs://')) {
-        return tx.tokenLogo.replace('ipfs://', 'https://cloudflare-ipfs.com/ipfs/');
-      }
-      // Handle HTTP/HTTPS URLs
-      if (tx.tokenLogo.startsWith('http') || tx.tokenLogo.startsWith('/')) {
-        return tx.tokenLogo;
-      }
-    }
-
-    // Priority 2: For SPL tokens, try to get token logo from hardcoded list
-    if (tx.tokenSymbol && tx.tokenSymbol !== chain.nativeCurrency.symbol) {
-      const popularLogos: Record<string, string> = {
-        'WIF': '/crypto-wif.png',
-        'USDC': '/crypto-usdc.png',
-        'USDT': '/crypto-usdt.png',
-        'BONK': '/crypto-bonk.png',
-        'JUP': '/crypto-jup.png',
-      };
-      
-      if (popularLogos[tx.tokenSymbol]) {
-        return popularLogos[tx.tokenSymbol];
-      }
-    }
-    
-    // Priority 3: Fallback to chain logo for native currency
-    return chain.logoUrl || null;
-  };
-
   if (loading) {
     return (
       <div className="space-y-3">
@@ -171,19 +145,9 @@ export default function TransactionHistory() {
             const otherAddress = isSent ? tx.to : tx.from;
             const value = parseFloat(tx.value);
             const symbol = tx.tokenSymbol || chain.nativeCurrency.symbol;
-            const logoUrl = getTransactionLogo(tx);
-
-            // 🔍 DEBUG: Log transaction data to see if tokenLogo is present
-            if (index === 0) {
-              console.log('🔍 First transaction debug:', {
-                symbol,
-                tokenSymbol: tx.tokenSymbol,
-                tokenName: tx.tokenName,
-                tokenLogo: tx.tokenLogo,
-                logoUrl,
-                chainLogoUrl: chain.logoUrl
-              });
-            }
+            
+            // Determine logo URL: tx.logoUrl (SPL tokens) or chain.logoUrl (native)
+            const logoUrl = tx.logoUrl || chain.logoUrl;
 
             return (
               <motion.div
@@ -192,28 +156,28 @@ export default function TransactionHistory() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ delay: index * 0.05 }}
-                className="relative bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all duration-200 group overflow-hidden"
+                className="relative overflow-hidden bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all duration-200 group"
               >
-                {/* Diagonal Fade Logo Background */}
+                {/* 🔥 DIAGONAL FADE LOGO WATERMARK - Premium Effect */}
                 {logoUrl && (
-                  <div className="absolute right-0 top-0 bottom-0 w-32 pointer-events-none opacity-100 group-hover:opacity-100 transition-all duration-300">
-                    <motion.div 
-                      initial={{ x: 20, opacity: 0 }}
-                      animate={{ x: 0, opacity: 1 }}
-                      transition={{ delay: index * 0.05 + 0.1, duration: 0.4 }}
-                      className="absolute right-[-20px] top-1/2 -translate-y-1/2 w-28 h-28 group-hover:scale-110 transition-transform duration-300"
-                      style={{
-                        maskImage: 'linear-gradient(135deg, transparent 20%, black 80%)',
-                        WebkitMaskImage: 'linear-gradient(135deg, transparent 20%, black 80%)',
+                  <div 
+                    className="absolute -right-6 top-1/2 -translate-y-1/2 w-28 h-28 sm:w-32 sm:h-32 pointer-events-none"
+                    style={{
+                      opacity: tx.isError ? 0.03 : 0.08,
+                      maskImage: 'linear-gradient(135deg, transparent 30%, black 70%)',
+                      WebkitMaskImage: 'linear-gradient(135deg, transparent 30%, black 70%)',
+                    }}
+                  >
+                    <img 
+                      src={logoUrl} 
+                      alt=""
+                      className="w-full h-full object-contain select-none"
+                      loading="lazy"
+                      onError={(e) => {
+                        // Fallback to chain logo if token logo fails
+                        e.currentTarget.style.display = 'none';
                       }}
-                    >
-                      <img
-                        src={logoUrl}
-                        alt=""
-                        className="w-full h-full object-contain"
-                        style={{ opacity: 0.08 }}
-                      />
-                    </motion.div>
+                    />
                   </div>
                 )}
 

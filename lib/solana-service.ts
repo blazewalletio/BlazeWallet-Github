@@ -171,8 +171,6 @@ export class SolanaService {
               isError: tx.meta?.err !== null, // ✅ FIX 3: Proper isError boolean
               blockNumber: sig.slot,
               tokenSymbol: txDetails.tokenSymbol,
-              tokenName: txDetails.tokenName,     // ✅ NEW: Token name
-              tokenLogo: txDetails.tokenLogo,     // ✅ NEW: Token logo for diagonal fade effect
               type: txDetails.type,
             };
           } catch (err) {
@@ -227,7 +225,7 @@ export class SolanaService {
     accountKeys: PublicKey[],
     instructions: any[],
     userAddress: string
-  ): Promise<{ from: string; to: string; value: string; tokenSymbol?: string; tokenName?: string; tokenLogo?: string; type?: string; mint?: string }> {
+  ): Promise<{ from: string; to: string; value: string; tokenSymbol?: string; tokenName?: string; type?: string; mint?: string; logoUrl?: string }> {
     const userPubkey = new PublicKey(userAddress);
 
     // Default values
@@ -236,8 +234,8 @@ export class SolanaService {
     let value = '0';
     let tokenSymbol: string | undefined;
     let tokenName: string | undefined;
-    let tokenLogo: string | undefined;
     let type: string | undefined;
+    let logoUrl: string | undefined;
 
     if (instructions.length === 0 || accountKeys.length === 0) {
       return { from, to, value };
@@ -259,7 +257,7 @@ export class SolanaService {
     from = accountKeys[0]?.toBase58() || '';
     to = accountKeys.length > 1 ? accountKeys[1]?.toBase58() || '' : '';
     
-    return { from, to, value, tokenSymbol, tokenName, tokenLogo, type };
+    return { from, to, value, tokenSymbol, tokenName, type, logoUrl };
   }
 
   /**
@@ -268,7 +266,7 @@ export class SolanaService {
   private detectSOLTransfer(
     tx: any,
     accountKeys: PublicKey[]
-  ): { from: string; to: string; value: string; type: string } | null {
+  ): { from: string; to: string; value: string; type: string; logoUrl?: string } | null {
     // Get pre and post balances to calculate transfer amount
     if (tx.meta?.postBalances && tx.meta?.preBalances && accountKeys.length >= 2) {
       const diff = Math.abs(
@@ -281,6 +279,7 @@ export class SolanaService {
           to: accountKeys[1]?.toBase58() || '',
           value: (diff / LAMPORTS_PER_SOL).toString(),
           type: 'Transfer',
+          logoUrl: '/crypto-sol.png',  // ✅ NEW: Solana logo for native SOL transfers
         };
       }
     }
@@ -297,7 +296,7 @@ export class SolanaService {
     instructions: any[],
     accountKeys: PublicKey[],
     userPubkey: PublicKey
-  ): Promise<{ from: string; to: string; value: string; tokenSymbol: string; tokenName?: string; tokenLogo?: string; type: string; mint?: string } | null> {
+  ): Promise<{ from: string; to: string; value: string; tokenSymbol: string; tokenName?: string; type: string; mint?: string; logoUrl?: string } | null> {
     // Check if transaction involves Token Program
     const tokenProgramId = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
     
@@ -335,10 +334,10 @@ export class SolanaService {
                   to: isSent ? accountKeys[1]?.toBase58() || '' : owner,
                   value: diff.toString(),
                   tokenSymbol: metadata.symbol,  // ✅ Now gets "WIF", "NPCS", "USDC" etc
-                  tokenName: metadata.name,      // ✅ NEW: Full token name (e.g., "NPC Solana", "dogwifhat")
-                  tokenLogo: metadata.logoURI,   // ✅ NEW: Token logo URL
+                  tokenName: metadata.name,      // ✅ Full token name (e.g., "NPC Solana", "dogwifhat")
                   type: 'Token Transfer',
-                  mint: mint,  // ✅ Store mint for reference
+                  mint: mint,                    // ✅ Store mint for reference
+                  logoUrl: metadata.logoURI,     // ✅ NEW: Logo URL for UI watermark
                 };
               }
             }

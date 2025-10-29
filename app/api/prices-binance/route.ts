@@ -41,8 +41,7 @@ export async function GET(request: Request) {
       JTO: 'JTOUSDT',
       PYTH: 'PYTHUSDT',
       ORCA: 'ORCAUSDT',
-      // Note: Some tokens (BASE, MNGO, NPCS, etc.) don't have Binance tickers
-      // They will be silently skipped and return empty result (graceful degradation)
+      // Note: BASE, MNGO may not have Binance tickers, will fallback to CoinGecko
     };
 
     // Get tickers for all symbols
@@ -50,11 +49,8 @@ export async function GET(request: Request) {
       .map(s => symbolToTicker[s.toUpperCase()])
       .filter(Boolean);
 
-    // ✅ If no valid tickers found, return empty result instead of error
-    // This allows graceful fallback to CoinGecko or cache
     if (tickers.length === 0) {
-      console.log('ℹ️ No valid Binance tickers for symbols:', symbols);
-      return NextResponse.json({}); // Empty result, not an error
+      return NextResponse.json({ error: 'No valid symbols for Binance' }, { status: 400 });
     }
 
     // Fetch 24h ticker data from Binance
