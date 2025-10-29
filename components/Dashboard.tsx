@@ -179,12 +179,32 @@ export default function Dashboard() {
       updateBalance(cachedBalance);
       updateTokens(cachedTokens);
       
-      // Calculate total from cached data
-      const cachedTotal = cachedTokens.reduce(
+      // ✅ FIX: Calculate total INCLUDING native balance (was missing!)
+      const cachedTokensTotal = cachedTokens.reduce(
         (sum, token) => sum + parseFloat(token.balanceUSD || '0'),
         0
       );
+      
+      // Use stored native price if available, otherwise fetch it
+      let cachedNativeValueUSD = 0;
+      if (nativePriceUSD > 0) {
+        // Use existing price from state
+        cachedNativeValueUSD = parseFloat(cachedBalance) * nativePriceUSD;
+      } else {
+        // Fetch native price for first calculation
+        try {
+          const nativePrice = await priceService.getPrice(chain.nativeCurrency.symbol);
+          setNativePriceUSD(nativePrice);
+          cachedNativeValueUSD = parseFloat(cachedBalance) * nativePrice;
+        } catch (error) {
+          console.warn('Failed to fetch native price for cached calculation:', error);
+        }
+      }
+      
+      const cachedTotal = cachedNativeValueUSD + cachedTokensTotal;
       setTotalValueUSD(cachedTotal);
+      
+      console.log(`💰 Cached total: Native $${cachedNativeValueUSD.toFixed(2)} + Tokens $${cachedTokensTotal.toFixed(2)} = $${cachedTotal.toFixed(2)}`);
       
       // If data is fresh and not forced refresh, we're done!
       if (!isStale && !force) {
@@ -416,7 +436,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchData(true); // Force refresh on mount
-    const interval = setInterval(() => fetchData(true), 10000); // ✅ Update every 10 seconds (ultra-fresh)
+    const interval = setInterval(() => fetchData(false), 60000); // ✅ Update every 60 seconds (was 10s - too aggressive!)
     return () => clearInterval(interval);
   }, [displayAddress, currentChain]); // ✅ Use displayAddress (changes when chain switches)
 
