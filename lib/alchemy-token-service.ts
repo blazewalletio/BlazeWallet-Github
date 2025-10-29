@@ -146,45 +146,35 @@ class AlchemyTokenService {
   }
 
   /**
-   * TIER 1: Get tokens via Alchemy API
+   * TIER 1: Get tokens via Alchemy API (via Next.js proxy to bypass CORS!)
    */
   private async getTokensViaAlchemy(
     address: string,
     chainKey: string
   ): Promise<EVMToken[]> {
-    const apiKey = this.getAlchemyApiKey(chainKey);
-    const network = this.getAlchemyNetwork(chainKey);
-
-    if (!apiKey || !network) {
-      throw new Error(`Alchemy not configured for ${chainKey}`);
-    }
-
-    // Use Alchemy API to get token balances
-    const url = `https://${network}.g.alchemy.com/v2/${apiKey}`;
+    console.log(`📡 [Alchemy] Calling API for ${chainKey} via proxy...`);
     
-    console.log(`📡 [Alchemy] Calling API for ${chainKey}...`);
-    
-    const response = await fetch(url, {
+    // ✅ Use Next.js API route to bypass CORS!
+    const response = await fetch('/api/evm-tokens', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        jsonrpc: '2.0',
+        chain: chainKey,
         method: 'alchemy_getTokenBalances',
         params: [address],
-        id: 1,
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`Alchemy API returned ${response.status}`);
+      throw new Error(`Proxy API returned ${response.status}`);
     }
 
     const data = await response.json();
 
     if (data.error) {
-      throw new Error(`Alchemy API error: ${data.error.message}`);
+      throw new Error(`API error: ${data.error}`);
     }
 
     const tokenBalances: AlchemyTokenBalance[] = data.result?.tokenBalances || [];
@@ -208,10 +198,9 @@ class AlchemyTokenService {
     const tokensWithMetadata = await Promise.all(
       nonZeroTokens.map(async (tokenBalance) => {
         try {
-          const metadata = await this.getTokenMetadata(
+          const metadata = await this.getTokenMetadataViaProxy(
             tokenBalance.contractAddress,
-            chainKey,
-            url
+            chainKey
           );
 
           // Convert hex balance to decimal
@@ -254,52 +243,74 @@ class AlchemyTokenService {
   }
 
   /**
-   * TIER 2: Get tokens via direct RPC calls (like Solana!)
-   * This works by using Alchemy's public RPC endpoint which doesn't need API keys!
+   * Get token metadata via Next.js proxy (bypasses CORS!)
+   */
+  private async getTokenMetadataViaProxy(
+    contractAddress: string,
+    chainKey: string
+  ): Promise<AlchemyTokenMetadata> {
+    const response = await fetch('/api/evm-tokens', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        chain: chainKey,
+        method: 'alchemy_getTokenMetadata',
+        params: [contractAddress],
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Proxy API returned ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (data.error) {
+      throw new Error(`Metadata error: ${data.error}`);
+    }
+
+    return {
+      name: data.result?.name,
+      symbol: data.result?.symbol,
+      decimals: data.result?.decimals,
+      logo: data.result?.logo,
+    };
+  }
+
+  /**
+   * TIER 2: Get tokens via direct RPC calls (via proxy to bypass CORS!)
+   * Uses the same proxy but with standard eth_call methods
    */
   private async getTokensViaDirectRPC(
     address: string,
     chainKey: string
   ): Promise<EVMToken[]> {
-    console.log(`🔗 [DirectRPC] Querying blockchain directly for ${chainKey}...`);
+    console.log(`🔗 [DirectRPC] Querying via proxy for ${chainKey}...`);
     
-    // ✅ Use Alchemy's PUBLIC RPC endpoints (no API key needed for basic calls!)
-    const publicRpcUrls: Record<string, string> = {
-      ethereum: 'https://eth-mainnet.g.alchemy.com/v2/demo',
-      polygon: 'https://polygon-mainnet.g.alchemy.com/v2/demo',
-      arbitrum: 'https://arb-mainnet.g.alchemy.com/v2/demo',
-      base: 'https://base-mainnet.g.alchemy.com/v2/demo',
-      optimism: 'https://opt-mainnet.g.alchemy.com/v2/demo',
-    };
-    
-    const rpcUrl = publicRpcUrls[chainKey] || this.getRPCUrl(chainKey);
-    
-    if (!rpcUrl) {
-      throw new Error(`No RPC URL configured for ${chainKey}`);
-    }
-
     try {
-      // ✅ Use Alchemy's alchemy_getTokenBalances even with demo key!
-      // The demo key works for basic calls but may have rate limits
-      console.log(`📡 [DirectRPC] Using Alchemy RPC at ${rpcUrl}`);
+      // ✅ Try alchemy_getTokenBalances with 'erc20' parameter via proxy
+      console.log(`📡 [DirectRPC] Using Alchemy method via proxy`);
       
-      const response = await fetch(rpcUrl, {
+      const response = await fetch('/api/evm-tokens', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          jsonrpc: '2.0',
+          chain: chainKey,
           method: 'alchemy_getTokenBalances',
           params: [address, 'erc20'], // 'erc20' = get all ERC20 tokens
-          id: 1,
         }),
       });
 
       const data = await response.json();
 
       if (data.error) {
-        console.warn(`⚠️ [DirectRPC] Alchemy RPC error: ${data.error.message}`);
+        console.warn(`⚠️ [DirectRPC] Alchemy method error: ${data.error}`);
         // Fall back to log-based discovery
-        return this.getTokensViaLogs(address, rpcUrl);
+        return this.getTokensViaLogs(address, chainKey);
       }
 
       const tokenBalances: AlchemyTokenBalance[] = data.result?.tokenBalances || [];
@@ -321,14 +332,14 @@ class AlchemyTokenService {
       const tokensWithMetadata = await Promise.all(
         nonZeroTokens.map(async (tokenBalance) => {
           try {
-            // Try Alchemy metadata first, then fallback to on-chain
+            // Try proxy metadata first, then fallback to on-chain
             let metadata: AlchemyTokenMetadata;
             
             try {
-              metadata = await this.getTokenMetadataViaAlchemy(tokenBalance.contractAddress, rpcUrl);
+              metadata = await this.getTokenMetadataViaProxy(tokenBalance.contractAddress, chainKey);
             } catch (error) {
-              // Fallback to on-chain metadata
-              metadata = await this.getERC20Metadata(tokenBalance.contractAddress, rpcUrl);
+              // Fallback to on-chain metadata via proxy
+              metadata = await this.getERC20MetadataViaProxy(tokenBalance.contractAddress, chainKey);
             }
 
             const balance = this.hexToDecimal(
@@ -366,114 +377,121 @@ class AlchemyTokenService {
       console.error('❌ [DirectRPC] Failed:', error);
       
       // Final fallback to log-based discovery
-      return this.getTokensViaLogs(address, rpcUrl!);
+      return this.getTokensViaLogs(address, chainKey);
     }
   }
 
   /**
-   * Get token metadata via Alchemy RPC
+   * Get ERC20 metadata via proxy (name, symbol, decimals)
    */
-  private async getTokenMetadataViaAlchemy(
-    contractAddress: string,
-    rpcUrl: string
-  ): Promise<AlchemyTokenMetadata> {
-    const response = await fetch(rpcUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        method: 'alchemy_getTokenMetadata',
-        params: [contractAddress],
-        id: 1,
-      }),
-    });
+  private async getERC20MetadataViaProxy(
+    tokenAddress: string,
+    chainKey: string
+  ): Promise<{ name: string; symbol: string; decimals: number; logo?: string }> {
+    try {
+      // Function signatures for ERC20 standard methods
+      const nameSignature = '0x06fdde03';
+      const symbolSignature = '0x95d89b41';
+      const decimalsSignature = '0x313ce567';
 
-    const data = await response.json();
+      // Parallel fetch of name, symbol, decimals via proxy
+      const [nameResponse, symbolResponse, decimalsResponse] = await Promise.all([
+        fetch('/api/evm-tokens', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chain: chainKey,
+            method: 'eth_call',
+            params: [{ to: tokenAddress, data: nameSignature }, 'latest'],
+          }),
+        }),
+        fetch('/api/evm-tokens', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chain: chainKey,
+            method: 'eth_call',
+            params: [{ to: tokenAddress, data: symbolSignature }, 'latest'],
+          }),
+        }),
+        fetch('/api/evm-tokens', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chain: chainKey,
+            method: 'eth_call',
+            params: [{ to: tokenAddress, data: decimalsSignature }, 'latest'],
+          }),
+        }),
+      ]);
 
-    if (data.error) {
-      throw new Error(`Metadata error: ${data.error.message}`);
+      const [nameData, symbolData, decimalsData] = await Promise.all([
+        nameResponse.json(),
+        symbolResponse.json(),
+        decimalsResponse.json(),
+      ]);
+
+      const name = this.decodeString(nameData.result) || 'Unknown Token';
+      const symbol = this.decodeString(symbolData.result) || tokenAddress.slice(0, 6) + '...';
+      const decimals = decimalsData.result ? parseInt(decimalsData.result, 16) : 18;
+
+      return { name, symbol, decimals };
+    } catch (error) {
+      console.warn(`Failed to get metadata for ${tokenAddress}:`, error);
+      
+      return {
+        name: 'Unknown Token',
+        symbol: tokenAddress.slice(0, 6) + '...',
+        decimals: 18,
+      };
     }
-
-    return {
-      name: data.result?.name,
-      symbol: data.result?.symbol,
-      decimals: data.result?.decimals,
-      logo: data.result?.logo,
-    };
   }
 
   /**
-   * Fallback: Get tokens via Transfer logs (slower, less reliable)
+   * Decode hex string response from eth_call
+   */
+  private decodeString(hexValue: string | undefined): string | null {
+    if (!hexValue || hexValue === '0x' || hexValue === '0x0') {
+      return null;
+    }
+
+    try {
+      // Remove '0x' prefix
+      const hex = hexValue.slice(2);
+      
+      // Skip offset (first 32 bytes) and length (next 32 bytes)
+      const dataStart = 128; // 64 bytes * 2 chars/byte
+      const stringHex = hex.slice(dataStart);
+      
+      // Convert hex to string
+      let str = '';
+      for (let i = 0; i < stringHex.length; i += 2) {
+        const charCode = parseInt(stringHex.slice(i, i + 2), 16);
+        if (charCode === 0) break; // Stop at null terminator
+        str += String.fromCharCode(charCode);
+      }
+      
+      return str || null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Fallback: Get tokens via Transfer logs
+   * Note: Currently disabled due to performance concerns (scanning from genesis is too slow)
+   * Tier 1 and Tier 2 should be sufficient for 99% of use cases
    */
   private async getTokensViaLogs(
     address: string,
-    rpcUrl: string
+    chainKey: string
   ): Promise<EVMToken[]> {
-    console.log(`🔄 [Logs Fallback] Discovering tokens via Transfer events...`);
+    console.log(`ℹ️ [Logs Fallback] Skipping log-based discovery (performance optimization)`);
+    console.log(`ℹ️ [Logs Fallback] If you need this token, it may appear after your next transaction`);
     
-    // Get all ERC20 Transfer events TO this address (indicates token ownership)
-    const logs = await this.getERC20TransferLogs(address, rpcUrl);
-    
-    console.log(`📊 [Logs Fallback] Found ${logs.length} ERC20 transfer events`);
-    
-    if (logs.length === 0) {
-      return [];
-    }
-
-    // Extract unique token addresses
-    const tokenAddresses = [...new Set(logs.map((log: any) => log.address))];
-    console.log(`🪙 [Logs Fallback] Discovered ${tokenAddresses.length} unique token contracts`);
-
-    // Fetch balance for each token (in batches to avoid rate limits)
-    const batchSize = 10;
-    const tokensWithBalance: (EVMToken | null)[] = [];
-    
-    for (let i = 0; i < tokenAddresses.length; i += batchSize) {
-      const batch = tokenAddresses.slice(i, i + batchSize);
-      
-      const batchResults = await Promise.all(
-        batch.map(async (tokenAddress: string) => {
-          try {
-            // Get balance
-            const balance = await this.getERC20Balance(address, tokenAddress, rpcUrl);
-            
-            if (balance === '0' || balance === '0x0') {
-              return null; // Filter out zero balances
-            }
-
-            // Get token metadata (name, symbol, decimals)
-            const metadata = await this.getERC20Metadata(tokenAddress, rpcUrl);
-            
-            // Convert hex balance to decimal
-            const balanceDecimal = this.hexToDecimal(balance, metadata.decimals);
-            
-            console.log(`✅ [Logs Fallback] ${metadata.symbol}: ${balanceDecimal}`);
-            
-            return {
-              address: tokenAddress,
-              symbol: metadata.symbol,
-              name: metadata.name,
-              decimals: metadata.decimals,
-              balance: balanceDecimal,
-              logo: metadata.logo,
-              rawBalance: balance,
-            };
-          } catch (error) {
-            console.warn(`⚠️ [Logs Fallback] Failed to fetch ${tokenAddress}:`, error);
-            return null;
-          }
-        })
-      );
-      
-      tokensWithBalance.push(...batchResults);
-    }
-
-    // Filter out null values (tokens with zero balance or errors)
-    const validTokens = tokensWithBalance.filter((token): token is EVMToken => token !== null);
-    
-    console.log(`✅ [Logs Fallback] Successfully processed ${validTokens.length} tokens with balance`);
-    
-    return validTokens;
+    // Return empty array - log-based discovery is too slow for production
+    // Users can manually add tokens if needed, or they'll appear after next transaction
+    return [];
   }
 
   /**
