@@ -10,7 +10,7 @@
  * - Reduces API calls by 80-95%
  */
 
-const CACHE_VERSION = 3; // ✅ Increment to invalidate old cache format (Token-2022 support!)
+const CACHE_VERSION = 4; // ✅ Bump for 6-tier metadata system (DexScreener + CoinGecko support!)
 
 interface CachedTransaction {
   key: string;
