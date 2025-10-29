@@ -191,6 +191,10 @@ class AlchemyTokenService {
       
       console.log(`📡 [DirectRPC] Scanning blocks ${fromBlock} to ${currentBlock}...`);
       
+      // ✅ Ensure address is lowercase for EVM topics!
+      const paddedAddress = '0x000000000000000000000000' + address.toLowerCase().slice(2);
+      console.log(`🔍 [DirectRPC] Using padded address in topic: ${paddedAddress}`);
+      
       const logsResponse = await fetch('/api/evm-tokens', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -203,7 +207,7 @@ class AlchemyTokenService {
             topics: [
               transferTopic, // Transfer event
               null, // from (any address)
-              '0x000000000000000000000000' + address.toLowerCase().slice(2) // to (our address, lowercase and padded to 32 bytes)
+              paddedAddress // to (our address, lowercase and padded to 32 bytes)
             ]
           }],
         }),
@@ -240,6 +244,10 @@ class AlchemyTokenService {
           batch.map(async (tokenAddress) => {
             try {
               // Get balance
+              // ✅ Ensure address is lowercase for EVM function calls!
+              const paddedAddressForBalance = '0x70a08231000000000000000000000000' + address.toLowerCase().slice(2);
+              console.log(`🔍 [DirectRPC] balanceOf() data for ${tokenAddress}: ${paddedAddressForBalance.slice(0, 50)}...`);
+              
               const balanceResponse = await fetch('/api/evm-tokens', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -248,7 +256,7 @@ class AlchemyTokenService {
                   method: 'eth_call',
                   params: [{
                     to: tokenAddress,
-                    data: '0x70a08231000000000000000000000000' + address.toLowerCase().slice(2) // balanceOf(address) - address must be lowercase
+                    data: paddedAddressForBalance // balanceOf(address) - address must be lowercase
                   }, 'latest'],
                 }),
               });

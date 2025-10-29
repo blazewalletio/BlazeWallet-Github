@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`📡 [EVM-Tokens API] ${method} for ${chain}`);
+    console.log(`📋 [EVM-Tokens API] Params:`, JSON.stringify(params, null, 2));
 
     // ✅ DIRECT TO PUBLIC RPC - Alchemy demo key doesn't support alchemy_* methods!
     // Only use Alchemy for standard eth_* methods
