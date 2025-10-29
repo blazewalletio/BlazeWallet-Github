@@ -120,6 +120,9 @@ export async function POST(request: NextRequest) {
 
       if (data.error) {
         console.error(`❌ [EVM-Tokens API] Public RPC error:`, data.error.message);
+        console.error(`❌ [EVM-Tokens API] Error code:`, data.error.code);
+        console.error(`❌ [EVM-Tokens API] Full error:`, JSON.stringify(data.error, null, 2));
+        console.error(`❌ [EVM-Tokens API] Request that failed:`, JSON.stringify({ method, params }, null, 2));
         // Return the error to the client so it can handle it
         return NextResponse.json(data);
       }

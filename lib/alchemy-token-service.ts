@@ -205,9 +205,9 @@ class AlchemyTokenService {
             fromBlock: '0x' + fromBlock.toString(16),
             toBlock: 'latest',
             topics: [
-              transferTopic, // Transfer event
-              null, // from (any address)
-              paddedAddress // to (our address, lowercase and padded to 32 bytes)
+              transferTopic, // Transfer event (indexed)
+              null, // from (indexed, any address - null is valid in eth_getLogs)
+              paddedAddress // to (indexed, our address, lowercase and padded to 32 bytes)
             ]
           }],
         }),
@@ -216,7 +216,19 @@ class AlchemyTokenService {
       const logsData = await logsResponse.json();
       
       if (logsData.error) {
-        console.warn(`⚠️ [DirectRPC] Log query error:`, logsData.error.message);
+        console.error(`❌ [DirectRPC] Log query FAILED!`);
+        console.error(`❌ Error code:`, logsData.error.code);
+        console.error(`❌ Error message:`, logsData.error.message);
+        console.error(`❌ Full error:`, JSON.stringify(logsData.error, null, 2));
+        console.error(`❌ Request params:`, JSON.stringify({
+          fromBlock: '0x' + fromBlock.toString(16),
+          toBlock: 'latest',
+          topics: [
+            transferTopic,
+            null,
+            paddedAddress
+          ]
+        }, null, 2));
         return [];
       }
 
