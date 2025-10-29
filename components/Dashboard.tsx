@@ -6,7 +6,7 @@ import {
   ArrowUpRight, ArrowDownLeft, ArrowLeft, RefreshCw, Settings, 
   TrendingUp, Eye, EyeOff, Plus, Zap, ChevronRight,
   Repeat, Wallet as WalletIcon, TrendingDown, PieChart, Rocket, CreditCard,
-  Lock, Gift, Vote, Users, Palette, LogOut
+  Lock, Gift, Vote, Users, Palette, LogOut, Sparkles
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { MultiChainService } from '@/lib/multi-chain-service'; // ✅ Use MultiChainService
