@@ -26,6 +26,7 @@ interface Transaction {
   timestamp: number;
   isError: boolean;
   tokenSymbol?: string;
+  tokenName?: string;
   type?: string;
 }
 
@@ -174,7 +175,12 @@ export default function TransactionHistory() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-semibold text-gray-900">
-                        {tx.isError ? 'Failed' : tx.type || (isSent ? 'Sent' : 'Received')}
+                        {tx.isError 
+                          ? 'Failed' 
+                          : tx.tokenName 
+                            ? tx.tokenName 
+                            : tx.type || (isSent ? 'Sent' : 'Received')
+                        }
                       </span>
                       {!tx.isError && (
                         <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
