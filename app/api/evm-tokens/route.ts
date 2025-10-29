@@ -47,10 +47,14 @@ export async function POST(request: NextRequest) {
 
     console.log(`📡 [EVM-Tokens API] ${method} for ${chain}`);
 
-    // Try Alchemy first
-    const alchemyUrl = ALCHEMY_RPCS[chain];
-    if (alchemyUrl) {
+    // ✅ DIRECT TO PUBLIC RPC - Alchemy demo key doesn't support alchemy_* methods!
+    // Only use Alchemy for standard eth_* methods
+    const useAlchemy = method.startsWith('eth_') && ALCHEMY_RPCS[chain];
+    
+    if (useAlchemy) {
+      const alchemyUrl = ALCHEMY_RPCS[chain];
       try {
+        console.log(`🔗 [EVM-Tokens API] Trying Alchemy for ${method}...`);
         const response = await fetch(alchemyUrl, {
           method: 'POST',
           headers: {
@@ -64,56 +68,74 @@ export async function POST(request: NextRequest) {
           }),
         });
 
+        if (!response.ok) {
+          throw new Error(`Alchemy HTTP ${response.status}`);
+        }
+
         const data = await response.json();
 
         if (data.error) {
-          console.warn(`⚠️ [EVM-Tokens API] Alchemy error for ${chain}:`, data.error);
+          console.warn(`⚠️ [EVM-Tokens API] Alchemy error:`, data.error.message);
           throw new Error(data.error.message);
         }
 
-        console.log(`✅ [EVM-Tokens API] Success via Alchemy for ${chain}`);
+        console.log(`✅ [EVM-Tokens API] Success via Alchemy`);
         return NextResponse.json(data);
       } catch (alchemyError) {
-        console.warn(`⚠️ [EVM-Tokens API] Alchemy failed for ${chain}, trying fallback...`);
+        console.warn(`⚠️ [EVM-Tokens API] Alchemy failed, trying fallback...`);
+        // Continue to fallback
       }
     }
 
-    // Fallback to public RPC
+    // Use public RPC for alchemy_* methods or as fallback
     const fallbackUrl = FALLBACK_RPCS[chain];
-    if (fallbackUrl) {
-      try {
-        const response = await fetch(fallbackUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            method,
-            params,
-            id: 1,
-          }),
-        });
-
-        const data = await response.json();
-
-        if (data.error) {
-          console.error(`❌ [EVM-Tokens API] Fallback error for ${chain}:`, data.error);
-          throw new Error(data.error.message);
-        }
-
-        console.log(`✅ [EVM-Tokens API] Success via fallback for ${chain}`);
-        return NextResponse.json(data);
-      } catch (fallbackError) {
-        console.error(`❌ [EVM-Tokens API] Fallback failed for ${chain}:`, fallbackError);
-        throw fallbackError;
-      }
+    if (!fallbackUrl) {
+      return NextResponse.json(
+        { error: `No RPC configured for chain: ${chain}` },
+        { status: 400 }
+      );
     }
 
-    return NextResponse.json(
-      { error: `No RPC configured for chain: ${chain}` },
-      { status: 400 }
-    );
+    try {
+      console.log(`🔗 [EVM-Tokens API] Using public RPC for ${method}...`);
+      const response = await fetch(fallbackUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method,
+          params,
+          id: 1,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Public RPC HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.error) {
+        console.error(`❌ [EVM-Tokens API] Public RPC error:`, data.error.message);
+        // Return the error to the client so it can handle it
+        return NextResponse.json(data);
+      }
+
+      console.log(`✅ [EVM-Tokens API] Success via public RPC`);
+      return NextResponse.json(data);
+    } catch (fallbackError) {
+      console.error(`❌ [EVM-Tokens API] Public RPC failed:`, fallbackError);
+      
+      return NextResponse.json(
+        { 
+          error: 'Failed to fetch token data',
+          details: fallbackError instanceof Error ? fallbackError.message : 'Unknown error'
+        },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error('❌ [EVM-Tokens API] Fatal error:', error);
     

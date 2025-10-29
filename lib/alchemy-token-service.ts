@@ -146,238 +146,154 @@ class AlchemyTokenService {
   }
 
   /**
-   * TIER 1: Get tokens via Alchemy API (via Next.js proxy to bypass CORS!)
+   * TIER 1: DISABLED - Alchemy API requires paid key for alchemy_getTokenBalances
+   * Going straight to Tier 2 (on-chain discovery via Etherscan-style approach)
    */
   private async getTokensViaAlchemy(
     address: string,
     chainKey: string
   ): Promise<EVMToken[]> {
-    console.log(`📡 [Alchemy] Calling API for ${chainKey} via proxy...`);
-    
-    // ✅ Use Next.js API route to bypass CORS!
-    const response = await fetch('/api/evm-tokens', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        chain: chainKey,
-        method: 'alchemy_getTokenBalances',
-        params: [address],
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Proxy API returned ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    if (data.error) {
-      throw new Error(`API error: ${data.error}`);
-    }
-
-    const tokenBalances: AlchemyTokenBalance[] = data.result?.tokenBalances || [];
-    
-    console.log(`📊 [Alchemy] Found ${tokenBalances.length} token balances`);
-
-    // Filter out zero balances and errors
-    const nonZeroTokens = tokenBalances.filter(
-      (token) => !token.error && token.tokenBalance !== '0x0' && token.tokenBalance !== '0'
-    );
-
-    console.log(`🪙 [Alchemy] ${nonZeroTokens.length} tokens with non-zero balance`);
-
-    if (nonZeroTokens.length === 0) {
-      return [];
-    }
-
-    // Fetch metadata for each token
-    console.log(`📊 [Alchemy] Fetching metadata for ${nonZeroTokens.length} tokens...`);
-    
-    const tokensWithMetadata = await Promise.all(
-      nonZeroTokens.map(async (tokenBalance) => {
-        try {
-          const metadata = await this.getTokenMetadataViaProxy(
-            tokenBalance.contractAddress,
-            chainKey
-          );
-
-          // Convert hex balance to decimal
-          const balance = this.hexToDecimal(
-            tokenBalance.tokenBalance,
-            metadata.decimals || 18
-          );
-
-          return {
-            address: tokenBalance.contractAddress,
-            symbol: metadata.symbol || 'UNKNOWN',
-            name: metadata.name || 'Unknown Token',
-            decimals: metadata.decimals || 18,
-            balance,
-            logo: metadata.logo,
-            rawBalance: tokenBalance.tokenBalance,
-          };
-        } catch (error) {
-          console.error(
-            `Error fetching metadata for ${tokenBalance.contractAddress}:`,
-            error
-          );
-          
-          // Return basic info even if metadata fetch fails
-          return {
-            address: tokenBalance.contractAddress,
-            symbol: tokenBalance.contractAddress.slice(0, 6) + '...',
-            name: 'Unknown Token',
-            decimals: 18,
-            balance: this.hexToDecimal(tokenBalance.tokenBalance, 18),
-            rawBalance: tokenBalance.tokenBalance,
-          };
-        }
-      })
-    );
-
-    console.log(`✅ [Alchemy] Successfully processed ${tokensWithMetadata.length} ERC20 tokens`);
-    
-    return tokensWithMetadata;
+    console.log(`⏩ [Tier 1] Skipping Alchemy API (requires paid key)`);
+    throw new Error('Alchemy Tier 1 disabled - using on-chain discovery');
   }
 
   /**
-   * Get token metadata via Next.js proxy (bypasses CORS!)
-   */
-  private async getTokenMetadataViaProxy(
-    contractAddress: string,
-    chainKey: string
-  ): Promise<AlchemyTokenMetadata> {
-    const response = await fetch('/api/evm-tokens', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        chain: chainKey,
-        method: 'alchemy_getTokenMetadata',
-        params: [contractAddress],
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Proxy API returned ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    if (data.error) {
-      throw new Error(`Metadata error: ${data.error}`);
-    }
-
-    return {
-      name: data.result?.name,
-      symbol: data.result?.symbol,
-      decimals: data.result?.decimals,
-      logo: data.result?.logo,
-    };
-  }
-
-  /**
-   * TIER 2: Get tokens via direct RPC calls (via proxy to bypass CORS!)
-   * Uses the same proxy but with standard eth_call methods
+   * TIER 2: On-chain token discovery via Transfer event logs
+   * This is the ONLY method that works with public RPCs!
    */
   private async getTokensViaDirectRPC(
     address: string,
     chainKey: string
   ): Promise<EVMToken[]> {
-    console.log(`🔗 [DirectRPC] Querying via proxy for ${chainKey}...`);
+    console.log(`🔗 [DirectRPC] On-chain token discovery for ${chainKey}...`);
     
     try {
-      // ✅ Try alchemy_getTokenBalances with 'erc20' parameter via proxy
-      console.log(`📡 [DirectRPC] Using Alchemy method via proxy`);
+      // ✅ Discover tokens by scanning Transfer events
+      // ERC20 Transfer event signature: Transfer(address indexed from, address indexed to, uint256 value)
+      const transferTopic = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
       
-      const response = await fetch('/api/evm-tokens', {
+      // Get the current block number
+      const blockResponse = await fetch('/api/evm-tokens', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chain: chainKey,
-          method: 'alchemy_getTokenBalances',
-          params: [address, 'erc20'], // 'erc20' = get all ERC20 tokens
+          method: 'eth_blockNumber',
+          params: [],
+        }),
+      });
+      
+      const blockData = await blockResponse.json();
+      const currentBlock = parseInt(blockData.result, 16);
+      
+      // Scan last 10,000 blocks for Transfer events TO this address
+      const fromBlock = Math.max(0, currentBlock - 10000);
+      
+      console.log(`📡 [DirectRPC] Scanning blocks ${fromBlock} to ${currentBlock}...`);
+      
+      const logsResponse = await fetch('/api/evm-tokens', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chain: chainKey,
+          method: 'eth_getLogs',
+          params: [{
+            fromBlock: '0x' + fromBlock.toString(16),
+            toBlock: 'latest',
+            topics: [
+              transferTopic, // Transfer event
+              null, // from (any address)
+              '0x000000000000000000000000' + address.slice(2) // to (our address, padded to 32 bytes)
+            ]
+          }],
         }),
       });
 
-      const data = await response.json();
-
-      if (data.error) {
-        console.warn(`⚠️ [DirectRPC] Alchemy method error: ${data.error}`);
-        // Fall back to log-based discovery
-        return this.getTokensViaLogs(address, chainKey);
-      }
-
-      const tokenBalances: AlchemyTokenBalance[] = data.result?.tokenBalances || [];
+      const logsData = await logsResponse.json();
       
-      console.log(`📊 [DirectRPC] Found ${tokenBalances.length} tokens`);
-
-      // Filter non-zero balances
-      const nonZeroTokens = tokenBalances.filter(
-        (token) => !token.error && token.tokenBalance !== '0x0' && token.tokenBalance !== '0'
-      );
-
-      console.log(`🪙 [DirectRPC] ${nonZeroTokens.length} tokens with balance`);
-
-      if (nonZeroTokens.length === 0) {
+      if (logsData.error) {
+        console.warn(`⚠️ [DirectRPC] Log query error:`, logsData.error.message);
         return [];
       }
 
-      // Fetch metadata for each token
-      const tokensWithMetadata = await Promise.all(
-        nonZeroTokens.map(async (tokenBalance) => {
-          try {
-            // Try proxy metadata first, then fallback to on-chain
-            let metadata: AlchemyTokenMetadata;
-            
-            try {
-              metadata = await this.getTokenMetadataViaProxy(tokenBalance.contractAddress, chainKey);
-            } catch (error) {
-              // Fallback to on-chain metadata via proxy
-              metadata = await this.getERC20MetadataViaProxy(tokenBalance.contractAddress, chainKey);
-            }
-
-            const balance = this.hexToDecimal(
-              tokenBalance.tokenBalance,
-              metadata.decimals || 18
-            );
-
-            return {
-              address: tokenBalance.contractAddress,
-              symbol: metadata.symbol || 'UNKNOWN',
-              name: metadata.name || 'Unknown Token',
-              decimals: metadata.decimals || 18,
-              balance,
-              logo: metadata.logo,
-              rawBalance: tokenBalance.tokenBalance,
-            };
-          } catch (error) {
-            console.error(`Failed to process ${tokenBalance.contractAddress}:`, error);
-            return {
-              address: tokenBalance.contractAddress,
-              symbol: tokenBalance.contractAddress.slice(0, 6) + '...',
-              name: 'Unknown Token',
-              decimals: 18,
-              balance: this.hexToDecimal(tokenBalance.tokenBalance, 18),
-              rawBalance: tokenBalance.tokenBalance,
-            };
-          }
-        })
-      );
-
-      console.log(`✅ [DirectRPC] Successfully processed ${tokensWithMetadata.length} tokens`);
+      const logs = logsData.result || [];
       
-      return tokensWithMetadata;
+      console.log(`📊 [DirectRPC] Found ${logs.length} Transfer events`);
+
+      if (logs.length === 0) {
+        return [];
+      }
+
+      // Extract unique token addresses
+      const tokenAddresses = [...new Set(logs.map((log: any) => log.address))];
+      
+      console.log(`🪙 [DirectRPC] Discovered ${tokenAddresses.length} unique tokens`);
+
+      // Fetch balance and metadata for each token (in batches of 5)
+      const tokens: EVMToken[] = [];
+      const batchSize = 5;
+      
+      for (let i = 0; i < tokenAddresses.length; i += batchSize) {
+        const batch = tokenAddresses.slice(i, i + batchSize);
+        
+        const batchTokens = await Promise.all(
+          batch.map(async (tokenAddress: string) => {
+            try {
+              // Get balance
+              const balanceResponse = await fetch('/api/evm-tokens', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  chain: chainKey,
+                  method: 'eth_call',
+                  params: [{
+                    to: tokenAddress,
+                    data: '0x70a08231000000000000000000000000' + address.slice(2) // balanceOf(address)
+                  }, 'latest'],
+                }),
+              });
+              
+              const balanceData = await balanceResponse.json();
+              const hexBalance = balanceData.result;
+              
+              // Skip if balance is zero
+              if (!hexBalance || hexBalance === '0x' || hexBalance === '0x0') {
+                return null;
+              }
+
+              // Get metadata (name, symbol, decimals)
+              const metadata = await this.getERC20MetadataViaProxy(tokenAddress, chainKey);
+              
+              const balance = this.hexToDecimal(hexBalance, metadata.decimals);
+              
+              console.log(`✅ [DirectRPC] ${metadata.symbol}: ${balance}`);
+              
+              return {
+                address: tokenAddress,
+                symbol: metadata.symbol,
+                name: metadata.name,
+                decimals: metadata.decimals,
+                balance,
+                logo: metadata.logo,
+                rawBalance: hexBalance,
+              };
+            } catch (error) {
+              console.warn(`⚠️ [DirectRPC] Failed to process ${tokenAddress}:`, error);
+              return null;
+            }
+          })
+        );
+        
+        // Filter out null results and add to main array
+        tokens.push(...batchTokens.filter((t): t is EVMToken => t !== null));
+      }
+
+      console.log(`✅ [DirectRPC] Successfully processed ${tokens.length} tokens with balance`);
+      
+      return tokens;
     } catch (error) {
       console.error('❌ [DirectRPC] Failed:', error);
-      
-      // Final fallback to log-based discovery
-      return this.getTokensViaLogs(address, chainKey);
+      return [];
     }
   }
 
