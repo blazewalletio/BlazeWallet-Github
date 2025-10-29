@@ -49,7 +49,7 @@ import AIGasOptimizer from './AIGasOptimizer';
 import AIConversationalAssistant from './AIConversationalAssistant';
 import AIBrainAssistant from './AIBrainAssistant';
 import AISettingsModal from './AISettingsModal';
-import { Sparkles, Shield, Brain, MessageSquare } from 'lucide-react';
+import { alchemyTokenService } from '@/lib/alchemy-token-service';
 import BottomNavigation, { TabType } from './BottomNavigation';
 
 export default function Dashboard() {
@@ -358,41 +358,63 @@ export default function Dashboard() {
           console.log(`[${timestamp}] ✅ Final tokensWithValue:`, tokensWithValue);
         }
         
-      } else if (popularTokens.length > 0 && displayAddress) {
-        // ✅ EVM: Fetch ERC20 tokens
-        console.log(`\n--- STEP 3: Fetch Token Balances (EVM) ---`);
-        console.log(`[${timestamp}] 🪙 Fetching balances for ${popularTokens.length} ERC20 tokens...`);
+      } else if (displayAddress) {
+        // ✅ EVM: Fetch ALL ERC20 tokens (just like Solana!)
+        console.log(`\n--- STEP 3: Fetch ALL ERC20 Token Balances (EVM) ---`);
+        console.log(`[${timestamp}] 🪙 Fetching ALL ERC20 tokens from chain...`);
         
-        const tokensWithBalance = await tokenService.getMultipleTokenBalances(
-          popularTokens,
-          displayAddress
-        );
+        const evmTokens = await alchemyTokenService.getAllTokenBalances(displayAddress, currentChain);
         
-        console.log(`[${timestamp}] ✅ Token balances received:`, tokensWithBalance.map(t => `${t.symbol}: ${t.balance}`));
+        console.log(`[${timestamp}] ✅ Found ${evmTokens.length} ERC20 tokens with balance`);
+        console.log(`[${timestamp}] 📊 ERC20 Tokens:`, evmTokens);
         
-        // ✅ STEP 4: Combine with prices (already fetched in batch!)
-        console.log(`\n--- STEP 4: Calculate Token USD Values ---`);
-        const tokensWithPrices = await Promise.all(
-          tokensWithBalance.map(async (token) => {
-            const price = pricesMap[token.symbol] || 0;
-            const balanceUSD = parseFloat(token.balance || '0') * price;
-            const change24h = await priceService.get24hChange(token.symbol);
-            
-            console.log(`[${timestamp}] 💰 ${token.symbol}: ${token.balance} × $${price} = $${balanceUSD.toFixed(2)}`);
-            
-            return {
-              ...token,
-              priceUSD: price,
-              balanceUSD: balanceUSD.toFixed(2),
-              change24h,
-            };
-          })
-        );
-
-        // Only show tokens with balance > 0
-        tokensWithValue = tokensWithPrices.filter(
-          t => parseFloat(t.balance || '0') > 0
-        );
+        if (evmTokens.length > 0) {
+          // ✅ STEP 4: Fetch prices for ERC20 tokens
+          console.log(`\n--- STEP 4: Fetch ERC20 Token Prices ---`);
+          
+          // Try symbol-based pricing first (CoinGecko/Binance) for all tokens
+          const evmSymbols = evmTokens.map((t: any) => t.symbol);
+          console.log(`[${timestamp}] 📡 Fetching prices for ERC20 tokens: ${evmSymbols.join(', ')}`);
+          
+          const evmPricesMap = await priceService.getMultiplePrices(evmSymbols);
+          console.log(`[${timestamp}] 💰 ERC20 prices received:`, evmPricesMap);
+          
+          // Combine ERC20 tokens with prices
+          tokensWithValue = await Promise.all(
+            evmTokens.map(async (token: any) => {
+              const price = evmPricesMap[token.symbol] || 0;
+              const balanceNum = parseFloat(token.balance || '0');
+              const balanceUSD = balanceNum * price;
+              
+              // Get 24h change
+              let change24h = 0;
+              if (price > 0) {
+                try {
+                  change24h = await priceService.get24hChange(token.symbol);
+                } catch (error) {
+                  console.warn(`Failed to get 24h change for ${token.symbol}:`, error);
+                }
+              }
+              
+              console.log(`[${timestamp}] 💰 ${token.symbol}:`, {
+                balance: token.balance,
+                price: price,
+                balanceUSD: balanceUSD.toFixed(2),
+                change24h: change24h,
+                logo: token.logo
+              });
+              
+              return {
+                ...token,
+                priceUSD: price,
+                balanceUSD: balanceUSD.toFixed(2),
+                change24h,
+              };
+            })
+          );
+          
+          console.log(`[${timestamp}] ✅ Final tokensWithValue:`, tokensWithValue);
+        }
       }
 
       // ✅ STEP 5: Update tokens and calculate total portfolio value
