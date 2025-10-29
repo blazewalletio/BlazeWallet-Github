@@ -225,7 +225,7 @@ class AlchemyTokenService {
       }
 
       // Extract unique token addresses
-      const tokenAddresses = [...new Set(logs.map((log: any) => log.address))];
+      const tokenAddresses: string[] = [...new Set(logs.map((log: any) => log.address as string))];
       
       console.log(`🪙 [DirectRPC] Discovered ${tokenAddresses.length} unique tokens`);
 
@@ -234,10 +234,10 @@ class AlchemyTokenService {
       const batchSize = 5;
       
       for (let i = 0; i < tokenAddresses.length; i += batchSize) {
-        const batch = tokenAddresses.slice(i, i + batchSize);
+        const batch: string[] = tokenAddresses.slice(i, i + batchSize);
         
         const batchTokens = await Promise.all(
-          batch.map(async (tokenAddress: string) => {
+          batch.map(async (tokenAddress) => {
             try {
               // Get balance
               const balanceResponse = await fetch('/api/evm-tokens', {
