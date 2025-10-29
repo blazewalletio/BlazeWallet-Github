@@ -15,7 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'edge'; // Use Edge runtime for better performance
 
 // ✅ Alchemy API Key for Ethereum (Rick's key)
-const ALCHEMY_API_KEY = 'V9A0m8eB58qyWJpajs6Y';
+const ALCHEMY_API_KEY = 'V9A0m8eB58qyWJpajjs6Y';
 
 // Alchemy RPC URLs for each chain
 const ALCHEMY_RPCS: Record<string, string> = {
