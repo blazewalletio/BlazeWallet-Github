@@ -15,8 +15,9 @@ import * as bip39 from 'bip39';
 import bs58 from 'bs58';
 import { getSPLTokenMetadata, SPLTokenMetadata } from './spl-token-metadata';
 
-// SPL Token Program ID
+// SPL Token Program IDs (support both legacy and Token-2022!)
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+const TOKEN_2022_PROGRAM_ID = new PublicKey('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
 
 export class SolanaService {
   private connection: Connection;
@@ -301,14 +302,16 @@ export class SolanaService {
     accountKeys: PublicKey[],
     userPubkey: PublicKey
   ): Promise<{ from: string; to: string; value: string; tokenSymbol: string; tokenName?: string; type: string; mint?: string; logoUrl?: string } | null> {
-    // Check if transaction involves Token Program
+    // ✅ FIX: Check if transaction involves EITHER Token Program (legacy or Token-2022)
     const tokenProgramId = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+    const token2022ProgramId = new PublicKey('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
     
     for (const instruction of instructions) {
       const programId = accountKeys[instruction.programIdIndex];
       
-      if (programId?.equals(tokenProgramId)) {
-        // SPL token transfer detected
+      // ✅ FIX: Support BOTH token programs!
+      if (programId?.equals(tokenProgramId) || programId?.equals(token2022ProgramId)) {
+        // SPL token transfer detected (legacy or Token-2022)
         // Parse token balances from meta
         if (tx.meta?.preTokenBalances && tx.meta?.postTokenBalances) {
           for (let i = 0; i < tx.meta.preTokenBalances.length; i++) {
@@ -325,7 +328,7 @@ export class SolanaService {
                 // ✅ FIX: Extract mint and fetch metadata
                 const mint = postBalance.mint || preBalance.mint;
                 
-                // Fetch token metadata (uses hardcoded + Jupiter API + fallback)
+                // Fetch token metadata (uses 3-tier: hardcoded + Jupiter + Metaplex!)
                 const metadata = await getSPLTokenMetadata(mint);
                 
                 // Determine from/to based on balance change
@@ -337,8 +340,8 @@ export class SolanaService {
                   from: isSent ? owner : accountKeys[0]?.toBase58() || '',
                   to: isSent ? accountKeys[1]?.toBase58() || '' : owner,
                   value: diff.toString(),
-                  tokenSymbol: metadata.symbol,  // ✅ Now gets "WIF", "NPCS", "USDC" etc
-                  tokenName: metadata.name,      // ✅ Full token name (e.g., "NPC Solana", "dogwifhat")
+                  tokenSymbol: metadata.symbol,  // ✅ Now gets "WIF", "NPCS", "ai16z" etc
+                  tokenName: metadata.name,      // ✅ Full token name (e.g., "NPC Solana", "dogwifhat", "ai16z")
                   type: 'Token Transfer',
                   mint: mint,                    // ✅ Store mint for reference
                   logoUrl: metadata.logoURI || '/crypto-solana.png', // ✅ FIX: Guaranteed fallback!
@@ -410,6 +413,7 @@ export class SolanaService {
   /**
    * Get ALL SPL token accounts for a wallet address
    * Returns all tokens with non-zero balance
+   * ✅ SUPPORTS BOTH TOKEN_PROGRAM_ID AND TOKEN_2022_PROGRAM_ID!
    */
   async getSPLTokenAccounts(address: string): Promise<any[]> {
     try {
@@ -417,16 +421,32 @@ export class SolanaService {
       
       const publicKey = new PublicKey(address);
       
-      // Get all token accounts owned by this address
-      const response = await this.connection.getParsedTokenAccountsByOwner(
-        publicKey,
-        { programId: TOKEN_PROGRAM_ID }
-      );
+      // ✅ FIX: Fetch BOTH token programs in parallel to support Token-2022!
+      // Many new tokens (like ai16z) use Token-2022 standard
+      console.log('🪙 [SolanaService] Fetching TOKEN_PROGRAM_ID accounts...');
+      console.log('🪙 [SolanaService] Fetching TOKEN_2022_PROGRAM_ID accounts...');
+      
+      const [responseV1, responseV2] = await Promise.all([
+        this.connection.getParsedTokenAccountsByOwner(
+          publicKey,
+          { programId: TOKEN_PROGRAM_ID }
+        ),
+        this.connection.getParsedTokenAccountsByOwner(
+          publicKey,
+          { programId: TOKEN_2022_PROGRAM_ID }
+        ),
+      ]);
 
-      console.log(`🪙 [SolanaService] Found ${response.value.length} SPL token accounts`);
+      // Merge results from both programs
+      const allAccounts = [
+        ...responseV1.value,
+        ...responseV2.value,
+      ];
+
+      console.log(`🪙 [SolanaService] Found ${responseV1.value.length} legacy + ${responseV2.value.length} Token-2022 = ${allAccounts.length} total SPL token accounts`);
       
       // Filter out accounts with zero balance
-      const nonZeroAccounts = response.value.filter(account => {
+      const nonZeroAccounts = allAccounts.filter(account => {
         const info = account.account.data as ParsedAccountData;
         const tokenAmount = info.parsed?.info?.tokenAmount;
         return tokenAmount && parseFloat(tokenAmount.uiAmountString) > 0;

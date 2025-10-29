@@ -9,7 +9,7 @@
  * - Automatic cleanup
  */
 
-const CACHE_VERSION = 1;
+const CACHE_VERSION = 2; // ✅ Bump for Token-2022 support!
 
 interface CachedTokenData {
   key: string;

@@ -10,7 +10,7 @@
  * - Reduces API calls by 80-95%
  */
 
-const CACHE_VERSION = 2; // ✅ Increment to invalidate old cache format
+const CACHE_VERSION = 3; // ✅ Increment to invalidate old cache format (Token-2022 support!)
 
 interface CachedTransaction {
   key: string;
