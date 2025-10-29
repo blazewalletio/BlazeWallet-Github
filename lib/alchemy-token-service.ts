@@ -225,7 +225,7 @@ class AlchemyTokenService {
       }
 
       // Extract unique token addresses
-      const tokenAddresses: string[] = [...new Set(logs.map((log: any) => log.address as string))];
+      const tokenAddresses: string[] = [...new Set<string>(logs.map((log: any) => log.address))];
       
       console.log(`🪙 [DirectRPC] Discovered ${tokenAddresses.length} unique tokens`);
 
