@@ -48,16 +48,10 @@ export default function TransactionHistory() {
     
     setLoading(true);
     try {
-      // Check cache first
+      // ✅ TEMP FIX: Clear cache to get fresh data with tokenLogo field
       const cacheKey = `${currentChain}:${displayAddress}`;
-      const cached = await transactionCache.get(cacheKey);
-      
-      if (cached) {
-        console.log(`✅ Loaded ${cached.length} transactions from cache for ${currentChain}`);
-        setTransactions(cached);
-        setLoading(false);
-        return;
-      }
+      await transactionCache.remove(cacheKey);
+      console.log('🗑️ Cleared transaction cache to fetch fresh data with logos');
 
       // Load from API with rate limiting
       const txs = await apiQueue.add(async () => {
@@ -204,7 +198,7 @@ export default function TransactionHistory() {
                       <img
                         src={logoUrl}
                         alt=""
-                        className="w-full h-full object-contain opacity-8 group-hover:opacity-12"
+                        className="w-full h-full object-contain"
                         style={{ opacity: 0.08 }}
                       />
                     </motion.div>

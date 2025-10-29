@@ -118,6 +118,24 @@ class TransactionCache {
   }
 
   /**
+   * Remove a specific cached entry
+   */
+  async remove(key: string): Promise<void> {
+    // Remove from memory cache
+    this.memoryCache.delete(key);
+
+    // Remove from IndexedDB
+    if (this.db) {
+      try {
+        await this.deleteFromDB(key);
+        console.log(`🗑️ Removed cache entry: ${key}`);
+      } catch (error) {
+        console.warn('Failed to remove from IndexedDB cache:', error);
+      }
+    }
+  }
+
+  /**
    * Clear all cached transactions
    */
   async clear(): Promise<void> {
