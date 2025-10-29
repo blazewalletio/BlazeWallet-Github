@@ -144,9 +144,14 @@ export class PriceService {
         signal: AbortSignal.timeout(5000), // 5 second timeout
       });
       
+      // ✅ Check if response is OK OR if it's a 400 (no Binance ticker available)
       if (response.ok) {
         const data = await response.json();
-        if (data[symbol] && data[symbol].price > 0) {
+        
+        // ✅ Handle empty response (no valid Binance ticker for this symbol)
+        if (Object.keys(data).length === 0) {
+          console.log(`ℹ️ [PriceService] Binance has no ticker for: ${symbol}`);
+        } else if (data[symbol] && data[symbol].price > 0) {
           const price = data[symbol].price;
           const change24h = data[symbol].change24h || 0;
           
@@ -161,6 +166,9 @@ export class PriceService {
           console.log(`✅ [PriceService] Binance: ${symbol} = $${price}`);
           return price;
         }
+      } else if (response.status === 400) {
+        // ✅ 400 Bad Request is OK - means no valid symbol for Binance
+        console.log(`ℹ️ [PriceService] Binance doesn't support: ${symbol}`);
       }
     } catch (error) {
       console.warn(`⚠️ [PriceService] Binance failed for ${symbol}:`, error instanceof Error ? error.message : 'Unknown error');
@@ -227,26 +235,35 @@ export class PriceService {
         signal: AbortSignal.timeout(10000),
       });
       
+      // ✅ Check if response is OK OR if it returns an empty object (graceful failure)
       if (response.ok) {
         const data = await response.json();
         const now = Date.now();
 
-        missingSymbols.forEach(symbol => {
-          if (data[symbol] && data[symbol].price > 0) {
-            const price = data[symbol].price;
-            const change24h = data[symbol].change24h || 0;
-            
-            result[symbol] = price;
-            this.cache.set(symbol, { 
-              price, 
-              change24h, 
-              timestamp: now,
-              source: 'binance'
-            });
-            
-            console.log(`✅ [PriceService] Binance: ${symbol} = $${price}`);
-          }
-        });
+        // ✅ Handle empty response (no valid Binance tickers for these symbols)
+        if (Object.keys(data).length === 0) {
+          console.log(`ℹ️ [PriceService] Binance has no tickers for: ${missingSymbols.join(', ')}`);
+        } else {
+          missingSymbols.forEach(symbol => {
+            if (data[symbol] && data[symbol].price > 0) {
+              const price = data[symbol].price;
+              const change24h = data[symbol].change24h || 0;
+              
+              result[symbol] = price;
+              this.cache.set(symbol, { 
+                price, 
+                change24h, 
+                timestamp: now,
+                source: 'binance'
+              });
+              
+              console.log(`✅ [PriceService] Binance: ${symbol} = $${price}`);
+            }
+          });
+        }
+      } else if (response.status === 400) {
+        // ✅ 400 Bad Request is OK - means no valid symbols for Binance
+        console.log(`ℹ️ [PriceService] Binance doesn't support: ${missingSymbols.join(', ')}`);
       }
     } catch (error) {
       console.warn(`⚠️ [PriceService] Binance batch failed:`, error instanceof Error ? error.message : 'Unknown error');
