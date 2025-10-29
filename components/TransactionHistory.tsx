@@ -173,6 +173,18 @@ export default function TransactionHistory() {
             const symbol = tx.tokenSymbol || chain.nativeCurrency.symbol;
             const logoUrl = getTransactionLogo(tx);
 
+            // 🔍 DEBUG: Log transaction data to see if tokenLogo is present
+            if (index === 0) {
+              console.log('🔍 First transaction debug:', {
+                symbol,
+                tokenSymbol: tx.tokenSymbol,
+                tokenName: tx.tokenName,
+                tokenLogo: tx.tokenLogo,
+                logoUrl,
+                chainLogoUrl: chain.logoUrl
+              });
+            }
+
             return (
               <motion.div
                 key={tx.hash}
