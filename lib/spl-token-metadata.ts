@@ -198,8 +198,15 @@ export async function getSPLTokenMetadata(mint: string): Promise<SPLTokenMetadat
     const jupiterToken = jupiterTokens.get(mint);
     
     if (jupiterToken) {
-      console.log(`🪐 [SPLTokenMetadata] Found ${mint} in Jupiter API`);
+      console.log(`🪐 [SPLTokenMetadata] Found ${mint} in Jupiter API:`, {
+        symbol: jupiterToken.symbol,
+        name: jupiterToken.name,
+        logoURI: jupiterToken.logoURI
+      });
       return jupiterToken;
+    } else {
+      // ✅ Debug: Token NOT found in Jupiter API
+      console.warn(`⚠️ [SPLTokenMetadata] Token ${mint} NOT FOUND in Jupiter API (${jupiterTokens.size} tokens loaded)`);
     }
   } catch (error) {
     console.warn(`⚠️ [SPLTokenMetadata] Jupiter API failed for ${mint}`, error);
