@@ -9,7 +9,7 @@
  * - Automatic cleanup
  */
 
-const CACHE_VERSION = 2; // ✅ Bump for Token-2022 support!
+const CACHE_VERSION = 3; // ✅ Bump for 3-tier hybrid EVM token discovery!
 
 interface CachedTokenData {
   key: string;
