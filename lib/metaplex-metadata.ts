@@ -24,15 +24,18 @@ import { SPLTokenMetadata } from './spl-token-metadata';
 const metaplexCache = new Map<string, { data: SPLTokenMetadata | null; timestamp: number }>();
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
+// ✅ FIX: Use Alchemy RPC (same as SolanaService) to avoid 403 errors!
+const DEFAULT_RPC_URL = 'https://solana-mainnet.g.alchemy.com/v2/demo';
+
 /**
  * Fetch token metadata from Metaplex on-chain standard
  * @param mint - Token mint address
- * @param rpcUrl - Solana RPC endpoint
+ * @param rpcUrl - Solana RPC endpoint (defaults to Alchemy)
  * @returns SPLTokenMetadata or null if not found
  */
 export async function getMetaplexMetadata(
   mint: string,
-  rpcUrl: string = 'https://api.mainnet-beta.solana.com'
+  rpcUrl: string = DEFAULT_RPC_URL // ✅ Default to Alchemy!
 ): Promise<SPLTokenMetadata | null> {
   // Check memory cache first (avoid RPC spam)
   const cached = metaplexCache.get(mint);
@@ -110,7 +113,7 @@ export async function getMetaplexMetadata(
  */
 export async function getMultipleMetaplexMetadata(
   mints: string[],
-  rpcUrl: string = 'https://api.mainnet-beta.solana.com',
+  rpcUrl: string = DEFAULT_RPC_URL, // ✅ Default to Alchemy!
   concurrency: number = 5
 ): Promise<Map<string, SPLTokenMetadata | null>> {
   const results = new Map<string, SPLTokenMetadata | null>();

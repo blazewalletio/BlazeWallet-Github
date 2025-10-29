@@ -356,6 +356,10 @@ class JupiterTokenCache {
    * 🔄 NEW: Force refresh single token metadata from Jupiter API
    * Saves to IndexedDB for permanent storage
    */
+  /**
+   * Manually refresh a single token's metadata (for "Unknown Token" refresh button)
+   * ✅ FIX: Now uses Metaplex on-chain fetch instead of broken Jupiter API!
+   */
   async refreshSingleToken(mint: string): Promise<SPLTokenMetadata | null> {
     if (this.initPromise) {
       await this.initPromise;
@@ -369,29 +373,16 @@ class JupiterTokenCache {
     try {
       console.log(`🔄 [Manual Refresh] Fetching metadata for ${mint}...`);
       
-      // Fetch from Jupiter API (single token)
-      const response = await fetch(`https://tokens.jup.ag/token/${mint}`);
+      // ✅ FIX: Use Metaplex on-chain fetch (same as Tier 3!)
+      // Jupiter single token API doesn't exist: https://tokens.jup.ag/token/{mint} = 404
+      const { getMetaplexMetadata } = await import('./metaplex-metadata');
+      const metadata = await getMetaplexMetadata(mint);
       
-      if (!response.ok) {
-        throw new Error(`Jupiter API error: ${response.status}`);
+      if (!metadata) {
+        throw new Error('Metaplex returned no metadata');
       }
 
-      const tokenData = await response.json();
-      
-      if (!tokenData || !tokenData.address) {
-        throw new Error('Invalid token data received');
-      }
-
-      const metadata: SPLTokenMetadata = {
-        mint: tokenData.address,
-        symbol: tokenData.symbol || 'UNKNOWN',
-        name: tokenData.name || 'Unknown Token',
-        decimals: tokenData.decimals || 9,
-        logoURI: tokenData.logoURI,
-        coingeckoId: tokenData.extensions?.coingeckoId,
-      };
-
-      // Save to IndexedDB (permanent storage)
+      // Save to IndexedDB (permanent storage for next time)
       await new Promise<void>((resolve, reject) => {
         const transaction = this.db!.transaction([this.storeName], 'readwrite');
         const objectStore = transaction.objectStore(this.storeName);
@@ -448,10 +439,7 @@ export async function getSPLTokenMetadata(mint: string): Promise<SPLTokenMetadat
   // Tier 3: Metaplex on-chain metadata (reliable for ALL tokens!) ✅ NEW!
   try {
     console.log(`🔍 [Tier 3] Trying Metaplex on-chain for ${mint}...`);
-    const metaplexMetadata = await getMetaplexMetadata(
-      mint,
-      'https://api.mainnet-beta.solana.com'
-    );
+    const metaplexMetadata = await getMetaplexMetadata(mint); // ✅ Uses Alchemy RPC by default!
     
     if (metaplexMetadata) {
       const elapsed = Date.now() - startTime;
