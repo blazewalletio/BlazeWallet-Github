@@ -31,6 +31,7 @@ import AnimatedNumber from './AnimatedNumber';
 import QuickPayModal from './QuickPayModal';
 import FounderDeploy from './FounderDeploy';
 import TransactionHistory from './TransactionHistory';
+import TokenDetailModal from './TokenDetailModal'; // ✅ NEW: Token detail modal
 import StakingDashboard from './StakingDashboard';
 import GovernanceDashboard from './GovernanceDashboard';
 import LaunchpadDashboard from './LaunchpadDashboard';
@@ -122,6 +123,10 @@ export default function Dashboard() {
   
   // ✅ NEW: Token refresh state
   const [refreshingToken, setRefreshingToken] = useState<string | null>(null);
+  
+  // ✅ NEW: Token detail modal state
+  const [selectedToken, setSelectedToken] = useState<Token | null>(null);
+  const [showTokenDetail, setShowTokenDetail] = useState(false);
   
   // PWA detection
   const [isPWA, setIsPWA] = useState(false);
@@ -888,26 +893,14 @@ export default function Dashboard() {
                   exit={{ opacity: 0, x: 20 }}
                   transition={{ delay: index * 0.05 }}
                   whileTap={{ scale: 0.98 }}
-                  className="glass p-4 rounded-xl flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer relative group"
+                  onClick={() => {
+                    setSelectedToken(token);
+                    setShowTokenDetail(true);
+                  }}
+                  className="glass p-4 rounded-xl flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer relative"
                 >
-                  {/* ✅ NEW: Refresh button for unknown tokens */}
-                  {isUnknownToken && (
-                    <motion.button
-                      whileTap={{ scale: 0.9 }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRefreshToken(token.address);
-                      }}
-                      disabled={isRefreshing}
-                      className="absolute top-2 right-2 p-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
-                      title="Refresh token metadata from Jupiter"
-                    >
-                      <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                    </motion.button>
-                  )}
-                  
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xl overflow-hidden">
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xl overflow-hidden flex-shrink-0">
                       {(() => {
                         const logoUrl = token.logo;
                         
@@ -935,25 +928,44 @@ export default function Dashboard() {
                         return logoUrl || token.symbol[0];
                       })()}
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <div className="font-semibold flex items-center gap-2">
-                        {token.name}
+                        <span className="truncate">{token.name}</span>
                         {isUnknownToken && (
-                          <span className="text-xs text-orange-500 bg-orange-100 px-2 py-0.5 rounded-full">
+                          <span className="text-xs text-orange-500 bg-orange-100 px-2 py-0.5 rounded-full flex-shrink-0">
                             Unknown
                           </span>
                         )}
                       </div>
-                      <div className="text-sm text-slate-400">
+                      <div className="text-sm text-slate-400 truncate">
                         {parseFloat(token.balance || '0').toFixed(4)} {token.symbol}
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-semibold">${token.balanceUSD}</div>
-                    <div className={`text-sm ${(token.change24h || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                      {(token.change24h || 0) >= 0 ? '+' : ''}{(token.change24h || 0).toFixed(2)}%
+                  
+                  <div className="flex items-center gap-2">
+                    <div className="text-right">
+                      <div className="font-semibold">${token.balanceUSD}</div>
+                      <div className={`text-sm ${(token.change24h || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {(token.change24h || 0) >= 0 ? '+' : ''}{(token.change24h || 0).toFixed(2)}%
+                      </div>
                     </div>
+                    
+                    {/* ✅ OPTIE A: Altijd zichtbare refresh button voor unknown tokens */}
+                    {isUnknownToken && (
+                      <motion.button
+                        whileTap={{ scale: 0.9 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRefreshToken(token.address);
+                        }}
+                        disabled={isRefreshing}
+                        className="ml-2 p-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-all disabled:opacity-50 flex-shrink-0"
+                        title="Refresh token metadata from Jupiter"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                      </motion.button>
+                    )}
                   </div>
                 </motion.div>
               );
@@ -1665,6 +1677,31 @@ export default function Dashboard() {
           // Keep modal open, user will use recovery phrase option in modal
         }}
       />
+      
+      {/* ✅ NEW: Token Detail Modal */}
+      {selectedToken && (
+        <TokenDetailModal
+          token={selectedToken}
+          isOpen={showTokenDetail}
+          onClose={() => {
+            setShowTokenDetail(false);
+            setSelectedToken(null);
+          }}
+          onSend={() => {
+            setShowTokenDetail(false);
+            setShowSendModal(true);
+          }}
+          onReceive={() => {
+            setShowTokenDetail(false);
+            setShowReceiveModal(true);
+          }}
+          onSwap={() => {
+            setShowTokenDetail(false);
+            setShowSwapModal(true);
+          }}
+          onRefresh={handleRefreshToken}
+        />
+      )}
       
       {/* Floating Quick Pay Button */}
       <motion.button
