@@ -1,6 +1,9 @@
 // Live crypto price service with multi-API fallback system
+import { dexScreenerService } from './dexscreener-service';
+
 export class PriceService {
   private cache: Map<string, { price: number; change24h: number; timestamp: number; source: string }> = new Map();
+  private mintCache: Map<string, { price: number; change24h: number; timestamp: number; source: string }> = new Map(); // ✅ NEW: Cache by mint address
   private cacheDuration = 10000; // ✅ 10 seconds cache (ultra-fresh, max 10s old)
   private primaryApiUrl = '/api/prices'; // CoinGecko (primary)
   private fallbackApiUrl = '/api/prices-binance'; // Binance (fallback)
@@ -102,6 +105,94 @@ export class PriceService {
     // Return from cache (now updated)
     const updated = this.cache.get(symbol);
     return updated?.change24h || 0;
+  }
+
+  /**
+   * 🔥 NEW: Get price by mint address (for SPL tokens not on CoinGecko/Binance)
+   * Uses DexScreener as primary source for DEX-traded tokens
+   */
+  async getPriceByMint(mint: string): Promise<{ price: number; change24h: number }> {
+    // Check mint cache first
+    const cached = this.mintCache.get(mint);
+    if (cached && Date.now() - cached.timestamp < this.cacheDuration) {
+      console.log(`💰 [PriceService] Mint cache hit for ${mint.substring(0, 8)}...: $${cached.price} (${cached.source})`);
+      return { price: cached.price, change24h: cached.change24h };
+    }
+
+    console.log(`🔍 [PriceService] Fetching price by mint for ${mint.substring(0, 8)}...`);
+
+    try {
+      // Try DexScreener (best for DEX-traded tokens)
+      const dexToken = await dexScreenerService.getTokenMetadata(mint);
+      
+      if (dexToken && dexToken.priceUsd && dexToken.priceUsd > 0) {
+        const price = dexToken.priceUsd;
+        const change24h = dexToken.priceChange24h || 0;
+        
+        // Update mint cache
+        this.mintCache.set(mint, {
+          price,
+          change24h,
+          timestamp: Date.now(),
+          source: 'dexscreener',
+        });
+        
+        console.log(`✅ [PriceService] DexScreener: ${mint.substring(0, 8)}... = $${price}`);
+        return { price, change24h };
+      }
+    } catch (error) {
+      console.warn(`⚠️ [PriceService] DexScreener failed for ${mint.substring(0, 8)}...:`, error instanceof Error ? error.message : 'Unknown error');
+    }
+
+    // If DexScreener fails, return cached if available
+    if (cached) {
+      console.warn(`⚠️ [PriceService] Using stale mint cache for ${mint.substring(0, 8)}...: $${cached.price}`);
+      return { price: cached.price, change24h: cached.change24h };
+    }
+
+    console.error(`❌ [PriceService] Failed to get price by mint for ${mint.substring(0, 8)}...`);
+    return { price: 0, change24h: 0 };
+  }
+
+  /**
+   * 🔥 NEW: Get prices for multiple SPL tokens by mint address
+   * Optimized batch method with rate limiting for DexScreener
+   */
+  async getPricesByMints(mints: string[]): Promise<Map<string, { price: number; change24h: number }>> {
+    console.log(`🔍 [PriceService] Fetching prices for ${mints.length} mints...`);
+    
+    const result = new Map<string, { price: number; change24h: number }>();
+    const now = Date.now();
+    const uncachedMints: string[] = [];
+
+    // Check cache first
+    mints.forEach(mint => {
+      const cached = this.mintCache.get(mint);
+      if (cached && now - cached.timestamp < this.cacheDuration) {
+        result.set(mint, { price: cached.price, change24h: cached.change24h });
+      } else {
+        uncachedMints.push(mint);
+      }
+    });
+
+    console.log(`💾 [PriceService] Mint cache hits: ${result.size}/${mints.length}`);
+
+    if (uncachedMints.length === 0) {
+      return result;
+    }
+
+    // Fetch uncached mints from DexScreener (sequential with rate limiting)
+    for (const mint of uncachedMints) {
+      const priceData = await this.getPriceByMint(mint);
+      result.set(mint, priceData);
+      
+      // Small delay to respect DexScreener rate limits (250ms = 240 req/min, well under 300 limit)
+      if (uncachedMints.indexOf(mint) < uncachedMints.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 250));
+      }
+    }
+
+    return result;
   }
 
   /**
@@ -276,6 +367,7 @@ export class PriceService {
   clearCache() {
     console.log('🗑️ [PriceService] Clearing cache (manual refresh)');
     this.cache.clear();
+    this.mintCache.clear(); // ✅ NEW: Also clear mint cache
   }
 }
 

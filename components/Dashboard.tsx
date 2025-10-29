@@ -286,13 +286,33 @@ export default function Dashboard() {
         console.log(`[${timestamp}] 📊 SPL Tokens:`, splTokens);
         
         if (splTokens.length > 0) {
-          // ✅ STEP 4: Fetch prices for SPL tokens
+          // ✅ STEP 4: Fetch prices for SPL tokens (using mint addresses for DexScreener!)
           console.log(`\n--- STEP 4: Fetch SPL Token Prices ---`);
+          
+          // Try symbol-based pricing first (CoinGecko/Binance) for popular tokens
           const splSymbols = splTokens.map((t: any) => t.symbol);
           console.log(`[${timestamp}] 📡 Fetching prices for SPL tokens: ${splSymbols.join(', ')}`);
           
           const splPricesMap = await priceService.getMultiplePrices(splSymbols);
           console.log(`[${timestamp}] 💰 SPL prices received:`, splPricesMap);
+          
+          // For tokens without a symbol price, try mint-based pricing (DexScreener)
+          const tokensNeedingMintPrice = splTokens.filter((t: any) => !splPricesMap[t.symbol] || splPricesMap[t.symbol] === 0);
+          
+          if (tokensNeedingMintPrice.length > 0) {
+            console.log(`[${timestamp}] 🔍 Fetching DexScreener prices for ${tokensNeedingMintPrice.length} tokens without CoinGecko/Binance prices...`);
+            const mints = tokensNeedingMintPrice.map((t: any) => t.address);
+            const mintPrices = await priceService.getPricesByMints(mints);
+            
+            // Merge mint prices into splPricesMap
+            tokensNeedingMintPrice.forEach((token: any) => {
+              const mintPrice = mintPrices.get(token.address);
+              if (mintPrice && mintPrice.price > 0) {
+                splPricesMap[token.symbol] = mintPrice.price;
+                console.log(`[${timestamp}] 💰 DexScreener: ${token.symbol} = $${mintPrice.price}`);
+              }
+            });
+          }
           
           // Combine SPL tokens with prices
           tokensWithValue = await Promise.all(
@@ -300,12 +320,29 @@ export default function Dashboard() {
               const price = splPricesMap[token.symbol] || 0;
               const balanceNum = parseFloat(token.balance || '0');
               const balanceUSD = balanceNum * price;
-              const change24h = await priceService.get24hChange(token.symbol);
+              
+              // Get 24h change (try mint-based if symbol fails)
+              let change24h = 0;
+              if (price > 0) {
+                try {
+                  // Try symbol first
+                  change24h = await priceService.get24hChange(token.symbol);
+                  
+                  // If symbol failed, try mint
+                  if (change24h === 0) {
+                    const mintPrice = await priceService.getPriceByMint(token.address);
+                    change24h = mintPrice.change24h;
+                  }
+                } catch (error) {
+                  console.warn(`Failed to get 24h change for ${token.symbol}:`, error);
+                }
+              }
               
               console.log(`[${timestamp}] 💰 ${token.symbol}:`, {
                 balance: token.balance,
                 price: price,
                 balanceUSD: balanceUSD.toFixed(2),
+                change24h: change24h,
                 logo: token.logo
               });
               
