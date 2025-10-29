@@ -25,7 +25,7 @@ const ALCHEMY_RPCS: Record<string, string> = {
 
 // Fallback public RPC URLs (if Alchemy fails)
 const FALLBACK_RPCS: Record<string, string> = {
-  ethereum: 'https://eth.llamarpc.com',
+  ethereum: 'https://rpc.ankr.com/eth', // ✅ Try Ankr instead of LlamaRPC
   polygon: 'https://polygon-rpc.com',
   arbitrum: 'https://arb1.arbitrum.io/rpc',
   base: 'https://mainnet.base.org',

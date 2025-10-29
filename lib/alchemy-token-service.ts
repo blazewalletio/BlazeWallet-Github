@@ -204,10 +204,11 @@ class AlchemyTokenService {
           params: [{
             fromBlock: '0x' + fromBlock.toString(16),
             toBlock: 'latest',
+            address: null, // Any contract
             topics: [
               transferTopic, // Transfer event (indexed)
-              null, // from (indexed, any address - null is valid in eth_getLogs)
-              paddedAddress // to (indexed, our address, lowercase and padded to 32 bytes)
+              null, // from (indexed, any address)
+              paddedAddress // to (indexed, our address)
             ]
           }],
         }),
