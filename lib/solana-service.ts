@@ -19,6 +19,9 @@ import { getSPLTokenMetadata, SPLTokenMetadata } from './spl-token-metadata';
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 const TOKEN_2022_PROGRAM_ID = new PublicKey('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
 
+// 🛡️ WRAPPED SOL MINT ADDRESS - Exclude from SPL tokens to prevent double-counting!
+const WRAPPED_SOL_MINT = 'So11111111111111111111111111111111111111112';
+
 export class SolanaService {
   private connection: Connection;
   private rpcUrl: string;
@@ -60,7 +63,8 @@ export class SolanaService {
   }
 
   /**
-   * Get SOL balance for an address
+   * Get SOL balance for an address (including wrapped SOL!)
+   * ✅ FIX: Returns total SOL = native SOL + wrapped SOL to prevent double-counting
    */
   async getBalance(address: string): Promise<string> {
     try {
@@ -70,14 +74,41 @@ export class SolanaService {
       const publicKey = new PublicKey(address);
       console.log('🔍 [SolanaService] PublicKey created:', publicKey.toBase58());
       
-      const balance = await this.connection.getBalance(publicKey);
-      console.log('🔍 [SolanaService] Raw balance (lamports):', balance);
+      // Get native SOL balance
+      const nativeBalance = await this.connection.getBalance(publicKey);
+      console.log('🔍 [SolanaService] Raw native balance (lamports):', nativeBalance);
       
-      // Convert lamports to SOL
-      const solBalance = (balance / LAMPORTS_PER_SOL).toString();
-      console.log('✅ [SolanaService] Balance in SOL:', solBalance);
+      const nativeSol = nativeBalance / LAMPORTS_PER_SOL;
+      console.log('✅ [SolanaService] Native SOL balance:', nativeSol);
       
-      return solBalance;
+      // 🛡️ ALSO get wrapped SOL balance to include in total
+      let wrappedSol = 0;
+      try {
+        const tokenAccounts = await this.connection.getParsedTokenAccountsByOwner(
+          publicKey,
+          { programId: TOKEN_PROGRAM_ID }
+        );
+        
+        // Find wrapped SOL account
+        const wrappedSolAccount = tokenAccounts.value.find(account => {
+          const info = account.account.data as ParsedAccountData;
+          return info.parsed?.info?.mint === WRAPPED_SOL_MINT;
+        });
+        
+        if (wrappedSolAccount) {
+          const info = wrappedSolAccount.account.data as ParsedAccountData;
+          wrappedSol = parseFloat(info.parsed?.info?.tokenAmount?.uiAmountString || '0');
+          console.log(`🛡️ [SolanaService] Found wrapped SOL: ${wrappedSol}`);
+        }
+      } catch (error) {
+        console.warn('⚠️ [SolanaService] Failed to fetch wrapped SOL, using native only:', error);
+      }
+      
+      // Total SOL = native + wrapped
+      const totalSol = nativeSol + wrappedSol;
+      console.log(`✅ [SolanaService] Total SOL balance: ${nativeSol} native + ${wrappedSol} wrapped = ${totalSol}`);
+      
+      return totalSol.toString();
     } catch (error) {
       console.error('❌ [SolanaService] Error fetching Solana balance:', error);
       console.error('❌ [SolanaService] Error details:', {
@@ -454,7 +485,24 @@ export class SolanaService {
 
       console.log(`🪙 [SolanaService] ${nonZeroAccounts.length} tokens with non-zero balance`);
       
-      return nonZeroAccounts.map(account => {
+      // 🛡️ FILTER OUT WRAPPED SOL to prevent double-counting!
+      // Wrapped SOL should be counted as native SOL, not as SPL token
+      const filteredAccounts = nonZeroAccounts.filter(account => {
+        const info = account.account.data as ParsedAccountData;
+        const mint = info.parsed?.info?.mint;
+        
+        if (mint === WRAPPED_SOL_MINT) {
+          const wsolBalance = info.parsed?.info?.tokenAmount?.uiAmountString;
+          console.log(`🛡️ [SolanaService] FILTERED OUT Wrapped SOL (${wsolBalance}) to prevent double-counting`);
+          return false; // Exclude wrapped SOL
+        }
+        
+        return true;
+      });
+      
+      console.log(`🪙 [SolanaService] ${filteredAccounts.length} tokens after filtering wrapped SOL`);
+      
+      return filteredAccounts.map(account => {
         const info = account.account.data as ParsedAccountData;
         return {
           mint: info.parsed?.info?.mint,
