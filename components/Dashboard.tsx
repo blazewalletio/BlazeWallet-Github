@@ -162,12 +162,24 @@ export default function Dashboard() {
     }
   }, []);
 
-  // ✅ FIX: Reset native price when chain changes to prevent wrong cached calculations
+  // ✅ FIX: Reset state + clear cache when chain changes to prevent wrong calculations
   useEffect(() => {
-    console.log(`🔄 [Dashboard] Chain changed to ${currentChain}, resetting native price`);
-    setNativePriceUSD(0); // Reset to 0 so cache will fetch fresh price
+    console.log(`🔄 [Dashboard] Chain changed to ${currentChain}, clearing state and cache`);
+    
+    // Reset state
+    setNativePriceUSD(0);
     setLastPriceUpdate(null);
-  }, [currentChain]);
+    setTotalValueUSD(0);
+    updateTokens([]);
+    
+    // Clear cache for ALL chains to prevent cross-chain contamination
+    tokenBalanceCache.clear();
+    
+    // Trigger fresh fetch for new chain
+    if (displayAddress) {
+      fetchData(true); // Force fresh fetch
+    }
+  }, [currentChain, displayAddress]);
 
   const chain = CHAINS[currentChain];
   const blockchain = MultiChainService.getInstance(currentChain); // ✅ Use singleton (prevents re-initialization)
@@ -182,7 +194,8 @@ export default function Dashboard() {
     if (isRefreshing) return;
     
     const timestamp = Date.now();
-    console.log(`\n========== FETCH DATA START [${timestamp}] ==========`);
+    const fetchChain = currentChain; // ✅ CAPTURE current chain to detect race conditions
+    console.log(`\n========== FETCH DATA START [${timestamp}] for ${fetchChain} ==========`);
     
     // ✅ STALE-WHILE-REVALIDATE: Check cache first
     const { tokens: cachedTokens, nativeBalance: cachedBalance, isStale } = 
@@ -248,6 +261,13 @@ export default function Dashboard() {
       // ✅ STEP 1: Fetch native balance
       console.log(`\n--- STEP 1: Fetch Native Balance ---`);
       const bal = await blockchain.getBalance(displayAddress);
+      
+      // ✅ RACE CONDITION CHECK: Abort if chain changed during fetch
+      if (fetchChain !== currentChain) {
+        console.warn(`⚠️ Chain changed from ${fetchChain} to ${currentChain}, aborting stale fetch`);
+        return;
+      }
+      
       console.log(`[${timestamp}] ✅ Balance received: ${bal} ${chain.nativeCurrency.symbol}`);
       updateBalance(bal);
 
@@ -263,6 +283,13 @@ export default function Dashboard() {
       
       console.log(`[${timestamp}] 📡 Fetching prices for: ${allSymbols.join(', ')}`);
       const pricesMap = await priceService.getMultiplePrices(allSymbols);
+      
+      // ✅ RACE CONDITION CHECK: Abort if chain changed during fetch
+      if (fetchChain !== currentChain) {
+        console.warn(`⚠️ Chain changed from ${fetchChain} to ${currentChain}, aborting stale fetch`);
+        return;
+      }
+      
       console.log(`[${timestamp}] 💰 Prices received:`, pricesMap);
       
       // Extract native price
@@ -289,6 +316,12 @@ export default function Dashboard() {
         const solanaService = blockchain as any; // Access Solana-specific methods
         const splTokens = await solanaService.getSPLTokenBalances(displayAddress);
         
+        // ✅ RACE CONDITION CHECK: Abort if chain changed during fetch
+        if (fetchChain !== currentChain) {
+          console.warn(`⚠️ Chain changed from ${fetchChain} to ${currentChain}, aborting stale fetch`);
+          return;
+        }
+        
         console.log(`[${timestamp}] ✅ Found ${splTokens.length} SPL tokens with balance`);
         console.log(`[${timestamp}] 📊 SPL Tokens:`, splTokens);
         
@@ -301,6 +334,13 @@ export default function Dashboard() {
           console.log(`[${timestamp}] 📡 Fetching prices for SPL tokens: ${splSymbols.join(', ')}`);
           
           const splPricesMap = await priceService.getMultiplePrices(splSymbols);
+          
+          // ✅ RACE CONDITION CHECK: Abort if chain changed during fetch
+          if (fetchChain !== currentChain) {
+            console.warn(`⚠️ Chain changed from ${fetchChain} to ${currentChain}, aborting stale fetch`);
+            return;
+          }
+          
           console.log(`[${timestamp}] 💰 SPL prices received:`, splPricesMap);
           
           // For tokens without a symbol price, try mint-based pricing (DexScreener)
@@ -310,6 +350,12 @@ export default function Dashboard() {
             console.log(`[${timestamp}] 🔍 Fetching DexScreener prices for ${tokensNeedingMintPrice.length} tokens without CoinGecko/Binance prices...`);
             const mints = tokensNeedingMintPrice.map((t: any) => t.address);
             const mintPrices = await priceService.getPricesByMints(mints);
+            
+            // ✅ RACE CONDITION CHECK: Abort if chain changed during fetch
+            if (fetchChain !== currentChain) {
+              console.warn(`⚠️ Chain changed from ${fetchChain} to ${currentChain}, aborting stale fetch`);
+              return;
+            }
             
             // Merge mint prices into splPricesMap
             tokensNeedingMintPrice.forEach((token: any) => {
@@ -376,6 +422,12 @@ export default function Dashboard() {
           console.log(`[${timestamp}] 🔮 Attempting to fetch ALL ERC20 tokens via Alchemy...`);
           erc20Tokens = await blockchain.getERC20TokenBalances(displayAddress);
           
+          // ✅ RACE CONDITION CHECK: Abort if chain changed during fetch
+          if (fetchChain !== currentChain) {
+            console.warn(`⚠️ Chain changed from ${fetchChain} to ${currentChain}, aborting stale fetch`);
+            return;
+          }
+          
           if (erc20Tokens.length > 0) {
             console.log(`[${timestamp}] ✅ Alchemy found ${erc20Tokens.length} ERC20 tokens with balance`);
           } else {
@@ -394,6 +446,12 @@ export default function Dashboard() {
             displayAddress
           );
           
+          // ✅ RACE CONDITION CHECK: Abort if chain changed during fetch
+          if (fetchChain !== currentChain) {
+            console.warn(`⚠️ Chain changed from ${fetchChain} to ${currentChain}, aborting stale fetch`);
+            return;
+          }
+          
           erc20Tokens = tokensWithBalance.filter(t => parseFloat(t.balance || '0') > 0);
           console.log(`[${timestamp}] ✅ Token balances received:`, erc20Tokens.map(t => `${t.symbol}: ${t.balance}`));
         }
@@ -408,6 +466,13 @@ export default function Dashboard() {
           
           // Use new address-based price lookup (hybrid: CoinGecko + DexScreener)
           const pricesByAddress = await priceService.getPricesByAddresses(tokenAddresses, currentChain);
+          
+          // ✅ RACE CONDITION CHECK: Abort if chain changed during fetch
+          if (fetchChain !== currentChain) {
+            console.warn(`⚠️ Chain changed from ${fetchChain} to ${currentChain}, aborting stale fetch`);
+            return;
+          }
+          
           console.log(`[${timestamp}] 💰 Received prices for ${pricesByAddress.size}/${tokenAddresses.length} tokens`);
           
           // Combine tokens with prices
@@ -444,6 +509,12 @@ export default function Dashboard() {
 
       // ✅ STEP 5: Update tokens and calculate total portfolio value
       console.log(`\n--- STEP 5: Calculate Total Portfolio Value ---`);
+      
+      // ✅ FINAL RACE CONDITION CHECK: Abort if chain changed before updating state
+      if (fetchChain !== currentChain) {
+        console.warn(`⚠️ Chain changed from ${fetchChain} to ${currentChain}, aborting state update`);
+        return;
+      }
       
       if (tokensWithValue.length > 0) {
         updateTokens(tokensWithValue);
