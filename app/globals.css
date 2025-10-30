@@ -46,6 +46,16 @@
     @apply bg-gray-400;
   }
 
+  /* Hide scrollbar utility */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+
   /* Smooth transitions */
   * {
     @apply transition-colors duration-150;
@@ -245,15 +255,4 @@
   will-change: transform;
 }
 
-/* ✅ UTILITY: Hide scrollbar but keep scroll functionality */
-@layer utilities {
-  .scrollbar-hide {
-    -ms-overflow-style: none; /* IE and Edge */
-    scrollbar-width: none; /* Firefox */
-  }
-  
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none; /* Chrome, Safari, Opera */
-  }
-}
 
