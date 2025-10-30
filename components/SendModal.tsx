@@ -298,8 +298,8 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
           userMessage = 'Transaction conflict detected. Please try again.';
         } else if (msg.includes('replacement transaction underpriced')) {
           userMessage = 'Transaction pending. Please wait before sending another.';
-        } else if (msg.includes('failed to send tx') || msg.includes('unknown error')) {
-          userMessage = 'Network error. Please check your connection and try again.';
+        } else if (msg.includes('no response') || msg.includes('failed to send tx') || msg.includes('unknown error')) {
+          userMessage = 'Network error. RPC temporarily unavailable. Please try again in a moment.';
         } else if (msg.includes('invalid address')) {
           userMessage = 'Invalid recipient address';
         } else if (msg.includes('execution reverted')) {

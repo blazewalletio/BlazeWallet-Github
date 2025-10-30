@@ -5,7 +5,7 @@ export const CHAINS: Record<string, Chain> = {
     id: 1,
     name: 'Ethereum',
     shortName: 'ETH',
-    rpcUrl: 'https://eth.llamarpc.com',
+    rpcUrl: 'https://eth-mainnet.g.alchemy.com/v2/V9A0m8eB58qyWJpajjs6Y',
     explorerUrl: 'https://etherscan.io',
     nativeCurrency: {
       name: 'Ethereum',
