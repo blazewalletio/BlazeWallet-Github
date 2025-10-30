@@ -369,6 +369,18 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
       setStep('success');
       setShowSuccessParticles(true);
       
+      // ✅ CRITICAL: Invalidate cache after successful transaction!
+      // This ensures balance updates immediately on next view
+      console.log('🗑️ [SendModal] Clearing cache after successful transaction');
+      const { tokenBalanceCache } = await import('@/lib/token-balance-cache');
+      const currentAddress = selectedChain === 'solana' 
+        ? useWalletStore.getState().solanaAddress 
+        : useWalletStore.getState().address;
+      
+      if (currentAddress) {
+        await tokenBalanceCache.clear(selectedChain, currentAddress);
+      }
+      
       if (typeof tx !== 'string' && tx.wait) {
         await tx.wait();
       }

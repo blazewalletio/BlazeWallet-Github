@@ -266,13 +266,30 @@ export default function Dashboard() {
     
     loadCachedData();
     
-    // 4. Start fresh fetch voor nieuwe chain (slight delay for state stabilization)
+    // 4. Start fresh fetch voor nieuwe chain (always fetch to get latest balance!)
     const fetchTimer = setTimeout(() => {
-      fetchData(false); // Background refresh
+      fetchData(false); // Always fetch fresh data on chain switch
     }, 100);
     
     return () => {
       clearTimeout(fetchTimer);
+    };
+  }, [currentChain, displayAddress]);
+
+  // ✅ Auto-refresh on visibility change (user returns to tab after transaction)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && displayAddress) {
+        console.log('👁️ [Dashboard] Tab became visible - checking for fresh data');
+        // Force a fresh fetch when user returns to tab
+        fetchData(false);
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [currentChain, displayAddress]);
 
@@ -322,7 +339,7 @@ export default function Dashboard() {
     });
     
     // ✅ STALE-WHILE-REVALIDATE: Check cache first
-    const { tokens: cachedTokens, nativeBalance: cachedBalance, nativePrice: cachedNativePrice, nativeValueUSD: cachedNativeValueUSD, isStale } = 
+    const { tokens: cachedTokens, nativeBalance: cachedBalance, nativePrice: cachedNativePrice, nativeValueUSD: cachedNativeValueUSD, timestamp: cacheTimestamp, isStale } = 
       await tokenBalanceCache.getStale(currentChain, displayAddress);
     
     if (cachedTokens && cachedBalance) {
@@ -355,16 +372,19 @@ export default function Dashboard() {
       
       console.log(`💰 Cached total: Native $${cachedNativeValueUSD.toFixed(2)} + Tokens $${cachedTokensTotal.toFixed(2)} = $${cachedTotal.toFixed(2)}`);
       
-      // If data is fresh and not forced refresh, we're done!
-      if (!isStale && !force) {
+      // ✅ IMPROVED: Only skip fresh fetch if NOT forced AND cache is very fresh (< 2 min for native balance)
+      const cacheAge = cacheTimestamp > 0 ? Date.now() - cacheTimestamp : Infinity;
+      const isCacheVeryFresh = cacheAge < 2 * 60 * 1000; // 2 minutes
+      
+      if (!isStale && !force && isCacheVeryFresh) {
         console.log('✅ Using fresh cached data, skipping fetch');
         updateCurrentChainState({ isRefreshing: false, activeFetchId: null });
         activeFetchControllers.current.delete(currentChain);
         return;
       }
       
-      // ✅ If stale or forced, continue to refresh in background
-      console.log('🔄 Refreshing data in background...');
+      // ✅ If stale, old (>2 min), or forced, continue to refresh
+      console.log(`🔄 Refreshing data in background... (age: ${Math.round(cacheAge / 1000)}s, forced: ${force})`);
     }
     
     // ✅ If manual refresh, clear price cache for ultra-fresh data

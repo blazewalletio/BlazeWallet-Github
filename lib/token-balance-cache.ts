@@ -78,6 +78,7 @@ class TokenBalanceCache {
     nativeBalance: string | null;
     nativePrice: number;
     nativeValueUSD: number;
+    timestamp: number; // ✅ Return timestamp for age checks
     isStale: boolean 
   }> {
     if (this.initPromise) {
@@ -144,7 +145,24 @@ class TokenBalanceCache {
     this.memoryCache.set(key, cached);
   }
 
-  async clear(): Promise<void> {
+  async clear(chain?: string, address?: string): Promise<void> {
+    // If chain and address provided, clear specific entry
+    if (chain && address) {
+      const key = `${chain}:${address}`;
+      this.memoryCache.delete(key);
+      
+      if (this.db) {
+        try {
+          await this.deleteFromDB(key);
+          console.log(`✅ Cleared token balance cache for ${chain}:${address}`);
+        } catch (error) {
+          console.error('Failed to clear specific token cache:', error);
+        }
+      }
+      return;
+    }
+    
+    // Otherwise clear all
     this.memoryCache.clear();
 
     if (this.db) {
@@ -157,7 +175,7 @@ class TokenBalanceCache {
           request.onsuccess = () => resolve();
           request.onerror = () => reject(request.error);
         });
-        console.log('✅ Cleared token balance cache');
+        console.log('✅ Cleared all token balance cache');
       } catch (error) {
         console.error('Failed to clear token cache:', error);
       }
@@ -210,6 +228,7 @@ class TokenBalanceCache {
     nativeBalance: string | null;
     nativePrice: number;
     nativeValueUSD: number;
+    timestamp: number;
     isStale: boolean 
   }> {
     return new Promise((resolve, reject) => {
@@ -221,14 +240,14 @@ class TokenBalanceCache {
         const cached = request.result as CachedTokenData | undefined;
         
         if (!cached) {
-          resolve({ tokens: null, nativeBalance: null, nativePrice: 0, nativeValueUSD: 0, isStale: false });
+          resolve({ tokens: null, nativeBalance: null, nativePrice: 0, nativeValueUSD: 0, timestamp: 0, isStale: false });
           return;
         }
 
         // Check version
         if (cached.version !== CACHE_VERSION) {
           this.deleteFromDB(key);
-          resolve({ tokens: null, nativeBalance: null, nativePrice: 0, nativeValueUSD: 0, isStale: false });
+          resolve({ tokens: null, nativeBalance: null, nativePrice: 0, nativeValueUSD: 0, timestamp: 0, isStale: false });
           return;
         }
 
@@ -243,6 +262,7 @@ class TokenBalanceCache {
           nativeBalance: cached.nativeBalance,
           nativePrice: cached.nativePrice,
           nativeValueUSD,
+          timestamp: cached.timestamp,
           isStale: isExpired 
         });
       };
@@ -280,18 +300,19 @@ class TokenBalanceCache {
     nativeBalance: string | null;
     nativePrice: number;
     nativeValueUSD: number;
+    timestamp: number;
     isStale: boolean 
   } {
     const cached = this.memoryCache.get(key);
     
     if (!cached) {
-      return { tokens: null, nativeBalance: null, nativePrice: 0, nativeValueUSD: 0, isStale: false };
+      return { tokens: null, nativeBalance: null, nativePrice: 0, nativeValueUSD: 0, timestamp: 0, isStale: false };
     }
 
     // Check version
     if (cached.version !== CACHE_VERSION) {
       this.memoryCache.delete(key);
-      return { tokens: null, nativeBalance: null, nativePrice: 0, nativeValueUSD: 0, isStale: false };
+      return { tokens: null, nativeBalance: null, nativePrice: 0, nativeValueUSD: 0, timestamp: 0, isStale: false };
     }
 
     const now = Date.now();
@@ -305,6 +326,7 @@ class TokenBalanceCache {
       nativeBalance: cached.nativeBalance,
       nativePrice: cached.nativePrice,
       nativeValueUSD,
+      timestamp: cached.timestamp,
       isStale: isExpired 
     };
   }
