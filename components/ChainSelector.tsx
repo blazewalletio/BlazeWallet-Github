@@ -123,9 +123,9 @@ export default function ChainSelector({ isOpen, onClose }: ChainSelectorProps) {
               touchAction: 'none' // ✅ Prevent iOS Safari scroll issues
             }}
           >
-            <div className="glass-card rounded-t-3xl flex flex-col" style={{ maxHeight: '85vh' }}>
+            <div className="glass-card rounded-t-3xl flex flex-col w-full" style={{ maxHeight: '85vh' }}>
               {/* Header - Fixed at top */}
-              <div className="flex-shrink-0 flex justify-between items-center p-6 pb-4 border-b border-theme-border/10">
+              <div className="flex-shrink-0 flex justify-between items-center px-6 py-4 border-b border-theme-border/10">
                 <h2 className="text-2xl font-bold">Select network</h2>
                 <motion.button
                   whileTap={{ scale: 0.9 }}
@@ -138,13 +138,13 @@ export default function ChainSelector({ isOpen, onClose }: ChainSelectorProps) {
 
               {/* Chain List - Scrollable with proper iOS handling */}
               <div 
-                className="modal-scroll-container flex-1 overflow-y-auto scrollbar-hide px-6 py-4"
+                className="modal-scroll-container flex-1 overflow-y-auto scrollbar-hide"
                 style={{ 
                   WebkitOverflowScrolling: 'touch', // ✅ Smooth scroll on iOS
                   overscrollBehavior: 'contain' // ✅ Prevent scroll chaining
                 }}
               >
-                <div className="space-y-3">
+                <div className="px-6 py-4 space-y-3">
                   {chains.map(([key, chain]) => {
                     const isSelected = currentChain === key;
                     const isL2 = l2Chains.includes(key);
@@ -221,8 +221,8 @@ export default function ChainSelector({ isOpen, onClose }: ChainSelectorProps) {
               </div>
 
               {/* Bottom Tip - Fixed at bottom */}
-              <div className="flex-shrink-0 p-6 pt-4">
-                <div className="glass-card bg-theme-primary/10 border-theme-border/20">
+              <div className="flex-shrink-0 px-6 pb-6 pt-3">
+                <div className="glass-card bg-theme-primary/10 border-theme-border/20 p-4">
                   <p className="text-theme-primary text-sm">
                     💡 Use Polygon or Base for low-fee transactions
                   </p>
