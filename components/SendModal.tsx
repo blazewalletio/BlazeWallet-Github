@@ -72,15 +72,27 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
   const fetchAssetsForChain = async (chain: string) => {
     setIsLoadingAssets(true);
     try {
-      const displayAddress = getCurrentAddress();
+      // ✅ Get address for the SELECTED chain, not current chain
+      const { getChainTokens } = useWalletStore.getState();
+      const chainConfig = CHAINS[chain];
+      const chainService = MultiChainService.getInstance(chain);
+      
+      let displayAddress: string;
+      if (chain === 'solana') {
+        const { solanaAddress } = useWalletStore.getState();
+        displayAddress = solanaAddress || '';
+      } else {
+        const { address } = useWalletStore.getState();
+        displayAddress = address || '';
+      }
+
       if (!displayAddress) {
-        console.error('❌ No wallet address available');
+        console.error('❌ No wallet address available for', chain);
         setIsLoadingAssets(false);
         return;
       }
 
-      const chainConfig = CHAINS[chain];
-      const chainService = MultiChainService.getInstance(chain); // ✅ Use singleton
+      console.log(`🔍 [SendModal] Fetching assets for ${chain} (address: ${displayAddress})`);
       
       const nativeBalance = await chainService.getBalance(displayAddress);
       const nativeSymbol = chainConfig.nativeCurrency.symbol;
@@ -100,6 +112,7 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
         }
       ];
 
+      // ✅ Fetch tokens for Solana
       if (chain === 'solana') {
         const solanaService = chainService as any;
         if (solanaService.getSPLTokenBalances) {
@@ -122,6 +135,31 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
               valueUSD: balance * price,
             });
           });
+        }
+      } 
+      // ✅ Fetch ERC20 tokens for EVM chains from wallet store
+      else {
+        const chainTokens = getChainTokens(chain);
+        console.log(`🪙 [SendModal] Found ${chainTokens.length} cached tokens for ${chain}`);
+        
+        for (const token of chainTokens) {
+          // Skip native currency (already added)
+          if (!token.address) continue;
+          
+          const balance = parseFloat(token.balance || '0');
+          if (balance > 0) {
+            assets.push({
+              symbol: token.symbol,
+              name: token.name,
+              balance: token.balance || '0',
+              decimals: token.decimals,
+              logo: token.logo,
+              address: token.address,
+              isNative: false,
+              priceUSD: token.priceUSD || 0,
+              valueUSD: parseFloat(token.balanceUSD || '0'),
+            });
+          }
         }
       }
 
