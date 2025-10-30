@@ -163,7 +163,7 @@ export default function Dashboard() {
   }, []);
 
   const chain = CHAINS[currentChain];
-  const blockchain = new MultiChainService(currentChain); // ✅ Use MultiChainService
+  const blockchain = MultiChainService.getInstance(currentChain); // ✅ Use singleton (prevents re-initialization)
   const tokenService = new TokenService(chain.rpcUrl);
   const priceService = new PriceService();
   const portfolioHistory = getPortfolioHistory();

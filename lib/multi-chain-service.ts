@@ -7,7 +7,7 @@ import { CHAINS } from './chains';
 /**
  * Unified Multi-Chain Service
  * Automatically routes to the correct blockchain service based on chain type
- * ✅ NEW: Includes Alchemy for enhanced ERC20 token support
+ * ✅ Singleton pattern met cache per chain (voorkomt excessive re-initialization)
  */
 export class MultiChainService {
   private chainKey: string;
@@ -15,7 +15,7 @@ export class MultiChainService {
   private solanaService: SolanaService | null = null;
   private alchemyService: AlchemyService | null = null;
 
-  constructor(chainKey: string = 'ethereum') {
+  private constructor(chainKey: string = 'ethereum') {
     this.chainKey = chainKey;
     
     if (this.isSolana()) {
@@ -24,16 +24,41 @@ export class MultiChainService {
     } else {
       this.evmService = new BlockchainService(chainKey);
       
-      // ✅ NEW: Initialize Alchemy if supported
+      // ✅ Initialize Alchemy if supported (silent logs)
       if (AlchemyService.isSupported(chainKey)) {
         try {
           this.alchemyService = new AlchemyService(chainKey);
-          console.log(`✅ [MultiChainService] Alchemy enabled for ${chainKey}`);
+          // Only log once during initialization
+          if (!MultiChainService.instances.has(chainKey)) {
+            console.log(`✅ [MultiChainService] Alchemy enabled for ${chainKey}`);
+          }
         } catch (error) {
           console.warn(`⚠️ [MultiChainService] Alchemy initialization failed for ${chainKey}, using fallback`);
         }
       }
     }
+  }
+
+  // ✅ Singleton cache: één instance per chain
+  private static instances = new Map<string, MultiChainService>();
+
+  /**
+   * Get or create MultiChainService instance for a specific chain
+   * This prevents creating multiple instances for the same chain
+   */
+  static getInstance(chainKey: string = 'ethereum'): MultiChainService {
+    if (!this.instances.has(chainKey)) {
+      this.instances.set(chainKey, new MultiChainService(chainKey));
+    }
+    return this.instances.get(chainKey)!;
+  }
+
+  /**
+   * Clear cache (for testing or chain updates)
+   */
+  static clearCache() {
+    this.instances.clear();
+    console.log('🧹 [MultiChainService] Cache cleared');
   }
 
   private isSolana(): boolean {

@@ -49,7 +49,8 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
   const [txHash, setTxHash] = useState('');
   const [showSuccessParticles, setShowSuccessParticles] = useState(false);
 
-  const blockchain = new MultiChainService(selectedChain);
+  // ✅ Use singleton instance (prevents re-initialization)
+  const blockchain = MultiChainService.getInstance(selectedChain);
 
   useBlockBodyScroll(isOpen);
 
@@ -79,7 +80,7 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
       }
 
       const chainConfig = CHAINS[chain];
-      const chainService = new MultiChainService(chain);
+      const chainService = MultiChainService.getInstance(chain); // ✅ Use singleton
       
       const nativeBalance = await chainService.getBalance(displayAddress);
       const nativeSymbol = chainConfig.nativeCurrency.symbol;

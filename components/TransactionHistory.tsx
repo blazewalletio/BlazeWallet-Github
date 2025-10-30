@@ -73,7 +73,7 @@ export default function TransactionHistory() {
     try {
       // Load from API with rate limiting
       const txs = await apiQueue.add(async () => {
-        const blockchain = new MultiChainService(currentChain);
+        const blockchain = MultiChainService.getInstance(currentChain); // ✅ Use singleton
         return await blockchain.getTransactionHistory(displayAddress, 10);
       });
 

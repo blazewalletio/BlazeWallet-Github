@@ -25,10 +25,12 @@ interface EnrichedToken {
 /**
  * Alchemy Service for ERC20 token detection and enhanced transaction history
  * Provides automatic token discovery, metadata, and comprehensive transaction tracking
+ * ✅ Singleton pattern: wordt maar 1x per chain geïnitialiseerd
  */
 export class AlchemyService {
   private alchemy: Alchemy;
   private chainKey: string;
+  private static initialized = new Set<string>(); // Track which chains are initialized
 
   constructor(chainKey: string = 'ethereum') {
     this.chainKey = chainKey;
@@ -43,7 +45,11 @@ export class AlchemyService {
       network,
     });
 
-    console.log(`🔮 [AlchemyService] Initialized for ${chainKey} (${network})`);
+    // Only log once per chain (prevent console spam)
+    if (!AlchemyService.initialized.has(chainKey)) {
+      console.log(`🔮 [AlchemyService] Initialized for ${chainKey} (${network})`);
+      AlchemyService.initialized.add(chainKey);
+    }
   }
 
   /**
