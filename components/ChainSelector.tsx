@@ -123,9 +123,9 @@ export default function ChainSelector({ isOpen, onClose }: ChainSelectorProps) {
               touchAction: 'none' // ✅ Prevent iOS Safari scroll issues
             }}
           >
-            <div className="glass-card rounded-t-3xl flex flex-col w-full" style={{ maxHeight: '85vh' }}>
+            <div className="glass-card rounded-t-3xl flex flex-col" style={{ maxHeight: '85vh' }}>
               {/* Header - Fixed at top */}
-              <div className="flex-shrink-0 flex justify-between items-center px-6 py-4 border-b border-theme-border/10">
+              <div className="flex-shrink-0 flex justify-between items-center px-6 pt-6 pb-4 border-b border-theme-border/10">
                 <h2 className="text-2xl font-bold">Select network</h2>
                 <motion.button
                   whileTap={{ scale: 0.9 }}
@@ -222,7 +222,7 @@ export default function ChainSelector({ isOpen, onClose }: ChainSelectorProps) {
 
               {/* Bottom Tip - Fixed at bottom */}
               <div className="flex-shrink-0 px-6 pb-6 pt-3">
-                <div className="glass-card bg-theme-primary/10 border-theme-border/20 p-4">
+                <div className="glass-card bg-theme-primary/10 border-theme-border/20">
                   <p className="text-theme-primary text-sm">
                     💡 Use Polygon or Base for low-fee transactions
                   </p>
