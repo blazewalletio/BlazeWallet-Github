@@ -3,10 +3,12 @@ import { dexScreenerService } from './dexscreener-service';
 
 export class PriceService {
   private cache: Map<string, { price: number; change24h: number; timestamp: number; source: string }> = new Map();
-  private mintCache: Map<string, { price: number; change24h: number; timestamp: number; source: string }> = new Map(); // ✅ NEW: Cache by mint address
-  private cacheDuration = 10000; // ✅ 10 seconds cache (ultra-fresh, max 10s old)
+  private mintCache: Map<string, { price: number; change24h: number; timestamp: number; source: string }> = new Map(); // ✅ Cache by mint address (Solana)
+  private addressCache: Map<string, { price: number; change24h: number; timestamp: number; source: string }> = new Map(); // ✅ NEW: Cache by contract address (EVM)
+  private cacheDuration = 600000; // ✅ 10 minutes cache (efficient for token prices)
   private primaryApiUrl = '/api/prices'; // CoinGecko (primary)
   private fallbackApiUrl = '/api/prices-binance'; // Binance (fallback)
+  private addressApiUrl = '/api/prices-by-address'; // CoinGecko by address (NEW!)
 
   /**
    * Get single price with fallback system
@@ -347,11 +349,153 @@ export class PriceService {
   }
 
   /**
+   * 🔥 NEW: Get prices by contract addresses (EVM tokens)
+   * Uses CoinGecko's token_price endpoint with contract addresses
+   * This is WAY more reliable than symbol-based lookup!
+   * 
+   * Returns: Map<address, { price, change24h }>
+   */
+  async getPricesByAddresses(
+    addresses: string[], 
+    chain: string = 'ethereum'
+  ): Promise<Map<string, { price: number; change24h: number }>> {
+    if (addresses.length === 0) {
+      return new Map();
+    }
+
+    console.log(`\n🔍 [PriceService] Fetching prices for ${addresses.length} addresses on ${chain}`);
+
+    const result = new Map<string, { price: number; change24h: number }>();
+    const now = Date.now();
+    const uncachedAddresses: string[] = [];
+
+    // ✅ STEP 1: Check cache first (10 min cache = highly efficient)
+    addresses.forEach(address => {
+      const addressLower = address.toLowerCase();
+      const cached = this.addressCache.get(addressLower);
+      if (cached && now - cached.timestamp < this.cacheDuration) {
+        result.set(addressLower, { price: cached.price, change24h: cached.change24h });
+        console.log(`💾 [PriceService] Cache hit: ${addressLower.substring(0, 10)}... = $${cached.price}`);
+      } else {
+        uncachedAddresses.push(addressLower);
+      }
+    });
+
+    if (uncachedAddresses.length === 0) {
+      console.log(`✅ [PriceService] All ${addresses.length} addresses from cache (0 API calls!)`);
+      return result;
+    }
+
+    console.log(`📡 [PriceService] Fetching ${uncachedAddresses.length}/${addresses.length} uncached addresses...`);
+
+    // ✅ STEP 2: Fetch from CoinGecko by address (batch request = efficient!)
+    try {
+      const response = await fetch(
+        `${this.addressApiUrl}?addresses=${uncachedAddresses.join(',')}&chain=${chain}`,
+        { signal: AbortSignal.timeout(15000) }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+
+        uncachedAddresses.forEach(address => {
+          if (data[address] && data[address].price > 0) {
+            const priceData = {
+              price: data[address].price,
+              change24h: data[address].change24h || 0,
+            };
+            
+            result.set(address, priceData);
+            
+            // Update cache
+            this.addressCache.set(address, {
+              ...priceData,
+              timestamp: now,
+              source: 'coingecko-address',
+            });
+            
+            console.log(`✅ [PriceService] CoinGecko: ${address.substring(0, 10)}... = $${priceData.price}`);
+          }
+        });
+      } else {
+        console.error(`❌ [PriceService] CoinGecko address API failed: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('❌ [PriceService] Error fetching prices by address:', error);
+    }
+
+    // ✅ STEP 3: FALLBACK - Try DexScreener for addresses without prices (sequential with rate limit)
+    const missingAddresses = uncachedAddresses.filter(addr => !result.has(addr));
+    
+    if (missingAddresses.length > 0) {
+      console.log(`\n🔄 [PriceService] Trying DexScreener fallback for ${missingAddresses.length} missing...`);
+      
+      // Limit to 5 DexScreener calls to avoid long waits (250ms * 5 = 1.25s max)
+      const maxDexScreenerCalls = Math.min(missingAddresses.length, 5);
+      
+      for (let i = 0; i < maxDexScreenerCalls; i++) {
+        const address = missingAddresses[i];
+        try {
+          const tokenData = await dexScreenerService.getTokenMetadata(address);
+          
+          if (tokenData && tokenData.priceUsd && tokenData.priceUsd > 0) {
+            const priceData = {
+              price: tokenData.priceUsd,
+              change24h: tokenData.priceChange24h || 0,
+            };
+            
+            result.set(address, priceData);
+            
+            // Update cache
+            this.addressCache.set(address, {
+              ...priceData,
+              timestamp: now,
+              source: 'dexscreener',
+            });
+            
+            console.log(`✅ [PriceService] DexScreener: ${address.substring(0, 10)}... = $${priceData.price}`);
+          }
+          
+          // Rate limit: 250ms between requests (respects DexScreener 300/min limit)
+          if (i < maxDexScreenerCalls - 1) {
+            await new Promise(resolve => setTimeout(resolve, 250));
+          }
+        } catch (error) {
+          console.warn(`⚠️ [PriceService] DexScreener failed for ${address.substring(0, 10)}...:`, error);
+        }
+      }
+      
+      if (missingAddresses.length > maxDexScreenerCalls) {
+        console.log(`ℹ️ [PriceService] Skipped ${missingAddresses.length - maxDexScreenerCalls} DexScreener lookups (performance optimization)`);
+      }
+    }
+
+    // ✅ STEP 4: Fill in any remaining addresses with stale cache or 0
+    uncachedAddresses.forEach(address => {
+      if (!result.has(address)) {
+        const cached = this.addressCache.get(address);
+        if (cached) {
+          console.warn(`⚠️ [PriceService] Using stale cache for ${address.substring(0, 10)}...: $${cached.price}`);
+          result.set(address, { price: cached.price, change24h: cached.change24h });
+        } else {
+          // No price available anywhere
+          result.set(address, { price: 0, change24h: 0 });
+        }
+      }
+    });
+
+    console.log(`✅ [PriceService] Final: ${result.size}/${addresses.length} addresses processed`);
+    return result;
+  }
+
+  /**
    * Get cache stats (for debugging)
    */
   getCacheStats() {
     return {
-      size: this.cache.size,
+      symbolCache: this.cache.size,
+      addressCache: this.addressCache.size,
+      mintCache: this.mintCache.size,
       entries: Array.from(this.cache.entries()).map(([symbol, data]) => ({
         symbol,
         price: data.price,
@@ -365,9 +509,10 @@ export class PriceService {
    * Clear cache (for manual refresh / force update)
    */
   clearCache() {
-    console.log('🗑️ [PriceService] Clearing cache (manual refresh)');
+    console.log('🗑️ [PriceService] Clearing all caches (manual refresh)');
     this.cache.clear();
-    this.mintCache.clear(); // ✅ NEW: Also clear mint cache
+    this.mintCache.clear();
+    this.addressCache.clear(); // ✅ NEW: Also clear address cache
   }
 }
 

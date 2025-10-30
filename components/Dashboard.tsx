@@ -393,38 +393,38 @@ export default function Dashboard() {
         
         // ✅ STEP 4: Enrich with USD prices
         if (erc20Tokens.length > 0) {
-          console.log(`\n--- STEP 4: Fetch Token Prices ---`);
+          console.log(`\n--- STEP 4: Fetch Token Prices (by Contract Address) ---`);
           
-          const tokenSymbols = erc20Tokens.map((t: any) => t.symbol);
-          console.log(`[${timestamp}] 📡 Fetching prices for: ${tokenSymbols.join(', ')}`);
+          // ✅ NEW: Use contract addresses instead of symbols!
+          const tokenAddresses = erc20Tokens.map((t: any) => t.address);
+          console.log(`[${timestamp}] 📡 Fetching prices for ${tokenAddresses.length} addresses via CoinGecko + DexScreener...`);
           
-          const tokenPrices = await priceService.getMultiplePrices(tokenSymbols);
-          console.log(`[${timestamp}] 💰 Prices received:`, tokenPrices);
+          // Use new address-based price lookup (hybrid: CoinGecko + DexScreener)
+          const pricesByAddress = await priceService.getPricesByAddresses(tokenAddresses, currentChain);
+          console.log(`[${timestamp}] 💰 Received prices for ${pricesByAddress.size}/${tokenAddresses.length} tokens`);
           
           // Combine tokens with prices
-          const tokensWithPrices = await Promise.all(
-            erc20Tokens.map(async (token: any) => {
-              const price = tokenPrices[token.symbol] || 0;
-              const balanceNum = parseFloat(token.balance || '0');
-              const balanceUSD = balanceNum * price;
-              const change24h = await priceService.get24hChange(token.symbol);
-              
-              // ✅ DEBUG: Log price data to identify missing prices
-              if (price === 0 && balanceNum > 0) {
-                console.warn(`⚠️ [Dashboard] No price data for ${token.symbol}! Balance: ${token.balance}, Address: ${token.address}`);
-              } else {
-                console.log(`[${timestamp}] 💰 ${token.symbol}: ${token.balance} × $${price} = $${balanceUSD.toFixed(2)}`);
-              }
-              
-              return {
-                ...token,
-                priceUSD: price,
-                balanceUSD: balanceUSD.toFixed(2),
-                change24h,
-                isNative: false,
-              };
-            })
-          );
+          const tokensWithPrices = erc20Tokens.map((token: any) => {
+            const addressLower = token.address.toLowerCase();
+            const priceData = pricesByAddress.get(addressLower) || { price: 0, change24h: 0 };
+            const balanceNum = parseFloat(token.balance || '0');
+            const balanceUSD = balanceNum * priceData.price;
+            
+            // ✅ DEBUG: Log price data to identify missing prices
+            if (priceData.price === 0 && balanceNum > 0) {
+              console.warn(`⚠️ [Dashboard] No price data for ${token.symbol}! Balance: ${token.balance}, Address: ${token.address}`);
+            } else {
+              console.log(`[${timestamp}] 💰 ${token.symbol}: ${token.balance} × $${priceData.price.toFixed(2)} = $${balanceUSD.toFixed(2)}`);
+            }
+            
+            return {
+              ...token,
+              priceUSD: priceData.price,
+              balanceUSD: balanceUSD.toFixed(2),
+              change24h: priceData.change24h,
+              isNative: false,
+            };
+          });
 
           // Only show tokens with balance > 0
           tokensWithValue = tokensWithPrices.filter(
