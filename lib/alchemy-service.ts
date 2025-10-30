@@ -166,22 +166,48 @@ export class AlchemyService {
 
       console.log(`✅ [AlchemyService] Found ${limitedTransfers.length} transactions`);
 
-      // Map to standard transaction format
-      return limitedTransfers.map(tx => ({
-        hash: tx.hash,
-        from: tx.from,
-        to: tx.to || '',
-        value: tx.value?.toString() || '0',
-        timestamp: tx.metadata.blockTimestamp 
-          ? new Date(tx.metadata.blockTimestamp).getTime() 
-          : Date.now(),
-        tokenSymbol: tx.asset || 'ETH',
-        tokenName: this.getTokenName(tx),
-        type: tx.category,
-        blockNumber: parseInt(tx.blockNum, 16).toString(),
-        isError: false,
-        logoUrl: this.getTokenLogo(tx),
-      }));
+      // ✅ NEW: Fetch logos for ERC20 tokens on-demand
+      const transactionsWithLogos = await Promise.all(
+        limitedTransfers.map(async (tx) => {
+          let logoUrl = null;
+          
+          // Native currency
+          if (tx.category === AssetTransfersCategory.EXTERNAL || tx.asset === 'ETH') {
+            logoUrl = '/crypto-eth.png';
+          } 
+          // ERC20/ERC721/ERC1155 - Fetch logo
+          else if (tx.rawContract?.address) {
+            try {
+              const metadata = await this.alchemy.core.getTokenMetadata(tx.rawContract.address);
+              logoUrl = metadata.logo || '/crypto-placeholder.png';
+              console.log(`🔮 [AlchemyService] Fetched logo for ${tx.asset || 'token'}: ${logoUrl ? 'found' : 'using placeholder'}`);
+            } catch (error) {
+              console.warn(`⚠️ [AlchemyService] Failed to fetch logo for ${tx.rawContract.address}`);
+              logoUrl = '/crypto-placeholder.png';
+            }
+          } else {
+            logoUrl = '/crypto-placeholder.png';
+          }
+
+          return {
+            hash: tx.hash,
+            from: tx.from,
+            to: tx.to || '',
+            value: tx.value?.toString() || '0',
+            timestamp: tx.metadata.blockTimestamp 
+              ? new Date(tx.metadata.blockTimestamp).getTime() 
+              : Date.now(),
+            tokenSymbol: tx.asset || 'ETH',
+            tokenName: this.getTokenName(tx),
+            type: tx.category,
+            blockNumber: parseInt(tx.blockNum, 16).toString(),
+            isError: false,
+            logoUrl,
+          };
+        })
+      );
+
+      return transactionsWithLogos;
     } catch (error) {
       console.error('❌ [AlchemyService] Error fetching transaction history:', error);
       throw error;
@@ -241,21 +267,7 @@ export class AlchemyService {
     }
     
     // Default
-    return tx.category === 'external' ? 'ETH' : 'Token';
-  }
-
-  /**
-   * Private: Get token logo from transfer
-   */
-  private getTokenLogo(tx: any): string | null {
-    // Check if it's native currency
-    if (tx.category === 'external' || tx.asset === 'ETH') {
-      return '/crypto-eth.png';
-    }
-    
-    // For now, return null and let frontend handle with placeholder
-    // Could be enhanced with token list lookup
-    return null;
+    return tx.category === AssetTransfersCategory.EXTERNAL ? 'ETH' : 'Token';
   }
 }
 

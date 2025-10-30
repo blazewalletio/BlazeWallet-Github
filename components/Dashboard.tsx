@@ -409,7 +409,12 @@ export default function Dashboard() {
               const balanceUSD = balanceNum * price;
               const change24h = await priceService.get24hChange(token.symbol);
               
-              console.log(`[${timestamp}] 💰 ${token.symbol}: ${token.balance} × $${price} = $${balanceUSD.toFixed(2)}`);
+              // ✅ DEBUG: Log price data to identify missing prices
+              if (price === 0 && balanceNum > 0) {
+                console.warn(`⚠️ [Dashboard] No price data for ${token.symbol}! Balance: ${token.balance}, Address: ${token.address}`);
+              } else {
+                console.log(`[${timestamp}] 💰 ${token.symbol}: ${token.balance} × $${price} = $${balanceUSD.toFixed(2)}`);
+              }
               
               return {
                 ...token,
