@@ -242,12 +242,30 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
     try {
       const gas = gasPrice[selectedGas];
       
-      const tx = await blockchain.sendTransaction(
-        isSolana ? mnemonic! : wallet!,
-        toAddress,
-        amount,
-        gas
-      );
+      let tx;
+      // ✅ Check if sending token or native currency
+      if (selectedAsset.isNative) {
+        // Send native currency (ETH, SOL, etc.)
+        tx = await blockchain.sendTransaction(
+          isSolana ? mnemonic! : wallet!,
+          toAddress,
+          amount,
+          gas
+        );
+      } else {
+        // Send token (ERC20, SPL)
+        if (!selectedAsset.address) {
+          throw new Error('Token address is required for token transfers');
+        }
+        tx = await blockchain.sendTokenTransaction(
+          isSolana ? mnemonic! : wallet!,
+          selectedAsset.address,
+          toAddress,
+          amount,
+          selectedAsset.decimals,
+          gas
+        );
+      }
       
       const hash = typeof tx === 'string' ? tx : tx.hash;
       setTxHash(hash);
@@ -258,7 +276,39 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
         await tx.wait();
       }
     } catch (err: any) {
-      setError(err.message || 'Transaction failed');
+      console.error('Error sending transaction:', err);
+      
+      // ✅ User-friendly error messages
+      let userMessage = 'Transaction failed';
+      
+      if (err.message) {
+        const msg = err.message.toLowerCase();
+        if (msg.includes('insufficient funds') || msg.includes('insufficient balance')) {
+          userMessage = 'Insufficient balance to cover transaction and gas fees';
+        } else if (msg.includes('user rejected') || msg.includes('user denied')) {
+          userMessage = 'Transaction was cancelled';
+        } else if (msg.includes('gas required exceeds allowance') || msg.includes('out of gas')) {
+          userMessage = 'Transaction requires more gas. Try increasing gas limit.';
+        } else if (msg.includes('nonce too low')) {
+          userMessage = 'Transaction conflict detected. Please try again.';
+        } else if (msg.includes('replacement transaction underpriced')) {
+          userMessage = 'Transaction pending. Please wait before sending another.';
+        } else if (msg.includes('failed to send tx') || msg.includes('unknown error')) {
+          userMessage = 'Network error. Please check your connection and try again.';
+        } else if (msg.includes('invalid address')) {
+          userMessage = 'Invalid recipient address';
+        } else if (msg.includes('execution reverted')) {
+          userMessage = 'Transaction rejected by contract. Check token approval or balance.';
+        } else {
+          // Show first 100 chars of error if it's somewhat readable
+          const cleanError = err.message.replace(/Error: /gi, '').trim();
+          if (cleanError.length < 100 && !cleanError.includes('{') && !cleanError.includes('0x')) {
+            userMessage = cleanError;
+          }
+        }
+      }
+      
+      setError(userMessage);
       setStep('confirm');
     }
   };

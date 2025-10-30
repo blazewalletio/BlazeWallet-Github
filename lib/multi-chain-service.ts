@@ -111,6 +111,29 @@ export class MultiChainService {
     throw new Error('Service not initialized');
   }
 
+  async sendTokenTransaction(
+    walletOrMnemonic: ethers.Wallet | ethers.HDNodeWallet | string,
+    tokenAddress: string,
+    to: string,
+    amount: string,
+    decimals: number,
+    gasPrice?: string
+  ): Promise<ethers.TransactionResponse | string> {
+    if (this.isSolana() && this.solanaService) {
+      // TODO: Implement SPL token transfers
+      throw new Error('SPL token transfers not yet implemented. Please use Phantom or another Solana wallet for now.');
+    } else if (this.evmService) {
+      // For ERC20 tokens
+      if (typeof walletOrMnemonic !== 'string') {
+        const { TokenService } = await import('./token-service');
+        const tokenService = new TokenService(this.chainKey);
+        return await tokenService.sendToken(walletOrMnemonic, tokenAddress, to, amount, decimals);
+      }
+      throw new Error('EVM requires wallet instance for transaction signing');
+    }
+    throw new Error('Service not initialized');
+  }
+
   async getTransactionHistory(address: string, limit: number = 10): Promise<any[]> {
     // ✅ NEW: Use Alchemy if available (includes ERC20 transfers!)
     if (this.alchemyService && !this.isSolana()) {
