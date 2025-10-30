@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Loader2, CheckCircle2, Flame, ChevronDown, Check } from 'lucide-react';
+import { ArrowRight, Loader2, CheckCircle2, Flame, ChevronDown, Check, AlertTriangle } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { MultiChainService } from '@/lib/multi-chain-service';
@@ -48,6 +48,10 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
   const [error, setError] = useState('');
   const [txHash, setTxHash] = useState('');
   const [showSuccessParticles, setShowSuccessParticles] = useState(false);
+  const [balanceWarning, setBalanceWarning] = useState<{
+    message: string;
+    details: { need: string; have: string; missing: string; missingUSD: string };
+  } | null>(null);
 
   // ✅ Use singleton instance (prevents re-initialization)
   const blockchain = MultiChainService.getInstance(selectedChain);
@@ -184,6 +188,88 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
     const prices = await blockchain.getGasPrice();
     setGasPrice(prices);
   };
+
+  // ✅ Real-time balance validation
+  useEffect(() => {
+    if (!amount || !selectedAsset || !gasPrice) {
+      setBalanceWarning(null);
+      return;
+    }
+
+    const checkBalance = async () => {
+      try {
+        const amountNum = parseFloat(amount);
+        if (isNaN(amountNum) || amountNum <= 0) {
+          setBalanceWarning(null);
+          return;
+        }
+
+        const chainConfig = CHAINS[selectedChain];
+        const gas = gasPrice[selectedGas];
+        const estimatedGasAmount = selectedAsset.isNative
+          ? (parseFloat(gas) * 21000 / 1e9)
+          : (parseFloat(gas) * 65000 / 1e9);
+
+        // For ERC20/SPL tokens: check if we have enough native currency for gas
+        if (!selectedAsset.isNative) {
+          // Get native balance from availableAssets
+          const nativeAsset = availableAssets.find(a => a.isNative);
+          if (!nativeAsset) return;
+
+          const nativeBalance = parseFloat(nativeAsset.balance);
+          
+          if (nativeBalance < estimatedGasAmount) {
+            const needed = estimatedGasAmount;
+            const have = nativeBalance;
+            const missing = needed - have;
+            const missingUSD = missing * nativeAsset.priceUSD;
+            
+            setBalanceWarning({
+              message: `Insufficient ${chainConfig.nativeCurrency.symbol} for gas fees`,
+              details: {
+                need: `${needed.toFixed(6)} ${chainConfig.nativeCurrency.symbol}`,
+                have: `${have.toFixed(6)} ${chainConfig.nativeCurrency.symbol}`,
+                missing: `${missing.toFixed(6)} ${chainConfig.nativeCurrency.symbol}`,
+                missingUSD: `$${missingUSD.toFixed(2)}`,
+              }
+            });
+            return;
+          }
+        }
+
+        // For native currency: check total (amount + gas)
+        if (selectedAsset.isNative) {
+          const total = amountNum + estimatedGasAmount;
+          const available = parseFloat(selectedAsset.balance);
+          
+          if (total > available) {
+            const needed = total;
+            const have = available;
+            const missing = needed - have;
+            const missingUSD = missing * selectedAsset.priceUSD;
+            
+            setBalanceWarning({
+              message: `Insufficient balance (including gas fees)`,
+              details: {
+                need: `${needed.toFixed(6)} ${selectedAsset.symbol}`,
+                have: `${have.toFixed(6)} ${selectedAsset.symbol}`,
+                missing: `${missing.toFixed(6)} ${selectedAsset.symbol}`,
+                missingUSD: `$${missingUSD.toFixed(2)}`,
+              }
+            });
+            return;
+          }
+        }
+
+        setBalanceWarning(null);
+      } catch (err) {
+        console.error('Error checking balance:', err);
+        setBalanceWarning(null);
+      }
+    };
+
+    checkBalance();
+  }, [amount, selectedAsset, gasPrice, selectedGas, availableAssets, selectedChain]);
 
   const handleMaxAmount = () => {
     if (!selectedAsset) return;
@@ -615,6 +701,48 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
                   </div>
                 )}
               </div>
+
+              {/* ⚠️ BALANCE WARNING BOX - Blaze Wallet Styled */}
+              {balanceWarning && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-gradient-to-r from-orange-50 to-yellow-50 border-2 border-orange-200 rounded-xl p-4"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-full flex items-center justify-center">
+                      <AlertTriangle className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                        {balanceWarning.message}
+                      </h4>
+                      <div className="space-y-1.5 text-sm">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Required:</span>
+                          <span className="font-medium text-gray-900">{balanceWarning.details.need}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Available:</span>
+                          <span className="font-medium text-gray-900">{balanceWarning.details.have}</span>
+                        </div>
+                        <div className="h-px bg-orange-200 my-2" />
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-700 font-medium">Missing:</span>
+                          <span className="font-semibold text-orange-600">
+                            {balanceWarning.details.missing} ({balanceWarning.details.missingUSD})
+                          </span>
+                        </div>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-orange-200">
+                        <p className="text-xs text-gray-600">
+                          💡 <span className="font-medium">Tip:</span> Try lowering the amount or switching to a slower gas speed to reduce fees.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
 
               {selectedChain !== 'solana' && (
                 <div>
