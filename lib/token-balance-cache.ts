@@ -7,14 +7,16 @@
  * - Per-chain, per-address caching
  * - 15-minute TTL with stale data tolerance
  * - Automatic cleanup
+ * - ✅ PHASE 4: Stores native price to prevent cross-chain contamination
  */
 
-const CACHE_VERSION = 2; // ✅ Bump for Token-2022 support!
+const CACHE_VERSION = 3; // ✅ PHASE 4: Bump for native price storage!
 
 interface CachedTokenData {
   key: string;
   tokens: any[];
   nativeBalance: string;
+  nativePrice: number; // ✅ PHASE 4: Store native price in cache!
   timestamp: number;
   expiresAt: number;
   version: number;
@@ -69,10 +71,13 @@ class TokenBalanceCache {
 
   /**
    * Get cached token balances with stale-while-revalidate support
+   * ✅ PHASE 4: Now returns native price and calculated USD value
    */
   async getStale(chain: string, address: string): Promise<{ 
     tokens: any[] | null; 
     nativeBalance: string | null;
+    nativePrice: number;
+    nativeValueUSD: number;
     isStale: boolean 
   }> {
     if (this.initPromise) {
@@ -99,8 +104,16 @@ class TokenBalanceCache {
 
   /**
    * Set cached token balances
+   * ✅ PHASE 4: Now stores native price with cache entry
    */
-  async set(chain: string, address: string, tokens: any[], nativeBalance: string, ttl: number = 15 * 60 * 1000): Promise<void> {
+  async set(
+    chain: string, 
+    address: string, 
+    tokens: any[], 
+    nativeBalance: string, 
+    nativePrice: number, // ✅ PHASE 4: Store native price!
+    ttl: number = 15 * 60 * 1000
+  ): Promise<void> {
     if (this.initPromise) {
       await this.initPromise;
     }
@@ -112,6 +125,7 @@ class TokenBalanceCache {
       key,
       tokens,
       nativeBalance,
+      nativePrice, // ✅ PHASE 4: Store native price in cache!
       timestamp: now,
       expiresAt: now + ttl,
       version: CACHE_VERSION,
@@ -194,6 +208,8 @@ class TokenBalanceCache {
   private async getFromDB(key: string): Promise<{ 
     tokens: any[] | null; 
     nativeBalance: string | null;
+    nativePrice: number;
+    nativeValueUSD: number;
     isStale: boolean 
   }> {
     return new Promise((resolve, reject) => {
@@ -205,23 +221,28 @@ class TokenBalanceCache {
         const cached = request.result as CachedTokenData | undefined;
         
         if (!cached) {
-          resolve({ tokens: null, nativeBalance: null, isStale: false });
+          resolve({ tokens: null, nativeBalance: null, nativePrice: 0, nativeValueUSD: 0, isStale: false });
           return;
         }
 
         // Check version
         if (cached.version !== CACHE_VERSION) {
           this.deleteFromDB(key);
-          resolve({ tokens: null, nativeBalance: null, isStale: false });
+          resolve({ tokens: null, nativeBalance: null, nativePrice: 0, nativeValueUSD: 0, isStale: false });
           return;
         }
 
         const now = Date.now();
         const isExpired = cached.expiresAt < now;
         
+        // ✅ PHASE 4: Calculate nativeValueUSD using stored native price
+        const nativeValueUSD = parseFloat(cached.nativeBalance) * cached.nativePrice;
+        
         resolve({ 
           tokens: cached.tokens, 
           nativeBalance: cached.nativeBalance,
+          nativePrice: cached.nativePrice,
+          nativeValueUSD,
           isStale: isExpired 
         });
       };
@@ -257,26 +278,33 @@ class TokenBalanceCache {
   private getFromMemory(key: string): { 
     tokens: any[] | null; 
     nativeBalance: string | null;
+    nativePrice: number;
+    nativeValueUSD: number;
     isStale: boolean 
   } {
     const cached = this.memoryCache.get(key);
     
     if (!cached) {
-      return { tokens: null, nativeBalance: null, isStale: false };
+      return { tokens: null, nativeBalance: null, nativePrice: 0, nativeValueUSD: 0, isStale: false };
     }
 
     // Check version
     if (cached.version !== CACHE_VERSION) {
       this.memoryCache.delete(key);
-      return { tokens: null, nativeBalance: null, isStale: false };
+      return { tokens: null, nativeBalance: null, nativePrice: 0, nativeValueUSD: 0, isStale: false };
     }
 
     const now = Date.now();
     const isExpired = cached.expiresAt < now;
 
+    // ✅ PHASE 4: Calculate nativeValueUSD using stored native price
+    const nativeValueUSD = parseFloat(cached.nativeBalance) * cached.nativePrice;
+
     return { 
       tokens: cached.tokens, 
       nativeBalance: cached.nativeBalance,
+      nativePrice: cached.nativePrice,
+      nativeValueUSD,
       isStale: isExpired 
     };
   }

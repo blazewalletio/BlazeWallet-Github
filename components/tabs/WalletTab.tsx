@@ -97,7 +97,8 @@ export default function WalletTab() {
         const tokensWithValue = tokensWithPrices.filter(
           t => parseFloat(t.balance || '0') > 0
         );
-        updateTokens(tokensWithValue);
+        // ✅ Use chain-specific updateTokens
+        updateTokens(currentChain, tokensWithValue);
 
         const tokensTotalUSD = tokensWithValue.reduce(
           (sum, token) => sum + parseFloat(token.balanceUSD || '0'),

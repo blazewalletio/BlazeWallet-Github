@@ -17,7 +17,11 @@ export interface WalletState {
   isLocked: boolean;
   mnemonic: string | null;
   currentChain: string;
-  tokens: Token[];
+  
+  // ✅ PHASE 3: Chain-specific token storage
+  chainTokens: Map<string, Token[]>; // Per-chain token storage
+  tokens: Token[]; // Deprecated, kept for backward compatibility
+  
   hasPassword: boolean;
   lastActivity: number;
   hasBiometric: boolean;
@@ -36,7 +40,11 @@ export interface WalletState {
   resetWallet: () => void;
   switchChain: (chainKey: string) => void;
   addToken: (token: Token) => void;
-  updateTokens: (tokens: Token[]) => void;
+  
+  // ✅ PHASE 3: New chain-specific methods
+  updateTokens: (chain: string, tokens: Token[]) => void; // Now requires chain parameter
+  getChainTokens: (chain: string) => Token[]; // Get tokens for specific chain
+  
   removeToken: (tokenAddress: string) => void;
   updateActivity: () => void;
   checkAutoLock: () => void;
@@ -52,7 +60,11 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   isLocked: false,
   mnemonic: null,
   currentChain: DEFAULT_CHAIN,
-  tokens: [],
+  
+  // ✅ PHASE 3: Initialize chain-specific token storage
+  chainTokens: new Map(),
+  tokens: [], // Deprecated, kept for backward compatibility
+  
   hasPassword: false,
   lastActivity: Date.now(),
   hasBiometric: false,
@@ -486,7 +498,11 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       isLocked: false,
       mnemonic: null,
       currentChain: DEFAULT_CHAIN,
+      
+      // ✅ PHASE 3: Clear chain-specific tokens
+      chainTokens: new Map(),
       tokens: [],
+      
       hasPassword: false,
       lastActivity: Date.now(),
       hasBiometric: false,
@@ -516,8 +532,25 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     }
   },
 
-  updateTokens: (tokens: Token[]) => {
-    set({ tokens });
+  // ✅ PHASE 3: Chain-specific token update
+  updateTokens: (chain: string, tokens: Token[]) => {
+    const { chainTokens } = get();
+    const updated = new Map(chainTokens);
+    updated.set(chain, tokens);
+    
+    // Update chain-specific storage
+    set({ chainTokens: updated });
+    
+    // Also update deprecated tokens array for backward compatibility (use current chain)
+    if (chain === get().currentChain) {
+      set({ tokens });
+    }
+  },
+
+  // ✅ PHASE 3: Get tokens for specific chain
+  getChainTokens: (chain: string): Token[] => {
+    const { chainTokens } = get();
+    return chainTokens.get(chain) || [];
   },
 
   updateActivity: () => {

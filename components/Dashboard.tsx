@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowUpRight, ArrowDownLeft, ArrowLeft, RefreshCw, Settings, 
@@ -79,7 +79,7 @@ export default function Dashboard() {
   const isFounder = address && founderAddresses.includes(address.toLowerCase());
   
   const [showBalance, setShowBalance] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  // ✅ isRefreshing removed - now derived from chain-specific state
   const [showSendModal, setShowSendModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [showSwapModal, setShowSwapModal] = useState(false);
@@ -99,12 +99,54 @@ export default function Dashboard() {
   const [showCashback, setShowCashback] = useState(false);
   const [showPresale, setShowPresale] = useState(false);
   const [showVesting, setShowVesting] = useState(false);
-  const [totalValueUSD, setTotalValueUSD] = useState(0);
-  const [nativePriceUSD, setNativePriceUSD] = useState(0); // ✅ NEW: Store native token price
-  const [lastPriceUpdate, setLastPriceUpdate] = useState<Date | null>(null); // ✅ NEW: Track last update time
-  const [change24h, setChange24h] = useState(2.5);
+  
+  // ✅ PHASE 1: Chain-Scoped State Management
+  // Per-chain state to prevent cross-chain contamination
+  interface ChainState {
+    nativePriceUSD: number;
+    totalValueUSD: number;
+    nativeBalance: string;
+    change24h: number;
+    lastUpdate: Date | null;
+    isRefreshing: boolean;
+    activeFetchId: string | null; // Track async operations
+  }
+  
+  const [chainStates, setChainStates] = useState<Map<string, ChainState>>(new Map());
   const [chartData, setChartData] = useState<number[]>([]);
   const [selectedTimeRange, setSelectedTimeRange] = useState<number | null>(24); // Default: 24 hours
+  
+  // ✅ AbortController tracking per chain
+  const activeFetchControllers = useRef<Map<string, AbortController>>(new Map());
+  
+  // Helper: Get current chain state
+  const getCurrentChainState = (): ChainState => {
+    return chainStates.get(currentChain) || {
+      nativePriceUSD: 0,
+      totalValueUSD: 0,
+      nativeBalance: '0',
+      change24h: 0,
+      lastUpdate: null,
+      isRefreshing: false,
+      activeFetchId: null,
+    };
+  };
+  
+  // Helper: Update current chain state
+  const updateCurrentChainState = (updates: Partial<ChainState>) => {
+    setChainStates(prev => {
+      const updated = new Map(prev);
+      const current = getCurrentChainState();
+      updated.set(currentChain, { ...current, ...updates });
+      return updated;
+    });
+  };
+  
+  // Derived state from current chain
+  const currentState = getCurrentChainState();
+  const isRefreshing = currentState.isRefreshing;
+  const totalValueUSD = currentState.totalValueUSD;
+  const change24h = currentState.change24h;
   
   // Priority List status
   const [isPriorityListLive, setIsPriorityListLive] = useState(false);
@@ -162,23 +204,61 @@ export default function Dashboard() {
     }
   }, []);
 
-  // ✅ FIX: Reset state + clear cache when chain changes to prevent wrong calculations
+  // ✅ PHASE 5: Chain Switch Hook met Cleanup
+  // Proper chain switching with abort, cleanup, and cached data loading
   useEffect(() => {
-    console.log(`🔄 [Dashboard] Chain changed to ${currentChain}, clearing state and cache`);
+    const prevChain = activeFetchControllers.current.size > 0 
+      ? Array.from(activeFetchControllers.current.keys())[0] 
+      : null;
     
-    // Reset state
-    setNativePriceUSD(0);
-    setLastPriceUpdate(null);
-    setTotalValueUSD(0);
-    updateTokens([]);
+    console.log(`🔄 [Dashboard] Chain switching: ${prevChain || 'initial'} → ${currentChain}`);
     
-    // Clear cache for ALL chains to prevent cross-chain contamination
-    tokenBalanceCache.clear();
+    // 1. Abort ALL active fetches (cleanup)
+    activeFetchControllers.current.forEach((controller, chain) => {
+      controller.abort();
+      console.log(`🚫 [Dashboard] Aborted stale fetch for ${chain}`);
+    });
+    activeFetchControllers.current.clear();
     
-    // Trigger fresh fetch for new chain
-    if (displayAddress) {
-      fetchData(true); // Force fresh fetch
-    }
+    // 2. Clear any loading states from previous chain
+    // (Chain-specific states will handle themselves)
+    
+    // 3. Load cached data voor nieuwe chain (instant!)
+    const loadCachedData = async () => {
+      if (!displayAddress) return;
+      
+      const cachedResult = await tokenBalanceCache.getStale(currentChain, displayAddress);
+      
+      if (cachedResult.tokens && cachedResult.nativeBalance) {
+        console.log(`⚡ [Dashboard] Loading cached state for ${currentChain}`);
+        
+        // Update global balance state (voor compatibility)
+        updateBalance(cachedResult.nativeBalance);
+        
+        // Update tokens via store (chain-specific)
+        updateTokens(currentChain, cachedResult.tokens);
+        
+        // Update chain-specific state
+        updateCurrentChainState({
+          nativeBalance: cachedResult.nativeBalance,
+          nativePriceUSD: cachedResult.nativePrice || 0,
+          totalValueUSD: cachedResult.nativeValueUSD + cachedResult.tokens.reduce(
+            (sum, t) => sum + parseFloat(t.balanceUSD || '0'), 0
+          ),
+        });
+      }
+    };
+    
+    loadCachedData();
+    
+    // 4. Start fresh fetch voor nieuwe chain (slight delay for state stabilization)
+    const fetchTimer = setTimeout(() => {
+      fetchData(false); // Background refresh
+    }, 100);
+    
+    return () => {
+      clearTimeout(fetchTimer);
+    };
   }, [currentChain, displayAddress]);
 
   const chain = CHAINS[currentChain];
@@ -190,62 +270,86 @@ export default function Dashboard() {
   const fetchData = async (force = false) => {
     if (!displayAddress) return;
     
-    // Prevent multiple simultaneous refreshes
-    if (isRefreshing) return;
+    // ✅ PHASE 2: AbortController Pattern
+    // Cancel previous fetch for this chain
+    const existingController = activeFetchControllers.current.get(currentChain);
+    if (existingController) {
+      existingController.abort();
+      console.log(`🚫 [Dashboard] Cancelled previous fetch for ${currentChain}`);
+    }
+    
+    // Create new abort controller for this fetch
+    const controller = new AbortController();
+    const fetchId = `${currentChain}-${Date.now()}`;
+    activeFetchControllers.current.set(currentChain, controller);
+    
+    // Helper: Check if this fetch is still relevant
+    const isStillRelevant = () => {
+      if (controller.signal.aborted) {
+        console.log(`⚠️ [Dashboard] Fetch ${fetchId} was aborted`);
+        return false;
+      }
+      const currentController = activeFetchControllers.current.get(currentChain);
+      if (currentController !== controller) {
+        console.log(`⚠️ [Dashboard] Fetch ${fetchId} is outdated, newer fetch started`);
+        return false;
+      }
+      return true;
+    };
     
     const timestamp = Date.now();
-    const fetchChain = currentChain; // ✅ CAPTURE current chain to detect race conditions
-    console.log(`\n========== FETCH DATA START [${timestamp}] for ${fetchChain} ==========`);
+    console.log(`\n========== FETCH DATA START [${fetchId}] ==========`);
+    
+    // Update chain state: start refreshing
+    updateCurrentChainState({ 
+      isRefreshing: true, 
+      activeFetchId: fetchId 
+    });
     
     // ✅ STALE-WHILE-REVALIDATE: Check cache first
-    const { tokens: cachedTokens, nativeBalance: cachedBalance, isStale } = 
+    const { tokens: cachedTokens, nativeBalance: cachedBalance, nativePrice: cachedNativePrice, nativeValueUSD: cachedNativeValueUSD, isStale } = 
       await tokenBalanceCache.getStale(currentChain, displayAddress);
     
     if (cachedTokens && cachedBalance) {
+      // ✅ Abort check after cache read
+      if (!isStillRelevant()) {
+        updateCurrentChainState({ isRefreshing: false, activeFetchId: null });
+        return;
+      }
+      
       // ✅ Show cached data INSTANTLY
       console.log(`⚡ Loaded from cache (${isStale ? 'stale' : 'fresh'}): ${cachedTokens.length} tokens, balance: ${cachedBalance}`);
       
       updateBalance(cachedBalance);
-      updateTokens(cachedTokens);
+      updateTokens(currentChain, cachedTokens); // ✅ Chain-specific!
       
-      // ✅ FIX: Calculate total INCLUDING native balance (was missing!)
+      // Calculate cached total
       const cachedTokensTotal = cachedTokens.reduce(
         (sum, token) => sum + parseFloat(token.balanceUSD || '0'),
         0
       );
       
-      // Use stored native price if available, otherwise fetch it
-      let cachedNativeValueUSD = 0;
-      if (nativePriceUSD > 0) {
-        // Use existing price from state
-        cachedNativeValueUSD = parseFloat(cachedBalance) * nativePriceUSD;
-      } else {
-        // Fetch native price for first calculation
-        try {
-          const nativePrice = await priceService.getPrice(chain.nativeCurrency.symbol);
-          setNativePriceUSD(nativePrice);
-          cachedNativeValueUSD = parseFloat(cachedBalance) * nativePrice;
-        } catch (error) {
-          console.warn('Failed to fetch native price for cached calculation:', error);
-        }
-      }
-      
       const cachedTotal = cachedNativeValueUSD + cachedTokensTotal;
-      setTotalValueUSD(cachedTotal);
+      
+      // Update chain-specific state with cached data
+      updateCurrentChainState({
+        nativePriceUSD: cachedNativePrice,
+        totalValueUSD: cachedTotal,
+        nativeBalance: cachedBalance,
+      });
       
       console.log(`💰 Cached total: Native $${cachedNativeValueUSD.toFixed(2)} + Tokens $${cachedTokensTotal.toFixed(2)} = $${cachedTotal.toFixed(2)}`);
       
       // If data is fresh and not forced refresh, we're done!
       if (!isStale && !force) {
         console.log('✅ Using fresh cached data, skipping fetch');
+        updateCurrentChainState({ isRefreshing: false, activeFetchId: null });
+        activeFetchControllers.current.delete(currentChain);
         return;
       }
       
       // ✅ If stale or forced, continue to refresh in background
       console.log('🔄 Refreshing data in background...');
-    } else {
-      // No cached data - show loading state
-    setIsRefreshing(true);
     }
     
     // ✅ If manual refresh, clear price cache for ultra-fresh data
@@ -262,10 +366,9 @@ export default function Dashboard() {
       console.log(`\n--- STEP 1: Fetch Native Balance ---`);
       const bal = await blockchain.getBalance(displayAddress);
       
-      // ✅ RACE CONDITION CHECK: Abort if chain changed during fetch
-      if (fetchChain !== currentChain) {
-        console.warn(`⚠️ Chain changed from ${fetchChain} to ${currentChain}, aborting stale fetch`);
-        return;
+      // ✅ Abort check after balance fetch
+      if (!isStillRelevant()) {
+        throw new Error('Fetch aborted');
       }
       
       console.log(`[${timestamp}] ✅ Balance received: ${bal} ${chain.nativeCurrency.symbol}`);
@@ -284,18 +387,21 @@ export default function Dashboard() {
       console.log(`[${timestamp}] 📡 Fetching prices for: ${allSymbols.join(', ')}`);
       const pricesMap = await priceService.getMultiplePrices(allSymbols);
       
-      // ✅ RACE CONDITION CHECK: Abort if chain changed during fetch
-      if (fetchChain !== currentChain) {
-        console.warn(`⚠️ Chain changed from ${fetchChain} to ${currentChain}, aborting stale fetch`);
-        return;
+      // ✅ Abort check after price fetch
+      if (!isStillRelevant()) {
+        throw new Error('Fetch aborted');
       }
       
       console.log(`[${timestamp}] 💰 Prices received:`, pricesMap);
       
       // Extract native price
       const nativePrice = pricesMap[chain.nativeCurrency.symbol] || 0;
-      setNativePriceUSD(nativePrice); // ✅ STORE native price in state!
-      setLastPriceUpdate(new Date()); // ✅ STORE last update timestamp
+      
+      // ✅ Update chain-specific state instead of global state
+      updateCurrentChainState({
+        nativePriceUSD: nativePrice,
+        lastUpdate: new Date(),
+      });
       
       const nativeValueUSD = parseFloat(bal) * nativePrice;
       console.log(`[${timestamp}] 💵 Native token value:`, {
@@ -316,10 +422,9 @@ export default function Dashboard() {
         const solanaService = blockchain as any; // Access Solana-specific methods
         const splTokens = await solanaService.getSPLTokenBalances(displayAddress);
         
-        // ✅ RACE CONDITION CHECK: Abort if chain changed during fetch
-        if (fetchChain !== currentChain) {
-          console.warn(`⚠️ Chain changed from ${fetchChain} to ${currentChain}, aborting stale fetch`);
-          return;
+        // ✅ Abort check after SPL token fetch
+        if (!isStillRelevant()) {
+          throw new Error('Fetch aborted');
         }
         
         console.log(`[${timestamp}] ✅ Found ${splTokens.length} SPL tokens with balance`);
@@ -335,10 +440,9 @@ export default function Dashboard() {
           
           const splPricesMap = await priceService.getMultiplePrices(splSymbols);
           
-          // ✅ RACE CONDITION CHECK: Abort if chain changed during fetch
-          if (fetchChain !== currentChain) {
-            console.warn(`⚠️ Chain changed from ${fetchChain} to ${currentChain}, aborting stale fetch`);
-            return;
+          // ✅ Abort check after price fetch
+          if (!isStillRelevant()) {
+            throw new Error('Fetch aborted');
           }
           
           console.log(`[${timestamp}] 💰 SPL prices received:`, splPricesMap);
@@ -351,10 +455,9 @@ export default function Dashboard() {
             const mints = tokensNeedingMintPrice.map((t: any) => t.address);
             const mintPrices = await priceService.getPricesByMints(mints);
             
-            // ✅ RACE CONDITION CHECK: Abort if chain changed during fetch
-            if (fetchChain !== currentChain) {
-              console.warn(`⚠️ Chain changed from ${fetchChain} to ${currentChain}, aborting stale fetch`);
-              return;
+            // ✅ Abort check after DexScreener fetch
+            if (!isStillRelevant()) {
+              throw new Error('Fetch aborted');
             }
             
             // Merge mint prices into splPricesMap
@@ -422,10 +525,9 @@ export default function Dashboard() {
           console.log(`[${timestamp}] 🔮 Attempting to fetch ALL ERC20 tokens via Alchemy...`);
           erc20Tokens = await blockchain.getERC20TokenBalances(displayAddress);
           
-          // ✅ RACE CONDITION CHECK: Abort if chain changed during fetch
-          if (fetchChain !== currentChain) {
-            console.warn(`⚠️ Chain changed from ${fetchChain} to ${currentChain}, aborting stale fetch`);
-            return;
+          // ✅ Abort check after ERC20 fetch
+          if (!isStillRelevant()) {
+            throw new Error('Fetch aborted');
           }
           
           if (erc20Tokens.length > 0) {
@@ -446,10 +548,9 @@ export default function Dashboard() {
             displayAddress
           );
           
-          // ✅ RACE CONDITION CHECK: Abort if chain changed during fetch
-          if (fetchChain !== currentChain) {
-            console.warn(`⚠️ Chain changed from ${fetchChain} to ${currentChain}, aborting stale fetch`);
-            return;
+          // ✅ Abort check after token balance fetch
+          if (!isStillRelevant()) {
+            throw new Error('Fetch aborted');
           }
           
           erc20Tokens = tokensWithBalance.filter(t => parseFloat(t.balance || '0') > 0);
@@ -467,10 +568,9 @@ export default function Dashboard() {
           // Use new address-based price lookup (hybrid: CoinGecko + DexScreener)
           const pricesByAddress = await priceService.getPricesByAddresses(tokenAddresses, currentChain);
           
-          // ✅ RACE CONDITION CHECK: Abort if chain changed during fetch
-          if (fetchChain !== currentChain) {
-            console.warn(`⚠️ Chain changed from ${fetchChain} to ${currentChain}, aborting stale fetch`);
-            return;
+          // ✅ Abort check after price fetch
+          if (!isStillRelevant()) {
+            throw new Error('Fetch aborted');
           }
           
           console.log(`[${timestamp}] 💰 Received prices for ${pricesByAddress.size}/${tokenAddresses.length} tokens`);
@@ -510,14 +610,14 @@ export default function Dashboard() {
       // ✅ STEP 5: Update tokens and calculate total portfolio value
       console.log(`\n--- STEP 5: Calculate Total Portfolio Value ---`);
       
-      // ✅ FINAL RACE CONDITION CHECK: Abort if chain changed before updating state
-      if (fetchChain !== currentChain) {
-        console.warn(`⚠️ Chain changed from ${fetchChain} to ${currentChain}, aborting state update`);
-        return;
+      // ✅ FINAL abort check before state update
+      if (!isStillRelevant()) {
+        throw new Error('Fetch aborted');
       }
       
       if (tokensWithValue.length > 0) {
-        updateTokens(tokensWithValue);
+        // ✅ Chain-specific token update
+        updateTokens(currentChain, tokensWithValue);
 
         // Calculate total portfolio value (native + tokens)
         const tokensTotalUSD = tokensWithValue.reduce(
@@ -525,7 +625,12 @@ export default function Dashboard() {
           0
         );
         const totalValue = nativeValueUSD + tokensTotalUSD;
-        setTotalValueUSD(totalValue);
+        
+        // ✅ Update chain-specific state
+        updateCurrentChainState({
+          totalValueUSD: totalValue,
+          nativeBalance: bal,
+        });
         
         console.log(`[${timestamp}] 📊 Portfolio Summary:`, {
           nativeValueUSD: nativeValueUSD.toFixed(2),
@@ -540,8 +645,13 @@ export default function Dashboard() {
         }
       } else {
         // No tokens - native value IS total value
-        updateTokens([]); // Clear tokens
-        setTotalValueUSD(nativeValueUSD);
+        updateTokens(currentChain, []); // Clear tokens for this chain
+        
+        // ✅ Update chain-specific state
+        updateCurrentChainState({
+          totalValueUSD: nativeValueUSD,
+          nativeBalance: bal,
+        });
         
         console.log(`[${timestamp}] 📊 Portfolio Summary (Native Only):`, {
           totalValueUSD: nativeValueUSD.toFixed(2)
@@ -556,15 +666,26 @@ export default function Dashboard() {
       // ✅ STEP 6: Get 24h change for native token
       console.log(`\n--- STEP 6: Fetch 24h Change ---`);
       const nativeChange = await priceService.get24hChange(chain.nativeCurrency.symbol);
-      setChange24h(nativeChange);
+      
+      // ✅ Abort check after 24h change fetch
+      if (!isStillRelevant()) {
+        throw new Error('Fetch aborted');
+      }
+      
+      // ✅ Update chain-specific state
+      updateCurrentChainState({
+        change24h: nativeChange,
+      });
+      
       console.log(`[${timestamp}] 📈 24h Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
       
-      // ✅ NEW: Cache the fresh data for next load (15min TTL)
+      // ✅ PHASE 4: Cache with native price included
       await tokenBalanceCache.set(
         currentChain, 
         displayAddress, 
         tokensWithValue, 
         bal,
+        nativePrice, // ✅ STORE native price in cache!
         15 * 60 * 1000 // 15 minutes
       );
       console.log('💾 Cached fresh token and balance data');
@@ -573,14 +694,30 @@ export default function Dashboard() {
       updateChartData();
       
       console.log(`========== FETCH DATA COMPLETE [${Date.now() - timestamp}ms] ==========\n`);
-    
+      
+      // ✅ Success: Mark fetch as complete and cleanup
+      updateCurrentChainState({
+        isRefreshing: false,
+        activeFetchId: null,
+      });
+      activeFetchControllers.current.delete(currentChain);
       
     } catch (error) {
+      // ✅ Handle aborted fetches gracefully
+      if (error instanceof Error && error.message === 'Fetch aborted') {
+        console.log(`✅ [Dashboard] Fetch ${fetchId} successfully aborted`);
+        return; // Silent return, state already cleaned up
+      }
+      
       console.error('❌ Error fetching data:', error);
       console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
-    } finally {
-      // ALWAYS stop refresh spinner, even if there's an error
-      setIsRefreshing(false);
+      
+      // ✅ Update chain-specific state with error
+      updateCurrentChainState({
+        isRefreshing: false,
+        activeFetchId: null,
+      });
+      activeFetchControllers.current.delete(currentChain);
     }
   };
 
@@ -593,7 +730,8 @@ export default function Dashboard() {
       // Update change percentage for selected range
       const rangeChange = portfolioHistory.getChangePercentage(selectedTimeRange);
       if (rangeChange !== 0) {
-        setChange24h(rangeChange);
+        // ✅ Update chain-specific state instead of global setChange24h
+        updateCurrentChainState({ change24h: rangeChange });
       }
     }
   };
@@ -616,7 +754,8 @@ export default function Dashboard() {
         console.log(`✅ Got metadata: ${metadata.name} (${metadata.symbol})`);
         
         // Update token in local state
-        updateTokens(tokens.map(token => {
+        // ✅ Use chain-specific updateTokens
+        updateTokens(currentChain, tokens.map(token => {
           if (token.address === tokenAddress) {
             return {
               ...token,
@@ -782,9 +921,9 @@ export default function Dashboard() {
                   </div>
                   
                   {/* ✅ Last updated timestamp */}
-                  {lastPriceUpdate && (
+                  {currentState.lastUpdate && (
                     <div className="text-xs text-gray-400 mt-1">
-                      Updated {Math.floor((Date.now() - lastPriceUpdate.getTime()) / 1000)}s ago
+                      Updated {Math.floor((Date.now() - currentState.lastUpdate.getTime()) / 1000)}s ago
                     </div>
                   )}
                 </div>
@@ -1026,7 +1165,7 @@ export default function Dashboard() {
             </div>
             <div className="text-right">
               <div className="font-semibold">
-                ${(parseFloat(balance) * nativePriceUSD).toFixed(2)}
+                ${(parseFloat(balance) * currentState.nativePriceUSD).toFixed(2)}
               </div>
               <div className={`text-sm ${isPositiveChange ? 'text-emerald-400' : 'text-rose-400'}`}>
                 {isPositiveChange ? '+' : ''}{change24h.toFixed(2)}%
