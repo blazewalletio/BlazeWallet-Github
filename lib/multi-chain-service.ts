@@ -126,7 +126,8 @@ export class MultiChainService {
       // For ERC20 tokens
       if (typeof walletOrMnemonic !== 'string') {
         const { TokenService } = await import('./token-service');
-        const tokenService = new TokenService(this.chainKey);
+        const chainConfig = CHAINS[this.chainKey];
+        const tokenService = new TokenService(chainConfig.rpcUrl);
         return await tokenService.sendToken(walletOrMnemonic, tokenAddress, to, amount, decimals);
       }
       throw new Error('EVM requires wallet instance for transaction signing');

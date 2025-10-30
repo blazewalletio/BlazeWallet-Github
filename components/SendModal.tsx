@@ -280,9 +280,14 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
       
       // ✅ User-friendly error messages
       let userMessage = 'Transaction failed';
+      let technicalDetails = '';
       
       if (err.message) {
         const msg = err.message.toLowerCase();
+        
+        // Store technical error for debugging
+        technicalDetails = err.message;
+        
         if (msg.includes('insufficient funds') || msg.includes('insufficient balance')) {
           userMessage = 'Insufficient balance to cover transaction and gas fees';
         } else if (msg.includes('user rejected') || msg.includes('user denied')) {
@@ -299,13 +304,24 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
           userMessage = 'Invalid recipient address';
         } else if (msg.includes('execution reverted')) {
           userMessage = 'Transaction rejected by contract. Check token approval or balance.';
+        } else if (msg.includes('unsupported protocol') || msg.includes('cannot start up')) {
+          userMessage = 'RPC connection error. Please try again in a moment.';
+          technicalDetails = 'Failed to connect to blockchain network';
         } else {
           // Show first 100 chars of error if it's somewhat readable
           const cleanError = err.message.replace(/Error: /gi, '').trim();
           if (cleanError.length < 100 && !cleanError.includes('{') && !cleanError.includes('0x')) {
             userMessage = cleanError;
+          } else {
+            // If error is too technical, show generic message with reason
+            userMessage = 'Transaction failed. Please try again.';
           }
         }
+      }
+      
+      // Add technical details for debugging if available
+      if (technicalDetails && technicalDetails !== userMessage) {
+        console.error('📋 Technical error details:', technicalDetails);
       }
       
       setError(userMessage);
