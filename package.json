@@ -21,6 +21,7 @@
     "@uniswap/v3-sdk": "^3.25.2",
     "@vercel/kv": "^3.0.0",
     "@zxing/library": "^0.21.3",
+    "alchemy-sdk": "^3.6.5",
     "bip39": "^3.1.0",
     "bs58": "^6.0.0",
     "canvas-confetti": "^1.9.3",

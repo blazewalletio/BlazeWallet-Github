@@ -286,7 +286,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       <AnimatePresence mode="wait">
           {/* CAROUSEL WELCOME SCREEN - SWIPEABLE SECTIONS */}
           {step === 'carousel' && (
-            <motion.div
+          <motion.div
               key="carousel"
               initial={{ opacity: 0, x: 100 }}
               animate={{ opacity: 1, x: 0 }}
@@ -331,7 +331,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 }}
               >
                 <AnimatePresence mode="wait">
-                  <motion.div
+              <motion.div
                     key={carouselPage}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -770,7 +770,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   <span className="flex-1 text-center mr-16">Continue with Apple</span>
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-orange-500/10 border border-orange-500/30 rounded-md text-[10px] text-orange-600 font-semibold whitespace-nowrap">
                     Coming soon
-                  </span>
+                </span>
                 </button>
               </div>
 

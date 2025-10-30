@@ -1,16 +1,19 @@
 import { ethers } from 'ethers';
 import { BlockchainService } from './blockchain';
 import { SolanaService } from './solana-service';
+import { AlchemyService } from './alchemy-service';
 import { CHAINS } from './chains';
 
 /**
  * Unified Multi-Chain Service
  * Automatically routes to the correct blockchain service based on chain type
+ * ✅ NEW: Includes Alchemy for enhanced ERC20 token support
  */
 export class MultiChainService {
   private chainKey: string;
   private evmService: BlockchainService | null = null;
   private solanaService: SolanaService | null = null;
+  private alchemyService: AlchemyService | null = null;
 
   constructor(chainKey: string = 'ethereum') {
     this.chainKey = chainKey;
@@ -20,6 +23,16 @@ export class MultiChainService {
       this.solanaService = new SolanaService(chain.rpcUrl);
     } else {
       this.evmService = new BlockchainService(chainKey);
+      
+      // ✅ NEW: Initialize Alchemy if supported
+      if (AlchemyService.isSupported(chainKey)) {
+        try {
+          this.alchemyService = new AlchemyService(chainKey);
+          console.log(`✅ [MultiChainService] Alchemy enabled for ${chainKey}`);
+        } catch (error) {
+          console.warn(`⚠️ [MultiChainService] Alchemy initialization failed for ${chainKey}, using fallback`);
+        }
+      }
     }
   }
 
@@ -74,6 +87,17 @@ export class MultiChainService {
   }
 
   async getTransactionHistory(address: string, limit: number = 10): Promise<any[]> {
+    // ✅ NEW: Use Alchemy if available (includes ERC20 transfers!)
+    if (this.alchemyService && !this.isSolana()) {
+      try {
+        console.log(`🔮 [MultiChainService] Using Alchemy for transaction history`);
+        return await this.alchemyService.getFullTransactionHistory(address, limit);
+      } catch (error) {
+        console.warn(`⚠️ [MultiChainService] Alchemy failed, falling back to Etherscan API`);
+      }
+    }
+    
+    // Fallback to existing methods
     if (this.isSolana() && this.solanaService) {
       return await this.solanaService.getTransactionHistory(address, limit);
     } else if (this.evmService) {
@@ -110,6 +134,42 @@ export class MultiChainService {
     }
     // Return empty array for non-Solana chains
     return [];
+  }
+
+  /**
+   * ✅ NEW: Get ALL ERC20 token balances (auto-detect via Alchemy)
+   * Falls back to manual token list if Alchemy unavailable
+   */
+  async getERC20TokenBalances(address: string): Promise<any[]> {
+    // Use Alchemy if available (auto-detects ALL tokens)
+    if (this.alchemyService && !this.isSolana()) {
+      try {
+        console.log(`🔮 [MultiChainService] Using Alchemy for ERC20 token detection`);
+        const tokens = await this.alchemyService.getAllTokenBalances(address);
+        
+        // Map to standard Token format
+        return tokens.map(token => ({
+          address: token.address,
+          symbol: token.symbol,
+          name: token.name,
+          decimals: token.decimals,
+          balance: token.balance,
+          logo: token.logo || '/crypto-placeholder.png',
+        }));
+      } catch (error) {
+        console.warn(`⚠️ [MultiChainService] Alchemy failed for ERC20 tokens, using fallback`);
+      }
+    }
+    
+    // Fallback: return empty array (Dashboard will use POPULAR_TOKENS instead)
+    return [];
+  }
+
+  /**
+   * Check if Alchemy is available for current chain
+   */
+  hasAlchemy(): boolean {
+    return this.alchemyService !== null;
   }
 }
 

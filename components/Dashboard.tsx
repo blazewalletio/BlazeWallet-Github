@@ -6,7 +6,7 @@ import {
   ArrowUpRight, ArrowDownLeft, ArrowLeft, RefreshCw, Settings, 
   TrendingUp, Eye, EyeOff, Plus, Zap, ChevronRight,
   Repeat, Wallet as WalletIcon, TrendingDown, PieChart, Rocket, CreditCard,
-  Lock, Gift, Vote, Users, Palette, LogOut, Sparkles, Shield, Brain, MessageSquare
+  Lock, Gift, Vote, Users, Palette, LogOut
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { MultiChainService } from '@/lib/multi-chain-service'; // ✅ Use MultiChainService
@@ -49,7 +49,7 @@ import AIGasOptimizer from './AIGasOptimizer';
 import AIConversationalAssistant from './AIConversationalAssistant';
 import AIBrainAssistant from './AIBrainAssistant';
 import AISettingsModal from './AISettingsModal';
-import { alchemyTokenService } from '@/lib/alchemy-token-service';
+import { Sparkles, Shield, Brain, MessageSquare } from 'lucide-react';
 import BottomNavigation, { TabType } from './BottomNavigation';
 
 export default function Dashboard() {
@@ -225,7 +225,7 @@ export default function Dashboard() {
       console.log('🔄 Refreshing data in background...');
     } else {
       // No cached data - show loading state
-      setIsRefreshing(true);
+    setIsRefreshing(true);
     }
     
     // ✅ If manual refresh, clear price cache for ultra-fresh data
@@ -359,61 +359,74 @@ export default function Dashboard() {
         }
         
       } else if (displayAddress) {
-        // ✅ EVM: Fetch ALL ERC20 tokens (just like Solana!)
-        console.log(`\n--- STEP 3: Fetch ALL ERC20 Token Balances (EVM) ---`);
-        console.log(`[${timestamp}] 🪙 Fetching ALL ERC20 tokens from chain...`);
+        // ✅ EVM: Fetch ERC20 tokens
+        console.log(`\n--- STEP 3: Fetch Token Balances (EVM) ---`);
         
-        const evmTokens = await alchemyTokenService.getAllTokenBalances(displayAddress, currentChain);
+        // ✅ NEW: Try Alchemy first (auto-detects ALL tokens!)
+        let erc20Tokens: any[] = [];
         
-        console.log(`[${timestamp}] ✅ Found ${evmTokens.length} ERC20 tokens with balance`);
-        console.log(`[${timestamp}] 📊 ERC20 Tokens:`, evmTokens);
+        try {
+          console.log(`[${timestamp}] 🔮 Attempting to fetch ALL ERC20 tokens via Alchemy...`);
+          erc20Tokens = await blockchain.getERC20TokenBalances(displayAddress);
+          
+          if (erc20Tokens.length > 0) {
+            console.log(`[${timestamp}] ✅ Alchemy found ${erc20Tokens.length} ERC20 tokens with balance`);
+          } else {
+            console.log(`[${timestamp}] ℹ️ No tokens found via Alchemy, falling back to POPULAR_TOKENS`);
+          }
+        } catch (error) {
+          console.warn(`[${timestamp}] ⚠️ Alchemy failed, falling back to POPULAR_TOKENS:`, error);
+        }
         
-        if (evmTokens.length > 0) {
-          // ✅ STEP 4: Fetch prices for ERC20 tokens
-          console.log(`\n--- STEP 4: Fetch ERC20 Token Prices ---`);
+        // Fallback to POPULAR_TOKENS if Alchemy returned nothing
+        if (erc20Tokens.length === 0 && popularTokens.length > 0) {
+          console.log(`[${timestamp}] 🪙 Fetching balances for ${popularTokens.length} popular ERC20 tokens...`);
           
-          // Try symbol-based pricing first (CoinGecko/Binance) for all tokens
-          const evmSymbols = evmTokens.map((t: any) => t.symbol);
-          console.log(`[${timestamp}] 📡 Fetching prices for ERC20 tokens: ${evmSymbols.join(', ')}`);
+          const tokensWithBalance = await tokenService.getMultipleTokenBalances(
+            popularTokens,
+            displayAddress
+          );
           
-          const evmPricesMap = await priceService.getMultiplePrices(evmSymbols);
-          console.log(`[${timestamp}] 💰 ERC20 prices received:`, evmPricesMap);
+          erc20Tokens = tokensWithBalance.filter(t => parseFloat(t.balance || '0') > 0);
+          console.log(`[${timestamp}] ✅ Token balances received:`, erc20Tokens.map(t => `${t.symbol}: ${t.balance}`));
+        }
+        
+        // ✅ STEP 4: Enrich with USD prices
+        if (erc20Tokens.length > 0) {
+          console.log(`\n--- STEP 4: Fetch Token Prices ---`);
           
-          // Combine ERC20 tokens with prices
-          tokensWithValue = await Promise.all(
-            evmTokens.map(async (token: any) => {
-              const price = evmPricesMap[token.symbol] || 0;
+          const tokenSymbols = erc20Tokens.map((t: any) => t.symbol);
+          console.log(`[${timestamp}] 📡 Fetching prices for: ${tokenSymbols.join(', ')}`);
+          
+          const tokenPrices = await priceService.getMultiplePrices(tokenSymbols);
+          console.log(`[${timestamp}] 💰 Prices received:`, tokenPrices);
+          
+          // Combine tokens with prices
+          const tokensWithPrices = await Promise.all(
+            erc20Tokens.map(async (token: any) => {
+              const price = tokenPrices[token.symbol] || 0;
               const balanceNum = parseFloat(token.balance || '0');
               const balanceUSD = balanceNum * price;
+              const change24h = await priceService.get24hChange(token.symbol);
               
-              // Get 24h change
-              let change24h = 0;
-              if (price > 0) {
-                try {
-                  change24h = await priceService.get24hChange(token.symbol);
-                } catch (error) {
-                  console.warn(`Failed to get 24h change for ${token.symbol}:`, error);
-                }
-              }
-              
-              console.log(`[${timestamp}] 💰 ${token.symbol}:`, {
-                balance: token.balance,
-                price: price,
-                balanceUSD: balanceUSD.toFixed(2),
-                change24h: change24h,
-                logo: token.logo
-              });
+              console.log(`[${timestamp}] 💰 ${token.symbol}: ${token.balance} × $${price} = $${balanceUSD.toFixed(2)}`);
               
               return {
                 ...token,
                 priceUSD: price,
                 balanceUSD: balanceUSD.toFixed(2),
                 change24h,
+                isNative: false,
               };
             })
           );
+
+          // Only show tokens with balance > 0
+          tokensWithValue = tokensWithPrices.filter(
+            t => parseFloat(t.balance || '0') > 0
+          );
           
-          console.log(`[${timestamp}] ✅ Final tokensWithValue:`, tokensWithValue);
+          console.log(`[${timestamp}] ✅ Final ${tokensWithValue.length} tokens with value`);
         }
       }
 
