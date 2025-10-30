@@ -120,8 +120,11 @@ export class MultiChainService {
     gasPrice?: string
   ): Promise<ethers.TransactionResponse | string> {
     if (this.isSolana() && this.solanaService) {
-      // TODO: Implement SPL token transfers
-      throw new Error('SPL token transfers not yet implemented. Please use Phantom or another Solana wallet for now.');
+      // ✅ SPL token transfers now implemented!
+      if (typeof walletOrMnemonic === 'string') {
+        return await this.solanaService.sendSPLToken(walletOrMnemonic, tokenAddress, to, amount);
+      }
+      throw new Error('Solana requires mnemonic for transaction signing');
     } else if (this.evmService) {
       // For ERC20 tokens
       if (typeof walletOrMnemonic !== 'string') {

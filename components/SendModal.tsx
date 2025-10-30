@@ -205,12 +205,23 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
         }
 
         const chainConfig = CHAINS[selectedChain];
-        const gas = gasPrice[selectedGas];
-        const estimatedGasAmount = selectedAsset.isNative
-          ? (parseFloat(gas) * 21000 / 1e9)
-          : (parseFloat(gas) * 65000 / 1e9);
+        const isSolana = selectedChain === 'solana';
+        
+        let estimatedGasAmount: number;
+        
+        if (isSolana) {
+          // Solana has fixed low fees (~0.000005 SOL for simple transfers)
+          // For SPL tokens with account creation: ~0.002 SOL
+          estimatedGasAmount = selectedAsset.isNative ? 0.000005 : 0.002;
+        } else {
+          // EVM chains: calculate based on gas price
+          const gas = gasPrice[selectedGas];
+          estimatedGasAmount = selectedAsset.isNative
+            ? (parseFloat(gas) * 21000 / 1e9)
+            : (parseFloat(gas) * 65000 / 1e9);
+        }
 
-        // For ERC20/SPL tokens: check if we have enough native currency for gas
+        // For SPL/ERC20 tokens: check if we have enough native currency for gas
         if (!selectedAsset.isNative) {
           // Get native balance from availableAssets
           const nativeAsset = availableAssets.find(a => a.isNative);
@@ -225,7 +236,7 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
             const missingUSD = missing * nativeAsset.priceUSD;
             
             setBalanceWarning({
-              message: `Insufficient ${chainConfig.nativeCurrency.symbol} for gas fees`,
+              message: `Insufficient ${chainConfig.nativeCurrency.symbol} for transaction fees`,
               details: {
                 need: `${needed.toFixed(6)} ${chainConfig.nativeCurrency.symbol}`,
                 have: `${have.toFixed(6)} ${chainConfig.nativeCurrency.symbol}`,
@@ -249,7 +260,7 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
             const missingUSD = missing * selectedAsset.priceUSD;
             
             setBalanceWarning({
-              message: `Insufficient balance (including gas fees)`,
+              message: `Insufficient balance (including transaction fees)`,
               details: {
                 need: `${needed.toFixed(6)} ${selectedAsset.symbol}`,
                 have: `${have.toFixed(6)} ${selectedAsset.symbol}`,

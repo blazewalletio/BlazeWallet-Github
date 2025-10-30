@@ -161,6 +161,106 @@ export class SolanaService {
   }
 
   /**
+   * Send SPL Token transaction
+   */
+  async sendSPLToken(
+    mnemonic: string,
+    tokenMintAddress: string,
+    toAddress: string,
+    amount: string,
+    accountIndex: number = 0
+  ): Promise<string> {
+    try {
+      console.log('🪙 [SolanaService] Sending SPL token:', {
+        tokenMint: tokenMintAddress,
+        to: toAddress,
+        amount,
+      });
+
+      // Derive keypair from mnemonic
+      const fromKeypair = this.deriveKeypairFromMnemonic(mnemonic, accountIndex);
+      const toPublicKey = new PublicKey(toAddress);
+      const mintPublicKey = new PublicKey(tokenMintAddress);
+
+      // Get token accounts
+      const fromTokenAccounts = await this.connection.getParsedTokenAccountsByOwner(
+        fromKeypair.publicKey,
+        { mint: mintPublicKey }
+      );
+
+      if (fromTokenAccounts.value.length === 0) {
+        throw new Error('No token account found for this token');
+      }
+
+      const fromTokenAccount = fromTokenAccounts.value[0].pubkey;
+
+      // Get or create destination token account
+      const toTokenAccounts = await this.connection.getParsedTokenAccountsByOwner(
+        toPublicKey,
+        { mint: mintPublicKey }
+      );
+
+      let toTokenAccount: PublicKey;
+      const transaction = new Transaction();
+
+      if (toTokenAccounts.value.length === 0) {
+        // Create associated token account for recipient
+        const { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction } = await import('@solana/spl-token');
+        
+        toTokenAccount = await getAssociatedTokenAddress(
+          mintPublicKey,
+          toPublicKey
+        );
+
+        transaction.add(
+          createAssociatedTokenAccountInstruction(
+            fromKeypair.publicKey, // payer
+            toTokenAccount,
+            toPublicKey, // owner
+            mintPublicKey
+          )
+        );
+        
+        console.log('🆕 Creating associated token account for recipient');
+      } else {
+        toTokenAccount = toTokenAccounts.value[0].pubkey;
+      }
+
+      // Get token decimals
+      const mintInfo = await this.connection.getParsedAccountInfo(mintPublicKey);
+      const decimals = (mintInfo.value?.data as any)?.parsed?.info?.decimals || 9;
+
+      // Convert amount to token units
+      const amountInTokenUnits = Math.floor(parseFloat(amount) * Math.pow(10, decimals));
+
+      // Add transfer instruction
+      const { createTransferInstruction } = await import('@solana/spl-token');
+      
+      transaction.add(
+        createTransferInstruction(
+          fromTokenAccount,
+          toTokenAccount,
+          fromKeypair.publicKey,
+          amountInTokenUnits
+        )
+      );
+
+      // Send and confirm transaction
+      const signature = await sendAndConfirmTransaction(
+        this.connection,
+        transaction,
+        [fromKeypair]
+      );
+
+      console.log('✅ [SolanaService] SPL token transfer successful:', signature);
+      return signature;
+    } catch (error) {
+      console.error('❌ [SolanaService] Error sending SPL token:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get recent transactions for an address
    * ✅ Enhanced with SPL token detection and proper error handling
    */
