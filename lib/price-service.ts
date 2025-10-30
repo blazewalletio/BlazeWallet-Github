@@ -1,10 +1,12 @@
 // Live crypto price service with multi-API fallback system
 import { dexScreenerService } from './dexscreener-service';
+import { LRUCache } from './lru-cache'; // ✅ PERFORMANCE: LRU cache for better memory management
 
 export class PriceService {
-  private cache: Map<string, { price: number; change24h: number; timestamp: number; source: string }> = new Map();
-  private mintCache: Map<string, { price: number; change24h: number; timestamp: number; source: string }> = new Map(); // ✅ Cache by mint address (Solana)
-  private addressCache: Map<string, { price: number; change24h: number; timestamp: number; source: string }> = new Map(); // ✅ NEW: Cache by contract address (EVM)
+  // ✅ PERFORMANCE FIX: Use LRU cache instead of Map for automatic eviction
+  private cache = new LRUCache<{ price: number; change24h: number; source: string }>(200); // Symbol cache
+  private mintCache = new LRUCache<{ price: number; change24h: number; source: string }>(100); // Solana mint cache
+  private addressCache = new LRUCache<{ price: number; change24h: number; source: string }>(100); // EVM address cache
   private cacheDuration = 600000; // ✅ 10 minutes cache (efficient for token prices)
   private primaryApiUrl = '/api/prices'; // CoinGecko (primary)
   private fallbackApiUrl = '/api/prices-binance'; // Binance (fallback)
@@ -14,9 +16,9 @@ export class PriceService {
    * Get single price with fallback system
    */
   async getPrice(symbol: string): Promise<number> {
-    // Check cache first
+    // Check LRU cache first (auto-evicts old entries)
     const cached = this.cache.get(symbol);
-    if (cached && Date.now() - cached.timestamp < this.cacheDuration) {
+    if (cached) {
       console.log(`💰 [PriceService] Cache hit for ${symbol}: $${cached.price} (${cached.source})`);
       return cached.price;
     }
@@ -30,12 +32,6 @@ export class PriceService {
       return price;
     }
 
-    // If all APIs fail, return cached price if available
-    if (cached) {
-      console.warn(`⚠️ [PriceService] All APIs failed, using stale cache for ${symbol}: $${cached.price}`);
-      return cached.price;
-    }
-
     console.error(`❌ [PriceService] Failed to get price for ${symbol}, returning 0`);
     return 0;
   }
@@ -46,23 +42,20 @@ export class PriceService {
   async getMultiplePrices(symbols: string[]): Promise<Record<string, number>> {
     console.log(`🔍 [PriceService] Fetching multiple prices for: ${symbols.join(', ')}`);
 
-    // Check which symbols are cached
-    const now = Date.now();
-    const cachedSymbols: string[] = [];
+    // Check which symbols are in LRU cache
     const uncachedSymbols: string[] = [];
     const result: Record<string, number> = {};
 
     symbols.forEach(symbol => {
       const cached = this.cache.get(symbol);
-      if (cached && now - cached.timestamp < this.cacheDuration) {
-        cachedSymbols.push(symbol);
+      if (cached) {
         result[symbol] = cached.price;
       } else {
         uncachedSymbols.push(symbol);
       }
     });
 
-    console.log(`💾 [PriceService] Cache hits: ${cachedSymbols.length}/${symbols.length}`);
+    console.log(`💾 [PriceService] Cache hits: ${symbols.length - uncachedSymbols.length}/${symbols.length}`);
 
     // If all cached, return immediately
     if (uncachedSymbols.length === 0) {
@@ -77,17 +70,6 @@ export class PriceService {
       result[symbol] = fetchedPrices[symbol];
     });
 
-    // Fill in any remaining symbols with cached values (even stale)
-    uncachedSymbols.forEach(symbol => {
-      if (!result[symbol]) {
-        const cached = this.cache.get(symbol);
-        if (cached) {
-          console.warn(`⚠️ [PriceService] Using stale cache for ${symbol}: $${cached.price}`);
-          result[symbol] = cached.price;
-        }
-      }
-    });
-
     return result;
   }
 
@@ -95,7 +77,7 @@ export class PriceService {
    * Get 24h change with fallback
    */
   async get24hChange(symbol: string): Promise<number> {
-    // Check cache first
+    // Check LRU cache first
     const cached = this.cache.get(symbol);
     if (cached && Date.now() - cached.timestamp < this.cacheDuration) {
       return cached.change24h;
@@ -131,13 +113,12 @@ export class PriceService {
         const price = dexToken.priceUsd;
         const change24h = dexToken.priceChange24h || 0;
         
-        // Update mint cache
+        // Update mint cache with TTL
         this.mintCache.set(mint, {
           price,
           change24h,
-          timestamp: Date.now(),
           source: 'dexscreener',
-        });
+        }, this.cacheDuration);
         
         console.log(`✅ [PriceService] DexScreener: ${mint.substring(0, 8)}... = $${price}`);
         return { price, change24h };
@@ -214,13 +195,12 @@ export class PriceService {
           const price = data[symbol].price;
           const change24h = data[symbol].change24h || 0;
           
-          // Update cache
+          // Update cache with TTL
           this.cache.set(symbol, { 
             price, 
             change24h, 
-            timestamp: Date.now(),
-            source: 'coingecko'
-          });
+            source: 'coingecko',
+          }, this.cacheDuration);
           
           console.log(`✅ [PriceService] CoinGecko: ${symbol} = $${price}`);
           return price;
@@ -243,13 +223,12 @@ export class PriceService {
           const price = data[symbol].price;
           const change24h = data[symbol].change24h || 0;
           
-          // Update cache
+          // Update cache with TTL
           this.cache.set(symbol, { 
             price, 
             change24h, 
-            timestamp: Date.now(),
-            source: 'binance'
-          });
+            source: 'binance',
+          }, this.cacheDuration);
           
           console.log(`✅ [PriceService] Binance: ${symbol} = $${price}`);
           return price;
@@ -407,12 +386,11 @@ export class PriceService {
             
             result.set(address, priceData);
             
-            // Update cache
+            // Update cache with TTL
             this.addressCache.set(address, {
               ...priceData,
-              timestamp: now,
               source: 'coingecko-address',
-            });
+            }, this.cacheDuration);
             
             console.log(`✅ [PriceService] CoinGecko: ${address.substring(0, 10)}... = $${priceData.price}`);
           }
@@ -446,12 +424,11 @@ export class PriceService {
             
             result.set(address, priceData);
             
-            // Update cache
+            // Update cache with TTL
             this.addressCache.set(address, {
               ...priceData,
-              timestamp: now,
               source: 'dexscreener',
-            });
+            }, this.cacheDuration);
             
             console.log(`✅ [PriceService] DexScreener: ${address.substring(0, 10)}... = $${priceData.price}`);
           }

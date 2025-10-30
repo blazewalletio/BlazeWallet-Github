@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import dynamic from 'next/dynamic'; // ✅ PERFORMANCE: Code splitting
 import { 
   ArrowUpRight, ArrowDownLeft, ArrowLeft, RefreshCw, Settings, 
   TrendingUp, Eye, EyeOff, Plus, Zap, ChevronRight,
@@ -9,48 +10,54 @@ import {
   Lock, Gift, Vote, Users, Palette, LogOut
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
-import { MultiChainService } from '@/lib/multi-chain-service'; // ✅ Use MultiChainService
-import { BlockchainService } from '@/lib/blockchain'; // Keep for formatAddress utility
+import { MultiChainService } from '@/lib/multi-chain-service';
+import { BlockchainService } from '@/lib/blockchain';
 import { TokenService } from '@/lib/token-service';
 import { PriceService } from '@/lib/price-service';
 import { CHAINS, POPULAR_TOKENS } from '@/lib/chains';
 import { Token } from '@/lib/types';
-import { tokenBalanceCache } from '@/lib/token-balance-cache'; // ✅ NEW: Token cache
-import { refreshTokenMetadata } from '@/lib/spl-token-metadata'; // ✅ NEW: Manual token refresh
-import SendModal from './SendModal';
-import ReceiveModal from './ReceiveModal';
-import SwapModal from './SwapModal';
-import BuyModal from './BuyModal';
+import { tokenBalanceCache } from '@/lib/token-balance-cache';
+import { refreshTokenMetadata } from '@/lib/spl-token-metadata';
 import ChainSelector from './ChainSelector';
 import TokenSelector from './TokenSelector';
 import PortfolioChart from './PortfolioChart';
-import SettingsModal from './SettingsModal';
-import PasswordUnlockModal from './PasswordUnlockModal'; // ✅ NEW: For lock/unlock flow
+import PasswordUnlockModal from './PasswordUnlockModal';
 import DebugPanel from './DebugPanel';
 import AnimatedNumber from './AnimatedNumber';
-import QuickPayModal from './QuickPayModal';
-import FounderDeploy from './FounderDeploy';
 import TransactionHistory from './TransactionHistory';
-import TokenDetailModal from './TokenDetailModal'; // ✅ NEW: Token detail modal
-import StakingDashboard from './StakingDashboard';
-import GovernanceDashboard from './GovernanceDashboard';
-import LaunchpadDashboard from './LaunchpadDashboard';
-import ReferralDashboard from './ReferralDashboard';
-import NFTMintDashboard from './NFTMintDashboard';
-import CashbackTracker from './CashbackTracker';
 import PremiumBadge, { PremiumCard } from './PremiumBadge';
-import PresaleDashboard from './PresaleDashboard';
-import VestingDashboard from './VestingDashboard';
 import { getPortfolioHistory } from '@/lib/portfolio-history';
-import AITransactionAssistant from './AITransactionAssistant';
-import AIRiskScanner from './AIRiskScanner';
-import AIPortfolioAdvisor from './AIPortfolioAdvisor';
-import AIGasOptimizer from './AIGasOptimizer';
-import AIConversationalAssistant from './AIConversationalAssistant';
-import AIBrainAssistant from './AIBrainAssistant';
-import AISettingsModal from './AISettingsModal';
 import { Sparkles, Shield, Brain, MessageSquare } from 'lucide-react';
 import BottomNavigation, { TabType } from './BottomNavigation';
+
+// ✅ PERFORMANCE FIX: Lazy load modals (reduces initial bundle size by ~200KB)
+const SendModal = dynamic(() => import('./SendModal'), { ssr: false });
+const ReceiveModal = dynamic(() => import('./ReceiveModal'), { ssr: false });
+const SwapModal = dynamic(() => import('./SwapModal'), { ssr: false });
+const BuyModal = dynamic(() => import('./BuyModal'), { ssr: false });
+const SettingsModal = dynamic(() => import('./SettingsModal'), { ssr: false });
+const QuickPayModal = dynamic(() => import('./QuickPayModal'), { ssr: false });
+const TokenDetailModal = dynamic(() => import('./TokenDetailModal'), { ssr: false });
+
+// ✅ PERFORMANCE FIX: Lazy load dashboards (only load when accessed)
+const FounderDeploy = dynamic(() => import('./FounderDeploy'), { ssr: false });
+const StakingDashboard = dynamic(() => import('./StakingDashboard'), { ssr: false });
+const GovernanceDashboard = dynamic(() => import('./GovernanceDashboard'), { ssr: false });
+const LaunchpadDashboard = dynamic(() => import('./LaunchpadDashboard'), { ssr: false });
+const ReferralDashboard = dynamic(() => import('./ReferralDashboard'), { ssr: false });
+const NFTMintDashboard = dynamic(() => import('./NFTMintDashboard'), { ssr: false });
+const CashbackTracker = dynamic(() => import('./CashbackTracker'), { ssr: false });
+const PresaleDashboard = dynamic(() => import('./PresaleDashboard'), { ssr: false });
+const VestingDashboard = dynamic(() => import('./VestingDashboard'), { ssr: false });
+
+// ✅ PERFORMANCE FIX: Lazy load AI features (heavy components)
+const AITransactionAssistant = dynamic(() => import('./AITransactionAssistant'), { ssr: false });
+const AIRiskScanner = dynamic(() => import('./AIRiskScanner'), { ssr: false });
+const AIPortfolioAdvisor = dynamic(() => import('./AIPortfolioAdvisor'), { ssr: false });
+const AIGasOptimizer = dynamic(() => import('./AIGasOptimizer'), { ssr: false });
+const AIConversationalAssistant = dynamic(() => import('./AIConversationalAssistant'), { ssr: false });
+const AIBrainAssistant = dynamic(() => import('./AIBrainAssistant'), { ssr: false });
+const AISettingsModal = dynamic(() => import('./AISettingsModal'), { ssr: false });
 
 export default function Dashboard() {
   const { 
