@@ -555,18 +555,24 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
   updateActivity: () => {
     set({ lastActivity: Date.now() });
+    
+    // ✅ SECURITY FIX: Store activity in sessionStorage for cross-tab sync
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('last_activity', Date.now().toString());
+    }
   },
 
   checkAutoLock: () => {
-    const { lastActivity, wallet } = get();
-    const AUTO_LOCK_TIME = 30 * 60 * 1000; // 30 minutes
+    const { lastActivity, wallet, isLocked } = get();
     
-    if (wallet && Date.now() - lastActivity > AUTO_LOCK_TIME) {
-      set({
-        wallet: null,
-        mnemonic: null,
-        isLocked: true,
-      });
+    // ✅ SECURITY FIX: Reduced from 30min to 15min for better security
+    const AUTO_LOCK_TIME = 15 * 60 * 1000; // 15 minutes
+    
+    // Only lock if wallet is unlocked
+    if (wallet && !isLocked && Date.now() - lastActivity > AUTO_LOCK_TIME) {
+      console.log('🔒 [Security] Auto-locking wallet after 15 minutes of inactivity');
+      
+      get().lockWallet(); // Use existing lockWallet method
     }
   },
 

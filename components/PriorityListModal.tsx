@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Confetti from 'react-confetti';
+import confetti from 'canvas-confetti'; // ✅ PERFORMANCE FIX: Use canvas-confetti instead of react-confetti
 import { 
   Clock, 
   Users, 
@@ -60,7 +60,6 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
   const [twitter, setTwitter] = useState('');
   const [referralCode, setReferralCode] = useState('');
   const [showExtraFields, setShowExtraFields] = useState(false);
-  const [showConfetti, setShowConfetti] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [referralError, setReferralError] = useState('');
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -171,8 +170,15 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
       if (result.success) {
         console.log('✅ Registration successful!');
         setSuccess(result.message);
-        setShowConfetti(true);
-        setTimeout(() => setShowConfetti(false), 5000);
+        
+        // ✅ PERFORMANCE FIX: Use canvas-confetti instead of react-confetti component
+        confetti({
+          particleCount: 500,
+          spread: 160,
+          origin: { y: 0.6 },
+          colors: ['#8b5cf6', '#ec4899', '#06b6d4'],
+        });
+        
         await loadPriorityListData(); // Reload data
       } else {
         console.error('❌ Registration failed:', result.message);
@@ -274,15 +280,6 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
 
   return (
     <AnimatePresence>
-      {showConfetti && (
-        <Confetti
-          width={window.innerWidth}
-          height={window.innerHeight}
-          recycle={false}
-          numberOfPieces={500}
-        />
-      )}
-
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

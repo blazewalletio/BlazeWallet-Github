@@ -61,6 +61,7 @@ export default function Dashboard() {
     tokens,
     updateTokens,
     updateActivity,
+    checkAutoLock, // ✅ SECURITY FIX: Auto-lock check
     lockWallet,
     getCurrentAddress // ✅ NEW: Get correct address for current chain
   } = useWalletStore();
@@ -860,6 +861,15 @@ export default function Dashboard() {
       window.removeEventListener('touchstart', handleUserActivity);
     };
   }, [updateActivity]);
+
+  // ✅ SECURITY FIX: Auto-lock check every 30 seconds
+  useEffect(() => {
+    const autoLockInterval = setInterval(() => {
+      checkAutoLock();
+    }, 30 * 1000); // Check every 30 seconds
+
+    return () => clearInterval(autoLockInterval);
+  }, [checkAutoLock]);
 
   // Update chart when time range changes
   useEffect(() => {
