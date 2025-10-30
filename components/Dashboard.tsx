@@ -238,13 +238,20 @@ export default function Dashboard() {
         // Update tokens via store (chain-specific)
         updateTokens(currentChain, cachedResult.tokens);
         
+        // Calculate total value from cached data
+        const tokensTotalUSD = cachedResult.tokens.reduce(
+          (sum, t) => sum + parseFloat(t.balanceUSD || '0'), 
+          0
+        );
+        const totalValue = cachedResult.nativeValueUSD + tokensTotalUSD;
+        
+        console.log(`⚡ Cached totals: Native $${cachedResult.nativeValueUSD.toFixed(2)} + Tokens $${tokensTotalUSD.toFixed(2)} = $${totalValue.toFixed(2)}`);
+        
         // Update chain-specific state
         updateCurrentChainState({
           nativeBalance: cachedResult.nativeBalance,
           nativePriceUSD: cachedResult.nativePrice || 0,
-          totalValueUSD: cachedResult.nativeValueUSD + cachedResult.tokens.reduce(
-            (sum, t) => sum + parseFloat(t.balanceUSD || '0'), 0
-          ),
+          totalValueUSD: totalValue,
         });
       }
     };
