@@ -136,7 +136,15 @@ export default function Dashboard() {
   const updateCurrentChainState = (updates: Partial<ChainState>) => {
     setChainStates(prev => {
       const updated = new Map(prev);
-      const current = getCurrentChainState();
+      const current = prev.get(currentChain) || {
+        nativePriceUSD: 0,
+        totalValueUSD: 0,
+        nativeBalance: '0',
+        change24h: 0,
+        lastUpdate: null,
+        isRefreshing: false,
+        activeFetchId: null,
+      };
       updated.set(currentChain, { ...current, ...updates });
       return updated;
     });
