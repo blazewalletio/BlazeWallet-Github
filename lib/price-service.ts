@@ -77,9 +77,9 @@ export class PriceService {
    * Get 24h change with fallback
    */
   async get24hChange(symbol: string): Promise<number> {
-    // Check LRU cache first
+    // Check LRU cache first (TTL handled internally)
     const cached = this.cache.get(symbol);
-    if (cached && Date.now() - cached.timestamp < this.cacheDuration) {
+    if (cached) {
       return cached.change24h;
     }
 
@@ -96,9 +96,9 @@ export class PriceService {
    * Uses DexScreener as primary source for DEX-traded tokens
    */
   async getPriceByMint(mint: string): Promise<{ price: number; change24h: number }> {
-    // Check mint cache first
+    // Check mint cache first (TTL handled internally)
     const cached = this.mintCache.get(mint);
-    if (cached && Date.now() - cached.timestamp < this.cacheDuration) {
+    if (cached) {
       console.log(`💰 [PriceService] Mint cache hit for ${mint.substring(0, 8)}...: $${cached.price} (${cached.source})`);
       return { price: cached.price, change24h: cached.change24h };
     }
@@ -127,12 +127,7 @@ export class PriceService {
       console.warn(`⚠️ [PriceService] DexScreener failed for ${mint.substring(0, 8)}...:`, error instanceof Error ? error.message : 'Unknown error');
     }
 
-    // If DexScreener fails, return cached if available
-    if (cached) {
-      console.warn(`⚠️ [PriceService] Using stale mint cache for ${mint.substring(0, 8)}...: $${cached.price}`);
-      return { price: cached.price, change24h: cached.change24h };
-    }
-
+    // If API fails, return 0 (LRU cache would have returned cached value if fresh)
     console.error(`❌ [PriceService] Failed to get price by mint for ${mint.substring(0, 8)}...`);
     return { price: 0, change24h: 0 };
   }
@@ -148,10 +143,10 @@ export class PriceService {
     const now = Date.now();
     const uncachedMints: string[] = [];
 
-    // Check cache first
+    // Check cache first (TTL handled internally by LRU)
     mints.forEach(mint => {
       const cached = this.mintCache.get(mint);
-      if (cached && now - cached.timestamp < this.cacheDuration) {
+      if (cached) {
         result.set(mint, { price: cached.price, change24h: cached.change24h });
       } else {
         uncachedMints.push(mint);
@@ -268,9 +263,8 @@ export class PriceService {
             this.cache.set(symbol, { 
               price, 
               change24h, 
-              timestamp: now,
               source: 'coingecko'
-            });
+            }, this.cacheDuration);
             
             console.log(`✅ [PriceService] CoinGecko: ${symbol} = $${price}`);
           }
@@ -312,9 +306,8 @@ export class PriceService {
             this.cache.set(symbol, { 
               price, 
               change24h, 
-              timestamp: now,
               source: 'binance'
-            });
+            }, this.cacheDuration);
             
             console.log(`✅ [PriceService] Binance: ${symbol} = $${price}`);
           }
@@ -348,11 +341,11 @@ export class PriceService {
     const now = Date.now();
     const uncachedAddresses: string[] = [];
 
-    // ✅ STEP 1: Check cache first (10 min cache = highly efficient)
+    // ✅ STEP 1: Check cache first (TTL handled internally by LRU)
     addresses.forEach(address => {
       const addressLower = address.toLowerCase();
       const cached = this.addressCache.get(addressLower);
-      if (cached && now - cached.timestamp < this.cacheDuration) {
+      if (cached) {
         result.set(addressLower, { price: cached.price, change24h: cached.change24h });
         console.log(`💾 [PriceService] Cache hit: ${addressLower.substring(0, 10)}... = $${cached.price}`);
       } else {
@@ -473,11 +466,12 @@ export class PriceService {
       symbolCache: this.cache.size,
       addressCache: this.addressCache.size,
       mintCache: this.mintCache.size,
-      entries: Array.from(this.cache.entries()).map(([symbol, data]) => ({
+      cacheStats: this.cache.getStats(), // ✅ LRU cache stats
+      entries: Array.from(this.cache.entries()).map(([symbol, entry]) => ({
         symbol,
-        price: data.price,
-        source: data.source,
-        age: Math.round((Date.now() - data.timestamp) / 1000) + 's',
+        price: entry.value.price,
+        source: entry.value.source,
+        age: Math.round((Date.now() - entry.timestamp) / 1000) + 's',
       })),
     };
   }

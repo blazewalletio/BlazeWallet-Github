@@ -124,6 +124,13 @@ export class LRUCache<T> {
   }
 
   /**
+   * Get all entries (for debugging/stats)
+   */
+  entries(): IterableIterator<[string, CacheEntry<T>]> {
+    return this.cache.entries();
+  }
+
+  /**
    * Clean up expired entries
    */
   cleanup(): number {
