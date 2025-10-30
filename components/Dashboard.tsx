@@ -162,6 +162,13 @@ export default function Dashboard() {
     }
   }, []);
 
+  // ✅ FIX: Reset native price when chain changes to prevent wrong cached calculations
+  useEffect(() => {
+    console.log(`🔄 [Dashboard] Chain changed to ${currentChain}, resetting native price`);
+    setNativePriceUSD(0); // Reset to 0 so cache will fetch fresh price
+    setLastPriceUpdate(null);
+  }, [currentChain]);
+
   const chain = CHAINS[currentChain];
   const blockchain = MultiChainService.getInstance(currentChain); // ✅ Use singleton (prevents re-initialization)
   const tokenService = new TokenService(chain.rpcUrl);
