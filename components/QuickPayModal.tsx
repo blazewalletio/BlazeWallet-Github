@@ -251,11 +251,10 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         setNeedsChainSwitch(true);
         setMode('chain-switch');
       } else if (detectedChain !== currentChain && detectedChain === 'bitcoin') {
-        // Bitcoin not supported yet
-        alert(`⚠️ Bitcoin Not Supported\n\nBitcoin transactions are not yet available in Blaze Wallet.\n\nComing soon! 🚀`);
-        setMode('scan');
-        startCamera();
-        return;
+        // Bitcoin needs switch
+        console.log(`🔄 [QuickPay] Chain switch needed: ${currentChain} → bitcoin`);
+        setNeedsChainSwitch(true);
+        setMode('chain-switch');
       } else {
         // Same chain - proceed directly to confirmation
         setScannedAddress(parsed.address);

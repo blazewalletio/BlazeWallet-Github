@@ -263,7 +263,6 @@ export class QRParser {
         protocol: 'bitcoin',
         rawData: data,
         isValid: true,
-        warnings: ['Bitcoin transactions not yet supported'],
       };
     } catch (error) {
       console.error('Error parsing bitcoin protocol:', error);
