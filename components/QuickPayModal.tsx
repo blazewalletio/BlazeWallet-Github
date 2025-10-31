@@ -9,6 +9,7 @@ import QRCode from 'qrcode';
 import ParticleEffect from './ParticleEffect';
 import jsQR from 'jsqr';
 import { QRParser, ParsedQRData, ChainType } from '@/lib/qr-parser';
+import { lightningService, LightningInvoice } from '@/lib/lightning-service-web';
 
 interface QuickPayModalProps {
   isOpen: boolean;
@@ -36,6 +37,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   // ⚡ Lightning specific states
   const [lightningAction, setLightningAction] = useState<'send' | 'receive' | null>(null);
   const [lightningInvoiceInput, setLightningInvoiceInput] = useState('');
+  const [paymentMonitorInterval, setPaymentMonitorInterval] = useState<NodeJS.Timeout | null>(null);
   
   // ✅ NEW: Chain detection and switching
   const [parsedQR, setParsedQR] = useState<ParsedQRData | null>(null);
@@ -94,6 +96,60 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     
     setScanning(false);
   };
+
+  // ⚡ LIGHTNING PAYMENT MONITORING
+  const startPaymentMonitoring = (paymentHash: string) => {
+    console.log(`⚡ Starting payment monitoring for ${paymentHash.substring(0, 10)}...`);
+    
+    // Clear any existing interval
+    if (paymentMonitorInterval) {
+      clearInterval(paymentMonitorInterval);
+    }
+
+    // Poll every 2 seconds
+    const interval = setInterval(async () => {
+      try {
+        const status = await lightningService.checkInvoiceStatus(paymentHash);
+        
+        if (status.settled) {
+          console.log('✅ Payment received!');
+          clearInterval(interval);
+          setPaymentMonitorInterval(null);
+          
+          // Show success
+          setMode('success');
+          setShowSuccess(true);
+          
+          setTimeout(() => {
+            onClose();
+            resetModal();
+          }, 3000);
+        }
+      } catch (error) {
+        console.error('Failed to check payment status:', error);
+      }
+    }, 2000);
+
+    setPaymentMonitorInterval(interval);
+
+    // Auto-cleanup after 15 minutes (invoice expiry)
+    setTimeout(() => {
+      if (interval) {
+        clearInterval(interval);
+        setPaymentMonitorInterval(null);
+        console.log('⚠️ Payment monitoring stopped (invoice expired)');
+      }
+    }, 900000);
+  };
+
+  // Cleanup payment monitoring on unmount
+  useEffect(() => {
+    return () => {
+      if (paymentMonitorInterval) {
+        clearInterval(paymentMonitorInterval);
+      }
+    };
+  }, [paymentMonitorInterval]);
 
   const scanQRCode = () => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -346,6 +402,12 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     setParsedQR(null);
     setNeedsChainSwitch(false);
     stopCamera();
+    
+    // Stop payment monitoring
+    if (paymentMonitorInterval) {
+      clearInterval(paymentMonitorInterval);
+      setPaymentMonitorInterval(null);
+    }
   };
 
   const handleBack = () => {
@@ -1095,25 +1157,54 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
 
                   {/* Pay Button */}
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       if (!lightningInvoiceInput || (!lightningInvoiceInput.startsWith('lnbc') && !lightningInvoiceInput.startsWith('lightning:'))) {
                         alert('❌ Please enter a valid Lightning invoice (starts with lnbc...)');
                         return;
                       }
                       
-                      // TODO: Implement actual Lightning payment via LightningService
-                      alert('⚡ Lightning payment feature coming soon!\n\nThis will integrate with your Lightning node to pay invoices instantly.');
-                      
-                      // For now, show mock success
-                      setMode('processing');
-                      setTimeout(() => {
-                        setMode('success');
-                        setShowSuccess(true);
-                        setTimeout(() => {
-                          onClose();
-                          resetModal();
-                        }, 3000);
-                      }, 1500);
+                      try {
+                        // Validate invoice first
+                        const validation = lightningService.validateInvoice(lightningInvoiceInput);
+                        if (!validation.valid) {
+                          alert(`❌ Invalid invoice: ${validation.error}`);
+                          return;
+                        }
+
+                        // Show decoded invoice details
+                        if (validation.decoded) {
+                          const confirmMsg = `⚡ Pay Lightning Invoice?\n\n` +
+                            `Amount: ${validation.decoded.amountSats} sats\n` +
+                            `Description: ${validation.decoded.description}\n` +
+                            `Destination: ${validation.decoded.destination.substring(0, 20)}...`;
+                          
+                          if (!confirm(confirmMsg)) {
+                            return;
+                          }
+                        }
+
+                        setMode('processing');
+                        
+                        // Pay invoice via Lightning service
+                        const payment = await lightningService.payInvoice(lightningInvoiceInput);
+                        
+                        if (payment.success) {
+                          console.log('✅ Lightning payment successful!', payment);
+                          setMode('success');
+                          setShowSuccess(true);
+                          setTimeout(() => {
+                            onClose();
+                            resetModal();
+                          }, 3000);
+                        } else {
+                          setMode('lightning-send');
+                          alert(`❌ Payment failed: ${payment.error}`);
+                        }
+                      } catch (error: any) {
+                        console.error('❌ Lightning payment error:', error);
+                        setMode('lightning-send');
+                        alert(`❌ Payment failed: ${error.message || 'Unknown error'}`);
+                      }
                     }}
                     disabled={!lightningInvoiceInput}
                     className="w-full py-4 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-semibold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1204,13 +1295,28 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                             return;
                           }
 
-                          // TODO: Replace with actual Lightning invoice generation via LightningService
-                          // For now, generate mock invoice
-                          const mockInvoice = `lnbc${Math.floor(amount * 100000)}n1p${Math.random().toString(36).substring(2, 15)}pp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypq`;
-                          setLightningInvoice(mockInvoice);
-
                           try {
-                            const qr = await QRCode.toDataURL(mockInvoice, {
+                            // TODO: Convert EUR to BTC/sats based on current price
+                            // For now, assume 1 EUR = ~2000 sats (approximate)
+                            const amountSats = Math.floor(amount * 2000);
+                            
+                            console.log(`⚡ Generating Lightning invoice for €${amount} (${amountSats} sats)...`);
+
+                            // Create invoice via Lightning service
+                            const invoice = await lightningService.createInvoice(
+                              amountSats,
+                              `Blaze Wallet: €${amount}`
+                            );
+
+                            if (!invoice) {
+                              throw new Error('Failed to create invoice');
+                            }
+
+                            console.log('✅ Invoice created:', invoice.bolt11.substring(0, 40) + '...');
+                            setLightningInvoice(invoice.bolt11);
+
+                            // Generate QR code
+                            const qr = await QRCode.toDataURL(invoice.bolt11, {
                               width: 400,
                               margin: 2,
                               color: {
@@ -1219,9 +1325,12 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                               },
                             });
                             setLightningQR(qr);
-                          } catch (error) {
-                            console.error('Error generating QR:', error);
-                            alert('❌ Failed to generate QR code');
+
+                            // Start monitoring for payment
+                            startPaymentMonitoring(invoice.paymentHash);
+                          } catch (error: any) {
+                            console.error('❌ Failed to generate invoice:', error);
+                            alert(`❌ Failed to generate invoice: ${error.message || 'Unknown error'}`);
                           }
                         }}
                         disabled={!amount || amount <= 0}
