@@ -368,6 +368,8 @@ export class QRParser {
   
   /**
    * Detect chain from address format
+   * ⚠️ ORDER MATTERS: Bitcoin must be checked BEFORE Solana!
+   * Bitcoin addresses (1..., 3...) can overlap with Solana's base58 range
    */
   static detectChainFromAddress(address: string): {
     chain: ChainType;
@@ -377,6 +379,7 @@ export class QRParser {
     const addr = address.trim();
     
     // Ethereum/EVM chains (0x + 40 hex characters)
+    // Check first as it's the most specific format
     if (this.isValidEthereumAddress(addr)) {
       return { 
         chain: 'ethereum', 
@@ -385,20 +388,23 @@ export class QRParser {
       };
     }
     
-    // Solana (base58, 32-44 chars, no 0, O, I, l)
-    if (this.isValidSolanaAddress(addr)) {
+    // ⚠️ CRITICAL: Bitcoin BEFORE Solana!
+    // Bitcoin addresses (1..., 3..., bc1...) are 25-62 chars
+    // Solana addresses are 32-44 chars (overlaps with Bitcoin range!)
+    if (this.isValidBitcoinAddress(addr)) {
       return { 
-        chain: 'solana', 
+        chain: 'bitcoin', 
         confidence: 'high', 
         address: addr 
       };
     }
     
-    // Bitcoin (starts with 1, 3, or bc1)
-    if (this.isValidBitcoinAddress(addr)) {
+    // Solana (base58, 32-44 chars, no 0, O, I, l)
+    // Checked AFTER Bitcoin to avoid false positives
+    if (this.isValidSolanaAddress(addr)) {
       return { 
-        chain: 'bitcoin', 
-        confidence: 'medium', 
+        chain: 'solana', 
+        confidence: 'high', 
         address: addr 
       };
     }
