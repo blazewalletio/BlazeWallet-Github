@@ -123,6 +123,21 @@ export const CHAINS: Record<string, Chain> = {
     icon: '◎',
     logoUrl: '/crypto-solana.png',
   },
+  bitcoin: {
+    id: 0,
+    name: 'Bitcoin',
+    shortName: 'BTC',
+    rpcUrl: 'https://blockstream.info/api', // Blockstream API
+    explorerUrl: 'https://blockstream.info',
+    nativeCurrency: {
+      name: 'Bitcoin',
+      symbol: 'BTC',
+      decimals: 8,
+    },
+    color: '#F7931A',
+    icon: '₿',
+    logoUrl: '/crypto-btc.png',
+  },
 };
 
 export const DEFAULT_CHAIN = 'ethereum';

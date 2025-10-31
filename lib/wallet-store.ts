@@ -13,6 +13,7 @@ export interface WalletState {
   wallet: ethers.HDNodeWallet | null;
   address: string | null; // EVM address (for backward compatibility)
   solanaAddress: string | null; // Solana-specific address
+  bitcoinAddress: string | null; // ✅ Bitcoin Native SegWit address (bc1...)
   balance: string;
   isLocked: boolean;
   mnemonic: string | null;
@@ -56,6 +57,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   wallet: null,
   address: null,
   solanaAddress: null, // Initialize Solana address
+  bitcoinAddress: null, // ✅ Initialize Bitcoin address
   balance: '0',
   isLocked: false,
   mnemonic: null,
@@ -79,10 +81,16 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     const solanaService = new SolanaService();
     const solanaAddress = solanaService.getAddressFromMnemonic(mnemonic);
     
+    // ✅ Generate Bitcoin address from the same mnemonic
+    const { BitcoinService } = await import('./bitcoin-service');
+    const bitcoinService = new BitcoinService('mainnet');
+    const { address: bitcoinAddress } = bitcoinService.deriveBitcoinAddress(mnemonic, 'native-segwit');
+    
     set({
       wallet,
       address: wallet.address, // EVM address (derived from mnemonic)
       solanaAddress, // Solana address (derived from mnemonic)
+      bitcoinAddress, // ✅ Bitcoin address (derived from mnemonic)
       mnemonic, // Only in memory, never persisted
       isLocked: false,
       lastActivity: Date.now(),
@@ -114,6 +122,11 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       const solanaService = new SolanaService();
       const solanaAddress = solanaService.getAddressFromMnemonic(cleanMnemonic);
       
+      // ✅ Generate Bitcoin address from the same mnemonic
+      const { BitcoinService } = await import('./bitcoin-service');
+      const bitcoinService = new BitcoinService('mainnet');
+      const { address: bitcoinAddress } = bitcoinService.deriveBitcoinAddress(cleanMnemonic, 'native-segwit');
+      
       // Restore chain preference
       const savedChain = typeof window !== 'undefined' 
         ? localStorage.getItem('current_chain') || DEFAULT_CHAIN
@@ -123,6 +136,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         wallet,
         address: wallet.address, // EVM address (derived from mnemonic)
         solanaAddress, // Solana address (derived from mnemonic)
+        bitcoinAddress, // ✅ Bitcoin address (derived from mnemonic)
         mnemonic: cleanMnemonic, // Only in memory, never persisted
         isLocked: false,
         currentChain: savedChain,
@@ -203,12 +217,18 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       const solanaService = new SolanaService();
       const solanaAddress = solanaService.getAddressFromMnemonic(cleanMnemonic);
       
+      // ✅ ALWAYS derive Bitcoin address from mnemonic
+      const { BitcoinService } = await import('./bitcoin-service');
+      const bitcoinService = new BitcoinService('mainnet');
+      const { address: bitcoinAddress } = bitcoinService.deriveBitcoinAddress(cleanMnemonic, 'native-segwit');
+      
       const savedChain = localStorage.getItem('current_chain') || DEFAULT_CHAIN;
 
       set({
         wallet,
         address: wallet.address, // EVM address (derived from mnemonic)
         solanaAddress, // Solana address (derived from mnemonic)
+        bitcoinAddress, // ✅ Bitcoin address (derived from mnemonic)
         mnemonic: cleanMnemonic,
         isLocked: false,
         currentChain: savedChain,
@@ -283,6 +303,11 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         const solanaService = new SolanaService();
         const solanaAddress = solanaService.getAddressFromMnemonic(result.mnemonic);
         
+        // ✅ ALWAYS derive Bitcoin address from mnemonic
+        const { BitcoinService } = await import('./bitcoin-service');
+        const bitcoinService = new BitcoinService('mainnet');
+        const { address: bitcoinAddress } = bitcoinService.deriveBitcoinAddress(result.mnemonic, 'native-segwit');
+        
         const savedChain = typeof window !== 'undefined'
           ? localStorage.getItem('current_chain') || DEFAULT_CHAIN
           : DEFAULT_CHAIN;
@@ -291,6 +316,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           wallet,
           address: wallet.address, // EVM address (derived from mnemonic)
           solanaAddress, // Solana address (derived from mnemonic)
+          bitcoinAddress, // ✅ Bitcoin address (derived from mnemonic)
           mnemonic: result.mnemonic,
           isLocked: false,
           currentChain: savedChain,
@@ -335,6 +361,11 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         const solanaService = new SolanaService();
         const solanaAddress = solanaService.getAddressFromMnemonic(mnemonic);
         
+        // ✅ ALWAYS derive Bitcoin address from mnemonic
+        const { BitcoinService } = await import('./bitcoin-service');
+        const bitcoinService = new BitcoinService('mainnet');
+        const { address: bitcoinAddress } = bitcoinService.deriveBitcoinAddress(mnemonic, 'native-segwit');
+        
         const savedChain = typeof window !== 'undefined'
           ? localStorage.getItem('current_chain') || DEFAULT_CHAIN
           : DEFAULT_CHAIN;
@@ -343,6 +374,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           wallet,
           address: wallet.address, // EVM address (derived from mnemonic)
           solanaAddress, // Solana address (derived from mnemonic)
+          bitcoinAddress, // ✅ Bitcoin address (derived from mnemonic)
           mnemonic,
           isLocked: false,
           currentChain: savedChain,
@@ -435,10 +467,16 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       const solanaService = new SolanaService();
       const solanaAddress = solanaService.getAddressFromMnemonic(cleanMnemonic);
       
+      // ✅ Generate Bitcoin address from the same mnemonic
+      const { BitcoinService } = await import('./bitcoin-service');
+      const bitcoinService = new BitcoinService('mainnet');
+      const { address: bitcoinAddress } = bitcoinService.deriveBitcoinAddress(cleanMnemonic, 'native-segwit');
+      
       set({
         wallet,
         address: wallet.address, // EVM address
         solanaAddress, // Solana address
+        bitcoinAddress, // ✅ Bitcoin address
         mnemonic: cleanMnemonic,
         isLocked: false,
       });
@@ -494,6 +532,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       wallet: null,
       address: null,
       solanaAddress: null, // ✅ NEW: Clear Solana address
+      bitcoinAddress: null, // ✅ NEW: Clear Bitcoin address
       balance: '0',
       isLocked: false,
       mnemonic: null,
@@ -589,9 +628,11 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   },
 
   getCurrentAddress: () => {
-    const { currentChain, address, solanaAddress } = get();
-    // Return Solana address for Solana chain, EVM address for all others
-    return currentChain === 'solana' ? solanaAddress : address;
+    const { currentChain, address, solanaAddress, bitcoinAddress } = get();
+    // Return chain-specific address
+    if (currentChain === 'solana') return solanaAddress;
+    if (currentChain === 'bitcoin') return bitcoinAddress;
+    return address; // EVM chains
   },
 
   /**
