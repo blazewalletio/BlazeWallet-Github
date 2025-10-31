@@ -46,6 +46,10 @@ export interface BitcoinTransaction {
   isError: boolean;
   blockNumber?: number;
   type: 'send' | 'receive';
+  // ✅ Metadata for transaction history display
+  tokenName?: string;
+  tokenSymbol?: string;
+  logoUrl?: string;
 }
 
 export interface BitcoinFeeEstimate {
