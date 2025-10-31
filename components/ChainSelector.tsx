@@ -91,7 +91,34 @@ export default function ChainSelector({ isOpen, onClose }: ChainSelectorProps) {
     };
   }, [isOpen]);
 
-  const chains = Object.entries(CHAINS);
+  // ✅ Sort chains by market cap (largest first)
+  // Market cap ranking based on CoinMarketCap Oct 2024
+  const marketCapOrder: Record<string, number> = {
+    'bitcoin': 1,        // #1 - $1.3T
+    'ethereum': 2,       // #2 - $400B
+    'solana': 3,         // #4 - $80B
+    'bsc': 4,            // #5 (BNB) - $65B
+    'avalanche': 5,      // #10 - $10B
+    'polygon': 6,        // #13 - $6B
+    'litecoin': 7,       // #20 - $6B
+    'arbitrum': 8,       // #35 - $2B
+    'optimism': 9,       // #37 - $2B
+    'dogecoin': 10,      // #8 - $20B (meme, but popular)
+    'base': 11,          // New L2 (popular)
+    'bitcoincash': 12,   // #19 - $8B
+    'fantom': 13,        // ~$500M
+    'cronos': 14,        // ~$2B
+    'zksync': 15,        // New L2
+    'linea': 16,         // New L2
+    'sepolia': 99,       // Testnet - always last
+    'bscTestnet': 100,   // Testnet - always last
+  };
+  
+  const chains = Object.entries(CHAINS).sort((a, b) => {
+    const orderA = marketCapOrder[a[0]] || 999;
+    const orderB = marketCapOrder[b[0]] || 999;
+    return orderA - orderB;
+  });
   
   // L2 chains for badge display
   const l2Chains = ['polygon', 'arbitrum', 'base', 'optimism'];
