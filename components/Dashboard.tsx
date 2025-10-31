@@ -98,6 +98,7 @@ export default function Dashboard() {
   const [showDebugPanel, setShowDebugPanel] = useState(false); // NEW: Debug panel state
   const [showPasswordUnlock, setShowPasswordUnlock] = useState(false); // ✅ NEW: Password unlock modal state
   const [showQuickPay, setShowQuickPay] = useState(false);
+  const [quickPayInitialMethod, setQuickPayInitialMethod] = useState<'scanqr' | 'manual' | 'lightning' | undefined>(undefined); // ⚡ Control which method to auto-select
   const [showFounderDeploy, setShowFounderDeploy] = useState(false);
   const [showStaking, setShowStaking] = useState(false);
   const [showGovernance, setShowGovernance] = useState(false);
@@ -1168,8 +1169,8 @@ export default function Dashboard() {
               transition={{ delay: 0.3 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => {
+                setQuickPayInitialMethod('lightning'); // ⚡ Auto-select Lightning
                 setShowQuickPay(true);
-                // QuickPay will auto-select Lightning mode via initialMethod prop
               }}
               className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 rounded-xl p-4 shadow-lg hover:shadow-xl transition-all group relative overflow-hidden mt-3"
             >
@@ -1746,8 +1747,11 @@ export default function Dashboard() {
       />
       <QuickPayModal 
         isOpen={showQuickPay} 
-        onClose={() => setShowQuickPay(false)} 
-        initialMethod={currentChain === 'bitcoin' ? 'lightning' : undefined} // ⚡ Auto-select Lightning on Bitcoin
+        onClose={() => {
+          setShowQuickPay(false);
+          setQuickPayInitialMethod(undefined); // ⚡ Reset initialMethod on close
+        }} 
+        initialMethod={quickPayInitialMethod} // ⚡ Only set when Lightning button clicked
       />
       
       {/* AI Feature Modals */}

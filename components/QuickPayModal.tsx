@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Zap, CreditCard, Scan, Check, Camera, AlertCircle, ArrowRight, Copy, User, RefreshCw } from 'lucide-react';
+import { X, Zap, CreditCard, Scan, Check, Camera, AlertCircle, ArrowRight, Copy, User, RefreshCw, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import QRCode from 'qrcode';
@@ -19,18 +19,23 @@ interface QuickPayModalProps {
 const PRESET_AMOUNTS_EUR = [5, 10, 20, 50, 100];
 
 export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickPayModalProps) {
-  // Main flow: 'method' | 'amount' | 'address' | 'scan' | 'chain-switch' | 'lightning' | 'confirm' | 'processing' | 'success'
-  const [mode, setMode] = useState<'method' | 'amount' | 'address' | 'scan' | 'chain-switch' | 'lightning' | 'confirm' | 'processing' | 'success'>('method');
+  // Main flow: 'method' | 'amount' | 'address' | 'scan' | 'chain-switch' | 'lightning' | 'lightning-send' | 'lightning-receive' | 'confirm' | 'processing' | 'success'
+  const [mode, setMode] = useState<'method' | 'amount' | 'address' | 'scan' | 'chain-switch' | 'lightning' | 'lightning-send' | 'lightning-receive' | 'confirm' | 'processing' | 'success'>('method');
   const [paymentMethod, setPaymentMethod] = useState<'scanqr' | 'manual' | 'lightning' | null>(null);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState('');
   const [recipientAddress, setRecipientAddress] = useState('');
   const [lightningQR, setLightningQR] = useState('');
+  const [lightningInvoice, setLightningInvoice] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [scannedAddress, setScannedAddress] = useState<string>('');
   const [scannedAmount, setScannedAmount] = useState<string>('');
+  
+  // ⚡ Lightning specific states
+  const [lightningAction, setLightningAction] = useState<'send' | 'receive' | null>(null);
+  const [lightningInvoiceInput, setLightningInvoiceInput] = useState('');
   
   // ✅ NEW: Chain detection and switching
   const [parsedQR, setParsedQR] = useState<ParsedQRData | null>(null);
@@ -267,6 +272,11 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   useEffect(() => {
     if (isOpen && initialMethod) {
       handleMethodSelect(initialMethod);
+    } else if (isOpen && !initialMethod) {
+      // Reset to method selection when opening without initialMethod
+      setMode('method');
+      setPaymentMethod(null);
+      setLightningAction(null);
     }
   }, [isOpen, initialMethod]);
 
@@ -329,6 +339,9 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     setScannedAddress('');
     setScannedAmount('');
     setLightningQR('');
+    setLightningInvoice('');
+    setLightningAction(null);
+    setLightningInvoiceInput('');
     setShowSuccess(false);
     setParsedQR(null);
     setNeedsChainSwitch(false);
@@ -355,9 +368,17 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       setScannedAddress('');
       setScannedAmount('');
       setParsedQR(null);
+    } else if (mode === 'lightning-send' || mode === 'lightning-receive') {
+      // Go back to lightning choice
+      setMode('lightning');
+      setLightningAction(null);
+      setLightningInvoiceInput('');
+      setLightningQR('');
+      setLightningInvoice('');
     } else if (mode === 'lightning') {
       setMode('method');
       setPaymentMethod(null);
+      setLightningAction(null);
     } else if (mode === 'scan') {
       stopCamera();
       setMode('method');
@@ -893,54 +914,385 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
               )}
 
             {/* LIGHTNING QR DISPLAY */}
-            {mode === 'lightning' && (
+            {/* ⚡ LIGHTNING NETWORK - Choose Send or Receive */}
+            {mode === 'lightning' && !lightningAction && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="space-y-6"
+                >
+                  {/* Lightning Header */}
+                  <div className="text-center">
+                    <div className="w-20 h-20 bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                      <Zap className="w-10 h-10 text-white" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                      ⚡ Lightning Network
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Instant Bitcoin payments • Ultra-low fees
+                    </p>
+                  </div>
+
+                  {/* Benefits Card */}
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-5">
+                    <div className="space-y-3 text-sm">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                          <Zap className="w-4 h-4 text-white" />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-gray-900">Instant settlement</div>
+                          <div className="text-xs text-gray-600">Payments arrive in less than a second</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
+                          <Check className="w-4 h-4 text-white" />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-gray-900">Ultra-low fees</div>
+                          <div className="text-xs text-gray-600">Typically less than $0.001 per transaction</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
+                          <AlertCircle className="w-4 h-4 text-white" />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-gray-900">Perfect for small payments</div>
+                          <div className="text-xs text-gray-600">Great for everyday transactions</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="space-y-3">
+                    {/* Send Lightning Payment */}
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        setLightningAction('send');
+                        setMode('lightning-send');
+                      }}
+                      className="w-full p-6 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl text-white transition-all shadow-lg group relative overflow-hidden"
+                    >
+                      <div className="relative flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                            <ArrowUpRight className="w-6 h-6" />
+                          </div>
+                          <div className="text-left">
+                            <div className="text-lg font-bold">Send Lightning Payment</div>
+                            <div className="text-sm text-white/80">Pay a BOLT11 invoice</div>
+                          </div>
+                        </div>
+                        <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </motion.button>
+
+                    {/* Receive Lightning Payment */}
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        setLightningAction('receive');
+                        setMode('lightning-receive');
+                      }}
+                      className="w-full p-6 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-xl text-white transition-all shadow-lg group relative overflow-hidden"
+                    >
+                      <div className="relative flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                            <ArrowDownLeft className="w-6 h-6" />
+                          </div>
+                          <div className="text-left">
+                            <div className="text-lg font-bold">Receive Lightning Payment</div>
+                            <div className="text-sm text-white/80">Generate payment invoice</div>
+                          </div>
+                        </div>
+                        <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </motion.button>
+                  </div>
+
+                  {/* Info */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                    <div className="flex gap-3">
+                      <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-gray-700">
+                        <strong>New to Lightning?</strong> It's a second-layer payment protocol that operates on top of Bitcoin for instant, low-fee transactions.
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+            {/* ⚡ LIGHTNING SEND - Pay invoice */}
+            {mode === 'lightning-send' && (
                 <motion.div
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   className="space-y-6"
                 >
                   <div className="text-center">
-                    <div className="text-sm text-gray-600 mb-2">Receive</div>
-                    <div className="text-4xl font-bold text-gray-900 mb-2">€{amount.toFixed(2)}</div>
-                    <div className="text-sm text-gray-600">Lightning Network Payment</div>
+                    <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Zap className="w-8 h-8 text-white" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">
+                      Pay Lightning Invoice
+                    </h3>
+                    <p className="text-sm text-gray-600">Enter or scan a BOLT11 invoice</p>
                   </div>
 
-                  {lightningQR && (
-                    <div className="bg-white border-2 border-purple-200 rounded-xl p-6">
-                      <div className="mb-4 text-sm text-gray-600 text-center">
-                        Scan with Lightning wallet to pay
-                      </div>
-                      <img 
-                        src={lightningQR} 
-                        alt="Lightning QR" 
-                        className="mx-auto rounded-xl"
-                      />
-                      <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                        <div className="text-xs text-gray-600 mb-1 text-center">Invoice</div>
-                        <div className="text-xs font-mono break-all text-gray-900 text-center">
-                          lnbc{amount * 10000}u1p3xn...
-                        </div>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(`lnbc${amount * 10000}u1p3xnhqpp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqhp58yjmdan79s6qqdhdzgynm4zwqd5d7xmw5fk98klysy043l2ahrqsfpp3x9et2e20v6pu37c5d9vax37wxq72un98k6vcx9fz94w0qf237cm`);
-                          }}
-                          className="w-full mt-3 py-2 rounded-lg bg-white border border-purple-300 hover:bg-purple-50 text-purple-700 font-semibold text-sm transition-colors"
-                        >
-                          <Copy className="w-4 h-4 inline mr-2" />
-                          Copy invoice
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                  {/* Invoice Input */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Lightning Invoice (BOLT11)
+                    </label>
+                    <textarea
+                      value={lightningInvoiceInput}
+                      onChange={(e) => setLightningInvoiceInput(e.target.value)}
+                      placeholder="lnbc... or lightning:lnbc..."
+                      rows={4}
+                      className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono text-sm resize-none"
+                    />
+                  </div>
 
-                  <div className="flex items-center justify-between bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4">
-                    <div className="flex items-center gap-2">
-                      <Zap className="w-5 h-5 text-purple-600" />
-                      <div className="text-sm font-semibold text-gray-900">Free • Instant</div>
+                  {/* Quick Actions */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={async () => {
+                        try {
+                          const text = await navigator.clipboard.readText();
+                          if (text && (text.startsWith('lnbc') || text.startsWith('lightning:'))) {
+                            setLightningInvoiceInput(text);
+                          } else {
+                            alert('❌ No Lightning invoice found in clipboard');
+                          }
+                        } catch (error) {
+                          alert('Could not access clipboard. Please paste manually.');
+                        }
+                      }}
+                      className="p-4 bg-white border-2 border-gray-200 hover:border-blue-300 rounded-xl text-center transition-all"
+                    >
+                      <Copy className="w-6 h-6 text-blue-600 mx-auto mb-2" />
+                      <div className="text-sm font-semibold text-gray-900">Paste Invoice</div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMode('scan');
+                        // Scanner will detect Lightning invoices
+                      }}
+                      className="p-4 bg-white border-2 border-gray-200 hover:border-green-300 rounded-xl text-center transition-all"
+                    >
+                      <Camera className="w-6 h-6 text-green-600 mx-auto mb-2" />
+                      <div className="text-sm font-semibold text-gray-900">Scan QR</div>
+                    </button>
+                  </div>
+
+                  {/* Pay Button */}
+                  <button
+                    onClick={() => {
+                      if (!lightningInvoiceInput || (!lightningInvoiceInput.startsWith('lnbc') && !lightningInvoiceInput.startsWith('lightning:'))) {
+                        alert('❌ Please enter a valid Lightning invoice (starts with lnbc...)');
+                        return;
+                      }
+                      
+                      // TODO: Implement actual Lightning payment via LightningService
+                      alert('⚡ Lightning payment feature coming soon!\n\nThis will integrate with your Lightning node to pay invoices instantly.');
+                      
+                      // For now, show mock success
+                      setMode('processing');
+                      setTimeout(() => {
+                        setMode('success');
+                        setShowSuccess(true);
+                        setTimeout(() => {
+                          onClose();
+                          resetModal();
+                        }, 3000);
+                      }, 1500);
+                    }}
+                    disabled={!lightningInvoiceInput}
+                    className="w-full py-4 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-semibold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Pay Invoice ⚡
+                  </button>
+
+                  {/* Info */}
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                    <div className="flex gap-3">
+                      <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-gray-700">
+                        <strong>Instant payment:</strong> Lightning invoices are paid instantly with extremely low fees (typically &lt; $0.001).
+                      </div>
                     </div>
-                      <div className="text-xs text-gray-600">⏱️ Expires in 14:52</div>
-                    </div>
-                  </motion.div>
+                  </div>
+                </motion.div>
+              )}
+
+            {/* ⚡ LIGHTNING RECEIVE - Generate invoice */}
+            {mode === 'lightning-receive' && (
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="space-y-6"
+                >
+                  {!lightningQR ? (
+                    <>
+                      {/* Amount Input */}
+                      <div className="text-center">
+                        <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <ArrowDownLeft className="w-8 h-8 text-white" />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">
+                          Receive Lightning Payment
+                        </h3>
+                        <p className="text-sm text-gray-600">Set amount to receive</p>
+                      </div>
+
+                      {/* Preset Amounts */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-3">Select amount (EUR)</label>
+                        <div className="grid grid-cols-5 gap-2">
+                          {PRESET_AMOUNTS_EUR.map((preset) => (
+                            <button
+                              key={preset}
+                              onClick={() => {
+                                setSelectedAmount(preset);
+                                setCustomAmount('');
+                              }}
+                              className={`py-3 rounded-lg font-semibold transition-all ${
+                                selectedAmount === preset
+                                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
+                                  : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-purple-300'
+                              }`}
+                            >
+                              €{preset}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Custom Amount */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Or enter custom amount</label>
+                        <div className="relative">
+                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-gray-500">
+                            €
+                          </div>
+                          <input
+                            type="number"
+                            value={customAmount}
+                            onChange={(e) => {
+                              setCustomAmount(e.target.value);
+                              setSelectedAmount(null);
+                            }}
+                            placeholder="0.00"
+                            className="w-full pl-12 pr-4 py-4 text-2xl font-bold bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Generate Invoice Button */}
+                      <button
+                        onClick={async () => {
+                          if (!amount || amount <= 0) {
+                            alert('❌ Please enter a valid amount');
+                            return;
+                          }
+
+                          // TODO: Replace with actual Lightning invoice generation via LightningService
+                          // For now, generate mock invoice
+                          const mockInvoice = `lnbc${Math.floor(amount * 100000)}n1p${Math.random().toString(36).substring(2, 15)}pp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypq`;
+                          setLightningInvoice(mockInvoice);
+
+                          try {
+                            const qr = await QRCode.toDataURL(mockInvoice, {
+                              width: 400,
+                              margin: 2,
+                              color: {
+                                dark: '#9333ea', // Purple
+                                light: '#FFFFFF',
+                              },
+                            });
+                            setLightningQR(qr);
+                          } catch (error) {
+                            console.error('Error generating QR:', error);
+                            alert('❌ Failed to generate QR code');
+                          }
+                        }}
+                        disabled={!amount || amount <= 0}
+                        className="w-full py-4 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Generate Invoice ⚡
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {/* Invoice Generated - Show QR */}
+                      <div className="text-center">
+                        <div className="text-sm text-gray-600 mb-2">Receive</div>
+                        <div className="text-4xl font-bold text-gray-900 mb-2">€{amount.toFixed(2)}</div>
+                        <div className="text-sm text-gray-600">Lightning Network Payment</div>
+                      </div>
+
+                      {/* QR Code */}
+                      <div className="bg-white border-2 border-purple-200 rounded-xl p-6">
+                        <div className="mb-4 text-sm text-gray-600 text-center">
+                          Scan with Lightning wallet to pay
+                        </div>
+                        <img 
+                          src={lightningQR} 
+                          alt="Lightning Invoice QR" 
+                          className="mx-auto rounded-xl"
+                        />
+                        
+                        {/* Invoice String */}
+                        <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                          <div className="text-xs text-gray-600 mb-1 text-center font-semibold">
+                            BOLT11 Invoice
+                          </div>
+                          <div className="text-xs font-mono break-all text-gray-900 text-center mb-3">
+                            {lightningInvoice.substring(0, 40)}...
+                          </div>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(lightningInvoice);
+                              alert('✅ Invoice copied to clipboard!');
+                            }}
+                            className="w-full py-2 rounded-lg bg-white border border-purple-300 hover:bg-purple-50 text-purple-700 font-semibold text-sm transition-colors"
+                          >
+                            <Copy className="w-4 h-4 inline mr-2" />
+                            Copy invoice
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Status */}
+                      <div className="flex items-center justify-between bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4">
+                        <div className="flex items-center gap-2">
+                          <Zap className="w-5 h-5 text-purple-600" />
+                          <div className="text-sm font-semibold text-gray-900">Awaiting payment...</div>
+                        </div>
+                        <div className="text-xs text-gray-600">⏱️ Expires in 14:52</div>
+                      </div>
+
+                      {/* New Invoice Button */}
+                      <button
+                        onClick={() => {
+                          setLightningQR('');
+                          setLightningInvoice('');
+                        }}
+                        className="w-full py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold transition-colors"
+                      >
+                        Generate New Invoice
+                      </button>
+                    </>
+                  )}
+                </motion.div>
               )}
 
             {/* CONFIRMATION SCREEN */}
