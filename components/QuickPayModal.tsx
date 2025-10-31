@@ -42,6 +42,9 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   // 📱 Mobile detection
   const [isMobile, setIsMobile] = useState(false);
   
+  // 💵 USD conversion for QR amounts
+  const [cryptoUSDValue, setCryptoUSDValue] = useState<number | null>(null);
+  
   // ✅ NEW: Chain detection and switching
   const [parsedQR, setParsedQR] = useState<ParsedQRData | null>(null);
   const [needsChainSwitch, setNeedsChainSwitch] = useState(false);
@@ -161,6 +164,34 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       setIsMobile(checkMobile);
     }
   }, []);
+
+  // 💵 Fetch USD value when QR amount is scanned
+  useEffect(() => {
+    if (scannedAmount && parsedQR?.amount && currentChain) {
+      const fetchUSDValue = async () => {
+        try {
+          const symbol = QRParser.getChainInfo(currentChain as ChainType)?.symbol;
+          if (!symbol) return;
+          
+          // Fetch current price from API
+          const response = await fetch(`/api/prices?symbols=${symbol}`);
+          const data = await response.json();
+          
+          if (data[symbol]?.price) {
+            const usdValue = parseFloat(scannedAmount) * data[symbol].price;
+            setCryptoUSDValue(usdValue);
+          }
+        } catch (error) {
+          console.error('Error fetching USD value:', error);
+          setCryptoUSDValue(null);
+        }
+      };
+      
+      fetchUSDValue();
+    } else {
+      setCryptoUSDValue(null);
+    }
+  }, [scannedAmount, parsedQR?.amount, currentChain]);
 
   const scanQRCode = () => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -439,6 +470,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     setShowSuccess(false);
     setParsedQR(null);
     setNeedsChainSwitch(false);
+    setCryptoUSDValue(null);
     stopCamera();
     
     // Stop payment monitoring
@@ -1550,6 +1582,11 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                         <div className="text-sm text-gray-500">
                           Native {QRParser.getChainInfo(currentChain as ChainType)?.name} amount from QR code
                         </div>
+                        {cryptoUSDValue !== null && (
+                          <div className="text-lg text-gray-600 mt-2">
+                            ≈ ${cryptoUSDValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                          </div>
+                        )}
                       </>
                     ) : (
                       // Manual amount - show in EUR
