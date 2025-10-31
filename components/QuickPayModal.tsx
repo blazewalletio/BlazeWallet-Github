@@ -13,11 +13,12 @@ import { QRParser, ParsedQRData, ChainType } from '@/lib/qr-parser';
 interface QuickPayModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialMethod?: 'scanqr' | 'manual' | 'lightning'; // ⚡ NEW: Auto-select method
 }
 
 const PRESET_AMOUNTS_EUR = [5, 10, 20, 50, 100];
 
-export default function QuickPayModal({ isOpen, onClose }: QuickPayModalProps) {
+export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickPayModalProps) {
   // Main flow: 'method' | 'amount' | 'address' | 'scan' | 'chain-switch' | 'lightning' | 'confirm' | 'processing' | 'success'
   const [mode, setMode] = useState<'method' | 'amount' | 'address' | 'scan' | 'chain-switch' | 'lightning' | 'confirm' | 'processing' | 'success'>('method');
   const [paymentMethod, setPaymentMethod] = useState<'scanqr' | 'manual' | 'lightning' | null>(null);
@@ -34,6 +35,7 @@ export default function QuickPayModal({ isOpen, onClose }: QuickPayModalProps) {
   // ✅ NEW: Chain detection and switching
   const [parsedQR, setParsedQR] = useState<ParsedQRData | null>(null);
   const [needsChainSwitch, setNeedsChainSwitch] = useState(false);
+  const [showChainSwitchDialog, setShowChainSwitchDialog] = useState(false); // ⚡ NEW: Chain switch confirmation
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -236,6 +238,13 @@ export default function QuickPayModal({ isOpen, onClose }: QuickPayModalProps) {
   };
 
   const handleMethodSelect = (method: 'scanqr' | 'manual' | 'lightning') => {
+    // ⚡ NEW: Check if Lightning requires chain switch
+    if (method === 'lightning' && currentChain !== 'bitcoin') {
+      setPaymentMethod(method);
+      setShowChainSwitchDialog(true);
+      return;
+    }
+
     setPaymentMethod(method);
     
     if (method === 'scanqr') {
@@ -243,9 +252,23 @@ export default function QuickPayModal({ isOpen, onClose }: QuickPayModalProps) {
     } else if (method === 'manual') {
       setMode('amount');
     } else if (method === 'lightning') {
-      setMode('amount');
+      setMode('lightning'); // ⚡ Go directly to Lightning flow
     }
   };
+
+  // ⚡ NEW: Handle chain switch confirmation
+  const handleChainSwitch = () => {
+    switchChain('bitcoin');
+    setShowChainSwitchDialog(false);
+    setMode('lightning');
+  };
+
+  // ⚡ NEW: Auto-select method on open (must be after handleMethodSelect definition)
+  useEffect(() => {
+    if (isOpen && initialMethod) {
+      handleMethodSelect(initialMethod);
+    }
+  }, [isOpen, initialMethod]);
 
   const handleAmountNext = () => {
     if (!amount || amount <= 0) {
@@ -383,6 +406,82 @@ export default function QuickPayModal({ isOpen, onClose }: QuickPayModalProps) {
 
           {/* Content */}
           <div className="px-4 sm:px-6 py-6 pb-safe max-w-2xl mx-auto">
+
+            {/* ⚡ CHAIN SWITCH DIALOG - User-friendly Lightning prompt */}
+            {showChainSwitchDialog && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+                onClick={() => setShowChainSwitchDialog(false)}
+              >
+                <motion.div
+                  initial={{ y: 20 }}
+                  animate={{ y: 0 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="glass-card p-6 max-w-md w-full"
+                >
+                  {/* Lightning Icon */}
+                  <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Zap className="w-8 h-8 text-white" />
+                  </div>
+
+                  {/* Title */}
+                  <h3 className="text-2xl font-bold text-center text-gray-900 mb-2">
+                    ⚡ Lightning Network
+                  </h3>
+
+                  {/* Message */}
+                  <p className="text-center text-gray-700 mb-1 leading-relaxed">
+                    Lightning runs on the <span className="font-semibold text-orange-600">Bitcoin network</span>.
+                  </p>
+                  <p className="text-center text-gray-600 text-sm mb-6">
+                    Switch to Bitcoin to use instant, low-fee Lightning payments?
+                  </p>
+
+                  {/* Benefits */}
+                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-6">
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center gap-2 text-purple-900">
+                        <Zap className="w-4 h-4 flex-shrink-0" />
+                        <span><strong>Instant</strong> settlement (&lt; 1 second)</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-purple-900">
+                        <Check className="w-4 h-4 flex-shrink-0" />
+                        <span><strong>Ultra-low</strong> fees (~$0.001)</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-purple-900">
+                        <Check className="w-4 h-4 flex-shrink-0" />
+                        <span><strong>Perfect</strong> for small payments</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Current chain indicator */}
+                  <div className="text-center text-xs text-gray-500 mb-4">
+                    Currently on: <span className="font-semibold capitalize">{currentChain}</span>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3">
+                    <motion.button
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setShowChainSwitchDialog(false)}
+                      className="flex-1 py-3 px-4 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
+                    >
+                      Maybe later
+                    </motion.button>
+                    <motion.button
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleChainSwitch}
+                      className="flex-1 py-3 px-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
+                    >
+                      Yes, switch to Bitcoin
+                    </motion.button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
 
             {/* STEP 1: METHOD SELECTION */}
             {mode === 'method' && (
