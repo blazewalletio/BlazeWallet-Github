@@ -478,9 +478,9 @@ export class BitcoinForkService {
           blockNumber: tx.block_height,
           type: isSent ? 'send' : 'receive',
           // ✅ Native currency metadata for proper display in TransactionHistory
-          tokenName: CHAINS[this.chainKey]?.nativeCurrency.name || this.config.name,
-          tokenSymbol: CHAINS[this.chainKey]?.nativeCurrency.symbol || this.config.symbol,
-          logoUrl: CHAINS[this.chainKey]?.logoUrl || `/crypto-${this.chainKey}.png`,
+          tokenName: CHAINS[this.chain]?.nativeCurrency.name || this.config.name,
+          tokenSymbol: CHAINS[this.chain]?.nativeCurrency.symbol || this.config.symbol,
+          logoUrl: CHAINS[this.chain]?.logoUrl || `/crypto-${this.chain}.png`,
         });
       }
 
