@@ -18,6 +18,7 @@ export async function GET(request: Request) {
       // Native tokens
       ETH: 'ethereum',
       SOL: 'solana',
+      BTC: 'bitcoin', // ✅ Bitcoin support
       MATIC: 'matic-network',
       BNB: 'binancecoin',
       TBNB: 'binancecoin', // Testnet BNB uses same price as mainnet BNB

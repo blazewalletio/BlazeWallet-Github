@@ -136,7 +136,7 @@ export const CHAINS: Record<string, Chain> = {
     },
     color: '#F7931A',
     icon: '₿',
-    logoUrl: '/crypto-btc.png',
+    logoUrl: '/crypto-bitcoin.png',
   },
 };
 

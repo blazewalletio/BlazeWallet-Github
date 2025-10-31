@@ -2,17 +2,20 @@ import { ethers } from 'ethers';
 import { BlockchainService } from './blockchain';
 import { SolanaService } from './solana-service';
 import { AlchemyService } from './alchemy-service';
+import { BitcoinService } from './bitcoin-service';
 import { CHAINS } from './chains';
 
 /**
  * Unified Multi-Chain Service
  * Automatically routes to the correct blockchain service based on chain type
  * ✅ Singleton pattern met cache per chain (voorkomt excessive re-initialization)
+ * ✅ NOW SUPPORTS: EVM, Solana, Bitcoin
  */
 export class MultiChainService {
   private chainKey: string;
   private evmService: BlockchainService | null = null;
   private solanaService: SolanaService | null = null;
+  private bitcoinService: BitcoinService | null = null;
   private alchemyService: AlchemyService | null = null;
 
   private constructor(chainKey: string = 'ethereum') {
@@ -21,7 +24,10 @@ export class MultiChainService {
     if (this.isSolana()) {
       const chain = CHAINS[chainKey];
       this.solanaService = new SolanaService(chain.rpcUrl);
+    } else if (this.isBitcoin()) {
+      this.bitcoinService = new BitcoinService('mainnet');
     } else {
+      // EVM chains
       this.evmService = new BlockchainService(chainKey);
       
       // ✅ Initialize Alchemy if supported (silent logs)
@@ -65,6 +71,10 @@ export class MultiChainService {
     return this.chainKey === 'solana';
   }
 
+  private isBitcoin(): boolean {
+    return this.chainKey === 'bitcoin';
+  }
+
   getChain() {
     return CHAINS[this.chainKey];
   }
@@ -72,6 +82,9 @@ export class MultiChainService {
   async getBalance(address: string): Promise<string> {
     if (this.isSolana() && this.solanaService) {
       return await this.solanaService.getBalance(address);
+    } else if (this.isBitcoin() && this.bitcoinService) {
+      const { confirmed } = await this.bitcoinService.getBalance(address);
+      return ethers.formatUnits(confirmed, 8); // Bitcoin has 8 decimals
     } else if (this.evmService) {
       return await this.evmService.getBalance(address);
     }
@@ -83,6 +96,14 @@ export class MultiChainService {
       // Solana has very low and stable fees
       const fee = await this.solanaService.getTransactionFee();
       return { slow: fee, standard: fee, fast: fee };
+    } else if (this.isBitcoin() && this.bitcoinService) {
+      // Get Bitcoin fee estimates (sat/vB)
+      const fees = await this.bitcoinService.estimateFees();
+      return {
+        slow: fees.slow.toString(),
+        standard: fees.standard.toString(),
+        fast: fees.fast.toString(),
+      };
     } else if (this.evmService) {
       return await this.evmService.getGasPrice();
     }
@@ -101,6 +122,28 @@ export class MultiChainService {
         return await this.solanaService.sendTransaction(walletOrMnemonic, to, amount);
       }
       throw new Error('Solana requires mnemonic for transaction signing');
+    } else if (this.isBitcoin() && this.bitcoinService) {
+      // For Bitcoin, walletOrMnemonic must be a mnemonic string
+      if (typeof walletOrMnemonic === 'string') {
+        // Derive Bitcoin address from mnemonic
+        const { address: fromAddress } = this.bitcoinService.deriveBitcoinAddress(walletOrMnemonic, 'native-segwit');
+        
+        // Convert amount to satoshis
+        const amountSats = Math.floor(parseFloat(amount) * 100000000);
+        
+        // gasPrice for Bitcoin is actually sat/vB fee rate
+        const feeRate = gasPrice ? parseInt(gasPrice) : 10; // Default 10 sat/vB
+        
+        const result = await this.bitcoinService.createTransaction(
+          walletOrMnemonic,
+          fromAddress,
+          to,
+          amountSats,
+          feeRate
+        );
+        return result.txid; // Return transaction ID as string
+      }
+      throw new Error('Bitcoin requires mnemonic for transaction signing');
     } else if (this.evmService) {
       // For EVM, walletOrMnemonic must be a Wallet instance
       if (typeof walletOrMnemonic !== 'string') {
@@ -140,7 +183,7 @@ export class MultiChainService {
 
   async getTransactionHistory(address: string, limit: number = 10): Promise<any[]> {
     // ✅ NEW: Use Alchemy if available (includes ERC20 transfers!)
-    if (this.alchemyService && !this.isSolana()) {
+    if (this.alchemyService && !this.isSolana() && !this.isBitcoin()) {
       try {
         console.log(`🔮 [MultiChainService] Using Alchemy for transaction history`);
         return await this.alchemyService.getFullTransactionHistory(address, limit);
@@ -152,6 +195,8 @@ export class MultiChainService {
     // Fallback to existing methods
     if (this.isSolana() && this.solanaService) {
       return await this.solanaService.getTransactionHistory(address, limit);
+    } else if (this.isBitcoin() && this.bitcoinService) {
+      return await this.bitcoinService.getTransactionHistory(address, limit);
     } else if (this.evmService) {
       return await this.evmService.getTransactionHistory(address, limit);
     }
@@ -161,6 +206,8 @@ export class MultiChainService {
   isValidAddress(address: string): boolean {
     if (this.isSolana() && this.solanaService) {
       return this.solanaService.isValidAddress(address);
+    } else if (this.isBitcoin()) {
+      return BitcoinService.isValidAddress(address); // Static method
     } else if (this.evmService) {
       // EVM address validation
       return ethers.isAddress(address);
@@ -172,6 +219,8 @@ export class MultiChainService {
   getAddressFormatHint(): string {
     if (this.isSolana()) {
       return 'Solana address (base58, e.g., DYw8jC...)';
+    } else if (this.isBitcoin()) {
+      return 'Bitcoin address (bc1..., 1..., or 3...)';
     }
     return 'EVM address (0x...)';
   }
@@ -193,6 +242,11 @@ export class MultiChainService {
    * Falls back to manual token list if Alchemy unavailable
    */
   async getERC20TokenBalances(address: string): Promise<any[]> {
+    // Bitcoin has no tokens
+    if (this.isBitcoin()) {
+      return [];
+    }
+
     // Use Alchemy if available (auto-detects ALL tokens)
     if (this.alchemyService && !this.isSolana()) {
       try {

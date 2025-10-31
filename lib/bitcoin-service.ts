@@ -219,9 +219,10 @@ export class BitcoinService {
 
   /**
    * Estimate transaction fees (sat/vB)
+   * If no UTXOs provided, returns just the fee rates
    */
   async estimateFees(
-    utxos: BitcoinUTXO[],
+    utxos?: BitcoinUTXO[],
     outputs: number = 1
   ): Promise<BitcoinFeeEstimate> {
     try {
@@ -229,7 +230,7 @@ export class BitcoinService {
       
       if (!response.ok) {
         // Fallback to default fees
-        return this.getDefaultFees(utxos, outputs);
+        return this.getDefaultFees(utxos || [], outputs);
       }
 
       const fees = await response.json();
@@ -238,6 +239,18 @@ export class BitcoinService {
       const slowRate = fees['144'] || fees['504'] || 1; // ~24h
       const standardRate = fees['6'] || fees['12'] || 3; // ~1h
       const fastRate = fees['2'] || fees['3'] || 5; // ~20min
+
+      // If no UTXOs, return just the rates
+      if (!utxos || utxos.length === 0) {
+        return {
+          slow: Math.ceil(slowRate),
+          standard: Math.ceil(standardRate),
+          fast: Math.ceil(fastRate),
+          slowTotal: 0,
+          standardTotal: 0,
+          fastTotal: 0,
+        };
+      }
 
       // Calculate transaction size (rough estimate)
       const txSize = this.estimateTransactionSize(utxos.length, outputs);
@@ -252,7 +265,7 @@ export class BitcoinService {
       };
     } catch (error) {
       console.error('Error estimating fees:', error);
-      return this.getDefaultFees(utxos, outputs);
+      return this.getDefaultFees(utxos || [], outputs);
     }
   }
 

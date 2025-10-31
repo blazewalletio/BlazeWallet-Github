@@ -22,6 +22,7 @@ export async function GET(request: Request) {
       // Native tokens
       ETH: 'ETHUSDT',
       SOL: 'SOLUSDT',
+      BTC: 'BTCUSDT', // ✅ Bitcoin support
       MATIC: 'MATICUSDT',
       BNB: 'BNBUSDT',
       TBNB: 'BNBUSDT', // Testnet uses mainnet price
