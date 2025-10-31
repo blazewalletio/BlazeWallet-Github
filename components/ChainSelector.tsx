@@ -125,7 +125,7 @@ export default function ChainSelector({ isOpen, onClose }: ChainSelectorProps) {
           >
             <div className="glass-card rounded-t-3xl flex flex-col" style={{ maxHeight: '85vh' }}>
               {/* Header - Fixed at top */}
-              <div className="flex-shrink-0 flex justify-between items-center px-5 pt-5 pb-3 border-b border-theme-border/10">
+              <div className="flex-shrink-0 flex justify-between items-center px-4 pt-4 pb-3 border-b border-theme-border/10">
                 <h2 className="text-2xl font-bold">Select network</h2>
                 <motion.button
                   whileTap={{ scale: 0.9 }}
@@ -144,7 +144,7 @@ export default function ChainSelector({ isOpen, onClose }: ChainSelectorProps) {
                   overscrollBehavior: 'contain' // ✅ Prevent scroll chaining
                 }}
               >
-                <div className="px-3 py-3 space-y-3">
+                <div className="px-2 py-2 space-y-2">
                   {chains.map(([key, chain]) => {
                     const isSelected = currentChain === key;
                     const isL2 = l2Chains.includes(key);
@@ -221,7 +221,7 @@ export default function ChainSelector({ isOpen, onClose }: ChainSelectorProps) {
               </div>
 
               {/* Bottom Tip - Fixed at bottom */}
-              <div className="flex-shrink-0 px-3 pb-3 pt-2">
+              <div className="flex-shrink-0 px-2 pb-2 pt-2">
                 <div className="glass-card bg-theme-primary/10 border-theme-border/20">
                   <p className="text-theme-primary text-sm">
                     💡 Use Polygon or Base for low-fee transactions
