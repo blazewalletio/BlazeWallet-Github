@@ -1476,6 +1476,24 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     <p className="text-sm text-gray-600">Review payment details below</p>
                   </div>
 
+                  {/* 🆕 LABEL & MESSAGE from QR code */}
+                  {parsedQR && (parsedQR.label || parsedQR.message) && (
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-5">
+                      {parsedQR.label && (
+                        <div className="mb-3">
+                          <div className="text-xs text-blue-600 font-semibold mb-1">Recipient</div>
+                          <div className="text-lg font-bold text-gray-900">{parsedQR.label}</div>
+                        </div>
+                      )}
+                      {parsedQR.message && (
+                        <div>
+                          <div className="text-xs text-blue-600 font-semibold mb-1">Description</div>
+                          <div className="text-sm text-gray-700">{parsedQR.message}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="bg-gradient-to-br from-orange-50 to-yellow-50 border-2 border-orange-200 rounded-xl p-6">
                     <div className="text-sm text-gray-600 mb-2">You're sending</div>
                     <div className="text-4xl font-bold text-gray-900 mb-1">
