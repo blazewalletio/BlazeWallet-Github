@@ -187,24 +187,52 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   const handleQRCodeDetected = (data: string) => {
     stopCamera();
     
-    console.log('🔍 [QuickPay] QR code detected:', data);
+    console.log('🔍 [QuickPay] QR code detected (RAW):', data);
+    console.log('🔍 [QuickPay] QR code length:', data.length);
+    console.log('🔍 [QuickPay] QR code type:', typeof data);
     
     try {
       // ✅ Parse QR code using intelligent parser
       const parsed = QRParser.parse(data);
       setParsedQR(parsed);
       
-      console.log('📋 [QuickPay] Parsed result:', {
+      console.log('📋 [QuickPay] Parsed result (FULL):', parsed);
+      console.log('📋 [QuickPay] Parsed result (SUMMARY):', {
         chain: parsed.chain,
         confidence: parsed.confidence,
-        address: parsed.address.substring(0, 10) + '...',
+        address: parsed.address ? (parsed.address.substring(0, 10) + '...') : 'NO ADDRESS',
         amount: parsed.amount,
         isValid: parsed.isValid,
+        warnings: parsed.warnings,
+        protocol: parsed.protocol,
       });
       
       // Check if QR is valid
       if (!parsed.isValid || parsed.chain === 'unknown') {
-        alert(`❌ Invalid QR Code\n\n${parsed.warnings?.join('\n') || 'Could not recognize blockchain address.'}`);
+        console.error('❌ [QuickPay] Invalid QR detected:', {
+          isValid: parsed.isValid,
+          chain: parsed.chain,
+          warnings: parsed.warnings,
+          rawData: data,
+        });
+        
+        // More helpful error message
+        let errorMessage = '❌ Invalid QR Code\n\n';
+        
+        if (parsed.warnings && parsed.warnings.length > 0) {
+          errorMessage += parsed.warnings.join('\n') + '\n\n';
+        } else {
+          errorMessage += 'Could not recognize blockchain address.\n\n';
+        }
+        
+        // Add troubleshooting tips
+        errorMessage += '💡 Troubleshooting:\n';
+        errorMessage += '• Make sure the QR code is clear\n';
+        errorMessage += '• Try better lighting\n';
+        errorMessage += '• Supported: Ethereum, Solana, Bitcoin\n';
+        errorMessage += '\n📋 Scanned data:\n' + data.substring(0, 100);
+        
+        alert(errorMessage);
         setMode('scan');
         startCamera();
         return;
