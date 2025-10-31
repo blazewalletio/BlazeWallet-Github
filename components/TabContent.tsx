@@ -216,7 +216,7 @@ export default function TabContent({
             <ArrowDownLeft className="w-6 h-6 text-green-600" />
           </div>
           <div className="font-semibold text-gray-900 mb-1">Receive</div>
-          <div className="text-sm text-gray-600">Crypto ontvangen</div>
+          <div className="text-sm text-gray-600">Receive crypto</div>
         </motion.button>
 
         <motion.button
@@ -243,7 +243,7 @@ export default function TabContent({
         </div>
         <div className="text-left">
           <div className="font-semibold text-gray-900">Add tokens</div>
-          <div className="text-sm text-gray-600">Custom tokens toevoegen</div>
+          <div className="text-sm text-gray-600">Add custom tokens</div>
         </div>
       </motion.button>
     </div>
@@ -274,7 +274,7 @@ export default function TabContent({
             <Zap className="w-6 h-6 text-orange-600" />
           </div>
           <div className="font-semibold text-gray-900 mb-1">AI Assistent</div>
-          <div className="text-sm text-gray-600">Natuurlijke taal transacties</div>
+          <div className="text-sm text-gray-600">Natural language transactions</div>
         </motion.div>
 
         <motion.div
@@ -493,7 +493,7 @@ export default function TabContent({
           className="w-full p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors text-left"
         >
           <div className="font-medium text-gray-900">Open Settings</div>
-          <div className="text-sm text-gray-600">Beveiliging, netwerk en meer</div>
+          <div className="text-sm text-gray-600">Security, network and more</div>
         </motion.button>
       </div>
     </div>

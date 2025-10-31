@@ -180,7 +180,7 @@ export default function PasswordSetupModal({ isOpen, onComplete }: PasswordSetup
 
               <div>
                 <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  Bevestig wachtwoord
+                  Confirm password
                 </label>
                 <div className="relative">
                   <input

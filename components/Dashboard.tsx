@@ -1401,7 +1401,7 @@ export default function Dashboard() {
                     <Sparkles className="w-5 h-5 text-white" />
                   </div>
                   <div className="font-semibold mb-1">AI Assistent</div>
-                  <div className="text-xs text-slate-400">Natuurlijke taal transacties</div>
+                  <div className="text-xs text-slate-400">Natural language transactions</div>
                 </motion.button>
 
                 {/* AI Risk Scanner */}

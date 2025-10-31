@@ -15,7 +15,7 @@ const aiTools = [
   {
     id: 'ai-assistant',
     title: 'AI Assistant',
-    description: 'Natuurlijke taal transacties',
+    description: 'Natural language transactions',
     icon: Sparkles,
     gradient: 'from-theme-primary to-theme-primary',
     status: 'active',

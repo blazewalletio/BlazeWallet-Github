@@ -131,7 +131,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       const cleanMnemonic = mnemonic.trim().toLowerCase();
       
       if (!bip39.validateMnemonic(cleanMnemonic)) {
-        throw new Error('Ongeldige recovery phrase. Controleer je woorden en checksum.');
+        throw new Error('Invalid recovery phrase. Please check your words and checksum.');
       }
       
       // Create wallet from validated mnemonic
@@ -225,7 +225,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       // Check if password is correct
       const storedHash = localStorage.getItem('password_hash');
       if (!storedHash || !verifyPassword(password, storedHash)) {
-        throw new Error('Ongeldig wachtwoord');
+        throw new Error('Invalid password');
       }
 
       // Decrypt wallet
@@ -287,7 +287,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       }
 
     } catch (error) {
-      throw new Error('Ongeldig wachtwoord of beschadigde data');
+      throw new Error('Invalid password or corrupted data');
     }
   },
 
@@ -395,17 +395,17 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         
         const encryptedWalletData = localStorage.getItem('encrypted_wallet');
         if (!encryptedWalletData) {
-          throw new Error('Geen versleutelde wallet gevonden');
+          throw new Error('No encrypted wallet found');
         }
 
         const storedHash = localStorage.getItem('password_hash');
         if (!storedHash) {
-          throw new Error('Geen wachtwoord hash gevonden');
+          throw new Error('No password hash found');
         }
 
         // Verify password
         if (!verifyPassword(password, storedHash)) {
-          throw new Error('Ongeldig wachtwoord');
+          throw new Error('Invalid password');
         }
 
         // Decrypt wallet with crypto-utils
@@ -529,7 +529,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       const cleanMnemonic = mnemonic.trim().toLowerCase();
       
       if (!bip39.validateMnemonic(cleanMnemonic)) {
-        throw new Error('Ongeldige recovery phrase. Controleer je woorden en checksum.');
+        throw new Error('Invalid recovery phrase. Please check your words and checksum.');
       }
       
       const wallet = ethers.Wallet.fromPhrase(cleanMnemonic);

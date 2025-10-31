@@ -163,13 +163,13 @@ export default function QRLoginModal({ isOpen, onSuccess, onCancel }: QRLoginMod
               <div className="bg-theme-primary/20 border border-theme-border/30 rounded-xl p-4">
                 <div className="flex items-center space-x-2 text-theme-primary mb-2">
                   <QrCode className="w-5 h-5" />
-                  <span className="font-medium">Stappen:</span>
+                  <span className="font-medium">Steps:</span>
                 </div>
                 <ol className="text-sm text-theme-primary space-y-1">
                   <li>1. Open BLAZE Wallet on your phone</li>
-                  <li>2. Tik op "Desktop Login"</li>
+                  <li>2. Tap on "Desktop Login"</li>
                   <li>3. Scan this QR code</li>
-                  <li>4. Bevestig de login op je telefoon</li>
+                  <li>4. Confirm the login on your phone</li>
                 </ol>
               </div>
             </div>

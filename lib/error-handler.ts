@@ -90,7 +90,7 @@ export function parseErrorMessage(error: unknown): { userMessage: string; code: 
         message.includes('insufficient balance') ||
         message.includes('exceeds balance')) {
       return {
-        userMessage: 'Onvoldoende saldo voor deze transactie + gas fees',
+        userMessage: 'Insufficient balance for this transaction + gas fees',
         code: ErrorCode.INSUFFICIENT_BALANCE,
         technical: error.message
       };
@@ -102,7 +102,7 @@ export function parseErrorMessage(error: unknown): { userMessage: string; code: 
         message.includes('network error') ||
         message.includes('fetch failed')) {
       return {
-        userMessage: 'Netwerkfout. RPC tijdelijk onbeschikbaar. Probeer het over een moment opnieuw.',
+        userMessage: 'Network error. RPC temporarily unavailable. Please try again in a moment.',
         code: ErrorCode.NETWORK_ERROR,
         technical: error.message
       };
@@ -124,7 +124,7 @@ export function parseErrorMessage(error: unknown): { userMessage: string; code: 
         message.includes('user denied') ||
         message.includes('cancelled')) {
       return {
-        userMessage: 'Transactie geannuleerd',
+        userMessage: 'Transaction cancelled',
         code: ErrorCode.TRANSACTION_REJECTED,
         technical: error.message
       };
@@ -134,7 +134,7 @@ export function parseErrorMessage(error: unknown): { userMessage: string; code: 
     if (message.includes('invalid address') || 
         message.includes('invalid recipient')) {
       return {
-        userMessage: 'Ongeldig wallet adres',
+        userMessage: 'Invalid wallet address',
         code: ErrorCode.INVALID_ADDRESS,
         technical: error.message
       };
@@ -154,7 +154,7 @@ export function parseErrorMessage(error: unknown): { userMessage: string; code: 
     if (message.includes('nonce too low') || 
         message.includes('nonce has already been used')) {
       return {
-        userMessage: 'Transactie conflict. Wacht even en probeer opnieuw.',
+        userMessage: 'Transaction conflict. Please wait a moment and try again.',
         code: ErrorCode.NONCE_TOO_LOW,
         technical: error.message
       };
@@ -163,7 +163,7 @@ export function parseErrorMessage(error: unknown): { userMessage: string; code: 
     // Replacement underpriced
     if (message.includes('replacement transaction underpriced')) {
       return {
-        userMessage: 'Gas prijs te laag voor vervangende transactie. Verhoog gas price.',
+        userMessage: 'Gas price too low for replacement transaction. Please increase gas price.',
         code: ErrorCode.REPLACEMENT_UNDERPRICED,
         technical: error.message
       };
@@ -182,7 +182,7 @@ export function parseErrorMessage(error: unknown): { userMessage: string; code: 
     if (message.includes('invalid mnemonic') || 
         message.includes('invalid recovery phrase')) {
       return {
-        userMessage: 'Ongeldige recovery phrase. Controleer je woorden.',
+        userMessage: 'Invalid recovery phrase. Please check your words.',
         code: ErrorCode.INVALID_MNEMONIC,
         technical: 'BIP39 validation failed'
       };

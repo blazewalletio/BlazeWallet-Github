@@ -19,7 +19,7 @@
     {
       "name": "Receive",
       "short_name": "Receive",
-      "description": "Ontvang crypto",
+      "description": "Receive crypto",
       "url": "/?action=receive",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }

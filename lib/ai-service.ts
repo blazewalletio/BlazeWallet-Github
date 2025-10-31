@@ -204,7 +204,7 @@ class AIService {
           if (!isValidAddress) {
             return {
               success: false,
-              message: `Het adres "${intent.recipient}" is geen geldig Ethereum adres. Controleer het nog eens.`,
+              message: `The address "${intent.recipient}" is not a valid Ethereum address. Please check it again.`,
               confidence: 0.95,
             };
           }
@@ -378,9 +378,9 @@ class AIService {
       if (!ethers.isAddress(address)) {
         return {
           risk: 'critical',
-          warnings: ['Geen geldig Ethereum adres'],
+          warnings: ['No valid Ethereum address'],
           score: 0,
-          details: 'Dit is geen geldig blockchain adres.',
+          details: 'This is not a valid blockchain address.',
         };
       }
 
@@ -390,7 +390,7 @@ class AIService {
       ];
 
       if (knownScamPatterns.includes(address.toLowerCase())) {
-        warnings.push('⚠️ Dit is een bekende risicovolle adres');
+        warnings.push('⚠️ This is a known risky address');
         score -= 50;
       }
 
@@ -406,7 +406,7 @@ class AIService {
       const hasChecksum = addressChecksum !== address.toUpperCase() && addressChecksum !== address.toLowerCase();
       
       if (!hasChecksum) {
-        warnings.push('ℹ️ Adres heeft geen checksum - verhoogd risico op typefouten');
+        warnings.push('ℹ️ Address has no checksum - increased risk of typos');
         score -= 10;
       }
 
@@ -461,8 +461,8 @@ class AIService {
 
     if (tokens.length === 0) {
       return {
-        insights: ['Je portfolio is leeg'],
-        recommendations: ['Begin met het toevoegen van crypto assets'],
+        insights: ['Your portfolio is empty'],
+        recommendations: ['Start by adding crypto assets'],
         riskScore: 0,
       };
     }
@@ -550,7 +550,7 @@ class AIService {
         return {
           recommendation: 'now',
           estimatedSavings: 0,
-          message: '✅ Goede tijd voor transacties! Gas is relatief laag nu.',
+          message: '✅ Good time for transactions! Gas is relatively low right now.',
         };
       }
 

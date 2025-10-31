@@ -99,7 +99,7 @@ export default function DebugPanel({ externalOpen = false, onExternalClose }: { 
         <div className="space-y-3 text-sm">
           {/* Current Network */}
           <div className="glass p-3 rounded-lg">
-            <div className="text-slate-400 text-xs mb-1">Netwerk</div>
+            <div className="text-slate-400 text-xs mb-1">Network</div>
             <div className="flex items-center gap-2">
               <div 
                 className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-sm overflow-hidden"
