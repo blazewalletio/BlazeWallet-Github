@@ -1521,15 +1521,48 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     </div>
                   )}
 
+                  {/* ⚠️ AMOUNT WARNING - QR amount is in native crypto! */}
+                  {scannedAmount && parsedQR?.amount && (
+                    <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <div className="text-sm">
+                          <div className="font-bold text-red-900 mb-1">Amount from QR code</div>
+                          <div className="text-red-700">
+                            The QR code specifies <strong>{scannedAmount} {QRParser.getChainInfo(currentChain as ChainType)?.symbol}</strong> (native cryptocurrency amount).
+                            {currentChain === 'bitcoin' && parseFloat(scannedAmount) >= 0.01 && (
+                              <span className="block mt-1 font-semibold">⚠️ This is a significant amount! Please verify.</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="bg-gradient-to-br from-orange-50 to-yellow-50 border-2 border-orange-200 rounded-xl p-6">
                     <div className="text-sm text-gray-600 mb-2">You're sending</div>
-                    <div className="text-4xl font-bold text-gray-900 mb-1">
-                      €{scannedAmount || amount.toFixed(2)}
-                    </div>
-                    <div className="text-sm text-gray-600 flex items-center justify-center gap-2">
-                      <span>{QRParser.getChainInfo(currentChain as ChainType)?.icon || '?'}</span>
-                      Via {QRParser.getChainInfo(currentChain as ChainType)?.name || currentChain} network
-                    </div>
+                    {scannedAmount && parsedQR?.amount ? (
+                      // Amount from QR code - show in native crypto
+                      <>
+                        <div className="text-4xl font-bold text-gray-900 mb-1">
+                          {scannedAmount} {QRParser.getChainInfo(currentChain as ChainType)?.symbol}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          Native {QRParser.getChainInfo(currentChain as ChainType)?.name} amount from QR code
+                        </div>
+                      </>
+                    ) : (
+                      // Manual amount - show in EUR
+                      <>
+                        <div className="text-4xl font-bold text-gray-900 mb-1">
+                          €{amount.toFixed(2)}
+                        </div>
+                        <div className="text-sm text-gray-600 flex items-center justify-center gap-2">
+                          <span>{QRParser.getChainInfo(currentChain as ChainType)?.icon || '?'}</span>
+                          Via {QRParser.getChainInfo(currentChain as ChainType)?.name || currentChain} network
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   <div className="bg-white border-2 border-gray-200 rounded-xl p-4 space-y-3">
@@ -1564,7 +1597,13 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     <div className="flex justify-between items-center">
                       <span className="text-base font-semibold text-gray-900">Total</span>
                       <span className="text-base font-bold text-gray-900">
-                        €{(parseFloat(scannedAmount || amount.toString()) + (currentChain === 'solana' ? 0.0001 : 0.50)).toFixed(2)}
+                        {scannedAmount && parsedQR?.amount ? (
+                          // QR amount in native crypto - show crypto amount
+                          `${scannedAmount} ${QRParser.getChainInfo(currentChain as ChainType)?.symbol} + fees`
+                        ) : (
+                          // Manual amount in EUR
+                          `€${(parseFloat(amount.toString()) + (currentChain === 'solana' ? 0.0001 : 0.50)).toFixed(2)}`
+                        )}
                       </span>
                     </div>
                   </div>
@@ -1622,7 +1661,11 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   </motion.div>
                   <div className="text-2xl font-bold text-gray-900 mb-2">Payment successful!</div>
                   <div className="text-4xl font-bold bg-gradient-to-r from-orange-500 to-yellow-500 bg-clip-text text-transparent">
-                    €{scannedAmount || amount.toFixed(2)}
+                    {scannedAmount && parsedQR?.amount ? (
+                      `${scannedAmount} ${QRParser.getChainInfo(currentChain as ChainType)?.symbol}`
+                    ) : (
+                      `€${amount.toFixed(2)}`
+                    )}
                   </div>
                 </div>
               )}
