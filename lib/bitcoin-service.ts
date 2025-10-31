@@ -483,6 +483,10 @@ export class BitcoinService {
           isError: false,
           blockNumber: tx.status?.block_height,
           type,
+          // ✅ Native currency metadata for proper display in TransactionHistory
+          tokenName: 'Bitcoin',
+          tokenSymbol: 'BTC',
+          logoUrl: '/crypto-bitcoin.png',
         });
       }
 

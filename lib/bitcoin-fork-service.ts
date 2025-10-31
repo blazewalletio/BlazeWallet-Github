@@ -21,6 +21,7 @@ import * as bitcoin from 'bitcoinjs-lib';
 import * as bip39 from 'bip39';
 import { BIP32Factory } from 'bip32';
 import * as ecc from '@bitcoinerlab/secp256k1';
+import { CHAINS } from './chains';
 
 // Initialize BIP32 with secp256k1
 bitcoin.initEccLib(ecc);
@@ -472,6 +473,10 @@ export class BitcoinForkService {
           isError: false,
           blockNumber: tx.block_height,
           type: isSent ? 'send' : 'receive',
+          // ✅ Native currency metadata for proper display in TransactionHistory
+          tokenName: CHAINS[this.chainKey]?.nativeCurrency.name || this.config.name,
+          tokenSymbol: CHAINS[this.chainKey]?.nativeCurrency.symbol || this.config.symbol,
+          logoUrl: CHAINS[this.chainKey]?.logoUrl || `/crypto-${this.chainKey}.png`,
         });
       }
 

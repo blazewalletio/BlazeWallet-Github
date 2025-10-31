@@ -129,6 +129,9 @@ export class BlockchainService {
             if (data.status === '1' && data.result && Array.isArray(data.result)) {
               console.log(`✅ Loaded ${data.result.length} transactions from block explorer`);
               
+              // Get chain config for metadata
+              const chainConfig = CHAINS[this.chainKey];
+              
               return data.result.map((tx: any) => ({
                 hash: tx.hash,
                 from: tx.from,
@@ -139,6 +142,10 @@ export class BlockchainService {
                 gasUsed: tx.gasUsed,
                 gasPrice: tx.gasPrice,
                 blockNumber: tx.blockNumber,
+                // ✅ Native currency metadata for proper display
+                tokenName: chainConfig?.nativeCurrency.name || 'ETH',
+                tokenSymbol: chainConfig?.nativeCurrency.symbol || 'ETH',
+                logoUrl: chainConfig?.logoUrl || '/crypto-ethereum.png',
               }));
             } else {
               console.warn(`Block explorer API failed: ${data.message || 'Unknown error'}`);
