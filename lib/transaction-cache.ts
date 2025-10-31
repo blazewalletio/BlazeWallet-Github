@@ -10,7 +10,7 @@
  * - Reduces API calls by 80-95%
  */
 
-const CACHE_VERSION = 4; // ✅ Bump for 6-tier metadata system (DexScreener + CoinGecko support!)
+const CACHE_VERSION = 5; // ✅ Bump for token name fix in transaction history
 
 interface CachedTransaction {
   key: string;
