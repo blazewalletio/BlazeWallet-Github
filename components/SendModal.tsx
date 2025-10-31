@@ -81,11 +81,25 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
       const chainConfig = CHAINS[chain];
       const chainService = MultiChainService.getInstance(chain);
       
+      // ✅ FIXED: Get correct address for ALL chains
       let displayAddress: string;
       if (chain === 'solana') {
         const { solanaAddress } = useWalletStore.getState();
         displayAddress = solanaAddress || '';
+      } else if (chain === 'bitcoin') {
+        const { bitcoinAddress } = useWalletStore.getState();
+        displayAddress = bitcoinAddress || '';
+      } else if (chain === 'litecoin') {
+        const { litecoinAddress } = useWalletStore.getState();
+        displayAddress = litecoinAddress || '';
+      } else if (chain === 'dogecoin') {
+        const { dogecoinAddress } = useWalletStore.getState();
+        displayAddress = dogecoinAddress || '';
+      } else if (chain === 'bitcoincash') {
+        const { bitcoincashAddress } = useWalletStore.getState();
+        displayAddress = bitcoincashAddress || '';
       } else {
+        // EVM chains (Ethereum, Polygon, Arbitrum, Base, BSC, Optimism, etc.)
         const { address } = useWalletStore.getState();
         displayAddress = address || '';
       }
