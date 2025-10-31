@@ -39,6 +39,9 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   const [lightningInvoiceInput, setLightningInvoiceInput] = useState('');
   const [paymentMonitorInterval, setPaymentMonitorInterval] = useState<NodeJS.Timeout | null>(null);
   
+  // 📱 Mobile detection
+  const [isMobile, setIsMobile] = useState(false);
+  
   // ✅ NEW: Chain detection and switching
   const [parsedQR, setParsedQR] = useState<ParsedQRData | null>(null);
   const [needsChainSwitch, setNeedsChainSwitch] = useState(false);
@@ -150,6 +153,14 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       }
     };
   }, [paymentMonitorInterval]);
+
+  // 📱 Detect mobile on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const checkMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      setIsMobile(checkMobile);
+    }
+  }, []);
 
   const scanQRCode = () => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -995,6 +1006,50 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                       Instant Bitcoin payments • Ultra-low fees
                     </p>
                   </div>
+
+                  {/* 📱 MOBILE NOTICE */}
+                  {isMobile && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-xl p-5"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex-shrink-0">
+                          <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+                            <AlertCircle className="w-6 h-6 text-white" />
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-bold text-gray-900 mb-2">
+                            📱 Mobile Lightning Coming Soon!
+                          </h4>
+                          <p className="text-sm text-gray-700 mb-3 leading-relaxed">
+                            Lightning Network is currently optimized for <strong>desktop browsers</strong> with the Alby extension.
+                          </p>
+                          <div className="bg-white/80 rounded-lg p-3 mb-3">
+                            <p className="text-sm text-gray-900 font-semibold mb-1">
+                              🚀 Full mobile support coming soon!
+                            </p>
+                            <p className="text-xs text-gray-600">
+                              We're integrating Breez SDK for native Lightning on mobile. Stay tuned!
+                            </p>
+                          </div>
+                          <div className="text-xs text-gray-600">
+                            <strong>For now:</strong> Use desktop with{' '}
+                            <a 
+                              href="https://getalby.com" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-700 underline font-semibold"
+                            >
+                              Alby extension
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
 
                   {/* Benefits Card */}
                   <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-5">
