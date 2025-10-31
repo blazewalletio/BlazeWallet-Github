@@ -401,7 +401,7 @@ export class SolanaService {
   private detectSOLTransfer(
     tx: any,
     accountKeys: PublicKey[]
-  ): { from: string; to: string; value: string; type: string; logoUrl?: string } | null {
+  ): { from: string; to: string; value: string; type: string; tokenSymbol?: string; tokenName?: string; logoUrl?: string } | null {
     // Get pre and post balances to calculate transfer amount
     if (tx.meta?.postBalances && tx.meta?.preBalances && accountKeys.length >= 2) {
       const diff = Math.abs(
@@ -414,7 +414,9 @@ export class SolanaService {
           to: accountKeys[1]?.toBase58() || '',
           value: (diff / LAMPORTS_PER_SOL).toString(),
           type: 'Transfer',
-          logoUrl: '/crypto-solana.png',  // ✅ Correct filename for Solana logo
+          tokenSymbol: 'SOL',  // ✅ ADD: Native SOL symbol
+          tokenName: 'Solana',  // ✅ ADD: Native SOL name
+          logoUrl: '/crypto-solana.png',
         };
       }
     }
