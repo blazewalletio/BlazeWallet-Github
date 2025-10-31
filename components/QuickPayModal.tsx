@@ -260,7 +260,13 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         errorMessage += '💡 Troubleshooting:\n';
         errorMessage += '• Make sure the QR code is clear\n';
         errorMessage += '• Try better lighting\n';
-        errorMessage += '• Supported: Ethereum, Solana, Bitcoin\n';
+        errorMessage += '• Supported chains:\n';
+        errorMessage += '  - Ethereum & EVM chains\n';
+        errorMessage += '  - Solana\n';
+        errorMessage += '  - Bitcoin\n';
+        errorMessage += '  - Litecoin\n';
+        errorMessage += '  - Dogecoin\n';
+        errorMessage += '  - Bitcoin Cash\n';
         errorMessage += '\n📋 Scanned data:\n' + data.substring(0, 100);
         
         alert(errorMessage);
@@ -269,25 +275,17 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         return;
       }
       
-      // Check if chain switch is needed
+      // ✅ FIXED: Check if chain switch is needed for ALL chains
       const detectedChain = parsed.chain;
-      if (detectedChain !== currentChain && QRParser.isEVMChain(detectedChain)) {
-        // EVM chains can be switched
+      
+      if (detectedChain !== currentChain) {
+        // Chain mismatch detected - need to switch
         console.log(`🔄 [QuickPay] Chain switch needed: ${currentChain} → ${detectedChain}`);
-        setNeedsChainSwitch(true);
-        setMode('chain-switch');
-      } else if (detectedChain !== currentChain && detectedChain === 'solana') {
-        // Solana needs switch
-        console.log(`🔄 [QuickPay] Chain switch needed: ${currentChain} → solana`);
-        setNeedsChainSwitch(true);
-        setMode('chain-switch');
-      } else if (detectedChain !== currentChain && detectedChain === 'bitcoin') {
-        // Bitcoin needs switch
-        console.log(`🔄 [QuickPay] Chain switch needed: ${currentChain} → bitcoin`);
         setNeedsChainSwitch(true);
         setMode('chain-switch');
       } else {
         // Same chain - proceed directly to confirmation
+        console.log(`✅ [QuickPay] Chain matches: ${detectedChain}`);
         setScannedAddress(parsed.address);
         setScannedAmount(parsed.amount || '');
         setMode('confirm');

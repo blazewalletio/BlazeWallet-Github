@@ -19,7 +19,7 @@
 
 import { CHAINS } from './chains';
 
-export type ChainType = 'ethereum' | 'polygon' | 'arbitrum' | 'base' | 'bsc' | 'solana' | 'bitcoin' | 'litecoin' | 'dogecoin' | 'bitcoincash' | 'unknown';
+export type ChainType = 'ethereum' | 'polygon' | 'arbitrum' | 'base' | 'bsc' | 'optimism' | 'avalanche' | 'fantom' | 'cronos' | 'zksync' | 'linea' | 'solana' | 'bitcoin' | 'litecoin' | 'dogecoin' | 'bitcoincash' | 'unknown';
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
 
 export interface ParsedQRData {
@@ -681,7 +681,7 @@ export class QRParser {
           symbol: 'BTC',
           color: '#F7931A',
           icon: '₿',
-          logoUrl: '/crypto-btc.png',
+          logoUrl: '/crypto-bitcoin.png',
         };
       }
       return null;
@@ -703,7 +703,7 @@ export class QRParser {
    * Get supported EVM chains that could match an Ethereum address
    */
   static getCompatibleEVMChains(): ChainType[] {
-    return ['ethereum', 'polygon', 'arbitrum', 'base', 'bsc'];
+    return ['ethereum', 'polygon', 'arbitrum', 'base', 'bsc', 'optimism', 'avalanche', 'fantom', 'cronos', 'zksync', 'linea'];
   }
   
   /**
