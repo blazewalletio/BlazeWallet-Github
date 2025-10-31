@@ -439,8 +439,11 @@ export class QRParser {
   static isValidBitcoinAddress(address: string): boolean {
     // Legacy (P2PKH): starts with 1
     // Legacy (P2SH): starts with 3
-    // SegWit (Bech32): starts with bc1
-    return /^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$/.test(address);
+    // SegWit (Bech32): starts with bc1 (case-insensitive!)
+    
+    // ⚠️ FIX: Some QR generators use UPPERCASE (BC1...) 
+    // Bitcoin addresses are case-insensitive for bc1 prefix
+    return /^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$/i.test(address);
   }
   
   /**
