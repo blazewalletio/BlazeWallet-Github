@@ -2,12 +2,13 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Zap, CreditCard, Scan, Check, Camera, AlertCircle, ArrowRight, Copy, User } from 'lucide-react';
+import { X, Zap, CreditCard, Scan, Check, Camera, AlertCircle, ArrowRight, Copy, User, RefreshCw } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import QRCode from 'qrcode';
 import ParticleEffect from './ParticleEffect';
 import jsQR from 'jsqr';
+import { QRParser, ParsedQRData, ChainType } from '@/lib/qr-parser';
 
 interface QuickPayModalProps {
   isOpen: boolean;
@@ -17,8 +18,8 @@ interface QuickPayModalProps {
 const PRESET_AMOUNTS_EUR = [5, 10, 20, 50, 100];
 
 export default function QuickPayModal({ isOpen, onClose }: QuickPayModalProps) {
-  // Main flow: 'method' | 'amount' | 'address' | 'scan' | 'lightning' | 'confirm' | 'processing' | 'success'
-  const [mode, setMode] = useState<'method' | 'amount' | 'address' | 'scan' | 'lightning' | 'confirm' | 'processing' | 'success'>('method');
+  // Main flow: 'method' | 'amount' | 'address' | 'scan' | 'chain-switch' | 'lightning' | 'confirm' | 'processing' | 'success'
+  const [mode, setMode] = useState<'method' | 'amount' | 'address' | 'scan' | 'chain-switch' | 'lightning' | 'confirm' | 'processing' | 'success'>('method');
   const [paymentMethod, setPaymentMethod] = useState<'scanqr' | 'manual' | 'lightning' | null>(null);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState('');
@@ -30,12 +31,16 @@ export default function QuickPayModal({ isOpen, onClose }: QuickPayModalProps) {
   const [scannedAddress, setScannedAddress] = useState<string>('');
   const [scannedAmount, setScannedAmount] = useState<string>('');
   
+  // ✅ NEW: Chain detection and switching
+  const [parsedQR, setParsedQR] = useState<ParsedQRData | null>(null);
+  const [needsChainSwitch, setNeedsChainSwitch] = useState(false);
+  
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const scanIntervalRef = useRef<number | null>(null);
   
-  const { address } = useWalletStore();
+  const { address, currentChain, switchChain } = useWalletStore();
 
   // Block body scroll when overlay is open
   useBlockBodyScroll(isOpen);
@@ -108,44 +113,55 @@ export default function QuickPayModal({ isOpen, onClose }: QuickPayModalProps) {
   const handleQRCodeDetected = (data: string) => {
     stopCamera();
     
-    console.log('Processing QR code:', data);
-    
-    let detectedAddress = '';
-    let detectedAmount = '';
+    console.log('🔍 [QuickPay] QR code detected:', data);
     
     try {
-      if (data.includes('ethereum:') || data.includes('bitcoin:')) {
-        const url = new URL(data);
-        
-        if (data.startsWith('ethereum:')) {
-          detectedAddress = data.split('ethereum:')[1].split('?')[0];
-          const params = new URLSearchParams(url.search);
-          const valueInWei = params.get('value');
-          if (valueInWei) {
-            detectedAmount = (parseInt(valueInWei) / 1e18).toString();
-          }
-        } else if (data.startsWith('bitcoin:')) {
-          detectedAddress = data.split('bitcoin:')[1].split('?')[0];
-          const params = new URLSearchParams(url.search);
-          detectedAmount = params.get('amount') || '';
-        }
-      } else if (data.startsWith('0x') && data.length === 42) {
-        detectedAddress = data;
-      } else if (data.length >= 26 && data.length <= 42) {
-        detectedAddress = data;
-      }
+      // ✅ Parse QR code using intelligent parser
+      const parsed = QRParser.parse(data);
+      setParsedQR(parsed);
       
-      if (detectedAddress) {
-        setScannedAddress(detectedAddress);
-        setScannedAmount(detectedAmount);
-        setMode('confirm');
-      } else {
-        alert('Invalid payment QR code. Please try again.');
+      console.log('📋 [QuickPay] Parsed result:', {
+        chain: parsed.chain,
+        confidence: parsed.confidence,
+        address: parsed.address.substring(0, 10) + '...',
+        amount: parsed.amount,
+        isValid: parsed.isValid,
+      });
+      
+      // Check if QR is valid
+      if (!parsed.isValid || parsed.chain === 'unknown') {
+        alert(`❌ Invalid QR Code\n\n${parsed.warnings?.join('\n') || 'Could not recognize blockchain address.'}`);
         setMode('scan');
         startCamera();
+        return;
+      }
+      
+      // Check if chain switch is needed
+      const detectedChain = parsed.chain;
+      if (detectedChain !== currentChain && QRParser.isEVMChain(detectedChain)) {
+        // EVM chains can be switched
+        console.log(`🔄 [QuickPay] Chain switch needed: ${currentChain} → ${detectedChain}`);
+        setNeedsChainSwitch(true);
+        setMode('chain-switch');
+      } else if (detectedChain !== currentChain && detectedChain === 'solana') {
+        // Solana needs switch
+        console.log(`🔄 [QuickPay] Chain switch needed: ${currentChain} → solana`);
+        setNeedsChainSwitch(true);
+        setMode('chain-switch');
+      } else if (detectedChain !== currentChain && detectedChain === 'bitcoin') {
+        // Bitcoin not supported yet
+        alert(`⚠️ Bitcoin Not Supported\n\nBitcoin transactions are not yet available in Blaze Wallet.\n\nComing soon! 🚀`);
+        setMode('scan');
+        startCamera();
+        return;
+      } else {
+        // Same chain - proceed directly to confirmation
+        setScannedAddress(parsed.address);
+        setScannedAmount(parsed.amount || '');
+        setMode('confirm');
       }
     } catch (error) {
-      console.error('Error parsing QR code:', error);
+      console.error('❌ Error parsing QR code:', error);
       alert('Could not parse QR code. Please try again.');
       setMode('scan');
       startCamera();
@@ -291,6 +307,8 @@ export default function QuickPayModal({ isOpen, onClose }: QuickPayModalProps) {
     setScannedAmount('');
     setLightningQR('');
     setShowSuccess(false);
+    setParsedQR(null);
+    setNeedsChainSwitch(false);
     stopCamera();
   };
 
@@ -300,6 +318,11 @@ export default function QuickPayModal({ isOpen, onClose }: QuickPayModalProps) {
       setPaymentMethod(null);
     } else if (mode === 'address') {
       setMode('amount');
+    } else if (mode === 'chain-switch') {
+      // Go back to scan or method
+      setParsedQR(null);
+      setNeedsChainSwitch(false);
+      setMode('method');
     } else if (mode === 'confirm') {
       if (paymentMethod === 'scanqr') {
         setMode('method');
@@ -308,6 +331,7 @@ export default function QuickPayModal({ isOpen, onClose }: QuickPayModalProps) {
       }
       setScannedAddress('');
       setScannedAmount('');
+      setParsedQR(null);
     } else if (mode === 'lightning') {
       setMode('method');
       setPaymentMethod(null);
@@ -614,12 +638,157 @@ export default function QuickPayModal({ isOpen, onClose }: QuickPayModalProps) {
                     )}
                   </div>
                   
-                  <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-                    <div className="text-sm text-gray-700">
-                      📷 <strong>Point camera at {paymentMethod === 'scanqr' ? 'payment' : 'wallet address'} QR code</strong>
-                      <br />
-                      The QR code will be scanned automatically
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-4">
+                    <div className="text-sm text-gray-700 font-medium mb-3 flex items-center gap-2">
+                      <Camera className="w-5 h-5 text-green-600" />
+                      <span>Scanning Tips</span>
                     </div>
+                    <div className="space-y-2 text-sm text-gray-600">
+                      <div className="flex items-start gap-2">
+                        <span className="text-green-600 font-bold">✓</span>
+                        <span>Hold camera steady over the QR code</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-green-600 font-bold">✓</span>
+                        <span>Ensure good lighting for best results</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="text-green-600 font-bold">✓</span>
+                        <span>Supports: Ethereum, Solana, Bitcoin QR codes</span>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+            {/* ✅ NEW: CHAIN SWITCH MODAL */}
+            {mode === 'chain-switch' && parsedQR && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="space-y-6"
+                >
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <RefreshCw className="w-8 h-8 text-white" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">
+                      Switch to {QRParser.getChainInfo(parsedQR.chain)?.name}?
+                    </h3>
+                    <p className="text-sm text-gray-600">This QR code is for a different blockchain</p>
+                  </div>
+
+                  {/* Current vs Detected Chain */}
+                  <div className="glass p-5 rounded-xl space-y-4">
+                    {/* Current Chain */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                          <span className="text-lg">{QRParser.getChainInfo(currentChain as ChainType)?.icon || '?'}</span>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-600">Current chain</div>
+                          <div className="font-semibold text-gray-900">
+                            {QRParser.getChainInfo(currentChain as ChainType)?.name || currentChain}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-xs px-2 py-1 rounded-full bg-gray-200 text-gray-600">
+                        Active
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-gray-200" />
+
+                    {/* Detected Chain */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="w-10 h-10 rounded-full flex items-center justify-center shadow-lg"
+                          style={{ 
+                            background: `linear-gradient(to bottom right, ${QRParser.getChainInfo(parsedQR.chain)?.color || '#666'}, ${QRParser.getChainInfo(parsedQR.chain)?.color || '#666'})` 
+                          }}
+                        >
+                          <span className="text-lg text-white">{QRParser.getChainInfo(parsedQR.chain)?.icon || '?'}</span>
+                        </div>
+                        <div>
+                          <div className="text-xs text-gray-600">Detected chain</div>
+                          <div className="font-semibold text-gray-900">
+                            {QRParser.getChainInfo(parsedQR.chain)?.name || parsedQR.chain}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium">
+                        {parsedQR.confidence === 'high' ? '✓ High confidence' : parsedQR.confidence === 'medium' ? 'Medium' : 'Low'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* QR Details */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-2">
+                    <div className="flex justify-between items-start text-sm">
+                      <span className="text-gray-600">Address:</span>
+                      <span className="font-mono text-gray-900 text-right break-all">
+                        {parsedQR.address.substring(0, 8)}...{parsedQR.address.substring(parsedQR.address.length - 6)}
+                      </span>
+                    </div>
+                    {parsedQR.amount && (
+                      <div className="flex justify-between items-start text-sm">
+                        <span className="text-gray-600">Amount:</span>
+                        <span className="font-medium text-gray-900">
+                          {parsedQR.amount} {QRParser.getChainInfo(parsedQR.chain)?.symbol}
+                        </span>
+                      </div>
+                    )}
+                    {parsedQR.label && (
+                      <div className="flex justify-between items-start text-sm">
+                        <span className="text-gray-600">Label:</span>
+                        <span className="text-gray-900">{parsedQR.label}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Warning if needed */}
+                  {parsedQR.warnings && parsedQR.warnings.length > 0 && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                      <div className="flex gap-3">
+                        <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                        <div className="text-sm text-gray-700">
+                          {parsedQR.warnings.map((warning, idx) => (
+                            <div key={idx}>{warning}</div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setParsedQR(null);
+                        setNeedsChainSwitch(false);
+                        setMode('method');
+                      }}
+                      className="flex-1 py-4 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        // Switch chain and proceed to confirm
+                        console.log(`🔄 [QuickPay] Switching chain: ${currentChain} → ${parsedQR.chain}`);
+                        switchChain(parsedQR.chain);
+                        setScannedAddress(parsedQR.address);
+                        setScannedAmount(parsedQR.amount || '');
+                        setNeedsChainSwitch(false);
+                        setMode('confirm');
+                      }}
+                      className="flex-1 py-4 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold transition-all shadow-lg flex items-center justify-center gap-2"
+                    >
+                      <RefreshCw className="w-5 h-5" />
+                      Switch & Continue
+                    </button>
                   </div>
                 </motion.div>
               )}
@@ -697,7 +866,10 @@ export default function QuickPayModal({ isOpen, onClose }: QuickPayModalProps) {
                     <div className="text-4xl font-bold text-gray-900 mb-1">
                       €{scannedAmount || amount.toFixed(2)}
                     </div>
-                    <div className="text-sm text-gray-600">Via Ethereum network</div>
+                    <div className="text-sm text-gray-600 flex items-center justify-center gap-2">
+                      <span>{QRParser.getChainInfo(currentChain as ChainType)?.icon || '?'}</span>
+                      Via {QRParser.getChainInfo(currentChain as ChainType)?.name || currentChain} network
+                    </div>
                   </div>
 
                   <div className="bg-white border-2 border-gray-200 rounded-xl p-4 space-y-3">
@@ -722,7 +894,9 @@ export default function QuickPayModal({ isOpen, onClose }: QuickPayModalProps) {
                     
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">Network fee</span>
-                      <span className="text-sm font-medium text-gray-900">~€0.50</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        {currentChain === 'solana' ? '~€0.0001' : '~€0.50'}
+                      </span>
                     </div>
                     
                     <div className="h-px bg-gray-200" />
@@ -730,7 +904,7 @@ export default function QuickPayModal({ isOpen, onClose }: QuickPayModalProps) {
                     <div className="flex justify-between items-center">
                       <span className="text-base font-semibold text-gray-900">Total</span>
                       <span className="text-base font-bold text-gray-900">
-                        €{(parseFloat(scannedAmount || amount.toString()) + 0.50).toFixed(2)}
+                        €{(parseFloat(scannedAmount || amount.toString()) + (currentChain === 'solana' ? 0.0001 : 0.50)).toFixed(2)}
                       </span>
                     </div>
                   </div>
@@ -750,6 +924,7 @@ export default function QuickPayModal({ isOpen, onClose }: QuickPayModalProps) {
                       onClick={() => {
                         setScannedAddress('');
                         setScannedAmount('');
+                        setParsedQR(null);
                         setMode('method');
                       }}
                       className="flex-1 py-4 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold transition-colors"
