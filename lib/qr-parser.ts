@@ -134,6 +134,7 @@ export class QRParser {
       
       const params = new URLSearchParams(paramsPart || '');
       const valueInWei = params.get('value');
+      const amountParam = params.get('amount'); // Non-standard but some QR generators use this
       const gas = params.get('gas');
       const label = params.get('label');
       const message = params.get('message');
@@ -142,9 +143,15 @@ export class QRParser {
       let amountRaw: string | undefined;
       
       if (valueInWei) {
+        // Standard: value in wei
         amountRaw = valueInWei;
         // Convert wei to ETH (1 ETH = 10^18 wei)
         amount = (parseInt(valueInWei) / 1e18).toString();
+      } else if (amountParam) {
+        // Non-standard: amount in ETH directly
+        // Some QR generators use this (incorrect but common)
+        amount = amountParam;
+        amountRaw = undefined;
       }
       
       return {
