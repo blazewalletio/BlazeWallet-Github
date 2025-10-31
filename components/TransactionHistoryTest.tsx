@@ -30,27 +30,27 @@ interface TestResult {
 
 // Test addresses with known transaction history
 const TEST_ADDRESSES = {
-  // EVM chains
-  ethereum: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', // Vitalik
-  polygon: '0x1111111254EEB25477B68fb85Ed929f73A960582', // 1inch Router
-  arbitrum: '0x8315177aB297bA92A06054cE80a67Ed4DBd7ed3a', // Bridge
-  base: '0x4200000000000000000000000000000000000006', // WETH
-  bsc: '0x8894E0a0c962CB723c1976a4421c95949bE2D4E3', // Binance Hot Wallet
-  optimism: '0x4200000000000000000000000000000000000042', // OP Token
-  avalanche: '0x9f8c163cBA728e99993ABe7495F06c0A3c8Ac8b9', // Bridge
-  fantom: '0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83', // Fantom Foundation
-  cronos: '0x6aB6d61428fde76768D7b45D8BFeec19c6eF91A8', // Cronos Bridge
-  zksync: '0x0000000000000000000000000000000000008001', // System Contract
-  linea: '0x508Ca82Df566dCD1B0DE8296e70a96332cD644ec', // Bridge
+  // EVM chains - Use your own wallet address for real test!
+  ethereum: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', // Vitalik (many txs)
+  polygon: '0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619', // WETH on Polygon (active)
+  arbitrum: '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8', // USDC on Arbitrum (active)
+  base: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base (active)
+  bsc: '0x55d398326f99059fF775485246999027B3197955', // USDT on BSC (very active)
+  optimism: '0x4200000000000000000000000000000000000006', // WETH on Optimism (active)
+  avalanche: '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E', // USDC on Avalanche (active)
+  fantom: '0x04068DA6C83AFCFA0e13ba15A6696662335D5B75', // USDC on Fantom (active)
+  cronos: '0x5C7F8A570d578ED84E63fdFA7b1eE72dEae1AE23', // WCRO (active)
+  zksync: '0x5aea5775959fbc2557cc8789bc1bf90a239d9a91', // zkSync Bridge (active)
+  linea: '0xA219439258ca9da29E9Cc4cE5596924745e12B93', // Linea Bridge (active)
   
-  // Solana
-  solana: 'TSLvdd1pWpHVjahSpsvCXUbgwsL3JAcvokwaKt1eokM', // Pump.fun (SOL + SPL tokens!)
+  // Solana - Use real active address
+  solana: 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4', // Jupiter (very active!)
   
-  // Bitcoin forks
-  bitcoin: 'bc1qgdjqv0av3q56jvd82tkdjpy7gdp9ut8tlqmgrpmv24sq90ecnvqqjwvw97', // Treasury
-  litecoin: 'ltc1qum96uh7kjdx2akae6fefk4uwjh8zdmhv8lm2q5', // LTC Foundation
-  dogecoin: 'DH5yaieqoZN36fDVciNyRueRGvGLR3mr7L', // Foundation
-  bitcoincash: 'qpm2qsznhks23z7629mms6s4cwef74vcwva499qr', // Popular address
+  // Bitcoin forks - Use real active addresses
+  bitcoin: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh', // Active wallet
+  litecoin: 'LQTpS3VaYTjCr4s9Y1t5zbeY5xJG3YaAJq', // Active LTC wallet
+  dogecoin: 'DG2mPCnCPXzbwiqKpE1husv3FA9s5t1WMt', // Active DOGE wallet  
+  bitcoincash: 'qqkv9wr69ry2p9l53lxp635va4h86wv435995w8p2h', // Active BCH wallet
 };
 
 // Expected metadata per chain
@@ -83,9 +83,13 @@ export default function TransactionHistoryTest() {
     setTesting(true);
     setResults([]);
     
+    console.log('🧪 ============ STARTING TRANSACTION HISTORY TEST ============');
+    
     const chains = Object.keys(TEST_ADDRESSES) as (keyof typeof TEST_ADDRESSES)[];
     
     for (const chain of chains) {
+      console.log(`\n📋 Testing ${chain.toUpperCase()}...`);
+      
       // Add pending result
       setResults(prev => [...prev, {
         chain,
@@ -94,12 +98,18 @@ export default function TransactionHistoryTest() {
       
       try {
         const address = TEST_ADDRESSES[chain];
+        console.log(`   Address: ${address}`);
+        
         const service = MultiChainService.getInstance(chain);
         
-        // Fetch transactions (limit to 3 for speed)
-        const txs = await service.getTransactionHistory(address, 3);
+        // Fetch transactions (limit to 5 for better testing)
+        console.log(`   Fetching transactions...`);
+        const txs = await service.getTransactionHistory(address, 5);
+        
+        console.log(`   ✅ Fetched ${txs.length} transactions`);
         
         if (txs.length === 0) {
+          console.warn(`   ⚠️ No transactions found for ${chain}`);
           // Update with error
           setResults(prev => prev.map(r => 
             r.chain === chain 
@@ -108,6 +118,18 @@ export default function TransactionHistoryTest() {
           ));
           continue;
         }
+        
+        // Log all transactions for debugging
+        txs.forEach((tx, idx) => {
+          console.log(`   TX ${idx + 1}:`, {
+            hash: tx.hash.substring(0, 10) + '...',
+            tokenName: tx.tokenName || '❌ MISSING',
+            tokenSymbol: tx.tokenSymbol || '❌ MISSING',
+            logoUrl: tx.logoUrl ? '✅' : '❌ MISSING',
+            type: tx.type,
+            value: tx.value,
+          });
+        });
         
         // Get first transaction for testing
         const firstTx = txs[0];
@@ -118,8 +140,20 @@ export default function TransactionHistoryTest() {
         const hasCorrectSymbol = firstTx.tokenSymbol === expected.tokenSymbol;
         const hasLogo = !!firstTx.logoUrl;
         
+        console.log(`   Validation:`, {
+          tokenName: hasCorrectName ? '✅' : `❌ Expected "${expected.tokenName}", got "${firstTx.tokenName}"`,
+          tokenSymbol: hasCorrectSymbol ? '✅' : `❌ Expected "${expected.tokenSymbol}", got "${firstTx.tokenSymbol}"`,
+          logoUrl: hasLogo ? '✅' : '❌ Missing',
+        });
+        
         // Determine status
         const allCorrect = hasCorrectName && hasCorrectSymbol && hasLogo;
+        
+        if (allCorrect) {
+          console.log(`   ✅ ${chain.toUpperCase()} PASSED!`);
+        } else {
+          console.error(`   ❌ ${chain.toUpperCase()} FAILED - Metadata mismatch`);
+        }
         
         // Update result
         setResults(prev => prev.map(r => 
@@ -131,19 +165,26 @@ export default function TransactionHistoryTest() {
                 tokenSymbol: firstTx.tokenSymbol,
                 logoUrl: firstTx.logoUrl,
                 txCount: txs.length,
-                error: !allCorrect ? 'Metadata mismatch' : undefined,
+                error: !allCorrect ? `Expected: ${expected.tokenName}/${expected.tokenSymbol}, Got: ${firstTx.tokenName}/${firstTx.tokenSymbol}` : undefined,
                 details: txs.map(tx => ({
                   hash: tx.hash.substring(0, 10) + '...',
                   tokenName: tx.tokenName,
                   tokenSymbol: tx.tokenSymbol,
                   hasLogo: !!tx.logoUrl,
+                  logoUrl: tx.logoUrl,
                   type: tx.type,
+                  value: tx.value,
+                  from: Array.isArray(tx.from) ? tx.from[0]?.substring(0, 10) + '...' : tx.from?.substring(0, 10) + '...',
+                  to: Array.isArray(tx.to) ? tx.to[0]?.substring(0, 10) + '...' : tx.to?.substring(0, 10) + '...',
                 })),
               }
             : r
         ));
         
       } catch (error: any) {
+        console.error(`   ❌ ${chain.toUpperCase()} FAILED - Error:`, error.message);
+        console.error('   Full error:', error);
+        
         // Update with error
         setResults(prev => prev.map(r => 
           r.chain === chain 
@@ -153,6 +194,7 @@ export default function TransactionHistoryTest() {
       }
     }
     
+    console.log('\n🎉 ============ TEST COMPLETE ============\n');
     setTesting(false);
   };
 
@@ -305,36 +347,46 @@ export default function TransactionHistoryTest() {
                             className="overflow-hidden"
                           >
                             <div className="p-3 bg-gray-50 border-t border-gray-200 space-y-2">
+                              <div className="text-xs text-gray-600 mb-2">
+                                📊 Found {result.txCount} transactions • Testing metadata...
+                              </div>
                               {result.details.map((tx: any, idx: number) => (
-                                <div key={idx} className="text-xs bg-white p-2 rounded border border-gray-200">
-                                  <div className="font-mono text-gray-500 mb-1">
-                                    {tx.hash}
+                                <div key={idx} className="text-xs bg-white p-3 rounded border border-gray-200">
+                                  <div className="font-mono text-gray-500 mb-2 flex items-center justify-between">
+                                    <span>{tx.hash}</span>
+                                    <span className="text-gray-400">{tx.type}</span>
                                   </div>
-                                  <div className="grid grid-cols-2 gap-2">
+                                  <div className="grid grid-cols-2 gap-2 mb-2">
                                     <div>
                                       <span className="text-gray-500">Name: </span>
-                                      <span className={tx.tokenName ? 'text-green-600' : 'text-red-600'}>
-                                        {tx.tokenName || '❌'}
+                                      <span className={tx.tokenName ? 'text-green-600 font-medium' : 'text-red-600'}>
+                                        {tx.tokenName || '❌ Missing'}
                                       </span>
                                     </div>
                                     <div>
                                       <span className="text-gray-500">Symbol: </span>
-                                      <span className={tx.tokenSymbol ? 'text-green-600' : 'text-red-600'}>
-                                        {tx.tokenSymbol || '❌'}
+                                      <span className={tx.tokenSymbol ? 'text-green-600 font-medium' : 'text-red-600'}>
+                                        {tx.tokenSymbol || '❌ Missing'}
                                       </span>
                                     </div>
                                     <div>
                                       <span className="text-gray-500">Logo: </span>
-                                      <span className={tx.hasLogo ? 'text-green-600' : 'text-red-600'}>
-                                        {tx.hasLogo ? '✅' : '❌'}
-                                      </span>
+                                      {tx.hasLogo ? (
+                                        <span className="text-green-600 font-medium">✅ {tx.logoUrl}</span>
+                                      ) : (
+                                        <span className="text-red-600">❌ Missing</span>
+                                      )}
                                     </div>
                                     <div>
-                                      <span className="text-gray-500">Type: </span>
-                                      <span className="text-gray-700">
-                                        {tx.type || 'N/A'}
+                                      <span className="text-gray-500">Value: </span>
+                                      <span className="text-gray-700 font-mono">
+                                        {typeof tx.value === 'string' ? parseFloat(tx.value).toFixed(6) : tx.value}
                                       </span>
                                     </div>
+                                  </div>
+                                  <div className="text-xs text-gray-500 pt-2 border-t border-gray-100">
+                                    <div>From: {tx.from}</div>
+                                    <div>To: {tx.to}</div>
                                   </div>
                                 </div>
                               ))}
