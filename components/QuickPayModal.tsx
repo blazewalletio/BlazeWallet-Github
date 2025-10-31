@@ -591,7 +591,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                       <div className="text-left flex-1">
                         <div className="font-semibold text-gray-900 text-base mb-0.5">Scan QR Code</div>
                         <div className="text-sm text-gray-600">Scan merchant payment QR → Instant payment</div>
-                      </div>
+                        </div>
                       <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-green-500 transition-colors flex-shrink-0" />
                     </div>
                   </motion.button>
@@ -609,7 +609,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                       <div className="text-left flex-1">
                         <div className="font-semibold text-gray-900 text-base mb-0.5">Send to address</div>
                         <div className="text-sm text-gray-600">Enter amount & wallet address → Manual transfer</div>
-                      </div>
+                        </div>
                       <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-orange-500 transition-colors flex-shrink-0" />
                     </div>
                   </motion.button>
@@ -627,12 +627,12 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                       <div className="text-left flex-1">
                         <div className="font-semibold text-gray-900 text-base mb-0.5">Lightning payment</div>
                         <div className="text-sm text-gray-600">Generate Lightning invoice → Receive crypto</div>
-                      </div>
+                        </div>
                       <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-purple-500 transition-colors flex-shrink-0" />
                     </div>
                   </motion.button>
                 </motion.div>
-            )}
+              )}
 
             {/* STEP 2: AMOUNT SELECTION (for manual & lightning) */}
             {mode === 'amount' && (
@@ -935,11 +935,11 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
                       <div className="flex gap-3">
                         <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                        <div className="text-sm text-gray-700">
+                    <div className="text-sm text-gray-700">
                           {parsedQR.warnings.map((warning, idx) => (
                             <div key={idx}>{warning}</div>
                           ))}
-                        </div>
+                    </div>
                       </div>
                     </div>
                   )}
@@ -1342,52 +1342,52 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   ) : (
                     <>
                       {/* Invoice Generated - Show QR */}
-                      <div className="text-center">
-                        <div className="text-sm text-gray-600 mb-2">Receive</div>
-                        <div className="text-4xl font-bold text-gray-900 mb-2">€{amount.toFixed(2)}</div>
-                        <div className="text-sm text-gray-600">Lightning Network Payment</div>
-                      </div>
+                  <div className="text-center">
+                    <div className="text-sm text-gray-600 mb-2">Receive</div>
+                    <div className="text-4xl font-bold text-gray-900 mb-2">€{amount.toFixed(2)}</div>
+                    <div className="text-sm text-gray-600">Lightning Network Payment</div>
+                  </div>
 
                       {/* QR Code */}
-                      <div className="bg-white border-2 border-purple-200 rounded-xl p-6">
-                        <div className="mb-4 text-sm text-gray-600 text-center">
-                          Scan with Lightning wallet to pay
-                        </div>
-                        <img 
-                          src={lightningQR} 
+                    <div className="bg-white border-2 border-purple-200 rounded-xl p-6">
+                      <div className="mb-4 text-sm text-gray-600 text-center">
+                        Scan with Lightning wallet to pay
+                      </div>
+                      <img 
+                        src={lightningQR} 
                           alt="Lightning Invoice QR" 
-                          className="mx-auto rounded-xl"
-                        />
+                        className="mx-auto rounded-xl"
+                      />
                         
                         {/* Invoice String */}
-                        <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                      <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
                           <div className="text-xs text-gray-600 mb-1 text-center font-semibold">
                             BOLT11 Invoice
                           </div>
                           <div className="text-xs font-mono break-all text-gray-900 text-center mb-3">
                             {lightningInvoice.substring(0, 40)}...
-                          </div>
-                          <button
-                            onClick={() => {
+                        </div>
+                        <button
+                          onClick={() => {
                               navigator.clipboard.writeText(lightningInvoice);
                               alert('✅ Invoice copied to clipboard!');
-                            }}
+                          }}
                             className="w-full py-2 rounded-lg bg-white border border-purple-300 hover:bg-purple-50 text-purple-700 font-semibold text-sm transition-colors"
-                          >
-                            <Copy className="w-4 h-4 inline mr-2" />
-                            Copy invoice
-                          </button>
-                        </div>
+                        >
+                          <Copy className="w-4 h-4 inline mr-2" />
+                          Copy invoice
+                        </button>
                       </div>
+                    </div>
 
                       {/* Status */}
-                      <div className="flex items-center justify-between bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4">
-                        <div className="flex items-center gap-2">
-                          <Zap className="w-5 h-5 text-purple-600" />
+                  <div className="flex items-center justify-between bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4">
+                    <div className="flex items-center gap-2">
+                      <Zap className="w-5 h-5 text-purple-600" />
                           <div className="text-sm font-semibold text-gray-900">Awaiting payment...</div>
-                        </div>
-                        <div className="text-xs text-gray-600">⏱️ Expires in 14:52</div>
-                      </div>
+                    </div>
+                      <div className="text-xs text-gray-600">⏱️ Expires in 14:52</div>
+                    </div>
 
                       {/* New Invoice Button */}
                       <button
@@ -1401,7 +1401,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                       </button>
                     </>
                   )}
-                </motion.div>
+                  </motion.div>
               )}
 
             {/* CONFIRMATION SCREEN */}
