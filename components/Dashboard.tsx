@@ -37,6 +37,7 @@ const SwapModal = dynamic(() => import('./SwapModal'), { ssr: false });
 const BuyModal = dynamic(() => import('./BuyModal'), { ssr: false });
 const SettingsModal = dynamic(() => import('./SettingsModal'), { ssr: false });
 const QuickPayModal = dynamic(() => import('./QuickPayModal'), { ssr: false });
+const LightningModal = dynamic(() => import('./LightningModal'), { ssr: false }); // ⚡ NEW: Lightning Network
 const TokenDetailModal = dynamic(() => import('./TokenDetailModal'), { ssr: false });
 
 // ✅ PERFORMANCE FIX: Lazy load dashboards (only load when accessed)
@@ -98,6 +99,7 @@ export default function Dashboard() {
   const [showDebugPanel, setShowDebugPanel] = useState(false); // NEW: Debug panel state
   const [showPasswordUnlock, setShowPasswordUnlock] = useState(false); // ✅ NEW: Password unlock modal state
   const [showQuickPay, setShowQuickPay] = useState(false);
+  const [showLightning, setShowLightning] = useState(false); // ⚡ NEW: Lightning modal
   const [showFounderDeploy, setShowFounderDeploy] = useState(false);
   const [showStaking, setShowStaking] = useState(false);
   const [showGovernance, setShowGovernance] = useState(false);
@@ -1160,6 +1162,33 @@ export default function Dashboard() {
             </motion.button>
           </div>
 
+          {/* ⚡ Lightning Network Button - Only for Bitcoin */}
+          {currentChain === 'bitcoin' && (
+            <motion.button
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowLightning(true)}
+              className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 rounded-xl p-4 shadow-lg hover:shadow-xl transition-all group relative overflow-hidden mt-3"
+            >
+              {/* Animated background */}
+              <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 via-orange-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              
+              <div className="relative flex items-center justify-center gap-3">
+                <Zap className="w-6 h-6 text-white animate-pulse" />
+                <span className="text-lg font-bold text-white">
+                  Lightning Network
+                </span>
+                <Zap className="w-6 h-6 text-white animate-pulse" />
+              </div>
+              
+              <p className="relative text-sm text-white/90 mt-1">
+                ⚡ Instant payments • Ultra-low fees
+              </p>
+            </motion.button>
+          )}
+
           {/* Add Tokens Button */}
           <motion.button
             initial={{ opacity: 0, y: 10 }}
@@ -1715,6 +1744,7 @@ export default function Dashboard() {
         }}
       />
       <QuickPayModal isOpen={showQuickPay} onClose={() => setShowQuickPay(false)} />
+      <LightningModal isOpen={showLightning} onClose={() => setShowLightning(false)} /> {/* ⚡ Lightning Network */}
       
       {/* AI Feature Modals */}
       <AnimatePresence>
