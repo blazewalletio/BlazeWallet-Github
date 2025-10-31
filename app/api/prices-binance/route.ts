@@ -22,11 +22,21 @@ export async function GET(request: Request) {
       // Native tokens
       ETH: 'ETHUSDT',
       SOL: 'SOLUSDT',
-      BTC: 'BTCUSDT', // ✅ Bitcoin support
+      BTC: 'BTCUSDT',
       MATIC: 'MATICUSDT',
       BNB: 'BNBUSDT',
       TBNB: 'BNBUSDT', // Testnet uses mainnet price
       ARB: 'ARBUSDT',
+      // New EVM chains (Fase 1)
+      OP: 'OPUSDT',
+      AVAX: 'AVAXUSDT',
+      FTM: 'FTMUSDT',
+      CRO: 'CROUSDT',
+      // Bitcoin forks (Fase 2)
+      LTC: 'LTCUSDT',
+      DOGE: 'DOGEUSDT',
+      BCH: 'BCHUSDT',
+      // zkSync and Linea use ETH, no separate token
       // Stablecoins
       USDT: 'USDCUSDT', // USDT price via USDC pair
       USDC: 'USDCUSDT',

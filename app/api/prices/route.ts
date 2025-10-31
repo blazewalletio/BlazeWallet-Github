@@ -18,12 +18,22 @@ export async function GET(request: Request) {
       // Native tokens
       ETH: 'ethereum',
       SOL: 'solana',
-      BTC: 'bitcoin', // ✅ Bitcoin support
+      BTC: 'bitcoin',
       MATIC: 'matic-network',
       BNB: 'binancecoin',
       TBNB: 'binancecoin', // Testnet BNB uses same price as mainnet BNB
       ARB: 'arbitrum',
       BASE: 'base',
+      // New EVM chains (Fase 1)
+      OP: 'optimism',
+      AVAX: 'avalanche-2',
+      FTM: 'fantom',
+      CRO: 'crypto-com-chain',
+      // Bitcoin forks (Fase 2)
+      LTC: 'litecoin',
+      DOGE: 'dogecoin',
+      BCH: 'bitcoin-cash',
+      // zkSync and Linea use ETH, no separate token
       // Stablecoins (work on all chains including Solana)
       USDT: 'tether',
       USDC: 'usd-coin',

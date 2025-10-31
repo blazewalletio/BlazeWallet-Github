@@ -19,7 +19,7 @@
 
 import { CHAINS } from './chains';
 
-export type ChainType = 'ethereum' | 'polygon' | 'arbitrum' | 'base' | 'bsc' | 'solana' | 'bitcoin' | 'unknown';
+export type ChainType = 'ethereum' | 'polygon' | 'arbitrum' | 'base' | 'bsc' | 'solana' | 'bitcoin' | 'litecoin' | 'dogecoin' | 'bitcoincash' | 'unknown';
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
 
 export interface ParsedQRData {
@@ -87,6 +87,21 @@ export class QRParser {
     // Bitcoin format: bitcoin:1A1zP1...?amount=0.001&label=Donation
     if (data.startsWith('bitcoin:')) {
       return this.parseBitcoinProtocol(data);
+    }
+    
+    // Litecoin format: litecoin:L...?amount=0.1&label=Payment
+    if (data.startsWith('litecoin:')) {
+      return this.parseLitecoinProtocol(data);
+    }
+    
+    // Dogecoin format: dogecoin:D...?amount=100&label=Much Payment
+    if (data.startsWith('dogecoin:')) {
+      return this.parseDogecoinProtocol(data);
+    }
+    
+    // Bitcoin Cash format: bitcoincash:q...?amount=0.01&label=BCH Payment
+    if (data.startsWith('bitcoincash:')) {
+      return this.parseBitcoinCashProtocol(data);
     }
     
     // Lightning Network format: lightning:lnbc10u1p...
@@ -286,6 +301,159 @@ export class QRParser {
   }
   
   /**
+   * Parse Litecoin protocol QR codes
+   * Format: litecoin:L...?amount=0.1&label=Payment
+   */
+  private static parseLitecoinProtocol(data: string): ParsedQRData {
+    try {
+      const [addressPart, paramsPart] = data.split('?');
+      const address = addressPart.replace('litecoin:', '').trim();
+      
+      if (!this.isValidLitecoinAddress(address)) {
+        return {
+          address,
+          chain: 'litecoin',
+          confidence: 'low',
+          protocol: 'standard',
+          rawData: data,
+          isValid: false,
+          warnings: ['Invalid Litecoin address format'],
+        };
+      }
+      
+      const params = new URLSearchParams(paramsPart || '');
+      const amount = params.get('amount');
+      const label = params.get('label');
+      const message = params.get('message');
+      
+      return {
+        address,
+        chain: 'litecoin',
+        confidence: 'high',
+        amount: amount || undefined,
+        label: label || undefined,
+        message: message || undefined,
+        protocol: 'standard',
+        rawData: data,
+        isValid: true,
+      };
+    } catch (error) {
+      console.error('Error parsing litecoin protocol:', error);
+      return {
+        address: '',
+        chain: 'litecoin',
+        confidence: 'low',
+        protocol: 'standard',
+        rawData: data,
+        isValid: false,
+        warnings: ['Failed to parse litecoin: protocol'],
+      };
+    }
+  }
+  
+  /**
+   * Parse Dogecoin protocol QR codes
+   * Format: dogecoin:D...?amount=100&label=Much Payment
+   */
+  private static parseDogecoinProtocol(data: string): ParsedQRData {
+    try {
+      const [addressPart, paramsPart] = data.split('?');
+      const address = addressPart.replace('dogecoin:', '').trim();
+      
+      if (!this.isValidDogecoinAddress(address)) {
+        return {
+          address,
+          chain: 'dogecoin',
+          confidence: 'low',
+          protocol: 'standard',
+          rawData: data,
+          isValid: false,
+          warnings: ['Invalid Dogecoin address format'],
+        };
+      }
+      
+      const params = new URLSearchParams(paramsPart || '');
+      const amount = params.get('amount');
+      const label = params.get('label');
+      const message = params.get('message');
+      
+      return {
+        address,
+        chain: 'dogecoin',
+        confidence: 'high',
+        amount: amount || undefined,
+        label: label || undefined,
+        message: message || undefined,
+        protocol: 'standard',
+        rawData: data,
+        isValid: true,
+      };
+    } catch (error) {
+      console.error('Error parsing dogecoin protocol:', error);
+      return {
+        address: '',
+        chain: 'dogecoin',
+        confidence: 'low',
+        protocol: 'standard',
+        rawData: data,
+        isValid: false,
+        warnings: ['Failed to parse dogecoin: protocol'],
+      };
+    }
+  }
+  
+  /**
+   * Parse Bitcoin Cash protocol QR codes
+   * Format: bitcoincash:q...?amount=0.01&label=BCH Payment
+   */
+  private static parseBitcoinCashProtocol(data: string): ParsedQRData {
+    try {
+      const [addressPart, paramsPart] = data.split('?');
+      const address = addressPart.replace('bitcoincash:', '').trim();
+      
+      if (!this.isValidBitcoinCashAddress(address)) {
+        return {
+          address,
+          chain: 'bitcoincash',
+          confidence: 'low',
+          protocol: 'standard',
+          rawData: data,
+          isValid: false,
+          warnings: ['Invalid Bitcoin Cash address format'],
+        };
+      }
+      
+      const params = new URLSearchParams(paramsPart || '');
+      const amount = params.get('amount');
+      const label = params.get('label');
+      const message = params.get('message');
+      
+      return {
+        address,
+        chain: 'bitcoincash',
+        confidence: 'high',
+        amount: amount || undefined,
+        label: label || undefined,
+        message: message || undefined,
+        protocol: 'standard',
+        rawData: data,
+        isValid: true,
+      };
+    } catch (error) {
+      console.error('Error parsing bitcoincash protocol:', error);
+      return {
+        address: '',
+        chain: 'bitcoincash',
+        confidence: 'low',
+        protocol: 'standard',
+        rawData: data,
+        isValid: false,
+        warnings: ['Failed to parse bitcoincash: protocol'],
+      };
+    }
+  }
+  
+  /**
    * Parse Lightning Network QR codes
    */
   private static parseLightningProtocol(data: string): ParsedQRData {
@@ -405,8 +573,35 @@ export class QRParser {
       };
     }
     
+    // Litecoin addresses (L..., M..., ltc1...)
+    if (this.isValidLitecoinAddress(addr)) {
+      return { 
+        chain: 'litecoin', 
+        confidence: 'high', 
+        address: addr 
+      };
+    }
+    
+    // Dogecoin addresses (D...)
+    if (this.isValidDogecoinAddress(addr)) {
+      return { 
+        chain: 'dogecoin', 
+        confidence: 'high', 
+        address: addr 
+      };
+    }
+    
+    // Bitcoin Cash addresses (q..., p..., or legacy 1.../3...)
+    if (this.isValidBitcoinCashAddress(addr)) {
+      return { 
+        chain: 'bitcoincash', 
+        confidence: 'high', 
+        address: addr 
+      };
+    }
+    
     // Solana (base58, 32-44 chars, no 0, O, I, l)
-    // Checked AFTER Bitcoin to avoid false positives
+    // Checked AFTER Bitcoin forks to avoid false positives
     if (this.isValidSolanaAddress(addr)) {
       return { 
         chain: 'solana', 
@@ -450,6 +645,23 @@ export class QRParser {
     // ⚠️ FIX: Some QR generators use UPPERCASE (BC1...) 
     // Bitcoin addresses are case-insensitive for bc1 prefix
     return /^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$/i.test(address);
+  }
+  
+  static isValidLitecoinAddress(address: string): boolean {
+    // Litecoin Legacy: L or M prefix
+    // Litecoin SegWit (Bech32): ltc1
+    return /^[LM][a-km-zA-HJ-NP-Z1-9]{26,34}$/.test(address) || /^ltc1[a-z0-9]{39,59}$/i.test(address);
+  }
+  
+  static isValidDogecoinAddress(address: string): boolean {
+    // Dogecoin: D prefix
+    return /^D[5-9A-HJ-NP-U]{1}[1-9A-HJ-NP-Za-km-z]{32}$/.test(address);
+  }
+  
+  static isValidBitcoinCashAddress(address: string): boolean {
+    // Bitcoin Cash CashAddr format: q or p prefix (43 chars total)
+    // Bitcoin Cash legacy: 1 or 3 prefix
+    return /^[qp][a-z0-9]{41}$/.test(address) || /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(address);
   }
   
   /**

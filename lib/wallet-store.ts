@@ -14,6 +14,9 @@ export interface WalletState {
   address: string | null; // EVM address (for backward compatibility)
   solanaAddress: string | null; // Solana-specific address
   bitcoinAddress: string | null; // ✅ Bitcoin Native SegWit address (bc1...)
+  litecoinAddress: string | null; // ✅ Litecoin address (L/M... or ltc1...)
+  dogecoinAddress: string | null; // ✅ Dogecoin address (D...)
+  bitcoincashAddress: string | null; // ✅ Bitcoin Cash address (q/p... or 1/3...)
   balance: string;
   isLocked: boolean;
   mnemonic: string | null;
@@ -58,6 +61,9 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   address: null,
   solanaAddress: null, // Initialize Solana address
   bitcoinAddress: null, // ✅ Initialize Bitcoin address
+  litecoinAddress: null, // ✅ Initialize Litecoin address
+  dogecoinAddress: null, // ✅ Initialize Dogecoin address
+  bitcoincashAddress: null, // ✅ Initialize Bitcoin Cash address
   balance: '0',
   isLocked: false,
   mnemonic: null,
@@ -86,11 +92,24 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     const bitcoinService = new BitcoinService('mainnet');
     const { address: bitcoinAddress } = bitcoinService.deriveBitcoinAddress(mnemonic, 'native-segwit');
     
+    // ✅ Generate Bitcoin-fork addresses from the same mnemonic
+    const { BitcoinForkService } = await import('./bitcoin-fork-service');
+    const litecoinService = new BitcoinForkService('litecoin');
+    const dogecoinService = new BitcoinForkService('dogecoin');
+    const bitcoincashService = new BitcoinForkService('bitcoincash');
+    
+    const { address: litecoinAddress } = litecoinService.deriveAddress(mnemonic, 'legacy');
+    const { address: dogecoinAddress } = dogecoinService.deriveAddress(mnemonic, 'legacy');
+    const { address: bitcoincashAddress } = bitcoincashService.deriveAddress(mnemonic, 'legacy');
+    
     set({
       wallet,
       address: wallet.address, // EVM address (derived from mnemonic)
       solanaAddress, // Solana address (derived from mnemonic)
       bitcoinAddress, // ✅ Bitcoin address (derived from mnemonic)
+      litecoinAddress, // ✅ Litecoin address (derived from mnemonic)
+      dogecoinAddress, // ✅ Dogecoin address (derived from mnemonic)
+      bitcoincashAddress, // ✅ Bitcoin Cash address (derived from mnemonic)
       mnemonic, // Only in memory, never persisted
       isLocked: false,
       lastActivity: Date.now(),
@@ -127,6 +146,16 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       const bitcoinService = new BitcoinService('mainnet');
       const { address: bitcoinAddress } = bitcoinService.deriveBitcoinAddress(cleanMnemonic, 'native-segwit');
       
+      // ✅ Generate Bitcoin-fork addresses from the same mnemonic
+      const { BitcoinForkService } = await import('./bitcoin-fork-service');
+      const litecoinService = new BitcoinForkService('litecoin');
+      const dogecoinService = new BitcoinForkService('dogecoin');
+      const bitcoincashService = new BitcoinForkService('bitcoincash');
+      
+      const { address: litecoinAddress } = litecoinService.deriveAddress(cleanMnemonic, 'legacy');
+      const { address: dogecoinAddress } = dogecoinService.deriveAddress(cleanMnemonic, 'legacy');
+      const { address: bitcoincashAddress } = bitcoincashService.deriveAddress(cleanMnemonic, 'legacy');
+      
       // Restore chain preference
       const savedChain = typeof window !== 'undefined' 
         ? localStorage.getItem('current_chain') || DEFAULT_CHAIN
@@ -137,6 +166,9 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         address: wallet.address, // EVM address (derived from mnemonic)
         solanaAddress, // Solana address (derived from mnemonic)
         bitcoinAddress, // ✅ Bitcoin address (derived from mnemonic)
+        litecoinAddress, // ✅ Litecoin address (derived from mnemonic)
+        dogecoinAddress, // ✅ Dogecoin address (derived from mnemonic)
+        bitcoincashAddress, // ✅ Bitcoin Cash address (derived from mnemonic)
         mnemonic: cleanMnemonic, // Only in memory, never persisted
         isLocked: false,
         currentChain: savedChain,
@@ -222,6 +254,16 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       const bitcoinService = new BitcoinService('mainnet');
       const { address: bitcoinAddress } = bitcoinService.deriveBitcoinAddress(cleanMnemonic, 'native-segwit');
       
+      // ✅ ALWAYS derive Bitcoin-fork addresses from mnemonic
+      const { BitcoinForkService } = await import('./bitcoin-fork-service');
+      const litecoinService = new BitcoinForkService('litecoin');
+      const dogecoinService = new BitcoinForkService('dogecoin');
+      const bitcoincashService = new BitcoinForkService('bitcoincash');
+      
+      const { address: litecoinAddress } = litecoinService.deriveAddress(cleanMnemonic, 'legacy');
+      const { address: dogecoinAddress } = dogecoinService.deriveAddress(cleanMnemonic, 'legacy');
+      const { address: bitcoincashAddress } = bitcoincashService.deriveAddress(cleanMnemonic, 'legacy');
+      
       const savedChain = localStorage.getItem('current_chain') || DEFAULT_CHAIN;
 
       set({
@@ -229,6 +271,9 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         address: wallet.address, // EVM address (derived from mnemonic)
         solanaAddress, // Solana address (derived from mnemonic)
         bitcoinAddress, // ✅ Bitcoin address (derived from mnemonic)
+        litecoinAddress, // ✅ Litecoin address (derived from mnemonic)
+        dogecoinAddress, // ✅ Dogecoin address (derived from mnemonic)
+        bitcoincashAddress, // ✅ Bitcoin Cash address (derived from mnemonic)
         mnemonic: cleanMnemonic,
         isLocked: false,
         currentChain: savedChain,
@@ -308,6 +353,16 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         const bitcoinService = new BitcoinService('mainnet');
         const { address: bitcoinAddress } = bitcoinService.deriveBitcoinAddress(result.mnemonic, 'native-segwit');
         
+        // ✅ ALWAYS derive Bitcoin-fork addresses from mnemonic
+        const { BitcoinForkService } = await import('./bitcoin-fork-service');
+        const litecoinService = new BitcoinForkService('litecoin');
+        const dogecoinService = new BitcoinForkService('dogecoin');
+        const bitcoincashService = new BitcoinForkService('bitcoincash');
+        
+        const { address: litecoinAddress } = litecoinService.deriveAddress(result.mnemonic, 'legacy');
+        const { address: dogecoinAddress } = dogecoinService.deriveAddress(result.mnemonic, 'legacy');
+        const { address: bitcoincashAddress } = bitcoincashService.deriveAddress(result.mnemonic, 'legacy');
+        
         const savedChain = typeof window !== 'undefined'
           ? localStorage.getItem('current_chain') || DEFAULT_CHAIN
           : DEFAULT_CHAIN;
@@ -317,6 +372,9 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           address: wallet.address, // EVM address (derived from mnemonic)
           solanaAddress, // Solana address (derived from mnemonic)
           bitcoinAddress, // ✅ Bitcoin address (derived from mnemonic)
+          litecoinAddress, // ✅ Litecoin address (derived from mnemonic)
+          dogecoinAddress, // ✅ Dogecoin address (derived from mnemonic)
+          bitcoincashAddress, // ✅ Bitcoin Cash address (derived from mnemonic)
           mnemonic: result.mnemonic,
           isLocked: false,
           currentChain: savedChain,
@@ -366,6 +424,16 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         const bitcoinService = new BitcoinService('mainnet');
         const { address: bitcoinAddress } = bitcoinService.deriveBitcoinAddress(mnemonic, 'native-segwit');
         
+        // ✅ ALWAYS derive Bitcoin-fork addresses from mnemonic
+        const { BitcoinForkService } = await import('./bitcoin-fork-service');
+        const litecoinService = new BitcoinForkService('litecoin');
+        const dogecoinService = new BitcoinForkService('dogecoin');
+        const bitcoincashService = new BitcoinForkService('bitcoincash');
+        
+        const { address: litecoinAddress } = litecoinService.deriveAddress(mnemonic, 'legacy');
+        const { address: dogecoinAddress } = dogecoinService.deriveAddress(mnemonic, 'legacy');
+        const { address: bitcoincashAddress } = bitcoincashService.deriveAddress(mnemonic, 'legacy');
+        
         const savedChain = typeof window !== 'undefined'
           ? localStorage.getItem('current_chain') || DEFAULT_CHAIN
           : DEFAULT_CHAIN;
@@ -375,6 +443,9 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           address: wallet.address, // EVM address (derived from mnemonic)
           solanaAddress, // Solana address (derived from mnemonic)
           bitcoinAddress, // ✅ Bitcoin address (derived from mnemonic)
+          litecoinAddress, // ✅ Litecoin address (derived from mnemonic)
+          dogecoinAddress, // ✅ Dogecoin address (derived from mnemonic)
+          bitcoincashAddress, // ✅ Bitcoin Cash address (derived from mnemonic)
           mnemonic,
           isLocked: false,
           currentChain: savedChain,
@@ -472,11 +543,24 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       const bitcoinService = new BitcoinService('mainnet');
       const { address: bitcoinAddress } = bitcoinService.deriveBitcoinAddress(cleanMnemonic, 'native-segwit');
       
+      // ✅ Generate Bitcoin-fork addresses from the same mnemonic
+      const { BitcoinForkService } = await import('./bitcoin-fork-service');
+      const litecoinService = new BitcoinForkService('litecoin');
+      const dogecoinService = new BitcoinForkService('dogecoin');
+      const bitcoincashService = new BitcoinForkService('bitcoincash');
+      
+      const { address: litecoinAddress } = litecoinService.deriveAddress(cleanMnemonic, 'legacy');
+      const { address: dogecoinAddress } = dogecoinService.deriveAddress(cleanMnemonic, 'legacy');
+      const { address: bitcoincashAddress } = bitcoincashService.deriveAddress(cleanMnemonic, 'legacy');
+      
       set({
         wallet,
         address: wallet.address, // EVM address
         solanaAddress, // Solana address
         bitcoinAddress, // ✅ Bitcoin address
+        litecoinAddress, // ✅ Litecoin address
+        dogecoinAddress, // ✅ Dogecoin address
+        bitcoincashAddress, // ✅ Bitcoin Cash address
         mnemonic: cleanMnemonic,
         isLocked: false,
       });
@@ -533,6 +617,9 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       address: null,
       solanaAddress: null, // ✅ NEW: Clear Solana address
       bitcoinAddress: null, // ✅ NEW: Clear Bitcoin address
+      litecoinAddress: null, // ✅ NEW: Clear Litecoin address
+      dogecoinAddress: null, // ✅ NEW: Clear Dogecoin address
+      bitcoincashAddress: null, // ✅ NEW: Clear Bitcoin Cash address
       balance: '0',
       isLocked: false,
       mnemonic: null,
@@ -628,10 +715,13 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   },
 
   getCurrentAddress: () => {
-    const { currentChain, address, solanaAddress, bitcoinAddress } = get();
+    const { currentChain, address, solanaAddress, bitcoinAddress, litecoinAddress, dogecoinAddress, bitcoincashAddress } = get();
     // Return chain-specific address
     if (currentChain === 'solana') return solanaAddress;
     if (currentChain === 'bitcoin') return bitcoinAddress;
+    if (currentChain === 'litecoin') return litecoinAddress;
+    if (currentChain === 'dogecoin') return dogecoinAddress;
+    if (currentChain === 'bitcoincash') return bitcoincashAddress;
     return address; // EVM chains
   },
 

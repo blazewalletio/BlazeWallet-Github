@@ -3,19 +3,21 @@ import { BlockchainService } from './blockchain';
 import { SolanaService } from './solana-service';
 import { AlchemyService } from './alchemy-service';
 import { BitcoinService } from './bitcoin-service';
+import { BitcoinForkService } from './bitcoin-fork-service';
 import { CHAINS } from './chains';
 
 /**
  * Unified Multi-Chain Service
  * Automatically routes to the correct blockchain service based on chain type
  * ✅ Singleton pattern met cache per chain (voorkomt excessive re-initialization)
- * ✅ NOW SUPPORTS: EVM, Solana, Bitcoin
+ * ✅ NOW SUPPORTS: EVM, Solana, Bitcoin, Litecoin, Dogecoin, Bitcoin Cash
  */
 export class MultiChainService {
   private chainKey: string;
   private evmService: BlockchainService | null = null;
   private solanaService: SolanaService | null = null;
   private bitcoinService: BitcoinService | null = null;
+  private bitcoinForkService: BitcoinForkService | null = null;
   private alchemyService: AlchemyService | null = null;
 
   private constructor(chainKey: string = 'ethereum') {
@@ -26,6 +28,10 @@ export class MultiChainService {
       this.solanaService = new SolanaService(chain.rpcUrl);
     } else if (this.isBitcoin()) {
       this.bitcoinService = new BitcoinService('mainnet');
+    } else if (this.isBitcoinFork()) {
+      // Litecoin, Dogecoin, Bitcoin Cash
+      const forkType = chainKey as 'litecoin' | 'dogecoin' | 'bitcoincash';
+      this.bitcoinForkService = new BitcoinForkService(forkType);
     } else {
       // EVM chains
       this.evmService = new BlockchainService(chainKey);
@@ -75,6 +81,10 @@ export class MultiChainService {
     return this.chainKey === 'bitcoin';
   }
 
+  private isBitcoinFork(): boolean {
+    return this.chainKey === 'litecoin' || this.chainKey === 'dogecoin' || this.chainKey === 'bitcoincash';
+  }
+
   getChain() {
     return CHAINS[this.chainKey];
   }
@@ -85,6 +95,9 @@ export class MultiChainService {
     } else if (this.isBitcoin() && this.bitcoinService) {
       const { confirmed } = await this.bitcoinService.getBalance(address);
       return ethers.formatUnits(confirmed, 8); // Bitcoin has 8 decimals
+    } else if (this.isBitcoinFork() && this.bitcoinForkService) {
+      const { confirmed } = await this.bitcoinForkService.getBalance(address);
+      return ethers.formatUnits(confirmed, 8); // All use 8 decimals
     } else if (this.evmService) {
       return await this.evmService.getBalance(address);
     }
@@ -98,11 +111,19 @@ export class MultiChainService {
       return { slow: fee, standard: fee, fast: fee };
     } else if (this.isBitcoin() && this.bitcoinService) {
       // Get Bitcoin fee estimates (sat/vB)
-      const fees = await this.bitcoinService.estimateFees();
+      const feeEstimate = await this.bitcoinService.estimateFees();
       return {
-        slow: fees.slow.toString(),
-        standard: fees.standard.toString(),
-        fast: fees.fast.toString(),
+        slow: `${feeEstimate.slow} sat/vB`,
+        standard: `${feeEstimate.standard} sat/vB`,
+        fast: `${feeEstimate.fast} sat/vB`,
+      };
+    } else if (this.isBitcoinFork() && this.bitcoinForkService) {
+      // Get Bitcoin-fork fee estimates
+      const feeEstimate = await this.bitcoinForkService.estimateFees();
+      return {
+        slow: `${feeEstimate.slow} sat/vB`,
+        standard: `${feeEstimate.standard} sat/vB`,
+        fast: `${feeEstimate.fast} sat/vB`,
       };
     } else if (this.evmService) {
       return await this.evmService.getGasPrice();
@@ -144,6 +165,30 @@ export class MultiChainService {
         return result.txid; // Return transaction ID as string
       }
       throw new Error('Bitcoin requires mnemonic for transaction signing');
+    } else if (this.isBitcoinFork() && this.bitcoinForkService) {
+      // For Bitcoin forks (LTC, DOGE, BCH)
+      if (typeof walletOrMnemonic === 'string') {
+        // Derive address from mnemonic
+        const { address: fromAddress } = this.bitcoinForkService.deriveAddress(walletOrMnemonic, 'legacy');
+        
+        // Convert amount to smallest unit (satoshis/litoshi/dogoshi)
+        const amountSmallest = Math.floor(parseFloat(amount) * 100000000);
+        
+        // gasPrice is sat/vB fee rate
+        const feeRate = gasPrice ? parseInt(gasPrice) : 10;
+        
+        const result = await this.bitcoinForkService.createTransaction(
+          fromAddress,
+          to,
+          amountSmallest,
+          feeRate,
+          walletOrMnemonic
+        );
+        
+        // Broadcast transaction
+        return await this.bitcoinForkService.broadcastTransaction(result.txHex);
+      }
+      throw new Error('Bitcoin forks require mnemonic for transaction signing');
     } else if (this.evmService) {
       // For EVM, walletOrMnemonic must be a Wallet instance
       if (typeof walletOrMnemonic !== 'string') {
@@ -183,7 +228,7 @@ export class MultiChainService {
 
   async getTransactionHistory(address: string, limit: number = 10): Promise<any[]> {
     // ✅ NEW: Use Alchemy if available (includes ERC20 transfers!)
-    if (this.alchemyService && !this.isSolana() && !this.isBitcoin()) {
+    if (this.alchemyService && !this.isSolana() && !this.isBitcoin() && !this.isBitcoinFork()) {
       try {
         console.log(`🔮 [MultiChainService] Using Alchemy for transaction history`);
         return await this.alchemyService.getFullTransactionHistory(address, limit);
@@ -197,6 +242,8 @@ export class MultiChainService {
       return await this.solanaService.getTransactionHistory(address, limit);
     } else if (this.isBitcoin() && this.bitcoinService) {
       return await this.bitcoinService.getTransactionHistory(address, limit);
+    } else if (this.isBitcoinFork() && this.bitcoinForkService) {
+      return await this.bitcoinForkService.getTransactionHistory(address, limit);
     } else if (this.evmService) {
       return await this.evmService.getTransactionHistory(address, limit);
     }
@@ -208,6 +255,9 @@ export class MultiChainService {
       return this.solanaService.isValidAddress(address);
     } else if (this.isBitcoin()) {
       return BitcoinService.isValidAddress(address); // Static method
+    } else if (this.isBitcoinFork()) {
+      const forkType = this.chainKey as 'litecoin' | 'dogecoin' | 'bitcoincash';
+      return BitcoinForkService.isValidAddress(address, forkType);
     } else if (this.evmService) {
       // EVM address validation
       return ethers.isAddress(address);
@@ -221,6 +271,12 @@ export class MultiChainService {
       return 'Solana address (base58, e.g., DYw8jC...)';
     } else if (this.isBitcoin()) {
       return 'Bitcoin address (bc1..., 1..., or 3...)';
+    } else if (this.chainKey === 'litecoin') {
+      return 'Litecoin address (L/M... or ltc1...)';
+    } else if (this.chainKey === 'dogecoin') {
+      return 'Dogecoin address (D...)';
+    } else if (this.chainKey === 'bitcoincash') {
+      return 'Bitcoin Cash address (q/p... or 1/3...)';
     }
     return 'EVM address (0x...)';
   }
@@ -242,8 +298,8 @@ export class MultiChainService {
    * Falls back to manual token list if Alchemy unavailable
    */
   async getERC20TokenBalances(address: string): Promise<any[]> {
-    // Bitcoin has no tokens
-    if (this.isBitcoin()) {
+    // Bitcoin and Bitcoin forks have no tokens
+    if (this.isBitcoin() || this.isBitcoinFork()) {
       return [];
     }
 
