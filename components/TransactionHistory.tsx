@@ -77,6 +77,15 @@ export default function TransactionHistory() {
         return await blockchain.getTransactionHistory(displayAddress, 10);
       });
 
+      // ✅ DEBUG: Log transaction details to see token metadata
+      console.log('📋 [TransactionHistory] Raw transactions:', txs.map(tx => ({
+        hash: tx.hash.substring(0, 8),
+        tokenName: tx.tokenName,
+        tokenSymbol: tx.tokenSymbol,
+        logoUrl: tx.logoUrl,
+        mint: tx.mint
+      })));
+
       // ✅ Update with fresh data (smooth transition, no jarring reload)
       setTransactions(txs);
       
