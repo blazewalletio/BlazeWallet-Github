@@ -10,7 +10,7 @@
  * - Reduces API calls by 80-95%
  */
 
-const CACHE_VERSION = 8; // ✅ Force complete cache clear for unknown token debugging
+const CACHE_VERSION = 9; // ✅ Force complete cache clear for fallback metadata fix
 
 interface CachedTransaction {
   key: string;

@@ -506,36 +506,83 @@ export class SolanaService {
           }
         }
         
-        // Fallback: basic SPL transfer info - ✅ Still try to get metadata even if balance parsing fails
-        try {
-          // Try to extract mint from instruction accounts
-          const accountIndex = instruction.accounts && instruction.accounts.length > 0 
-            ? instruction.accounts[0] 
-            : null;
+        // 🆕 FALLBACK: For failed transactions or those without balance changes,
+        // try to extract mint from ANY token balance (pre OR post) and fetch metadata
+        console.log(`⚠️ [SPL Transfer] No balance diff found, trying fallback metadata fetch...`);
+        
+        if (tx.meta?.preTokenBalances && tx.meta.preTokenBalances.length > 0) {
+          const firstBalance = tx.meta.preTokenBalances[0];
+          const mint = firstBalance.mint;
           
-          if (accountIndex !== null && accountKeys[accountIndex]) {
-            // This might be the token account, try to get its mint
-            // For now, use basic fallback since we can't easily determine the mint here
-            return {
-              from: accountKeys[0]?.toBase58() || '',
-              to: accountKeys[1]?.toBase58() || '',
-              value: '0',
-              tokenSymbol: 'SPL',
-              tokenName: 'Unknown Token', // ✅ Add tokenName for fallback
-              type: 'Token Transfer',
-              logoUrl: '/crypto-solana.png',
-            };
+          if (mint) {
+            console.log(`🔍 [SPL Transfer FALLBACK] Fetching metadata for mint: ${mint}`);
+            
+            try {
+              const metadata = await getSPLTokenMetadata(mint);
+              
+              console.log(`✅ [SPL Transfer FALLBACK] Got metadata:`, {
+                symbol: metadata.symbol,
+                name: metadata.name,
+                logoURI: metadata.logoURI
+              });
+              
+              return {
+                from: accountKeys[0]?.toBase58() || '',
+                to: accountKeys[1]?.toBase58() || '',
+                value: '0',
+                tokenSymbol: metadata.symbol,
+                tokenName: metadata.name,
+                type: 'Token Transfer',
+                mint: mint,
+                logoUrl: metadata.logoURI || '/crypto-solana.png',
+              };
+            } catch (metadataError) {
+              console.error(`❌ [SPL Transfer FALLBACK] Metadata fetch failed for ${mint}:`, metadataError);
+            }
           }
-        } catch (e) {
-          // Ignore metadata fetch error in fallback
         }
         
+        // Check postTokenBalances too
+        if (tx.meta?.postTokenBalances && tx.meta.postTokenBalances.length > 0) {
+          const firstBalance = tx.meta.postTokenBalances[0];
+          const mint = firstBalance.mint;
+          
+          if (mint) {
+            console.log(`🔍 [SPL Transfer FALLBACK POST] Fetching metadata for mint: ${mint}`);
+            
+            try {
+              const metadata = await getSPLTokenMetadata(mint);
+              
+              console.log(`✅ [SPL Transfer FALLBACK POST] Got metadata:`, {
+                symbol: metadata.symbol,
+                name: metadata.name,
+                logoURI: metadata.logoURI
+              });
+              
+              return {
+                from: accountKeys[0]?.toBase58() || '',
+                to: accountKeys[1]?.toBase58() || '',
+                value: '0',
+                tokenSymbol: metadata.symbol,
+                tokenName: metadata.name,
+                type: 'Token Transfer',
+                mint: mint,
+                logoUrl: metadata.logoURI || '/crypto-solana.png',
+              };
+            } catch (metadataError) {
+              console.error(`❌ [SPL Transfer FALLBACK POST] Metadata fetch failed for ${mint}:`, metadataError);
+            }
+          }
+        }
+        
+        // Ultimate fallback if we really can't find any token info
+        console.warn(`⚠️ [SPL Transfer] No token balances found, using generic fallback`);
         return {
           from: accountKeys[0]?.toBase58() || '',
           to: accountKeys[1]?.toBase58() || '',
           value: '0',
           tokenSymbol: 'SPL',
-          tokenName: 'Unknown Token', // ✅ Add tokenName for ultra fallback
+          tokenName: 'Unknown Token',
           type: 'Token Transfer',
           logoUrl: '/crypto-solana.png',
         };
