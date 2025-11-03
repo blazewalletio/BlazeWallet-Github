@@ -90,13 +90,27 @@ interface ListPaymentsRequest {
 // Breez SDK module (only available in native)
 let BreezSDK: any = null;
 
-// Try to import Breez SDK (will fail gracefully on web)
-if (typeof window !== 'undefined') {
+// Dynamically load Breez SDK only when needed (prevents Next.js build errors)
+function loadBreezSDK() {
+  if (BreezSDK !== null) return BreezSDK;
+  
+  // Only try to load in browser context
+  if (typeof window === 'undefined') return null;
+  
   try {
-    BreezSDK = require('@breeztech/react-native-breez-sdk');
+    // Dynamic require only in native Capacitor context
+    const { Capacitor } = require('@capacitor/core');
+    if (Capacitor.isNativePlatform()) {
+      BreezSDK = require('@breeztech/react-native-breez-sdk');
+      console.log('✅ Breez SDK loaded successfully');
+      return BreezSDK;
+    }
   } catch (e) {
-    console.log('ℹ️ Breez SDK not available (web mode)');
+    // Expected on web - WebLN fallback will be used
+    console.log('ℹ️ Breez SDK not available (web mode - using WebLN fallback)');
   }
+  
+  return null;
 }
 
 export class BreezService {
@@ -152,8 +166,10 @@ export class BreezService {
       return;
     }
 
-    if (!BreezSDK) {
-      throw new Error('Breez SDK not loaded');
+    // Load Breez SDK dynamically
+    const SDK = loadBreezSDK();
+    if (!SDK) {
+      throw new Error('Breez SDK not available');
     }
 
     this.isConnecting = true;
@@ -189,8 +205,8 @@ export class BreezService {
       };
 
       // Get default config
-      const config = await BreezSDK.defaultConfig(
-        BreezSDK.EnvironmentType.PRODUCTION,
+      const config = await SDK.defaultConfig(
+        SDK.EnvironmentType.PRODUCTION,
         process.env.NEXT_PUBLIC_BREEZ_API_KEY || '', // Optional API key
         nodeConfig
       );
@@ -199,7 +215,7 @@ export class BreezService {
       config.workingDir = `${Capacitor.convertFileSrc('Documents')}/breez`;
 
       // Connect to Breez SDK
-      await BreezSDK.connect(config, null, onEvent);
+      await SDK.connect(config, null, onEvent);
 
       this.isInitialized = true;
       this.isConnecting = false;
@@ -249,9 +265,12 @@ export class BreezService {
       throw new Error('Breez SDK not available');
     }
 
+    const SDK = loadBreezSDK();
+    if (!SDK) throw new Error('Breez SDK not loaded');
+
     try {
       console.log('🔄 Syncing with Greenlight...');
-      await BreezSDK.sync();
+      await SDK.sync();
       console.log('✅ Sync completed');
     } catch (error) {
       console.error('❌ Sync failed:', error);
@@ -267,8 +286,11 @@ export class BreezService {
       throw new Error('Breez SDK not available');
     }
 
+    const SDK = loadBreezSDK();
+    if (!SDK) throw new Error('Breez SDK not loaded');
+
     try {
-      const nodeInfo = await BreezSDK.nodeInfo();
+      const nodeInfo = await SDK.nodeInfo();
       console.log('📊 Node info:', nodeInfo);
       return nodeInfo;
     } catch (error) {
@@ -323,6 +345,9 @@ export class BreezService {
       throw new Error('Lightning not available on web. Use native app or WebLN extension.');
     }
 
+    const SDK = loadBreezSDK();
+    if (!SDK) throw new Error('Breez SDK not loaded');
+
     try {
       console.log(`📥 Creating invoice: ${amountSats} sats - ${description}`);
 
@@ -331,7 +356,7 @@ export class BreezService {
         description,
       };
 
-      const response: ReceivePaymentResponse = await BreezSDK.receivePayment(request);
+      const response: ReceivePaymentResponse = await SDK.receivePayment(request);
       const invoice = response.lnInvoice.bolt11;
 
       console.log(`✅ Invoice created: ${invoice.substring(0, 20)}...`);
@@ -375,6 +400,9 @@ export class BreezService {
       throw new Error('Lightning not available on web. Use native app or WebLN extension.');
     }
 
+    const SDK = loadBreezSDK();
+    if (!SDK) throw new Error('Breez SDK not loaded');
+
     try {
       console.log(`📤 Paying invoice: ${bolt11.substring(0, 20)}...`);
 
@@ -382,7 +410,7 @@ export class BreezService {
         bolt11,
       };
 
-      const response: SendPaymentResponse = await BreezSDK.sendPayment(request);
+      const response: SendPaymentResponse = await SDK.sendPayment(request);
 
       console.log(`✅ Payment sent:`, response.payment);
       return response;
@@ -400,8 +428,11 @@ export class BreezService {
       return [];
     }
 
+    const SDK = loadBreezSDK();
+    if (!SDK) return [];
+
     try {
-      const payments: Payment[] = await BreezSDK.listPayments({} as ListPaymentsRequest);
+      const payments: Payment[] = await SDK.listPayments({} as ListPaymentsRequest);
       console.log(`📜 Found ${payments.length} payments`);
       return payments;
     } catch (error) {
@@ -433,9 +464,12 @@ export class BreezService {
       return;
     }
 
+    const SDK = loadBreezSDK();
+    if (!SDK) return;
+
     try {
       console.log('🔌 Disconnecting from Breez...');
-      await BreezSDK.disconnect();
+      await SDK.disconnect();
       this.isInitialized = false;
       console.log('✅ Disconnected from Breez');
     } catch (error) {
