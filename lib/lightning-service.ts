@@ -240,6 +240,21 @@ export class UnifiedLightningService {
   }
 
   /**
+   * Check invoice payment status (for monitoring)
+   * Note: Only supported on native (Breez SDK), not on WebLN
+   */
+  async checkInvoiceStatus(paymentHash: string): Promise<{ settled: boolean; settledAt?: number }> {
+    if (this.isNativePlatform()) {
+      // TODO: Implement with Breez SDK when invoice monitoring is needed
+      // For now, return unsettled
+      return { settled: false };
+    } else {
+      // WebLN doesn't support invoice monitoring
+      return { settled: false };
+    }
+  }
+
+  /**
    * Check if balance fetching is supported
    */
   supportsBalance(): boolean {

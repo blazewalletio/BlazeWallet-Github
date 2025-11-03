@@ -1424,11 +1424,11 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                               throw new Error('Failed to create invoice');
                             }
 
-                            console.log('✅ Invoice created:', invoice.bolt11.substring(0, 40) + '...');
-                            setLightningInvoice(invoice.bolt11);
+                            console.log('✅ Invoice created:', invoice.substring(0, 40) + '...');
+                            setLightningInvoice(invoice);
 
                             // Generate QR code
-                            const qr = await QRCode.toDataURL(invoice.bolt11, {
+                            const qr = await QRCode.toDataURL(invoice, {
                               width: 400,
                               margin: 2,
                               color: {
@@ -1438,8 +1438,11 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                             });
                             setLightningQR(qr);
 
-                            // Start monitoring for payment
-                            startPaymentMonitoring(invoice.paymentHash);
+                            // Extract payment hash from invoice for monitoring
+                            const decoded = lightningService.decodeInvoice(invoice);
+                            if (decoded) {
+                              startPaymentMonitoring(decoded.paymentHash);
+                            }
                           } catch (error: any) {
                             console.error('❌ Failed to generate invoice:', error);
                             alert(`❌ Failed to generate invoice: ${error.message || 'Unknown error'}`);
