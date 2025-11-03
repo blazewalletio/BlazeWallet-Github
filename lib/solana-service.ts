@@ -14,6 +14,7 @@ import { derivePath } from 'ed25519-hd-key';
 import * as bip39 from 'bip39';
 import bs58 from 'bs58';
 import { getSPLTokenMetadata, SPLTokenMetadata } from './spl-token-metadata';
+import { getCurrencyLogoSync } from './currency-logo-service';
 
 // SPL Token Program IDs (support both legacy and Token-2022!)
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
@@ -414,9 +415,9 @@ export class SolanaService {
           to: accountKeys[1]?.toBase58() || '',
           value: (diff / LAMPORTS_PER_SOL).toString(),
           type: 'Transfer',
-          tokenSymbol: 'SOL',  // ✅ ADD: Native SOL symbol
-          tokenName: 'Solana',  // ✅ ADD: Native SOL name
-          logoUrl: '/crypto-solana.png',
+          tokenSymbol: 'SOL',  // ✅ Native SOL symbol
+          tokenName: 'Solana',  // ✅ Native SOL name
+          logoUrl: getCurrencyLogoSync('SOL'), // ✅ Dynamic currency logo
         };
       }
     }

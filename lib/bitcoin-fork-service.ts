@@ -22,6 +22,7 @@ import * as bip39 from 'bip39';
 import { BIP32Factory } from 'bip32';
 import * as ecc from '@bitcoinerlab/secp256k1';
 import { CHAINS } from './chains';
+import { getCurrencyLogoSync } from './currency-logo-service';
 
 // Initialize BIP32 with secp256k1
 bitcoin.initEccLib(ecc);
@@ -477,10 +478,10 @@ export class BitcoinForkService {
           isError: false,
           blockNumber: tx.block_height,
           type: isSent ? 'send' : 'receive',
-          // ✅ Native currency metadata for proper display in TransactionHistory
+          // ✅ Native currency metadata with DYNAMIC logo
           tokenName: CHAINS[this.chain]?.nativeCurrency.name || this.config.name,
           tokenSymbol: CHAINS[this.chain]?.nativeCurrency.symbol || this.config.symbol,
-          logoUrl: CHAINS[this.chain]?.logoUrl || `/crypto-${this.chain}.png`,
+          logoUrl: getCurrencyLogoSync(CHAINS[this.chain]?.nativeCurrency.symbol || this.config.symbol), // ✅ Dynamic currency logo
         });
       }
 

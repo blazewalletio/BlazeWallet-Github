@@ -7,6 +7,7 @@ import { MultiChainService } from '@/lib/multi-chain-service';
 import { transactionCache } from '@/lib/transaction-cache';
 import { CHAINS } from '@/lib/chains';
 import { useWalletStore } from '@/lib/wallet-store';
+import { getCurrencyLogoSync } from '@/lib/currency-logo-service';
 
 /**
  * 🧪 TEMPORARY TEST COMPONENT
@@ -162,7 +163,7 @@ export default function TransactionHistoryTest() {
           isError: false,
           tokenName: chain.nativeCurrency.name,
           tokenSymbol: chain.nativeCurrency.symbol,
-          logoUrl: chain.logoUrl,
+          logoUrl: getCurrencyLogoSync(chain.nativeCurrency.symbol), // ✅ Dynamic currency logo
           type: isReceived ? 'Received' : 'Sent',
           blockNumber: Math.floor(Math.random() * 1000000),
         };

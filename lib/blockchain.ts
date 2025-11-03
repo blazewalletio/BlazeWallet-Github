@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import { CHAINS } from './chains';
+import { getCurrencyLogoSync } from './currency-logo-service';
 
 export class BlockchainService {
   private provider: ethers.JsonRpcProvider;
@@ -142,10 +143,10 @@ export class BlockchainService {
                 gasUsed: tx.gasUsed,
                 gasPrice: tx.gasPrice,
                 blockNumber: tx.blockNumber,
-                // ✅ Native currency metadata for proper display
+                // ✅ Native currency metadata with DYNAMIC logo fetching
                 tokenName: chainConfig?.nativeCurrency.name || 'ETH',
                 tokenSymbol: chainConfig?.nativeCurrency.symbol || 'ETH',
-                logoUrl: chainConfig?.logoUrl || '/crypto-ethereum.png',
+                logoUrl: getCurrencyLogoSync(chainConfig?.nativeCurrency.symbol || 'ETH'), // ✅ Dynamic currency logo
               }));
             } else {
               console.warn(`Block explorer API failed: ${data.message || 'Unknown error'}`);

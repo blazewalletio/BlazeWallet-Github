@@ -18,6 +18,7 @@ import * as bitcoin from 'bitcoinjs-lib';
 import * as bip39 from 'bip39';
 import { BIP32Factory } from 'bip32';
 import * as ecc from '@bitcoinerlab/secp256k1';
+import { getCurrencyLogoSync } from './currency-logo-service';
 
 // Initialize BIP32 with secp256k1
 bitcoin.initEccLib(ecc);
@@ -487,10 +488,10 @@ export class BitcoinService {
           isError: false,
           blockNumber: tx.status?.block_height,
           type,
-          // ✅ Native currency metadata for proper display in TransactionHistory
+          // ✅ Native currency metadata with DYNAMIC logo
           tokenName: 'Bitcoin',
           tokenSymbol: 'BTC',
-          logoUrl: '/crypto-bitcoin.png',
+          logoUrl: getCurrencyLogoSync('BTC'), // ✅ Dynamic currency logo
         });
       }
 
