@@ -30,9 +30,6 @@ import { getPortfolioHistory } from '@/lib/portfolio-history';
 import { Sparkles, Shield, Brain, MessageSquare } from 'lucide-react';
 import BottomNavigation, { TabType } from './BottomNavigation';
 
-// 🧪 TEMPORARY: Transaction History Test Component (DELETE AFTER TESTING)
-import TransactionHistoryTest from './TransactionHistoryTest';
-
 // ✅ PERFORMANCE FIX: Lazy load modals (reduces initial bundle size by ~200KB)
 const SendModal = dynamic(() => import('./SendModal'), { ssr: false });
 const ReceiveModal = dynamic(() => import('./ReceiveModal'), { ssr: false });
@@ -2103,9 +2100,6 @@ export default function Dashboard() {
         <Zap className="w-8 h-8 text-white" />
       </motion.button>
 
-      {/* 🧪 TEMPORARY: Transaction History Test Component */}
-      {/* DELETE THIS AFTER TESTING - Just remove these 2 lines */}
-      <TransactionHistoryTest />
     </>
   );
 }
