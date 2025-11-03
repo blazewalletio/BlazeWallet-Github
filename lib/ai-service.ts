@@ -369,67 +369,75 @@ class AIService {
     warnings: string[];
     score: number;
     details: string;
+    chainType?: string;
+    chainName?: string;
   }> {
     try {
-      const warnings: string[] = [];
-      let score = 100;
-
-      // Basic address validation
-      if (!ethers.isAddress(address)) {
+      const { addressValidator } = await import('./address-validator');
+      const { securityAPI } = await import('./security-api');
+      
+      console.log(`🔍 [AI Service] Starting risk analysis for: ${address.substring(0, 10)}...`);
+      
+      // Step 1: Validate address and detect chain
+      const validation = addressValidator.validate(address);
+      
+      if (!validation.isValid) {
+        console.error(`❌ [AI Service] Invalid address:`, validation.error);
         return {
           risk: 'critical',
-          warnings: ['No valid Ethereum address'],
+          warnings: [validation.error || 'Invalid address format'],
           score: 0,
-          details: 'This is not a valid blockchain address.',
+          details: 'This is not a valid blockchain address. Please check the address and try again.',
         };
       }
-
-      // Check if it's a known scam address (would need a database/API in production)
-      const knownScamPatterns = [
-        '0x0000000000000000000000000000000000000000', // Burn address
-      ];
-
-      if (knownScamPatterns.includes(address.toLowerCase())) {
-        warnings.push('⚠️ This is a known risky address');
-        score -= 50;
-      }
-
-      // If API key available, do deeper analysis
-      if (this.apiKey && type === 'contract') {
-        // In production: call actual security APIs like GoPlus, De.Fi, etc.
-        warnings.push('✓ Contract gescand - geen directe red flags gevonden');
-      }
-
-      // Check address age and activity (would need blockchain explorer API)
-      // For now, simple heuristics
-      const addressChecksum = ethers.getAddress(address);
-      const hasChecksum = addressChecksum !== address.toUpperCase() && addressChecksum !== address.toLowerCase();
       
-      if (!hasChecksum) {
-        warnings.push('ℹ️ Address has no checksum - increased risk of typos');
-        score -= 10;
-      }
-
-      // Determine risk level
+      console.log(`✅ [AI Service] Address valid - Chain: ${validation.chainType}`);
+      
+      const chainName = addressValidator.getChainName(validation.chainType!);
+      
+      // Step 2: Perform comprehensive security check
+      const securityCheck = await securityAPI.performComprehensiveCheck(
+        validation.normalizedAddress,
+        validation.chainType!,
+        type
+      );
+      
+      console.log(`📊 [AI Service] Security score: ${securityCheck.riskScore}/100`);
+      console.log(`⚠️  [AI Service] Warnings:`, securityCheck.warnings.length);
+      
+      // Step 3: Determine risk level from score
       let risk: 'low' | 'medium' | 'high' | 'critical';
-      if (score >= 80) risk = 'low';
-      else if (score >= 60) risk = 'medium';
-      else if (score >= 30) risk = 'high';
-      else risk = 'critical';
-
+      if (securityCheck.isScam || securityCheck.riskScore < 30) {
+        risk = 'critical';
+      } else if (securityCheck.riskScore >= 80) {
+        risk = 'low';
+      } else if (securityCheck.riskScore >= 60) {
+        risk = 'medium';
+      } else {
+        risk = 'high';
+      }
+      
+      // Step 4: Build detailed explanation
+      const details = this.getRiskDetails(risk, securityCheck.warnings);
+      
+      console.log(`🎯 [AI Service] Final risk: ${risk} (${securityCheck.riskScore}/100)`);
+      
       return {
         risk,
-        warnings,
-        score,
-        details: this.getRiskDetails(risk, warnings),
+        warnings: securityCheck.warnings,
+        score: securityCheck.riskScore,
+        details,
+        chainType: validation.chainType!,
+        chainName,
       };
+      
     } catch (error) {
-      console.error('Risk analysis error:', error);
+      console.error('❌ [AI Service] Risk analysis error:', error);
       return {
         risk: 'medium',
-        warnings: ['Kon risico niet volledig analyseren'],
+        warnings: ['Could not complete full security analysis'],
         score: 50,
-        details: 'Er ging iets fout bij de risico analyse.',
+        details: 'Something went wrong during the security check. Please try again or proceed with caution.',
       };
     }
   }

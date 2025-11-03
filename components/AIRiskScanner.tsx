@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { aiService } from '@/lib/ai-service';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Search, AlertTriangle, CheckCircle, XCircle, Loader2, ArrowLeft } from 'lucide-react';
+import { Shield, Search, AlertTriangle, CheckCircle, XCircle, Loader2, ArrowLeft, Info, ExternalLink } from 'lucide-react';
 
 interface AIRiskScannerProps {
   onClose: () => void;
@@ -67,6 +67,18 @@ export default function AIRiskScanner({ onClose, initialAddress = '' }: AIRiskSc
     }
   };
 
+  const getChainBadgeColor = (chainType: string) => {
+    switch (chainType) {
+      case 'evm': return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'solana': return 'bg-purple-100 text-purple-700 border-purple-200';
+      case 'bitcoin': return 'bg-orange-100 text-orange-700 border-orange-200';
+      case 'litecoin': return 'bg-gray-100 text-gray-700 border-gray-200';
+      case 'dogecoin': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+      case 'bitcoin-cash': return 'bg-green-100 text-green-700 border-green-200';
+      default: return 'bg-gray-100 text-gray-700 border-gray-200';
+    }
+  };
+
   return (
     <AnimatePresence>
       <motion.div
@@ -90,7 +102,7 @@ export default function AIRiskScanner({ onClose, initialAddress = '' }: AIRiskSc
               <Shield className="w-6 h-6 text-orange-500" />
               Scam Detector
             </h2>
-            <p className="text-gray-600">Scan addresses for risks</p>
+            <p className="text-gray-600">Scan addresses and contracts for security risks</p>
           </div>
 
           {/* Content */}
@@ -106,7 +118,7 @@ export default function AIRiskScanner({ onClose, initialAddress = '' }: AIRiskSc
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  Smart contract
+                  Token / Smart contract
                 </button>
                 <button
                   onClick={() => setType('wallet')}
@@ -127,7 +139,7 @@ export default function AIRiskScanner({ onClose, initialAddress = '' }: AIRiskSc
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleScan()}
-                  placeholder="0x... address to scan"
+                  placeholder="Paste any crypto address (EVM, Solana, Bitcoin, etc.)"
                   className="w-full px-4 py-3 pr-12 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono text-sm"
                   disabled={loading}
                 />
@@ -153,6 +165,16 @@ export default function AIRiskScanner({ onClose, initialAddress = '' }: AIRiskSc
                     exit={{ opacity: 0, y: -20 }}
                     className="space-y-4 pt-4"
                   >
+                    {/* Chain Detection Badge */}
+                    {result.chainType && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-600">Detected chain:</span>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getChainBadgeColor(result.chainType)}`}>
+                          {result.chainName || result.chainType}
+                        </span>
+                      </div>
+                    )}
+
                     {/* Risk Level */}
                     <div className={`text-center p-6 rounded-xl border ${getRiskBg(result.risk)}`}>
                       <div className={`flex justify-center mb-3 ${getRiskColor(result.risk)}`}>
@@ -189,7 +211,7 @@ export default function AIRiskScanner({ onClose, initialAddress = '' }: AIRiskSc
                     {/* Warnings */}
                     {result.warnings.length > 0 && (
                       <div className="space-y-2">
-                        <h4 className="text-sm font-medium text-gray-900">Findings:</h4>
+                        <h4 className="text-sm font-medium text-gray-900">Security findings:</h4>
                         {result.warnings.map((warning: string, i: number) => (
                           <div
                             key={i}
@@ -200,17 +222,38 @@ export default function AIRiskScanner({ onClose, initialAddress = '' }: AIRiskSc
                         ))}
                       </div>
                     )}
+
+                    {/* Powered by */}
+                    <div className="flex items-center gap-2 justify-center pt-2">
+                      <Info className="w-4 h-4 text-gray-400" />
+                      <span className="text-xs text-gray-500">
+                        Powered by GoPlus Security & Chainabuse
+                      </span>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
 
               {/* Info */}
               {!result && !loading && (
-                <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
-                  <p className="text-sm text-gray-700">
-                    💡 <strong>Tip:</strong> Always scan new contracts before interacting with them.
-                    This tool checks for known scam patterns and red flags.
-                  </p>
+                <div className="space-y-3">
+                  <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
+                    <p className="text-sm text-gray-700">
+                      💡 <strong>Tip:</strong> Always scan new contracts and addresses before interacting with them.
+                      This tool checks for honeypots, scams, and red flags.
+                    </p>
+                  </div>
+                  
+                  <div className="p-4 rounded-xl bg-green-50 border border-green-200">
+                    <p className="text-sm text-gray-700 mb-2">
+                      <strong>✅ Supported chains:</strong>
+                    </p>
+                    <ul className="text-xs text-gray-600 space-y-1">
+                      <li>🔷 EVM: Ethereum, Polygon, BSC, Arbitrum, Base, Optimism, Avalanche, Fantom, Cronos, zkSync, Linea</li>
+                      <li>🟣 Solana</li>
+                      <li>🟠 Bitcoin, ⚪ Litecoin, 🟡 Dogecoin, 🟢 Bitcoin Cash</li>
+                    </ul>
+                  </div>
                 </div>
               )}
             </div>
