@@ -462,8 +462,16 @@ export class SolanaService {
                 // ✅ FIX: Extract mint and fetch metadata
                 const mint = postBalance.mint || preBalance.mint;
                 
-                // Fetch token metadata (uses 3-tier: hardcoded + Jupiter + Metaplex!)
+                console.log(`🔍 [SPL Transfer] Fetching metadata for mint: ${mint}`);
+                
+                // Fetch token metadata (uses 5-tier: hardcoded + Jupiter + DexScreener + CoinGecko + Metaplex!)
                 const metadata = await getSPLTokenMetadata(mint);
+                
+                console.log(`✅ [SPL Transfer] Got metadata:`, {
+                  symbol: metadata.symbol,
+                  name: metadata.name,
+                  logoURI: metadata.logoURI
+                });
                 
                 // Determine from/to based on balance change
                 const owner = preBalance.owner || postBalance.owner;
