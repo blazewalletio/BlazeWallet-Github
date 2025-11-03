@@ -317,8 +317,8 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
           sessionStorage.removeItem('wallet_unlocked_this_session');
           
           // Clear wallet store
-          const { logout } = useWalletStore.getState();
-          await logout();
+          const { resetWallet } = useWalletStore.getState();
+          resetWallet();
           
           // Force reload to trigger onboarding
           setTimeout(() => {
