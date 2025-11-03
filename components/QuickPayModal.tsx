@@ -1445,7 +1445,41 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                             }
                           } catch (error: any) {
                             console.error('❌ Failed to generate invoice:', error);
-                            alert(`❌ Failed to generate invoice: ${error.message || 'Unknown error'}`);
+                            
+                            // User-friendly error messages
+                            if (error.message?.includes('WebLN not available')) {
+                              // Show helpful modal with instructions
+                              const userAgent = navigator.userAgent.toLowerCase();
+                              const isMobile = /iphone|ipad|android/.test(userAgent);
+                              
+                              if (isMobile) {
+                                alert(
+                                  '⚡ Lightning Setup Required\n\n' +
+                                  'To receive Lightning payments on mobile:\n\n' +
+                                  '📱 Option 1: Install Alby Go\n' +
+                                  '   → Download from App Store/Play Store\n' +
+                                  '   → Open Blaze Wallet in Alby Go browser\n\n' +
+                                  '📱 Option 2: Install Zeus Wallet\n' +
+                                  '   → Download Zeus app\n' +
+                                  '   → Use WebLN feature\n\n' +
+                                  '💡 Or wait for native Blaze Wallet app with built-in Lightning!'
+                                );
+                              } else {
+                                alert(
+                                  '⚡ Lightning Wallet Required\n\n' +
+                                  'To receive Lightning payments, install a Lightning wallet:\n\n' +
+                                  '🐝 Recommended: Alby\n' +
+                                  '   → Visit: getalby.com\n' +
+                                  '   → Install browser extension\n' +
+                                  '   → Reload this page\n\n' +
+                                  '⚡ Alternative: Zeus\n' +
+                                  '   → Visit: zeusln.com\n\n' +
+                                  '💡 Setup takes just 2 minutes!'
+                                );
+                              }
+                            } else {
+                              alert(`❌ Failed to generate invoice: ${error.message || 'Unknown error'}`);
+                            }
                           }
                         }}
                         disabled={!amount || amount <= 0}
