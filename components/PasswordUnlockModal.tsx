@@ -305,6 +305,14 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
           const account = getCurrentAccount();
           setCurrentAccount(account);
         }}
+        onAddAccount={(type) => {
+          setShowAccountSwitch(false);
+          // Clear current wallet and trigger onboarding
+          if (type === 'email' || type === 'seed') {
+            // Redirect to onboarding with the selected method
+            window.location.href = `/?onboarding=${type}`;
+          }
+        }}
         currentAccountId={currentAccount?.id || null}
       />
     </>

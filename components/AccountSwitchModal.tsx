@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, Key, Clock, ChevronRight } from 'lucide-react';
+import { X, Mail, Key, Clock, ChevronRight, Plus, FileText } from 'lucide-react';
 import { getAllAccounts, switchToAccount, type WalletAccount } from '@/lib/account-manager';
 
 interface AccountSwitchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSwitch: () => void;
+  onAddAccount: (type: 'email' | 'seed') => void;
   currentAccountId: string | null;
 }
 
@@ -16,6 +17,7 @@ export default function AccountSwitchModal({
   isOpen,
   onClose,
   onSwitch,
+  onAddAccount,
   currentAccountId,
 }: AccountSwitchModalProps) {
   const [accounts, setAccounts] = useState<WalletAccount[]>([]);
@@ -84,15 +86,53 @@ export default function AccountSwitchModal({
             </motion.button>
           </div>
 
-          {accounts.length === 0 ? (
-            <div className="text-center py-8">
-              <Key className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-600 text-sm">No other accounts found</p>
-              <p className="text-gray-400 text-xs mt-1">
-                Create a new wallet or import existing one
-              </p>
-            </div>
-          ) : (
+          {/* Add New Account Buttons */}
+          <div className="space-y-3 mb-6">
+            <p className="text-sm font-semibold text-gray-600 mb-3">Add new account</p>
+            
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                onClose();
+                onAddAccount('email');
+              }}
+              className="w-full glass p-4 rounded-xl flex items-center gap-4 hover:bg-theme-bg-secondary transition-colors border-2 border-blue-200 bg-blue-50"
+            >
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center">
+                <Mail className="w-6 h-6 text-white" />
+              </div>
+              
+              <div className="text-left flex-1">
+                <div className="font-semibold text-gray-900">Login with email</div>
+                <div className="text-sm text-gray-600">Use your email and password</div>
+              </div>
+              
+              <Plus className="w-5 h-5 text-gray-400" />
+            </motion.button>
+
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                onClose();
+                onAddAccount('seed');
+              }}
+              className="w-full glass p-4 rounded-xl flex items-center gap-4 hover:bg-theme-bg-secondary transition-colors border-2 border-orange-200 bg-orange-50"
+            >
+              <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-full flex items-center justify-center">
+                <FileText className="w-6 h-6 text-white" />
+              </div>
+              
+              <div className="text-left flex-1">
+                <div className="font-semibold text-gray-900">Import with recovery phrase</div>
+                <div className="text-sm text-gray-600">Use your 12-word phrase</div>
+              </div>
+              
+              <Plus className="w-5 h-5 text-gray-400" />
+            </motion.button>
+          </div>
+
+          {/* Existing Accounts */}
+          {accounts.length > 0 && (
             <div className="space-y-3">
               <p className="text-sm font-semibold text-gray-600 mb-3">Recent accounts</p>
               
