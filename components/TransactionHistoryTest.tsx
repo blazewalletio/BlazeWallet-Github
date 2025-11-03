@@ -86,7 +86,7 @@ export default function TransactionHistoryTest() {
   const [showLog, setShowLog] = useState(false);
   
   // Get real wallet addresses
-  const { evmAddress, solanaAddress, bitcoinAddress, litecoinAddress, dogecoinAddress, bitcoincashAddress } = useWalletStore();
+  const { address, solanaAddress, bitcoinAddress, litecoinAddress, dogecoinAddress, bitcoincashAddress } = useWalletStore();
 
   /**
    * 🎭 Add mock transactions for ALL chains
@@ -134,7 +134,8 @@ export default function TransactionHistoryTest() {
         } else if (chainKey === 'bitcoincash') {
           walletAddress = bitcoincashAddress || '';
         } else {
-          walletAddress = evmAddress || '';
+          // All EVM chains use the same address
+          walletAddress = address || '';
         }
         
         if (!walletAddress) {
