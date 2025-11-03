@@ -40,6 +40,9 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+    
+    // Breez SDK
+    implementation 'com.github.breez:breez-sdk-android:0.4.1'
 }
 
 apply from: 'capacitor.build.gradle'

@@ -16,6 +16,9 @@ end
 target 'App' do
   capacitor_pods
   # Add your Pods here
+  
+  # Breez SDK
+  pod 'breez-sdk-swift', '~> 0.4.1'
 end
 
 post_install do |installer|
