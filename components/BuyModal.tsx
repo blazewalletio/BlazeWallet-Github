@@ -104,104 +104,93 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
             </div>
           </div>
 
-          <div className="space-y-6">
+          {/* Coming Soon Overlay */}
+          <div className="relative">
+            <div className="space-y-6 opacity-30 pointer-events-none">
 
-            {/* Features */}
-            <div className="glass-card p-6">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center p-4 bg-orange-500/10 rounded-xl">
-                  <Flame className="w-8 h-8 text-orange-500 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-gray-900">Instant</p>
-                </div>
-                <div className="text-center p-4 bg-emerald-500/10 rounded-xl">
-                  <ShieldCheck className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-gray-900">Secure</p>
-                </div>
-                <div className="text-center p-4 bg-purple-500/10 rounded-xl">
-                  <CreditCard className="w-8 h-8 text-purple-500 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-gray-900">Easy</p>
+              {/* Features */}
+              <div className="glass-card p-6">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center p-4 bg-orange-500/10 rounded-xl">
+                    <Flame className="w-8 h-8 text-orange-500 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-gray-900">Instant</p>
+                  </div>
+                  <div className="text-center p-4 bg-emerald-500/10 rounded-xl">
+                    <ShieldCheck className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-gray-900">Secure</p>
+                  </div>
+                  <div className="text-center p-4 bg-purple-500/10 rounded-xl">
+                    <CreditCard className="w-8 h-8 text-purple-500 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-gray-900">Easy</p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Popular Assets */}
-            <div className="glass-card p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Popular crypto</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {supportedAssets.slice(0, 6).map((currencyCode) => {
-                  const displayName = TransakService.getDisplayName(currencyCode);
-                  return (
-                    <motion.button
-                      key={currencyCode}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => handleBuy(currencyCode)}
-                      className="p-4 bg-gray-50 hover:bg-white rounded-xl transition-all text-left border border-gray-200 hover:border-orange-300 hover:shadow-md"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-full flex items-center justify-center text-lg font-bold text-white">
-                          {displayName.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-900">{displayName}</p>
-                          <p className="text-xs text-gray-600">Buy now</p>
+              {/* Popular Assets */}
+              <div className="glass-card p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Popular crypto</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {supportedAssets.slice(0, 6).map((currencyCode) => {
+                    const displayName = TransakService.getDisplayName(currencyCode);
+                    return (
+                      <div
+                        key={currencyCode}
+                        className="p-4 bg-gray-50 rounded-xl text-left border border-gray-200"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-full flex items-center justify-center text-lg font-bold text-white">
+                            {displayName.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-900">{displayName}</p>
+                            <p className="text-xs text-gray-600">Buy now</p>
+                          </div>
                         </div>
                       </div>
-                    </motion.button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Payment Methods */}
-            <div className="glass-card p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment methods</h3>
-              <div className="flex flex-wrap gap-3">
-                <div className="px-4 py-3 bg-gray-50 rounded-xl text-sm font-medium text-gray-900 border border-gray-200">
-                  <Banknote className="w-4 h-4 inline mr-2" />
-                  iDEAL
-                </div>
-                <div className="px-4 py-3 bg-gray-50 rounded-xl text-sm font-medium text-gray-900 border border-gray-200">
-                  <CreditCard className="w-4 h-4 inline mr-2" />
-                  Credit card
-                </div>
-                <div className="px-4 py-3 bg-gray-50 rounded-xl text-sm font-medium text-gray-900 border border-gray-200">
-                  Bank transfer
-                </div>
-                <div className="px-4 py-3 bg-gray-50 rounded-xl text-sm font-medium text-gray-900 border border-gray-200">
-                  SEPA
+                    );
+                  })}
                 </div>
               </div>
             </div>
 
-            {/* Info */}
-            <div className="glass-card p-6 bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border border-orange-200">
-              <div className="flex gap-4">
-                <ShieldCheck className="w-6 h-6 text-orange-500 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-orange-600 font-semibold mb-2">🔥 Powered by Transak</p>
-                  <p className="text-gray-700 text-sm leading-relaxed">
-                    Globally trusted fiat-to-crypto service. Crypto is sent directly to your BLAZE Wallet.
-                    Transaction fees: ~0.99% - 2.99%.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Main CTA */}
-            <motion.button
-              whileTap={{ scale: 0.98 }}
-              onClick={() => handleBuy()}
-              className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold text-lg flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl"
+            {/* Coming Soon Overlay Card */}
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="absolute inset-0 flex items-center justify-center px-4"
             >
-              <Flame className="w-5 h-5" />
-              Start buying
-              <ExternalLink className="w-4 h-4" />
-            </motion.button>
-
-            {/* Disclaimer */}
-            <p className="text-xs text-gray-500 text-center mt-4">
-              By clicking you will be redirected to Transak. BLAZE Wallet does not store your payment details.
-            </p>
+              <div className="bg-gradient-to-br from-orange-500/20 to-yellow-500/20 backdrop-blur-xl border-2 border-orange-500/30 rounded-2xl p-8 max-w-md w-full shadow-2xl">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Flame className="w-8 h-8 text-white" />
+                  </div>
+                  
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                    Coming Soon
+                  </h3>
+                  
+                  <p className="text-gray-700 mb-4 leading-relaxed">
+                    Buy crypto feature is currently in development. Stay tuned for instant purchases with iDEAL, credit card and more!
+                  </p>
+                  
+                  <div className="flex flex-col gap-2 text-sm text-gray-600">
+                    <div className="flex items-center justify-center gap-2">
+                      <Flame className="w-4 h-4 text-orange-500" />
+                      <span>Instant purchases</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                      <span>Secure & compliant</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
+                      <CreditCard className="w-4 h-4 text-purple-500" />
+                      <span>Multiple payment methods</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
           </div>
         </div>
       </motion.div>

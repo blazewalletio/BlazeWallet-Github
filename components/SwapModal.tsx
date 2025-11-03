@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowDown, Flame, AlertCircle, Loader2, RefreshCw, CheckCircle } from 'lucide-react';
+import { ArrowDown, Flame, AlertCircle, Loader2, RefreshCw, CheckCircle, Repeat, TrendingUp, Zap, ShieldCheck } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { CHAINS, POPULAR_TOKENS } from '@/lib/chains';
@@ -261,7 +261,9 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
             </div>
           </div>
 
-          <div className="max-w-2xl mx-auto space-y-6">
+          {/* Coming Soon Overlay */}
+          <div className="relative max-w-2xl mx-auto">
+            <div className="space-y-6 opacity-30 pointer-events-none">
 
           {/* Success Message */}
           {success && (
@@ -434,6 +436,46 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
           <p className="text-xs text-gray-500 text-center">
             Always verify the details before swapping. Slippage tolerance: 1%
           </p>
+          </div>
+
+            {/* Coming Soon Overlay Card */}
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="absolute inset-0 flex items-center justify-center px-4"
+            >
+              <div className="bg-gradient-to-br from-orange-500/20 to-yellow-500/20 backdrop-blur-xl border-2 border-orange-500/30 rounded-2xl p-8 max-w-md w-full shadow-2xl">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Repeat className="w-8 h-8 text-white" />
+                  </div>
+                  
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                    Coming Soon
+                  </h3>
+                  
+                  <p className="text-gray-700 mb-4 leading-relaxed">
+                    Swap feature is currently in development. Soon you'll be able to exchange tokens at the best rates across all chains!
+                  </p>
+                  
+                  <div className="flex flex-col gap-2 text-sm text-gray-600">
+                    <div className="flex items-center justify-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-green-500" />
+                      <span>Best rates guaranteed</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
+                      <Zap className="w-4 h-4 text-yellow-500" />
+                      <span>Lightning fast swaps</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-blue-500" />
+                      <span>Multi-chain support</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
           </div>
         </div>
       </motion.div>
