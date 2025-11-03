@@ -105,7 +105,7 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
           </div>
 
           {/* Coming Soon Overlay */}
-          <div className="relative">
+          <div className="relative min-h-[600px]">
             <div className="space-y-6 opacity-30 pointer-events-none">
 
               {/* Features */}
@@ -151,6 +151,24 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
                   })}
                 </div>
               </div>
+
+              {/* Payment Methods */}
+              <div className="glass-card p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment methods</h3>
+                <div className="flex flex-wrap gap-3">
+                  <div className="px-4 py-3 bg-gray-50 rounded-xl text-sm font-medium text-gray-900 border border-gray-200">
+                    <Banknote className="w-4 h-4 inline mr-2" />
+                    iDEAL
+                  </div>
+                  <div className="px-4 py-3 bg-gray-50 rounded-xl text-sm font-medium text-gray-900 border border-gray-200">
+                    <CreditCard className="w-4 h-4 inline mr-2" />
+                    Credit card
+                  </div>
+                  <div className="px-4 py-3 bg-gray-50 rounded-xl text-sm font-medium text-gray-900 border border-gray-200">
+                    Bank transfer
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Coming Soon Overlay Card */}
@@ -158,7 +176,7 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="absolute inset-0 flex items-center justify-center px-4"
+              className="absolute inset-0 flex items-center justify-center px-4 py-8"
             >
               <div className="bg-gradient-to-br from-orange-500/20 to-yellow-500/20 backdrop-blur-xl border-2 border-orange-500/30 rounded-2xl p-8 max-w-md w-full shadow-2xl">
                 <div className="text-center">
