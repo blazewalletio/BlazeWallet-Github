@@ -8,9 +8,10 @@ interface NewEmailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (email: string) => Promise<void>;
+  existingEmails?: string[]; // ✅ NEW: Check for duplicates
 }
 
-export default function NewEmailModal({ isOpen, onClose, onSubmit }: NewEmailModalProps) {
+export default function NewEmailModal({ isOpen, onClose, onSubmit, existingEmails = [] }: NewEmailModalProps) {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -28,6 +29,13 @@ export default function NewEmailModal({ isOpen, onClose, onSubmit }: NewEmailMod
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       setError('Please enter a valid email address');
+      return;
+    }
+
+    // ✅ FIX: Check for duplicate emails
+    const normalizedEmail = email.trim().toLowerCase();
+    if (existingEmails.some(existing => existing.toLowerCase() === normalizedEmail)) {
+      setError('This email account has already been added');
       return;
     }
 

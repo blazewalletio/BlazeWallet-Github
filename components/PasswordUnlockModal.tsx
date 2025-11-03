@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Shield, AlertCircle, Fingerprint } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
-import { getCurrentAccount, switchToEmailAccount, switchToSeedWallet, WalletAccount } from '@/lib/account-manager';
+import { getCurrentAccount, switchToEmailAccount, switchToSeedWallet, WalletAccount, saveCurrentAccountToRecent, getAccountsByType } from '@/lib/account-manager';
 import AccountSelectorDropdown from './AccountSelectorDropdown';
 import NewEmailModal from './NewEmailModal';
 
@@ -25,6 +25,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   const [currentAccount, setCurrentAccount] = useState<WalletAccount | null>(null);
   const [showNewEmailModal, setShowNewEmailModal] = useState(false);
   const [pendingNewEmail, setPendingNewEmail] = useState<string | null>(null);
+  const [isSwitching, setIsSwitching] = useState(false); // ✅ NEW: Loading state for switching
 
   // Load current account
   useEffect(() => {
@@ -102,6 +103,9 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
           await importWallet(result.mnemonic);
         }
         
+        // ✅ FIX: Save account to recent after successful unlock
+        saveCurrentAccountToRecent();
+        
         // Set session flag
         sessionStorage.setItem('wallet_unlocked_this_session', 'true');
         
@@ -129,6 +133,9 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
           await importWallet(result.mnemonic);
         }
         
+        // ✅ FIX: Save account to recent after successful unlock
+        saveCurrentAccountToRecent();
+        
         // Set session flag to skip unlock modal on page refresh during same session
         sessionStorage.setItem('wallet_unlocked_this_session', 'true');
         
@@ -136,6 +143,9 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       } else {
         // For seed phrase wallets, use traditional unlock
         await unlockWithPassword(password);
+        
+        // ✅ FIX: Save account to recent after successful unlock
+        saveCurrentAccountToRecent();
         
         // Set session flag
         sessionStorage.setItem('wallet_unlocked_this_session', 'true');
@@ -156,11 +166,23 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     setPassword('');
     setError('');
     setPendingNewEmail(null);
+    setIsSwitching(true); // ✅ NEW: Show loading
 
     try {
       if (account.type === 'email' && account.email) {
-        // Switching to email account
-        // Note: We only store the email, actual auth happens when user enters password
+        // ✅ FIX: Update localStorage immediately for email accounts
+        // This ensures unlock uses the correct account
+        saveCurrentAccountToRecent(); // Save current first
+        
+        if (account.id !== 'pending') {
+          // Existing email account from recent list
+          localStorage.setItem('wallet_email', account.email);
+          localStorage.setItem('supabase_user_id', account.id);
+          localStorage.setItem('wallet_created_with_email', 'true');
+          
+          console.log('✅ Updated localStorage for email account:', account.email);
+        }
+        
         setCurrentAccount(account);
       } else if (account.type === 'seed') {
         // Switching to seed wallet
@@ -171,6 +193,14 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     } catch (err: any) {
       console.error('Failed to switch account:', err);
       setError(err.message || 'Failed to switch account');
+      
+      // ✅ FIX: Revert to previous account on failure
+      const prevAccount = getCurrentAccount();
+      if (prevAccount) {
+        setCurrentAccount(prevAccount);
+      }
+    } finally {
+      setIsSwitching(false); // ✅ NEW: Hide loading
     }
   };
 
@@ -267,7 +297,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
                 onSelectAccount={handleSelectAccount}
                 onAddNewEmail={() => setShowNewEmailModal(true)}
                 onImportSeed={handleImportSeed}
-                disabled={isLoading}
+                disabled={isLoading || isSwitching}
               />
             </div>
 
@@ -353,6 +383,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
           isOpen={showNewEmailModal}
           onClose={() => setShowNewEmailModal(false)}
           onSubmit={handleAddNewEmail}
+          existingEmails={getAccountsByType().emailAccounts.map(acc => acc.email || '')}
         />
       </motion.div>
     </AnimatePresence>
