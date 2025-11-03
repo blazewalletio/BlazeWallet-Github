@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Blaze Wallet</string>
+    <string name="title_activity_main">Blaze Wallet</string>
+    <string name="package_name">io.blazewallet.app</string>
+    <string name="custom_url_scheme">io.blazewallet.app</string>
+</resources>

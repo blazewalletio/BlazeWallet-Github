@@ -5,14 +5,20 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:capacitor": "NEXT_CONFIG_FILE=next.config.capacitor.mjs next build && npx cap sync",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "cap:ios": "npx cap open ios",
+    "cap:android": "npx cap open android",
+    "cap:sync": "npx cap sync"
   },
   "dependencies": {
     "@bitcoinerlab/secp256k1": "^1.2.0",
     "@breeztech/react-native-breez-sdk": "^0.8.4-dev1",
+    "@capacitor/android": "^7.4.4",
     "@capacitor/cli": "^7.4.4",
     "@capacitor/core": "^7.4.4",
+    "@capacitor/ios": "^7.4.4",
     "@metaplex-foundation/mpl-token-metadata": "^3.4.0",
     "@metaplex-foundation/umi": "^1.4.1",
     "@metaplex-foundation/umi-bundle-defaults": "^1.4.1",
