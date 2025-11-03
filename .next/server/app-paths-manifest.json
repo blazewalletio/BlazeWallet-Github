@@ -1,8 +1,8 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
   "/admin/page": "app/admin/page.js",
-  "/api/cashback/claim/route": "app/api/cashback/claim/route.js",
   "/api/cashback/config/route": "app/api/cashback/config/route.js",
+  "/api/cashback/claim/route": "app/api/cashback/claim/route.js",
   "/api/cashback/record/route": "app/api/cashback/record/route.js",
   "/api/lightning/balance/route": "app/api/lightning/balance/route.js",
   "/api/lightning/check-invoice/route": "app/api/lightning/check-invoice/route.js",

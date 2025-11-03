@@ -2,10 +2,13 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Search, Plus } from 'lucide-react';
+import { X, Search, AlertCircle, Loader2 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
-import { POPULAR_TOKENS } from '@/lib/chains';
+import { CHAINS } from '@/lib/chains';
 import { Token } from '@/lib/types';
+import { ethers } from 'ethers';
+import { Connection, PublicKey } from '@solana/web3.js';
+import { getSPLTokenMetadata } from '@/lib/spl-token-metadata';
 
 interface TokenSelectorProps {
   isOpen: boolean;
@@ -13,20 +16,115 @@ interface TokenSelectorProps {
 }
 
 export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
-  const { currentChain, addToken } = useWalletStore();
-  const [searchQuery, setSearchQuery] = useState('');
+  const { currentChain, addToken, address } = useWalletStore();
   const [customAddress, setCustomAddress] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const popularTokens = POPULAR_TOKENS[currentChain] || [];
-  
-  const filteredTokens = popularTokens.filter(token =>
-    token.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    token.symbol.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const chainConfig = CHAINS[currentChain];
+  const isSolana = currentChain === 'solana';
+  const isEVM = chainConfig?.type === 'evm';
+  const isBitcoinFork = ['bitcoin', 'litecoin', 'dogecoin', 'bitcoincash', 'dash'].includes(currentChain);
 
-  const handleAddToken = (token: Token) => {
-    addToken(token);
-    onClose();
+  const handleAddCustomToken = async () => {
+    if (!customAddress.trim()) {
+      setError('Please enter a token address');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      if (isSolana) {
+        await handleAddSolanaToken();
+      } else if (isEVM) {
+        await handleAddEVMToken();
+      } else {
+        setError('Token imports not supported for this chain');
+      }
+    } catch (err: any) {
+      console.error('❌ Error adding token:', err);
+      setError(err.message || 'Failed to add token');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAddSolanaToken = async () => {
+    try {
+      // Validate Solana address
+      const mintAddress = new PublicKey(customAddress.trim());
+      
+      console.log('🔍 Fetching SPL token metadata:', mintAddress.toBase58());
+      
+      // Fetch metadata using our 7-tier system
+      const metadata = await getSPLTokenMetadata(mintAddress.toBase58());
+      
+      const token: Token = {
+        address: mintAddress.toBase58(),
+        symbol: metadata.symbol,
+        name: metadata.name,
+        decimals: metadata.decimals,
+        logo: metadata.logoURI || '/crypto-solana.png',
+      };
+
+      console.log('✅ SPL token metadata fetched:', token);
+      
+      addToken(token);
+      setCustomAddress('');
+      onClose();
+    } catch (err: any) {
+      console.error('❌ Failed to add Solana token:', err);
+      throw new Error('Invalid SPL token address or token not found');
+    }
+  };
+
+  const handleAddEVMToken = async () => {
+    try {
+      // Validate EVM address
+      if (!ethers.isAddress(customAddress.trim())) {
+        throw new Error('Invalid token address');
+      }
+
+      const rpcUrl = chainConfig.rpcUrl;
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
+      
+      const tokenContract = new ethers.Contract(
+        customAddress,
+        [
+          'function name() view returns (string)',
+          'function symbol() view returns (string)',
+          'function decimals() view returns (uint8)',
+        ],
+        provider
+      );
+
+      console.log('🔍 Fetching ERC20 token metadata:', customAddress);
+
+      const [name, symbol, decimals] = await Promise.all([
+        tokenContract.name(),
+        tokenContract.symbol(),
+        tokenContract.decimals(),
+      ]);
+
+      const token: Token = {
+        address: customAddress,
+        symbol,
+        name,
+        decimals: Number(decimals),
+        logo: `https://assets.coingecko.com/coins/images/small/${symbol.toLowerCase()}.png`,
+      };
+
+      console.log('✅ ERC20 token metadata fetched:', token);
+      
+      addToken(token);
+      setCustomAddress('');
+      onClose();
+    } catch (err: any) {
+      console.error('❌ Failed to add EVM token:', err);
+      throw new Error('Invalid token address or unable to fetch token data');
+    }
   };
 
   return (
@@ -60,60 +158,116 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
                 </motion.button>
               </div>
 
-              {/* Search */}
-              <div className="relative mb-6">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-theme-text-secondary" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Zoek token..."
-                  className="input-field pl-12"
-                />
-              </div>
-
-              {/* Popular Tokens */}
-              <div className="space-y-3 overflow-y-auto max-h-[50vh] mb-6">
-                <h3 className="text-sm font-semibold text-theme-text-secondary mb-3">Populaire tokens</h3>
-                {filteredTokens.map((token) => (
-                  <motion.button
-                    key={token.address}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => handleAddToken(token)}
-                    className="w-full glass p-4 rounded-xl flex items-center justify-between hover:bg-theme-bg-secondary"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-gradient-to-br from-slate-700 to-slate-600 rounded-full flex items-center justify-center text-lg">
-                        {token.logo}
-                      </div>
-                      <div className="text-left">
-                        <div className="font-semibold">{token.symbol}</div>
-                        <div className="text-sm text-theme-text-secondary">{token.name}</div>
-                      </div>
-                    </div>
-                    <Plus className="w-5 h-5 text-theme-text-secondary" />
-                  </motion.button>
-                ))}
-
-                {filteredTokens.length === 0 && (
-                  <div className="text-center py-8 text-theme-text-secondary">
-                    <div className="text-3xl mb-2">🔍</div>
-                    <p className="text-sm">No tokens found</p>
+              {/* Chain Info */}
+              <div className="glass-card bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border border-orange-500/20 mb-6">
+                <div className="flex items-center gap-3">
+                  <img 
+                    src={chainConfig?.logo || '/crypto-solana.png'} 
+                    alt={chainConfig?.name}
+                    className="w-10 h-10 rounded-full"
+                  />
+                  <div>
+                    <p className="font-semibold text-gray-900">{chainConfig?.name || currentChain}</p>
+                    <p className="text-xs text-gray-600">
+                      {isSolana && 'SPL Token (Solana)'}
+                      {isEVM && `ERC20 Token (${chainConfig?.name})`}
+                      {isBitcoinFork && 'Native tokens only'}
+                    </p>
                   </div>
-                )}
+                </div>
               </div>
+
+              {/* Bitcoin Fork Warning */}
+              {isBitcoinFork && (
+                <div className="glass-card bg-blue-500/10 border border-blue-500/20 mb-6">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-gray-700">
+                      <p className="font-semibold mb-1">Native chain only</p>
+                      <p className="text-xs text-gray-600">
+                        {chainConfig?.name} doesn't support custom tokens. You can only send and receive native {chainConfig?.nativeCurrency.symbol}.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Instructions */}
+              {!isBitcoinFork && (
+                <div className="glass-card bg-blue-500/10 border border-blue-500/20 mb-6">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-gray-700">
+                      <p className="font-semibold mb-1">How to add a token</p>
+                      <p className="text-xs text-gray-600">
+                        {isSolana && 'Enter the SPL token mint address below. The token will appear in your Assets after adding.'}
+                        {isEVM && 'Enter the ERC20 contract address below. The token will appear in your Assets after adding.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Custom Token Address */}
-              <div className="glass-card bg-theme-primary/10 border-theme-border/20">
-                <p className="text-theme-primary text-xs mb-2">Custom token contract address:</p>
-                <input
-                  type="text"
-                  value={customAddress}
-                  onChange={(e) => setCustomAddress(e.target.value)}
-                  placeholder="0x..."
-                  className="input-field text-sm font-mono"
-                />
-              </div>
+              {!isBitcoinFork && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                      {isSolana && 'SPL Token Mint Address'}
+                      {isEVM && 'ERC20 Contract Address'}
+                    </label>
+                    <input
+                      type="text"
+                      value={customAddress}
+                      onChange={(e) => {
+                        setCustomAddress(e.target.value);
+                        setError(null);
+                      }}
+                      placeholder={isSolana ? 'Token mint address (e.g., EPjFWdd5...)' : '0x...'}
+                      className="input-field text-sm font-mono"
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  {/* Error Message */}
+                  {error && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="glass-card bg-red-500/10 border border-red-500/20"
+                    >
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                        <p className="text-sm text-red-700">{error}</p>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Add Button */}
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleAddCustomToken}
+                    disabled={isLoading || !customAddress.trim()}
+                    className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoading ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Adding token...</span>
+                      </div>
+                    ) : (
+                      'Add token'
+                    )}
+                  </motion.button>
+
+                  {/* Help Text */}
+                  <div className="text-center">
+                    <p className="text-xs text-gray-500">
+                      Token not appearing? Check the contract address and try again.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </motion.div>
         </>
