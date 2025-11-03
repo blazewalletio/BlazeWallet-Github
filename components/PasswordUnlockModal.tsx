@@ -305,26 +305,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
           const account = getCurrentAccount();
           setCurrentAccount(account);
         }}
-        onAddAccount={async (type) => {
-          setShowAccountSwitch(false);
-          
-          // Clear all wallet state to trigger fresh onboarding
-          localStorage.removeItem('encrypted_wallet');
-          localStorage.removeItem('wallet_created_with_email');
-          localStorage.removeItem('wallet_email');
-          localStorage.removeItem('supabase_user_id');
-          localStorage.removeItem('has_password');
-          sessionStorage.removeItem('wallet_unlocked_this_session');
-          
-          // Clear wallet store
-          const { resetWallet } = useWalletStore.getState();
-          resetWallet();
-          
-          // Force reload to trigger onboarding
-          setTimeout(() => {
-            window.location.href = type === 'email' ? '/' : '/?import=true';
-          }, 100);
-        }}
         currentAccountId={currentAccount?.id || null}
       />
     </>
