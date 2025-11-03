@@ -1,14 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Search, AlertCircle, Loader2 } from 'lucide-react';
+import { X, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { CHAINS } from '@/lib/chains';
 import { Token } from '@/lib/types';
 import { ethers } from 'ethers';
-import { Connection, PublicKey } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import { getSPLTokenMetadata } from '@/lib/spl-token-metadata';
+import { getCurrencyLogoSync } from '@/lib/currency-logo-service';
 
 interface TokenSelectorProps {
   isOpen: boolean;
@@ -16,30 +17,56 @@ interface TokenSelectorProps {
 }
 
 export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
-  const { currentChain, addToken, address } = useWalletStore();
+  const { currentChain, addToken, tokens } = useWalletStore();
   const [customAddress, setCustomAddress] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   const chainConfig = CHAINS[currentChain];
   const isSolana = currentChain === 'solana';
-  const isEVM = chainConfig?.type === 'evm';
   const isBitcoinFork = ['bitcoin', 'litecoin', 'dogecoin', 'bitcoincash', 'dash'].includes(currentChain);
+  // EVM chains are all chains that have an 'id' and are not Solana or Bitcoin forks
+  const isEVM = chainConfig && !isSolana && !isBitcoinFork;
+
+  // Reset state when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      setCustomAddress('');
+      setError(null);
+      setSuccess(false);
+    }
+  }, [isOpen]);
+
+  // Check if token already exists
+  const isTokenAlreadyAdded = (address: string): boolean => {
+    const normalizedAddress = address.toLowerCase();
+    return tokens.some(token => token.address.toLowerCase() === normalizedAddress);
+  };
 
   const handleAddCustomToken = async () => {
-    if (!customAddress.trim()) {
+    const trimmedAddress = customAddress.trim();
+    
+    if (!trimmedAddress) {
       setError('Please enter a token address');
+      return;
+    }
+
+    // Check for duplicates
+    if (isTokenAlreadyAdded(trimmedAddress)) {
+      setError('This token has already been added to your wallet');
       return;
     }
 
     setIsLoading(true);
     setError(null);
+    setSuccess(false);
 
     try {
       if (isSolana) {
-        await handleAddSolanaToken();
+        await handleAddSolanaToken(trimmedAddress);
       } else if (isEVM) {
-        await handleAddEVMToken();
+        await handleAddEVMToken(trimmedAddress);
       } else {
         setError('Token imports not supported for this chain');
       }
@@ -51,47 +78,58 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
     }
   };
 
-  const handleAddSolanaToken = async () => {
+  const handleAddSolanaToken = async (address: string) => {
     try {
       // Validate Solana address
-      const mintAddress = new PublicKey(customAddress.trim());
+      const mintAddress = new PublicKey(address);
       
       console.log('🔍 Fetching SPL token metadata:', mintAddress.toBase58());
       
       // Fetch metadata using our 7-tier system
       const metadata = await getSPLTokenMetadata(mintAddress.toBase58());
       
+      // Get proper logo using our currency logo service
+      const logo = getCurrencyLogoSync(metadata.symbol) || metadata.logoURI || '/crypto-solana.png';
+      
       const token: Token = {
         address: mintAddress.toBase58(),
         symbol: metadata.symbol,
         name: metadata.name,
         decimals: metadata.decimals,
-        logo: metadata.logoURI || '/crypto-solana.png',
+        logo,
       };
 
       console.log('✅ SPL token metadata fetched:', token);
       
       addToken(token);
+      setSuccess(true);
       setCustomAddress('');
-      onClose();
+      
+      // Auto-close after success
+      setTimeout(() => {
+        onClose();
+      }, 1500);
     } catch (err: any) {
       console.error('❌ Failed to add Solana token:', err);
       throw new Error('Invalid SPL token address or token not found');
     }
   };
 
-  const handleAddEVMToken = async () => {
+  const handleAddEVMToken = async (address: string) => {
     try {
-      // Validate EVM address
-      if (!ethers.isAddress(customAddress.trim())) {
+      // Validate and checksum EVM address
+      if (!ethers.isAddress(address)) {
         throw new Error('Invalid token address');
       }
+
+      // Get checksummed address
+      const checksummedAddress = ethers.getAddress(address);
 
       const rpcUrl = chainConfig.rpcUrl;
       const provider = new ethers.JsonRpcProvider(rpcUrl);
       
       const tokenContract = new ethers.Contract(
-        customAddress,
+        checksummedAddress,
         [
           'function name() view returns (string)',
           'function symbol() view returns (string)',
@@ -100,7 +138,7 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
         provider
       );
 
-      console.log('🔍 Fetching ERC20 token metadata:', customAddress);
+      console.log('🔍 Fetching ERC20 token metadata:', checksummedAddress);
 
       const [name, symbol, decimals] = await Promise.all([
         tokenContract.name(),
@@ -108,22 +146,37 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
         tokenContract.decimals(),
       ]);
 
+      // Get proper logo using our currency logo service
+      const logo = getCurrencyLogoSync(symbol) || '/crypto-eth.png';
+
       const token: Token = {
-        address: customAddress,
+        address: checksummedAddress,
         symbol,
         name,
         decimals: Number(decimals),
-        logo: `https://assets.coingecko.com/coins/images/small/${symbol.toLowerCase()}.png`,
+        logo,
       };
 
       console.log('✅ ERC20 token metadata fetched:', token);
       
       addToken(token);
+      setSuccess(true);
       setCustomAddress('');
-      onClose();
+      
+      // Auto-close after success
+      setTimeout(() => {
+        onClose();
+      }, 1500);
     } catch (err: any) {
       console.error('❌ Failed to add EVM token:', err);
       throw new Error('Invalid token address or unable to fetch token data');
+    }
+  };
+
+  // Handle Enter key press
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !isLoading && customAddress.trim()) {
+      handleAddCustomToken();
     }
   };
 
@@ -146,7 +199,7 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
             className="fixed bottom-0 left-0 right-0 z-50 max-h-[85vh] overflow-hidden"
           >
-            <div className="glass-card rounded-t-3xl p-6">
+            <div className="glass-card rounded-t-3xl p-6 overflow-y-auto max-h-[85vh]">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">Add token</h2>
                 <motion.button
@@ -162,7 +215,7 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
               <div className="glass-card bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border border-orange-500/20 mb-6">
                 <div className="flex items-center gap-3">
                   <img 
-                    src={chainConfig?.logo || '/crypto-solana.png'} 
+                    src={chainConfig?.logoUrl || '/crypto-solana.png'} 
                     alt={chainConfig?.name}
                     className="w-10 h-10 rounded-full"
                   />
@@ -192,8 +245,25 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
                 </div>
               )}
 
+              {/* Success Message */}
+              {success && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="glass-card bg-emerald-500/10 border border-emerald-500/20 mb-6"
+                >
+                  <div className="flex items-center gap-3">
+                    <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                    <div className="text-sm text-emerald-700">
+                      <p className="font-semibold">Token added successfully!</p>
+                      <p className="text-xs text-emerald-600">Check your Assets tab to view the token.</p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
               {/* Instructions */}
-              {!isBitcoinFork && (
+              {!isBitcoinFork && !success && (
                 <div className="glass-card bg-blue-500/10 border border-blue-500/20 mb-6">
                   <div className="flex items-start gap-3">
                     <AlertCircle className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
@@ -222,10 +292,25 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
                       onChange={(e) => {
                         setCustomAddress(e.target.value);
                         setError(null);
+                        setSuccess(false);
+                      }}
+                      onKeyPress={handleKeyPress}
+                      onPaste={(e) => {
+                        // Clean up pasted content
+                        const pastedText = e.clipboardData.getData('text');
+                        const cleaned = pastedText.trim();
+                        setCustomAddress(cleaned);
+                        setError(null);
+                        setSuccess(false);
+                        e.preventDefault();
                       }}
                       placeholder={isSolana ? 'Token mint address (e.g., EPjFWdd5...)' : '0x...'}
                       className="input-field text-sm font-mono"
-                      disabled={isLoading}
+                      disabled={isLoading || success}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck="false"
                     />
                   </div>
 
@@ -247,7 +332,7 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
                   <motion.button
                     whileTap={{ scale: 0.98 }}
                     onClick={handleAddCustomToken}
-                    disabled={isLoading || !customAddress.trim()}
+                    disabled={isLoading || !customAddress.trim() || success}
                     className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isLoading ? (
@@ -255,17 +340,27 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
                         <Loader2 className="w-5 h-5 animate-spin" />
                         <span>Adding token...</span>
                       </div>
+                    ) : success ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <CheckCircle className="w-5 h-5" />
+                        <span>Token added!</span>
+                      </div>
                     ) : (
                       'Add token'
                     )}
                   </motion.button>
 
                   {/* Help Text */}
-                  <div className="text-center">
-                    <p className="text-xs text-gray-500">
-                      Token not appearing? Check the contract address and try again.
-                    </p>
-                  </div>
+                  {!success && (
+                    <div className="text-center">
+                      <p className="text-xs text-gray-500">
+                        Token not appearing? Check the contract address and try again.
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Press Enter or tap the button to add
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
