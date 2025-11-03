@@ -6,6 +6,7 @@ import { Beaker, CheckCircle2, XCircle, Loader2, ChevronDown, ChevronUp, Plus, C
 import { MultiChainService } from '@/lib/multi-chain-service';
 import { transactionCache } from '@/lib/transaction-cache';
 import { CHAINS } from '@/lib/chains';
+import { useWalletStore } from '@/lib/wallet-store';
 
 /**
  * 🧪 TEMPORARY TEST COMPONENT
@@ -83,6 +84,9 @@ export default function TransactionHistoryTest() {
   const [addingMockData, setAddingMockData] = useState(false);
   const [detailedLog, setDetailedLog] = useState<string[]>([]);
   const [showLog, setShowLog] = useState(false);
+  
+  // Get real wallet addresses
+  const { evmAddress, solanaAddress, bitcoinAddress, litecoinAddress, dogecoinAddress, bitcoincashAddress } = useWalletStore();
 
   /**
    * 🎭 Add mock transactions for ALL chains
@@ -117,35 +121,48 @@ export default function TransactionHistoryTest() {
         const chain = CHAINS[chainKey];
         const service = MultiChainService.getInstance(chainKey);
         
+        // Get REAL wallet address for this chain
+        let walletAddress = '';
+        if (chainKey === 'solana') {
+          walletAddress = solanaAddress || '';
+        } else if (chainKey === 'bitcoin') {
+          walletAddress = bitcoinAddress || '';
+        } else if (chainKey === 'litecoin') {
+          walletAddress = litecoinAddress || '';
+        } else if (chainKey === 'dogecoin') {
+          walletAddress = dogecoinAddress || '';
+        } else if (chainKey === 'bitcoincash') {
+          walletAddress = bitcoincashAddress || '';
+        } else {
+          walletAddress = evmAddress || '';
+        }
+        
+        if (!walletAddress) {
+          log.push(`⚠️ No wallet address found for ${chainKey}, skipping...`);
+          continue;
+        }
+        
         log.push(`✓ Chain Name: ${chain.name}`);
         log.push(`✓ Native Currency: ${chain.nativeCurrency.name} (${chain.nativeCurrency.symbol})`);
         log.push(`✓ Logo: ${chain.logoUrl}`);
-        
-        // Generate mock address (fake but valid format)
-        let mockAddress = '';
-        if (chainKey === 'solana') {
-          mockAddress = '11111111111111111111111111111111'; // System program
-        } else if (['bitcoin', 'litecoin', 'dogecoin', 'bitcoincash'].includes(chainKey)) {
-          mockAddress = 'mock-btc-address'; // Will be overwritten
-        } else {
-          mockAddress = '0x0000000000000000000000000000000000000000'; // Null address
-        }
+        log.push(`✓ Wallet Address: ${walletAddress.substring(0, 10)}...${walletAddress.substring(walletAddress.length - 8)}`);
         
         // Create mock transactions with REAL metadata
         const mockTxs = [];
         
-        // 1. Native currency transaction
+        // 1. Native currency transaction (use REAL wallet address)
+        const isReceived = Math.random() > 0.5;
         const nativeTx = {
           hash: `0xMOCK${Date.now()}${Math.random().toString(36).substring(7)}`,
-          from: mockAddress,
-          to: '0xRecipient' + Math.random().toString(36).substring(7),
+          from: isReceived ? '0xSender' + Math.random().toString(36).substring(7) : walletAddress,
+          to: isReceived ? walletAddress : '0xRecipient' + Math.random().toString(36).substring(7),
           value: (Math.random() * 10).toFixed(6),
           timestamp: Date.now(),
           isError: false,
           tokenName: chain.nativeCurrency.name,
           tokenSymbol: chain.nativeCurrency.symbol,
           logoUrl: chain.logoUrl,
-          type: Math.random() > 0.5 ? 'Sent' : 'Received',
+          type: isReceived ? 'Received' : 'Sent',
           blockNumber: Math.floor(Math.random() * 1000000),
         };
         mockTxs.push(nativeTx);
@@ -160,10 +177,11 @@ export default function TransactionHistoryTest() {
         // 2. Token transaction (for EVM and Solana only)
         if (chainKey === 'solana') {
           // Add SPL token transaction (e.g., USDC)
+          const isTokenReceived = Math.random() > 0.5;
           const splTx = {
             hash: `SOL_MOCK_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-            from: mockAddress,
-            to: Math.random().toString(36).substring(2, 42),
+            from: isTokenReceived ? Math.random().toString(36).substring(2, 42) : walletAddress,
+            to: isTokenReceived ? walletAddress : Math.random().toString(36).substring(2, 42),
             value: (Math.random() * 1000).toFixed(2),
             timestamp: Date.now() - 3600000, // 1 hour ago
             isError: false,
@@ -184,10 +202,11 @@ export default function TransactionHistoryTest() {
           console.log(`   ✅ Added SPL token (USDC) transaction`);
         } else if (!['bitcoin', 'litecoin', 'dogecoin', 'bitcoincash'].includes(chainKey)) {
           // Add ERC20 token transaction (e.g., USDT)
+          const isTokenReceived = Math.random() > 0.5;
           const erc20Tx = {
             hash: `0xMOCK_TOKEN_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-            from: mockAddress,
-            to: '0xRecipient' + Math.random().toString(36).substring(7),
+            from: isTokenReceived ? '0xSender' + Math.random().toString(36).substring(7) : walletAddress,
+            to: isTokenReceived ? walletAddress : '0xRecipient' + Math.random().toString(36).substring(7),
             value: (Math.random() * 500).toFixed(2),
             timestamp: Date.now() - 7200000, // 2 hours ago
             isError: false,
@@ -206,12 +225,12 @@ export default function TransactionHistoryTest() {
           console.log(`   ✅ Added ERC20 token (USDT) transaction`);
         }
         
-        // Store in cache (expires after 30 minutes by default)
-        const cacheKey = `${chainKey}:MOCK_TEST_ADDRESS`;
+        // Store in cache with REAL wallet address (expires after 30 minutes by default)
+        const cacheKey = `${chainKey}:${walletAddress}`;
         await transactionCache.set(cacheKey, mockTxs, 30 * 60 * 1000);
         
         log.push(`\n✅ Cached ${mockTxs.length} transaction(s) for ${chainKey}`);
-        log.push(`   - Cache Key: ${cacheKey}`);
+        log.push(`   - Cache Key: ${cacheKey.substring(0, 30)}...`);
         log.push(`   - Expiry: 30 minutes`);
         console.log(`   ✅ Cached ${mockTxs.length} mock transactions for ${chainKey}`);
         
