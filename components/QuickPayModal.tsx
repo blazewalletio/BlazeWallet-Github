@@ -9,7 +9,7 @@ import QRCode from 'qrcode';
 import ParticleEffect from './ParticleEffect';
 import jsQR from 'jsqr';
 import { QRParser, ParsedQRData, ChainType } from '@/lib/qr-parser';
-import { lightningService, LightningInvoice } from '@/lib/lightning-service-web';
+import { lightningService, LightningInvoice } from '@/lib/lightning-service';
 
 interface QuickPayModalProps {
   isOpen: boolean;
