@@ -1,183 +1,230 @@
 /**
- * Account Manager
+ * Account Manager Service
  * Manages multiple wallet accounts (email + seed phrase wallets)
- * Supports account switching with Supabase integration
+ * Perfect integration with Supabase
  */
 
 export interface WalletAccount {
   id: string;                    // supabase_user_id or wallet hash
   type: 'email' | 'seed';
   displayName: string;           // email or "Wallet abc..."
-  lastUsed: number;              // Timestamp
-  encryptedData?: string;        // For seed wallets only
+  email?: string;                // For email accounts
+  lastUsed: Date;
+  isActive: boolean;             // Currently loaded
+  encryptedData?: string;        // For seed wallets (stored encrypted)
 }
 
-interface StoredAccounts {
-  accounts: WalletAccount[];
-  version: number;
-}
-
-const STORAGE_KEY = 'blaze_wallet_accounts';
-const STORAGE_VERSION = 1;
+const RECENT_ACCOUNTS_KEY = 'recent_wallet_accounts';
+const MAX_RECENT_ACCOUNTS = 10;
 
 /**
- * Get all stored accounts
+ * Get all available wallet accounts
  */
 export function getAllAccounts(): WalletAccount[] {
   if (typeof window === 'undefined') return [];
-
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return [];
-
-    const data: StoredAccounts = JSON.parse(stored);
-    if (data.version !== STORAGE_VERSION) {
-      // Version mismatch, reset
-      return [];
-    }
-
-    return data.accounts.sort((a, b) => b.lastUsed - a.lastUsed);
-  } catch (error) {
-    console.error('Failed to load accounts:', error);
-    return [];
+  
+  const accounts: WalletAccount[] = [];
+  
+  // 1. Get current active account
+  const currentAccount = getCurrentAccount();
+  if (currentAccount) {
+    accounts.push({ ...currentAccount, isActive: true });
   }
+  
+  // 2. Get recent accounts (excluding current)
+  const recentAccounts = getRecentAccounts();
+  const otherAccounts = recentAccounts.filter(
+    acc => acc.id !== currentAccount?.id
+  );
+  
+  accounts.push(...otherAccounts.map(acc => ({ ...acc, isActive: false })));
+  
+  // 3. Sort by last used (most recent first)
+  return accounts.sort((a, b) => 
+    new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime()
+  );
 }
 
 /**
- * Get currently active account
+ * Get current active account
  */
 export function getCurrentAccount(): WalletAccount | null {
   if (typeof window === 'undefined') return null;
-
+  
   const isEmail = localStorage.getItem('wallet_created_with_email') === 'true';
   const email = localStorage.getItem('wallet_email');
   const userId = localStorage.getItem('supabase_user_id');
   const encryptedWallet = localStorage.getItem('encrypted_wallet');
-
+  
+  if (!encryptedWallet) return null;
+  
   if (isEmail && email && userId) {
+    // Email wallet
     return {
       id: userId,
       type: 'email',
       displayName: email,
-      lastUsed: Date.now(),
+      email: email,
+      lastUsed: new Date(),
+      isActive: true,
     };
-  }
-
-  if (!isEmail && encryptedWallet) {
-    // Generate consistent ID for seed wallet
+  } else if (encryptedWallet) {
+    // Seed phrase wallet
     const walletHash = generateWalletHash(encryptedWallet);
     return {
       id: walletHash,
       type: 'seed',
       displayName: `Wallet ${walletHash.substring(0, 8)}...`,
-      lastUsed: Date.now(),
+      lastUsed: new Date(),
+      isActive: true,
       encryptedData: encryptedWallet,
     };
   }
-
+  
   return null;
 }
 
 /**
- * Save account to recent accounts list
+ * Get recent accounts from storage
  */
-export function saveAccountToRecent(account: WalletAccount): void {
-  if (typeof window === 'undefined') return;
-
+export function getRecentAccounts(): WalletAccount[] {
+  if (typeof window === 'undefined') return [];
+  
   try {
-    const accounts = getAllAccounts();
+    const stored = localStorage.getItem(RECENT_ACCOUNTS_KEY);
+    if (!stored) return [];
     
-    // Remove if already exists
-    const filtered = accounts.filter(a => a.id !== account.id);
+    const accounts = JSON.parse(stored);
     
-    // Add to front
-    filtered.unshift({
-      ...account,
-      lastUsed: Date.now(),
-    });
-
-    // Keep only last 10 accounts
-    const limited = filtered.slice(0, 10);
-
-    const data: StoredAccounts = {
-      accounts: limited,
-      version: STORAGE_VERSION,
-    };
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    console.log(`✅ Saved account to recent: ${account.displayName}`);
+    // Convert date strings back to Date objects
+    return accounts.map((acc: any) => ({
+      ...acc,
+      lastUsed: new Date(acc.lastUsed),
+      isActive: false,
+    }));
   } catch (error) {
-    console.error('Failed to save account:', error);
+    console.error('Failed to parse recent accounts:', error);
+    return [];
   }
 }
 
 /**
- * Switch to a different account
+ * Save current account to recent accounts before switching
  */
-export function switchToAccount(account: WalletAccount): void {
+export function saveCurrentAccountToRecent(): void {
   if (typeof window === 'undefined') return;
-
-  console.log(`🔄 Switching to account: ${account.displayName}`);
-
-  // Save current account to recent
-  const current = getCurrentAccount();
-  if (current) {
-    saveAccountToRecent(current);
-  }
-
-  // Clear current session
-  sessionStorage.removeItem('wallet_unlocked_this_session');
-
-  if (account.type === 'email') {
-    // Switch to email wallet
-    localStorage.setItem('wallet_created_with_email', 'true');
-    localStorage.setItem('wallet_email', account.displayName);
-    localStorage.setItem('supabase_user_id', account.id);
-    // Remove encrypted_wallet (will be fetched from Supabase on unlock)
-    localStorage.removeItem('encrypted_wallet');
-  } else {
-    // Switch to seed wallet
-    localStorage.setItem('wallet_created_with_email', 'false');
-    localStorage.removeItem('wallet_email');
-    localStorage.removeItem('supabase_user_id');
-    if (account.encryptedData) {
-      localStorage.setItem('encrypted_wallet', account.encryptedData);
-    }
-  }
-
-  console.log(`✅ Switched to ${account.type} wallet: ${account.displayName}`);
+  
+  const currentAccount = getCurrentAccount();
+  if (!currentAccount) return;
+  
+  const recentAccounts = getRecentAccounts();
+  
+  // Remove if already exists (to update lastUsed)
+  const filtered = recentAccounts.filter(acc => acc.id !== currentAccount.id);
+  
+  // Add current account to front
+  const updated = [
+    { ...currentAccount, isActive: false, lastUsed: new Date() },
+    ...filtered,
+  ].slice(0, MAX_RECENT_ACCOUNTS);
+  
+  localStorage.setItem(RECENT_ACCOUNTS_KEY, JSON.stringify(updated));
+  
+  console.log('✅ Saved current account to recent:', currentAccount.displayName);
 }
 
 /**
- * Remove an account from recent list
+ * Switch to an email account
+ */
+export async function switchToEmailAccount(
+  email: string,
+  userId: string,
+  encryptedWallet: string
+): Promise<void> {
+  if (typeof window === 'undefined') return;
+  
+  console.log('🔄 Switching to email account:', email);
+  
+  // Save current account before switching
+  saveCurrentAccountToRecent();
+  
+  // Update localStorage
+  localStorage.setItem('wallet_email', email);
+  localStorage.setItem('supabase_user_id', userId);
+  localStorage.setItem('encrypted_wallet', encryptedWallet);
+  localStorage.setItem('wallet_created_with_email', 'true');
+  localStorage.setItem('has_password', 'true');
+  
+  // Clear session flag to require unlock
+  sessionStorage.removeItem('wallet_unlocked_this_session');
+  
+  console.log('✅ Switched to email account:', email);
+}
+
+/**
+ * Switch to a seed phrase wallet
+ */
+export async function switchToSeedWallet(walletId: string): Promise<void> {
+  if (typeof window === 'undefined') return;
+  
+  console.log('🔄 Switching to seed wallet:', walletId);
+  
+  // Save current account before switching
+  saveCurrentAccountToRecent();
+  
+  // Find wallet in recent accounts
+  const recentAccounts = getRecentAccounts();
+  const wallet = recentAccounts.find(acc => acc.id === walletId && acc.type === 'seed');
+  
+  if (!wallet || !wallet.encryptedData) {
+    throw new Error('Wallet not found in recent accounts');
+  }
+  
+  // Update localStorage
+  localStorage.setItem('encrypted_wallet', wallet.encryptedData);
+  localStorage.removeItem('wallet_created_with_email');
+  localStorage.removeItem('wallet_email');
+  localStorage.removeItem('supabase_user_id');
+  localStorage.setItem('has_password', 'true');
+  
+  // Clear session flag to require unlock
+  sessionStorage.removeItem('wallet_unlocked_this_session');
+  
+  console.log('✅ Switched to seed wallet:', walletId);
+}
+
+/**
+ * Remove an account from recent accounts
  */
 export function removeAccount(accountId: string): void {
   if (typeof window === 'undefined') return;
-
-  try {
-    const accounts = getAllAccounts();
-    const filtered = accounts.filter(a => a.id !== accountId);
-
-    const data: StoredAccounts = {
-      accounts: filtered,
-      version: STORAGE_VERSION,
-    };
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    console.log(`✅ Removed account: ${accountId}`);
-  } catch (error) {
-    console.error('Failed to remove account:', error);
-  }
+  
+  const recentAccounts = getRecentAccounts();
+  const filtered = recentAccounts.filter(acc => acc.id !== accountId);
+  
+  localStorage.setItem(RECENT_ACCOUNTS_KEY, JSON.stringify(filtered));
+  
+  console.log('✅ Removed account from recent:', accountId);
 }
 
 /**
- * Generate consistent hash for wallet identification
+ * Clear all recent accounts (for testing/debugging)
  */
-function generateWalletHash(data: string): string {
+export function clearRecentAccounts(): void {
+  if (typeof window === 'undefined') return;
+  
+  localStorage.removeItem(RECENT_ACCOUNTS_KEY);
+  console.log('✅ Cleared all recent accounts');
+}
+
+/**
+ * Generate a consistent hash for a wallet
+ */
+function generateWalletHash(encryptedData: string): string {
   // Simple hash function for wallet identification
   let hash = 0;
-  for (let i = 0; i < data.length; i++) {
-    const char = data.charCodeAt(i);
+  for (let i = 0; i < encryptedData.length; i++) {
+    const char = encryptedData.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
     hash = hash & hash; // Convert to 32bit integer
   }
@@ -185,35 +232,24 @@ function generateWalletHash(data: string): string {
 }
 
 /**
- * Check if account exists in recent list
+ * Get account type icon
  */
-export function accountExists(accountId: string): boolean {
-  const accounts = getAllAccounts();
-  return accounts.some(a => a.id === accountId);
+export function getAccountIcon(type: 'email' | 'seed'): string {
+  return type === 'email' ? '📧' : '🔐';
 }
 
 /**
- * Update last used timestamp for an account
+ * Get accounts grouped by type
  */
-export function updateAccountLastUsed(accountId: string): void {
-  if (typeof window === 'undefined') return;
-
-  try {
-    const accounts = getAllAccounts();
-    const account = accounts.find(a => a.id === accountId);
-    
-    if (account) {
-      account.lastUsed = Date.now();
-      
-      const data: StoredAccounts = {
-        accounts,
-        version: STORAGE_VERSION,
-      };
-
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    }
-  } catch (error) {
-    console.error('Failed to update account timestamp:', error);
-  }
+export function getAccountsByType(): {
+  emailAccounts: WalletAccount[];
+  seedAccounts: WalletAccount[];
+} {
+  const allAccounts = getAllAccounts();
+  
+  return {
+    emailAccounts: allAccounts.filter(acc => acc.type === 'email'),
+    seedAccounts: allAccounts.filter(acc => acc.type === 'seed'),
+  };
 }
 
