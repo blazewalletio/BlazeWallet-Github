@@ -56,19 +56,19 @@ const TEST_ADDRESSES = {
   bitcoincash: 'qqkv9wr69ry2p9l53lxp635va4h86wv435995w8p2h', // Active BCH wallet
 };
 
-// Expected metadata per chain
+// Expected metadata per chain (based on nativeCurrency.name from chains.ts)
 const EXPECTED_METADATA = {
   ethereum: { tokenName: 'Ethereum', tokenSymbol: 'ETH' },
   polygon: { tokenName: 'Polygon', tokenSymbol: 'MATIC' },
-  arbitrum: { tokenName: 'Arbitrum', tokenSymbol: 'ETH' },
-  base: { tokenName: 'Base', tokenSymbol: 'ETH' },
-  bsc: { tokenName: 'BNB Chain', tokenSymbol: 'BNB' },
-  optimism: { tokenName: 'Optimism', tokenSymbol: 'ETH' },
+  arbitrum: { tokenName: 'Ethereum', tokenSymbol: 'ETH' }, // Uses ETH
+  base: { tokenName: 'Ethereum', tokenSymbol: 'ETH' }, // Uses ETH
+  bsc: { tokenName: 'BNB', tokenSymbol: 'BNB' },
+  optimism: { tokenName: 'Ethereum', tokenSymbol: 'ETH' }, // Uses ETH
   avalanche: { tokenName: 'Avalanche', tokenSymbol: 'AVAX' },
   fantom: { tokenName: 'Fantom', tokenSymbol: 'FTM' },
   cronos: { tokenName: 'Cronos', tokenSymbol: 'CRO' },
-  zksync: { tokenName: 'zkSync Era', tokenSymbol: 'ETH' },
-  linea: { tokenName: 'Linea', tokenSymbol: 'ETH' },
+  zksync: { tokenName: 'Ethereum', tokenSymbol: 'ETH' }, // Uses ETH
+  linea: { tokenName: 'Ethereum', tokenSymbol: 'ETH' }, // Uses ETH
   solana: { tokenName: 'Solana', tokenSymbol: 'SOL' },
   bitcoin: { tokenName: 'Bitcoin', tokenSymbol: 'BTC' },
   litecoin: { tokenName: 'Litecoin', tokenSymbol: 'LTC' },
