@@ -10,9 +10,10 @@
  * Platforms:
  * - ✅ Native (iOS/Android): Full Breez SDK via Capacitor
  * - ✅ Web (Desktop/Mobile): WebLN fallback
+ * 
+ * ⚠️ IMPORTANT: Breez SDK is ONLY loaded in native Capacitor apps!
+ * This prevents Next.js build errors on web.
  */
-
-import { Capacitor } from '@capacitor/core';
 
 // Types for Breez SDK (will be available in native context)
 interface BreezEvent {
@@ -89,8 +90,10 @@ interface ListPaymentsRequest {
 
 // Breez SDK module (only available in native)
 let BreezSDK: any = null;
+let Capacitor: any = null;
 
-// Dynamically load Breez SDK only when needed (prevents Next.js build errors)
+// Dynamically load Breez SDK AND Capacitor only when needed
+// This prevents Next.js from trying to bundle either package during web build
 function loadBreezSDK() {
   if (BreezSDK !== null) return BreezSDK;
   
@@ -98,9 +101,13 @@ function loadBreezSDK() {
   if (typeof window === 'undefined') return null;
   
   try {
-    // Dynamic require only in native Capacitor context
-    const { Capacitor } = require('@capacitor/core');
-    if (Capacitor.isNativePlatform()) {
+    // First, try to load Capacitor (safe in browser)
+    if (Capacitor === null) {
+      Capacitor = require('@capacitor/core').Capacitor;
+    }
+    
+    // Only load Breez SDK if we're in native Capacitor context
+    if (Capacitor && Capacitor.isNativePlatform()) {
       BreezSDK = require('@breeztech/react-native-breez-sdk');
       console.log('✅ Breez SDK loaded successfully');
       return BreezSDK;
@@ -113,6 +120,20 @@ function loadBreezSDK() {
   return null;
 }
 
+// Helper to check if we're on native platform
+function isNativePlatform(): boolean {
+  if (typeof window === 'undefined') return false;
+  
+  try {
+    if (Capacitor === null) {
+      Capacitor = require('@capacitor/core').Capacitor;
+    }
+    return Capacitor.isNativePlatform();
+  } catch {
+    return false;
+  }
+}
+
 export class BreezService {
   private static instance: BreezService | null = null;
   private isNative: boolean;
@@ -121,7 +142,7 @@ export class BreezService {
   private eventListeners: Array<(event: BreezEvent) => void> = [];
 
   private constructor() {
-    this.isNative = Capacitor.isNativePlatform();
+    this.isNative = isNativePlatform();
     console.log(`🔌 BreezService initialized (${this.isNative ? 'NATIVE' : 'WEB'} mode)`);
   }
 
@@ -211,8 +232,16 @@ export class BreezService {
         nodeConfig
       );
 
-      // Set working directory for Breez data
-      config.workingDir = `${Capacitor.convertFileSrc('Documents')}/breez`;
+      // Set working directory for Breez data (load Capacitor for convertFileSrc)
+      try {
+        if (Capacitor === null) {
+          Capacitor = require('@capacitor/core').Capacitor;
+        }
+        config.workingDir = `${Capacitor.convertFileSrc('Documents')}/breez`;
+      } catch {
+        // Fallback if Capacitor not available
+        config.workingDir = '/breez';
+      }
 
       // Connect to Breez SDK
       await SDK.connect(config, null, onEvent);

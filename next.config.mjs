@@ -4,16 +4,15 @@ const nextConfig = {
     // Exclude native modules from webpack bundling
     config.externals.push('pino-pretty', 'lokijs', 'encoding');
     
-    // ⚡ Exclude Breez SDK (React Native) from web build
-    // Breez SDK is only used in native Capacitor apps via bridge
-    config.externals.push('@breeztech/react-native-breez-sdk', 'react-native');
-    
-    // Handle React Native modules that might be imported
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      'react-native': false,
-      '@breeztech/react-native-breez-sdk': false,
-    };
+    // ⚡ Make Breez SDK and React Native optional (prevents build errors)
+    // These are loaded dynamically ONLY in native Capacitor context
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        '@breeztech/react-native-breez-sdk': false,
+        'react-native': false,
+      };
+    }
     
     return config;
   },
