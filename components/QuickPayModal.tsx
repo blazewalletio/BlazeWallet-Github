@@ -1065,6 +1065,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   </div>
 
                   {/* 📱 MOBILE NOTICE */}
+                  {/* Mobile Notice - Only show on mobile web (not native apps) */}
                   {isMobile && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.95 }}
@@ -1079,38 +1080,32 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                         </div>
                         <div className="flex-1">
                           <h4 className="font-bold text-gray-900 mb-2">
-                            ⚡ Native Lightning in Development!
+                            ⚡ Lightning on Mobile
                           </h4>
                           <p className="text-sm text-gray-700 mb-3 leading-relaxed">
-                            Lightning Network is currently available for <strong>desktop browsers</strong> with the Alby extension.
-                          </p>
-                          <div className="bg-white/80 rounded-lg p-3 mb-3">
-                            <p className="text-sm text-gray-900 font-semibold mb-1">
-                              🚀 Native mobile app in development!
-                            </p>
-                            <p className="text-xs text-gray-600">
-                              Breez SDK is integrated and ready. Native iOS & Android apps coming soon with built-in Lightning!
-                            </p>
-                          </div>
-                          <div className="text-xs text-gray-600">
-                            <strong>For now:</strong> Use desktop with{' '}
-                            <a 
-                              href="https://getalby.com" 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-700 underline font-semibold"
-                            >
-                              Alby extension
-                            </a>
-                            {' '}or mobile with{' '}
+                            For Lightning payments on mobile, install{' '}
                             <a 
                               href="https://getalby.com/products/alby-go" 
                               target="_blank" 
                               rel="noopener noreferrer"
                               className="text-blue-600 hover:text-blue-700 underline font-semibold"
                             >
-                              Alby Go app
+                              Alby Go
                             </a>
+                            {' '}and open Blaze Wallet from within the app.
+                          </p>
+                          <div className="bg-white/80 rounded-lg p-3">
+                            <p className="text-xs text-gray-600">
+                              <strong>On desktop?</strong> Use the{' '}
+                              <a 
+                                href="https://getalby.com" 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-700 underline font-semibold"
+                              >
+                                Alby browser extension
+                              </a>
+                            </p>
                           </div>
                         </div>
                       </div>
