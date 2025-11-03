@@ -10,7 +10,7 @@
  * - Reduces API calls by 80-95%
  */
 
-const CACHE_VERSION = 6; // ✅ Bump to invalidate mock test transactions
+const CACHE_VERSION = 7; // ✅ Bump to fetch transactions with new 6-tier metadata system
 
 interface CachedTransaction {
   key: string;

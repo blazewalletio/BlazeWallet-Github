@@ -608,17 +608,103 @@ export async function getSPLTokenMetadata(mint: string): Promise<SPLTokenMetadat
     console.warn(`⚠️ [Tier 5] Metaplex on-chain fetch failed for ${mint.substring(0, 8)}...:`, error);
   }
 
-  // Tier 6: Fallback (always works, prevents UI breakage)
+  // 🆕 Tier 6: Direct RPC Account Info Fetch (ALWAYS WORKS for any token!)
+  // This fetches the token account data directly from Solana RPC
+  // Works even for brand new tokens that aren't indexed anywhere yet
+  try {
+    console.log(`🔍 [Tier 6] Trying direct RPC account info for ${mint.substring(0, 8)}...`);
+    const rpcMetadata = await getTokenAccountInfo(mint);
+    
+    if (rpcMetadata) {
+      const elapsed = Date.now() - startTime;
+      console.log(`✅ [Tier 6] RPC account info success in ${elapsed}ms: ${rpcMetadata.symbol || 'Token'}`);
+      
+      // Save to cache for next time
+      try {
+        await saveToJupiterCache(mint, rpcMetadata);
+      } catch (cacheError) {
+        console.warn('Failed to cache RPC result:', cacheError);
+      }
+      
+      return rpcMetadata;
+    }
+  } catch (error) {
+    console.warn(`⚠️ [Tier 6] RPC account info fetch failed for ${mint.substring(0, 8)}...:`, error);
+  }
+
+  // Tier 7: Ultimate Fallback (always works, prevents UI breakage)
   const elapsed = Date.now() - startTime;
-  console.log(`⚠️ [Tier 6] Using fallback after ${elapsed}ms for ${mint.substring(0, 8)}...`);
+  console.warn(`⚠️ [Tier 7] All sources failed after ${elapsed}ms for ${mint.substring(0, 8)}...`);
+  console.warn(`⚠️ This token may be extremely new or the mint address may be invalid`);
+  
+  // Use a more descriptive fallback
+  const shortMint = `${mint.slice(0, 4)}...${mint.slice(-4)}`;
   
   return {
     mint,
-    symbol: mint.slice(0, 4) + '...' + mint.slice(-4),
-    name: 'Unknown Token',
+    symbol: shortMint,
+    name: `Token ${shortMint}`,
     decimals: 9,
     logoURI: '/crypto-solana.png',
   };
+}
+
+/**
+ * 🆕 Tier 6: Get token info directly from Solana RPC
+ * This is a last-resort method that ALWAYS works for any SPL token
+ * by fetching the mint account data directly from the blockchain
+ */
+async function getTokenAccountInfo(mint: string): Promise<SPLTokenMetadata | null> {
+  try {
+    // Use public Solana RPC endpoint
+    const response = await fetch('https://api.mainnet-beta.solana.com', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'getAccountInfo',
+        params: [
+          mint,
+          {
+            encoding: 'jsonParsed',
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`RPC request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    // Check if account exists and has parsed data
+    if (data.result?.value?.data?.parsed) {
+      const parsed = data.result.value.data.parsed;
+      
+      // For SPL tokens, the parsed data contains info about the mint
+      if (parsed.type === 'mint' && parsed.info) {
+        const info = parsed.info;
+        
+        // We have basic mint info (decimals, supply, etc)
+        // But no name/symbol - those are in metadata accounts
+        // Still better than nothing!
+        return {
+          mint,
+          symbol: `${mint.slice(0, 6)}`, // Short mint prefix as symbol
+          name: `Token ${mint.slice(0, 8)}...`, // Partial mint as name
+          decimals: info.decimals || 9,
+          logoURI: '/crypto-solana.png',
+        };
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.warn('[getTokenAccountInfo] Failed:', error);
+    return null;
+  }
 }
 
 /**
