@@ -10,7 +10,7 @@
  * - Reduces API calls by 80-95%
  */
 
-const CACHE_VERSION = 5; // ✅ Bump for token name fix in transaction history
+const CACHE_VERSION = 6; // ✅ Bump to invalidate mock test transactions
 
 interface CachedTransaction {
   key: string;
