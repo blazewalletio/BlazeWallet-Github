@@ -4,15 +4,12 @@ const nextConfig = {
     // Exclude native modules from webpack bundling
     config.externals.push('pino-pretty', 'lokijs', 'encoding');
     
-    // ⚡ Make Breez SDK and React Native optional (prevents build errors)
-    // These are loaded dynamically ONLY in native Capacitor context
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        '@breeztech/react-native-breez-sdk': false,
-        'react-native': false,
-      };
-    }
+    // ⚡ Completely ignore Breez SDK and React Native
+    // Mark as externals so webpack doesn't try to bundle them
+    config.externals.push({
+      '@breeztech/react-native-breez-sdk': 'commonjs @breeztech/react-native-breez-sdk',
+      'react-native': 'commonjs react-native',
+    });
     
     return config;
   },
