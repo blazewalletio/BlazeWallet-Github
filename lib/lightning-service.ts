@@ -83,7 +83,13 @@ export class UnifiedLightningService {
     try {
       if (this.isNativePlatform()) {
         console.log('🔌 Initializing Breez SDK...');
-        await breezService.connect();
+        // Get certificate from environment variable
+        const certificate = process.env.NEXT_PUBLIC_GREENLIGHT_CERT || '';
+        if (!certificate) {
+          console.warn('⚠️ Greenlight certificate not found');
+          return false;
+        }
+        await breezService.connect(certificate);
         return breezService.isAvailable();
       } else {
         console.log('🔌 Initializing WebLN...');
@@ -155,9 +161,9 @@ export class UnifiedLightningService {
         const response = await breezService.payInvoice(bolt11);
         return {
           success: true,
-          paymentHash: response.payment.id,
-          preimage: response.payment.id, // Breez uses payment ID
-          feeSats: Math.floor(response.payment.feeMsat / 1000),
+          paymentHash: response.paymentHash,
+          preimage: response.paymentHash, // Use payment hash as preimage
+          feeSats: 0, // Fee not returned by bridge yet
         };
       } else {
         console.log('⚡ Paying invoice via WebLN...');

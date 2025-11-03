@@ -27,6 +27,19 @@ class BreezService {
   }
 
   /**
+   * Check if Breez/Lightning is available
+   */
+  isAvailable(): boolean {
+    if (this.isNativePlatform()) {
+      // On native, Breez SDK is always available once connected
+      return this.connected;
+    } else {
+      // On web, check if WebLN is available
+      return typeof window !== 'undefined' && window.webln !== undefined;
+    }
+  }
+
+  /**
    * Connect to Breez SDK with Greenlight certificate
    */
   async connect(certificate: string): Promise<void> {

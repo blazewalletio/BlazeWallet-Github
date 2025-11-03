@@ -34,9 +34,20 @@ export class BreezBridgeWeb extends WebPlugin implements BreezBridgePlugin {
           defaultMemo: options.description,
         });
         
+        // Extract payment hash from bolt11 invoice
+        let paymentHash = '';
+        try {
+          const bolt11Decoder = require('light-bolt11-decoder');
+          const decoded = bolt11Decoder.decode(invoice.paymentRequest);
+          const paymentHashTag = decoded.sections.find((s: any) => s.name === 'payment_hash');
+          paymentHash = paymentHashTag?.value || '';
+        } catch (e) {
+          console.warn('Could not decode invoice for payment hash');
+        }
+        
         return {
           bolt11: invoice.paymentRequest,
-          paymentHash: invoice.paymentHash || '',
+          paymentHash,
         };
       } catch (error: any) {
         throw new Error(`WebLN failed: ${error.message}`);
