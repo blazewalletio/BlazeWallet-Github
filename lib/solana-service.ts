@@ -464,14 +464,27 @@ export class SolanaService {
                 
                 console.log(`🔍 [SPL Transfer] Fetching metadata for mint: ${mint}`);
                 
-                // Fetch token metadata (uses 5-tier: hardcoded + Jupiter + DexScreener + CoinGecko + Metaplex!)
-                const metadata = await getSPLTokenMetadata(mint);
-                
-                console.log(`✅ [SPL Transfer] Got metadata:`, {
-                  symbol: metadata.symbol,
-                  name: metadata.name,
-                  logoURI: metadata.logoURI
-                });
+                let metadata;
+                try {
+                  // Fetch token metadata (uses 7-tier: hardcoded + Jupiter + DexScreener + CoinGecko + Metaplex + RPC!)
+                  metadata = await getSPLTokenMetadata(mint);
+                  
+                  console.log(`✅ [SPL Transfer] Got metadata:`, {
+                    symbol: metadata.symbol,
+                    name: metadata.name,
+                    logoURI: metadata.logoURI
+                  });
+                } catch (metadataError) {
+                  console.error(`❌ [SPL Transfer] Metadata fetch failed for ${mint}:`, metadataError);
+                  // Use fallback metadata
+                  metadata = {
+                    mint,
+                    symbol: `${mint.slice(0, 6)}`,
+                    name: `Token ${mint.slice(0, 8)}...`,
+                    decimals: 9,
+                    logoURI: '/crypto-solana.png',
+                  };
+                }
                 
                 // Determine from/to based on balance change
                 const owner = preBalance.owner || postBalance.owner;

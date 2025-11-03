@@ -10,7 +10,7 @@
  * - Reduces API calls by 80-95%
  */
 
-const CACHE_VERSION = 7; // ✅ Bump to fetch transactions with new 6-tier metadata system
+const CACHE_VERSION = 8; // ✅ Force complete cache clear for unknown token debugging
 
 interface CachedTransaction {
   key: string;
