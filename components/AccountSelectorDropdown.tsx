@@ -49,7 +49,8 @@ export default function AccountSelectorDropdown({
   }
 
   const totalAccounts = emailAccounts.length + seedAccounts.length;
-  const showDropdown = totalAccounts > 1 || !currentAccount.isActive;
+  // ✅ ALWAYS show dropdown - users should always be able to add new accounts
+  const showDropdown = true;
 
   return (
     <div className="relative" ref={dropdownRef}>
