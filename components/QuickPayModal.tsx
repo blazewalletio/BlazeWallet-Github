@@ -1079,17 +1079,17 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                         </div>
                         <div className="flex-1">
                           <h4 className="font-bold text-gray-900 mb-2">
-                            📱 Mobile Lightning Coming Soon!
+                            ⚡ Native Lightning in Development!
                           </h4>
                           <p className="text-sm text-gray-700 mb-3 leading-relaxed">
-                            Lightning Network is currently optimized for <strong>desktop browsers</strong> with the Alby extension.
+                            Lightning Network is currently available for <strong>desktop browsers</strong> with the Alby extension.
                           </p>
                           <div className="bg-white/80 rounded-lg p-3 mb-3">
                             <p className="text-sm text-gray-900 font-semibold mb-1">
-                              🚀 Full mobile support coming soon!
+                              🚀 Native mobile app in development!
                             </p>
                             <p className="text-xs text-gray-600">
-                              We're integrating Breez SDK for native Lightning on mobile. Stay tuned!
+                              Breez SDK is integrated and ready. Native iOS & Android apps coming soon with built-in Lightning!
                             </p>
                           </div>
                           <div className="text-xs text-gray-600">
@@ -1101,6 +1101,15 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                               className="text-blue-600 hover:text-blue-700 underline font-semibold"
                             >
                               Alby extension
+                            </a>
+                            {' '}or mobile with{' '}
+                            <a 
+                              href="https://getalby.com/products/alby-go" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-700 underline font-semibold"
+                            >
+                              Alby Go app
                             </a>
                           </div>
                         </div>
