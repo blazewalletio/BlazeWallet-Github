@@ -194,94 +194,130 @@ class AIService {
     }
   ): Promise<AIResponse> {
     try {
-      // First try pattern matching (works offline)
+      console.log('🤖 [AI Service] Processing command:', input.substring(0, 50));
+
+      // Get user ID for rate limiting
+      const userId = typeof window !== 'undefined' 
+        ? localStorage.getItem('supabase_user_id') || localStorage.getItem('wallet_email') || 'anonymous'
+        : 'anonymous';
+
+      // Call our backend API (which handles caching + OpenAI)
+      const response = await fetch('/api/ai-assistant', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: input,
+          context: {
+            chain: context.chain,
+            balance: context.balance,
+            tokens: context.tokens.map(t => ({
+              symbol: t.symbol,
+              balance: t.balance,
+              usdValue: t.usdValue
+            })),
+            address: context.address
+          },
+          userId: userId
+        })
+      });
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          // Rate limit exceeded
+          const data = await response.json();
+          return {
+            success: false,
+            message: data.message || 'You have reached your daily limit of 50 AI queries. Try again tomorrow.',
+            confidence: 0,
+          };
+        }
+
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      console.log('✅ [AI Service] Response:', {
+        intent: data.intent,
+        cached: data.cached,
+        source: data.source
+      });
+
+      // Convert API response to our format
+      const result: AIResponse = {
+        success: true,
+        message: data.message,
+        confidence: data.confidence || 0.95,
+      };
+
+      // Map intent to action
+      if (data.intent === 'send' && data.params) {
+        result.action = {
+          type: 'send',
+          params: {
+            amount: data.params.amount,
+            token: data.params.token || 'ETH',
+            recipient: data.params.to
+          }
+        };
+      } else if (data.intent === 'swap' && data.params) {
+        result.action = {
+          type: 'swap',
+          params: {
+            fromToken: data.params.fromToken,
+            toToken: data.params.toToken,
+            amount: data.params.amount
+          }
+        };
+      } else if (data.intent === 'info') {
+        result.action = {
+          type: 'info',
+          params: {}
+        };
+      } else if (data.intent === 'clarify' && data.needsClarification) {
+        result.success = false;
+        result.message = data.clarificationQuestion || data.message;
+      } else {
+        result.action = {
+          type: 'none',
+          params: {}
+        };
+      }
+
+      // Add warnings if present
+      if (data.warnings && data.warnings.length > 0) {
+        result.message += '\n\n' + data.warnings.join('\n');
+      }
+
+      return result;
+
+    } catch (error: any) {
+      console.error('❌ [AI Service] Error:', error);
+
+      // Fallback to simple pattern matching
       const intent = this.parseTransactionIntent(input, context);
       
-      if (intent) {
-        if (intent.type === 'send' && intent.amount && intent.recipient) {
-          // Validate address
-          const isValidAddress = ethers.isAddress(intent.recipient);
-          if (!isValidAddress) {
-            return {
-              success: false,
-              message: `The address "${intent.recipient}" is not a valid Ethereum address. Please check it again.`,
-              confidence: 0.95,
-            };
-          }
-
-          return {
-            success: true,
-            message: `I'm going to send ${intent.amount} ${intent.token} to ${intent.recipient}. Confirm the transaction.`,
-            action: {
-              type: 'send',
-              params: {
-                amount: intent.amount,
-                token: intent.token,
-                recipient: intent.recipient,
-              },
+      if (intent && intent.type === 'send' && intent.amount && intent.recipient) {
+        return {
+          success: true,
+          message: `Send ${intent.amount} ${intent.token} to ${intent.recipient}`,
+          action: {
+            type: 'send',
+            params: {
+              amount: intent.amount,
+              token: intent.token,
+              recipient: intent.recipient,
             },
-            confidence: 0.9,
-          };
-        }
-
-        if (intent.type === 'swap' && intent.fromToken && intent.toToken) {
-          return {
-            success: true,
-            message: `Ik ga ${intent.amount === 'max' ? 'al je' : intent.amount} ${intent.fromToken} swappen naar ${intent.toToken}.`,
-            action: {
-              type: 'swap',
-              params: {
-                fromToken: intent.fromToken,
-                toToken: intent.toToken,
-                amount: intent.amount,
-              },
-            },
-            confidence: 0.85,
-          };
-        }
-
-        if (intent.type === 'info') {
-          const totalValue = context.tokens.reduce((sum, t) => sum + (parseFloat(t.usdValue) || 0), 0);
-          return {
-            success: true,
-            message: `Je portfolio is €${totalValue.toFixed(2)} waard. Je grootste holding is ${context.tokens[0]?.symbol || 'ETH'}.`,
-            confidence: 0.95,
-          };
-        }
+          },
+          confidence: 0.7,
+        };
       }
 
-      // If no pattern match and API key available, use OpenAI
-      if (this.apiKey) {
-        if (!this.checkRateLimit()) {
-          return {
-            success: false,
-            message: 'Te veel requests. Wacht even en probeer opnieuw.',
-            confidence: 0,
-          };
-        }
-        
-        if (this.isRecentFailure()) {
-          return {
-            success: false,
-            message: 'OpenAI API heeft recent te veel requests gehad. Wacht even voordat je opnieuw probeert.',
-            confidence: 0,
-          };
-        }
-        
-        return await this.processWithOpenAI(input, context);
-      }
-
-      // No match and no API
       return {
         success: false,
-        message: 'Ik begreep je commando niet. Probeer bijvoorbeeld: "Stuur 10 USDC naar 0x..." of "Swap 1 ETH naar USDC"',
-        confidence: 0.3,
-      };
-    } catch (error) {
-      console.error('AI processing error:', error);
-      return {
-        success: false,
-        message: 'Er ging iets fout bij het verwerken van je commando.',
+        message: 'I couldn\'t process your command. Please try again or rephrase it.',
         confidence: 0,
       };
     }
