@@ -107,17 +107,48 @@ export async function POST(req: NextRequest) {
     const gasPrice = await gasPriceService.getGasPrice(chain);
     console.log('✅ Gas price fetched:', gasPrice);
     
-    // Get historical data (TODO: implement from Supabase)
+    // Get historical data from Supabase
+    const { gasHistoryService } = await import('@/lib/gas-history-service');
+    const stats = await gasHistoryService.getStatistics(chain);
+    
     const historicalData = {
-      avg24h: gasPrice.gasPrice,
-      min24h: gasPrice.slow,
-      max24h: gasPrice.instant,
+      avg24h: stats.avg24h,
+      min24h: stats.min24h,
+      max24h: stats.max24h,
     };
     
-    // Calculate USD costs (using $2000 ETH price as example)
-    const ethPrice = 2000; // TODO: Get from price service
+    // Get real-time native currency price
+    const { PriceService } = await import('@/lib/price-service');
+    const priceService = new PriceService();
+    
+    // Map chain to native currency symbol
+    const nativeCurrencyMap: Record<string, string> = {
+      'ethereum': 'ETH',
+      'polygon': 'MATIC',
+      'arbitrum': 'ETH',
+      'optimism': 'ETH',
+      'base': 'ETH',
+      'avalanche': 'AVAX',
+      'bsc': 'BNB',
+      'fantom': 'FTM',
+      'cronos': 'CRO',
+      'zksync': 'ETH',
+      'linea': 'ETH',
+      'bitcoin': 'BTC',
+      'litecoin': 'LTC',
+      'dogecoin': 'DOGE',
+      'bitcoincash': 'BCH',
+      'solana': 'SOL',
+    };
+    
+    const nativeCurrency = nativeCurrencyMap[chain.toLowerCase()] || 'ETH';
+    const nativePrice = await priceService.getPrice(nativeCurrency) || 2000; // Fallback to 2000 if fetch fails
+    
+    console.log(`💰 [Gas Optimizer] ${nativeCurrency} price: $${nativePrice}`);
+    
+    // Calculate USD costs
     const gweiToUsd = (gwei: number, gasUnits: number) => 
-      (gwei / 1e9) * gasUnits * ethPrice;
+      (gwei / 1e9) * gasUnits * nativePrice;
     
     const usdCosts = {
       transfer: gweiToUsd(gasPrice.standard, 21000),

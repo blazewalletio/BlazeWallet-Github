@@ -34,7 +34,7 @@ const aiTools = [
     description: 'Gepersonaliseerde tips',
     icon: Brain,
     gradient: 'from-theme-primary to-theme-primary',
-    status: 'coming-soon',
+    status: 'active',
   },
   {
     id: 'gas-optimizer',
@@ -46,7 +46,11 @@ const aiTools = [
   },
 ];
 
-export default function AIToolsTab() {
+interface AIToolsTabProps {
+  onOpenTool?: (toolId: string) => void;
+}
+
+export default function AIToolsTab({ onOpenTool }: AIToolsTabProps) {
   return (
     <>
       {/* Header */}
@@ -125,6 +129,7 @@ export default function AIToolsTab() {
                     {tool.status === 'active' ? (
                       <motion.button
                         whileTap={{ scale: 0.95 }}
+                        onClick={() => onOpenTool?.(tool.id)}
                         className="flex items-center gap-2 px-4 py-2 bg-theme-bg-secondary hover:bg-theme-bg-secondary rounded-xl transition-colors"
                       >
                         <span className="text-sm font-medium">Open</span>
