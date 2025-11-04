@@ -1,177 +1,277 @@
-# 🗄️ SUPABASE MIGRATION - AI ASSISTANT
+# 🗄️ SUPABASE MIGRATION GUIDE - GAS OPTIMIZER
 
-## ✅ **ENVIRONMENT VARIABLES - COMPLEET**
+## ✅ **VEREIST VOOR:**
+- Historical gas data (24h/7d trends)
+- Gas price statistics
+- Future features: Gas alerts, scheduled transactions, savings tracker
 
-- ✅ Vercel Production: `OPENAI_API_KEY` toegevoegd
-- ✅ Vercel Preview: `OPENAI_API_KEY` toegevoegd  
-- ✅ Vercel Development: `OPENAI_API_KEY` toegevoegd
-- ✅ Local `.env.local`: `OPENAI_API_KEY` toegevoegd
+## 📋 **WAT DEZE MIGRATION DOET:**
+
+### **1. Creates Tables:**
+- `gas_history` - Stores historical gas prices (7-day rolling window)
+- `gas_alerts` - User gas price alerts (future feature)
+- `scheduled_transactions` - Automated transaction scheduling (future feature)
+- `user_savings` - Track how much users saved (future feature)
+
+### **2. Security:**
+- Row Level Security (RLS) enabled
+- Users can only see/edit their own data
+- Public read for gas_history (no sensitive data)
+
+### **3. Indexes:**
+- Optimized for fast queries
+- Auto-cleanup of old data (> 7 days)
+
+### **4. Helper Functions:**
+- `get_gas_stats_24h(chain)` - Get 24h statistics
+- `get_user_total_savings(user_id)` - Get user savings
+- `check_gas_alerts(chain, gas)` - Check if alerts should trigger
 
 ---
 
-## 📝 **SUPABASE MIGRATION UITVOEREN**
+## 🚀 **HOE TE RUNNEN:**
 
-### **Optie 1: Via Supabase Dashboard (Aanbevolen)**
+### **Optie A: Via Supabase Dashboard** (Aanbevolen)
 
 1. **Open Supabase Dashboard:**
-   - Ga naar: https://supabase.com/dashboard
-   - Selecteer je project: `BlazeWallet`
+   ```
+   https://supabase.com/dashboard/project/YOUR_PROJECT_ID
+   ```
 
-2. **Open SQL Editor:**
+2. **Ga naar SQL Editor:**
    - Klik op "SQL Editor" in het linker menu
-   - Klik op "New Query"
+   - Of ga direct naar: `https://supabase.com/dashboard/project/YOUR_PROJECT_ID/sql`
 
-3. **Copy Migration SQL:**
-   - Open het bestand: `supabase-migrations/03-ai-assistant-cache.sql`
-   - Kopieer de volledige inhoud (3991 characters)
+3. **Nieuwe Query:**
+   - Klik op "+ New query"
+   - Geef het een naam: "Gas Optimizer Migration"
+
+4. **Copy/Paste de Migration:**
+   - Open: `supabase-migrations/04-gas-optimizer.sql`
+   - Kopieer de **volledige inhoud**
    - Plak in de SQL Editor
 
-4. **Run Migration:**
-   - Klik op "Run" (of druk op Ctrl/Cmd + Enter)
-   - Wacht op "Success" bericht
+5. **Run de Migration:**
+   - Klik op "Run" (of druk Cmd+Enter / Ctrl+Enter)
+   - **Wacht** tot het klaar is (~2-5 seconden)
 
-5. **Verify:**
-   - Ga naar "Table Editor"
-   - Check of de volgende tabellen bestaan:
-     - ✓ `ai_cache`
-     - ✓ `ai_rate_limits`
-
----
-
-### **Optie 2: Via psql (Terminal)**
-
-Als je psql geïnstalleerd hebt:
-
-```bash
-# Get connection string from Supabase Dashboard > Settings > Database
-psql "YOUR_SUPABASE_CONNECTION_STRING" -f supabase-migrations/03-ai-assistant-cache.sql
-```
+6. **Verificatie:**
+   - Kijk of je deze melding ziet: "Success. No rows returned"
+   - Check onder "Table Editor" → Je zou nu 4 nieuwe tables moeten zien:
+     - `gas_history`
+     - `gas_alerts`
+     - `scheduled_transactions`
+     - `user_savings`
 
 ---
 
-### **Optie 3: Via Supabase CLI**
+### **Optie B: Via Supabase CLI** (Advanced)
 
-Als je Supabase CLI hebt:
+**Vereisten:**
+- Supabase CLI geïnstalleerd: `npm install -g supabase`
+- Project linked: `supabase link --project-ref YOUR_PROJECT_ID`
 
+**Commands:**
 ```bash
+cd "/Users/rickschlimback/Desktop/BlazeWallet 21-10"
+
+# Push migration naar Supabase
 supabase db push
+
+# Of run specifieke migration
+supabase db push --file supabase-migrations/04-gas-optimizer.sql
 ```
 
 ---
 
-## 🎯 **WAT WORDT AANGEMAAKT:**
+## 🧪 **VERIFICATIE:**
 
-### **1. `ai_cache` Table**
-- Slaat AI responses op voor snelle hergebruik
-- Automatische expiry na 24 uur
-- Hit count tracking
-- RLS policies voor security
+### **1. Check Tables Exist:**
 
-**Columns:**
-- `id` (UUID, primary key)
-- `query_hash` (TEXT, unique) - Voor duplicate detection
-- `query` (TEXT) - Originele query
-- `response` (JSONB) - AI response
-- `user_id` (TEXT) - Voor personalisatie
-- `chain` (TEXT) - Welke blockchain
-- `hit_count` (INTEGER) - Aantal keer gebruikt
-- `created_at`, `expires_at`, `last_accessed_at` (TIMESTAMP)
-
-### **2. `ai_rate_limits` Table**
-- Tracks 50 queries/day per user
-- Automatische reset per dag
-- RLS policies
-
-**Columns:**
-- `id` (UUID, primary key)
-- `user_id` (TEXT) - User identifier
-- `date` (DATE) - Dag van gebruik
-- `query_count` (INTEGER) - Aantal queries vandaag
-- `created_at`, `updated_at` (TIMESTAMP)
-
-### **3. Functions**
-- `check_and_increment_rate_limit(user_id, max_queries)` - Rate limit check
-- `cleanup_expired_ai_cache()` - Auto-cleanup (run daily via cron)
-
-### **4. Indexes**
-- `idx_ai_cache_query_hash` - Snelle cache lookup
-- `idx_ai_cache_expires_at` - Cleanup efficiency
-- `idx_ai_cache_user_id` - User queries
-- `idx_ai_cache_chain` - Chain filtering
-- `idx_ai_rate_limits_user_date` - Rate limit checks
-
----
-
-## ✅ **VERIFICATION**
-
-Na het uitvoeren van de migration, run:
-
-```bash
-node execute-ai-migration.js
+Run deze query in SQL Editor:
+```sql
+SELECT table_name 
+FROM information_schema.tables 
+WHERE table_schema = 'public' 
+  AND table_name IN ('gas_history', 'gas_alerts', 'scheduled_transactions', 'user_savings');
 ```
 
-Je zou moeten zien:
-```
-✅ Migration already applied! Tables exist.
-📊 ai_cache table: ✓
-📊 ai_rate_limits table: ✓
-```
+**Verwacht:** 4 rows (alle 4 tables)
 
----
-
-## 🔧 **ROLLBACK (indien nodig)**
-
-Als je de migration wilt terugdraaien:
+### **2. Check RLS Policies:**
 
 ```sql
-DROP TABLE IF EXISTS ai_cache CASCADE;
-DROP TABLE IF EXISTS ai_rate_limits CASCADE;
-DROP FUNCTION IF EXISTS check_and_increment_rate_limit CASCADE;
-DROP FUNCTION IF EXISTS cleanup_expired_ai_cache CASCADE;
+SELECT tablename, policyname 
+FROM pg_policies 
+WHERE tablename IN ('gas_history', 'gas_alerts', 'scheduled_transactions', 'user_savings');
+```
+
+**Verwacht:** ~10-12 policies (security rules)
+
+### **3. Check Helper Functions:**
+
+```sql
+SELECT routine_name 
+FROM information_schema.routines 
+WHERE routine_schema = 'public' 
+  AND routine_name IN ('get_gas_stats_24h', 'get_user_total_savings', 'check_gas_alerts', 'cleanup_old_gas_history');
+```
+
+**Verwacht:** 4 functions
+
+### **4. Test Gas History Insert:**
+
+```sql
+-- Test insert
+INSERT INTO gas_history (chain, base_fee, priority_fee, gas_price, slow, standard, fast, instant, source)
+VALUES ('ethereum', 25.5, 2.0, 27.5, 20.0, 27.5, 35.0, 50.0, 'test');
+
+-- Check if it worked
+SELECT * FROM gas_history WHERE source = 'test' ORDER BY created_at DESC LIMIT 1;
+
+-- Clean up test data
+DELETE FROM gas_history WHERE source = 'test';
+```
+
+**Verwacht:** INSERT succesvol, SELECT toont jouw row, DELETE verwijdert het
+
+---
+
+## ⚠️ **POTENTIËLE ISSUES & OPLOSSINGEN:**
+
+### **Issue 1: "relation already exists"**
+**Oorzaak:** Je hebt de migration al eerder gedraaid  
+**Oplossing:** Skip dit - tables bestaan al!  
+**Check:** Ga naar Table Editor en kijk of tables er zijn
+
+### **Issue 2: "permission denied"**
+**Oorzaak:** Insufficient permissions  
+**Oplossing:**
+1. Ga naar: Settings → Database
+2. Check dat je de juiste role hebt (postgres/service_role)
+3. Of gebruik Supabase Dashboard (heeft altijd permissions)
+
+### **Issue 3: "syntax error"**
+**Oorzaak:** Copy/paste ging mis  
+**Oplossing:**
+1. Kopieer de SQL opnieuw (hele bestand!)
+2. Zorg dat er geen extra characters zijn toegevoegd
+3. Run regel voor regel als het niet werkt
+
+### **Issue 4: Migration succesvol, maar geen data**
+**Oorzaak:** Normaal! Historical data groeit over tijd  
+**Oplossing:**
+- **Optie A:** Uncomment seed data in migration (regel ~450)
+- **Optie B:** Wacht 24h en data accumuleert automatisch
+- **Optie C:** Use fallback (app werkt ook zonder historical data)
+
+---
+
+## 📊 **WAT GEBEURT ER NA DE MIGRATION:**
+
+### **Immediate (Direct na migration):**
+- ✅ Tables created
+- ✅ Security policies active
+- ✅ Helper functions available
+- ⏳ **NO DATA YET** (normaal!)
+
+### **Within 24 Hours:**
+- Historical data begint te accumuleren
+- Elke keer dat een user Gas Optimizer opent, wordt gas price opgeslagen
+- Na 24h: Je hebt 24h statistics
+- Na 7d: Je hebt 7d statistics
+
+### **In Production:**
+- App werkt ZONDER historical data (gebruikt fallback)
+- App werkt BETER MET historical data (accurate trends)
+- **Optional:** Set up cron job to record gas prices every 5 minutes
+
+---
+
+## 🔄 **ROLLBACK (Als je migration wilt undoen):**
+
+**⚠️ WARNING: Dit verwijdert ALLE data in deze tables!**
+
+```sql
+-- Drop all tables (cascade removes dependencies)
+DROP TABLE IF EXISTS gas_history CASCADE;
+DROP TABLE IF EXISTS gas_alerts CASCADE;
+DROP TABLE IF EXISTS scheduled_transactions CASCADE;
+DROP TABLE IF EXISTS user_savings CASCADE;
+
+-- Drop helper functions
+DROP FUNCTION IF EXISTS get_gas_stats_24h CASCADE;
+DROP FUNCTION IF EXISTS get_user_total_savings CASCADE;
+DROP FUNCTION IF EXISTS check_gas_alerts CASCADE;
+DROP FUNCTION IF EXISTS cleanup_old_gas_history CASCADE;
 ```
 
 ---
 
-## 🚀 **VOLGENDE STAPPEN NA MIGRATION:**
+## ✅ **CHECKLIST:**
 
-1. ✅ Vercel redeploy triggeren (gebeurt automatisch bij push)
-2. ✅ Test AI Assistant in de wallet
-3. ✅ Check cache hit rates in Supabase dashboard
-4. ✅ Monitor rate limiting
+- [ ] Supabase Dashboard geopend
+- [ ] SQL Editor geopend
+- [ ] `04-gas-optimizer.sql` inhoud gekopieerd
+- [ ] Migration succesvol gerun
+- [ ] Tables zichtbaar in Table Editor
+- [ ] Verificatie queries gerun (alle passed)
+- [ ] App getest (Gas Optimizer werkt)
 
 ---
 
-## 📊 **MONITORING**
+## 💡 **TIPS:**
 
-### **Cache Statistics:**
-```sql
-SELECT 
-  COUNT(*) as total_entries,
-  SUM(hit_count) as total_hits,
-  AVG(hit_count) as avg_hits_per_entry,
-  COUNT(*) * 0.5 as estimated_kb
-FROM ai_cache;
-```
+1. **Seed Data (Optional):**
+   - Wil je direct data voor testing?
+   - Uncomment regels ~450-490 in `04-gas-optimizer.sql`
+   - Run migration opnieuw
+   - Je hebt nu 24h historical data voor Ethereum
 
-### **Rate Limit Stats:**
-```sql
-SELECT 
-  COUNT(DISTINCT user_id) as unique_users,
-  SUM(query_count) as total_queries_today,
-  AVG(query_count) as avg_queries_per_user
-FROM ai_rate_limits
-WHERE date = CURRENT_DATE;
-```
+2. **Monitor Data Growth:**
+   ```sql
+   SELECT chain, COUNT(*) as records, MIN(created_at) as oldest, MAX(created_at) as newest
+   FROM gas_history
+   GROUP BY chain;
+   ```
 
-### **Most Popular Queries:**
-```sql
-SELECT 
-  query,
-  hit_count,
-  chain,
-  created_at
-FROM ai_cache
-ORDER BY hit_count DESC
-LIMIT 10;
-```
+3. **Manual Cleanup (If needed):**
+   ```sql
+   -- Delete data older than 7 days
+   DELETE FROM gas_history WHERE created_at < NOW() - INTERVAL '7 days';
+   ```
 
+4. **Check Storage:**
+   ```sql
+   SELECT pg_size_pretty(pg_total_relation_size('gas_history')) as size;
+   ```
+   **Expected:** < 1 MB (for 7 days of data)
+
+---
+
+## 🆘 **HULP NODIG?**
+
+**Als de migration faalt:**
+1. Screenshot de error message
+2. Check Supabase logs: Dashboard → Logs → Database
+3. Verify je bent in de juiste project
+4. Try running query stap-voor-stap (one section at a time)
+
+**Als het werkt maar geen data:**
+- **Normaal!** Data groeit over tijd
+- Check: `SELECT COUNT(*) FROM gas_history;`
+- Should be 0 direct na migration
+- Will grow as users use Gas Optimizer
+
+---
+
+**Status na migration:** 🟢 **DATABASE READY!**
+
+**Gas Optimizer werkt nu met:**
+- ✅ Real-time gas prices (Etherscan/RPC)
+- ✅ OpenAI AI analysis
+- ✅ Historical data (if available, fallback otherwise)
+- ✅ Real native currency prices (ETH/MATIC/BNB/etc)
+- ✅ Multi-chain support (18 chains)
+
+**Klaar!** 🎉
