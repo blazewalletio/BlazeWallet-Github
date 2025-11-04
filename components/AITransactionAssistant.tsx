@@ -46,10 +46,10 @@ export default function AITransactionAssistant({
   }, []);
 
   const examples = [
-    `Send 50 USDC to 0x742d35Cc6634C0532925a3b844Bc9e7595f0aAcC`,
+    `Send 50 USDC to [address]`,
     `Swap 1 ${context.chain === 'ethereum' ? 'ETH' : context.chain === 'solana' ? 'SOL' : 'BTC'} to USDC`,
     `What is my portfolio worth?`,
-    `Send all my USDT to 0x123...`,
+    `Send all my USDT`,
   ];
 
   // Proactive warnings check
