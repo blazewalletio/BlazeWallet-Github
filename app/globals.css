@@ -12,11 +12,15 @@
     @apply border-gray-200;
   }
 
-  body {
+  html, body {
     @apply bg-white text-gray-900;
     font-feature-settings: "rlig" 1, "calt" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
+    height: 100%;
+    position: fixed;
+    width: 100%;
   }
 
   /* Clean card styles */

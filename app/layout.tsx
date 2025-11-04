@@ -52,8 +52,8 @@ export default function RootLayout({
     <html lang="nl">
       <body className={inter.className}>
         <ErrorBoundary>
-          <div className="min-h-screen bg-gray-50">
-            <main className="relative">
+          <div className="h-screen overflow-hidden bg-gray-50">
+            <main className="relative h-full overflow-y-auto">
               {children}
             </main>
           </div>
