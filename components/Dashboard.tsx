@@ -59,6 +59,10 @@ const AIConversationalAssistant = dynamic(() => import('./AIConversationalAssist
 const AIBrainAssistant = dynamic(() => import('./AIBrainAssistant'), { ssr: false });
 const AISettingsModal = dynamic(() => import('./AISettingsModal'), { ssr: false });
 
+// Smart Scheduler components
+const ScheduledTransactionsPanel = dynamic(() => import('./ScheduledTransactionsPanel'), { ssr: false });
+const SavingsTracker = dynamic(() => import('./SavingsTracker'), { ssr: false });
+
 export default function Dashboard() {
   const { 
     address, // EVM address (for backward compat)
@@ -180,6 +184,10 @@ export default function Dashboard() {
   const [showAIChat, setShowAIChat] = useState(false);
   const [showAIBrain, setShowAIBrain] = useState(false);
   const [showAISettings, setShowAISettings] = useState(false);
+  
+  // Smart Scheduler modals
+  const [showScheduledTransactions, setShowScheduledTransactions] = useState(false);
+  const [showSavingsTracker, setShowSavingsTracker] = useState(false);
 
   // Bottom navigation state
   const [activeTab, setActiveTab] = useState<TabType>('wallet');
@@ -1472,6 +1480,32 @@ export default function Dashboard() {
                   <div className="font-semibold mb-1">AI Brain</div>
                   <div className="text-xs text-slate-400">Alles in één interface</div>
                 </motion.button>
+
+                {/* Smart Scheduler */}
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowScheduledTransactions(true)}
+                  className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left"
+                >
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-lg flex items-center justify-center mb-3">
+                    <span className="text-white text-lg">⚡</span>
+                  </div>
+                  <div className="font-semibold mb-1">Smart Schedule</div>
+                  <div className="text-xs text-slate-400">Geplande transacties</div>
+                </motion.button>
+
+                {/* Savings Tracker */}
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowSavingsTracker(true)}
+                  className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left"
+                >
+                  <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-500 rounded-lg flex items-center justify-center mb-3">
+                    <span className="text-white text-lg">💰</span>
+                  </div>
+                  <div className="font-semibold mb-1">Gas Savings</div>
+                  <div className="text-xs text-slate-400">Bespaar op gas fees</div>
+                </motion.button>
               </div>
             </div>
           </motion.div>
@@ -2113,6 +2147,54 @@ export default function Dashboard() {
           // Keep modal open, user will use recovery phrase option in modal
         }}
       />
+
+      {/* Smart Scheduler Modals */}
+      <AnimatePresence>
+        {showScheduledTransactions && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setShowScheduledTransactions(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            >
+              <ScheduledTransactionsPanel 
+                chain={currentChain}
+                onClose={() => setShowScheduledTransactions(false)}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showSavingsTracker && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setShowSavingsTracker(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            >
+              <SavingsTracker />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       {/* ✅ NEW: Token Detail Modal */}
       {selectedToken && (
