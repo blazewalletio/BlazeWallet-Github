@@ -116,6 +116,8 @@ export async function POST(req: NextRequest) {
           4. Diversification and risk management
           5. Educational insights (explain WHY, not just WHAT)
           
+          IMPORTANT: Be consistent. For the same portfolio, provide similar core insights.
+          
           Respond in JSON format with insights, recommendations, and market context.`
         },
         {
@@ -124,7 +126,7 @@ export async function POST(req: NextRequest) {
         }
       ],
       response_format: { type: 'json_object' },
-      temperature: 0.7,
+      temperature: 0.3, // Lower temperature for more consistency
       max_tokens: 1500,
     });
     

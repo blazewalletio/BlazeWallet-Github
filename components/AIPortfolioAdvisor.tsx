@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingUp, Lightbulb, PieChart, AlertCircle, ArrowLeft, Loader2, Activity, Shield, Target, TrendingDown, CheckCircle, AlertTriangle, RefreshCw, ShoppingCart, DollarSign } from 'lucide-react';
 import Image from 'next/image';
+import { getCurrencyLogoSync } from '@/lib/currency-logo-service';
 
 interface AIPortfolioAdvisorProps {
   onClose: () => void;
@@ -57,9 +58,10 @@ export default function AIPortfolioAdvisor({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Only fetch analysis on mount, not on every prop change
   useEffect(() => {
     fetchAnalysis();
-  }, [tokens, totalValue]);
+  }, []); // Empty dependency array = only run once on mount
 
   const fetchAnalysis = async () => {
     setLoading(true);
@@ -383,34 +385,37 @@ export default function AIPortfolioAdvisor({
                 <div className="space-y-3">
                   {tokens.slice(0, 5).map((token, i) => {
                     const percentage = (parseFloat(token.usdValue) / totalValue) * 100;
+                    const logoUrl = token.logoUrl || getCurrencyLogoSync(token.symbol);
+                    
                     return (
                       <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
                         {/* Token Logo */}
-                        {token.logoUrl ? (
-                          <div className="w-10 h-10 rounded-full overflow-hidden bg-white border border-gray-200 flex-shrink-0">
-                            <Image
-                              src={token.logoUrl}
-                              alt={token.symbol}
-                              width={40}
-                              height={40}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                // Fallback to emoji if image fails
-                                e.currentTarget.style.display = 'none';
-                                e.currentTarget.parentElement!.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl">🪙</div>`;
-                              }}
-                            />
-                          </div>
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-yellow-400 flex items-center justify-center text-white font-bold flex-shrink-0">
-                            {token.symbol.charAt(0)}
-                          </div>
-                        )}
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-white border border-gray-200 flex-shrink-0">
+                          <Image
+                            src={logoUrl}
+                            alt={token.symbol}
+                            width={40}
+                            height={40}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Fallback to gradient with first letter
+                              const target = e.currentTarget;
+                              target.style.display = 'none';
+                              if (target.parentElement) {
+                                target.parentElement.className = 'w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-yellow-400 flex items-center justify-center text-white font-bold flex-shrink-0';
+                                target.parentElement.innerHTML = `<span class="text-lg">${token.symbol.charAt(0)}</span>`;
+                              }
+                            }}
+                          />
+                        </div>
                         
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
-                            <span className="font-semibold text-gray-900">{token.symbol}</span>
-                            <span className="text-sm text-gray-600 font-medium">
+                            <div>
+                              <span className="font-semibold text-gray-900">{token.symbol}</span>
+                              <span className="text-xs text-gray-500 ml-2">{token.balance}</span>
+                            </div>
+                            <span className="text-sm text-gray-900 font-semibold">
                               ${parseFloat(token.usdValue).toFixed(2)}
                             </span>
                           </div>
