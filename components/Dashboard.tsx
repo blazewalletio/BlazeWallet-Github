@@ -1819,6 +1819,16 @@ export default function Dashboard() {
             onClose={() => setShowAIPortfolioAdvisor(false)}
             tokens={tokens}
             totalValue={totalValueUSD}
+            totalValueChange24h={change24h}
+            chain={chain.name}
+            onBuyToken={(symbol) => {
+              setShowAIPortfolioAdvisor(false);
+              setShowBuyModal(true);
+            }}
+            onSellToken={(symbol) => {
+              setShowAIPortfolioAdvisor(false);
+              setShowSendModal(true);
+            }}
           />
         )}
 

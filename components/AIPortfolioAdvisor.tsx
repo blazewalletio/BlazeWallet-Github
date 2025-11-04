@@ -1,202 +1,467 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { aiService } from '@/lib/ai-service';
-import { motion } from 'framer-motion';
-import { TrendingUp, Lightbulb, PieChart, AlertCircle, ArrowLeft } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { TrendingUp, Lightbulb, PieChart, AlertCircle, ArrowLeft, Loader2, Activity, Shield, Target, TrendingDown, CheckCircle, AlertTriangle, RefreshCw, ShoppingCart, DollarSign } from 'lucide-react';
+import Image from 'next/image';
 
 interface AIPortfolioAdvisorProps {
   onClose: () => void;
   tokens: any[];
   totalValue: number;
+  totalValueChange24h?: number;
+  chain: string;
+  onBuyToken?: (symbol: string) => void;
+  onSellToken?: (symbol: string) => void;
 }
 
-export default function AIPortfolioAdvisor({ onClose, tokens, totalValue }: AIPortfolioAdvisorProps) {
-  const [analysis, setAnalysis] = useState<any>(null);
+interface AnalysisData {
+  insights: {
+    type: 'positive' | 'warning' | 'info';
+    message: string;
+    icon: string;
+  }[];
+  recommendations: {
+    type: 'buy' | 'sell' | 'hold' | 'rebalance';
+    message: string;
+    action?: {
+      type: 'buy' | 'sell';
+      token: string;
+      percentage?: number;
+    };
+  }[];
+  metrics: {
+    healthScore: number;
+    diversificationScore: number;
+    riskLevel: 'low' | 'medium' | 'high';
+    volatilityScore: number;
+    concentrationRisk: number;
+  };
+  marketContext: {
+    condition: 'bullish' | 'bearish' | 'neutral';
+    sentiment: string;
+    advice: string;
+  };
+}
+
+export default function AIPortfolioAdvisor({ 
+  onClose, 
+  tokens, 
+  totalValue,
+  totalValueChange24h = 0,
+  chain,
+  onBuyToken,
+  onSellToken
+}: AIPortfolioAdvisorProps) {
+  const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const result = aiService.analyzePortfolio(tokens, totalValue);
-    setAnalysis(result);
+    fetchAnalysis();
   }, [tokens, totalValue]);
 
-  if (!analysis) return null;
+  const fetchAnalysis = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log('📊 [Portfolio Advisor] Fetching AI analysis...');
+      
+      const response = await fetch('/api/ai-portfolio-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tokens: tokens.map(t => ({
+            symbol: t.symbol,
+            name: t.name || t.symbol,
+            balance: t.balance,
+            usdValue: t.usdValue,
+            logoUrl: t.logoUrl,
+            price: t.price,
+            change24h: t.change24h
+          })),
+          totalValue,
+          totalValueChange24h,
+          chain
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        console.log('✅ [Portfolio Advisor] Analysis received');
+        setAnalysis(data.data);
+      } else {
+        console.error('❌ [Portfolio Advisor] API error:', data.error);
+        setError(data.error || 'Failed to analyze portfolio');
+        // Use fallback if available
+        if (data.fallback) {
+          setAnalysis(data.fallback);
+        }
+      }
+    } catch (err: any) {
+      console.error('❌ [Portfolio Advisor] Fetch error:', err);
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getRiskColor = () => {
-    if (analysis.riskScore < 40) return 'text-green-600';
-    if (analysis.riskScore < 70) return 'text-yellow-600';
+    if (!analysis) return 'text-gray-600';
+    if (analysis.metrics.riskLevel === 'low') return 'text-green-600';
+    if (analysis.metrics.riskLevel === 'medium') return 'text-yellow-600';
     return 'text-red-600';
   };
 
   const getRiskBg = () => {
-    if (analysis.riskScore < 40) return 'bg-green-50 border-green-200';
-    if (analysis.riskScore < 70) return 'bg-yellow-50 border-yellow-200';
+    if (!analysis) return 'bg-gray-50 border-gray-200';
+    if (analysis.metrics.riskLevel === 'low') return 'bg-green-50 border-green-200';
+    if (analysis.metrics.riskLevel === 'medium') return 'bg-yellow-50 border-yellow-200';
     return 'bg-red-50 border-red-200';
   };
 
   const getRiskLabel = () => {
-    if (analysis.riskScore < 40) return 'Low risk';
-    if (analysis.riskScore < 70) return 'Medium risk';
+    if (!analysis) return 'Calculating...';
+    if (analysis.metrics.riskLevel === 'low') return 'Low risk';
+    if (analysis.metrics.riskLevel === 'medium') return 'Medium risk';
     return 'High risk';
   };
 
+  const getHealthColor = () => {
+    if (!analysis) return 'text-gray-600';
+    if (analysis.metrics.healthScore >= 75) return 'text-green-600';
+    if (analysis.metrics.healthScore >= 50) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  const getHealthLabel = () => {
+    if (!analysis) return 'Calculating...';
+    if (analysis.metrics.healthScore >= 75) return 'Excellent';
+    if (analysis.metrics.healthScore >= 60) return 'Good';
+    if (analysis.metrics.healthScore >= 40) return 'Fair';
+    return 'Poor';
+  };
+
+  const getMarketIcon = () => {
+    if (!analysis) return '📊';
+    if (analysis.marketContext.condition === 'bullish') return '📈';
+    if (analysis.marketContext.condition === 'bearish') return '📉';
+    return '➡️';
+  };
+
+  const getInsightIcon = (type: string) => {
+    if (type === 'positive') return <CheckCircle className="w-5 h-5 text-green-600" />;
+    if (type === 'warning') return <AlertTriangle className="w-5 h-5 text-orange-600" />;
+    return <AlertCircle className="w-5 h-5 text-blue-600" />;
+  };
+
+  const getInsightBg = (type: string) => {
+    if (type === 'positive') return 'bg-green-50 border-green-200';
+    if (type === 'warning') return 'bg-orange-50 border-orange-200';
+    return 'bg-blue-50 border-blue-200';
+  };
+
+  const getRecommendationIcon = (type: string) => {
+    if (type === 'buy') return <ShoppingCart className="w-5 h-5 text-green-600" />;
+    if (type === 'sell') return <DollarSign className="w-5 h-5 text-red-600" />;
+    if (type === 'rebalance') return <Activity className="w-5 h-5 text-orange-600" />;
+    return <Target className="w-5 h-5 text-blue-600" />;
+  };
+
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
-    >
-      <div className="max-w-4xl mx-auto p-6">
-        {/* Header */}
-        <button
-          onClick={onClose}
-          className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors mb-6"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          Back to Dashboard
-        </button>
-
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
-            <PieChart className="w-6 h-6 text-orange-500" />
-            AI Portfolio Advisor
-          </h2>
-          <p className="text-gray-600">Personalized analysis and tips</p>
-        </div>
-
-        {/* Content */}
-        <div className="space-y-6">
-          {/* Portfolio Summary */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-6 rounded-xl bg-white border border-gray-200">
-              <div className="text-sm text-gray-600 mb-1">Total value</div>
-              <div className="text-2xl font-bold text-gray-900">€{totalValue.toFixed(2)}</div>
-            </div>
-            <div className="p-6 rounded-xl bg-white border border-gray-200">
-              <div className="text-sm text-gray-600 mb-1">Assets</div>
-              <div className="text-2xl font-bold text-gray-900">{tokens.length} tokens</div>
-            </div>
-          </div>
-
-          {/* Risk Score */}
-          <div className={`p-6 rounded-xl border ${getRiskBg()}`}>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-900 font-medium">Risk profile</span>
-              <span className={`text-lg font-bold ${getRiskColor()}`}>
-                {getRiskLabel()}
-              </span>
-            </div>
-            <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
-              <div
-                className={`h-full transition-all duration-500 ${
-                  analysis.riskScore < 40 ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
-                  analysis.riskScore < 70 ? 'bg-gradient-to-r from-yellow-500 to-orange-500' :
-                  'bg-gradient-to-r from-orange-500 to-red-500'
-                }`}
-                style={{ width: `${analysis.riskScore}%` }}
-              />
-            </div>
-            <p className="text-xs text-gray-600 mt-2">
-              Score: {analysis.riskScore}/100
-            </p>
-          </div>
-
-          {/* Insights */}
-          {analysis.insights.length > 0 && (
-            <div className="space-y-3 bg-white rounded-xl border border-gray-200 p-6">
-              <div className="flex items-center gap-2 text-gray-900">
-                <TrendingUp className="w-5 h-5 text-orange-500" />
-                <h3 className="font-semibold">Insights</h3>
-              </div>
-              <div className="space-y-2">
-                {analysis.insights.map((insight: string, i: number) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.1 }}
-                    className="flex items-start gap-3 p-3 rounded-lg bg-blue-50 border border-blue-200"
-                  >
-                    <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-gray-900">{insight}</p>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Recommendations */}
-          {analysis.recommendations.length > 0 && (
-            <div className="space-y-3 bg-white rounded-xl border border-gray-200 p-6">
-              <div className="flex items-center gap-2 text-gray-900">
-                <Lightbulb className="w-5 h-5 text-orange-500" />
-                <h3 className="font-semibold">Recommendations</h3>
-              </div>
-              <div className="space-y-2">
-                {analysis.recommendations.map((rec: string, i: number) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.1 + 0.3 }}
-                    className="flex items-start gap-3 p-3 rounded-lg bg-orange-50 border border-orange-200"
-                  >
-                    <Lightbulb className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
-                    <p className="text-sm text-gray-900">{rec}</p>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Top Holdings */}
-          <div className="space-y-3 bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="font-semibold text-gray-900">Top holdings</h3>
-            <div className="space-y-3">
-              {tokens.slice(0, 5).map((token: any, i: number) => {
-                const percentage = (parseFloat(token.usdValue) / totalValue) * 100;
-                return (
-                  <div key={i} className="p-3 rounded-lg bg-gray-50 border border-gray-200">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-gray-900">{token.symbol}</span>
-                      <span className="text-sm text-gray-600">
-                        €{parseFloat(token.usdValue).toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-1.5 rounded-full bg-gray-200 overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-orange-500 to-yellow-500 transition-all duration-500"
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-gray-600 w-12 text-right font-medium">
-                        {percentage.toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Disclaimer */}
-          <div className="p-4 rounded-xl bg-yellow-50 border border-yellow-200">
-            <p className="text-xs text-gray-700">
-              ⚠️ <strong>Disclaimer:</strong> This is not financial advice. 
-              Always do your own research before making investment decisions.
-            </p>
-          </div>
-
-          {/* Footer Button */}
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
+      >
+        <div className="max-w-4xl mx-auto p-6 pb-24">
+          {/* Header */}
           <button
             onClick={onClose}
-            className="w-full px-4 py-3 rounded-lg bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-medium transition-all"
+            className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors mb-6"
           >
-            Close
+            <ArrowLeft className="w-5 h-5" />
+            Back to Dashboard
           </button>
+
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
+              <PieChart className="w-6 h-6 text-orange-500" />
+              AI Portfolio Advisor
+            </h2>
+            <p className="text-gray-600">Real-time analysis powered by GPT-4o-mini</p>
+          </div>
+
+          {/* Loading State */}
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-20">
+              <Loader2 className="w-12 h-12 text-orange-500 animate-spin mb-4" />
+              <p className="text-gray-600">Analyzing your portfolio with AI...</p>
+              <p className="text-sm text-gray-500 mt-2">This may take a few seconds</p>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && !analysis && !loading && (
+            <div className="p-6 rounded-xl bg-red-50 border border-red-200 text-center">
+              <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+              <p className="text-red-900 font-semibold mb-2">Analysis Failed</p>
+              <p className="text-sm text-red-700 mb-4">{error}</p>
+              <button
+                onClick={fetchAnalysis}
+                className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors inline-flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Try Again
+              </button>
+            </div>
+          )}
+
+          {/* Content */}
+          {analysis && !loading && (
+            <div className="space-y-6">
+              {/* Portfolio Summary */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-6 rounded-xl bg-white border border-gray-200">
+                  <div className="text-sm text-gray-600 mb-1">Total value</div>
+                  <div className="text-2xl font-bold text-gray-900">${totalValue.toFixed(2)}</div>
+                  {totalValueChange24h !== 0 && (
+                    <div className={`text-sm mt-1 font-medium ${totalValueChange24h > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {totalValueChange24h > 0 ? '+' : ''}{totalValueChange24h.toFixed(2)}% (24h)
+                    </div>
+                  )}
+                </div>
+                <div className="p-6 rounded-xl bg-white border border-gray-200">
+                  <div className="text-sm text-gray-600 mb-1">Assets</div>
+                  <div className="text-2xl font-bold text-gray-900">{tokens.length} token{tokens.length !== 1 ? 's' : ''}</div>
+                  <div className="text-sm text-gray-600 mt-1">On {chain}</div>
+                </div>
+              </div>
+
+              {/* Portfolio Health Score */}
+              <div className="p-6 rounded-xl bg-gradient-to-br from-orange-50 to-yellow-50 border border-orange-200">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-orange-600" />
+                    <span className="text-sm text-gray-900 font-semibold">Portfolio Health Score</span>
+                  </div>
+                  <span className={`text-2xl font-bold ${getHealthColor()}`}>
+                    {analysis.metrics.healthScore}/100
+                  </span>
+                </div>
+                <div className="h-3 rounded-full bg-white/50 overflow-hidden mb-2">
+                  <div
+                    className="h-full transition-all duration-500 bg-gradient-to-r from-orange-500 to-yellow-500"
+                    style={{ width: `${analysis.metrics.healthScore}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-700 font-medium">{getHealthLabel()}</span>
+                  <span className="text-gray-600">Updated just now</span>
+                </div>
+              </div>
+
+              {/* Risk & Diversification */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className={`p-4 rounded-xl border ${getRiskBg()}`}>
+                  <div className="text-sm text-gray-900 font-medium mb-1">Risk Level</div>
+                  <div className={`text-xl font-bold ${getRiskColor()}`}>
+                    {getRiskLabel()}
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    Volatility: {analysis.metrics.volatilityScore}/100
+                  </div>
+                </div>
+                <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
+                  <div className="text-sm text-gray-900 font-medium mb-1">Diversification</div>
+                  <div className="text-xl font-bold text-blue-600">
+                    {analysis.metrics.diversificationScore}/100
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    Top holding: {analysis.metrics.concentrationRisk}%
+                  </div>
+                </div>
+              </div>
+
+              {/* Market Context */}
+              <div className="p-4 rounded-xl bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">{getMarketIcon()}</span>
+                  <div className="flex-1">
+                    <div className="font-semibold text-gray-900 mb-1 capitalize">
+                      Market: {analysis.marketContext.condition}
+                    </div>
+                    <p className="text-sm text-gray-700 mb-2">{analysis.marketContext.sentiment}</p>
+                    <p className="text-xs text-gray-600">💡 {analysis.marketContext.advice}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* AI Insights */}
+              {analysis.insights.length > 0 && (
+                <div className="space-y-3 bg-white rounded-xl border border-gray-200 p-6">
+                  <div className="flex items-center gap-2 text-gray-900">
+                    <TrendingUp className="w-5 h-5 text-orange-500" />
+                    <h3 className="font-semibold">AI Insights</h3>
+                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
+                      {analysis.insights.length}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {analysis.insights.map((insight, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.1 }}
+                        className={`flex items-start gap-3 p-4 rounded-lg border ${getInsightBg(insight.type)}`}
+                      >
+                        {getInsightIcon(insight.type)}
+                        <p className="text-sm text-gray-900 flex-1">{insight.message}</p>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Smart Recommendations */}
+              {analysis.recommendations.length > 0 && (
+                <div className="space-y-3 bg-white rounded-xl border border-gray-200 p-6">
+                  <div className="flex items-center gap-2 text-gray-900">
+                    <Lightbulb className="w-5 h-5 text-orange-500" />
+                    <h3 className="font-semibold">Smart Recommendations</h3>
+                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
+                      {analysis.recommendations.length}
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {analysis.recommendations.map((rec, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.1 + 0.3 }}
+                        className="p-4 rounded-lg bg-orange-50 border border-orange-200"
+                      >
+                        <div className="flex items-start gap-3">
+                          {getRecommendationIcon(rec.type)}
+                          <div className="flex-1">
+                            <p className="text-sm text-gray-900">{rec.message}</p>
+                            {rec.action && (onBuyToken || onSellToken) && (
+                              <button
+                                onClick={() => {
+                                  if (rec.action?.type === 'buy' && onBuyToken) {
+                                    onBuyToken(rec.action.token);
+                                  } else if (rec.action?.type === 'sell' && onSellToken) {
+                                    onSellToken(rec.action.token);
+                                  }
+                                }}
+                                className={`mt-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                  rec.action.type === 'buy'
+                                    ? 'bg-green-500 hover:bg-green-600 text-white'
+                                    : 'bg-red-500 hover:bg-red-600 text-white'
+                                }`}
+                              >
+                                {rec.action.type === 'buy' ? '🛒 Buy' : '💰 Sell'} {rec.action.token}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Top Holdings with Logos */}
+              <div className="space-y-3 bg-white rounded-xl border border-gray-200 p-6">
+                <h3 className="font-semibold text-gray-900">Top Holdings</h3>
+                <div className="space-y-3">
+                  {tokens.slice(0, 5).map((token, i) => {
+                    const percentage = (parseFloat(token.usdValue) / totalValue) * 100;
+                    return (
+                      <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
+                        {/* Token Logo */}
+                        {token.logoUrl ? (
+                          <div className="w-10 h-10 rounded-full overflow-hidden bg-white border border-gray-200 flex-shrink-0">
+                            <Image
+                              src={token.logoUrl}
+                              alt={token.symbol}
+                              width={40}
+                              height={40}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                // Fallback to emoji if image fails
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.parentElement!.innerHTML = `<div class="w-full h-full flex items-center justify-center text-xl">🪙</div>`;
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-yellow-400 flex items-center justify-center text-white font-bold flex-shrink-0">
+                            {token.symbol.charAt(0)}
+                          </div>
+                        )}
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-semibold text-gray-900">{token.symbol}</span>
+                            <span className="text-sm text-gray-600 font-medium">
+                              ${parseFloat(token.usdValue).toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-orange-500 to-yellow-500 transition-all duration-500"
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-gray-600 w-12 text-right font-medium">
+                              {percentage.toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Disclaimer */}
+              <div className="p-4 rounded-xl bg-yellow-50 border border-yellow-200">
+                <p className="text-xs text-gray-700">
+                  ⚠️ <strong>Disclaimer:</strong> This is not financial advice. 
+                  AI analysis is provided for informational purposes only. 
+                  Always do your own research before making investment decisions.
+                </p>
+              </div>
+
+              {/* Footer Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={fetchAnalysis}
+                  disabled={loading}
+                  className="flex-1 px-4 py-3 rounded-lg bg-white border-2 border-orange-500 text-orange-600 hover:bg-orange-50 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  Refresh Analysis
+                </button>
+                <button
+                  onClick={onClose}
+                  className="flex-1 px-4 py-3 rounded-lg bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-medium transition-all"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
-    </motion.div>
+      </motion.div>
+    </AnimatePresence>
   );
 }
