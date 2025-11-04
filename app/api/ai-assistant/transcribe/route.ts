@@ -31,37 +31,75 @@ export async function POST(req: NextRequest) {
     const userId = formData.get('userId') as string;
 
     if (!audioFile) {
+      console.error('❌ [Whisper API] No audio file provided');
       return NextResponse.json(
         { error: 'No audio file provided' },
         { status: 400 }
       );
     }
 
+    console.log(`🎙️ [Whisper API] Received file:`, {
+      name: audioFile.name,
+      type: audioFile.type,
+      size: `${(audioFile.size / 1024).toFixed(1)}KB`
+    });
+
     // Validate file size (max 25MB)
     if (audioFile.size > 25 * 1024 * 1024) {
+      console.error('❌ [Whisper API] File too large:', audioFile.size);
       return NextResponse.json(
         { error: 'Audio file too large (max 25MB)' },
         { status: 400 }
       );
     }
 
-    // Validate file type
-    const allowedTypes = ['audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/webm', 'audio/m4a'];
-    if (!allowedTypes.includes(audioFile.type)) {
+    // ✅ FIXED: Accept all common audio formats (including webm with codecs)
+    const allowedTypes = [
+      'audio/mpeg', 
+      'audio/mp3',
+      'audio/mp4', 
+      'audio/wav', 
+      'audio/webm', 
+      'audio/webm;codecs=opus',
+      'audio/ogg',
+      'audio/ogg;codecs=opus',
+      'audio/m4a'
+    ];
+    
+    // Check if type starts with any allowed type (handles codec variations)
+    const isValidType = allowedTypes.some(type => audioFile.type.startsWith(type.split(';')[0]));
+    
+    if (!isValidType) {
+      console.error('❌ [Whisper API] Invalid audio format:', audioFile.type);
       return NextResponse.json(
-        { error: `Invalid audio format. Supported: ${allowedTypes.join(', ')}` },
+        { error: `Invalid audio format: ${audioFile.type}. Supported: webm, mp3, wav, ogg` },
         { status: 400 }
       );
     }
 
-    console.log(`🎙️ [Whisper API] Transcribing audio: ${audioFile.name} (${(audioFile.size / 1024).toFixed(1)}KB)`);
+    console.log(`🎙️ [Whisper API] Transcribing audio: ${audioFile.name} (${(audioFile.size / 1024).toFixed(1)}KB, ${audioFile.type})`);
 
     // Convert File to Buffer for OpenAI
     const arrayBuffer = await audioFile.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Create a File object that OpenAI expects
-    const file = new File([buffer], audioFile.name, { type: audioFile.type });
+    // ✅ FIXED: Determine correct file extension based on MIME type
+    let extension = 'webm';
+    if (audioFile.type.includes('mp3') || audioFile.type.includes('mpeg')) {
+      extension = 'mp3';
+    } else if (audioFile.type.includes('wav')) {
+      extension = 'wav';
+    } else if (audioFile.type.includes('ogg')) {
+      extension = 'ogg';
+    } else if (audioFile.type.includes('mp4') || audioFile.type.includes('m4a')) {
+      extension = 'm4a';
+    }
+
+    // Create a File object that OpenAI expects with correct extension
+    const fileName = `recording.${extension}`;
+    const file = new File([buffer], fileName, { type: audioFile.type.split(';')[0] });
+
+    console.log(`📤 [Whisper API] Sending to OpenAI: ${fileName} (${audioFile.type.split(';')[0]})`);
 
     // Call OpenAI Whisper API
     const openai = getOpenAI();
@@ -75,7 +113,7 @@ export async function POST(req: NextRequest) {
 
     const transcribedText = transcription.text;
 
-    console.log(`✅ [Whisper API] Transcription successful: "${transcribedText.substring(0, 50)}..."`);
+    console.log(`✅ [Whisper API] Transcription successful: "${transcribedText}"`);
 
     // Return transcribed text
     return NextResponse.json({
@@ -84,7 +122,13 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('❌ [Whisper API] Transcription error:', error);
+    console.error('❌ [Whisper API] Transcription error:', {
+      message: error.message,
+      status: error.status,
+      code: error.code,
+      type: error.type,
+      stack: error.stack?.split('\n').slice(0, 3)
+    });
 
     // Handle specific OpenAI errors
     if (error.status === 401) {
@@ -108,10 +152,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Return detailed error message
     return NextResponse.json(
       { 
         error: 'Transcription failed',
         message: error.message || 'Something went wrong. Please try again.',
+        details: `Status: ${error.status || 'unknown'}, Type: ${error.type || 'unknown'}`
       },
       { status: 500 }
     );

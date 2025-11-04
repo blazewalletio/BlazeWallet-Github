@@ -134,7 +134,10 @@ class VoiceRecordingService {
    */
   async transcribe(audioBlob: Blob): Promise<VoiceRecordingResult> {
     try {
-      console.log('📤 [Voice] Uploading audio for transcription...');
+      console.log('📤 [Voice] Uploading audio for transcription...', {
+        size: `${(audioBlob.size / 1024).toFixed(1)}KB`,
+        type: audioBlob.type
+      });
 
       // Get user ID for tracking
       const userId = typeof window !== 'undefined' 
@@ -146,15 +149,20 @@ class VoiceRecordingService {
       formData.append('audio', audioBlob, 'recording.webm');
       formData.append('userId', userId);
 
+      console.log('📤 [Voice] Sending to API...');
+
       // Call transcription API
       const response = await fetch('/api/ai-assistant/transcribe', {
         method: 'POST',
         body: formData,
       });
 
+      console.log('📡 [Voice] API response status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Transcription failed');
+        console.error('❌ [Voice] API error:', errorData);
+        throw new Error(errorData.message || errorData.error || 'Transcription failed');
       }
 
       const data = await response.json();
@@ -166,10 +174,26 @@ class VoiceRecordingService {
         text: data.text,
       };
     } catch (error: any) {
-      console.error('❌ [Voice] Transcription error:', error);
+      console.error('❌ [Voice] Transcription error:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack?.split('\n').slice(0, 3)
+      });
+      
+      // More user-friendly error messages
+      let userMessage = error.message || 'Failed to transcribe audio';
+      
+      if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        userMessage = 'Network error. Please check your internet connection and try again.';
+      } else if (error.message?.includes('API key')) {
+        userMessage = 'Voice transcription is not configured. Please contact support.';
+      } else if (error.message?.includes('rate limit')) {
+        userMessage = 'Too many transcription requests. Please wait a moment and try again.';
+      }
+      
       return {
         success: false,
-        error: error.message || 'Failed to transcribe audio',
+        error: userMessage,
       };
     }
   }
