@@ -15,6 +15,8 @@ class VoiceRecordingService {
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
   private stream: MediaStream | null = null;
+  private lastTranscriptionTime: number = 0;
+  private readonly MIN_INTERVAL_MS = 3000; // Min 3 seconds between transcriptions
 
   /**
    * Check if browser supports voice recording
@@ -134,6 +136,19 @@ class VoiceRecordingService {
    */
   async transcribe(audioBlob: Blob): Promise<VoiceRecordingResult> {
     try {
+      // ✅ Rate limit protection: Min 3 seconds between transcriptions
+      const now = Date.now();
+      const timeSinceLastTranscription = now - this.lastTranscriptionTime;
+      
+      if (timeSinceLastTranscription < this.MIN_INTERVAL_MS) {
+        const waitTime = Math.ceil((this.MIN_INTERVAL_MS - timeSinceLastTranscription) / 1000);
+        console.warn(`⏰ [Voice] Rate limit protection: Please wait ${waitTime} seconds`);
+        return {
+          success: false,
+          error: `Please wait ${waitTime} seconds before next transcription to avoid rate limits.`,
+        };
+      }
+
       console.log('📤 [Voice] Uploading audio for transcription...', {
         size: `${(audioBlob.size / 1024).toFixed(1)}KB`,
         type: audioBlob.type
@@ -151,28 +166,50 @@ class VoiceRecordingService {
 
       console.log('📤 [Voice] Sending to API...');
 
-      // Call transcription API
-      const response = await fetch('/api/ai-assistant/transcribe', {
-        method: 'POST',
-        body: formData,
-      });
+      // Update last transcription time
+      this.lastTranscriptionTime = now;
 
-      console.log('📡 [Voice] API response status:', response.status);
+      // Call transcription API with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('❌ [Voice] API error:', errorData);
-        throw new Error(errorData.message || errorData.error || 'Transcription failed');
+      try {
+        const response = await fetch('/api/ai-assistant/transcribe', {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        console.log('📡 [Voice] API response status:', response.status);
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('❌ [Voice] API error:', errorData);
+          
+          // Handle 429 specifically
+          if (response.status === 429) {
+            return {
+              success: false,
+              error: 'Too many requests. OpenAI Whisper API has rate limits. Please wait 30 seconds and try again, or type your command instead.',
+            };
+          }
+          
+          throw new Error(errorData.message || errorData.error || 'Transcription failed');
+        }
+
+        const data = await response.json();
+        
+        console.log('✅ [Voice] Transcription successful:', data.text);
+
+        return {
+          success: true,
+          text: data.text,
+        };
+      } finally {
+        clearTimeout(timeoutId);
       }
-
-      const data = await response.json();
-      
-      console.log('✅ [Voice] Transcription successful:', data.text);
-
-      return {
-        success: true,
-        text: data.text,
-      };
     } catch (error: any) {
       console.error('❌ [Voice] Transcription error:', {
         message: error.message,
@@ -183,12 +220,14 @@ class VoiceRecordingService {
       // More user-friendly error messages
       let userMessage = error.message || 'Failed to transcribe audio';
       
-      if (error.message?.includes('network') || error.message?.includes('fetch')) {
+      if (error.name === 'AbortError') {
+        userMessage = 'Transcription timeout (30s). Please try a shorter voice command.';
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
         userMessage = 'Network error. Please check your internet connection and try again.';
       } else if (error.message?.includes('API key')) {
         userMessage = 'Voice transcription is not configured. Please contact support.';
-      } else if (error.message?.includes('rate limit')) {
-        userMessage = 'Too many transcription requests. Please wait a moment and try again.';
+      } else if (error.message?.includes('rate limit') || error.message?.includes('429')) {
+        userMessage = 'OpenAI rate limit reached. Please wait 30 seconds or type your command instead.';
       }
       
       return {
