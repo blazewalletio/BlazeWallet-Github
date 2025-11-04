@@ -26,9 +26,15 @@ interface Asset {
 interface SendModalProps {
   isOpen: boolean;
   onClose: () => void;
+  // AI Assistant pre-fill data
+  prefillData?: {
+    amount?: string;
+    token?: string;
+    recipient?: string;
+  };
 }
 
-export default function SendModal({ isOpen, onClose }: SendModalProps) {
+export default function SendModal({ isOpen, onClose, prefillData }: SendModalProps) {
   const { wallet, currentChain, mnemonic, getCurrentAddress } = useWalletStore();
   const [step, setStep] = useState<'input' | 'confirm' | 'sending' | 'success'>('input');
   
@@ -72,6 +78,49 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
       fetchGasPrice();
     }
   }, [selectedChain]);
+
+  // ✅ AI Assistant Pre-fill Effect
+  useEffect(() => {
+    if (isOpen && prefillData && availableAssets.length > 0) {
+      console.log('🤖 [SendModal] Applying AI pre-fill data:', prefillData);
+      
+      // Pre-fill recipient address
+      if (prefillData.recipient) {
+        setToAddress(prefillData.recipient);
+      }
+      
+      // Pre-fill amount (handle 'max'/'all' keywords)
+      if (prefillData.amount) {
+        if (prefillData.amount === 'max' || prefillData.amount === 'all') {
+          // Will be handled after asset selection
+          console.log('🤖 [SendModal] Will set max amount after asset selection');
+        } else {
+          setAmount(prefillData.amount);
+        }
+      }
+      
+      // Pre-fill token/asset
+      if (prefillData.token) {
+        const tokenSymbol = prefillData.token.toUpperCase();
+        const matchingAsset = availableAssets.find(
+          asset => asset.symbol.toUpperCase() === tokenSymbol
+        );
+        
+        if (matchingAsset) {
+          setSelectedAsset(matchingAsset);
+          console.log('🤖 [SendModal] Selected asset:', matchingAsset.symbol);
+          
+          // If amount was 'max'/'all', set it now
+          if (prefillData.amount === 'max' || prefillData.amount === 'all') {
+            setAmount(matchingAsset.balance);
+            console.log('🤖 [SendModal] Set max amount:', matchingAsset.balance);
+          }
+        } else {
+          console.warn('⚠️ [SendModal] Token not found:', tokenSymbol);
+        }
+      }
+    }
+  }, [isOpen, prefillData, availableAssets]);
 
   const fetchAssetsForChain = async (chain: string) => {
     setIsLoadingAssets(true);

@@ -94,6 +94,10 @@ export default function Dashboard() {
   const [showBuyModal, setShowBuyModal] = useState(false);
   const [showChainSelector, setShowChainSelector] = useState(false);
   const [showTokenSelector, setShowTokenSelector] = useState(false);
+  
+  // ✅ AI Assistant pre-fill data state
+  const [sendPrefillData, setSendPrefillData] = useState<any>(null);
+  const [swapPrefillData, setSwapPrefillData] = useState<any>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false); // NEW: Debug panel state
   const [showPasswordUnlock, setShowPasswordUnlock] = useState(false); // ✅ NEW: Password unlock modal state
@@ -1732,9 +1736,23 @@ export default function Dashboard() {
 
       {/* Modals */}
       <BuyModal isOpen={showBuyModal} onClose={() => setShowBuyModal(false)} />
-      <SendModal isOpen={showSendModal} onClose={() => setShowSendModal(false)} />
+      <SendModal 
+        isOpen={showSendModal} 
+        onClose={() => {
+          setShowSendModal(false);
+          setSendPrefillData(null); // Clear prefill data on close
+        }}
+        prefillData={sendPrefillData}
+      />
       <ReceiveModal isOpen={showReceiveModal} onClose={() => setShowReceiveModal(false)} />
-      <SwapModal isOpen={showSwapModal} onClose={() => setShowSwapModal(false)} />
+      <SwapModal 
+        isOpen={showSwapModal} 
+        onClose={() => {
+          setShowSwapModal(false);
+          setSwapPrefillData(null); // Clear prefill data on close
+        }}
+        prefillData={swapPrefillData}
+      />
       <ChainSelector isOpen={showChainSelector} onClose={() => setShowChainSelector(false)} />
       <TokenSelector isOpen={showTokenSelector} onClose={() => setShowTokenSelector(false)} />
       <SettingsModal 
@@ -1766,11 +1784,27 @@ export default function Dashboard() {
               chain: currentChain,
             }}
             onExecuteAction={(action) => {
-              // Handle action execution
+              console.log('🤖 [Dashboard] Executing AI action:', action);
+              
+              // Handle action execution with pre-fill data
               if (action.type === 'send') {
+                // Map AI params to SendModal format
+                setSendPrefillData({
+                  amount: action.params?.amount,
+                  token: action.params?.token,
+                  recipient: action.params?.to || action.params?.recipient
+                });
                 setShowSendModal(true);
+                setShowAIAssistant(false); // Close AI assistant
               } else if (action.type === 'swap') {
+                // Map AI params to SwapModal format
+                setSwapPrefillData({
+                  fromToken: action.params?.fromToken || action.params?.from,
+                  toToken: action.params?.toToken || action.params?.to,
+                  amount: action.params?.amount
+                });
                 setShowSwapModal(true);
+                setShowAIAssistant(false); // Close AI assistant
               }
             }}
           />

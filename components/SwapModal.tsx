@@ -12,11 +12,17 @@ import { ethers } from 'ethers';
 interface SwapModalProps {
   isOpen: boolean;
   onClose: () => void;
+  // AI Assistant pre-fill data
+  prefillData?: {
+    fromToken?: string;
+    toToken?: string;
+    amount?: string;
+  };
 }
 
 type SwapProvider = '1inch' | 'price-estimate';
 
-export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
+export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalProps) {
   const { address, currentChain, balance, wallet } = useWalletStore();
   const [fromToken, setFromToken] = useState<string>('native');
   const [toToken, setToToken] = useState<string>('');
@@ -41,6 +47,65 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
       setToToken(popularTokens[0].address);
     }
   }, [isOpen, popularTokens]);
+
+  // ✅ AI Assistant Pre-fill Effect
+  useEffect(() => {
+    if (isOpen && prefillData) {
+      console.log('🤖 [SwapModal] Applying AI pre-fill data:', prefillData);
+      
+      // Pre-fill fromToken
+      if (prefillData.fromToken) {
+        const tokenSymbol = prefillData.fromToken.toUpperCase();
+        
+        // Check if it's native token
+        if (tokenSymbol === chain?.nativeCurrency.symbol.toUpperCase()) {
+          setFromToken('native');
+          console.log('🤖 [SwapModal] Set from token: native');
+        } else {
+          // Find matching token in popular tokens
+          const matchingToken = popularTokens.find(
+            token => token.symbol.toUpperCase() === tokenSymbol
+          );
+          if (matchingToken) {
+            setFromToken(matchingToken.address);
+            console.log('🤖 [SwapModal] Set from token:', matchingToken.symbol);
+          }
+        }
+      }
+      
+      // Pre-fill toToken
+      if (prefillData.toToken) {
+        const tokenSymbol = prefillData.toToken.toUpperCase();
+        
+        // Check if it's native token
+        if (tokenSymbol === chain?.nativeCurrency.symbol.toUpperCase()) {
+          setToToken('native');
+          console.log('🤖 [SwapModal] Set to token: native');
+        } else {
+          // Find matching token in popular tokens
+          const matchingToken = popularTokens.find(
+            token => token.symbol.toUpperCase() === tokenSymbol
+          );
+          if (matchingToken) {
+            setToToken(matchingToken.address);
+            console.log('🤖 [SwapModal] Set to token:', matchingToken.symbol);
+          }
+        }
+      }
+      
+      // Pre-fill amount (handle 'max'/'all' keywords)
+      if (prefillData.amount) {
+        if (prefillData.amount === 'max' || prefillData.amount === 'all') {
+          // Use full balance
+          setFromAmount(balance || '0');
+          console.log('🤖 [SwapModal] Set max amount:', balance);
+        } else {
+          setFromAmount(prefillData.amount);
+          console.log('🤖 [SwapModal] Set amount:', prefillData.amount);
+        }
+      }
+    }
+  }, [isOpen, prefillData, popularTokens, chain, balance]);
 
   // Get quote when amount changes (with debounce)
   useEffect(() => {
