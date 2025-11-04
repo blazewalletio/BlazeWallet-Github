@@ -1835,7 +1835,15 @@ export default function Dashboard() {
         {showAIGasOptimizer && (
           <AIGasOptimizer
             onClose={() => setShowAIGasOptimizer(false)}
-            chain={chain.name.toLowerCase()}
+            chain={(() => {
+              // Map display names to API names
+              const chainName = chain.name.toLowerCase();
+              const chainNameMap: Record<string, string> = {
+                'bitcoin cash': 'bitcoincash',
+                // Add more mappings if needed
+              };
+              return chainNameMap[chainName] || chainName;
+            })()}
           />
         )}
 

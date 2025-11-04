@@ -146,15 +146,61 @@ export async function POST(req: NextRequest) {
     
     console.log(`💰 [Gas Optimizer] ${nativeCurrency} price: $${nativePrice}`);
     
-    // Calculate USD costs
-    const gweiToUsd = (gwei: number, gasUnits: number) => 
-      (gwei / 1e9) * gasUnits * nativePrice;
-    
-    const usdCosts = {
-      transfer: gweiToUsd(gasPrice.standard, 21000),
-      swap: gweiToUsd(gasPrice.standard, 150000),
-      contract: gweiToUsd(gasPrice.standard, 300000),
+    // Calculate USD costs (chain-specific logic!)
+    let usdCosts: {
+      transfer: number;
+      swap: number;
+      contract: number;
     };
+    
+    if (chain === 'solana') {
+      // Solana: lamports → SOL → USD
+      // gasPrice.standard is in lamports
+      const lamportsToSOL = (lamports: number) => lamports / 1e9;
+      
+      usdCosts = {
+        transfer: lamportsToSOL(gasPrice.standard) * nativePrice,
+        swap: lamportsToSOL(50000) * nativePrice, // Typical DEX swap: ~50k lamports
+        contract: lamportsToSOL(100000) * nativePrice, // Complex program: ~100k lamports
+      };
+      
+      console.log(`💰 Solana costs:`, usdCosts);
+      
+    } else if (chain === 'bitcoin' || chain === 'litecoin' || chain === 'dogecoin' || chain === 'bitcoincash') {
+      // Bitcoin-like: sat/vB * transaction size → BTC → USD
+      // gasPrice.standard is in sat/vB
+      const satPerVB = gasPrice.standard;
+      
+      // Typical transaction sizes (in vBytes)
+      const transferSize = 140; // P2WPKH (native SegWit)
+      const swapSize = 0; // Bitcoin doesn't have "swaps" (no smart contracts)
+      const contractSize = 0; // Bitcoin doesn't have smart contracts
+      
+      // Calculate: (sat/vB * vBytes) / 100,000,000 = BTC
+      const satToCrypto = (sats: number) => sats / 1e8;
+      
+      usdCosts = {
+        transfer: satToCrypto(satPerVB * transferSize) * nativePrice,
+        swap: 0, // Not applicable for Bitcoin-like chains
+        contract: 0, // Not applicable for Bitcoin-like chains
+      };
+      
+      console.log(`💰 ${chain} costs (sat/vB: ${satPerVB}):`, usdCosts);
+      
+    } else {
+      // EVM chains: gwei * gas units → ETH → USD
+      // gasPrice.standard is in gwei
+      const gweiToUsd = (gwei: number, gasUnits: number) => 
+        (gwei / 1e9) * gasUnits * nativePrice;
+      
+      usdCosts = {
+        transfer: gweiToUsd(gasPrice.standard, 21000),
+        swap: gweiToUsd(gasPrice.standard, 150000),
+        contract: gweiToUsd(gasPrice.standard, 300000),
+      };
+      
+      console.log(`💰 EVM costs (gwei: ${gasPrice.standard}):`, usdCosts);
+    }
     
     // Determine gas level
     const avgGas = historicalData.avg24h;
