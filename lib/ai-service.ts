@@ -9,6 +9,7 @@ export interface AIResponse {
     params?: any;
   };
   confidence: number;
+  warnings?: string[];
 }
 
 export interface TransactionIntent {
