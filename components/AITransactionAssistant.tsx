@@ -2,9 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { aiService } from '@/lib/ai-service';
-import { voiceRecordingService } from '@/lib/voice-recording-service';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Send, Loader2, AlertCircle, CheckCircle, ArrowLeft, Info, TrendingUp, Zap, AlertTriangle, Trash2, Mic, MicOff } from 'lucide-react';
+import { Sparkles, Send, Loader2, AlertCircle, CheckCircle, ArrowLeft, Info, TrendingUp, Zap, AlertTriangle, Trash2, Mic } from 'lucide-react';
 
 interface AITransactionAssistantProps {
   onClose: () => void;
@@ -33,9 +32,7 @@ export default function AITransactionAssistant({
   const [loading, setLoading] = useState(false);
   const [conversation, setConversation] = useState<ConversationMessage[]>([]);
   const [currentResponse, setCurrentResponse] = useState<any>(null);
-  const [isExecuting, setIsExecuting] = useState(false); // ✅ NEW: Execute loading state
-  const [isRecording, setIsRecording] = useState(false); // ✅ NEW: Voice recording state
-  const [isTranscribing, setIsTranscribing] = useState(false); // ✅ NEW: Transcription loading
+  const [isExecuting, setIsExecuting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -180,42 +177,6 @@ export default function AITransactionAssistant({
     setConversation([]);
     setCurrentResponse(null);
     inputRef.current?.focus();
-  };
-
-  // ✅ Voice recording handlers
-  const handleVoiceToggle = async () => {
-    if (isRecording) {
-      // Stop recording and transcribe
-      setIsRecording(false);
-      setIsTranscribing(true);
-
-      const audioBlob = await voiceRecordingService.stopRecording();
-      
-      if (audioBlob) {
-        const result = await voiceRecordingService.transcribe(audioBlob);
-        
-        if (result.success && result.text) {
-          setInput(result.text);
-          inputRef.current?.focus();
-        } else {
-          console.error('❌ Transcription failed:', result.error);
-          // Show error to user
-          alert(result.error || 'Failed to transcribe audio. Please try again.');
-        }
-      }
-
-      setIsTranscribing(false);
-    } else {
-      // Start recording
-      const result = await voiceRecordingService.startRecording();
-      
-      if (result.success) {
-        setIsRecording(true);
-      } else {
-        console.error('❌ Recording failed:', result.error);
-        alert(result.error || 'Failed to start recording. Please check microphone permissions.');
-      }
-    }
   };
 
   return (
@@ -434,25 +395,21 @@ export default function AITransactionAssistant({
         {/* Fixed input at bottom */}
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
           <div className="max-w-4xl mx-auto flex gap-3">
-            {/* Voice button */}
-            <button
-              onClick={handleVoiceToggle}
-              disabled={loading || isTranscribing}
-              className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
-                isRecording
-                  ? 'bg-red-500 hover:bg-red-600 animate-pulse'
-                  : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
-              } disabled:opacity-50 disabled:cursor-not-allowed shadow-sm`}
-              title={isRecording ? 'Stop recording' : 'Start voice input'}
-            >
-              {isTranscribing ? (
-                <Loader2 className="w-5 h-5 text-white animate-spin" />
-              ) : isRecording ? (
-                <MicOff className="w-5 h-5 text-white" />
-              ) : (
-                <Mic className="w-5 h-5 text-white" />
-              )}
-            </button>
+            {/* Voice button - Coming Soon */}
+            <div className="relative group">
+              <button
+                disabled={true}
+                className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center bg-gray-300 cursor-not-allowed shadow-sm"
+                title="Voice input coming soon"
+              >
+                <Mic className="w-5 h-5 text-gray-500" />
+              </button>
+              {/* Coming Soon Tooltip */}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                Voice input coming soon
+                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-gray-900"></div>
+              </div>
+            </div>
 
             <div className="flex-1 relative">
               <input
@@ -460,14 +417,14 @@ export default function AITransactionAssistant({
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && !loading && !isRecording && handleSubmit()}
-                placeholder={isRecording ? 'Listening...' : isTranscribing ? 'Transcribing...' : 'Type or speak your command...'}
+                onKeyPress={(e) => e.key === 'Enter' && !loading && handleSubmit()}
+                placeholder="Type your command..."
                 className="w-full px-4 py-3 pr-12 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                disabled={loading || isRecording || isTranscribing}
+                disabled={loading}
               />
               <button
                 onClick={handleSubmit}
-                disabled={loading || !input.trim() || isRecording || isTranscribing}
+                disabled={loading || !input.trim()}
                 className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-gradient-to-r from-orange-500 to-yellow-500 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-transform"
               >
                 {loading ? (
