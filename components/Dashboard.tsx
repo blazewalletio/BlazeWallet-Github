@@ -1835,7 +1835,7 @@ export default function Dashboard() {
         {showAIGasOptimizer && (
           <AIGasOptimizer
             onClose={() => setShowAIGasOptimizer(false)}
-            currentGasPrice={30} // TODO: Get real gas price from chain
+            chain={chain.name.toLowerCase()}
           />
         )}
 
