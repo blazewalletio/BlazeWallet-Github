@@ -69,20 +69,28 @@ export default function AIPortfolioAdvisor({
     
     try {
       console.log('📊 [Portfolio Advisor] Fetching AI analysis...');
+      console.log('📊 [Portfolio Advisor] Raw tokens:', tokens);
       
       const response = await fetch('/api/ai-portfolio-analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tokens: tokens.map(t => ({
-            symbol: t.symbol,
-            name: t.name || t.symbol,
-            balance: t.balance,
-            usdValue: t.usdValue,
-            logoUrl: t.logoUrl,
-            price: t.price,
-            change24h: t.change24h
-          })),
+          tokens: tokens.map(t => {
+            // Calculate USD value if not provided
+            // Use priceUSD (from Token type) not price
+            const tokenValue = t.balanceUSD ? parseFloat(t.balanceUSD) :
+                              (t.priceUSD && t.balance ? parseFloat(t.balance) * t.priceUSD : 0);
+            
+            return {
+              symbol: t.symbol,
+              name: t.name || t.symbol,
+              balance: t.balance || '0',
+              usdValue: tokenValue.toString(),
+              logoUrl: t.logo, // Dashboard uses 'logo' property
+              price: t.priceUSD || 0,
+              change24h: t.change24h || 0
+            };
+          }),
           totalValue,
           totalValueChange24h,
           chain
@@ -384,8 +392,22 @@ export default function AIPortfolioAdvisor({
                 <h3 className="font-semibold text-gray-900">Top Holdings</h3>
                 <div className="space-y-3">
                   {tokens.slice(0, 5).map((token, i) => {
-                    const percentage = (parseFloat(token.usdValue) / totalValue) * 100;
-                    const logoUrl = token.logoUrl || getCurrencyLogoSync(token.symbol);
+                    // Calculate USD value properly using correct Token properties
+                    const tokenUsdValue = token.balanceUSD ? parseFloat(token.balanceUSD) :
+                                         (token.priceUSD && token.balance ? parseFloat(token.balance) * token.priceUSD : 0);
+                    const percentage = tokenUsdValue > 0 && totalValue > 0 ? (tokenUsdValue / totalValue) * 100 : 0;
+                    
+                    // Get correct logo - Dashboard uses 'logo' property
+                    const logoUrl = token.logo || getCurrencyLogoSync(token.symbol);
+                    
+                    console.log(`📊 Token ${token.symbol}:`, {
+                      balance: token.balance,
+                      priceUSD: token.priceUSD,
+                      balanceUSD: token.balanceUSD,
+                      calculated: tokenUsdValue,
+                      logo: token.logo,
+                      finalLogo: logoUrl
+                    });
                     
                     return (
                       <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
@@ -397,6 +419,7 @@ export default function AIPortfolioAdvisor({
                             width={40}
                             height={40}
                             className="w-full h-full object-cover"
+                            unoptimized
                             onError={(e) => {
                               // Fallback to gradient with first letter
                               const target = e.currentTarget;
@@ -413,17 +436,19 @@ export default function AIPortfolioAdvisor({
                           <div className="flex items-center justify-between mb-1">
                             <div>
                               <span className="font-semibold text-gray-900">{token.symbol}</span>
-                              <span className="text-xs text-gray-500 ml-2">{token.balance}</span>
+                              <span className="text-xs text-gray-500 ml-2">
+                                {token.balance ? parseFloat(token.balance).toFixed(4) : '0'}
+                              </span>
                             </div>
                             <span className="text-sm text-gray-900 font-semibold">
-                              ${parseFloat(token.usdValue).toFixed(2)}
+                              ${tokenUsdValue.toFixed(2)}
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
                             <div className="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden">
                               <div
                                 className="h-full bg-gradient-to-r from-orange-500 to-yellow-500 transition-all duration-500"
-                                style={{ width: `${percentage}%` }}
+                                style={{ width: `${Math.min(100, percentage)}%` }}
                               />
                             </div>
                             <span className="text-xs text-gray-600 w-12 text-right font-medium">
