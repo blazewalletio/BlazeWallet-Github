@@ -16,8 +16,14 @@ export const maxDuration = 60; // Max 60 seconds for transcription
  */
 
 function getOpenAI() {
+  // ✅ Use dedicated Whisper API key if available, fallback to main OpenAI key
+  const whisperApiKey = process.env.WHISPER_API_KEY || process.env.OPENAI_API_KEY;
+  const usingDedicatedKey = !!process.env.WHISPER_API_KEY;
+  
+  console.log(`🔑 [Whisper API] Using ${usingDedicatedKey ? 'dedicated WHISPER_API_KEY' : 'fallback OPENAI_API_KEY'}`);
+  
   return new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
+    apiKey: whisperApiKey,
   });
 }
 
