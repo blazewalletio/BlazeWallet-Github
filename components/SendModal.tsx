@@ -10,6 +10,7 @@ import { BlockchainService } from '@/lib/blockchain';
 import { CHAINS } from '@/lib/chains';
 import { priceService } from '@/lib/price-service';
 import ParticleEffect from './ParticleEffect';
+import SmartScheduleModal from './SmartScheduleModal';
 
 interface Asset {
   symbol: string;
@@ -58,6 +59,9 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
     message: string;
     details: { need: string; have: string; missing: string; missingUSD: string };
   } | null>(null);
+  
+  // Smart Schedule Modal state
+  const [showSmartSchedule, setShowSmartSchedule] = useState(false);
 
   // ✅ Use singleton instance (prevents re-initialization)
   const blockchain = MultiChainService.getInstance(selectedChain);
@@ -867,14 +871,24 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                 </div>
               )}
 
-              <button
-                onClick={handleContinue}
-                disabled={!toAddress || !amount || !selectedAsset}
-                className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-lg transition-all shadow-lg hover:shadow-xl"
-              >
-                Continue
-                <ArrowRight className="w-5 h-5" />
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowSmartSchedule(true)}
+                  disabled={!toAddress || !amount || !selectedAsset}
+                  className="flex-1 py-4 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl"
+                >
+                  <span>⚡</span>
+                  Smart Schedule
+                </button>
+                <button
+                  onClick={handleContinue}
+                  disabled={!toAddress || !amount || !selectedAsset}
+                  className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl"
+                >
+                  Send Now
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           )}
 
@@ -991,6 +1005,24 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
           </div>
         </div>
       </motion.div>
+
+      {/* Smart Schedule Modal */}
+      {selectedAsset && (
+        <SmartScheduleModal
+          isOpen={showSmartSchedule}
+          onClose={() => setShowSmartSchedule(false)}
+          chain={selectedChain}
+          fromAddress={getCurrentAddress() || ''}
+          toAddress={toAddress}
+          amount={amount}
+          tokenAddress={selectedAsset.address}
+          tokenSymbol={selectedAsset.symbol}
+          onScheduled={() => {
+            setShowSmartSchedule(false);
+            onClose();
+          }}
+        />
+      )}
     </AnimatePresence>
   );
 }
