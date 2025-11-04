@@ -20,7 +20,14 @@ function getOpenAI() {
   const whisperApiKey = process.env.WHISPER_API_KEY || process.env.OPENAI_API_KEY;
   const usingDedicatedKey = !!process.env.WHISPER_API_KEY;
   
+  console.log('🔍 [DEBUG] Environment Variables Check:');
+  console.log('  - WHISPER_API_KEY exists:', !!process.env.WHISPER_API_KEY);
+  console.log('  - OPENAI_API_KEY exists:', !!process.env.OPENAI_API_KEY);
+  console.log('  - WHISPER_API_KEY prefix:', process.env.WHISPER_API_KEY?.substring(0, 20) + '...');
+  console.log('  - OPENAI_API_KEY prefix:', process.env.OPENAI_API_KEY?.substring(0, 20) + '...');
+  console.log('  - Are they different?:', process.env.WHISPER_API_KEY !== process.env.OPENAI_API_KEY);
   console.log(`🔑 [Whisper API] Using ${usingDedicatedKey ? 'dedicated WHISPER_API_KEY' : 'fallback OPENAI_API_KEY'}`);
+  console.log(`🔑 [Whisper API] Selected key prefix: ${whisperApiKey?.substring(0, 20)}...`);
   
   return new OpenAI({
     apiKey: whisperApiKey,
@@ -29,12 +36,19 @@ function getOpenAI() {
 
 export async function POST(req: NextRequest) {
   try {
-    console.log('🎙️ [Whisper API] Receiving audio transcription request...');
+    console.log('\n========================================');
+    console.log('🎙️ [Whisper API] NEW TRANSCRIPTION REQUEST');
+    console.log('========================================');
+    console.log('📅 Timestamp:', new Date().toISOString());
+    console.log('🌐 Request URL:', req.url);
+    console.log('🔗 Request method:', req.method);
 
     // Parse form data
     const formData = await req.formData();
     const audioFile = formData.get('audio') as File;
     const userId = formData.get('userId') as string;
+    
+    console.log('👤 User ID:', userId || 'anonymous');
 
     if (!audioFile) {
       console.error('❌ [Whisper API] No audio file provided');
@@ -47,7 +61,8 @@ export async function POST(req: NextRequest) {
     console.log(`🎙️ [Whisper API] Received file:`, {
       name: audioFile.name,
       type: audioFile.type,
-      size: `${(audioFile.size / 1024).toFixed(1)}KB`
+      size: `${(audioFile.size / 1024).toFixed(1)}KB`,
+      sizeBytes: audioFile.size
     });
 
     // Validate file size (max 25MB)
@@ -106,9 +121,20 @@ export async function POST(req: NextRequest) {
     const file = new File([buffer], fileName, { type: audioFile.type.split(';')[0] });
 
     console.log(`📤 [Whisper API] Sending to OpenAI: ${fileName} (${audioFile.type.split(';')[0]})`);
+    console.log('📤 [DEBUG] Request details:');
+    console.log('  - Model: whisper-1');
+    console.log('  - Language: en');
+    console.log('  - Temperature: 0.0');
+    console.log('  - Response format: json');
+    console.log('  - File size:', buffer.length, 'bytes');
+    console.log('  - Timestamp:', new Date().toISOString());
 
     // Call OpenAI Whisper API
     const openai = getOpenAI();
+    
+    console.log('⏳ [Whisper API] Calling OpenAI Whisper API now...');
+    const startTime = Date.now();
+    
     const transcription = await openai.audio.transcriptions.create({
       file: file,
       model: 'whisper-1',
@@ -117,9 +143,15 @@ export async function POST(req: NextRequest) {
       temperature: 0.0, // Deterministic for command parsing
     });
 
+    const duration = Date.now() - startTime;
     const transcribedText = transcription.text;
 
-    console.log(`✅ [Whisper API] Transcription successful: "${transcribedText}"`);
+    console.log(`✅ [Whisper API] Transcription successful in ${duration}ms: "${transcribedText}"`);
+    console.log('✅ [DEBUG] Response details:', {
+      textLength: transcribedText.length,
+      duration: `${duration}ms`,
+      timestamp: new Date().toISOString()
+    });
 
     // Return transcribed text
     return NextResponse.json({
@@ -128,16 +160,29 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('❌ [Whisper API] Transcription error:', {
+    console.error('❌ [Whisper API] Transcription error caught!');
+    console.error('❌ [DEBUG] Full error details:', {
       message: error.message,
       status: error.status,
       code: error.code,
       type: error.type,
-      stack: error.stack?.split('\n').slice(0, 3)
+      name: error.name,
+      timestamp: new Date().toISOString()
     });
+    console.error('❌ [DEBUG] Error stack (first 5 lines):', error.stack?.split('\n').slice(0, 5));
+    
+    // Check if it's an OpenAI API error
+    if (error.response) {
+      console.error('❌ [DEBUG] OpenAI API Response:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data
+      });
+    }
 
     // Handle specific OpenAI errors
     if (error.status === 401) {
+      console.error('❌ [Whisper API] 401 Unauthorized - API key is invalid or missing');
       return NextResponse.json(
         { error: 'API key invalid', message: 'OpenAI API key is not configured correctly.' },
         { status: 500 }
@@ -145,6 +190,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (error.status === 413) {
+      console.error('❌ [Whisper API] 413 Payload Too Large - File exceeds 25MB');
       return NextResponse.json(
         { error: 'File too large', message: 'Audio file exceeds 25MB limit.' },
         { status: 413 }
@@ -152,12 +198,19 @@ export async function POST(req: NextRequest) {
     }
 
     if (error.status === 429) {
+      console.error('❌ [Whisper API] 429 Rate Limit - Too many requests!');
+      console.error('❌ [DEBUG] Rate limit details:', {
+        apiKeyUsed: process.env.WHISPER_API_KEY ? 'WHISPER_API_KEY' : 'OPENAI_API_KEY',
+        apiKeyPrefix: (process.env.WHISPER_API_KEY || process.env.OPENAI_API_KEY)?.substring(0, 20),
+        timestamp: new Date().toISOString()
+      });
       return NextResponse.json(
         { error: 'Rate limit', message: 'Too many transcription requests. Please try again in a moment.' },
         { status: 429 }
       );
     }
 
+    console.error('❌ [Whisper API] Unknown error - returning 500');
     // Return detailed error message
     return NextResponse.json(
       { 
