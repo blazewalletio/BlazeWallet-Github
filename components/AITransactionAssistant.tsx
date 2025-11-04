@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { aiService } from '@/lib/ai-service';
+import { voiceRecordingService } from '@/lib/voice-recording-service';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Send, Loader2, AlertCircle, CheckCircle, ArrowLeft, Info, TrendingUp, Zap, AlertTriangle } from 'lucide-react';
+import { Sparkles, Send, Loader2, AlertCircle, CheckCircle, ArrowLeft, Info, TrendingUp, Zap, AlertTriangle, Trash2, Mic, MicOff } from 'lucide-react';
 
 interface AITransactionAssistantProps {
   onClose: () => void;
@@ -32,6 +33,9 @@ export default function AITransactionAssistant({
   const [loading, setLoading] = useState(false);
   const [conversation, setConversation] = useState<ConversationMessage[]>([]);
   const [currentResponse, setCurrentResponse] = useState<any>(null);
+  const [isExecuting, setIsExecuting] = useState(false); // ✅ NEW: Execute loading state
+  const [isRecording, setIsRecording] = useState(false); // ✅ NEW: Voice recording state
+  const [isTranscribing, setIsTranscribing] = useState(false); // ✅ NEW: Transcription loading
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -103,7 +107,18 @@ export default function AITransactionAssistant({
     setInput('');
 
     try {
-      const result = await aiService.processTransactionCommand(input, context);
+      // Build conversation history for API (last 5 exchanges = 10 messages)
+      const conversationHistory = conversation
+        .slice(-10)
+        .map(msg => ({
+          role: msg.type,
+          content: msg.content
+        }));
+
+      const result = await aiService.processTransactionCommand(input, {
+        ...context,
+        conversationHistory
+      } as any); // ✅ Pass conversation history
       
       // Add proactive warnings
       const warnings = getProactiveWarnings(result);
@@ -134,19 +149,73 @@ export default function AITransactionAssistant({
       setConversation(prev => [...prev, errorMessage]);
     } finally {
       setLoading(false);
+      // ✅ Auto-focus input after submit (mobile-friendly)
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
     }
   };
 
-  const handleExecute = () => {
+  const handleExecute = async () => {
     if (currentResponse?.action && onExecuteAction) {
-      onExecuteAction(currentResponse.action);
-      onClose();
+      setIsExecuting(true);
+      try {
+        await new Promise(resolve => setTimeout(resolve, 300)); // Small delay for UX
+        onExecuteAction(currentResponse.action);
+        // onClose() is called in Dashboard after modal opens
+      } catch (error) {
+        console.error('❌ [AI Assistant] Execute error:', error);
+      } finally {
+        setIsExecuting(false);
+      }
     }
   };
 
   const handleExampleClick = (example: string) => {
     setInput(example);
     inputRef.current?.focus();
+  };
+
+  const handleClearConversation = () => {
+    setConversation([]);
+    setCurrentResponse(null);
+    inputRef.current?.focus();
+  };
+
+  // ✅ Voice recording handlers
+  const handleVoiceToggle = async () => {
+    if (isRecording) {
+      // Stop recording and transcribe
+      setIsRecording(false);
+      setIsTranscribing(true);
+
+      const audioBlob = await voiceRecordingService.stopRecording();
+      
+      if (audioBlob) {
+        const result = await voiceRecordingService.transcribe(audioBlob);
+        
+        if (result.success && result.text) {
+          setInput(result.text);
+          inputRef.current?.focus();
+        } else {
+          console.error('❌ Transcription failed:', result.error);
+          // Show error to user
+          alert(result.error || 'Failed to transcribe audio. Please try again.');
+        }
+      }
+
+      setIsTranscribing(false);
+    } else {
+      // Start recording
+      const result = await voiceRecordingService.startRecording();
+      
+      if (result.success) {
+        setIsRecording(true);
+      } else {
+        console.error('❌ Recording failed:', result.error);
+        alert(result.error || 'Failed to start recording. Please check microphone permissions.');
+      }
+    }
   };
 
   return (
@@ -159,13 +228,27 @@ export default function AITransactionAssistant({
       >
         <div className="max-w-4xl mx-auto p-6 pb-32">
           {/* Header */}
-          <button
-            onClick={onClose}
-            className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors mb-6"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Back to Dashboard
-          </button>
+          <div className="flex items-center justify-between mb-6">
+            <button
+              onClick={onClose}
+              className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              Back to Dashboard
+            </button>
+
+            {/* Clear conversation button (only show if there's conversation) */}
+            {conversation.length > 0 && (
+              <button
+                onClick={handleClearConversation}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 transition-colors"
+                title="Clear conversation history"
+              >
+                <Trash2 className="w-4 h-4" />
+                Clear
+              </button>
+            )}
+          </div>
 
           <div className="mb-6">
             <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
@@ -251,7 +334,7 @@ export default function AITransactionAssistant({
                 className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {message.type === 'user' ? (
-                  <div className="max-w-[80%] px-4 py-3 rounded-2xl rounded-tr-sm bg-gradient-to-r from-orange-500 to-yellow-500 text-white">
+                  <div className="max-w-[80%] px-4 py-3 rounded-2xl rounded-tr-sm bg-gradient-to-r from-orange-500 to-yellow-500 text-white break-words overflow-wrap-anywhere">
                     {message.content}
                   </div>
                 ) : (
@@ -263,8 +346,8 @@ export default function AITransactionAssistant({
                         ) : (
                           <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                         )}
-                        <div className="flex-1">
-                          <p className="text-sm text-gray-900 whitespace-pre-wrap">{message.content}</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-gray-900 whitespace-pre-wrap break-words overflow-wrap-anywhere">{message.content}</p>
                         </div>
                       </div>
 
@@ -307,9 +390,19 @@ export default function AITransactionAssistant({
                         message.response.action.type !== 'info' && (
                           <button
                             onClick={handleExecute}
-                            className="w-full px-4 py-2.5 rounded-lg bg-gradient-to-r from-orange-500 to-yellow-500 text-white font-medium hover:from-orange-600 hover:to-yellow-600 transition-all shadow-sm"
+                            disabled={isExecuting}
+                            className="w-full px-4 py-2.5 rounded-lg bg-gradient-to-r from-orange-500 to-yellow-500 text-white font-medium hover:from-orange-600 hover:to-yellow-600 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                           >
-                            Execute {message.response.action.type === 'send' ? 'Send' : 'Swap'}
+                            {isExecuting ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Opening...
+                              </>
+                            ) : (
+                              <>
+                                Execute {message.response.action.type === 'send' ? 'Send' : 'Swap'}
+                              </>
+                            )}
                           </button>
                         )}
                     </div>
@@ -341,20 +434,40 @@ export default function AITransactionAssistant({
         {/* Fixed input at bottom */}
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
           <div className="max-w-4xl mx-auto flex gap-3">
+            {/* Voice button */}
+            <button
+              onClick={handleVoiceToggle}
+              disabled={loading || isTranscribing}
+              className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+                isRecording
+                  ? 'bg-red-500 hover:bg-red-600 animate-pulse'
+                  : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
+              } disabled:opacity-50 disabled:cursor-not-allowed shadow-sm`}
+              title={isRecording ? 'Stop recording' : 'Start voice input'}
+            >
+              {isTranscribing ? (
+                <Loader2 className="w-5 h-5 text-white animate-spin" />
+              ) : isRecording ? (
+                <MicOff className="w-5 h-5 text-white" />
+              ) : (
+                <Mic className="w-5 h-5 text-white" />
+              )}
+            </button>
+
             <div className="flex-1 relative">
               <input
                 ref={inputRef}
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && !loading && handleSubmit()}
-                placeholder="Type your command..."
+                onKeyPress={(e) => e.key === 'Enter' && !loading && !isRecording && handleSubmit()}
+                placeholder={isRecording ? 'Listening...' : isTranscribing ? 'Transcribing...' : 'Type or speak your command...'}
                 className="w-full px-4 py-3 pr-12 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                disabled={loading}
+                disabled={loading || isRecording || isTranscribing}
               />
               <button
                 onClick={handleSubmit}
-                disabled={loading || !input.trim()}
+                disabled={loading || !input.trim() || isRecording || isTranscribing}
                 className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-gradient-to-r from-orange-500 to-yellow-500 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-transform"
               >
                 {loading ? (

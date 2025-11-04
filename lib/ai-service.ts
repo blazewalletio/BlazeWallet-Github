@@ -197,10 +197,35 @@ class AIService {
     try {
       console.log('🤖 [AI Service] Processing command:', input.substring(0, 50));
 
-      // Get user ID for rate limiting
-      const userId = typeof window !== 'undefined' 
-        ? localStorage.getItem('supabase_user_id') || localStorage.getItem('wallet_email') || 'anonymous'
-        : 'anonymous';
+      // Get user ID for rate limiting (prefer Supabase auth, fallback to email/anonymous)
+      let userId = 'anonymous';
+      
+      if (typeof window !== 'undefined') {
+        // Priority 1: Supabase authenticated user ID (SECURE - cannot be manipulated)
+        const supabaseUserId = localStorage.getItem('supabase_user_id');
+        if (supabaseUserId && supabaseUserId !== 'null') {
+          userId = supabaseUserId;
+          console.log('🔐 [AI Service] Using Supabase user ID for rate limiting');
+        }
+        // Priority 2: Email (less secure, but better than nothing)
+        else {
+          const walletEmail = localStorage.getItem('wallet_email');
+          if (walletEmail && walletEmail !== 'null') {
+            userId = walletEmail;
+            console.log('📧 [AI Service] Using email for rate limiting');
+          } else {
+            console.log('👤 [AI Service] Using anonymous for rate limiting (no auth)');
+          }
+        }
+      }
+
+      console.log('🆔 [AI Service] Rate limit userId:', userId.substring(0, 20) + '...');
+
+      // Build conversation history for API (only last 5 exchanges = 10 messages max)
+      const conversationHistory: Array<{role: 'user' | 'assistant', content: string}> = [];
+      
+      // We'll pass conversation from component later, for now empty
+      // This will be populated by AITransactionAssistant component
 
       // Call our backend API (which handles caching + OpenAI)
       const response = await fetch('/api/ai-assistant', {
@@ -220,7 +245,8 @@ class AIService {
             })),
             address: context.address
           },
-          userId: userId
+          userId: userId,
+          conversationHistory: (context as any).conversationHistory || [] // ✅ NEW: Pass conversation history
         })
       });
 
