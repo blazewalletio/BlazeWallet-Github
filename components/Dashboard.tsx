@@ -1108,10 +1108,17 @@ export default function Dashboard() {
                         </span>
                       )}
                     </div>
-                    <div className={`text-sm ${
+                    <div className={`text-sm flex items-center gap-1.5 ${
                       isPriorityListLive ? 'text-green-700 font-medium' : 'text-gray-600'
                     }`}>
-                      {isPriorityListLive ? '🔥 Priority List is LIVE!' : 'Early access to tokens'}
+                      {isPriorityListLive ? (
+                        <>
+                          <Flame className="w-4 h-4" />
+                          <span>Priority List is LIVE!</span>
+                        </>
+                      ) : (
+                        'Early access to tokens'
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1206,8 +1213,9 @@ export default function Dashboard() {
                 <Zap className="w-6 h-6 text-white animate-pulse" />
               </div>
               
-              <p className="relative text-sm text-white/90 mt-1">
-                ⚡ Instant payments • Ultra-low fees
+              <p className="relative text-sm text-white/90 mt-1 flex items-center justify-center gap-1.5">
+                <Zap className="w-3.5 h-3.5" />
+                <span>Instant payments • Ultra-low fees</span>
               </p>
             </motion.button>
           )}
@@ -1504,7 +1512,8 @@ export default function Dashboard() {
           >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-semibold flex items-center gap-2">
-                🔥 BLAZE Features
+                <Flame className="w-5 h-5 text-orange-500" />
+                <span>BLAZE Features</span>
               </h3>
               <PremiumBadge isPremium={false} tokenBalance={0} threshold={10000} />
             </div>
@@ -2097,7 +2106,10 @@ export default function Dashboard() {
               className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl pointer-events-auto border border-gray-200 shadow-soft-xl"
             >
               <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center rounded-t-2xl">
-                <h2 className="text-xl font-bold text-gray-900">🔥 Deploy Blaze Token</h2>
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <Flame className="w-5 h-5 text-orange-500" />
+                  <span>Deploy Blaze Token</span>
+                </h2>
                 <button
                   onClick={() => setShowFounderDeploy(false)}
                   className="text-gray-600 hover:text-gray-900 transition-colors"
