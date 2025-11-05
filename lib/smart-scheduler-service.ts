@@ -210,34 +210,98 @@ class SmartSchedulerService {
   }
 
   /**
-   * Calculate optimal gas timing for a chain
+   * Calculate optimal gas timing for a chain using AI + historical data
    * Returns recommended execution time and estimated savings
+   * Only recommends if 95%+ confident
    */
-  async calculateOptimalTiming(chain: string): Promise<{
+  async calculateOptimalTiming(chain: string, maxWaitHours: number = 24): Promise<{
     optimal_time: Date;
     current_gas_price: number;
     predicted_optimal_gas: number;
     estimated_savings_percent: number;
+    estimated_savings_usd: number;
+    confidence_score: number;
+    reasoning: string;
+    should_execute_now: boolean;
+    alternative_times?: Array<{
+      time: Date;
+      gas_price: number;
+      savings_percent: number;
+    }>;
   }> {
     try {
+      // Get current gas price
       const currentGasData = await gasPriceService.getGasPrice(chain);
       const currentGas = currentGasData?.standard || 0;
 
-      // Simple heuristic: optimal time is typically 2-4 hours from now
-      // In production, this would use ML/historical data
-      const optimalTime = new Date(Date.now() + 3 * 60 * 60 * 1000); // 3 hours from now
-      const predictedOptimalGas = currentGas * 0.7; // Assume 30% lower gas
-      const estimatedSavingsPercent = 30;
+      if (!currentGas) {
+        throw new Error('Failed to fetch current gas price');
+      }
+
+      console.log('🤖 Requesting AI prediction for', chain, 'current gas:', currentGas);
+
+      // Call AI prediction API
+      const response = await fetch('/api/smart-scheduler/predict-optimal-time', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chain,
+          current_gas_price: currentGas,
+          max_wait_hours: maxWaitHours,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('❌ AI prediction failed:', data);
+        throw new Error(data.error || 'Failed to predict optimal time');
+      }
+
+      const prediction = data.data;
+
+      console.log('✅ AI prediction received:', {
+        optimal_time: prediction.optimal_time,
+        confidence: prediction.confidence_score,
+        savings: prediction.estimated_savings_percent,
+      });
+
+      // Check if we should execute now (low confidence or current gas is already optimal)
+      const should_execute_now = prediction.confidence_score < 95 || 
+                                   prediction.estimated_savings_percent < 5;
 
       return {
-        optimal_time: optimalTime,
+        optimal_time: new Date(prediction.optimal_time),
         current_gas_price: currentGas,
-        predicted_optimal_gas: predictedOptimalGas,
-        estimated_savings_percent: estimatedSavingsPercent,
+        predicted_optimal_gas: prediction.predicted_gas_price,
+        estimated_savings_percent: prediction.estimated_savings_percent,
+        estimated_savings_usd: prediction.estimated_savings_usd,
+        confidence_score: prediction.confidence_score,
+        reasoning: prediction.reasoning,
+        should_execute_now,
+        alternative_times: prediction.alternative_times?.map((alt: any) => ({
+          time: new Date(alt.time),
+          gas_price: alt.gas_price,
+          savings_percent: alt.savings_percent,
+        })),
       };
     } catch (error) {
       console.error('❌ Failed to calculate optimal timing:', error);
-      throw error;
+      
+      // Fallback: recommend executing now if prediction fails
+      const currentGasData = await gasPriceService.getGasPrice(chain);
+      const currentGas = currentGasData?.standard || 0;
+      
+      return {
+        optimal_time: new Date(),
+        current_gas_price: currentGas,
+        predicted_optimal_gas: currentGas,
+        estimated_savings_percent: 0,
+        estimated_savings_usd: 0,
+        confidence_score: 0,
+        reasoning: 'Unable to predict optimal time. Recommend executing now.',
+        should_execute_now: true,
+      };
     }
   }
 

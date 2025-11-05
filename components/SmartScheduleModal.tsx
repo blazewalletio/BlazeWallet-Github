@@ -69,8 +69,10 @@ export default function SmartScheduleModal({
         setEstimatedCost(await smartSchedulerService.estimateTransactionCost(chain, gasData.standard));
       }
 
-      const timing = await smartSchedulerService.calculateOptimalTiming(chain);
+      const timing = await smartSchedulerService.calculateOptimalTiming(chain, maxWaitHours);
       setOptimalTiming(timing);
+      
+      console.log('✅ Optimal timing loaded:', timing);
     } catch (err) {
       console.error('Failed to load gas data:', err);
     }
@@ -249,31 +251,83 @@ export default function SmartScheduleModal({
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="glass-card p-6"
+                  className="space-y-3"
                 >
-                  <div className="flex items-start gap-3 mb-4">
-                    <div className="text-2xl">🤖</div>
-                    <div className="flex-1">
-                      <h3 className="text-base font-semibold text-gray-900 mb-1">AI recommendation</h3>
-                      <p className="text-sm text-gray-600">
-                        Execute in ~3 hours for optimal savings
-                      </p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-gray-50 rounded-xl p-4">
-                      <div className="text-xs text-gray-600 mb-1">Predicted gas</div>
-                      <div className="text-green-600 font-semibold">
-                        {smartSchedulerService.formatGasPrice(optimalTiming.predicted_optimal_gas, chain)}
+                  {optimalTiming.should_execute_now ? (
+                    <div className="glass-card p-6 border-2 border-orange-200">
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="text-2xl">⚡</div>
+                        <div className="flex-1">
+                          <h3 className="text-base font-semibold text-gray-900 mb-1">Execute now recommended</h3>
+                          <p className="text-sm text-gray-600">
+                            {optimalTiming.reasoning}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="bg-orange-50 rounded-xl p-4">
+                        <div className="text-xs text-gray-600 mb-1">Confidence score</div>
+                        <div className="text-orange-600 font-semibold">
+                          {optimalTiming.confidence_score}% (below 95% threshold)
+                        </div>
                       </div>
                     </div>
-                    <div className="bg-gray-50 rounded-xl p-4">
-                      <div className="text-xs text-gray-600 mb-1">Est. savings</div>
-                      <div className="text-green-600 font-semibold">
-                        ~{optimalTiming.estimated_savings_percent}%
+                  ) : (
+                    <>
+                      <div className="glass-card p-6">
+                        <div className="flex items-start gap-3 mb-4">
+                          <div className="text-2xl">🤖</div>
+                          <div className="flex-1">
+                            <h3 className="text-base font-semibold text-gray-900 mb-1">AI recommendation</h3>
+                            <p className="text-sm text-gray-600 mb-2">
+                              {(() => {
+                                const hours = Math.floor((optimalTiming.optimal_time.getTime() - Date.now()) / (1000 * 60 * 60));
+                                const minutes = Math.floor(((optimalTiming.optimal_time.getTime() - Date.now()) % (1000 * 60 * 60)) / (1000 * 60));
+                                
+                                if (hours === 0 && minutes < 60) {
+                                  return `Execute in ~${minutes} minutes for optimal savings`;
+                                } else if (hours === 0) {
+                                  return 'Execute within the hour for optimal savings';
+                                } else if (hours === 1) {
+                                  return 'Execute in ~1 hour for optimal savings';
+                                } else {
+                                  return `Execute in ~${hours} hours for optimal savings`;
+                                }
+                              })()}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {optimalTiming.reasoning}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="bg-gray-50 rounded-xl p-4">
+                            <div className="text-xs text-gray-600 mb-1">Predicted gas</div>
+                            <div className="text-green-600 font-semibold">
+                              {smartSchedulerService.formatGasPrice(optimalTiming.predicted_optimal_gas, chain)}
+                            </div>
+                          </div>
+                          <div className="bg-gray-50 rounded-xl p-4">
+                            <div className="text-xs text-gray-600 mb-1">Est. savings</div>
+                            <div className="text-green-600 font-semibold">
+                              ~{optimalTiming.estimated_savings_percent.toFixed(0)}%
+                            </div>
+                          </div>
+                          <div className="bg-gray-50 rounded-xl p-4">
+                            <div className="text-xs text-gray-600 mb-1">Save</div>
+                            <div className="text-green-600 font-semibold">
+                              ${optimalTiming.estimated_savings_usd.toFixed(2)}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-600">Confidence score</span>
+                            <span className="font-semibold text-green-600">{optimalTiming.confidence_score}%</span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    </>
+                  )}
                 </motion.div>
               )}
 
