@@ -62,6 +62,7 @@ const AISettingsModal = dynamic(() => import('./AISettingsModal'), { ssr: false 
 // Smart Scheduler components
 const ScheduledTransactionsPanel = dynamic(() => import('./ScheduledTransactionsPanel'), { ssr: false });
 const SavingsTracker = dynamic(() => import('./SavingsTracker'), { ssr: false });
+const UpcomingTransactionsBanner = dynamic(() => import('./UpcomingTransactionsBanner'), { ssr: false });
 
 export default function Dashboard() {
   const { 
@@ -1118,6 +1119,13 @@ export default function Dashboard() {
             </div>
           </motion.div>
 
+          {/* Upcoming Transactions Banner */}
+          <UpcomingTransactionsBanner
+            userId={displayAddress || ''}
+            chain={currentChain}
+            onViewAll={() => setShowScheduledTransactions(true)}
+          />
+
           {/* Quick Actions */}
           <div className="grid grid-cols-4 gap-3">
             <motion.button
@@ -1479,32 +1487,6 @@ export default function Dashboard() {
                   </div>
                   <div className="font-semibold mb-1">AI Brain</div>
                   <div className="text-xs text-slate-400">Alles in één interface</div>
-                </motion.button>
-
-                {/* Smart Scheduler */}
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setShowScheduledTransactions(true)}
-                  className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left"
-                >
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-lg flex items-center justify-center mb-3">
-                    <span className="text-white text-lg">⚡</span>
-                  </div>
-                  <div className="font-semibold mb-1">Smart Schedule</div>
-                  <div className="text-xs text-slate-400">Geplande transacties</div>
-                </motion.button>
-
-                {/* Savings Tracker */}
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setShowSavingsTracker(true)}
-                  className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left"
-                >
-                  <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-500 rounded-lg flex items-center justify-center mb-3">
-                    <span className="text-white text-lg">💰</span>
-                  </div>
-                  <div className="font-semibold mb-1">Gas Savings</div>
-                  <div className="text-xs text-slate-400">Bespaar op gas fees</div>
                 </motion.button>
               </div>
             </div>
