@@ -16,12 +16,15 @@ import {
   TrendingDown,
   ChevronDown,
   ChevronUp,
-  Clock
+  Clock,
+  BarChart3
 } from 'lucide-react';
 import { Token } from '@/lib/types';
 import { useWalletStore } from '@/lib/wallet-store';
 import { CHAINS } from '@/lib/chains';
 import { refreshTokenMetadata } from '@/lib/spl-token-metadata';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import { getTokenPriceHistory, calculatePriceChange, getPriceRange } from '@/lib/token-price-history';
 
 interface TokenDetailModalProps {
   token: Token;
@@ -49,6 +52,9 @@ export default function TokenDetailModal({
   const [copied, setCopied] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [priceHistory, setPriceHistory] = useState<Array<{ timestamp: number; price: number }>>([]);
+  const [isLoadingChart, setIsLoadingChart] = useState(false);
+  const [chartTimeframe, setChartTimeframe] = useState<'24h' | '7d' | '30d'>('7d');
   
   const isUnknownToken = token.name === 'Unknown Token';
   const isPositiveChange = (token.change24h || 0) >= 0;
@@ -70,6 +76,33 @@ export default function TokenDetailModal({
       setIsRefreshing(false);
     }
   };
+  
+  // Load price history when modal opens
+  useEffect(() => {
+    if (!isOpen || !token.symbol) return;
+    
+    const loadPriceHistory = async () => {
+      setIsLoadingChart(true);
+      try {
+        const days = chartTimeframe === '24h' ? 1 : chartTimeframe === '7d' ? 7 : 30;
+        const result = await getTokenPriceHistory(token.symbol, days);
+        
+        if (result.success) {
+          setPriceHistory(result.prices);
+        } else {
+          console.warn(`⚠️ No price history available for ${token.symbol}`);
+          setPriceHistory([]);
+        }
+      } catch (error) {
+        console.error('❌ Failed to load price history:', error);
+        setPriceHistory([]);
+      } finally {
+        setIsLoadingChart(false);
+      }
+    };
+    
+    loadPriceHistory();
+  }, [isOpen, token.symbol, chartTimeframe]);
   
   // Close on ESC key
   useEffect(() => {
@@ -185,6 +218,136 @@ export default function TokenDetailModal({
                       </div>
                     )}
                   </div>
+                </div>
+                
+                {/* Price Chart */}
+                <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl p-4 border border-gray-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5 text-gray-700" />
+                      <h4 className="font-semibold text-gray-900">Price chart</h4>
+                    </div>
+                    
+                    {/* Timeframe selector */}
+                    <div className="flex items-center gap-1 bg-white rounded-lg p-1 border border-gray-200">
+                      {(['24h', '7d', '30d'] as const).map((timeframe) => (
+                        <button
+                          key={timeframe}
+                          onClick={() => setChartTimeframe(timeframe)}
+                          className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                            chartTimeframe === timeframe
+                              ? 'bg-gradient-to-r from-orange-500 to-rose-500 text-white shadow-sm'
+                              : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                        >
+                          {timeframe}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {isLoadingChart ? (
+                    <div className="h-48 flex items-center justify-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <RefreshCw className="w-6 h-6 text-orange-500 animate-spin" />
+                        <p className="text-sm text-gray-500">Loading chart...</p>
+                      </div>
+                    </div>
+                  ) : priceHistory.length > 0 ? (
+                    <div className="h-48">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={priceHistory.map(p => ({ 
+                          time: new Date(p.timestamp).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric',
+                            ...(chartTimeframe === '24h' ? { hour: '2-digit' } : {})
+                          }), 
+                          price: p.price 
+                        }))}>
+                          <defs>
+                            <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop 
+                                offset="5%" 
+                                stopColor={isPositiveChange ? '#10b981' : '#ef4444'} 
+                                stopOpacity={0.3}
+                              />
+                              <stop 
+                                offset="95%" 
+                                stopColor={isPositiveChange ? '#10b981' : '#ef4444'} 
+                                stopOpacity={0}
+                              />
+                            </linearGradient>
+                          </defs>
+                          <XAxis 
+                            dataKey="time" 
+                            stroke="#9ca3af"
+                            style={{ fontSize: '10px' }}
+                            tickLine={false}
+                            axisLine={false}
+                          />
+                          <YAxis 
+                            stroke="#9ca3af"
+                            style={{ fontSize: '10px' }}
+                            tickLine={false}
+                            axisLine={false}
+                            tickFormatter={(value) => `$${value.toFixed(value < 0.01 ? 4 : 2)}`}
+                            domain={['dataMin', 'dataMax']}
+                          />
+                          <Tooltip 
+                            contentStyle={{
+                              backgroundColor: 'white',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '8px',
+                              fontSize: '12px',
+                            }}
+                            formatter={(value: number) => [`$${value.toFixed(value < 0.01 ? 6 : 2)}`, 'Price']}
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="price" 
+                            stroke={isPositiveChange ? '#10b981' : '#ef4444'}
+                            strokeWidth={2}
+                            fill="url(#priceGradient)"
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="h-48 flex items-center justify-center">
+                      <div className="text-center">
+                        <BarChart3 className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">Chart not available</p>
+                        <p className="text-xs text-gray-400 mt-1">Price history unavailable for this token</p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Price stats */}
+                  {priceHistory.length > 0 && (
+                    <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-gray-200">
+                      <div>
+                        <div className="text-xs text-gray-500 mb-1">Low</div>
+                        <div className="text-sm font-semibold text-gray-900">
+                          ${getPriceRange(priceHistory).min.toFixed(getPriceRange(priceHistory).min < 0.01 ? 6 : 2)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500 mb-1">High</div>
+                        <div className="text-sm font-semibold text-gray-900">
+                          ${getPriceRange(priceHistory).max.toFixed(getPriceRange(priceHistory).max < 0.01 ? 6 : 2)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500 mb-1">Change</div>
+                        <div className={`text-sm font-semibold ${
+                          calculatePriceChange(priceHistory) >= 0 ? 'text-emerald-600' : 'text-rose-600'
+                        }`}>
+                          {calculatePriceChange(priceHistory) >= 0 ? '+' : ''}
+                          {calculatePriceChange(priceHistory).toFixed(2)}%
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Quick Actions */}
