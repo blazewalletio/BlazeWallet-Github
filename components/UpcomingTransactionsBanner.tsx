@@ -32,24 +32,44 @@ export default function UpcomingTransactionsBanner({
   }, [userId, chain]);
 
   const loadTransactions = async () => {
-    if (!userId) return;
+    if (!userId) {
+      console.log('⚠️ [UpcomingBanner] No userId provided');
+      return;
+    }
+    
+    console.log('🔍 [UpcomingBanner] Loading transactions for:', { userId, chain });
     
     try {
       const data = await smartSchedulerService.getScheduledTransactions(userId, chain, 'pending');
+      console.log('✅ [UpcomingBanner] Loaded transactions:', data);
       setTransactions(data);
       
       // Calculate total estimated savings
       const savings = data.reduce((sum, tx) => sum + (tx.estimated_savings_usd || 0), 0);
       setTotalSavings(savings);
+      
+      if (data.length === 0) {
+        console.log('ℹ️ [UpcomingBanner] No pending transactions found');
+      }
     } catch (error) {
-      console.error('Failed to load scheduled transactions:', error);
+      console.error('❌ [UpcomingBanner] Failed to load scheduled transactions:', error);
     } finally {
       setLoading(false);
     }
   };
 
   // Don't render if no transactions
-  if (loading || transactions.length === 0) return null;
+  if (loading) {
+    console.log('⏳ [UpcomingBanner] Still loading...');
+    return null;
+  }
+  
+  if (transactions.length === 0) {
+    console.log('💤 [UpcomingBanner] No transactions to display');
+    return null;
+  }
+  
+  console.log('🎯 [UpcomingBanner] Rendering banner with', transactions.length, 'transaction(s)');
 
   const nextTransaction = transactions[0];
   const timeUntilExecution = nextTransaction.scheduled_for 

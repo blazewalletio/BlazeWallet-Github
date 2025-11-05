@@ -17,6 +17,8 @@ export async function GET(req: NextRequest) {
     const chain = searchParams.get('chain');
     const status = searchParams.get('status') || 'pending'; // pending, completed, failed, cancelled
 
+    console.log('📋 [List API] Request:', { user_id, chain, status });
+
     if (!user_id) {
       return NextResponse.json(
         { error: 'Missing user_id parameter' },
@@ -35,22 +37,36 @@ export async function GET(req: NextRequest) {
 
     // Filter by chain if provided
     if (chain) {
+      console.log(`🔍 [List API] Filtering by chain: ${chain}`);
       query = query.eq('chain', chain.toLowerCase());
     }
 
     // Filter by status if provided
     if (status !== 'all') {
+      console.log(`🔍 [List API] Filtering by status: ${status}`);
       query = query.eq('status', status);
     }
 
     const { data, error } = await query;
 
     if (error) {
-      console.error('❌ Supabase error:', error);
+      console.error('❌ [List API] Supabase error:', error);
       return NextResponse.json(
         { error: 'Failed to fetch scheduled transactions', details: error.message },
         { status: 500 }
       );
+    }
+
+    console.log(`✅ [List API] Found ${data?.length || 0} transaction(s)`);
+    if (data && data.length > 0) {
+      console.log('📦 [List API] Sample transaction:', {
+        id: data[0].id,
+        chain: data[0].chain,
+        status: data[0].status,
+        scheduled_for: data[0].scheduled_for,
+        amount: data[0].amount,
+        token_symbol: data[0].token_symbol,
+      });
     }
 
     return NextResponse.json({
@@ -60,7 +76,7 @@ export async function GET(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('❌ Smart Scheduler API error:', error);
+    console.error('❌ [List API] Smart Scheduler API error:', error);
     return NextResponse.json(
       { error: 'Internal server error', details: error.message },
       { status: 500 }
