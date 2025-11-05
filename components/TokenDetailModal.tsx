@@ -85,12 +85,18 @@ export default function TokenDetailModal({
       setIsLoadingChart(true);
       try {
         const days = chartTimeframe === '24h' ? 1 : chartTimeframe === '7d' ? 7 : 30;
-        const result = await getTokenPriceHistory(token.symbol, days);
+        const result = await getTokenPriceHistory(
+          token.symbol, 
+          days,
+          token.address, // Pass contract address for better lookup
+          chain.name.toLowerCase() // Pass chain name
+        );
         
         if (result.success) {
+          console.log(`✅ Price history loaded from ${result.source}`);
           setPriceHistory(result.prices);
         } else {
-          console.warn(`⚠️ No price history available for ${token.symbol}`);
+          console.warn(`⚠️ No price history available for ${token.symbol}: ${result.error}`);
           setPriceHistory([]);
         }
       } catch (error) {
@@ -102,7 +108,7 @@ export default function TokenDetailModal({
     };
     
     loadPriceHistory();
-  }, [isOpen, token.symbol, chartTimeframe]);
+  }, [isOpen, token.symbol, token.address, chain.name, chartTimeframe]);
   
   // Close on ESC key
   useEffect(() => {
