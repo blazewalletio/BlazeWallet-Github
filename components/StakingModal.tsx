@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Lock, TrendingUp, Zap, Crown, Gift } from 'lucide-react';
+import { X, Lock, TrendingUp, Zap, Crown, Gift, Sparkles, Rocket, Target, BarChart3 } from 'lucide-react';
 
 interface StakingModalProps {
   isOpen: boolean;
@@ -147,8 +147,9 @@ export default function StakingModal({ isOpen, onClose }: StakingModalProps) {
                           
                           {plan.lockDays > 0 && (
                             <div className="mt-4 pt-4 border-t border-theme-border-primary">
-                              <div className="text-sm text-theme-text-secondary">
-                                🔒 Locked for {plan.lockDays} days
+                              <div className="text-sm text-theme-text-secondary flex items-center gap-1.5">
+                                <Lock className="w-4 h-4" />
+                                <span>Locked for {plan.lockDays} days</span>
                               </div>
                             </div>
                           )}
@@ -220,10 +221,10 @@ export default function StakingModal({ isOpen, onClose }: StakingModalProps) {
                           <span className="font-semibold">Premium Member Unlocked!</span>
                         </div>
                         <ul className="mt-2 text-sm text-theme-text-primary space-y-1">
-                          <li>✨ 0% swap fees (100% discount)</li>
-                          <li>🚀 Priority support</li>
-                          <li>🎯 Launchpad access (if ≥5k)</li>
-                          <li>📊 Advanced analytics</li>
+                          <li className="flex items-center gap-1.5"><Sparkles className="w-4 h-4" /> 0% swap fees (100% discount)</li>
+                          <li className="flex items-center gap-1.5"><Rocket className="w-4 h-4" /> Priority support</li>
+                          <li className="flex items-center gap-1.5"><Target className="w-4 h-4" /> Launchpad access (if ≥5k)</li>
+                          <li className="flex items-center gap-1.5"><BarChart3 className="w-4 h-4" /> Advanced analytics</li>
                         </ul>
                       </div>
                     )}

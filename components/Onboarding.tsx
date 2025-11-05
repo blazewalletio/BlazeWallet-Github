@@ -1024,15 +1024,15 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                           </div>
                           <div className="space-y-1.5">
                             <div className="flex items-start gap-2">
-                              <span className="text-green-600 flex-shrink-0 mt-0.5">✅</span>
+                              <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
                               <span>Write on PAPER and store in a SAFE place</span>
                             </div>
                             <div className="flex items-start gap-2">
-                              <span className="text-green-600 flex-shrink-0 mt-0.5">✅</span>
+                              <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
                               <span>Make MULTIPLE physical copies</span>
                             </div>
                             <div className="flex items-start gap-2">
-                              <span className="text-green-600 flex-shrink-0 mt-0.5">✅</span>
+                              <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
                               <span>Store in DIFFERENT secure locations</span>
                             </div>
                           </div>

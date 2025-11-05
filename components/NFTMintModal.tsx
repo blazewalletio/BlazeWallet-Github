@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Palette, Sparkles, Lock, Check } from 'lucide-react';
+import { X, Palette, Sparkles, Lock, Check, AlertTriangle } from 'lucide-react';
 
 interface NFTMintModalProps {
   isOpen: boolean;
@@ -188,7 +188,10 @@ export default function NFTMintModal({ isOpen, onClose }: NFTMintModalProps) {
                               />
                             </div>
                             {availability < 20 && (
-                              <p className="text-xs text-theme-primary mt-1">⚠️ Only {skin.supply - skin.minted} left!</p>
+                              <p className="text-xs text-theme-primary mt-1 flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3" />
+                                <span>Only {skin.supply - skin.minted} left!</span>
+                              </p>
                             )}
                           </div>
 
