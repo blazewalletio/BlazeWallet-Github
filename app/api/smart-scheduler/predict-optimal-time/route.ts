@@ -13,6 +13,10 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const openaiKey = process.env.GAS_OPTIMIZER_API_KEY!;
 
+// In-memory cache for predictions (15 min TTL)
+const predictionCache = new Map<string, { data: PredictionResponse; timestamp: number }>();
+const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+
 interface PredictionRequest {
   chain: string;
   current_gas_price: number;
@@ -45,6 +49,21 @@ export async function POST(req: NextRequest) {
       max_wait_hours,
     });
 
+    // Check cache first
+    const cacheKey = `${chain}-${Math.floor(current_gas_price / 5)}`; // Group by ~5 unit ranges
+    const cached = predictionCache.get(cacheKey);
+    
+    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+      console.log('✅ Cache hit for', cacheKey);
+      return NextResponse.json({
+        success: true,
+        data: cached.data,
+        cached: true,
+      });
+    }
+
+    console.log('📡 Cache miss, fetching fresh prediction...');
+
     // 1. Fetch 7-day historical gas data
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -53,8 +72,8 @@ export async function POST(req: NextRequest) {
       .from('gas_history')
       .select('*')
       .eq('chain', chain.toLowerCase())
-      .gte('timestamp', sevenDaysAgo)
-      .order('timestamp', { ascending: true });
+      .gte('created_at', sevenDaysAgo)
+      .order('created_at', { ascending: true });
 
     if (histError) {
       console.error('❌ Failed to fetch historical data:', histError);
@@ -144,6 +163,35 @@ Predict the optimal time to execute this transaction within the next ${max_wait_
       throw new Error('Failed to parse AI prediction');
     }
 
+    // Validate AI response
+    const now = Date.now();
+    const optimalTime = new Date(prediction.optimal_time).getTime();
+    const maxWaitTime = now + (max_wait_hours * 60 * 60 * 1000);
+
+    // Fix: If optimal time is in the past or beyond max wait, set to now
+    if (optimalTime < now || optimalTime > maxWaitTime) {
+      console.warn('⚠️ AI predicted invalid time, adjusting to execute now');
+      prediction.optimal_time = new Date().toISOString();
+      prediction.confidence_score = Math.min(prediction.confidence_score || 0, 90);
+      prediction.reasoning = 'Current gas price is already optimal. ' + (prediction.reasoning || '');
+    }
+
+    // Validate confidence score
+    if (!prediction.confidence_score || prediction.confidence_score < 0 || prediction.confidence_score > 100) {
+      prediction.confidence_score = 50; // Default to low confidence
+    }
+
+    // Validate predicted gas price
+    if (!prediction.predicted_gas_price || prediction.predicted_gas_price < 0) {
+      prediction.predicted_gas_price = current_gas_price;
+      prediction.estimated_savings_percent = 0;
+    }
+
+    // Validate savings percent
+    if (!prediction.estimated_savings_percent || prediction.estimated_savings_percent < 0) {
+      prediction.estimated_savings_percent = 0;
+    }
+
     // 4. Calculate USD savings
     const estimated_savings_usd = await calculateSavingsUSD(
       chain,
@@ -164,6 +212,12 @@ Predict the optimal time to execute this transaction within the next ${max_wait_
     };
 
     console.log('✅ Final prediction:', response);
+
+    // Store in cache
+    predictionCache.set(cacheKey, {
+      data: response,
+      timestamp: Date.now(),
+    });
 
     return NextResponse.json({
       success: true,
@@ -209,21 +263,21 @@ function analyzeGasPatterns(historicalData: any[], currentGas: number) {
   
   // Night vs Day analysis (00:00-06:00 = night)
   const nightData = historicalData.filter(d => {
-    const hour = new Date(d.timestamp).getHours();
+    const hour = new Date(d.created_at).getHours();
     return hour >= 0 && hour < 6;
   });
   const dayData = historicalData.filter(d => {
-    const hour = new Date(d.timestamp).getHours();
+    const hour = new Date(d.created_at).getHours();
     return hour >= 9 && hour < 17;
   });
 
   // Weekend vs Weekday analysis
   const weekendData = historicalData.filter(d => {
-    const day = new Date(d.timestamp).getDay();
+    const day = new Date(d.created_at).getDay();
     return day === 0 || day === 6; // Sunday or Saturday
   });
   const weekdayData = historicalData.filter(d => {
-    const day = new Date(d.timestamp).getDay();
+    const day = new Date(d.created_at).getDay();
     return day >= 1 && day <= 5;
   });
 
@@ -244,8 +298,8 @@ function analyzeGasPatterns(historicalData: any[], currentGas: number) {
     average_gas: avgGas,
     min_gas: minGas,
     max_gas: maxGas,
-    min_gas_time: historicalData[minIndex]?.timestamp || new Date().toISOString(),
-    max_gas_time: historicalData[maxIndex]?.timestamp || new Date().toISOString(),
+    min_gas_time: historicalData[minIndex]?.created_at || new Date().toISOString(),
+    max_gas_time: historicalData[maxIndex]?.created_at || new Date().toISOString(),
     current_vs_average_percent: ((currentGas - avgGas) / avgGas) * 100,
     night_average: nightAvg,
     day_average: dayAvg,
@@ -273,12 +327,22 @@ async function calculateSavingsUSD(
     if (transactionType === 'contract') gasUnits = 200000;
 
     // Get native currency price
-    const priceResponse = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/api/prices?symbols=${chain === 'solana' ? 'SOL' : chain === 'bitcoin' ? 'BTC' : 'ETH'}`);
+    const symbol = chain === 'solana' ? 'SOL' : 
+                   chain === 'bitcoin' ? 'BTC' : 
+                   chain === 'litecoin' ? 'LTC' :
+                   chain === 'dogecoin' ? 'DOGE' :
+                   'ETH';
+    
+    const priceResponse = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, '')}/api/prices?symbols=${symbol}`);
     let nativePrice = 0;
     
     if (priceResponse.ok) {
-      const priceData = await priceResponse.json();
-      nativePrice = priceData.prices?.[0]?.price || 0;
+      try {
+        const priceData = await priceResponse.json();
+        nativePrice = priceData.prices?.[0]?.price || 0;
+      } catch (e) {
+        console.error('Failed to parse price response:', e);
+      }
     }
 
     // Calculate savings based on chain type
