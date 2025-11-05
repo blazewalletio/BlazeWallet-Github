@@ -367,10 +367,17 @@ export default function TabContent({
                 </span>
               )}
             </div>
-            <div className={`text-sm ${
+            <div className={`text-sm flex items-center gap-1.5 ${
               isPriorityListLive ? 'text-green-700' : 'text-gray-600'
             }`}>
-              {isPriorityListLive ? '🔥 Priority List is LIVE!' : 'Early access to tokens'}
+              {isPriorityListLive ? (
+                <>
+                  <Flame className="w-4 h-4" />
+                  <span>Priority List is LIVE!</span>
+                </>
+              ) : (
+                'Early access to tokens'
+              )}
             </div>
           </div>
           <ChevronRight className="w-5 h-5 text-gray-400" />
