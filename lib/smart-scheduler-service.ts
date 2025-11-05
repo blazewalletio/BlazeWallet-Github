@@ -310,7 +310,7 @@ class SmartSchedulerService {
    */
   formatGasPrice(gasPrice: number, chain: string): string {
     if (chain === 'solana') {
-      return `${(gasPrice / 1_000_000).toFixed(2)} microlamports`;
+      return `${gasPrice.toFixed(0)} lamports`;
     } else if (chain.includes('bitcoin') || chain === 'litecoin' || chain === 'dogecoin') {
       return `${gasPrice.toFixed(0)} sat/vB`;
     } else {

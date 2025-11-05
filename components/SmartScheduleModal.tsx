@@ -379,7 +379,7 @@ export default function SmartScheduleModal({
                       className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:border-orange-500 transition-colors"
                     />
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
-                      {chain === 'solana' ? 'µlamports' : chain.includes('bitcoin') ? 'sat/vB' : 'gwei'}
+                      {chain === 'solana' ? 'lamports' : chain.includes('bitcoin') ? 'sat/vB' : 'gwei'}
                     </div>
                   </div>
                   <p className="text-xs text-gray-600 mt-2">

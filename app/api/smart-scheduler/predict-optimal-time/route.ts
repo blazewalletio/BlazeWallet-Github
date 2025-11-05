@@ -168,12 +168,12 @@ Predict the optimal time to execute this transaction within the next ${max_wait_
     const optimalTime = new Date(prediction.optimal_time).getTime();
     const maxWaitTime = now + (max_wait_hours * 60 * 60 * 1000);
 
-    // Fix: If optimal time is in the past or beyond max wait, set to now
-    if (optimalTime < now || optimalTime > maxWaitTime) {
-      console.warn('⚠️ AI predicted invalid time, adjusting to execute now');
-      prediction.optimal_time = new Date().toISOString();
+    // Fix: If optimal time is in the past (with 5 sec buffer) or beyond max wait, set to +1 minute
+    if (optimalTime < (now - 5000) || optimalTime > maxWaitTime) {
+      console.warn('⚠️ AI predicted invalid time, adjusting to +1 minute');
+      prediction.optimal_time = new Date(now + 60000).toISOString(); // +1 minute from now
       prediction.confidence_score = Math.min(prediction.confidence_score || 0, 90);
-      prediction.reasoning = 'Current gas price is already optimal. ' + (prediction.reasoning || '');
+      prediction.reasoning = 'Current gas price is already near optimal. ' + (prediction.reasoning || '');
     }
 
     // Validate confidence score
@@ -309,7 +309,7 @@ function analyzeGasPatterns(historicalData: any[], currentGas: number) {
 }
 
 function getGasUnit(chain: string): string {
-  if (chain === 'solana') return 'microlamports';
+  if (chain === 'solana') return 'lamports';
   if (chain.includes('bitcoin') || chain === 'litecoin' || chain === 'dogecoin') return 'sat/vB';
   return 'gwei';
 }
@@ -326,23 +326,45 @@ async function calculateSavingsUSD(
     if (transactionType === 'swap') gasUnits = 150000;
     if (transactionType === 'contract') gasUnits = 200000;
 
-    // Get native currency price
+    // Get native currency price using relative URL
     const symbol = chain === 'solana' ? 'SOL' : 
                    chain === 'bitcoin' ? 'BTC' : 
                    chain === 'litecoin' ? 'LTC' :
                    chain === 'dogecoin' ? 'DOGE' :
+                   chain === 'bitcoincash' ? 'BCH' :
                    'ETH';
     
-    const priceResponse = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, '')}/api/prices?symbols=${symbol}`);
+    // Use relative URL instead of absolute URL
+    const apiUrl = `https://my.blazewallet.io/api/prices?symbols=${symbol}`;
+    console.log(`💰 Fetching ${symbol} price from:`, apiUrl);
+    
+    const priceResponse = await fetch(apiUrl);
     let nativePrice = 0;
     
     if (priceResponse.ok) {
       try {
         const priceData = await priceResponse.json();
         nativePrice = priceData.prices?.[0]?.price || 0;
+        console.log(`✅ ${symbol} price: $${nativePrice}`);
       } catch (e) {
         console.error('Failed to parse price response:', e);
       }
+    } else {
+      console.error(`❌ Price API failed: ${priceResponse.status}`);
+    }
+
+    if (!nativePrice) {
+      console.warn('⚠️ Using fallback prices');
+      // Fallback prices if API fails
+      const fallbackPrices: Record<string, number> = {
+        'ETH': 2500,
+        'SOL': 155,
+        'BTC': 70000,
+        'LTC': 70,
+        'DOGE': 0.10,
+        'BCH': 350,
+      };
+      nativePrice = fallbackPrices[symbol] || 2500;
     }
 
     // Calculate savings based on chain type
@@ -350,20 +372,27 @@ async function calculateSavingsUSD(
     let predictedCostUSD = 0;
 
     if (chain === 'solana') {
-      // Solana: microlamports * 5000 compute units / 1B = SOL
-      currentCostUSD = (currentGas * 5000 / 1_000_000_000) * nativePrice;
-      predictedCostUSD = (predictedGas * 5000 / 1_000_000_000) * nativePrice;
-    } else if (chain.includes('bitcoin')) {
+      // Solana: lamports → SOL → USD
+      // gasPrice is already in lamports (e.g., 5000 lamports = 0.000005 SOL)
+      currentCostUSD = (currentGas / 1_000_000_000) * nativePrice;
+      predictedCostUSD = (predictedGas / 1_000_000_000) * nativePrice;
+      console.log(`💰 Solana: ${currentGas} lamports ($${currentCostUSD.toFixed(6)}) → ${predictedGas} lamports ($${predictedCostUSD.toFixed(6)})`);
+    } else if (chain.includes('bitcoin') || chain === 'litecoin' || chain === 'dogecoin' || chain === 'bitcoincash') {
       // Bitcoin-like: sat/vB * 250 bytes / 100M = BTC
       currentCostUSD = ((currentGas * 250) / 100_000_000) * nativePrice;
       predictedCostUSD = ((predictedGas * 250) / 100_000_000) * nativePrice;
+      console.log(`💰 ${chain}: ${currentGas} sat/vB ($${currentCostUSD.toFixed(6)}) → ${predictedGas} sat/vB ($${predictedCostUSD.toFixed(6)})`);
     } else {
       // EVM chains: (gas_units * gas_price) / 1e9 = ETH
       currentCostUSD = ((gasUnits * currentGas) / 1e9) * nativePrice;
       predictedCostUSD = ((gasUnits * predictedGas) / 1e9) * nativePrice;
+      console.log(`💰 EVM: ${currentGas} gwei ($${currentCostUSD.toFixed(6)}) → ${predictedGas} gwei ($${predictedCostUSD.toFixed(6)})`);
     }
 
-    return Math.max(0, currentCostUSD - predictedCostUSD);
+    const savingsUSD = Math.max(0, currentCostUSD - predictedCostUSD);
+    console.log(`✅ Total USD savings: $${savingsUSD.toFixed(6)}`);
+    
+    return savingsUSD;
   } catch (e) {
     console.error('Failed to calculate USD savings:', e);
     return 0;
