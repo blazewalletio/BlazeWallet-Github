@@ -1121,7 +1121,7 @@ export default function Dashboard() {
 
           {/* Upcoming Transactions Banner */}
           <UpcomingTransactionsBanner
-            userId={displayAddress || ''}
+            userId={typeof window !== 'undefined' ? (localStorage.getItem('wallet_email') || displayAddress || '') : ''}
             chain={currentChain}
             onViewAll={() => setShowScheduledTransactions(true)}
           />
