@@ -108,7 +108,7 @@ async function testChain(chain) {
 }
 
 function getGasUnit(chain) {
-  if (chain === 'solana') return 'microlamports';
+  if (chain === 'solana') return 'lamports';
   if (['bitcoin', 'litecoin', 'dogecoin', 'bitcoincash'].includes(chain)) return 'sat/vB';
   return 'gwei';
 }
