@@ -9,7 +9,16 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, ChevronDown } from 'lucide-react';
+import { 
+  Clock, 
+  CheckCircle2, 
+  XCircle, 
+  Ban, 
+  ClipboardList, 
+  Inbox,
+  DollarSign,
+  Loader2
+} from 'lucide-react';
 import { smartSchedulerService, type ScheduledTransaction } from '@/lib/smart-scheduler-service';
 import { useWalletStore } from '@/lib/wallet-store';
 import { getCurrencyLogoSync } from '@/lib/currency-logo-service';
@@ -134,8 +143,10 @@ export default function ScheduledTransactionsPanel({ isOpen, chain, onClose }: S
                         : 'bg-white border-gray-200 hover:border-orange-300'
                     }`}
                   >
-                    <div className="text-2xl mb-2">
-                      {status === 'pending' ? '⏳' : status === 'completed' ? '✅' : '📋'}
+                    <div className="flex justify-center mb-2">
+                      {status === 'pending' && <Clock className="w-6 h-6 text-orange-500" />}
+                      {status === 'completed' && <CheckCircle2 className="w-6 h-6 text-green-500" />}
+                      {status === 'all' && <ClipboardList className="w-6 h-6 text-blue-500" />}
                     </div>
                     <div className={`text-sm font-medium ${filter === status ? 'text-orange-600' : 'text-gray-900'}`}>
                       {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -158,7 +169,7 @@ export default function ScheduledTransactionsPanel({ isOpen, chain, onClose }: S
                 <div className="glass-card p-12">
                   <div className="flex flex-col items-center text-center">
                     <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-                      <span className="text-4xl">📭</span>
+                      <Inbox className="w-10 h-10 text-gray-400" />
                     </div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">
                       No {filter !== 'all' ? filter : ''} transactions
@@ -211,18 +222,19 @@ export default function ScheduledTransactionsPanel({ isOpen, chain, onClose }: S
                           </div>
                           
                           {/* Status Badge */}
-                          <div className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap ${
+                          <div className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap flex items-center gap-1.5 ${
                             tx.status === 'pending' ? 'bg-orange-100 text-orange-700' :
                             tx.status === 'completed' ? 'bg-green-100 text-green-700' :
                             tx.status === 'failed' ? 'bg-red-100 text-red-700' :
                             tx.status === 'cancelled' ? 'bg-gray-100 text-gray-700' :
                             'bg-blue-100 text-blue-700'
                           }`}>
-                            {tx.status === 'pending' ? '⏳ pending' :
-                             tx.status === 'completed' ? '✅ completed' :
-                             tx.status === 'failed' ? '❌ failed' :
-                             tx.status === 'cancelled' ? '🚫 cancelled' :
-                             `⚡ ${tx.status}`}
+                            {tx.status === 'pending' && <Clock className="w-3.5 h-3.5" />}
+                            {tx.status === 'completed' && <CheckCircle2 className="w-3.5 h-3.5" />}
+                            {tx.status === 'failed' && <XCircle className="w-3.5 h-3.5" />}
+                            {tx.status === 'cancelled' && <Ban className="w-3.5 h-3.5" />}
+                            {!['pending', 'completed', 'failed', 'cancelled'].includes(tx.status) && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                            <span className="capitalize">{tx.status}</span>
                           </div>
                         </div>
 
@@ -248,7 +260,7 @@ export default function ScheduledTransactionsPanel({ isOpen, chain, onClose }: S
                         {tx.actual_savings_usd && tx.actual_savings_usd > 0 && (
                           <div className="bg-green-50 border-2 border-green-200 rounded-xl p-3 mb-3">
                             <div className="flex items-center gap-2">
-                              <span className="text-xl">💰</span>
+                              <DollarSign className="w-5 h-5 text-green-600" />
                               <div>
                                 <div className="text-sm font-semibold text-green-700">
                                   Saved ${tx.actual_savings_usd.toFixed(4)}
@@ -285,15 +297,18 @@ export default function ScheduledTransactionsPanel({ isOpen, chain, onClose }: S
                           <button
                             onClick={() => handleCancel(tx.id)}
                             disabled={cancellingId === tx.id}
-                            className="w-full py-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full py-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                           >
                             {cancellingId === tx.id ? (
-                              <div className="flex items-center justify-center gap-2">
-                                <div className="w-4 h-4 border-2 border-red-300 border-t-red-600 rounded-full animate-spin"></div>
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
                                 <span>Cancelling...</span>
-                              </div>
+                              </>
                             ) : (
-                              '🚫 Cancel transaction'
+                              <>
+                                <Ban className="w-4 h-4" />
+                                <span>Cancel transaction</span>
+                              </>
                             )}
                           </button>
                         )}

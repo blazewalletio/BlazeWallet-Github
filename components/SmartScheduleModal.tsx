@@ -9,7 +9,16 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, ChevronDown } from 'lucide-react';
+import { 
+  Zap, 
+  ChevronDown, 
+  Target, 
+  Calendar, 
+  Settings, 
+  CheckCircle2, 
+  TrendingDown,
+  Loader2
+} from 'lucide-react';
 import { smartSchedulerService, type ScheduleOptions } from '@/lib/smart-scheduler-service';
 import { gasPriceService } from '@/lib/gas-price-service';
 import { useWalletStore } from '@/lib/wallet-store';
@@ -212,7 +221,9 @@ export default function SmartScheduleModal({
                         : 'bg-white border-gray-200 hover:border-orange-300'
                     }`}
                   >
-                    <div className="text-2xl mb-2">🎯</div>
+                    <div className="flex justify-center mb-2">
+                      <Target className="w-7 h-7 text-orange-500" />
+                    </div>
                     <div className={`text-sm font-medium ${mode === 'optimal' ? 'text-orange-600' : 'text-gray-900'}`}>
                       Optimal
                     </div>
@@ -225,7 +236,9 @@ export default function SmartScheduleModal({
                         : 'bg-white border-gray-200 hover:border-orange-300'
                     }`}
                   >
-                    <div className="text-2xl mb-2">📅</div>
+                    <div className="flex justify-center mb-2">
+                      <Calendar className="w-7 h-7 text-blue-500" />
+                    </div>
                     <div className={`text-sm font-medium ${mode === 'custom' ? 'text-orange-600' : 'text-gray-900'}`}>
                       Custom
                     </div>
@@ -238,7 +251,9 @@ export default function SmartScheduleModal({
                         : 'bg-white border-gray-200 hover:border-orange-300'
                     }`}
                   >
-                    <div className="text-2xl mb-2">⚙️</div>
+                    <div className="flex justify-center mb-2">
+                      <Settings className="w-7 h-7 text-purple-500" />
+                    </div>
                     <div className={`text-sm font-medium ${mode === 'threshold' ? 'text-orange-600' : 'text-gray-900'}`}>
                       Threshold
                     </div>
@@ -445,7 +460,10 @@ export default function SmartScheduleModal({
                   animate={{ opacity: 1, y: 0 }}
                   className="bg-green-50 border-2 border-green-200 rounded-xl p-4"
                 >
-                  <p className="text-green-700 text-sm font-medium">✅ {success}</p>
+                  <p className="text-green-700 text-sm font-medium flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>{success}</span>
+                  </p>
                 </motion.div>
               )}
 

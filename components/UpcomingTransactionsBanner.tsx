@@ -9,7 +9,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, ChevronRight, Clock } from 'lucide-react';
+import { Zap, ChevronRight, Clock, DollarSign } from 'lucide-react';
 import { smartSchedulerService, type ScheduledTransaction } from '@/lib/smart-scheduler-service';
 
 interface UpcomingTransactionsBannerProps {
@@ -122,7 +122,8 @@ export default function UpcomingTransactionsBanner({
                   )}
                   {totalSavings > 0 && (
                     <span className="flex items-center gap-1 text-green-600 font-medium">
-                      💰 Save ${totalSavings.toFixed(2)}
+                      <DollarSign className="w-3 h-3" />
+                      Save ${totalSavings.toFixed(2)}
                     </span>
                   )}
                 </div>

@@ -7,7 +7,9 @@ import {
   ArrowUpRight, ArrowDownLeft, ArrowLeft, RefreshCw, Settings, 
   TrendingUp, Eye, EyeOff, Plus, Zap, ChevronRight,
   Repeat, Wallet as WalletIcon, TrendingDown, PieChart, Rocket, CreditCard,
-  Lock, Gift, Vote, Users, Palette, LogOut
+  Lock, Gift, Vote, Users, Palette, LogOut,
+  Sparkles, Shield, Brain, MessageSquare, Send, Download, ShoppingCart,
+  BarChart3, DollarSign, Flame, Target, Clock, CheckCircle2, XCircle, Inbox
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { MultiChainService } from '@/lib/multi-chain-service';
@@ -27,7 +29,6 @@ import AnimatedNumber from './AnimatedNumber';
 import TransactionHistory from './TransactionHistory';
 import PremiumBadge, { PremiumCard } from './PremiumBadge';
 import { getPortfolioHistory } from '@/lib/portfolio-history';
-import { Sparkles, Shield, Brain, MessageSquare } from 'lucide-react';
 import BottomNavigation, { TabType } from './BottomNavigation';
 
 // ✅ PERFORMANCE FIX: Lazy load modals (reduces initial bundle size by ~200KB)
