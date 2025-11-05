@@ -38,6 +38,14 @@ export async function POST(req: NextRequest) {
   try {
     const body: CreateScheduleRequest = await req.json();
 
+    console.log('📥 Received schedule request:', {
+      user_id: body.user_id,
+      supabase_user_id: body.supabase_user_id,
+      chain: body.chain,
+      token_symbol: body.token_symbol,
+      schedule_type: body.schedule_type,
+    });
+
     // Validation
     if (!body.user_id || !body.chain || !body.from_address || !body.to_address || !body.amount) {
       return NextResponse.json(
@@ -63,6 +71,8 @@ export async function POST(req: NextRequest) {
     // Initialize Supabase with service role key (bypasses RLS for write)
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    console.log('🔑 Supabase client initialized with service role key');
+
     // Calculate expiration time (default: scheduled_for + max_wait_hours)
     let expires_at = null;
     if (body.scheduled_for && body.max_wait_hours) {
@@ -71,6 +81,14 @@ export async function POST(req: NextRequest) {
     } else if (body.max_wait_hours) {
       expires_at = new Date(Date.now() + body.max_wait_hours * 60 * 60 * 1000).toISOString();
     }
+
+    console.log('💾 Inserting scheduled transaction:', {
+      user_id: body.user_id,
+      supabase_user_id: body.supabase_user_id,
+      chain: body.chain.toLowerCase(),
+      token_symbol: body.token_symbol,
+      expires_at,
+    });
 
     // Insert scheduled transaction
     const { data, error } = await supabase

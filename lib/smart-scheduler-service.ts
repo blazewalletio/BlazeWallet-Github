@@ -96,11 +96,17 @@ class SmartSchedulerService {
         console.error('Failed to calculate gas cost:', e);
       }
 
+      // Get supabase_user_id from localStorage if available
+      const supabaseUserId = typeof window !== 'undefined' 
+        ? localStorage.getItem('supabase_user_id') 
+        : null;
+
       const response = await fetch(`${this.baseUrl}/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...options,
+          supabase_user_id: supabaseUserId || undefined,
           scheduled_for: options.scheduled_for?.toISOString(),
           current_gas_price: currentGasPrice,
           current_gas_cost_usd: currentGasCostUSD,
@@ -110,7 +116,8 @@ class SmartSchedulerService {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to schedule transaction');
+        console.error('❌ Schedule transaction error:', data);
+        throw new Error(data.error || 'Failed to create scheduled transaction');
       }
 
       return data.data;
