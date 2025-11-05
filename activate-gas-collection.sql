@@ -4,6 +4,9 @@
 -- Run this SQL in Supabase SQL Editor to enable automatic gas collection
 -- ============================================================================
 
+-- 0. Enable pg_net extension (required for HTTP requests)
+CREATE EXTENSION IF NOT EXISTS pg_net;
+
 -- 1. Enable pg_cron extension
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 
