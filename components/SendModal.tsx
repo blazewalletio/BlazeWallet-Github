@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Loader2, CheckCircle2, Flame, ChevronDown, Check, AlertTriangle } from 'lucide-react';
+import { ArrowRight, Loader2, CheckCircle2, Flame, ChevronDown, Check, AlertTriangle, Lightbulb } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { MultiChainService } from '@/lib/multi-chain-service';
@@ -826,7 +826,8 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                       </div>
                       <div className="mt-3 pt-3 border-t border-orange-200">
                         <p className="text-xs text-gray-600">
-                          💡 <span className="font-medium">Tip:</span> Try lowering the amount or switching to a slower gas speed to reduce fees.
+                          <Lightbulb className="w-4 h-4 flex-shrink-0" />
+                          <span className="font-medium">Tip:</span> Try lowering the amount or switching to a slower gas speed to reduce fees.
                         </p>
                       </div>
                     </div>

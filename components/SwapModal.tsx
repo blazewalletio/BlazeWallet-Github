@@ -471,7 +471,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
             <p className={`text-sm ${swapProvider === '1inch' ? 'text-orange-700' : 'text-amber-700'}`}>
               <Flame className="w-4 h-4 inline mr-2" />
               {swapProvider === '1inch' ? 
-                '1inch finds the best rates by comparing 100+ DEXes 🚀' : 
+                '1inch finds the best rates by comparing 100+ DEXes' : 
                 'Add 1inch API key for real swaps (see ONEINCH_API_SETUP.md)'
               }
             </p>

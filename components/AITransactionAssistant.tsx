@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { aiService } from '@/lib/ai-service';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Send, Loader2, AlertCircle, CheckCircle, ArrowLeft, Info, TrendingUp, Zap, AlertTriangle, Trash2, Mic } from 'lucide-react';
+import { Sparkles, Send, Loader2, AlertCircle, CheckCircle, ArrowLeft, Info, TrendingUp, Zap, AlertTriangle, Trash2, Mic, MessageCircle } from 'lucide-react';
 
 interface AITransactionAssistantProps {
   onClose: () => void;
@@ -250,7 +250,7 @@ export default function AITransactionAssistant({
                       className="text-left px-4 py-3 rounded-xl bg-gray-50 hover:bg-gray-100 text-sm text-gray-700 border border-gray-200 transition-colors group"
                     >
                       <div className="flex items-start gap-2">
-                        <span className="text-base">💬</span>
+                        <MessageCircle className="w-4 h-4 mt-0.5 text-gray-600 group-hover:text-orange-600 transition-colors flex-shrink-0" />
                         <span className="flex-1 group-hover:text-orange-600 transition-colors">
                           {example}
                         </span>

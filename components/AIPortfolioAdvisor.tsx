@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingUp, Lightbulb, PieChart, AlertCircle, ArrowLeft, Loader2, Activity, Shield, Target, TrendingDown, CheckCircle, AlertTriangle, RefreshCw, ShoppingCart, DollarSign } from 'lucide-react';
+import { TrendingUp, Lightbulb, PieChart, AlertCircle, ArrowLeft, Loader2, Activity, Shield, Target, TrendingDown, CheckCircle, AlertTriangle, RefreshCw, ShoppingCart, DollarSign, BarChart3 } from 'lucide-react';
 import Image from 'next/image';
 import { getCurrencyLogoSync } from '@/lib/currency-logo-service';
 
@@ -155,10 +155,10 @@ export default function AIPortfolioAdvisor({
   };
 
   const getMarketIcon = () => {
-    if (!analysis) return '📊';
-    if (analysis.marketContext.condition === 'bullish') return '📈';
-    if (analysis.marketContext.condition === 'bearish') return '📉';
-    return '➡️';
+    if (!analysis) return <BarChart3 className="w-5 h-5 text-blue-600" />;
+    if (analysis.marketContext.condition === 'bullish') return <TrendingUp className="w-5 h-5 text-green-600" />;
+    if (analysis.marketContext.condition === 'bearish') return <TrendingDown className="w-5 h-5 text-red-600" />;
+    return <Activity className="w-5 h-5 text-gray-600" />;
   };
 
   const getInsightIcon = (type: string) => {
@@ -306,7 +306,10 @@ export default function AIPortfolioAdvisor({
                       Market: {analysis.marketContext.condition}
                     </div>
                     <p className="text-sm text-gray-700 mb-2">{analysis.marketContext.sentiment}</p>
-                    <p className="text-xs text-gray-600">💡 {analysis.marketContext.advice}</p>
+                    <p className="text-xs text-gray-600 flex items-start gap-1.5">
+                      <Lightbulb className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                      <span>{analysis.marketContext.advice}</span>
+                    </p>
                   </div>
                 </div>
               </div>
