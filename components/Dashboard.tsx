@@ -64,7 +64,6 @@ const AISettingsModal = dynamic(() => import('./AISettingsModal'), { ssr: false 
 const ScheduledTransactionsPanel = dynamic(() => import('./ScheduledTransactionsPanel'), { ssr: false });
 const SavingsTracker = dynamic(() => import('./SavingsTracker'), { ssr: false });
 const UpcomingTransactionsBanner = dynamic(() => import('./UpcomingTransactionsBanner'), { ssr: false });
-const ScheduledTxDebugPanel = dynamic(() => import('./ScheduledTxDebugPanel'), { ssr: false });
 
 export default function Dashboard() {
   const { 
@@ -191,9 +190,6 @@ export default function Dashboard() {
   // Smart Scheduler modals
   const [showScheduledTransactions, setShowScheduledTransactions] = useState(false);
   const [showSavingsTracker, setShowSavingsTracker] = useState(false);
-  
-  // ✅ NEW: Trigger for refreshing upcoming transactions banner
-  const [upcomingTransactionsRefresh, setUpcomingTransactionsRefresh] = useState(0);
 
   // Bottom navigation state
   const [activeTab, setActiveTab] = useState<TabType>('wallet');
@@ -1136,7 +1132,6 @@ export default function Dashboard() {
             userId={typeof window !== 'undefined' ? (localStorage.getItem('wallet_email') || displayAddress || '') : ''}
             chain={currentChain}
             onViewAll={() => setShowScheduledTransactions(true)}
-            refreshTrigger={upcomingTransactionsRefresh} // ✅ NEW: Triggers refresh
           />
 
           {/* Quick Actions */}
@@ -1774,10 +1769,6 @@ export default function Dashboard() {
           setSendPrefillData(null); // Clear prefill data on close
         }}
         prefillData={sendPrefillData}
-        onTransactionScheduled={() => {
-          // ✅ NEW: Refresh upcoming transactions banner
-          setUpcomingTransactionsRefresh(prev => prev + 1);
-        }}
       />
       <ReceiveModal isOpen={showReceiveModal} onClose={() => setShowReceiveModal(false)} />
       <SwapModal 
@@ -2208,8 +2199,8 @@ export default function Dashboard() {
         />
       )}
       
-      {/* Floating Quick Pay Button */}
-      <motion.button
+      {/* Floating Quick Pay Button - TEMPORARILY HIDDEN FOR DEBUG */}
+      {/* <motion.button
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ delay: 0.5, type: "spring", stiffness: 200 }}
@@ -2219,10 +2210,7 @@ export default function Dashboard() {
         title="Quick Pay"
       >
         <Zap className="w-8 h-8 text-white" />
-      </motion.button>
-
-      {/* Scheduled Transactions Debug Panel */}
-      <ScheduledTxDebugPanel />
+      </motion.button> */}
 
     </>
   );
