@@ -356,18 +356,31 @@ class SmartSchedulerService {
     gasPrice: number
   ): Promise<number> {
     try {
-      const nativePrice = await priceService.getPrice(
-        chain === 'solana' ? 'solana' :
-        chain === 'bitcoin' ? 'bitcoin' :
-        'ethereum'
-      );
+      // Get correct currency symbol
+      const currencySymbol = 
+        chain === 'solana' ? 'SOL' :
+        chain === 'bitcoin' ? 'BTC' :
+        chain === 'ethereum' ? 'ETH' :
+        chain === 'polygon' ? 'MATIC' :
+        chain === 'avalanche' ? 'AVAX' :
+        chain === 'bsc' ? 'BNB' :
+        chain === 'fantom' ? 'FTM' :
+        chain === 'cronos' ? 'CRO' :
+        chain === 'litecoin' ? 'LTC' :
+        chain === 'dogecoin' ? 'DOGE' :
+        chain === 'bitcoincash' ? 'BCH' :
+        'ETH'; // Fallback for all other EVM chains (Arbitrum, Optimism, Base, etc. use ETH)
+      
+      const nativePrice = await priceService.getPrice(currencySymbol);
 
       if (chain === 'solana') {
-        return (gasPrice * 5000 / 1_000_000_000) * nativePrice;
-      } else if (chain.includes('bitcoin') || chain === 'litecoin' || chain === 'dogecoin') {
+        // Solana gas is already in lamports, just convert to SOL
+        return (gasPrice / 1_000_000_000) * nativePrice;
+      } else if (chain.includes('bitcoin') || chain === 'litecoin' || chain === 'dogecoin' || chain === 'bitcoincash') {
+        // Bitcoin-like: sat/vB * average tx size (250 bytes) → BTC → USD
         return ((gasPrice * 250) / 100_000_000) * nativePrice;
       } else {
-        // EVM chains
+        // EVM chains: gwei * gas limit (21000) → ETH/MATIC/BNB/etc → USD
         return ((21000 * gasPrice) / 1e9) * nativePrice;
       }
     } catch (error) {
