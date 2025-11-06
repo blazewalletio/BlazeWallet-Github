@@ -190,6 +190,9 @@ export default function Dashboard() {
   // Smart Scheduler modals
   const [showScheduledTransactions, setShowScheduledTransactions] = useState(false);
   const [showSavingsTracker, setShowSavingsTracker] = useState(false);
+  
+  // ✅ NEW: Trigger for refreshing upcoming transactions banner
+  const [upcomingTransactionsRefresh, setUpcomingTransactionsRefresh] = useState(0);
 
   // Bottom navigation state
   const [activeTab, setActiveTab] = useState<TabType>('wallet');
@@ -1132,6 +1135,7 @@ export default function Dashboard() {
             userId={typeof window !== 'undefined' ? (localStorage.getItem('wallet_email') || displayAddress || '') : ''}
             chain={currentChain}
             onViewAll={() => setShowScheduledTransactions(true)}
+            refreshTrigger={upcomingTransactionsRefresh} // ✅ NEW: Triggers refresh
           />
 
           {/* Quick Actions */}
@@ -1769,6 +1773,10 @@ export default function Dashboard() {
           setSendPrefillData(null); // Clear prefill data on close
         }}
         prefillData={sendPrefillData}
+        onTransactionScheduled={() => {
+          // ✅ NEW: Refresh upcoming transactions banner
+          setUpcomingTransactionsRefresh(prev => prev + 1);
+        }}
       />
       <ReceiveModal isOpen={showReceiveModal} onClose={() => setShowReceiveModal(false)} />
       <SwapModal 

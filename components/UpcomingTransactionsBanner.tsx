@@ -16,12 +16,14 @@ interface UpcomingTransactionsBannerProps {
   userId: string;
   chain: string;
   onViewAll: () => void;
+  refreshTrigger?: number; // ✅ NEW: Triggers refresh when value changes
 }
 
 export default function UpcomingTransactionsBanner({ 
   userId, 
   chain,
-  onViewAll 
+  onViewAll,
+  refreshTrigger = 0 // ✅ NEW: Optional refresh trigger
 }: UpcomingTransactionsBannerProps) {
   const [transactions, setTransactions] = useState<ScheduledTransaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +31,7 @@ export default function UpcomingTransactionsBanner({
 
   useEffect(() => {
     loadTransactions();
-  }, [userId, chain]);
+  }, [userId, chain, refreshTrigger]); // ✅ ADDED: refreshTrigger dependency
 
   const loadTransactions = async () => {
     if (!userId) {

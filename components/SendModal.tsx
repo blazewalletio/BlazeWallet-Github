@@ -33,9 +33,11 @@ interface SendModalProps {
     token?: string;
     recipient?: string;
   };
+  // ✅ NEW: Callback when transaction is scheduled
+  onTransactionScheduled?: () => void;
 }
 
-export default function SendModal({ isOpen, onClose, prefillData }: SendModalProps) {
+export default function SendModal({ isOpen, onClose, prefillData, onTransactionScheduled }: SendModalProps) {
   const { wallet, currentChain, mnemonic, getCurrentAddress } = useWalletStore();
   const [step, setStep] = useState<'input' | 'confirm' | 'sending' | 'success'>('input');
   
@@ -1021,6 +1023,8 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
           onScheduled={() => {
             setShowSmartSchedule(false);
             onClose();
+            // ✅ NEW: Notify Dashboard to refresh upcoming transactions
+            onTransactionScheduled?.();
           }}
         />
       )}
