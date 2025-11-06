@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     const chain = searchParams.get('chain');
     const status = searchParams.get('status') || 'pending'; // pending, completed, failed, cancelled
 
-    console.log('📋 [List API] Request:', { user_id, chain, status });
+    console.log('📋 [List API] Request (RLS DISABLED TEST):', { user_id, chain, status });
 
     if (!user_id) {
       return NextResponse.json(
