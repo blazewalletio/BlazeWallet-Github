@@ -6,9 +6,6 @@
 
 import { gasPriceService } from './gas-price-service';
 import { priceService } from './price-service';
-import { encryptForScheduling } from './scheduled-tx-encryption';
-import { useWalletStore } from './wallet-store';
-import { scheduledTxDebugLogger } from './scheduled-tx-debug-logger';
 
 export interface ScheduledTransaction {
   id: string;
@@ -73,65 +70,23 @@ class SmartSchedulerService {
    * Schedule a new transaction
    */
   async scheduleTransaction(options: ScheduleOptions): Promise<ScheduledTransaction> {
-    scheduledTxDebugLogger.log('SCHEDULE_START', 'scheduleTransaction called', { options });
-    
     try {
-      // 🔐 CRITICAL: Get mnemonic from unlocked wallet
-      const { wallet } = useWalletStore.getState();
-      
-      scheduledTxDebugLogger.log('SCHEDULE_STEP', 'Wallet store accessed', { 
-        hasWallet: !!wallet,
-        hasMnemonic: !!(wallet?.mnemonic),
-      });
-      
-      if (!wallet || !wallet.mnemonic) {
-        scheduledTxDebugLogger.log('SCHEDULE_ERROR', 'Wallet locked', { error: 'Wallet locked - please unlock first' });
-        throw new Error('Wallet locked - please unlock first');
-      }
-
-      const mnemonic = wallet.mnemonic.phrase;
-      
-      if (!mnemonic || mnemonic.split(' ').length < 12) {
-        scheduledTxDebugLogger.log('SCHEDULE_ERROR', 'Invalid mnemonic', { error: 'Invalid wallet mnemonic' });
-        throw new Error('Invalid wallet mnemonic');
-      }
-
-      scheduledTxDebugLogger.log('SCHEDULE_STEP', 'Wallet unlocked - proceeding with encryption', {});
-      console.log('✅ Wallet unlocked - proceeding with encryption');
-
       // Get current gas price for savings estimation
-      scheduledTxDebugLogger.log('SCHEDULE_STEP', 'Fetching current gas price', { chain: options.chain });
       const currentGasData = await gasPriceService.getGasPrice(options.chain);
       const currentGasPrice = currentGasData?.standard || 0;
-      scheduledTxDebugLogger.log('SCHEDULE_STEP', 'Gas price fetched', { 
-        chain: options.chain,
-        gasPrice: currentGasPrice,
-      });
 
       // Calculate current gas cost in USD
       let currentGasCostUSD = 0;
       try {
-        // ✅ FIX: Use correct currency SYMBOLS (not chain names)
-        const currencySymbol = 
-          options.chain === 'solana' ? 'SOL' :
-          options.chain === 'bitcoin' ? 'BTC' :
-          options.chain === 'ethereum' ? 'ETH' :
-          options.chain === 'polygon' ? 'MATIC' :
-          options.chain === 'avalanche' ? 'AVAX' :
-          options.chain === 'bsc' ? 'BNB' :
-          options.chain === 'fantom' ? 'FTM' :
-          options.chain === 'cronos' ? 'CRO' :
-          options.chain === 'litecoin' ? 'LTC' :
-          options.chain === 'dogecoin' ? 'DOGE' :
-          options.chain === 'bitcoincash' ? 'BCH' :
-          'ETH'; // Fallback for all other EVM chains (Arbitrum, Optimism, Base, etc. use ETH)
-        
-        const nativePrice = await priceService.getPrice(currencySymbol);
+        const nativePrice = await priceService.getPrice(
+          options.chain === 'solana' ? 'solana' : 
+          options.chain === 'bitcoin' ? 'bitcoin' : 
+          'ethereum'
+        );
 
         if (options.chain === 'solana') {
-          // ✅ FIX: Correct Solana USD calculation (lamports → SOL → USD)
-          currentGasCostUSD = (currentGasPrice / 1_000_000_000) * nativePrice;
-        } else if (options.chain.includes('bitcoin') || options.chain === 'litecoin' || options.chain === 'dogecoin' || options.chain === 'bitcoincash') {
+          currentGasCostUSD = (currentGasPrice * 5000 / 1_000_000_000) * nativePrice;
+        } else if (options.chain.includes('bitcoin') || options.chain === 'litecoin' || options.chain === 'dogecoin') {
           currentGasCostUSD = ((currentGasPrice * 250) / 100_000_000) * nativePrice;
         } else {
           // EVM chains
@@ -141,40 +96,10 @@ class SmartSchedulerService {
         console.error('Failed to calculate gas cost:', e);
       }
 
-      // Calculate expiry time
-      const maxWaitHours = options.max_wait_hours || 24;
-      const scheduledTime = options.scheduled_for || new Date();
-      const expiresAt = new Date(scheduledTime.getTime() + maxWaitHours * 60 * 60 * 1000);
-
-      // 🔐 Encrypt mnemonic for time-limited storage
-      scheduledTxDebugLogger.log('SCHEDULE_STEP', 'Encrypting authorization', { expiresAt: expiresAt.toISOString() });
-      console.log('🔐 Encrypting authorization...');
-      const encryptedAuth = await encryptForScheduling(mnemonic, expiresAt);
-      scheduledTxDebugLogger.log('SCHEDULE_STEP', 'Authorization encrypted successfully', { 
-        encryptedAuthLength: JSON.stringify(encryptedAuth).length,
-        ciphertextLength: encryptedAuth.ciphertext.length,
-      });
-      console.log('✅ Authorization encrypted successfully');
-
       // Get supabase_user_id from localStorage if available
       const supabaseUserId = typeof window !== 'undefined' 
         ? localStorage.getItem('supabase_user_id') 
         : null;
-
-      const requestBody = {
-        ...options,
-        supabase_user_id: supabaseUserId || undefined,
-        scheduled_for: scheduledTime.toISOString(),
-        current_gas_price: currentGasPrice,
-        current_gas_cost_usd: currentGasCostUSD,
-        encrypted_auth: '[REDACTED]', // Don't log encrypted auth
-      };
-
-      scheduledTxDebugLogger.log('SCHEDULE_STEP', 'Sending API request', {
-        url: `${this.baseUrl}/create`,
-        method: 'POST',
-        body: requestBody,
-      });
 
       const response = await fetch(`${this.baseUrl}/create`, {
         method: 'POST',
@@ -182,49 +107,21 @@ class SmartSchedulerService {
         body: JSON.stringify({
           ...options,
           supabase_user_id: supabaseUserId || undefined,
-          scheduled_for: scheduledTime.toISOString(),
+          scheduled_for: options.scheduled_for?.toISOString(),
           current_gas_price: currentGasPrice,
           current_gas_cost_usd: currentGasCostUSD,
-          encrypted_auth: encryptedAuth,
         }),
-      });
-
-      scheduledTxDebugLogger.log('SCHEDULE_STEP', 'API response received', {
-        status: response.status,
-        statusText: response.statusText,
       });
 
       const data = await response.json();
 
-      scheduledTxDebugLogger.log('SCHEDULE_STEP', 'API response parsed', {
-        success: data.success,
-        hasData: !!data.data,
-        error: data.error,
-      });
-
       if (!response.ok) {
-        scheduledTxDebugLogger.log('SCHEDULE_ERROR', 'API request failed', {
-          status: response.status,
-          error: data.error,
-          details: data,
-        });
         console.error('❌ Schedule transaction error:', data);
         throw new Error(data.error || 'Failed to create scheduled transaction');
       }
 
-      scheduledTxDebugLogger.log('SCHEDULE_SUCCESS', 'Transaction scheduled successfully', {
-        transactionId: data.data?.id,
-        scheduledFor: data.data?.scheduled_for,
-        chain: data.data?.chain,
-      });
-
-      console.log('✅ Transaction scheduled successfully');
       return data.data;
     } catch (error: any) {
-      scheduledTxDebugLogger.log('SCHEDULE_ERROR', 'Schedule transaction failed', {
-        error: error.message,
-        stack: error.stack,
-      }, error);
       console.error('❌ Failed to schedule transaction:', error);
       throw error;
     }
@@ -238,17 +135,6 @@ class SmartSchedulerService {
     chain?: string,
     status: string = 'pending'
   ): Promise<ScheduledTransaction[]> {
-    scheduledTxDebugLogger.log('FETCH_START', 'getScheduledTransactions called', {
-      userId,
-      chain: chain || 'all chains',
-      status,
-    });
-
-    console.log('\n🔍 [SmartScheduler] getScheduledTransactions called');
-    console.log('   userId:', userId);
-    console.log('   chain:', chain || 'all chains');
-    console.log('   status:', status);
-    
     try {
       const params = new URLSearchParams({
         user_id: userId,
@@ -259,66 +145,16 @@ class SmartSchedulerService {
         params.append('chain', chain);
       }
 
-      const url = `${this.baseUrl}/list?${params.toString()}`;
-      scheduledTxDebugLogger.log('FETCH_STEP', 'Building API URL', { url });
-      console.log('📡 [SmartScheduler] Fetching from:', url);
-      
-      const response = await fetch(url);
-      scheduledTxDebugLogger.log('FETCH_STEP', 'API response received', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-      });
-      console.log('📥 [SmartScheduler] Response status:', response.status, response.statusText);
-      
+      const response = await fetch(`${this.baseUrl}/list?${params.toString()}`);
       const data = await response.json();
-      scheduledTxDebugLogger.log('FETCH_STEP', 'API response parsed', {
-        success: data.success,
-        count: data.count,
-        has_data: data.data?.length > 0,
-        transaction_ids: data.data?.map((tx: any) => tx.id) || [],
-      });
-      console.log('📦 [SmartScheduler] Response data:', {
-        success: data.success,
-        count: data.count,
-        has_data: data.data?.length > 0,
-        data_sample: data.data?.slice(0, 2)
-      });
 
       if (!response.ok) {
-        scheduledTxDebugLogger.log('FETCH_ERROR', 'API request failed', {
-          status: response.status,
-          error: data.error,
-          details: data,
-        }, data);
-        console.error('❌ [SmartScheduler] API error:', data.error);
         throw new Error(data.error || 'Failed to fetch scheduled transactions');
       }
 
-      scheduledTxDebugLogger.log('FETCH_SUCCESS', 'Transactions fetched successfully', {
-        count: data.data.length,
-        transactions: data.data.map((tx: any) => ({
-          id: tx.id,
-          chain: tx.chain,
-          status: tx.status,
-          scheduled_for: tx.scheduled_for,
-          amount: tx.amount,
-          token_symbol: tx.token_symbol,
-        })),
-      });
-
-      console.log('✅ [SmartScheduler] Returning', data.data.length, 'transaction(s)\n');
       return data.data;
     } catch (error: any) {
-      scheduledTxDebugLogger.log('FETCH_ERROR', 'Failed to fetch scheduled transactions', {
-        error: error.message,
-        stack: error.stack,
-      }, error);
-      console.error('❌ [SmartScheduler] Failed to fetch scheduled transactions:', error);
-      console.error('   Error details:', {
-        message: error.message,
-        stack: error.stack
-      });
+      console.error('❌ Failed to fetch scheduled transactions:', error);
       throw error;
     }
   }
@@ -491,31 +327,18 @@ class SmartSchedulerService {
     gasPrice: number
   ): Promise<number> {
     try {
-      // Get correct currency symbol
-      const currencySymbol = 
-        chain === 'solana' ? 'SOL' :
-        chain === 'bitcoin' ? 'BTC' :
-        chain === 'ethereum' ? 'ETH' :
-        chain === 'polygon' ? 'MATIC' :
-        chain === 'avalanche' ? 'AVAX' :
-        chain === 'bsc' ? 'BNB' :
-        chain === 'fantom' ? 'FTM' :
-        chain === 'cronos' ? 'CRO' :
-        chain === 'litecoin' ? 'LTC' :
-        chain === 'dogecoin' ? 'DOGE' :
-        chain === 'bitcoincash' ? 'BCH' :
-        'ETH'; // Fallback for all other EVM chains (Arbitrum, Optimism, Base, etc. use ETH)
-      
-      const nativePrice = await priceService.getPrice(currencySymbol);
+      const nativePrice = await priceService.getPrice(
+        chain === 'solana' ? 'solana' :
+        chain === 'bitcoin' ? 'bitcoin' :
+        'ethereum'
+      );
 
       if (chain === 'solana') {
-        // Solana gas is already in lamports, just convert to SOL
-        return (gasPrice / 1_000_000_000) * nativePrice;
-      } else if (chain.includes('bitcoin') || chain === 'litecoin' || chain === 'dogecoin' || chain === 'bitcoincash') {
-        // Bitcoin-like: sat/vB * average tx size (250 bytes) → BTC → USD
+        return (gasPrice * 5000 / 1_000_000_000) * nativePrice;
+      } else if (chain.includes('bitcoin') || chain === 'litecoin' || chain === 'dogecoin') {
         return ((gasPrice * 250) / 100_000_000) * nativePrice;
       } else {
-        // EVM chains: gwei * gas limit (21000) → ETH/MATIC/BNB/etc → USD
+        // EVM chains
         return ((21000 * gasPrice) / 1e9) * nativePrice;
       }
     } catch (error) {

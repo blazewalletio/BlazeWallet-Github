@@ -2199,8 +2199,8 @@ export default function Dashboard() {
         />
       )}
       
-      {/* Floating Quick Pay Button - TEMPORARILY HIDDEN FOR DEBUG */}
-      {/* <motion.button
+      {/* Floating Quick Pay Button */}
+      <motion.button
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ delay: 0.5, type: "spring", stiffness: 200 }}
@@ -2210,7 +2210,7 @@ export default function Dashboard() {
         title="Quick Pay"
       >
         <Zap className="w-8 h-8 text-white" />
-      </motion.button> */}
+      </motion.button>
 
     </>
   );

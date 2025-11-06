@@ -252,7 +252,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         
         if (parsed.warnings && parsed.warnings.length > 0) {
           errorMessage += parsed.warnings.join('\n') + '\n\n';
-        } else {
+      } else {
           errorMessage += 'Could not recognize blockchain address.\n\n';
         }
         
@@ -1615,9 +1615,9 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     {scannedAmount && parsedQR?.amount ? (
                       // Amount from QR code - show in native crypto
                       <>
-                        <div className="text-4xl font-bold text-gray-900 mb-1">
+                    <div className="text-4xl font-bold text-gray-900 mb-1">
                           {scannedAmount} {QRParser.getChainInfo(currentChain as ChainType)?.symbol}
-                        </div>
+                    </div>
                         <div className="text-sm text-gray-500">
                           Native {QRParser.getChainInfo(currentChain as ChainType)?.name} amount from QR code
                         </div>

@@ -7,17 +7,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!.trim();
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!.trim();
-
-interface EncryptedAuth {
-  ciphertext: string;
-  iv: string;
-  encrypted_key: string;
-  encrypted_at: string;
-  expires_at: string;
-  key_version: number;
-}
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 interface CreateScheduleRequest {
   user_id: string;
@@ -39,9 +30,6 @@ interface CreateScheduleRequest {
   // Current gas price for savings calculation
   current_gas_price?: number;
   current_gas_cost_usd?: number;
-  
-  // 🔐 NEW: Encrypted authorization for automatic execution
-  encrypted_auth?: EncryptedAuth;
   
   memo?: string;
 }
@@ -100,36 +88,7 @@ export async function POST(req: NextRequest) {
       chain: body.chain.toLowerCase(),
       token_symbol: body.token_symbol,
       expires_at,
-      has_encrypted_auth: !!body.encrypted_auth,
     });
-
-    // 🔐 Validate encrypted_auth if provided
-    if (body.encrypted_auth) {
-      if (!body.encrypted_auth.ciphertext || !body.encrypted_auth.encrypted_key || !body.encrypted_auth.iv) {
-        console.error('❌ Invalid encrypted_auth structure');
-        return NextResponse.json(
-          { error: 'Invalid encrypted authorization data' },
-          { status: 400 }
-        );
-      }
-      
-      // Verify expiry is in the future
-      const authExpiry = new Date(body.encrypted_auth.expires_at);
-      if (authExpiry < new Date()) {
-        console.error('❌ Encrypted auth already expired');
-        return NextResponse.json(
-          { error: 'Authorization expired' },
-          { status: 400 }
-        );
-      }
-      
-      console.log('✅ Encrypted auth validated:', {
-        key_version: body.encrypted_auth.key_version,
-        expires_at: body.encrypted_auth.expires_at,
-      });
-    } else {
-      console.warn('⚠️  No encrypted auth provided - transaction will NOT auto-execute');
-    }
 
     // Insert scheduled transaction
     const { data, error } = await supabase
@@ -152,7 +111,6 @@ export async function POST(req: NextRequest) {
         estimated_gas_cost_usd: body.current_gas_cost_usd || null,
         memo: body.memo || null,
         expires_at: expires_at,
-        encrypted_auth: body.encrypted_auth || null,  // 🔐 Store encrypted auth
       })
       .select()
       .single();

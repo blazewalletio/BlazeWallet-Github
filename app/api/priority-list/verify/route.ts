@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PriorityListService } from '@/lib/priority-list-service';
 
-// ✅ FIX: Force dynamic rendering (uses request.url)
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
-
 // GET /api/priority-list/verify?token=xxx - Verify email
 export async function GET(request: NextRequest) {
   try {
