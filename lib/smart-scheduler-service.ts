@@ -151,7 +151,8 @@ class SmartSchedulerService {
       console.log('🔐 Encrypting authorization...');
       const encryptedAuth = await encryptForScheduling(mnemonic, expiresAt);
       scheduledTxDebugLogger.log('SCHEDULE_STEP', 'Authorization encrypted successfully', { 
-        encryptedAuthLength: encryptedAuth.length,
+        encryptedAuthLength: JSON.stringify(encryptedAuth).length,
+        ciphertextLength: encryptedAuth.ciphertext.length,
       });
       console.log('✅ Authorization encrypted successfully');
 
