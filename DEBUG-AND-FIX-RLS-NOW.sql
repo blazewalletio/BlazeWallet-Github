@@ -27,18 +27,6 @@ BEGIN
   WHERE status = 'pending' 
   AND user_id = 'ricks_@live.nl';
   RAISE NOTICE '📊 Pending for ricks_@live.nl: %', user_pending;
-  
-  -- Show last 5 transactions
-  RAISE NOTICE '📊 Last 5 transactions:';
-  FOR rec IN (
-    SELECT id, user_id, chain, status, scheduled_for, created_at
-    FROM scheduled_transactions
-    ORDER BY created_at DESC
-    LIMIT 5
-  ) LOOP
-    RAISE NOTICE '  - % | % | % | % | %', 
-      rec.id, rec.user_id, rec.chain, rec.status, rec.scheduled_for;
-  END LOOP;
 END $$;
 
 -- STAP 2: Check current policies
@@ -48,7 +36,7 @@ DECLARE
 BEGIN
   RAISE NOTICE '========== CURRENT RLS POLICIES ==========';
   FOR policy_rec IN (
-    SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
+    SELECT schemaname, tablename, policyname, permissive, roles, cmd
     FROM pg_policies
     WHERE tablename = 'scheduled_transactions'
   ) LOOP
@@ -57,24 +45,7 @@ BEGIN
   END LOOP;
 END $$;
 
--- STAP 3: DISABLE RLS temporarily om te testen
-ALTER TABLE scheduled_transactions DISABLE ROW LEVEL SECURITY;
-RAISE NOTICE '⚠️ RLS TEMPORARILY DISABLED for testing';
-
--- STAP 4: Test SELECT zonder RLS
-DO $$
-DECLARE
-  test_count INT;
-BEGIN
-  SELECT COUNT(*) INTO test_count 
-  FROM scheduled_transactions 
-  WHERE status = 'pending' 
-  AND user_id = 'ricks_@live.nl';
-  
-  RAISE NOTICE '🧪 Test SELECT without RLS: % transactions', test_count;
-END $$;
-
--- STAP 5: DROP ALL existing policies
+-- STAP 3: DROP ALL existing policies
 DO $$
 DECLARE
   policy_rec RECORD;
@@ -90,9 +61,32 @@ BEGIN
   END LOOP;
 END $$;
 
+-- STAP 4: DISABLE RLS temporarily
+DO $$
+BEGIN
+  ALTER TABLE scheduled_transactions DISABLE ROW LEVEL SECURITY;
+  RAISE NOTICE '⚠️ RLS TEMPORARILY DISABLED';
+END $$;
+
+-- STAP 5: Test SELECT zonder RLS
+DO $$
+DECLARE
+  test_count INT;
+BEGIN
+  SELECT COUNT(*) INTO test_count 
+  FROM scheduled_transactions 
+  WHERE status = 'pending' 
+  AND user_id = 'ricks_@live.nl';
+  
+  RAISE NOTICE '🧪 Test SELECT without RLS: % transactions', test_count;
+END $$;
+
 -- STAP 6: RE-ENABLE RLS
-ALTER TABLE scheduled_transactions ENABLE ROW LEVEL SECURITY;
-RAISE NOTICE '✅ RLS RE-ENABLED';
+DO $$
+BEGIN
+  ALTER TABLE scheduled_transactions ENABLE ROW LEVEL SECURITY;
+  RAISE NOTICE '✅ RLS RE-ENABLED';
+END $$;
 
 -- STAP 7: Create SIMPLE, WORKING policies
 -- Policy 1: service_role can do EVERYTHING
@@ -103,16 +97,12 @@ TO service_role
 USING (true)
 WITH CHECK (true);
 
-RAISE NOTICE '✅ Created: service_role_full_access';
-
 -- Policy 2: anon can SELECT ALL (for testing - we'll restrict later)
 CREATE POLICY "anon_select_all"
 ON scheduled_transactions
 FOR SELECT
 TO anon
 USING (true);
-
-RAISE NOTICE '✅ Created: anon_select_all (TEMPORARY - for testing!)';
 
 -- Policy 3: authenticated can SELECT their own
 CREATE POLICY "authenticated_select_own"
@@ -123,8 +113,6 @@ USING (
   user_id = current_setting('request.jwt.claim.email', true) OR
   supabase_user_id::text = current_setting('request.jwt.claim.sub', true)::text
 );
-
-RAISE NOTICE '✅ Created: authenticated_select_own';
 
 -- Policy 4: authenticated can UPDATE their own
 CREATE POLICY "authenticated_update_own"
@@ -140,8 +128,6 @@ WITH CHECK (
   supabase_user_id::text = current_setting('request.jwt.claim.sub', true)::text
 );
 
-RAISE NOTICE '✅ Created: authenticated_update_own';
-
 -- Policy 5: authenticated can INSERT their own
 CREATE POLICY "authenticated_insert_own"
 ON scheduled_transactions
@@ -152,16 +138,22 @@ WITH CHECK (
   supabase_user_id::text = current_setting('request.jwt.claim.sub', true)::text
 );
 
-RAISE NOTICE '✅ Created: authenticated_insert_own';
+-- STAP 8: Log policy creation
+DO $$
+BEGIN
+  RAISE NOTICE '✅ Created: service_role_full_access';
+  RAISE NOTICE '✅ Created: anon_select_all (TEMPORARY - for testing!)';
+  RAISE NOTICE '✅ Created: authenticated_select_own';
+  RAISE NOTICE '✅ Created: authenticated_update_own';
+  RAISE NOTICE '✅ Created: authenticated_insert_own';
+END $$;
 
--- STAP 8: GRANT permissions
+-- STAP 9: GRANT permissions
 GRANT ALL ON scheduled_transactions TO service_role;
 GRANT SELECT ON scheduled_transactions TO anon;
 GRANT SELECT, INSERT, UPDATE ON scheduled_transactions TO authenticated;
 
-RAISE NOTICE '✅ Permissions granted';
-
--- STAP 9: Final verification
+-- STAP 10: Final verification
 DO $$
 DECLARE
   policy_count INT;
@@ -186,9 +178,19 @@ BEGIN
   ELSE
     RAISE WARNING '⚠️ Only % policies found, expected 5', policy_count;
   END IF;
+  
+  RAISE NOTICE '========== PERMISSIONS GRANTED ==========';
+  RAISE NOTICE '✅ service_role: ALL';
+  RAISE NOTICE '✅ anon: SELECT';
+  RAISE NOTICE '✅ authenticated: SELECT, INSERT, UPDATE';
 END $$;
 
--- STAP 10: Show sample data for testing
+-- STAP 11: Show sample data for testing
+DO $$
+BEGIN
+  RAISE NOTICE '========== SAMPLE DATA (last 5 pending) ==========';
+END $$;
+
 SELECT 
   id,
   user_id,
@@ -201,6 +203,10 @@ WHERE status = 'pending'
 ORDER BY created_at DESC
 LIMIT 5;
 
-RAISE NOTICE '========== SCRIPT COMPLETE ==========';
-RAISE NOTICE 'Next step: Test in browser and check console logs';
-
+-- Done!
+DO $$
+BEGIN
+  RAISE NOTICE '========== SCRIPT COMPLETE ==========';
+  RAISE NOTICE 'Next step: Test in browser and check console logs';
+  RAISE NOTICE 'Expected: Banner should now show pending transactions';
+END $$;

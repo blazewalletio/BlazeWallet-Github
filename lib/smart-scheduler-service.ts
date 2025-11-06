@@ -176,6 +176,11 @@ class SmartSchedulerService {
     chain?: string,
     status: string = 'pending'
   ): Promise<ScheduledTransaction[]> {
+    console.log('\n🔍 [SmartScheduler] getScheduledTransactions called');
+    console.log('   userId:', userId);
+    console.log('   chain:', chain || 'all chains');
+    console.log('   status:', status);
+    
     try {
       const params = new URLSearchParams({
         user_id: userId,
@@ -186,16 +191,33 @@ class SmartSchedulerService {
         params.append('chain', chain);
       }
 
-      const response = await fetch(`${this.baseUrl}/list?${params.toString()}`);
+      const url = `${this.baseUrl}/list?${params.toString()}`;
+      console.log('📡 [SmartScheduler] Fetching from:', url);
+      
+      const response = await fetch(url);
+      console.log('📥 [SmartScheduler] Response status:', response.status, response.statusText);
+      
       const data = await response.json();
+      console.log('📦 [SmartScheduler] Response data:', {
+        success: data.success,
+        count: data.count,
+        has_data: data.data?.length > 0,
+        data_sample: data.data?.slice(0, 2)
+      });
 
       if (!response.ok) {
+        console.error('❌ [SmartScheduler] API error:', data.error);
         throw new Error(data.error || 'Failed to fetch scheduled transactions');
       }
 
+      console.log('✅ [SmartScheduler] Returning', data.data.length, 'transaction(s)\n');
       return data.data;
     } catch (error: any) {
-      console.error('❌ Failed to fetch scheduled transactions:', error);
+      console.error('❌ [SmartScheduler] Failed to fetch scheduled transactions:', error);
+      console.error('   Error details:', {
+        message: error.message,
+        stack: error.stack
+      });
       throw error;
     }
   }
