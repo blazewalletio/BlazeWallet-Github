@@ -8,6 +8,7 @@ import { gasPriceService } from './gas-price-service';
 import { priceService } from './price-service';
 import { encryptForScheduling } from './scheduled-tx-encryption';
 import { useWalletStore } from './wallet-store';
+import { scheduledTxDebugLogger } from './scheduled-tx-debug-logger';
 
 export interface ScheduledTransaction {
   id: string;
@@ -72,25 +73,40 @@ class SmartSchedulerService {
    * Schedule a new transaction
    */
   async scheduleTransaction(options: ScheduleOptions): Promise<ScheduledTransaction> {
+    scheduledTxDebugLogger.log('SCHEDULE_START', 'scheduleTransaction called', { options });
+    
     try {
       // 🔐 CRITICAL: Get mnemonic from unlocked wallet
       const { wallet } = useWalletStore.getState();
       
+      scheduledTxDebugLogger.log('SCHEDULE_STEP', 'Wallet store accessed', { 
+        hasWallet: !!wallet,
+        hasMnemonic: !!(wallet?.mnemonic),
+      });
+      
       if (!wallet || !wallet.mnemonic) {
+        scheduledTxDebugLogger.log('SCHEDULE_ERROR', 'Wallet locked', { error: 'Wallet locked - please unlock first' });
         throw new Error('Wallet locked - please unlock first');
       }
 
       const mnemonic = wallet.mnemonic.phrase;
       
       if (!mnemonic || mnemonic.split(' ').length < 12) {
+        scheduledTxDebugLogger.log('SCHEDULE_ERROR', 'Invalid mnemonic', { error: 'Invalid wallet mnemonic' });
         throw new Error('Invalid wallet mnemonic');
       }
 
+      scheduledTxDebugLogger.log('SCHEDULE_STEP', 'Wallet unlocked - proceeding with encryption', {});
       console.log('✅ Wallet unlocked - proceeding with encryption');
 
       // Get current gas price for savings estimation
+      scheduledTxDebugLogger.log('SCHEDULE_STEP', 'Fetching current gas price', { chain: options.chain });
       const currentGasData = await gasPriceService.getGasPrice(options.chain);
       const currentGasPrice = currentGasData?.standard || 0;
+      scheduledTxDebugLogger.log('SCHEDULE_STEP', 'Gas price fetched', { 
+        chain: options.chain,
+        gasPrice: currentGasPrice,
+      });
 
       // Calculate current gas cost in USD
       let currentGasCostUSD = 0;
@@ -131,8 +147,12 @@ class SmartSchedulerService {
       const expiresAt = new Date(scheduledTime.getTime() + maxWaitHours * 60 * 60 * 1000);
 
       // 🔐 Encrypt mnemonic for time-limited storage
+      scheduledTxDebugLogger.log('SCHEDULE_STEP', 'Encrypting authorization', { expiresAt: expiresAt.toISOString() });
       console.log('🔐 Encrypting authorization...');
       const encryptedAuth = await encryptForScheduling(mnemonic, expiresAt);
+      scheduledTxDebugLogger.log('SCHEDULE_STEP', 'Authorization encrypted successfully', { 
+        encryptedAuthLength: encryptedAuth.length,
+      });
       console.log('✅ Authorization encrypted successfully');
 
       // Get supabase_user_id from localStorage if available
@@ -140,29 +160,70 @@ class SmartSchedulerService {
         ? localStorage.getItem('supabase_user_id') 
         : null;
 
+      const requestBody = {
+        ...options,
+        supabase_user_id: supabaseUserId || undefined,
+        scheduled_for: scheduledTime.toISOString(),
+        current_gas_price: currentGasPrice,
+        current_gas_cost_usd: currentGasCostUSD,
+        encrypted_auth: '[REDACTED]', // Don't log encrypted auth
+      };
+
+      scheduledTxDebugLogger.log('SCHEDULE_STEP', 'Sending API request', {
+        url: `${this.baseUrl}/create`,
+        method: 'POST',
+        body: requestBody,
+      });
+
       const response = await fetch(`${this.baseUrl}/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...options,
           supabase_user_id: supabaseUserId || undefined,
-          scheduled_for: scheduledTime.toISOString(),  // ✅ Fixed: Always use toISOString() for UTC
+          scheduled_for: scheduledTime.toISOString(),
           current_gas_price: currentGasPrice,
           current_gas_cost_usd: currentGasCostUSD,
-          encrypted_auth: encryptedAuth,  // 🔐 Include encrypted authorization
+          encrypted_auth: encryptedAuth,
         }),
+      });
+
+      scheduledTxDebugLogger.log('SCHEDULE_STEP', 'API response received', {
+        status: response.status,
+        statusText: response.statusText,
       });
 
       const data = await response.json();
 
+      scheduledTxDebugLogger.log('SCHEDULE_STEP', 'API response parsed', {
+        success: data.success,
+        hasData: !!data.data,
+        error: data.error,
+      });
+
       if (!response.ok) {
+        scheduledTxDebugLogger.log('SCHEDULE_ERROR', 'API request failed', {
+          status: response.status,
+          error: data.error,
+          details: data,
+        });
         console.error('❌ Schedule transaction error:', data);
         throw new Error(data.error || 'Failed to create scheduled transaction');
       }
 
+      scheduledTxDebugLogger.log('SCHEDULE_SUCCESS', 'Transaction scheduled successfully', {
+        transactionId: data.data?.id,
+        scheduledFor: data.data?.scheduled_for,
+        chain: data.data?.chain,
+      });
+
       console.log('✅ Transaction scheduled successfully');
       return data.data;
     } catch (error: any) {
+      scheduledTxDebugLogger.log('SCHEDULE_ERROR', 'Schedule transaction failed', {
+        error: error.message,
+        stack: error.stack,
+      }, error);
       console.error('❌ Failed to schedule transaction:', error);
       throw error;
     }
@@ -176,6 +237,12 @@ class SmartSchedulerService {
     chain?: string,
     status: string = 'pending'
   ): Promise<ScheduledTransaction[]> {
+    scheduledTxDebugLogger.log('FETCH_START', 'getScheduledTransactions called', {
+      userId,
+      chain: chain || 'all chains',
+      status,
+    });
+
     console.log('\n🔍 [SmartScheduler] getScheduledTransactions called');
     console.log('   userId:', userId);
     console.log('   chain:', chain || 'all chains');
@@ -192,12 +259,24 @@ class SmartSchedulerService {
       }
 
       const url = `${this.baseUrl}/list?${params.toString()}`;
+      scheduledTxDebugLogger.log('FETCH_STEP', 'Building API URL', { url });
       console.log('📡 [SmartScheduler] Fetching from:', url);
       
       const response = await fetch(url);
+      scheduledTxDebugLogger.log('FETCH_STEP', 'API response received', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+      });
       console.log('📥 [SmartScheduler] Response status:', response.status, response.statusText);
       
       const data = await response.json();
+      scheduledTxDebugLogger.log('FETCH_STEP', 'API response parsed', {
+        success: data.success,
+        count: data.count,
+        has_data: data.data?.length > 0,
+        transaction_ids: data.data?.map((tx: any) => tx.id) || [],
+      });
       console.log('📦 [SmartScheduler] Response data:', {
         success: data.success,
         count: data.count,
@@ -206,13 +285,34 @@ class SmartSchedulerService {
       });
 
       if (!response.ok) {
+        scheduledTxDebugLogger.log('FETCH_ERROR', 'API request failed', {
+          status: response.status,
+          error: data.error,
+          details: data,
+        }, data);
         console.error('❌ [SmartScheduler] API error:', data.error);
         throw new Error(data.error || 'Failed to fetch scheduled transactions');
       }
 
+      scheduledTxDebugLogger.log('FETCH_SUCCESS', 'Transactions fetched successfully', {
+        count: data.data.length,
+        transactions: data.data.map((tx: any) => ({
+          id: tx.id,
+          chain: tx.chain,
+          status: tx.status,
+          scheduled_for: tx.scheduled_for,
+          amount: tx.amount,
+          token_symbol: tx.token_symbol,
+        })),
+      });
+
       console.log('✅ [SmartScheduler] Returning', data.data.length, 'transaction(s)\n');
       return data.data;
     } catch (error: any) {
+      scheduledTxDebugLogger.log('FETCH_ERROR', 'Failed to fetch scheduled transactions', {
+        error: error.message,
+        stack: error.stack,
+      }, error);
       console.error('❌ [SmartScheduler] Failed to fetch scheduled transactions:', error);
       console.error('   Error details:', {
         message: error.message,

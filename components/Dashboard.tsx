@@ -64,6 +64,7 @@ const AISettingsModal = dynamic(() => import('./AISettingsModal'), { ssr: false 
 const ScheduledTransactionsPanel = dynamic(() => import('./ScheduledTransactionsPanel'), { ssr: false });
 const SavingsTracker = dynamic(() => import('./SavingsTracker'), { ssr: false });
 const UpcomingTransactionsBanner = dynamic(() => import('./UpcomingTransactionsBanner'), { ssr: false });
+const ScheduledTxDebugPanel = dynamic(() => import('./ScheduledTxDebugPanel'), { ssr: false });
 
 export default function Dashboard() {
   const { 
@@ -2219,6 +2220,9 @@ export default function Dashboard() {
       >
         <Zap className="w-8 h-8 text-white" />
       </motion.button>
+
+      {/* Scheduled Transactions Debug Panel */}
+      <ScheduledTxDebugPanel />
 
     </>
   );

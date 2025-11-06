@@ -83,6 +83,32 @@ export async function GET(req: NextRequest) {
       console.log('ℹ️ [6] No status filter applied (fetching all statuses)');
     }
 
+    // 🔍 DEBUG: First, let's check if ANY transactions exist for this user
+    console.log('🔍 [6.5] DEBUG: Checking total transactions for user...');
+    const { count: totalCount, error: countError } = await supabase
+      .from('scheduled_transactions')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user_id);
+    
+    console.log(`   Total transactions for user "${user_id}":`, totalCount);
+    if (countError) {
+      console.error('   Count error:', countError);
+    }
+
+    // 🔍 DEBUG: Check what user_ids actually exist in the database
+    console.log('🔍 [6.6] DEBUG: Checking unique user_ids in database...');
+    const { data: uniqueUsers, error: usersError } = await supabase
+      .from('scheduled_transactions')
+      .select('user_id')
+      .limit(20);
+    
+    if (!usersError && uniqueUsers) {
+      const uniqueUserIds = [...new Set(uniqueUsers.map(u => u.user_id))];
+      console.log(`   Found ${uniqueUserIds.length} unique user_id(s) in database:`, uniqueUserIds.slice(0, 5));
+      console.log(`   Requested user_id: "${user_id}"`);
+      console.log(`   Match found:`, uniqueUserIds.includes(user_id));
+    }
+
     console.log('🔄 [7] Executing Supabase query...');
     const { data, error } = await query;
 

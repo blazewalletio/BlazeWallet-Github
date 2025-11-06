@@ -11,6 +11,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, ChevronRight, Clock, DollarSign } from 'lucide-react';
 import { smartSchedulerService, type ScheduledTransaction } from '@/lib/smart-scheduler-service';
+import { scheduledTxDebugLogger } from '@/lib/scheduled-tx-debug-logger';
 
 interface UpcomingTransactionsBannerProps {
   userId: string;
@@ -34,7 +35,10 @@ export default function UpcomingTransactionsBanner({
   }, [userId, chain, refreshTrigger]); // ✅ ADDED: refreshTrigger dependency
 
   const loadTransactions = async () => {
+    scheduledTxDebugLogger.log('BANNER_START', 'loadTransactions called', { userId, chain });
+    
     if (!userId) {
+      scheduledTxDebugLogger.log('BANNER_ERROR', 'No userId provided', {});
       console.log('⚠️ [UpcomingBanner] No userId provided');
       return;
     }
@@ -42,13 +46,41 @@ export default function UpcomingTransactionsBanner({
     console.log('🔍 [UpcomingBanner] Loading transactions for:', { userId, chain });
     
     try {
+      scheduledTxDebugLogger.log('BANNER_STEP', 'Calling getScheduledTransactions', {
+        userId,
+        chain: 'all chains',
+        status: 'pending',
+      });
+
       // ✅ FIX: Load ALL pending transactions (not just current chain)
       // This shows upcoming transactions regardless of which chain user is viewing
       const data = await smartSchedulerService.getScheduledTransactions(userId, undefined, 'pending');
+      
+      scheduledTxDebugLogger.log('BANNER_STEP', 'Transactions received from service', {
+        totalCount: data.length,
+        transactions: data.map(tx => ({
+          id: tx.id,
+          chain: tx.chain,
+          status: tx.status,
+        })),
+      });
+      
       console.log('✅ [UpcomingBanner] Loaded transactions:', data);
       
       // Filter to current chain for display
       const chainTransactions = data.filter(tx => tx.chain.toLowerCase() === chain.toLowerCase());
+      
+      scheduledTxDebugLogger.log('BANNER_STEP', 'Filtered transactions by chain', {
+        requestedChain: chain,
+        totalTransactions: data.length,
+        filteredCount: chainTransactions.length,
+        filteredTransactions: chainTransactions.map(tx => ({
+          id: tx.id,
+          chain: tx.chain,
+          status: tx.status,
+        })),
+      });
+      
       console.log(`🔍 [UpcomingBanner] Filtered to ${chain}:`, chainTransactions.length, 'transaction(s)');
       
       setTransactions(chainTransactions);
@@ -57,10 +89,24 @@ export default function UpcomingTransactionsBanner({
       const savings = chainTransactions.reduce((sum, tx) => sum + (tx.estimated_savings_usd || 0), 0);
       setTotalSavings(savings);
       
+      scheduledTxDebugLogger.log('BANNER_SUCCESS', 'Banner state updated', {
+        transactionsCount: chainTransactions.length,
+        totalSavings: savings,
+        willRender: chainTransactions.length > 0,
+      });
+      
       if (chainTransactions.length === 0) {
+        scheduledTxDebugLogger.log('BANNER_INFO', 'No transactions to display', {
+          reason: 'No pending transactions for this chain',
+          totalPendingTransactions: data.length,
+        });
         console.log('ℹ️ [UpcomingBanner] No pending transactions found for', chain);
       }
-    } catch (error) {
+    } catch (error: any) {
+      scheduledTxDebugLogger.log('BANNER_ERROR', 'Failed to load transactions', {
+        error: error.message,
+        stack: error.stack,
+      }, error);
       console.error('❌ [UpcomingBanner] Failed to load scheduled transactions:', error);
     } finally {
       setLoading(false);
@@ -69,14 +115,30 @@ export default function UpcomingTransactionsBanner({
 
   // Don't render if no transactions
   if (loading) {
+    scheduledTxDebugLogger.log('BANNER_STATE', 'Still loading', {});
     console.log('⏳ [UpcomingBanner] Still loading...');
     return null;
   }
   
   if (transactions.length === 0) {
+    scheduledTxDebugLogger.log('BANNER_STATE', 'No transactions to display - returning null', {
+      loading,
+      transactionsCount: transactions.length,
+    });
     console.log('💤 [UpcomingBanner] No transactions to display');
     return null;
   }
+  
+  scheduledTxDebugLogger.log('BANNER_RENDER', 'Rendering banner', {
+    transactionsCount: transactions.length,
+    nextTransaction: transactions[0] ? {
+      id: transactions[0].id,
+      chain: transactions[0].chain,
+      amount: transactions[0].amount,
+      token_symbol: transactions[0].token_symbol,
+      scheduled_for: transactions[0].scheduled_for,
+    } : null,
+  });
   
   console.log('🎯 [UpcomingBanner] Rendering banner with', transactions.length, 'transaction(s)');
 
