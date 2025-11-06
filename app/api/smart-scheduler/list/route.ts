@@ -11,15 +11,16 @@ import { createClient } from '@supabase/supabase-js';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!.trim();
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!.trim();
-
 export async function GET(req: NextRequest) {
   console.log('\n========================================');
   console.log('🔥 SMART SCHEDULER LIST API - DEBUG START (RLS DISABLED)');
   console.log('========================================\n');
   
   try {
+    // ✅ FIX: Trim environment variables INSIDE the function to avoid module-level caching
+    const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim();
+    const supabaseServiceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+    
     const { searchParams } = new URL(req.url);
     const user_id = searchParams.get('user_id');
     const chain = searchParams.get('chain');
@@ -43,9 +44,11 @@ export async function GET(req: NextRequest) {
 
     console.log('📋 [2] SUPABASE CONFIG:', {
       url: supabaseUrl,
+      url_has_newline: supabaseUrl.includes('\n'),
       service_key_length: supabaseServiceKey?.length || 0,
       service_key_starts_with: supabaseServiceKey?.substring(0, 20) + '...',
-      service_key_exists: !!supabaseServiceKey
+      service_key_exists: !!supabaseServiceKey,
+      service_key_has_newline: supabaseServiceKey.includes('\n')
     });
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
