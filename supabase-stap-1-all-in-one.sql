@@ -35,7 +35,10 @@ SELECT
   'Total rows' AS description
 FROM public.wallets
 UNION ALL
-SELECT 'ROW_COUNTS', 'wallet_sync_logs', NULL, NULL, NULL, COUNT(*)::text, 'Total rows' FROM public.wallet_sync_logs
+SELECT 'ROW_COUNTS', 'wallet_sync_logs', NULL, NULL, NULL, 
+  CASE WHEN EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'wallet_sync_logs') 
+    THEN (SELECT COUNT(*)::text FROM public.wallet_sync_logs)
+    ELSE 'TABLE_DELETED' END, 'Total rows'
 UNION ALL
 SELECT 'ROW_COUNTS', 'ai_cache', NULL, NULL, NULL, COUNT(*)::text, 'Total rows' FROM public.ai_cache
 UNION ALL
@@ -47,7 +50,10 @@ SELECT 'ROW_COUNTS', 'gas_alerts', NULL, NULL, NULL, COUNT(*)::text, 'Total rows
 UNION ALL
 SELECT 'ROW_COUNTS', 'scheduled_transactions', NULL, NULL, NULL, COUNT(*)::text, 'Total rows' FROM public.scheduled_transactions
 UNION ALL
-SELECT 'ROW_COUNTS', 'user_savings', NULL, NULL, NULL, COUNT(*)::text, 'Total rows' FROM public.user_savings
+SELECT 'ROW_COUNTS', 'user_savings', NULL, NULL, NULL,
+  CASE WHEN EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'user_savings')
+    THEN (SELECT COUNT(*)::text FROM public.user_savings)
+    ELSE 'TABLE_DELETED' END, 'Total rows'
 UNION ALL
 SELECT 'ROW_COUNTS', 'recurring_sends', NULL, NULL, NULL, COUNT(*)::text, 'Total rows' FROM public.recurring_sends
 UNION ALL
@@ -65,26 +71,40 @@ SELECT 'ROW_COUNTS', 'email_verification_tokens', NULL, NULL, NULL, COUNT(*)::te
 
 UNION ALL
 
--- OVERBODIGE TABLES
+-- OVERBODIGE TABLES (check of ze nog bestaan)
 SELECT 
   'OVERBODIGE_TABLES' AS report_section,
   'wallet_sync_logs' AS table_name,
-  COUNT(*)::text AS info_1,
-  COUNT(DISTINCT user_id)::text AS info_2,
-  COALESCE(MIN(synced_at)::text, 'N/A') AS info_3,
-  COALESCE(MAX(synced_at)::text, 'N/A') AS count_value,
+  CASE WHEN EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'wallet_sync_logs') 
+    THEN (SELECT COUNT(*)::text FROM public.wallet_sync_logs)
+    ELSE 'TABLE_DELETED' END AS info_1,
+  CASE WHEN EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'wallet_sync_logs')
+    THEN (SELECT COUNT(DISTINCT user_id)::text FROM public.wallet_sync_logs)
+    ELSE 'N/A' END AS info_2,
+  CASE WHEN EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'wallet_sync_logs')
+    THEN COALESCE((SELECT MIN(synced_at)::text FROM public.wallet_sync_logs), 'N/A')
+    ELSE 'N/A' END AS info_3,
+  CASE WHEN EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'wallet_sync_logs')
+    THEN COALESCE((SELECT MAX(synced_at)::text FROM public.wallet_sync_logs), 'N/A')
+    ELSE 'TABLE_DELETED' END AS count_value,
   'Total rows | Unique users | Oldest | Newest' AS description
-FROM public.wallet_sync_logs
 UNION ALL
 SELECT 
   'OVERBODIGE_TABLES',
   'user_savings',
-  COUNT(*)::text,
-  COUNT(DISTINCT user_id)::text,
-  COALESCE(SUM(usd_saved)::text, '0'),
-  COALESCE(MIN(saved_at)::text, 'N/A') || ' | ' || COALESCE(MAX(saved_at)::text, 'N/A'),
+  CASE WHEN EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'user_savings')
+    THEN (SELECT COUNT(*)::text FROM public.user_savings)
+    ELSE 'TABLE_DELETED' END,
+  CASE WHEN EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'user_savings')
+    THEN (SELECT COUNT(DISTINCT user_id)::text FROM public.user_savings)
+    ELSE 'N/A' END,
+  CASE WHEN EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'user_savings')
+    THEN COALESCE((SELECT SUM(usd_saved)::text FROM public.user_savings), '0')
+    ELSE 'N/A' END,
+  CASE WHEN EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'user_savings')
+    THEN COALESCE((SELECT MIN(saved_at)::text FROM public.user_savings), 'N/A') || ' | ' || COALESCE((SELECT MAX(saved_at)::text FROM public.user_savings), 'N/A')
+    ELSE 'TABLE_DELETED' END,
   'Total rows | Unique users | Total USD saved | Date range'
-FROM public.user_savings
 
 UNION ALL
 
@@ -106,10 +126,10 @@ SELECT
   NULL,
   NULL,
   NULL,
-  COUNT(*)::text,
+  CASE WHEN EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'wallet_sync_logs')
+    THEN (SELECT COUNT(*)::text FROM public.wallet_sync_logs WHERE synced_at < NOW() - INTERVAL '30 days')
+    ELSE '0' END,
   'Old logs older than 30 days'
-FROM public.wallet_sync_logs
-WHERE synced_at < NOW() - INTERVAL '30 days'
 UNION ALL
 SELECT 
   'STALE_DATA',
