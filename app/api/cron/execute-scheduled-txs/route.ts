@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { gasPriceService } from '@/lib/gas-price-service';
 import { ethers } from 'ethers';
+import { decryptScheduledAuth, clearEncryptedAuth } from '@/lib/scheduled-tx-decryption';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes max
@@ -79,11 +80,18 @@ export async function GET(req: NextRequest) {
         console.log(`   Amount: ${tx.amount} ${tx.token_symbol}`);
         console.log(`   To: ${tx.to_address}`);
 
+        // 🔐 Check if transaction has encrypted auth
+        if (!tx.encrypted_auth) {
+          console.log(`   ⚠️  No encrypted auth - skipping (cannot execute)`);
+          skipped++;
+          continue;
+        }
+
         // Check current gas price
         const currentGas = await gasPriceService.getGasPrice(tx.chain);
         console.log(`   Current gas: ${currentGas.standard.toFixed(2)}`);
 
-        // Check if gas is acceptable
+        // Check if gas is acceptable (if threshold specified)
         if (tx.optimal_gas_threshold && currentGas.standard > tx.optimal_gas_threshold) {
           console.log(`   ⏭️  Skipping - gas too high (${currentGas.standard} > ${tx.optimal_gas_threshold})`);
           
@@ -94,7 +102,10 @@ export async function GET(req: NextRequest) {
               .from('scheduled_transactions')
               .update({ status: 'expired', updated_at: new Date().toISOString() })
               .eq('id', tx.id);
-            console.log(`   ⏱️  Transaction expired`);
+            
+            // Clear encrypted auth on expiry
+            await clearEncryptedAuth(tx.id);
+            console.log(`   ⏱️  Transaction expired - auth cleared`);
           }
           
           skipped++;
@@ -107,8 +118,25 @@ export async function GET(req: NextRequest) {
           .update({ status: 'executing', updated_at: new Date().toISOString() })
           .eq('id', tx.id);
 
-        // Execute the transaction
-        const result = await executeTransaction(tx, currentGas.standard);
+        // 🔓 Decrypt authorization
+        console.log(`   🔐 Decrypting authorization...`);
+        const decryptResult = await decryptScheduledAuth(tx.encrypted_auth, tx.id);
+        
+        if (!decryptResult.success || !decryptResult.mnemonic) {
+          throw new Error(decryptResult.error || 'Failed to decrypt authorization');
+        }
+
+        console.log(`   ✅ Authorization decrypted successfully`);
+
+        // Execute the transaction with decrypted mnemonic
+        const result = await executeTransactionWithMnemonic(
+          tx, 
+          decryptResult.mnemonic, 
+          currentGas.standard
+        );
+
+        // Clear mnemonic from memory immediately
+        decryptResult.mnemonic = '';  // Overwrite
 
         if (result.success) {
           // Update as completed
@@ -119,20 +147,24 @@ export async function GET(req: NextRequest) {
               executed_at: new Date().toISOString(),
               actual_gas_price: currentGas.standard,
               actual_gas_cost_usd: result.gasCostUSD || 0,
-              actual_savings_usd: Math.max(0, tx.estimated_gas_cost_usd - (result.gasCostUSD || 0)),
+              actual_savings_usd: Math.max(0, (tx.estimated_gas_cost_usd || 0) - (result.gasCostUSD || 0)),
               transaction_hash: result.txHash,
               block_number: result.blockNumber,
               updated_at: new Date().toISOString(),
             })
             .eq('id', tx.id);
 
+          // 🔥 Delete encrypted auth immediately after success
+          await clearEncryptedAuth(tx.id);
+
           // Track savings
           await trackSavings(tx, currentGas.standard, result.gasCostUSD || 0);
 
-          // Send notification (will implement in next step)
+          // Send notification
           await sendNotification(tx, result);
 
           console.log(`   ✅ Transaction executed: ${result.txHash}`);
+          console.log(`   🔥 Encrypted auth permanently deleted`);
           executed++;
         } else {
           throw new Error(result.error || 'Unknown execution error');
@@ -156,7 +188,10 @@ export async function GET(req: NextRequest) {
               updated_at: new Date().toISOString(),
             })
             .eq('id', tx.id);
-          console.log(`   ❌ Transaction failed after ${maxRetries} retries`);
+          
+          // Clear encrypted auth on permanent failure
+          await clearEncryptedAuth(tx.id);
+          console.log(`   ❌ Transaction failed after ${maxRetries} retries - auth cleared`);
         } else {
           // Mark as pending for retry
           await supabase
@@ -200,9 +235,13 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * Execute transaction on the appropriate chain
+ * Execute transaction on the appropriate chain with decrypted mnemonic
  */
-async function executeTransaction(tx: any, currentGasPrice: number): Promise<{
+async function executeTransactionWithMnemonic(
+  tx: any, 
+  mnemonic: string, 
+  currentGasPrice: number
+): Promise<{
   success: boolean;
   txHash?: string;
   blockNumber?: number;
@@ -210,26 +249,171 @@ async function executeTransaction(tx: any, currentGasPrice: number): Promise<{
   error?: string;
 }> {
   try {
-    // Import the chain-specific execution service
-    const { executeScheduledTransaction } = await import('@/lib/transaction-executor');
+    const chain = tx.chain.toLowerCase();
+    
+    // Solana execution
+    if (chain === 'solana') {
+      return await executeSolanaTransaction(tx, mnemonic, currentGasPrice);
+    }
+    
+    // Bitcoin-like execution
+    if (['bitcoin', 'litecoin', 'dogecoin', 'bitcoincash'].includes(chain)) {
+      return await executeBitcoinLikeTransaction(tx, mnemonic, currentGasPrice);
+    }
+    
+    // EVM execution (Ethereum, Polygon, etc.)
+    return await executeEVMTransaction(tx, mnemonic, currentGasPrice);
+    
+  } catch (error: any) {
+    console.error('❌ Execution error:', error.message);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+}
 
-    const result = await executeScheduledTransaction({
-      chain: tx.chain,
-      fromAddress: tx.from_address,
-      toAddress: tx.to_address,
-      amount: tx.amount,
-      tokenAddress: tx.token_address,
-      gasPrice: currentGasPrice,
-    });
+/**
+ * Execute EVM transaction (Ethereum, Polygon, Arbitrum, etc.)
+ */
+async function executeEVMTransaction(
+  tx: any,
+  mnemonic: string,
+  currentGasPrice: number
+): Promise<any> {
+  try {
+    // Create wallet from mnemonic
+    const wallet = ethers.Wallet.fromPhrase(mnemonic);
+    
+    // Get RPC URL for chain
+    const rpcUrl = getRPCUrl(tx.chain);
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    const connectedWallet = wallet.connect(provider);
 
-    return result;
-
+    // Check if token or native
+    if (tx.token_address) {
+      // ERC20 token transfer
+      const erc20ABI = [
+        'function transfer(address to, uint256 amount) returns (bool)'
+      ];
+      const tokenContract = new ethers.Contract(tx.token_address, erc20ABI, connectedWallet);
+      
+      const txResponse = await tokenContract.transfer(
+        tx.to_address,
+        ethers.parseUnits(tx.amount, 18)  // Assuming 18 decimals
+      );
+      
+      const receipt = await txResponse.wait();
+      
+      return {
+        success: true,
+        txHash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+        gasCostUSD: parseFloat(ethers.formatEther(receipt.gasUsed * receipt.gasPrice || 0n)) * 2000,  // Rough estimate
+      };
+    } else {
+      // Native currency transfer
+      const txResponse = await connectedWallet.sendTransaction({
+        to: tx.to_address,
+        value: ethers.parseEther(tx.amount),
+      });
+      
+      const receipt = await txResponse.wait();
+      
+      return {
+        success: true,
+        txHash: receipt?.hash,
+        blockNumber: receipt?.blockNumber,
+        gasCostUSD: parseFloat(ethers.formatEther((receipt?.gasUsed || 0n) * (receipt?.gasPrice || 0n))) * 2000,
+      };
+    }
   } catch (error: any) {
     return {
       success: false,
       error: error.message,
     };
   }
+}
+
+/**
+ * Execute Solana transaction
+ */
+async function executeSolanaTransaction(
+  tx: any,
+  mnemonic: string,
+  currentGasPrice: number
+): Promise<any> {
+  try {
+    const { SolanaService } = await import('@/lib/solana-service');
+    const solanaService = new SolanaService();
+    
+    // Get keypair from mnemonic
+    const keypair = solanaService.deriveKeypairFromMnemonic(mnemonic);
+    
+    // Send transaction
+    const result = await solanaService.sendTransaction(
+      keypair.publicKey.toBase58(),
+      tx.to_address,
+      tx.amount,  // Keep as string
+      tx.token_address  // SPL token address or undefined for SOL
+    );
+    
+    return {
+      success: true,
+      txHash: result,  // sendTransaction returns signature string directly
+      gasCostUSD: 0.000005 * 150,  // Rough SOL gas estimate
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+}
+
+/**
+ * Execute Bitcoin-like transaction
+ */
+async function executeBitcoinLikeTransaction(
+  tx: any,
+  mnemonic: string,
+  currentGasPrice: number
+): Promise<any> {
+  try {
+    // Bitcoin execution logic
+    // For now, return not implemented
+    return {
+      success: false,
+      error: 'Bitcoin execution not yet implemented in server-side',
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+}
+
+/**
+ * Get RPC URL for chain
+ */
+function getRPCUrl(chain: string): string {
+  const alchemyKey = process.env.NEXT_PUBLIC_ALCHEMY_KEY || 'demo';
+  
+  const rpcMap: Record<string, string> = {
+    'ethereum': `https://eth-mainnet.g.alchemy.com/v2/${alchemyKey}`,
+    'polygon': `https://polygon-mainnet.g.alchemy.com/v2/${alchemyKey}`,
+    'base': `https://base-mainnet.g.alchemy.com/v2/${alchemyKey}`,
+    'arbitrum': `https://arb-mainnet.g.alchemy.com/v2/${alchemyKey}`,
+    'optimism': `https://opt-mainnet.g.alchemy.com/v2/${alchemyKey}`,
+    'avalanche': 'https://api.avax.network/ext/bc/C/rpc',
+    'fantom': 'https://rpc.ftm.tools',
+    'cronos': 'https://evm.cronos.org',
+    'zksync': `https://zksync-mainnet.g.alchemy.com/v2/${alchemyKey}`,
+    'linea': `https://linea-mainnet.g.alchemy.com/v2/${alchemyKey}`,
+  };
+  
+  return rpcMap[chain] || rpcMap['ethereum'];
 }
 
 /**

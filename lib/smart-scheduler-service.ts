@@ -6,6 +6,8 @@
 
 import { gasPriceService } from './gas-price-service';
 import { priceService } from './price-service';
+import { encryptForScheduling } from './scheduled-tx-encryption';
+import { useWalletStore } from './wallet-store';
 
 export interface ScheduledTransaction {
   id: string;
@@ -71,6 +73,21 @@ class SmartSchedulerService {
    */
   async scheduleTransaction(options: ScheduleOptions): Promise<ScheduledTransaction> {
     try {
+      // 🔐 CRITICAL: Get mnemonic from unlocked wallet
+      const { wallet } = useWalletStore.getState();
+      
+      if (!wallet || !wallet.mnemonic) {
+        throw new Error('Wallet locked - please unlock first');
+      }
+
+      const mnemonic = wallet.mnemonic.phrase;
+      
+      if (!mnemonic || mnemonic.split(' ').length < 12) {
+        throw new Error('Invalid wallet mnemonic');
+      }
+
+      console.log('✅ Wallet unlocked - proceeding with encryption');
+
       // Get current gas price for savings estimation
       const currentGasData = await gasPriceService.getGasPrice(options.chain);
       const currentGasPrice = currentGasData?.standard || 0;
@@ -96,6 +113,16 @@ class SmartSchedulerService {
         console.error('Failed to calculate gas cost:', e);
       }
 
+      // Calculate expiry time
+      const maxWaitHours = options.max_wait_hours || 24;
+      const scheduledTime = options.scheduled_for || new Date();
+      const expiresAt = new Date(scheduledTime.getTime() + maxWaitHours * 60 * 60 * 1000);
+
+      // 🔐 Encrypt mnemonic for time-limited storage
+      console.log('🔐 Encrypting authorization...');
+      const encryptedAuth = await encryptForScheduling(mnemonic, expiresAt);
+      console.log('✅ Authorization encrypted successfully');
+
       // Get supabase_user_id from localStorage if available
       const supabaseUserId = typeof window !== 'undefined' 
         ? localStorage.getItem('supabase_user_id') 
@@ -107,9 +134,10 @@ class SmartSchedulerService {
         body: JSON.stringify({
           ...options,
           supabase_user_id: supabaseUserId || undefined,
-          scheduled_for: options.scheduled_for?.toISOString(),
+          scheduled_for: scheduledTime.toISOString(),  // ✅ Fixed: Always use toISOString() for UTC
           current_gas_price: currentGasPrice,
           current_gas_cost_usd: currentGasCostUSD,
+          encrypted_auth: encryptedAuth,  // 🔐 Include encrypted authorization
         }),
       });
 
@@ -120,6 +148,7 @@ class SmartSchedulerService {
         throw new Error(data.error || 'Failed to create scheduled transaction');
       }
 
+      console.log('✅ Transaction scheduled successfully');
       return data.data;
     } catch (error: any) {
       console.error('❌ Failed to schedule transaction:', error);
