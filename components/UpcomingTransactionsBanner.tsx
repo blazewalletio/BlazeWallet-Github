@@ -42,16 +42,23 @@ export default function UpcomingTransactionsBanner({
     console.log('🔍 [UpcomingBanner] Loading transactions for:', { userId, chain });
     
     try {
-      const data = await smartSchedulerService.getScheduledTransactions(userId, chain, 'pending');
+      // ✅ FIX: Load ALL pending transactions (not just current chain)
+      // This shows upcoming transactions regardless of which chain user is viewing
+      const data = await smartSchedulerService.getScheduledTransactions(userId, undefined, 'pending');
       console.log('✅ [UpcomingBanner] Loaded transactions:', data);
-      setTransactions(data);
+      
+      // Filter to current chain for display
+      const chainTransactions = data.filter(tx => tx.chain.toLowerCase() === chain.toLowerCase());
+      console.log(`🔍 [UpcomingBanner] Filtered to ${chain}:`, chainTransactions.length, 'transaction(s)');
+      
+      setTransactions(chainTransactions);
       
       // Calculate total estimated savings
-      const savings = data.reduce((sum, tx) => sum + (tx.estimated_savings_usd || 0), 0);
+      const savings = chainTransactions.reduce((sum, tx) => sum + (tx.estimated_savings_usd || 0), 0);
       setTotalSavings(savings);
       
-      if (data.length === 0) {
-        console.log('ℹ️ [UpcomingBanner] No pending transactions found');
+      if (chainTransactions.length === 0) {
+        console.log('ℹ️ [UpcomingBanner] No pending transactions found for', chain);
       }
     } catch (error) {
       console.error('❌ [UpcomingBanner] Failed to load scheduled transactions:', error);
