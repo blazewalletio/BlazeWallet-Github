@@ -16,7 +16,7 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function GET(req: NextRequest) {
   console.log('\n========================================');
-  console.log('🔥 SMART SCHEDULER LIST API - DEBUG START');
+  console.log('🔥 SMART SCHEDULER LIST API - DEBUG START (RLS DISABLED)');
   console.log('========================================\n');
   
   try {
