@@ -10,6 +10,7 @@
 -- ============================================================================
 
 -- COMBINEER ALLE RESULTATEN IN ÉÉN QUERY
+SELECT * FROM (
 SELECT 
   'TABLE_SIZES' AS report_section,
   relname AS table_name,
@@ -155,6 +156,7 @@ FROM public.scheduled_transactions
 WHERE status IN ('expired', 'cancelled', 'failed')
   AND updated_at < NOW() - INTERVAL '7 days'
 GROUP BY status
+) AS all_results
 
 ORDER BY 
   CASE report_section
@@ -162,6 +164,7 @@ ORDER BY
     WHEN 'ROW_COUNTS' THEN 2
     WHEN 'OVERBODIGE_TABLES' THEN 3
     WHEN 'STALE_DATA' THEN 4
+    ELSE 5
   END,
   table_name;
 
