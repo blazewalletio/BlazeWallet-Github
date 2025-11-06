@@ -224,7 +224,10 @@ class GasPriceService {
     try {
       // Solana uses lamports (1 SOL = 1,000,000,000 lamports)
       // Try to get real-time priority fees from Solana RPC
-      const rpcUrl = 'https://api.mainnet-beta.solana.com';
+      // ✅ FIX: Use Alchemy instead of public RPC for reliability
+      const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC || 'https://solana-mainnet.g.alchemy.com/v2/demo';
+      
+      console.log('[Gas Service] 🔍 Fetching Solana gas from:', rpcUrl);
       
       // ✅ NEW API: Use getRecentPrioritizationFees (replaces deprecated getRecentBlockhash)
       const response = await fetch(rpcUrl, {
@@ -239,39 +242,50 @@ class GasPriceService {
         signal: AbortSignal.timeout(5000),
       });
       
-      if (response.ok) {
-        const data = await response.json();
+      if (!response.ok) {
+        throw new Error(`RPC returned ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      console.log('[Gas Service] 🔍 Solana RPC response:', {
+        hasResult: !!data.result,
+        isArray: Array.isArray(data.result),
+        length: data.result?.length || 0,
+        firstFee: data.result?.[0],
+      });
+      
+      if (data.result && Array.isArray(data.result) && data.result.length > 0) {
+        // Calculate median prioritization fee from recent slots
+        const fees = data.result
+          .map((f: any) => f.prioritizationFee)
+          .filter((f: number) => f > 0)
+          .sort((a: number, b: number) => a - b);
         
-        if (data.result && Array.isArray(data.result) && data.result.length > 0) {
-          // Calculate median prioritization fee from recent slots
-          const fees = data.result
-            .map((f: any) => f.prioritizationFee)
-            .filter((f: number) => f > 0)
-            .sort((a: number, b: number) => a - b);
+        if (fees.length > 0) {
+          const medianFee = fees[Math.floor(fees.length / 2)];
+          const baseFee = 5000; // Base transaction fee: 5000 lamports
           
-          if (fees.length > 0) {
-            const medianFee = fees[Math.floor(fees.length / 2)];
-            const baseFee = 5000; // Base transaction fee: 5000 lamports
-            
-            console.log(`[Gas Service] ✅ Solana real-time gas: ${baseFee + medianFee} lamports`);
-            
-            // Return in lamports (not gwei!)
-            return {
-              maxFeePerGas: baseFee + medianFee,
-              maxPriorityFeePerGas: medianFee,
-              baseFee: baseFee,
-              gasPrice: baseFee + medianFee,
-              slow: baseFee + Math.floor(medianFee * 0.5),
-              standard: baseFee + medianFee,
-              fast: baseFee + Math.floor(medianFee * 2),
-              instant: baseFee + Math.floor(medianFee * 5),
-              timestamp: Date.now(),
-              blockNumber: 0,
-              source: 'api',
-            };
-          }
+          console.log(`[Gas Service] ✅ Solana real-time gas: ${baseFee + medianFee} lamports (base: ${baseFee}, priority: ${medianFee})`);
+          
+          // Return in lamports (not gwei!)
+          return {
+            maxFeePerGas: baseFee + medianFee,
+            maxPriorityFeePerGas: medianFee,
+            baseFee: baseFee,
+            gasPrice: baseFee + medianFee,
+            slow: baseFee + Math.floor(medianFee * 0.5),
+            standard: baseFee + medianFee,
+            fast: baseFee + Math.floor(medianFee * 2),
+            instant: baseFee + Math.floor(medianFee * 5),
+            timestamp: Date.now(),
+            blockNumber: 0,
+            source: 'api',
+          };
         }
       }
+      
+      console.warn('[Gas Service] ⚠️ No valid prioritization fees in response, using fallback');
     } catch (error) {
       console.error('[Gas Service] Solana RPC error:', error);
     }

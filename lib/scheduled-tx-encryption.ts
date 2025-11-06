@@ -83,11 +83,17 @@ export async function encryptForScheduling(
 async function encryptKeyForServer(aesKey: Uint8Array): Promise<string> {
   try {
     // Get server's public key from environment
+    // ✅ FIX: Access from process.env with proper type safety
     const publicKeyPEM = process.env.NEXT_PUBLIC_SERVER_PUBLIC_KEY;
     
     if (!publicKeyPEM) {
-      throw new Error('Server public key not configured');
+      console.error('❌ RSA public key not found in environment');
+      console.error('🔍 Debugging: process.env exists?', typeof process !== 'undefined');
+      console.error('🔍 Debugging: NEXT_PUBLIC_SERVER_PUBLIC_KEY value:', publicKeyPEM);
+      throw new Error('Server public key not configured - check Vercel environment variables');
     }
+
+    console.log('✅ RSA public key found, length:', publicKeyPEM.length);
 
     // Convert PEM to ArrayBuffer
     const pemContents = publicKeyPEM
