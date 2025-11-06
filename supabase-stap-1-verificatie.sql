@@ -13,14 +13,14 @@
 -- ============================================================================
 SELECT
   schemaname,
-  tablename,
-  pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS total_size,
-  pg_size_pretty(pg_relation_size(schemaname||'.'||tablename)) AS data_size,
-  pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename) - pg_relation_size(schemaname||'.'||tablename)) AS index_size,
+  relname AS tablename,
+  pg_size_pretty(pg_total_relation_size(schemaname||'.'||relname)) AS total_size,
+  pg_size_pretty(pg_relation_size(schemaname||'.'||relname)) AS data_size,
+  pg_size_pretty(pg_total_relation_size(schemaname||'.'||relname) - pg_relation_size(schemaname||'.'||relname)) AS index_size,
   n_live_tup AS estimated_rows
 FROM pg_stat_user_tables
 WHERE schemaname = 'public'
-ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
+ORDER BY pg_total_relation_size(schemaname||'.'||relname) DESC;
 
 -- 1.2. EXACT ROW COUNTS (meer accuraat)
 -- ============================================================================
@@ -85,8 +85,7 @@ FROM public.user_savings;
 -- ai_cache: Expired entries (>7 dagen)
 SELECT 
   'ai_cache (expired >7d)' AS category,
-  COUNT(*) AS count,
-  pg_size_pretty(SUM(pg_column_size(ai_cache.*))) AS size
+  COUNT(*) AS count
 FROM public.ai_cache
 WHERE created_at < NOW() - INTERVAL '7 days';
 
