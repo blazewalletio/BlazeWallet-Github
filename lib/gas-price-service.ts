@@ -226,14 +226,14 @@ class GasPriceService {
       // Try to get real-time priority fees from Solana RPC
       const rpcUrl = 'https://api.mainnet-beta.solana.com';
       
-      // Get recent prioritization fees (Solana 1.14+)
+      // ✅ NEW API: Use getRecentPrioritizationFees (replaces deprecated getRecentBlockhash)
       const response = await fetch(rpcUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           jsonrpc: '2.0',
           id: 1,
-          method: 'getRecentPrioritizationFees',
+          method: 'getRecentPrioritizationFees', // ✅ NEW API
           params: [[]],
         }),
         signal: AbortSignal.timeout(5000),
@@ -252,6 +252,8 @@ class GasPriceService {
           if (fees.length > 0) {
             const medianFee = fees[Math.floor(fees.length / 2)];
             const baseFee = 5000; // Base transaction fee: 5000 lamports
+            
+            console.log(`[Gas Service] ✅ Solana real-time gas: ${baseFee + medianFee} lamports`);
             
             // Return in lamports (not gwei!)
             return {
@@ -274,9 +276,8 @@ class GasPriceService {
       console.error('[Gas Service] Solana RPC error:', error);
     }
     
-    // Fallback: Conservative estimates in lamports
-    // Simple transfer: ~5000 lamports (0.000005 SOL)
-    // With priority: ~10000 lamports (0.00001 SOL)
+    // ⚠️ Fallback: Conservative estimates in lamports
+    console.warn('[Gas Service] ⚠️ Using Solana fallback gas price');
     return {
       maxFeePerGas: 10000,     // lamports
       maxPriorityFeePerGas: 5000,

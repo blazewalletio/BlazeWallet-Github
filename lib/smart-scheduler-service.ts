@@ -95,15 +95,27 @@ class SmartSchedulerService {
       // Calculate current gas cost in USD
       let currentGasCostUSD = 0;
       try {
-        const nativePrice = await priceService.getPrice(
-          options.chain === 'solana' ? 'solana' : 
-          options.chain === 'bitcoin' ? 'bitcoin' : 
-          'ethereum'
-        );
+        // ✅ FIX: Use correct currency SYMBOLS (not chain names)
+        const currencySymbol = 
+          options.chain === 'solana' ? 'SOL' :
+          options.chain === 'bitcoin' ? 'BTC' :
+          options.chain === 'ethereum' ? 'ETH' :
+          options.chain === 'polygon' ? 'MATIC' :
+          options.chain === 'avalanche' ? 'AVAX' :
+          options.chain === 'bsc' ? 'BNB' :
+          options.chain === 'fantom' ? 'FTM' :
+          options.chain === 'cronos' ? 'CRO' :
+          options.chain === 'litecoin' ? 'LTC' :
+          options.chain === 'dogecoin' ? 'DOGE' :
+          options.chain === 'bitcoincash' ? 'BCH' :
+          'ETH'; // Fallback for all other EVM chains (Arbitrum, Optimism, Base, etc. use ETH)
+        
+        const nativePrice = await priceService.getPrice(currencySymbol);
 
         if (options.chain === 'solana') {
-          currentGasCostUSD = (currentGasPrice * 5000 / 1_000_000_000) * nativePrice;
-        } else if (options.chain.includes('bitcoin') || options.chain === 'litecoin' || options.chain === 'dogecoin') {
+          // ✅ FIX: Correct Solana USD calculation (lamports → SOL → USD)
+          currentGasCostUSD = (currentGasPrice / 1_000_000_000) * nativePrice;
+        } else if (options.chain.includes('bitcoin') || options.chain === 'litecoin' || options.chain === 'dogecoin' || options.chain === 'bitcoincash') {
           currentGasCostUSD = ((currentGasPrice * 250) / 100_000_000) * nativePrice;
         } else {
           // EVM chains
