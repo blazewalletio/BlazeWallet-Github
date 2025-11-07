@@ -30,13 +30,28 @@ export async function GET(req: NextRequest) {
   try {
     // Verify request is from Vercel Cron or has valid auth
     const authHeader = req.headers.get('authorization');
-    const isVercelCron = req.headers.get('user-agent')?.includes('vercel-cron');
+    const userAgent = req.headers.get('user-agent') || 'unknown';
+    const isVercelCron = userAgent.includes('vercel-cron');
     const cronSecret = req.url.includes('CRON_SECRET=') ? new URL(req.url).searchParams.get('CRON_SECRET') : null;
+    
+    // Debug logging
+    console.log('🔐 Auth check:', {
+      userAgent,
+      isVercelCron,
+      hasAuthHeader: !!authHeader,
+      hasCronSecret: !!cronSecret,
+      cronSecretMatch: cronSecret === CRON_SECRET,
+      cronSecretLength: cronSecret?.length,
+      expectedSecretLength: CRON_SECRET.length
+    });
     
     // Allow: Vercel Cron, Authorization header, or query param secret
     if (!isVercelCron && authHeader !== `Bearer ${CRON_SECRET}` && cronSecret !== CRON_SECRET) {
       console.error('❌ Unauthorized cron attempt');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ 
+        error: 'Unauthorized',
+        debug: { isVercelCron, hasAuth: !!authHeader, hasSecret: !!cronSecret }
+      }, { status: 401 });
     }
 
     console.log('\n========================================');

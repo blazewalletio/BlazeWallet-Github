@@ -28,7 +28,9 @@ export async function GET(req: NextRequest) {
       isVercelCron,
       hasAuthHeader: !!authHeader,
       hasCronSecret: !!cronSecret,
-      cronSecretMatch: cronSecret === CRON_SECRET
+      cronSecretMatch: cronSecret === CRON_SECRET,
+      cronSecretLength: cronSecret?.length,
+      expectedSecretLength: CRON_SECRET.length
     });
     
     // Allow: Vercel Cron, Authorization header, or query param secret
