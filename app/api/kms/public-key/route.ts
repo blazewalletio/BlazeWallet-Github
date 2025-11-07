@@ -18,6 +18,15 @@ const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
 export async function GET(req: NextRequest) {
   try {
+    console.log('[KMS] Public key request received');
+    console.log('[KMS] Environment check:', {
+      region: process.env.AWS_REGION,
+      keyAlias: process.env.AWS_KMS_KEY_ALIAS,
+      keyId: process.env.KMS_KEY_ID,
+      hasAccessKey: Boolean(process.env.AWS_ACCESS_KEY_ID),
+      hasSecretKey: Boolean(process.env.AWS_SECRET_ACCESS_KEY),
+    });
+
     // Check cache
     const now = Date.now();
     if (cachedPublicKey && (now - cacheTimestamp) < CACHE_TTL) {
@@ -30,6 +39,7 @@ export async function GET(req: NextRequest) {
 
     // Fetch fresh public key
     const publicKey = await kmsService.getPublicKey();
+    console.log('[KMS] Public key retrieved successfully');
 
     // Update cache
     cachedPublicKey = publicKey;
@@ -46,6 +56,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: false,
       error: 'Failed to retrieve public key',
+      details: error?.message || 'Unknown error',
     }, { status: 500 });
   }
 }
