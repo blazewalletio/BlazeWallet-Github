@@ -22,6 +22,7 @@ import {
 import { smartSchedulerService, type ScheduleOptions } from '@/lib/smart-scheduler-service';
 import { gasPriceService } from '@/lib/gas-price-service';
 import { useWalletStore } from '@/lib/wallet-store';
+import { EphemeralKeyCrypto } from '@/lib/ephemeral-key-crypto';
 
 interface SmartScheduleModalProps {
   isOpen: boolean;
@@ -97,6 +98,42 @@ export default function SmartScheduleModal({
         throw new Error('Please connect your wallet first');
       }
 
+      // ✅ SECURITY: Get mnemonic from unlocked wallet
+      const { mnemonic } = useWalletStore.getState();
+      if (!mnemonic) {
+        throw new Error('Wallet is locked. Please unlock your wallet first.');
+      }
+
+      console.log('🔐 Starting mnemonic encryption...');
+
+      // Step 1: Generate ephemeral AES-256 key
+      const { key: ephemeralKey, raw: ephemeralKeyRaw } = await EphemeralKeyCrypto.generateEphemeralKey();
+      console.log('✅ Ephemeral key generated');
+
+      // Step 2: Encrypt mnemonic with ephemeral key
+      const encryptedMnemonic = await EphemeralKeyCrypto.encryptMnemonic(
+        mnemonic,
+        ephemeralKey
+      );
+      console.log('✅ Mnemonic encrypted with ephemeral key');
+
+      // Step 3: Fetch KMS public key
+      const kmsResponse = await fetch('/api/kms/public-key');
+      const kmsData = await kmsResponse.json();
+      
+      if (!kmsData.success || !kmsData.publicKey) {
+        throw new Error('Failed to retrieve KMS public key');
+      }
+      console.log('✅ KMS public key retrieved');
+
+      // Step 4: Encrypt ephemeral key with KMS public key
+      const kmsEncryptedEphemeralKey = await EphemeralKeyCrypto.encryptEphemeralKeyWithKMS(
+        ephemeralKeyRaw,
+        kmsData.publicKey
+      );
+      console.log('✅ Ephemeral key encrypted with KMS public key');
+
+      // Step 5: Schedule transaction with encrypted mnemonic
       let scheduleOptions: ScheduleOptions = {
         user_id: userId,
         chain,
@@ -108,6 +145,10 @@ export default function SmartScheduleModal({
         schedule_type: mode === 'custom' ? 'specific_time' : mode === 'threshold' ? 'gas_threshold' : 'optimal',
         max_wait_hours: maxWaitHours,
         priority: 'standard',
+        
+        // ✅ NEW: Encrypted mnemonic
+        encrypted_mnemonic: encryptedMnemonic,
+        kms_encrypted_ephemeral_key: kmsEncryptedEphemeralKey,
       };
 
       if (mode === 'optimal') {
@@ -130,6 +171,10 @@ export default function SmartScheduleModal({
 
       await smartSchedulerService.scheduleTransaction(scheduleOptions);
 
+      // ✅ SECURITY: Immediate cleanup
+      EphemeralKeyCrypto.zeroMemory(ephemeralKeyRaw);
+      console.log('✅ Ephemeral key zeroed from memory');
+
       setSuccess('Transaction scheduled successfully!');
       setTimeout(() => {
         onScheduled?.();
@@ -137,6 +182,7 @@ export default function SmartScheduleModal({
       }, 1500);
 
     } catch (err: any) {
+      console.error('❌ Schedule error:', err);
       setError(err.message || 'Failed to schedule transaction');
     } finally {
       setLoading(false);

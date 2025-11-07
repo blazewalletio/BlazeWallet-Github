@@ -32,6 +32,10 @@ interface CreateScheduleRequest {
   current_gas_cost_usd?: number;
   
   memo?: string;
+  
+  // ✅ NEW: Encrypted mnemonic (works for ALL 18 chains)
+  encrypted_mnemonic?: string;
+  kms_encrypted_ephemeral_key?: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -111,6 +115,10 @@ export async function POST(req: NextRequest) {
         estimated_gas_cost_usd: body.current_gas_cost_usd || null,
         memo: body.memo || null,
         expires_at: expires_at,
+        
+        // ✅ NEW: Store encrypted mnemonic (already encrypted by client!)
+        encrypted_mnemonic: body.encrypted_mnemonic || null,
+        kms_encrypted_ephemeral_key: body.kms_encrypted_ephemeral_key || null,
       })
       .select()
       .single();

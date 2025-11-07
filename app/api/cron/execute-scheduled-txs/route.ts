@@ -210,6 +210,11 @@ async function executeTransaction(tx: any, currentGasPrice: number): Promise<{
   error?: string;
 }> {
   try {
+    // ✅ SECURITY: Check if encrypted mnemonic exists
+    if (!tx.encrypted_mnemonic || !tx.kms_encrypted_ephemeral_key) {
+      throw new Error('Missing encrypted mnemonic. Transaction cannot be executed automatically.');
+    }
+
     // Import the chain-specific execution service
     const { executeScheduledTransaction } = await import('@/lib/transaction-executor');
 
@@ -220,7 +225,24 @@ async function executeTransaction(tx: any, currentGasPrice: number): Promise<{
       amount: tx.amount,
       tokenAddress: tx.token_address,
       gasPrice: currentGasPrice,
+      
+      // ✅ NEW: Pass encrypted mnemonic for KMS decryption
+      encryptedMnemonic: tx.encrypted_mnemonic,
+      kmsEncryptedEphemeralKey: tx.kms_encrypted_ephemeral_key,
     });
+
+    // ✅ SECURITY: Delete encrypted keys after successful execution
+    if (result.success) {
+      await supabase
+        .from('scheduled_transactions')
+        .update({
+          encrypted_mnemonic: null,
+          kms_encrypted_ephemeral_key: null,
+          key_deleted_at: new Date().toISOString(),
+        })
+        .eq('id', tx.id);
+      console.log(`   🔒 Encrypted keys deleted after execution`);
+    }
 
     return result;
 

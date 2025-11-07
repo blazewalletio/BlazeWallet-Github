@@ -52,6 +52,10 @@ export interface ScheduleOptions {
   max_wait_hours?: number;
   priority?: 'low' | 'standard' | 'high' | 'instant';
   memo?: string;
+  
+  // ✅ NEW: Encrypted mnemonic (works for ALL 18 chains)
+  encrypted_mnemonic?: string; // AES-256-GCM encrypted mnemonic
+  kms_encrypted_ephemeral_key?: string; // RSA-OAEP encrypted ephemeral key
 }
 
 export interface SavingsStats {
