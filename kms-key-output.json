@@ -1,0 +1,21 @@
+{
+    "KeyMetadata": {
+        "AWSAccountId": "945695383591",
+        "KeyId": "566e43d3-7816-4cb7-beea-64849e8cabd6",
+        "Arn": "arn:aws:kms:us-east-1:945695383591:key/566e43d3-7816-4cb7-beea-64849e8cabd6",
+        "CreationDate": "2025-11-07T13:27:48.884000+01:00",
+        "Enabled": true,
+        "Description": "BLAZE Wallet Scheduled Transaction Encryption Key",
+        "KeyUsage": "ENCRYPT_DECRYPT",
+        "KeyState": "Enabled",
+        "Origin": "AWS_KMS",
+        "KeyManager": "CUSTOMER",
+        "CustomerMasterKeySpec": "RSA_4096",
+        "KeySpec": "RSA_4096",
+        "EncryptionAlgorithms": [
+            "RSAES_OAEP_SHA_1",
+            "RSAES_OAEP_SHA_256"
+        ],
+        "MultiRegion": false
+    }
+}

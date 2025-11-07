@@ -13,6 +13,7 @@
     "cap:sync": "npx cap sync"
   },
   "dependencies": {
+    "@aws-sdk/client-kms": "^3.926.0",
     "@bitcoinerlab/secp256k1": "^1.2.0",
     "@breeztech/react-native-breez-sdk": "^0.8.4-dev1",
     "@capacitor/android": "^7.4.4",

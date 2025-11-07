@@ -1,0 +1,52 @@
+/**
+ * 🔐 BLAZE WALLET - KMS PUBLIC KEY API
+ * 
+ * Exposes KMS public key for client-side encryption
+ * ✅ Safe to expose (public key cannot decrypt)
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { kmsService } from '@/lib/kms-service';
+
+export const dynamic = 'force-dynamic';
+export const maxDuration = 10;
+
+// In-memory cache (15 minutes)
+let cachedPublicKey: string | null = null;
+let cacheTimestamp: number = 0;
+const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+
+export async function GET(req: NextRequest) {
+  try {
+    // Check cache
+    const now = Date.now();
+    if (cachedPublicKey && (now - cacheTimestamp) < CACHE_TTL) {
+      return NextResponse.json({
+        success: true,
+        publicKey: cachedPublicKey,
+        cached: true,
+      });
+    }
+
+    // Fetch fresh public key
+    const publicKey = await kmsService.getPublicKey();
+
+    // Update cache
+    cachedPublicKey = publicKey;
+    cacheTimestamp = now;
+
+    return NextResponse.json({
+      success: true,
+      publicKey,
+      cached: false,
+    });
+
+  } catch (error: any) {
+    console.error('❌ Failed to get public key:', error);
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to retrieve public key',
+    }, { status: 500 });
+  }
+}
+
