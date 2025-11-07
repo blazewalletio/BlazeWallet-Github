@@ -19,9 +19,10 @@ export async function GET(req: NextRequest) {
     // Verify request is from Vercel Cron or has valid auth
     const authHeader = req.headers.get('authorization');
     const isVercelCron = req.headers.get('user-agent')?.includes('vercel-cron');
+    const cronSecret = req.url.includes('CRON_SECRET=') ? new URL(req.url).searchParams.get('CRON_SECRET') : null;
     
-    // Allow either Vercel Cron or manual trigger with secret
-    if (!isVercelCron && authHeader !== `Bearer ${CRON_SECRET}`) {
+    // Allow: Vercel Cron, Authorization header, or query param secret
+    if (!isVercelCron && authHeader !== `Bearer ${CRON_SECRET}` && cronSecret !== CRON_SECRET) {
       console.error('❌ Unauthorized cron request');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
