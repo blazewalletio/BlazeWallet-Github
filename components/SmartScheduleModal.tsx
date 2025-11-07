@@ -104,7 +104,19 @@ export default function SmartScheduleModal({
         throw new Error('Wallet is locked. Please unlock your wallet first.');
       }
 
-      console.log('🔐 Starting mnemonic encryption...');
+      console.log('🔐 Starting mnemonic encryption...', {
+        chain,
+        userId,
+        fromAddress,
+        toAddress,
+        amount,
+        tokenSymbol,
+        scheduleMode: mode,
+        customDate,
+        customTime,
+        gasThreshold,
+        maxWaitHours,
+      });
 
       // Step 1: Generate ephemeral AES-256 key
       const { key: ephemeralKey, raw: ephemeralKeyRaw } = await EphemeralKeyCrypto.generateEphemeralKey();
@@ -118,11 +130,32 @@ export default function SmartScheduleModal({
       console.log('✅ Mnemonic encrypted with ephemeral key');
 
       // Step 3: Fetch KMS public key
+      console.log('🌐 Fetching KMS public key...', {
+        endpoint: '/api/kms/public-key',
+        timestamp: new Date().toISOString(),
+      });
+
       const kmsResponse = await fetch('/api/kms/public-key');
-      const kmsData = await kmsResponse.json();
-      
+      const kmsRawText = await kmsResponse.text();
+
+      console.log('🌐 KMS response received', {
+        status: kmsResponse.status,
+        statusText: kmsResponse.statusText,
+        ok: kmsResponse.ok,
+        headers: Object.fromEntries(kmsResponse.headers.entries()),
+        bodyPreview: kmsRawText.slice(0, 500),
+      });
+
+      let kmsData: any = {};
+      try {
+        kmsData = JSON.parse(kmsRawText);
+      } catch (parseError) {
+        console.error('⚠️ Failed to parse KMS response JSON', parseError);
+      }
+
       if (!kmsData.success || !kmsData.publicKey) {
-        throw new Error('Failed to retrieve KMS public key');
+        console.error('❌ KMS public key missing or unsuccessful response', kmsData);
+        throw new Error(`Failed to retrieve KMS public key (status ${kmsResponse.status})`);
       }
       console.log('✅ KMS public key retrieved');
 
@@ -169,7 +202,14 @@ export default function SmartScheduleModal({
         scheduleOptions.optimal_gas_threshold = parseFloat(gasThreshold);
       }
 
+      console.log('📝 Schedule options prepared', {
+        ...scheduleOptions,
+        encrypted_mnemonic: '[redacted]',
+        kms_encrypted_ephemeral_key: `[length: ${kmsEncryptedEphemeralKey.length}]`,
+      });
+
       await smartSchedulerService.scheduleTransaction(scheduleOptions);
+      console.log('📤 Schedule request sent to backend');
 
       // ✅ SECURITY: Immediate cleanup
       EphemeralKeyCrypto.zeroMemory(ephemeralKeyRaw);
@@ -183,9 +223,17 @@ export default function SmartScheduleModal({
 
     } catch (err: any) {
       console.error('❌ Schedule error:', err);
+      if (err instanceof Error) {
+        console.error('❌ Detailed schedule error info', {
+          message: err.message,
+          stack: err.stack,
+          name: err.name,
+        });
+      }
       setError(err.message || 'Failed to schedule transaction');
     } finally {
       setLoading(false);
+      console.log('⏹️ Schedule flow finished');
     }
   };
 
