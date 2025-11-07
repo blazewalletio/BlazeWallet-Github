@@ -11,16 +11,34 @@ import { KMSClient, GetPublicKeyCommand, DecryptCommand } from '@aws-sdk/client-
 export class KMSService {
   private client: KMSClient;
   private keyId: string;
+  private region: string;
 
   constructor() {
+    this.region = process.env.AWS_REGION || 'us-east-1';
+    const accessKey = process.env.AWS_ACCESS_KEY_ID;
+    const secretKey = process.env.AWS_SECRET_ACCESS_KEY;
+    const aliasEnv = process.env.AWS_KMS_KEY_ALIAS;
+    const idEnv = process.env.KMS_KEY_ID;
+
+    this.keyId = aliasEnv || idEnv || 'alias/blaze-scheduled-tx';
+
+    console.log('[KMSService] Initializing KMS client with configuration:', {
+      region: this.region,
+      hasAccessKey: Boolean(accessKey),
+      accessKeyPreview: accessKey ? `${accessKey.slice(0, 4)}…${accessKey.slice(-4)}` : null,
+      hasSecretKey: Boolean(secretKey),
+      keyId: this.keyId,
+      aliasEnv,
+      idEnv,
+    });
+
     this.client = new KMSClient({
-      region: process.env.AWS_REGION || 'us-east-1',
+      region: this.region,
       credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+        accessKeyId: accessKey!,
+        secretAccessKey: secretKey!,
       },
     });
-    this.keyId = process.env.AWS_KMS_KEY_ALIAS || 'alias/blaze-scheduled-tx';
   }
 
   /**
@@ -29,6 +47,11 @@ export class KMSService {
    */
   async getPublicKey(): Promise<string> {
     try {
+      console.log('[KMSService] Calling GetPublicKeyCommand', {
+        keyId: this.keyId,
+        region: this.region,
+      });
+
       const command = new GetPublicKeyCommand({ KeyId: this.keyId });
       const response = await this.client.send(command);
 
@@ -36,13 +59,26 @@ export class KMSService {
         throw new Error('Failed to retrieve public key');
       }
 
+      console.log('[KMSService] GetPublicKey response metadata:', {
+        keyId: this.keyId,
+        httpStatus: response.$metadata?.httpStatusCode,
+        requestId: response.$metadata?.requestId,
+      });
+
       // Convert to PEM format for client use
       const publicKeyBuffer = Buffer.from(response.PublicKey);
       const publicKeyPem = `-----BEGIN PUBLIC KEY-----\n${publicKeyBuffer.toString('base64')}\n-----END PUBLIC KEY-----`;
 
       return publicKeyPem;
     } catch (error: any) {
-      console.error('❌ Failed to get KMS public key:', error);
+      console.error('❌ Failed to get KMS public key:', {
+        message: error?.message,
+        name: error?.name,
+        stack: error?.stack,
+        metadata: error?.$metadata,
+        keyIdTried: this.keyId,
+        region: this.region,
+      });
       throw new Error('KMS public key retrieval failed');
     }
   }
