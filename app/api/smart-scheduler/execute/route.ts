@@ -14,11 +14,14 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const CRON_SECRET = process.env.CRON_SECRET!;
 
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    // Verify cron secret
+    // Verify request is from Vercel Cron or has valid auth
     const authHeader = req.headers.get('authorization');
-    if (authHeader !== `Bearer ${CRON_SECRET}`) {
+    const isVercelCron = req.headers.get('user-agent')?.includes('vercel-cron');
+    
+    // Allow either Vercel Cron or manual trigger with secret
+    if (!isVercelCron && authHeader !== `Bearer ${CRON_SECRET}`) {
       console.error('❌ Unauthorized cron request');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
