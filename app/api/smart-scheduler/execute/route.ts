@@ -12,7 +12,7 @@ import { priceService } from '@/lib/price-service';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const CRON_SECRET = process.env.CRON_SECRET!;
+const CRON_SECRET = (process.env.CRON_SECRET || 'dev-secret-change-in-production').trim();
 
 export async function GET(req: NextRequest) {
   try {

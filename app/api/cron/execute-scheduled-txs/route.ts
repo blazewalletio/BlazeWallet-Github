@@ -24,7 +24,7 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Verify cron secret for security
-const CRON_SECRET = process.env.CRON_SECRET || 'dev-secret-change-in-production';
+const CRON_SECRET = (process.env.CRON_SECRET || 'dev-secret-change-in-production').trim();
 
 export async function GET(req: NextRequest) {
   try {
