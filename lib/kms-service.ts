@@ -14,11 +14,16 @@ export class KMSService {
   private region: string;
 
   constructor() {
-    this.region = process.env.AWS_REGION || 'us-east-1';
-    const accessKey = process.env.AWS_ACCESS_KEY_ID;
-    const secretKey = process.env.AWS_SECRET_ACCESS_KEY;
-    const aliasEnv = process.env.AWS_KMS_KEY_ALIAS;
-    const idEnv = process.env.KMS_KEY_ID;
+    this.region = (process.env.AWS_REGION || 'us-east-1').trim();
+    const accessKeyRaw = process.env.AWS_ACCESS_KEY_ID;
+    const secretKeyRaw = process.env.AWS_SECRET_ACCESS_KEY;
+    const aliasEnvRaw = process.env.AWS_KMS_KEY_ALIAS;
+    const idEnvRaw = process.env.KMS_KEY_ID;
+
+    const accessKey = accessKeyRaw?.trim();
+    const secretKey = secretKeyRaw?.trim();
+    const aliasEnv = aliasEnvRaw?.trim();
+    const idEnv = idEnvRaw?.trim();
 
     this.keyId = aliasEnv || idEnv || 'alias/blaze-scheduled-tx';
 
