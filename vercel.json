@@ -25,8 +25,5 @@
   "crons": [{
     "path": "/api/cron/execute-scheduled-txs",
     "schedule": "*/5 * * * *"
-  }, {
-    "path": "/api/smart-scheduler/execute",
-    "schedule": "*/5 * * * *"
   }]
 }

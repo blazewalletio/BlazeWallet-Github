@@ -185,16 +185,34 @@ export default function SmartScheduleModal({
       };
 
       if (mode === 'optimal') {
+        // AI optimal time - already in correct format (ISO string or Date)
         scheduleOptions.scheduled_for = optimalTiming?.optimal_time || new Date(Date.now() + 3 * 60 * 60 * 1000);
       } else if (mode === 'custom') {
         if (!customDate || !customTime) {
           throw new Error('Please select date and time');
         }
-        const scheduledFor = new Date(`${customDate}T${customTime}`);
+        
+        // ✅ FIX: Parse as LOCAL time, then convert to UTC for database
+        // User sees: "2025-11-07 15:41" in their timezone (e.g. CET)
+        // We store: "2025-11-07T14:41:00.000Z" in UTC (correctly adjusted)
+        const localDateTimeString = `${customDate}T${customTime}:00`; // Add seconds
+        const scheduledFor = new Date(localDateTimeString);
+        
+        // Validate it's in the future
         if (scheduledFor <= new Date()) {
           throw new Error('Scheduled time must be in the future');
         }
+        
+        // Store as-is (Date object will be converted to ISO string by service)
+        // The Date object already represents the correct moment in time
         scheduleOptions.scheduled_for = scheduledFor;
+        
+        console.log('📅 Custom schedule:', {
+          userInput: localDateTimeString,
+          parsedDate: scheduledFor.toString(), // Shows with timezone
+          willBeStoredAs: scheduledFor.toISOString(), // UTC in database
+          userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        });
       } else if (mode === 'threshold') {
         if (!gasThreshold) {
           throw new Error('Please enter gas price threshold');

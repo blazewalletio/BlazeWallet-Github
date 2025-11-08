@@ -6,14 +6,27 @@
  * - RSA-OAEP-SHA256 for ephemeral key encryption with KMS public key
  */
 
+// ✅ Node.js compatibility: Use webcrypto for backend
+const getCrypto = () => {
+  if (typeof window !== 'undefined') {
+    // Browser
+    return window.crypto;
+  } else {
+    // Node.js backend
+    // @ts-ignore - Node.js 18+ has global webcrypto
+    return globalThis.crypto || require('crypto').webcrypto;
+  }
+};
+
 export class EphemeralKeyCrypto {
   /**
    * Generate random ephemeral AES-256 key
    */
   static async generateEphemeralKey(): Promise<{ key: CryptoKey; raw: Uint8Array }> {
-    const raw = crypto.getRandomValues(new Uint8Array(32)); // 256 bits
+    const _crypto = getCrypto();
+    const raw = _crypto.getRandomValues(new Uint8Array(32)); // 256 bits
     
-    const key = await crypto.subtle.importKey(
+    const key = await _crypto.subtle.importKey(
       'raw',
       raw,
       { name: 'AES-GCM', length: 256 },
@@ -31,9 +44,10 @@ export class EphemeralKeyCrypto {
     mnemonic: string,
     ephemeralKey: CryptoKey
   ): Promise<string> {
-    const iv = crypto.getRandomValues(new Uint8Array(12)); // 96-bit IV for GCM
+    const _crypto = getCrypto();
+    const iv = _crypto.getRandomValues(new Uint8Array(12)); // 96-bit IV for GCM
     
-    const encrypted = await crypto.subtle.encrypt(
+    const encrypted = await _crypto.subtle.encrypt(
       { name: 'AES-GCM', iv },
       ephemeralKey,
       new TextEncoder().encode(mnemonic)
@@ -54,8 +68,9 @@ export class EphemeralKeyCrypto {
     ephemeralKeyRaw: Uint8Array,
     kmsPublicKeyPem: string
   ): Promise<string> {
+    const _crypto = getCrypto();
     // Import KMS public key
-    const publicKey = await crypto.subtle.importKey(
+    const publicKey = await _crypto.subtle.importKey(
       'spki',
       this.pemToArrayBuffer(kmsPublicKeyPem),
       {
@@ -67,7 +82,7 @@ export class EphemeralKeyCrypto {
     );
 
     // Encrypt ephemeral key (convert Uint8Array to plain ArrayBuffer)
-    const encrypted = await crypto.subtle.encrypt(
+    const encrypted = await _crypto.subtle.encrypt(
       { name: 'RSA-OAEP' },
       publicKey,
       ephemeralKeyRaw as BufferSource
@@ -83,12 +98,13 @@ export class EphemeralKeyCrypto {
     encryptedMnemonic: string,
     ephemeralKeyRaw: Uint8Array
   ): Promise<string> {
+    const _crypto = getCrypto();
     const combined = Uint8Array.from(atob(encryptedMnemonic), c => c.charCodeAt(0));
     
     const iv = combined.slice(0, 12);
     const ciphertext = combined.slice(12);
 
-    const ephemeralKey = await crypto.subtle.importKey(
+    const ephemeralKey = await _crypto.subtle.importKey(
       'raw',
       ephemeralKeyRaw as BufferSource,
       { name: 'AES-GCM', length: 256 },
@@ -96,7 +112,7 @@ export class EphemeralKeyCrypto {
       ['decrypt']
     );
 
-    const decrypted = await crypto.subtle.decrypt(
+    const decrypted = await _crypto.subtle.decrypt(
       { name: 'AES-GCM', iv },
       ephemeralKey,
       ciphertext
