@@ -221,29 +221,42 @@ class GasPriceService {
    * Get Solana compute units cost
    */
   private async getSolanaComputeUnits(): Promise<GasPrice> {
-    try {
-      // Solana uses lamports (1 SOL = 1,000,000,000 lamports)
-      // Try to get real-time priority fees from Solana RPC
-      const rpcUrl = 'https://api.mainnet-beta.solana.com';
-      
-      // Get recent prioritization fees (Solana 1.14+)
-      const response = await fetch(rpcUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'getRecentPrioritizationFees',
-          params: [[]],
-        }),
-        signal: AbortSignal.timeout(5000),
-      });
-      
-      if (response.ok) {
+    // Try multiple Solana RPC endpoints for reliability
+    const rpcEndpoints = [
+      // Alchemy (most reliable with API key)
+      process.env.NEXT_PUBLIC_ALCHEMY_API_KEY 
+        ? `https://solana-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}`
+        : null,
+      // Public RPCs (fallback)
+      'https://api.mainnet-beta.solana.com',
+      'https://solana-api.projectserum.com',
+    ].filter(Boolean);
+    
+    for (const rpcUrl of rpcEndpoints) {
+      try {
+        console.log('[Gas Service] Trying Solana RPC:', rpcUrl?.substring(0, 50) + '...');
+        
+        // Get recent prioritization fees (Solana 1.14+)
+        const response = await fetch(rpcUrl!, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'getRecentPrioritizationFees',
+            params: [[]], // Empty array = recent fees across all accounts
+          }),
+          signal: AbortSignal.timeout(5000),
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
         const data = await response.json();
         
         if (data.result && Array.isArray(data.result) && data.result.length > 0) {
-          // Calculate median prioritization fee from recent slots
+          // Calculate statistics from recent prioritization fees
           const fees = data.result
             .map((f: any) => f.prioritizationFee)
             .filter((f: number) => f > 0)
@@ -251,41 +264,59 @@ class GasPriceService {
           
           if (fees.length > 0) {
             const medianFee = fees[Math.floor(fees.length / 2)];
+            const p75Fee = fees[Math.floor(fees.length * 0.75)];
+            const p90Fee = fees[Math.floor(fees.length * 0.90)];
             const baseFee = 5000; // Base transaction fee: 5000 lamports
             
-            // Return in lamports (not gwei!)
+            console.log('[Gas Service] ✅ Solana fees:', {
+              median: medianFee,
+              p75: p75Fee,
+              p90: p90Fee,
+              samples: fees.length,
+            });
+            
+            // Return REAL fees in lamports
             return {
-              maxFeePerGas: baseFee + medianFee,
+              maxFeePerGas: baseFee + p90Fee,
               maxPriorityFeePerGas: medianFee,
               baseFee: baseFee,
-              gasPrice: baseFee + medianFee,
-              slow: baseFee + Math.floor(medianFee * 0.5),
+              gasPrice: baseFee + medianFee, // Most common fee
+              slow: baseFee + Math.max(1, Math.floor(medianFee * 0.5)),
               standard: baseFee + medianFee,
-              fast: baseFee + Math.floor(medianFee * 2),
-              instant: baseFee + Math.floor(medianFee * 5),
+              fast: baseFee + p75Fee,
+              instant: baseFee + p90Fee,
               timestamp: Date.now(),
               blockNumber: 0,
               source: 'api',
             };
           }
         }
+        
+        console.warn('[Gas Service] Solana API returned empty result, trying next endpoint...');
+      } catch (error) {
+        console.error('[Gas Service] Solana RPC error:', error);
+        // Try next endpoint
+        continue;
       }
-    } catch (error) {
-      console.error('[Gas Service] Solana RPC error:', error);
     }
     
-    // Fallback: Conservative estimates in lamports
-    // Simple transfer: ~5000 lamports (0.000005 SOL)
-    // With priority: ~10000 lamports (0.00001 SOL)
+    // If ALL RPCs failed, use conservative fallback
+    console.warn('[Gas Service] ⚠️ All Solana RPCs failed, using fallback estimates');
+    
+    // Fallback: Conservative but realistic estimates in lamports
+    // Based on typical mainnet behavior (not hardcoded 10000!)
+    const baseFee = 5000; // Minimum transaction fee
+    const medianPriority = 1000; // Typical priority fee (very low congestion)
+    
     return {
-      maxFeePerGas: 10000,     // lamports
-      maxPriorityFeePerGas: 5000,
-      baseFee: 5000,
-      gasPrice: 10000,
-      slow: 5000,
-      standard: 10000,
-      fast: 20000,
-      instant: 50000,
+      maxFeePerGas: baseFee + medianPriority * 10, // High priority
+      maxPriorityFeePerGas: medianPriority,
+      baseFee: baseFee,
+      gasPrice: baseFee + medianPriority, // Standard = 6000 lamports (~$0.000006)
+      slow: baseFee + Math.floor(medianPriority * 0.1), // 5100 lamports
+      standard: baseFee + medianPriority, // 6000 lamports
+      fast: baseFee + medianPriority * 5, // 10000 lamports
+      instant: baseFee + medianPriority * 10, // 15000 lamports
       timestamp: Date.now(),
       blockNumber: 0,
       source: 'fallback',
