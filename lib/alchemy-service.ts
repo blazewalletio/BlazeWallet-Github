@@ -2,7 +2,7 @@ import { Alchemy, Network, AssetTransfersCategory, SortingOrder } from 'alchemy-
 import { ethers } from 'ethers';
 import { Token } from './types';
 
-const ALCHEMY_API_KEY = 'V9A0m8eB58qyWJpajjs6Y';
+const ALCHEMY_API_KEY = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY || 'V9A0m8eB58qyWJpajjs6Y';
 
 // Map chain keys to Alchemy networks
 const CHAIN_TO_NETWORK: Record<string, Network> = {

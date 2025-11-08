@@ -46,7 +46,7 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
             walletAddresses: walletAddresses,
             currencyCode: currencyCode || 'ETH', // Default to ETH if undefined
             baseCurrencyCode: 'EUR', // Default to EUR for Dutch market
-            apiKey: '55950bec-d22c-4d0a-937e-7bff2cb26296', // Real Transak API key (needs business profile completion)
+            apiKey: process.env.NEXT_PUBLIC_TRANSAK_API_KEY || '55950bec-d22c-4d0a-937e-7bff2cb26296', // Transak API key from env
             environment: 'STAGING', // Try STAGING first to test
             themeColor: '#F97316', // BLAZE orange
             disableWalletAddressForm: true, // Hide wallet address input since we provide it

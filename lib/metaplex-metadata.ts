@@ -25,7 +25,7 @@ const metaplexCache = new Map<string, { data: SPLTokenMetadata | null; timestamp
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
 // ✅ FIX: Use Alchemy RPC (same as SolanaService) to avoid 403 errors!
-const DEFAULT_RPC_URL = 'https://solana-mainnet.g.alchemy.com/v2/demo';
+const DEFAULT_RPC_URL = `https://solana-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY || 'demo'}`;
 
 /**
  * Fetch token metadata from Metaplex on-chain standard

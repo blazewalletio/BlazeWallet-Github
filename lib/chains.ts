@@ -5,7 +5,7 @@ export const CHAINS: Record<string, Chain> = {
     id: 1,
     name: 'Ethereum',
     shortName: 'ETH',
-    rpcUrl: 'https://eth-mainnet.g.alchemy.com/v2/V9A0m8eB58qyWJpajjs6Y',
+    rpcUrl: `https://eth-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY || 'V9A0m8eB58qyWJpajjs6Y'}`,
     explorerUrl: 'https://etherscan.io',
     nativeCurrency: {
       name: 'Ethereum',
@@ -112,7 +112,7 @@ export const CHAINS: Record<string, Chain> = {
     id: 101,
     name: 'Solana',
     shortName: 'SOL',
-    rpcUrl: 'https://solana-mainnet.g.alchemy.com/v2/demo', // ✅ More reliable RPC
+    rpcUrl: `https://solana-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY || 'demo'}`, // ✅ More reliable RPC
     explorerUrl: 'https://explorer.solana.com',
     nativeCurrency: {
       name: 'Solana',
