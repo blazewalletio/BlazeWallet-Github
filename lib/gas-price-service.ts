@@ -221,196 +221,71 @@ class GasPriceService {
    * Get Solana compute units cost
    */
   private async getSolanaComputeUnits(): Promise<GasPrice> {
-    // Try Helius API first (most reliable for Solana gas prices)
     try {
-      console.log('[Gas Service] Trying Helius Priority Fee API...');
-      const heliusResponse = await fetch('https://mainnet.helius-rpc.com/?api-key=public', {
+      // Solana uses lamports (1 SOL = 1,000,000,000 lamports)
+      // Try to get real-time priority fees from Solana RPC
+      const rpcUrl = 'https://api.mainnet-beta.solana.com';
+      
+      // Get recent prioritization fees (Solana 1.14+)
+      const response = await fetch(rpcUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           jsonrpc: '2.0',
           id: 1,
-          method: 'getPriorityFeeEstimate',
-          params: [{
-            accountKeys: [],
-            options: {
-              includeAllPriorityFeeLevels: true
-            }
-          }]
+          method: 'getRecentPrioritizationFees',
+          params: [[]],
         }),
-        signal: AbortSignal.timeout(3000),
+        signal: AbortSignal.timeout(5000),
       });
       
-      if (heliusResponse.ok) {
-        const data = await heliusResponse.json();
-        
-        if (data.result && data.result.priorityFeeEstimate !== undefined) {
-          const baseFee = 5000; // Base transaction fee: 5000 lamports
-          const priorityFee = Math.round(data.result.priorityFeeEstimate || 0);
-          const min = Math.round(data.result.priorityFeeLevels?.min || priorityFee * 0.5);
-          const low = Math.round(data.result.priorityFeeLevels?.low || priorityFee * 0.75);
-          const medium = Math.round(data.result.priorityFeeLevels?.medium || priorityFee);
-          const high = Math.round(data.result.priorityFeeLevels?.high || priorityFee * 1.5);
-          const veryHigh = Math.round(data.result.priorityFeeLevels?.veryHigh || priorityFee * 2);
-          
-          console.log('[Gas Service] ✅ Helius fees:', {
-            recommended: priorityFee,
-            min, low, medium, high, veryHigh
-          });
-          
-          return {
-            maxFeePerGas: baseFee + veryHigh,
-            maxPriorityFeePerGas: priorityFee,
-            baseFee: baseFee,
-            gasPrice: baseFee + medium, // Standard
-            slow: baseFee + min,
-            standard: baseFee + medium,
-            fast: baseFee + high,
-            instant: baseFee + veryHigh,
-            timestamp: Date.now(),
-            blockNumber: 0,
-            source: 'api',
-          };
-        }
-      }
-    } catch (error) {
-      console.warn('[Gas Service] Helius API failed, trying RPC methods...', error);
-    }
-    
-    // Fallback: Try standard Solana RPC endpoints
-    const rpcEndpoints = [
-      process.env.NEXT_PUBLIC_ALCHEMY_API_KEY 
-        ? `https://solana-mainnet.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}`
-        : null,
-      'https://api.mainnet-beta.solana.com',
-      'https://rpc.ankr.com/solana',
-    ].filter(Boolean);
-    
-    for (const rpcUrl of rpcEndpoints) {
-      try {
-        console.log('[Gas Service] Trying Solana RPC:', rpcUrl?.substring(0, 50) + '...');
-        
-        // Try getRecentPrioritizationFees
-        const response = await fetch(rpcUrl!, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            id: 1,
-            method: 'getRecentPrioritizationFees',
-            params: [
-              [] // Empty array for recent fees across network
-            ]
-          }),
-          signal: AbortSignal.timeout(3000),
-        });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-        
+      if (response.ok) {
         const data = await response.json();
-        console.log('[Gas Service] RPC response:', { 
-          hasResult: !!data.result, 
-          isArray: Array.isArray(data.result),
-          length: data.result?.length 
-        });
         
         if (data.result && Array.isArray(data.result) && data.result.length > 0) {
+          // Calculate median prioritization fee from recent slots
           const fees = data.result
-            .map((f: any) => f.prioritizationFee || 0)
+            .map((f: any) => f.prioritizationFee)
             .filter((f: number) => f > 0)
             .sort((a: number, b: number) => a - b);
           
           if (fees.length > 0) {
-            const baseFee = 5000;
             const medianFee = fees[Math.floor(fees.length / 2)];
-            const p75Fee = fees[Math.floor(fees.length * 0.75)];
-            const p90Fee = fees[Math.floor(fees.length * 0.90)];
+            const baseFee = 5000; // Base transaction fee: 5000 lamports
             
-            console.log('[Gas Service] ✅ RPC fees:', {
-              median: medianFee,
-              p75: p75Fee,
-              p90: p90Fee,
-              samples: fees.length,
-            });
-            
+            // Return in lamports (not gwei!)
             return {
-              maxFeePerGas: baseFee + p90Fee,
+              maxFeePerGas: baseFee + medianFee,
               maxPriorityFeePerGas: medianFee,
               baseFee: baseFee,
               gasPrice: baseFee + medianFee,
-              slow: baseFee + Math.max(1, Math.floor(medianFee * 0.5)),
+              slow: baseFee + Math.floor(medianFee * 0.5),
               standard: baseFee + medianFee,
-              fast: baseFee + p75Fee,
-              instant: baseFee + p90Fee,
+              fast: baseFee + Math.floor(medianFee * 2),
+              instant: baseFee + Math.floor(medianFee * 5),
               timestamp: Date.now(),
               blockNumber: 0,
               source: 'api',
             };
           }
         }
-        
-        console.warn('[Gas Service] RPC returned no usable fee data, trying next...');
-      } catch (error: any) {
-        console.error('[Gas Service] RPC error:', error.message);
-        continue;
-      }
-    }
-    
-    // Last resort: Use Solana network averages from SolanaFM
-    try {
-      console.log('[Gas Service] Trying SolanaFM average fees...');
-      const avgResponse = await fetch('https://api.solana.fm/v0/stats/fees', {
-        signal: AbortSignal.timeout(3000),
-      });
-      
-      if (avgResponse.ok) {
-        const data = await avgResponse.json();
-        if (data.averageFee) {
-          const baseFee = 5000;
-          const avgPriority = Math.round(data.averageFee || 1000);
-          
-          console.log('[Gas Service] ✅ SolanaFM average:', avgPriority);
-          
-          return {
-            maxFeePerGas: baseFee + avgPriority * 3,
-            maxPriorityFeePerGas: avgPriority,
-            baseFee: baseFee,
-            gasPrice: baseFee + avgPriority,
-            slow: baseFee + Math.floor(avgPriority * 0.5),
-            standard: baseFee + avgPriority,
-            fast: baseFee + Math.floor(avgPriority * 2),
-            instant: baseFee + Math.floor(avgPriority * 3),
-            timestamp: Date.now(),
-            blockNumber: 0,
-            source: 'api',
-          };
-        }
       }
     } catch (error) {
-      console.error('[Gas Service] SolanaFM failed:', error);
+      console.error('[Gas Service] Solana RPC error:', error);
     }
     
-    // Absolute fallback: Use dynamic calculation based on time
-    console.warn('[Gas Service] ⚠️ ALL APIs failed, using time-based estimate');
-    
-    // Vary the estimate slightly based on time to avoid always showing same number
-    const hour = new Date().getUTCHours();
-    const baseFee = 5000;
-    // Higher fees during peak hours (12-18 UTC ~ 8AM-2PM EST)
-    const isPeakHour = hour >= 12 && hour <= 18;
-    const medianPriority = isPeakHour ? 1500 : 800;
-    
+    // Fallback: Conservative estimates in lamports
+    // Simple transfer: ~5000 lamports (0.000005 SOL)
+    // With priority: ~10000 lamports (0.00001 SOL)
     return {
-      maxFeePerGas: baseFee + medianPriority * 5,
-      maxPriorityFeePerGas: medianPriority,
-      baseFee: baseFee,
-      gasPrice: baseFee + medianPriority,
-      slow: baseFee + Math.floor(medianPriority * 0.3),
-      standard: baseFee + medianPriority,
-      fast: baseFee + Math.floor(medianPriority * 2.5),
-      instant: baseFee + Math.floor(medianPriority * 5),
+      maxFeePerGas: 10000,     // lamports
+      maxPriorityFeePerGas: 5000,
+      baseFee: 5000,
+      gasPrice: 10000,
+      slow: 5000,
+      standard: 10000,
+      fast: 20000,
+      instant: 50000,
       timestamp: Date.now(),
       blockNumber: 0,
       source: 'fallback',

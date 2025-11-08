@@ -1,0 +1,34 @@
+{
+  "Version": "2012-10-17",
+  "Id": "key-policy-blaze-wallet",
+  "Statement": [
+    {
+      "Sid": "Enable IAM User Permissions",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::945695383591:root"
+      },
+      "Action": "kms:*",
+      "Resource": "*"
+    },
+    {
+      "Sid": "Allow Blaze Wallet KMS User",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::945695383591:user/blaze-wallet-kms-user"
+      },
+      "Action": [
+        "kms:Decrypt",
+        "kms:GetPublicKey",
+        "kms:DescribeKey"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "kms:EncryptionAlgorithm": "RSAES_OAEP_SHA_256"
+        }
+      }
+    }
+  ]
+}
+
