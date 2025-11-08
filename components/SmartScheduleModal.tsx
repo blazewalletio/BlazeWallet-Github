@@ -192,11 +192,13 @@ export default function SmartScheduleModal({
           throw new Error('Please select date and time');
         }
         
-        // ✅ FIX: Parse as LOCAL time, then convert to UTC for database
-        // User sees: "2025-11-07 15:41" in their timezone (e.g. CET)
-        // We store: "2025-11-07T14:41:00.000Z" in UTC (correctly adjusted)
-        const localDateTimeString = `${customDate}T${customTime}:00`; // Add seconds
-        const scheduledFor = new Date(localDateTimeString);
+        // ✅ FIX: Parse as LOCAL time using explicit Date constructor
+        // This GUARANTEES the time is interpreted in user's local timezone
+        const [year, month, day] = customDate.split('-').map(Number);
+        const [hours, minutes] = customTime.split(':').map(Number);
+        
+        // Create Date in LOCAL timezone (month is 0-indexed!)
+        const scheduledFor = new Date(year, month - 1, day, hours, minutes, 0, 0);
         
         // Validate it's in the future
         if (scheduledFor <= new Date()) {
@@ -208,10 +210,12 @@ export default function SmartScheduleModal({
         scheduleOptions.scheduled_for = scheduledFor;
         
         console.log('📅 Custom schedule:', {
-          userInput: localDateTimeString,
-          parsedDate: scheduledFor.toString(), // Shows with timezone
-          willBeStoredAs: scheduledFor.toISOString(), // UTC in database
-          userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+          userInputDate: customDate,
+          userInputTime: customTime,
+          parsedLocalDate: scheduledFor.toString(), // Shows with timezone
+          willBeStoredAsUTC: scheduledFor.toISOString(), // UTC in database
+          userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          localTime: scheduledFor.toLocaleString('nl-NL', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
         });
       } else if (mode === 'threshold') {
         if (!gasThreshold) {
