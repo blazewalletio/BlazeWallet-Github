@@ -9,12 +9,23 @@
 // ✅ Node.js compatibility: Use webcrypto for backend
 const getCrypto = () => {
   if (typeof window !== 'undefined') {
-    // Browser
+    // Browser environment
     return window.crypto;
-  } else {
-    // Node.js backend
-    // @ts-ignore - Node.js 18+ has global webcrypto
-    return globalThis.crypto || require('crypto').webcrypto;
+  }
+  
+  // Node.js backend environment
+  try {
+    // Try Node.js 18+ built-in webcrypto
+    if (typeof globalThis !== 'undefined' && globalThis.crypto) {
+      return globalThis.crypto;
+    }
+    
+    // Fallback to require('crypto').webcrypto
+    const { webcrypto } = require('crypto');
+    return webcrypto;
+  } catch (error) {
+    console.error('❌ Failed to load webcrypto:', error);
+    throw new Error('Web Crypto API not available');
   }
 };
 
