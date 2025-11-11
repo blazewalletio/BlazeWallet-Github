@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Check, Loader2, AlertCircle, Smile } from 'lucide-react';
-import { useWalletStore } from '@/lib/wallet-store';
 import { createClient } from '@supabase/supabase-js';
 import { CHAINS } from '@/lib/chains';
 

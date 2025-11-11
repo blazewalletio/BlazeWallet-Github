@@ -6,9 +6,9 @@ import {
   Search, Plus, Star, Edit2, Trash2, X, ChevronRight,
   BookUser, Loader2, Tag, StickyNote, Calendar, TrendingUp
 } from 'lucide-react';
-import { useWalletStore } from '@/lib/wallet-store';
 import { createClient } from '@supabase/supabase-js';
 import { CHAINS } from '@/lib/chains';
+import AddContactModal from './AddContactModal';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -343,6 +343,22 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
             </div>
           )}
         </motion.div>
+
+        {/* Add/Edit Contact Modal */}
+        <AddContactModal
+          isOpen={showAddModal}
+          onClose={() => {
+            setShowAddModal(false);
+            setSelectedContact(null);
+          }}
+          onSaved={() => {
+            loadContacts();
+            setShowAddModal(false);
+            setSelectedContact(null);
+          }}
+          editContact={selectedContact}
+          prefillChain={filterChain}
+        />
       </motion.div>
     </AnimatePresence>
   );

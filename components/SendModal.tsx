@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Loader2, CheckCircle2, Flame, ChevronDown, Check, AlertTriangle, Lightbulb } from 'lucide-react';
+import { ArrowRight, Loader2, CheckCircle2, Flame, ChevronDown, Check, AlertTriangle, Lightbulb, BookUser } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { MultiChainService } from '@/lib/multi-chain-service';
@@ -11,6 +11,7 @@ import { CHAINS } from '@/lib/chains';
 import { priceService } from '@/lib/price-service';
 import ParticleEffect from './ParticleEffect';
 import SmartScheduleModal from './SmartScheduleModal';
+import AddressBook from './AddressBook';
 
 interface Asset {
   symbol: string;
@@ -62,6 +63,9 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
   
   // Smart Schedule Modal state
   const [showSmartSchedule, setShowSmartSchedule] = useState(false);
+  
+  // Address Book state
+  const [showAddressBook, setShowAddressBook] = useState(false);
 
   // ✅ Use singleton instance (prevents re-initialization)
   const blockchain = MultiChainService.getInstance(selectedChain);
@@ -749,13 +753,22 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                 <label className="text-sm font-medium text-gray-900 mb-2 block">
                   To address
                 </label>
-                <input
-                  type="text"
-                  value={toAddress}
-                  onChange={(e) => setToAddress(e.target.value)}
-                  placeholder={selectedChain === 'solana' ? 'Solana address...' : '0x...'}
-                  className="input-field font-mono text-sm"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={toAddress}
+                    onChange={(e) => setToAddress(e.target.value)}
+                    placeholder={selectedChain === 'solana' ? 'Solana address...' : '0x...'}
+                    className="input-field font-mono text-sm pr-12"
+                  />
+                  <button
+                    onClick={() => setShowAddressBook(true)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-gradient-to-br from-orange-100 to-orange-50 hover:from-orange-200 hover:to-orange-100 rounded-xl flex items-center justify-center transition-all group"
+                    title="Open address book"
+                  >
+                    <BookUser className="w-4 h-4 text-orange-600 group-hover:scale-110 transition-transform" />
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -1024,6 +1037,17 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
           }}
         />
       )}
+
+      {/* Address Book Picker */}
+      <AddressBook
+        isOpen={showAddressBook}
+        onClose={() => setShowAddressBook(false)}
+        filterChain={selectedChain}
+        onSelectContact={(contact) => {
+          setToAddress(contact.address);
+          setShowAddressBook(false);
+        }}
+      />
     </AnimatePresence>
   );
 }
