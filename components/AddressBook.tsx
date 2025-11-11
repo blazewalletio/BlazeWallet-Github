@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookUser, Search, Plus, Star, Filter, MoreVertical, Edit2, Trash2, X, ChevronDown } from 'lucide-react';
+import { Search, Plus, Star, Filter, MoreVertical, Edit2, Trash2, X, ChevronDown, Users } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { CHAINS } from '@/lib/chains';
 import AddContactModal from './AddContactModal';
@@ -205,7 +205,7 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
             <div className="mb-6">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <BookUser className="w-6 h-6 text-white" />
+                  <Users className="w-6 h-6 text-white" />
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Address book</h2>
@@ -300,7 +300,7 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
                 <div className="space-y-3">
                   {filteredContacts.length === 0 ? (
                     <div className="text-center py-12">
-                      <BookUser className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                      <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                       <p className="text-gray-500 mb-2">
                         {searchQuery || selectedChainFilter !== 'all'
                           ? 'No contacts found'

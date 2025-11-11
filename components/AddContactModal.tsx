@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookUser, X, Star, ChevronDown } from 'lucide-react';
+import { X, Star, ChevronDown, Users } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { CHAINS } from '@/lib/chains';
 import { BlockchainService } from '@/lib/blockchain';
@@ -261,7 +261,7 @@ export default function AddContactModal({
             <div className="mb-6">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <BookUser className="w-6 h-6 text-white" />
+                  <Users className="w-6 h-6 text-white" />
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">

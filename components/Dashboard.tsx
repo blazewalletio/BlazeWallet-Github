@@ -9,7 +9,7 @@ import {
   Repeat, Wallet as WalletIcon, TrendingDown, PieChart, Rocket, CreditCard,
   Lock, Gift, Vote, Users, Palette, LogOut,
   Sparkles, Shield, Brain, MessageSquare, Send, Download, ShoppingCart,
-  BarChart3, DollarSign, Flame, Target, Clock, CheckCircle2, XCircle, Inbox, BookUser
+  BarChart3, DollarSign, Flame, Target, Clock, CheckCircle2, XCircle, Inbox
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { MultiChainService } from '@/lib/multi-chain-service';
@@ -925,31 +925,6 @@ export default function Dashboard() {
   // Wallet tab content
   const renderWalletContent = () => (
     <div className="space-y-6">
-          {/* Header with Address Book & Settings */}
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              {/* ChainSelector modal is rendered at the bottom */}
-            </div>
-            <div className="flex items-center gap-2">
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setShowAddressBook(true)}
-                className="w-10 h-10 bg-gradient-to-br from-orange-100 to-orange-50 hover:from-orange-200 hover:to-orange-100 rounded-xl flex items-center justify-center transition-all shadow-sm hover:shadow-md group"
-                title="Address book"
-              >
-                <BookUser className="w-5 h-5 text-orange-600 group-hover:scale-110 transition-transform" />
-              </motion.button>
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setShowSettings(true)}
-                className="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center transition-all"
-                title="Settings"
-              >
-                <Settings className="w-5 h-5 text-gray-600" />
-              </motion.button>
-            </div>
-          </div>
-
           {/* Portfolio Value Card */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -1742,6 +1717,14 @@ export default function Dashboard() {
                   className="glass-card p-2.5 sm:p-3 rounded-xl hover:bg-gray-50"
                 >
                   <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 text-gray-700 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowAddressBook(true)}
+                  className="glass-card p-2.5 sm:p-3 rounded-xl hover:bg-orange-50"
+                  title="Address book"
+                >
+                  <Users className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
                 </motion.button>
                 <motion.button
                   whileTap={{ scale: 0.95 }}
