@@ -30,18 +30,21 @@ export async function GET(req: NextRequest) {
   try {
     // Verify request is from Vercel Cron or has valid auth
     const authHeader = req.headers.get('authorization');
+    const vercelCronHeader = req.headers.get('x-vercel-cron'); // Vercel adds this header to cron requests
     const vercelId = req.headers.get('x-vercel-id');
     const vercelDeploymentId = req.headers.get('x-vercel-deployment-id');
     const userAgent = req.headers.get('user-agent') || 'unknown';
     
-    // Check if request is from Vercel (cron jobs always have these headers)
+    // Check if request is from Vercel Cron
+    // Vercel cron jobs include the x-vercel-cron: 1 header
     const isFromVercel = !!(vercelId || vercelDeploymentId);
-    const isVercelCron = userAgent.includes('vercel-cron') || isFromVercel;
+    const isVercelCron = vercelCronHeader === '1' || userAgent.includes('vercel-cron') || isFromVercel;
     const cronSecret = req.url.includes('CRON_SECRET=') ? new URL(req.url).searchParams.get('CRON_SECRET') : null;
     
     // Debug logging
     console.log('🔐 Auth check:', {
       userAgent,
+      vercelCronHeader: vercelCronHeader ? 'present' : 'missing',
       vercelId: vercelId ? 'present' : 'missing',
       vercelDeploymentId: vercelDeploymentId ? 'present' : 'missing',
       isFromVercel,
@@ -53,10 +56,29 @@ export async function GET(req: NextRequest) {
     
     // Allow: Vercel requests (via headers), Authorization header, or query param secret
     if (!isVercelCron && authHeader !== `Bearer ${CRON_SECRET}` && cronSecret !== CRON_SECRET) {
-      console.error('❌ Unauthorized cron attempt');
+      console.error('❌ Unauthorized cron attempt', {
+        vercelCronHeader,
+        vercelId: !!vercelId,
+        vercelDeploymentId: !!vercelDeploymentId,
+        userAgent,
+        isVercelCron,
+        hasAuthHeader: !!authHeader,
+        hasCronSecret: !!cronSecret
+      });
       return NextResponse.json({ 
         error: 'Unauthorized',
-        debug: { isFromVercel, isVercelCron, hasAuth: !!authHeader, hasSecret: !!cronSecret }
+        message: 'This endpoint can only be accessed by Vercel Cron or with valid authentication',
+        debug: { 
+          isFromVercel, 
+          isVercelCron, 
+          hasAuth: !!authHeader, 
+          hasSecret: !!cronSecret,
+          headers: {
+            'x-vercel-cron': vercelCronHeader,
+            'x-vercel-id': !!vercelId,
+            'user-agent': userAgent
+          }
+        }
       }, { status: 401 });
     }
 
