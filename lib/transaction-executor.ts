@@ -392,7 +392,8 @@ async function executeBitcoinLikeTransaction(req: ExecutionRequest): Promise<Exe
 
     // ✅ Get address from private key for verification
     const { bitcoinTxBuilder } = await import('./bitcoin-tx-builder');
-    const derivedAddress = bitcoinTxBuilder.getAddressFromPrivateKey(child.privateKey, req.chain);
+    const privateKeyBuffer = Buffer.from(child.privateKey);
+    const derivedAddress = bitcoinTxBuilder.getAddressFromPrivateKey(privateKeyBuffer, req.chain);
     
     console.log(`📍 Derived address: ${derivedAddress}`);
     console.log(`📍 Expected address: ${req.fromAddress}`);
@@ -414,14 +415,14 @@ async function executeBitcoinLikeTransaction(req: ExecutionRequest): Promise<Exe
       toAddress: req.toAddress,
       amount: amountSatoshis,
       feePerByte: req.gasPrice, // gasPrice is fee per byte for Bitcoin
-      privateKey: child.privateKey,
+      privateKey: privateKeyBuffer,
       changeAddress: derivedAddress,
     });
 
     // ✅ Security: Zero sensitive data from memory
     let mnemonicStr: any = mnemonic;
     mnemonicStr = null;
-    child.privateKey.fill(0); // Zero the private key buffer
+    privateKeyBuffer.fill(0); // Zero the private key buffer
 
     if (!txResult.success) {
       throw new Error(txResult.error || 'Transaction failed');
