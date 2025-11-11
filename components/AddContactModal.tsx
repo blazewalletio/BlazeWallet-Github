@@ -61,7 +61,16 @@ export default function AddContactModal({
   useBlockBodyScroll(isOpen);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    console.log('🔍 [AddContactModal] Fetching Supabase user...');
+    supabase.auth.getUser().then(({ data, error }) => {
+      console.log('🔍 [AddContactModal] Supabase auth response:', { 
+        user: data.user, 
+        userId: data.user?.id,
+        email: data.user?.email,
+        error 
+      });
+      setUser(data.user);
+    });
   }, []);
 
   useEffect(() => {
@@ -140,10 +149,17 @@ export default function AddContactModal({
   }, [address, selectedChain, user, editContact]);
 
   const handleSave = async () => {
+    console.log('🔍 [AddContactModal] handleSave called');
+    console.log('🔍 [AddContactModal] Current user state:', user);
+    console.log('🔍 [AddContactModal] User ID:', user?.id);
+    
     if (!user) {
+      console.error('❌ [AddContactModal] No user found!');
       setError('Please log in to save contacts');
       return;
     }
+
+    console.log('✅ [AddContactModal] User is logged in, proceeding...');
 
     if (!name.trim()) {
       setError('Name is required');
@@ -166,6 +182,7 @@ export default function AddContactModal({
     try {
       if (editContact) {
         // Update existing contact
+        console.log('🔄 [AddContactModal] Updating contact:', editContact.id);
         const { error: updateError } = await supabase
           .from('address_book')
           .update({
@@ -179,23 +196,36 @@ export default function AddContactModal({
           })
           .eq('id', editContact.id);
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('❌ [AddContactModal] Update error:', updateError);
+          throw updateError;
+        }
+        console.log('✅ [AddContactModal] Contact updated successfully');
       } else {
         // Create new contact
-        const { error: insertError } = await supabase
+        console.log('➕ [AddContactModal] Creating new contact for user:', user.id);
+        const contactData = {
+          user_id: user.id,
+          name: name.trim(),
+          chain: selectedChain,
+          address: address.trim(),
+          emoji: selectedEmoji,
+          tags,
+          notes: notes.trim() || null,
+          is_favorite: isFavorite,
+        };
+        console.log('📝 [AddContactModal] Contact data:', contactData);
+        
+        const { data: insertData, error: insertError } = await supabase
           .from('address_book')
-          .insert({
-            user_id: user.id,
-            name: name.trim(),
-            chain: selectedChain,
-            address: address.trim(),
-            emoji: selectedEmoji,
-            tags,
-            notes: notes.trim() || null,
-            is_favorite: isFavorite,
-          });
+          .insert(contactData)
+          .select();
 
-        if (insertError) throw insertError;
+        if (insertError) {
+          console.error('❌ [AddContactModal] Insert error:', insertError);
+          throw insertError;
+        }
+        console.log('✅ [AddContactModal] Contact created successfully:', insertData);
       }
 
       // Show success animation
@@ -204,7 +234,7 @@ export default function AddContactModal({
         onSaved();
       }, 1000);
     } catch (err: any) {
-      console.error('Failed to save contact:', err);
+      console.error('❌ [AddContactModal] Failed to save contact:', err);
       setError(err.message || 'Failed to save contact');
       setIsSaving(false);
     }
