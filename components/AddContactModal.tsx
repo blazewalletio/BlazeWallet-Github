@@ -95,9 +95,13 @@ export default function AddContactModal({
       return false;
     }
 
-    const blockchain = new BlockchainService(selectedChain);
-    if (!blockchain.isValidAddress(address)) {
-      setError(`Invalid ${blockchain.getAddressFormatHint()}`);
+    if (!BlockchainService.isValidAddress(address, selectedChain)) {
+      const hint = selectedChain === 'solana' 
+        ? 'Solana address (Base58, 32-44 characters)'
+        : selectedChain.includes('bitcoin') || selectedChain === 'litecoin' || selectedChain === 'dogecoin'
+        ? 'Bitcoin-like address'
+        : 'Ethereum address (0x...)';
+      setError(`Invalid ${hint}`);
       return false;
     }
 
