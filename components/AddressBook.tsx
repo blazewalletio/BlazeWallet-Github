@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 import { CHAINS } from '@/lib/chains';
 import AddContactModal from './AddContactModal';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
+import { getCurrentAccount } from '@/lib/account-manager';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,7 +35,7 @@ interface AddressBookProps {
 }
 
 export default function AddressBook({ isOpen, onClose, onSelectContact, filterChain }: AddressBookProps) {
-  const [user, setUser] = useState<any>(null);
+  const [userId, setUserId] = useState<string | null>(null);  // Changed from 'user' to 'userId'
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -48,14 +49,18 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
   useBlockBodyScroll(isOpen);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    const account = getCurrentAccount();
+    if (account) {
+      const userIdentifier = account.email || account.id;
+      setUserId(userIdentifier);
+    }
   }, []);
 
   useEffect(() => {
-    if (isOpen && user) {
+    if (isOpen && userId) {
       loadContacts();
     }
-  }, [isOpen, user]);
+  }, [isOpen, userId]);
 
   useEffect(() => {
     if (filterChain) {
@@ -68,14 +73,14 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
   }, [contacts, searchQuery, selectedChainFilter]);
 
   const loadContacts = async () => {
-    if (!user) return;
+    if (!userId) return;
 
     setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('address_book')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('is_favorite', { ascending: false })
         .order('name');
 

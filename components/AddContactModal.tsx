@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 import { CHAINS } from '@/lib/chains';
 import { BlockchainService } from '@/lib/blockchain';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
+import { getCurrentAccount } from '@/lib/account-manager';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -39,7 +40,7 @@ export default function AddContactModal({
   prefillChain,
   prefillAddress,
 }: AddContactModalProps) {
-  const [user, setUser] = useState<any>(null);
+  const [userId, setUserId] = useState<string | null>(null);  // Changed from 'user' to 'userId'
   const [name, setName] = useState('');
   const [selectedEmoji, setSelectedEmoji] = useState('👤');
   const [selectedChain, setSelectedChain] = useState(prefillChain || 'ethereum');
@@ -61,16 +62,19 @@ export default function AddContactModal({
   useBlockBodyScroll(isOpen);
 
   useEffect(() => {
-    console.log('🔍 [AddContactModal] Fetching Supabase user...');
-    supabase.auth.getUser().then(({ data, error }) => {
-      console.log('🔍 [AddContactModal] Supabase auth response:', { 
-        user: data.user, 
-        userId: data.user?.id,
-        email: data.user?.email,
-        error 
-      });
-      setUser(data.user);
-    });
+    console.log('🔍 [AddContactModal] Fetching user ID from account manager...');
+    const account = getCurrentAccount();
+    console.log('🔍 [AddContactModal] Current account:', account);
+    
+    if (account) {
+      // Use displayName (email) or id (wallet hash) as user_id
+      const userIdentifier = account.email || account.id;
+      console.log('✅ [AddContactModal] User identifier:', userIdentifier);
+      setUserId(userIdentifier);
+    } else {
+      console.error('❌ [AddContactModal] No account found!');
+      setUserId(null);
+    }
   }, []);
 
   useEffect(() => {
@@ -122,12 +126,12 @@ export default function AddContactModal({
       setAddressValidation(isValid ? 'valid' : 'invalid');
 
       // Check for duplicates (only if valid and not editing)
-      if (isValid && !editContact && user) {
+      if (isValid && !editContact && userId) {
         try {
           const { data } = await supabase
             .from('address_book')
             .select('name')
-            .eq('user_id', user.id)
+            .eq('user_id', userId)
             .eq('chain', selectedChain)
             .eq('address', address.trim())
             .limit(1)
@@ -146,15 +150,14 @@ export default function AddContactModal({
     }, 500);
 
     return () => clearTimeout(validateTimeout);
-  }, [address, selectedChain, user, editContact]);
+  }, [address, selectedChain, userId, editContact]);
 
   const handleSave = async () => {
     console.log('🔍 [AddContactModal] handleSave called');
-    console.log('🔍 [AddContactModal] Current user state:', user);
-    console.log('🔍 [AddContactModal] User ID:', user?.id);
+    console.log('🔍 [AddContactModal] Current userId state:', userId);
     
-    if (!user) {
-      console.error('❌ [AddContactModal] No user found!');
+    if (!userId) {
+      console.error('❌ [AddContactModal] No user ID found!');
       setError('Please log in to save contacts');
       return;
     }
@@ -203,9 +206,9 @@ export default function AddContactModal({
         console.log('✅ [AddContactModal] Contact updated successfully');
       } else {
         // Create new contact
-        console.log('➕ [AddContactModal] Creating new contact for user:', user.id);
+        console.log('➕ [AddContactModal] Creating new contact for user:', userId);
         const contactData = {
-          user_id: user.id,
+          user_id: userId,
           name: name.trim(),
           chain: selectedChain,
           address: address.trim(),

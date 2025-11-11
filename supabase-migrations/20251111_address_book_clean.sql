@@ -1,16 +1,34 @@
 -- ============================================================================
--- 📇 BLAZE WALLET - ADDRESS BOOK SCHEMA
+-- 📇 BLAZE WALLET - ADDRESS BOOK SCHEMA (CLEAN INSTALL)
 -- ============================================================================
--- Bank-style contact management
--- Simple, clean, one address per contact per chain
+-- This script safely drops and recreates everything
 -- ============================================================================
 
 -- ============================================================================
--- TABLES
+-- CLEANUP (Drop everything in reverse order of dependencies)
+-- ============================================================================
+
+-- Drop materialized view and related objects
+DROP MATERIALIZED VIEW IF EXISTS address_book_stats CASCADE;
+DROP FUNCTION IF EXISTS refresh_address_book_stats() CASCADE;
+
+-- Drop helper functions
+DROP FUNCTION IF EXISTS search_contacts(UUID, TEXT, TEXT) CASCADE;
+DROP FUNCTION IF EXISTS get_contact_by_address(UUID, TEXT, TEXT) CASCADE;
+
+-- Drop triggers and functions
+DROP TRIGGER IF EXISTS trigger_update_address_book_updated_at ON address_book CASCADE;
+DROP FUNCTION IF EXISTS update_address_book_updated_at() CASCADE;
+
+-- Drop table (this will also drop all policies, indexes, and constraints)
+DROP TABLE IF EXISTS address_book CASCADE;
+
+-- ============================================================================
+-- CREATE FRESH SCHEMA
 -- ============================================================================
 
 -- Address Book Contacts
-CREATE TABLE IF NOT EXISTS address_book (
+CREATE TABLE address_book (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   
@@ -43,16 +61,11 @@ CREATE TABLE IF NOT EXISTS address_book (
 -- INDEXES
 -- ============================================================================
 
--- Primary lookups
-CREATE INDEX IF NOT EXISTS idx_address_book_user_id ON address_book(user_id);
-CREATE INDEX IF NOT EXISTS idx_address_book_user_chain ON address_book(user_id, chain);
-CREATE INDEX IF NOT EXISTS idx_address_book_favorites ON address_book(user_id, is_favorite) WHERE is_favorite = true;
-
--- Search optimization
-CREATE INDEX IF NOT EXISTS idx_address_book_name_search ON address_book USING gin(to_tsvector('simple', name));
-
--- Performance
-CREATE INDEX IF NOT EXISTS idx_address_book_created_at ON address_book(user_id, created_at DESC);
+CREATE INDEX idx_address_book_user_id ON address_book(user_id);
+CREATE INDEX idx_address_book_user_chain ON address_book(user_id, chain);
+CREATE INDEX idx_address_book_favorites ON address_book(user_id, is_favorite) WHERE is_favorite = true;
+CREATE INDEX idx_address_book_name_search ON address_book USING gin(to_tsvector('simple', name));
+CREATE INDEX idx_address_book_created_at ON address_book(user_id, created_at DESC);
 
 -- ============================================================================
 -- ROW LEVEL SECURITY (RLS)
@@ -60,26 +73,22 @@ CREATE INDEX IF NOT EXISTS idx_address_book_created_at ON address_book(user_id, 
 
 ALTER TABLE address_book ENABLE ROW LEVEL SECURITY;
 
--- Users can only see their own contacts
 CREATE POLICY "Users can view their own contacts"
   ON address_book
   FOR SELECT
   USING (auth.uid() = user_id);
 
--- Users can insert their own contacts
 CREATE POLICY "Users can insert their own contacts"
   ON address_book
   FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
--- Users can update their own contacts
 CREATE POLICY "Users can update their own contacts"
   ON address_book
   FOR UPDATE
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
--- Users can delete their own contacts
 CREATE POLICY "Users can delete their own contacts"
   ON address_book
   FOR DELETE
@@ -89,7 +98,6 @@ CREATE POLICY "Users can delete their own contacts"
 -- TRIGGERS
 -- ============================================================================
 
--- Auto-update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_address_book_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -104,10 +112,10 @@ CREATE TRIGGER trigger_update_address_book_updated_at
   EXECUTE FUNCTION update_address_book_updated_at();
 
 -- ============================================================================
--- MATERIALIZED VIEW - Contact Statistics
+-- MATERIALIZED VIEW - Contact Statistics (FIXED!)
 -- ============================================================================
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS address_book_stats AS
+CREATE MATERIALIZED VIEW address_book_stats AS
 SELECT 
   ab.id as contact_id,
   ab.user_id,
@@ -125,11 +133,13 @@ LEFT JOIN scheduled_transactions st
   AND st.status = 'completed'
 GROUP BY ab.id, ab.user_id, ab.name, ab.chain, ab.address;
 
--- Index for fast lookups
-CREATE UNIQUE INDEX IF NOT EXISTS idx_address_book_stats_contact_id ON address_book_stats(contact_id);
-CREATE INDEX IF NOT EXISTS idx_address_book_stats_user_id ON address_book_stats(user_id);
+CREATE UNIQUE INDEX idx_address_book_stats_contact_id ON address_book_stats(contact_id);
+CREATE INDEX idx_address_book_stats_user_id ON address_book_stats(user_id);
 
--- Refresh function
+-- ============================================================================
+-- REFRESH FUNCTION
+-- ============================================================================
+
 CREATE OR REPLACE FUNCTION refresh_address_book_stats()
 RETURNS void AS $$
 BEGIN
@@ -141,7 +151,6 @@ $$ LANGUAGE plpgsql;
 -- HELPER FUNCTIONS
 -- ============================================================================
 
--- Search contacts by name (fuzzy)
 CREATE OR REPLACE FUNCTION search_contacts(
   p_user_id UUID,
   p_query TEXT,
@@ -187,7 +196,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Get contact by address
 CREATE OR REPLACE FUNCTION get_contact_by_address(
   p_user_id UUID,
   p_chain TEXT,
@@ -216,27 +224,8 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================================================
--- SAMPLE DATA (for testing)
+-- SUCCESS!
 -- ============================================================================
 
--- Uncomment to add sample data for a specific user:
-/*
-INSERT INTO address_book (user_id, name, chain, address, emoji, is_favorite, tags)
-VALUES
-  ('YOUR_USER_ID', 'Mom', 'ethereum', '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb', '👩', true, ARRAY['family']),
-  ('YOUR_USER_ID', 'Binance', 'ethereum', '0x28C6c06298d514Db089934071355E5743bf21d60', '🏢', true, ARRAY['exchange']);
-*/
-
--- ============================================================================
--- NOTES
--- ============================================================================
-
--- To refresh statistics after transactions:
--- SELECT refresh_address_book_stats();
-
--- To search contacts:
--- SELECT * FROM search_contacts('user_id', 'search_query', 'ethereum');
-
--- To get contact by address:
--- SELECT * FROM get_contact_by_address('user_id', 'ethereum', '0x...');
+SELECT 'Address Book schema successfully installed!' as message;
 
