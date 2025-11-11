@@ -101,7 +101,7 @@ class BitcoinTransactionBuilder {
       // Output 1: Recipient
       psbt.addOutput({
         address: request.toAddress,
-        value: request.amount,
+        value: BigInt(request.amount),
       });
 
       // Output 2: Change (if any)
@@ -109,7 +109,7 @@ class BitcoinTransactionBuilder {
         const changeAddress = request.changeAddress || request.fromAddress;
         psbt.addOutput({
           address: changeAddress,
-          value: selection.change,
+          value: BigInt(selection.change),
         });
       }
 
@@ -187,7 +187,7 @@ class BitcoinTransactionBuilder {
         index: utxo.index,
         witnessUtxo: {
           script: Buffer.from(utxo.script_hex, 'hex'),
-          value: utxo.value,
+          value: BigInt(utxo.value),
         },
       });
     } else {
@@ -198,7 +198,7 @@ class BitcoinTransactionBuilder {
         index: utxo.index,
         witnessUtxo: {
           script: Buffer.from(utxo.script_hex, 'hex'),
-          value: utxo.value,
+          value: BigInt(utxo.value),
         },
       });
     }
