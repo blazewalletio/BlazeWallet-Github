@@ -25,5 +25,10 @@
   "crons": [{
     "path": "/api/cron/execute-scheduled-txs",
     "schedule": "*/5 * * * *"
-  }]
+  }],
+  "bypassDeploymentProtection": {
+    "paths": [
+      "/api/cron/execute-scheduled-txs"
+    ]
+  }
 }
