@@ -2,45 +2,34 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, Loader2, AlertCircle, Smile } from 'lucide-react';
+import { BookUser, X, Star, ChevronDown } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { CHAINS } from '@/lib/chains';
+import { BlockchainService } from '@/lib/blockchain';
+import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-interface Contact {
-  id: string;
-  name: string;
-  chain: string;
-  address: string;
-  emoji: string;
-  is_favorite: boolean;
-  tags: string[];
-  notes?: string;
-}
-
 interface AddContactModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSaved: () => void;
-  editContact?: Contact | null;
+  editContact?: any;
   prefillChain?: string;
   prefillAddress?: string;
 }
 
 const EMOJI_OPTIONS = [
-  '👤', '👨', '👩', '👨‍💼', '👩‍💼', '🏢', '🏦', '💼', '🏪', '🏛️',
-  '👨‍👩‍👧', '👨‍👩‍👧‍👦', '💑', '👫', '🤝', '🎯', '💰', '💎', '🔥', '⭐',
-  '🌟', '✨', '💫', '🚀', '🎨', '🎭', '🎪', '🎬', '🎮', '🎲'
+  '👤', '👨', '👩', '🧑', '👨‍💼', '👩‍💼', '🧑‍💻', '👨‍🔧', '👩‍🔬',
+  '🏢', '🏦', '🏪', '🏭', '🏛️', '💼', '🎯', '💎', '🚀',
+  '⭐', '🌟', '✨', '💫', '🔥', '💰', '💵', '🪙', '💳',
+  '🎨', '🎵', '🎮', '⚽', '🏀'
 ];
 
-const COMMON_TAGS = [
-  'Familie', 'Vrienden', 'Werk', 'Zakelijk', 'Exchange', 
-  'DeFi', 'NFT', 'Staking', 'Mining', 'Leverancier'
-];
+const COMMON_TAGS = ['Family', 'Friend', 'Business', 'Exchange', 'DeFi', 'NFT', 'Trading'];
 
 export default function AddContactModal({
   isOpen,
@@ -51,145 +40,167 @@ export default function AddContactModal({
   prefillAddress,
 }: AddContactModalProps) {
   const [user, setUser] = useState<any>(null);
+  const [name, setName] = useState('');
+  const [selectedEmoji, setSelectedEmoji] = useState('👤');
+  const [selectedChain, setSelectedChain] = useState(prefillChain || 'ethereum');
+  const [address, setAddress] = useState(prefillAddress || '');
+  const [addressLabel, setAddressLabel] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [customTag, setCustomTag] = useState('');
+  const [notes, setNotes] = useState('');
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [error, setError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [showChainDropdown, setShowChainDropdown] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  useBlockBodyScroll(isOpen);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
   }, []);
-  
-  const [name, setName] = useState('');
-  const [chain, setChain] = useState('ethereum');
-  const [address, setAddress] = useState('');
-  const [emoji, setEmoji] = useState('👤');
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [tags, setTags] = useState<string[]>([]);
-  const [notes, setNotes] = useState('');
-  const [newTag, setNewTag] = useState('');
-  
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
-  // Reset form when modal opens/closes or edit contact changes
   useEffect(() => {
-    if (isOpen) {
-      if (editContact) {
-        // Edit mode
-        setName(editContact.name);
-        setChain(editContact.chain);
-        setAddress(editContact.address);
-        setEmoji(editContact.emoji);
-        setIsFavorite(editContact.is_favorite);
-        setTags(editContact.tags || []);
-        setNotes(editContact.notes || '');
-      } else {
-        // Add mode
-        setName('');
-        setChain(prefillChain || 'ethereum');
-        setAddress(prefillAddress || '');
-        setEmoji('👤');
-        setIsFavorite(false);
-        setTags([]);
-        setNotes('');
+    if (isOpen && editContact) {
+      setName(editContact.name);
+      setSelectedEmoji(editContact.emoji || '👤');
+      setTags(editContact.tags || []);
+      setNotes(editContact.notes || '');
+      setIsFavorite(editContact.is_favorite || false);
+      
+      if (editContact.addresses && editContact.addresses.length > 0) {
+        const firstAddr = editContact.addresses[0];
+        setSelectedChain(firstAddr.chain);
+        setAddress(firstAddr.address);
+        setAddressLabel(firstAddr.label || '');
       }
+    } else if (isOpen) {
+      // Reset form for new contact
+      setName('');
+      setSelectedEmoji('👤');
+      setSelectedChain(prefillChain || 'ethereum');
+      setAddress(prefillAddress || '');
+      setAddressLabel('');
+      setTags([]);
+      setCustomTag('');
+      setNotes('');
+      setIsFavorite(false);
       setError('');
     }
   }, [isOpen, editContact, prefillChain, prefillAddress]);
 
-  const validateAddress = (addr: string, chainName: string): boolean => {
-    if (!addr) return false;
-    
-    // Basic validation per chain type
-    if (chainName === 'solana') {
-      // Solana addresses are base58 encoded, typically 32-44 chars
-      return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr);
-    } else if (['bitcoin', 'litecoin', 'dogecoin', 'bitcoincash'].includes(chainName)) {
-      // Bitcoin-like addresses
-      return /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(addr) || // Legacy
-             /^bc1[ac-hj-np-z02-9]{39,59}$/.test(addr) || // Segwit
-             /^ltc1[ac-hj-np-z02-9]{39,59}$/.test(addr); // Litecoin
-    } else {
-      // EVM chains (Ethereum-like)
-      return /^0x[a-fA-F0-9]{40}$/.test(addr);
+  const validateAddress = () => {
+    if (!address.trim()) {
+      setError('Address is required');
+      return false;
     }
+
+    const blockchain = new BlockchainService(selectedChain);
+    if (!blockchain.isValidAddress(address)) {
+      setError(`Invalid ${blockchain.getAddressFormatHint()}`);
+      return false;
+    }
+
+    return true;
   };
 
   const handleSave = async () => {
-    // Validation
+    if (!user) {
+      setError('Please log in to save contacts');
+      return;
+    }
+
     if (!name.trim()) {
-      setError('Vul een naam in');
-      return;
-    }
-    
-    if (!address.trim()) {
-      setError('Vul een adres in');
+      setError('Name is required');
       return;
     }
 
-    if (!validateAddress(address, chain)) {
-      setError('Dit lijkt geen geldig adres voor ' + CHAINS[chain as keyof typeof CHAINS]?.name);
+    if (!validateAddress()) {
       return;
     }
 
-    setLoading(true);
+    setIsSaving(true);
     setError('');
 
     try {
       if (editContact) {
         // Update existing contact
         const { error: updateError } = await supabase
-          .from('address_book')
+          .from('contacts')
           .update({
             name: name.trim(),
-            chain,
-            address: address.trim(),
-            emoji,
-            is_favorite: isFavorite,
+            emoji: selectedEmoji,
             tags,
             notes: notes.trim() || null,
+            is_favorite: isFavorite,
+            updated_at: new Date().toISOString(),
           })
           .eq('id', editContact.id);
 
         if (updateError) throw updateError;
+
+        // Update address if changed
+        if (editContact.addresses && editContact.addresses.length > 0) {
+          const { error: addrError } = await supabase
+            .from('contact_addresses')
+            .update({
+              chain: selectedChain,
+              address: address.trim(),
+              label: addressLabel.trim() || null,
+            })
+            .eq('id', editContact.addresses[0].id);
+
+          if (addrError) throw addrError;
+        }
       } else {
         // Create new contact
-        const { error: insertError } = await supabase
-          .from('address_book')
+        const { data: newContact, error: insertError } = await supabase
+          .from('contacts')
           .insert({
-            user_id: user!.id,
+            user_id: user.id,
             name: name.trim(),
-            chain,
-            address: address.trim(),
-            emoji,
-            is_favorite: isFavorite,
+            emoji: selectedEmoji,
             tags,
             notes: notes.trim() || null,
+            is_favorite: isFavorite,
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+
+        // Add address
+        const { error: addrError } = await supabase
+          .from('contact_addresses')
+          .insert({
+            contact_id: newContact.id,
+            chain: selectedChain,
+            address: address.trim(),
+            label: addressLabel.trim() || null,
           });
 
-        if (insertError) {
-          if (insertError.code === '23505') {
-            setError('Dit adres bestaat al in je contacten');
-          } else {
-            throw insertError;
-          }
-          setLoading(false);
-          return;
-        }
+        if (addrError) throw addrError;
       }
 
       onSaved();
-      onClose();
-    } catch (error: any) {
-      console.error('Error saving contact:', error);
-      setError('Er ging iets mis bij het opslaan');
+    } catch (err: any) {
+      console.error('Failed to save contact:', err);
+      setError(err.message || 'Failed to save contact');
     } finally {
-      setLoading(false);
+      setIsSaving(false);
     }
   };
 
-  const addTag = () => {
-    if (newTag.trim() && !tags.includes(newTag.trim())) {
-      setTags([...tags, newTag.trim()]);
-      setNewTag('');
+  const toggleTag = (tag: string) => {
+    setTags(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    );
+  };
+
+  const addCustomTag = () => {
+    if (customTag.trim() && !tags.includes(customTag.trim())) {
+      setTags([...tags, customTag.trim()]);
+      setCustomTag('');
     }
   };
 
@@ -199,259 +210,327 @@ export default function AddContactModal({
 
   if (!isOpen) return null;
 
+  const chainOptions = Object.entries(CHAINS).map(([key, chain]) => ({
+    value: key,
+    label: chain.name,
+    logo: chain.logo,
+  }));
+
+  const selectedChainOption = chainOptions.find(opt => opt.value === selectedChain) || chainOptions[0];
+
   return (
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
-        onClick={onClose}
+        className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
       >
-        <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-          className="bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-white">
-                {editContact ? 'Contact bewerken' : 'Nieuw contact'}
-              </h2>
+        <div className="min-h-full flex flex-col">
+          <div className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 pt-safe pb-safe">
+            {/* Header */}
+            <div className="pt-4 pb-2">
               <button
                 onClick={onClose}
-                className="w-10 h-10 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-xl flex items-center justify-center transition-colors"
+                className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
               >
-                <X className="w-5 h-5 text-white" />
+                ← Back
               </button>
             </div>
-          </div>
 
-          {/* Form */}
-          <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
-            <div className="space-y-6">
-              {/* Name & Emoji */}
-              <div className="flex gap-3">
-                {/* Emoji Picker */}
-                <div className="relative">
-                  <button
-                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                    className="w-16 h-16 bg-gradient-to-br from-orange-100 to-orange-50 hover:from-orange-200 hover:to-orange-100 rounded-2xl flex items-center justify-center text-3xl transition-all"
+            <div className="mb-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <BookUser className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    {editContact ? 'Edit contact' : 'Add contact'}
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    {editContact ? 'Update contact details' : 'Save a new contact'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Main Card */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+              <div className="p-6 space-y-6">
+                {/* Error Message */}
+                {error && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-red-50 border border-red-200 rounded-xl p-4"
                   >
-                    {emoji}
-                  </button>
-                  
-                  {showEmojiPicker && (
-                    <div className="absolute top-full left-0 mt-2 bg-white rounded-2xl shadow-2xl p-3 z-10 grid grid-cols-6 gap-2 max-h-48 overflow-y-auto">
-                      {EMOJI_OPTIONS.map((e) => (
-                        <button
-                          key={e}
-                          onClick={() => {
-                            setEmoji(e);
-                            setShowEmojiPicker(false);
-                          }}
-                          className="w-10 h-10 hover:bg-orange-50 rounded-xl flex items-center justify-center text-2xl transition-colors"
-                        >
-                          {e}
-                        </button>
-                      ))}
+                    <p className="text-sm text-red-600">{error}</p>
+                  </motion.div>
+                )}
+
+                {/* Name & Emoji */}
+                <div className="space-y-3">
+                  <label className="text-sm font-semibold text-gray-700">
+                    Contact name
+                  </label>
+                  <div className="flex gap-3">
+                    {/* Emoji Picker Button */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        className="w-14 h-14 bg-gradient-to-br from-orange-100 to-orange-50 rounded-xl flex items-center justify-center text-3xl hover:from-orange-200 hover:to-orange-100 transition-all"
+                      >
+                        {selectedEmoji}
+                      </button>
+
+                      <AnimatePresence>
+                        {showEmojiPicker && (
+                          <>
+                            <div 
+                              className="fixed inset-0 z-10" 
+                              onClick={() => setShowEmojiPicker(false)}
+                            />
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.9 }}
+                              className="absolute left-0 top-16 z-20 bg-white rounded-xl shadow-xl border border-gray-200 p-3 grid grid-cols-6 gap-2 w-64"
+                            >
+                              {EMOJI_OPTIONS.map((emoji) => (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedEmoji(emoji);
+                                    setShowEmojiPicker(false);
+                                  }}
+                                  className="text-2xl hover:bg-orange-50 rounded-lg p-2 transition-colors"
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </motion.div>
+                          </>
+                        )}
+                      </AnimatePresence>
                     </div>
-                  )}
+
+                    {/* Name Input */}
+                    <input
+                      type="text"
+                      placeholder="John Doe"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                    />
+
+                    {/* Favorite Star */}
+                    <button
+                      type="button"
+                      onClick={() => setIsFavorite(!isFavorite)}
+                      className={`w-14 h-14 rounded-xl flex items-center justify-center transition-all ${
+                        isFavorite
+                          ? 'bg-yellow-100 hover:bg-yellow-200'
+                          : 'bg-gray-100 hover:bg-gray-200'
+                      }`}
+                      title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                    >
+                      <Star
+                        className={`w-6 h-6 ${
+                          isFavorite ? 'text-yellow-500 fill-yellow-500' : 'text-gray-400'
+                        }`}
+                      />
+                    </button>
+                  </div>
                 </div>
 
-                {/* Name */}
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Naam
+                {/* Chain Selection */}
+                <div className="space-y-3">
+                  <label className="text-sm font-semibold text-gray-700">
+                    Network
+                  </label>
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowChainDropdown(!showChainDropdown)}
+                      className="w-full flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
+                    >
+                      <span className="text-xl">{selectedChainOption.logo}</span>
+                      <span className="text-sm font-medium text-gray-700 flex-1 text-left">
+                        {selectedChainOption.label}
+                      </span>
+                      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showChainDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    <AnimatePresence>
+                      {showChainDropdown && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-10" 
+                            onClick={() => setShowChainDropdown(false)}
+                          />
+                          <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="absolute left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-20 max-h-80 overflow-y-auto"
+                          >
+                            {chainOptions.map((option) => (
+                              <button
+                                key={option.value}
+                                onClick={() => {
+                                  setSelectedChain(option.value);
+                                  setShowChainDropdown(false);
+                                  setError(''); // Clear validation error
+                                }}
+                                className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors ${
+                                  selectedChain === option.value ? 'bg-orange-50' : ''
+                                }`}
+                              >
+                                <span className="text-lg">{option.logo}</span>
+                                <span className={`text-sm font-medium flex-1 text-left ${
+                                  selectedChain === option.value ? 'text-orange-600' : 'text-gray-700'
+                                }`}>
+                                  {option.label}
+                                </span>
+                              </button>
+                            ))}
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+
+                {/* Address */}
+                <div className="space-y-3">
+                  <label className="text-sm font-semibold text-gray-700">
+                    Address
                   </label>
                   <input
                     type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Bijv. Mom, Binance, Alex..."
-                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    placeholder={selectedChain === 'solana' ? 'Solana address...' : '0x...'}
+                    value={address}
+                    onChange={(e) => {
+                      setAddress(e.target.value);
+                      setError(''); // Clear error on change
+                    }}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl font-mono text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
                   />
                 </div>
-              </div>
 
-              {/* Chain */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Chain
-                </label>
-                <select
-                  value={chain}
-                  onChange={(e) => setChain(e.target.value)}
-                  disabled={!!editContact} // Can't change chain when editing
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-                >
-                  {Object.entries(CHAINS).map(([key, chainData]) => (
-                    <option key={key} value={key}>
-                      {chainData.name}
-                    </option>
-                  ))}
-                </select>
-                {editContact && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Chain kan niet worden aangepast
-                  </p>
-                )}
-              </div>
-
-              {/* Address */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Adres
-                </label>
-                <input
-                  type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="0x..."
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono text-sm"
-                />
-              </div>
-
-              {/* Favorite Toggle */}
-              <div className="flex items-center justify-between p-4 bg-orange-50 rounded-2xl">
-                <div>
-                  <h4 className="font-medium text-gray-900">Toevoegen aan favorieten</h4>
-                  <p className="text-sm text-gray-600">Favorieten worden bovenaan getoond</p>
-                </div>
-                <button
-                  onClick={() => setIsFavorite(!isFavorite)}
-                  className={`w-12 h-7 rounded-full transition-colors relative ${
-                    isFavorite ? 'bg-orange-500' : 'bg-gray-300'
-                  }`}
-                >
-                  <div
-                    className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-transform ${
-                      isFavorite ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
-              </div>
-
-              {/* Tags */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tags (optioneel)
-                </label>
-                
-                {/* Common tags */}
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {COMMON_TAGS.map((tag) => (
-                    <button
-                      key={tag}
-                      onClick={() => {
-                        if (!tags.includes(tag)) {
-                          setTags([...tags, tag]);
-                        }
-                      }}
-                      className="px-3 py-1.5 bg-gray-100 hover:bg-orange-100 text-gray-700 hover:text-orange-600 rounded-xl text-sm font-medium transition-colors"
-                    >
-                      + {tag}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Selected tags */}
-                {tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-3 py-1.5 bg-orange-500 text-white rounded-xl text-sm font-medium flex items-center gap-2"
-                      >
-                        {tag}
-                        <button
-                          onClick={() => removeTag(tag)}
-                          className="hover:bg-white/20 rounded-full p-0.5"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Custom tag input */}
-                <div className="flex gap-2">
+                {/* Address Label (Optional) */}
+                <div className="space-y-3">
+                  <label className="text-sm font-semibold text-gray-700">
+                    Label <span className="text-gray-400 font-normal">(optional)</span>
+                  </label>
                   <input
                     type="text"
-                    value={newTag}
-                    onChange={(e) => setNewTag(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && addTag()}
-                    placeholder="Eigen tag toevoegen..."
-                    className="flex-1 px-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
+                    placeholder="e.g. Primary, Business, Trading..."
+                    value={addressLabel}
+                    onChange={(e) => setAddressLabel(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
                   />
-                  <button
-                    onClick={addTag}
-                    className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-medium transition-colors"
-                  >
-                    Toevoegen
-                  </button>
+                </div>
+
+                {/* Tags */}
+                <div className="space-y-3">
+                  <label className="text-sm font-semibold text-gray-700">
+                    Tags <span className="text-gray-400 font-normal">(optional)</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {COMMON_TAGS.map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => toggleTag(tag)}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                          tags.includes(tag)
+                            ? 'bg-orange-500 text-white'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+
+                  {tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {tags.map((tag) => (
+                        <div
+                          key={tag}
+                          className="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 rounded-md text-sm"
+                        >
+                          <span>{tag}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeTag(tag)}
+                            className="hover:text-orange-900"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Custom tag..."
+                      value={customTag}
+                      onChange={(e) => setCustomTag(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomTag())}
+                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={addCustomTag}
+                      disabled={!customTag.trim()}
+                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 rounded-lg text-sm font-medium transition-all"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div className="space-y-3">
+                  <label className="text-sm font-semibold text-gray-700">
+                    Notes <span className="text-gray-400 font-normal">(optional)</span>
+                  </label>
+                  <textarea
+                    placeholder="Add any notes about this contact..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    rows={3}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                  />
                 </div>
               </div>
+            </div>
 
-              {/* Notes */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Notities (optioneel)
-                </label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Bijv. Zakelijk adres, alleen voor grote bedragen..."
-                  rows={3}
-                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
-                />
-              </div>
-
-              {/* Error */}
-              {error && (
-                <div className="flex items-center gap-2 p-4 bg-red-50 rounded-2xl text-red-600">
-                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                  <p className="text-sm font-medium">{error}</p>
-                </div>
-              )}
+            {/* Action Buttons */}
+            <div className="flex gap-3 pb-6">
+              <button
+                onClick={onClose}
+                disabled={isSaving}
+                className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-700 rounded-xl font-semibold transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isSaving || !name.trim() || !address.trim()}
+                className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all shadow-sm hover:shadow-md"
+              >
+                {isSaving ? 'Saving...' : editContact ? 'Save changes' : 'Add contact'}
+              </button>
             </div>
           </div>
-
-          {/* Footer */}
-          <div className="p-6 bg-gray-50 border-t border-gray-200 flex gap-3">
-            <button
-              onClick={onClose}
-              disabled={loading}
-              className="flex-1 py-3 bg-white border border-gray-300 text-gray-700 rounded-2xl font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              Annuleren
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={loading || !name.trim() || !address.trim()}
-              className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-2xl font-medium hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Opslaan...
-                </>
-              ) : (
-                <>
-                  <Check className="w-5 h-5" />
-                  {editContact ? 'Opslaan' : 'Contact toevoegen'}
-                </>
-              )}
-            </button>
-          </div>
-        </motion.div>
+        </div>
       </motion.div>
     </AnimatePresence>
   );
 }
-

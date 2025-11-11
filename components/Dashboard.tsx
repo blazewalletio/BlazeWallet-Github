@@ -9,7 +9,7 @@ import {
   Repeat, Wallet as WalletIcon, TrendingDown, PieChart, Rocket, CreditCard,
   Lock, Gift, Vote, Users, Palette, LogOut,
   Sparkles, Shield, Brain, MessageSquare, Send, Download, ShoppingCart,
-  BarChart3, DollarSign, Flame, Target, Clock, CheckCircle2, XCircle, Inbox
+  BarChart3, DollarSign, Flame, Target, Clock, CheckCircle2, XCircle, Inbox, BookUser
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { MultiChainService } from '@/lib/multi-chain-service';
@@ -39,6 +39,7 @@ const BuyModal = dynamic(() => import('./BuyModal'), { ssr: false });
 const SettingsModal = dynamic(() => import('./SettingsModal'), { ssr: false });
 const QuickPayModal = dynamic(() => import('./QuickPayModal'), { ssr: false });
 const TokenDetailModal = dynamic(() => import('./TokenDetailModal'), { ssr: false });
+const AddressBook = dynamic(() => import('./AddressBook'), { ssr: false });
 
 // ✅ PERFORMANCE FIX: Lazy load dashboards (only load when accessed)
 const FounderDeploy = dynamic(() => import('./FounderDeploy'), { ssr: false });
@@ -118,6 +119,7 @@ export default function Dashboard() {
   const [showCashback, setShowCashback] = useState(false);
   const [showPresale, setShowPresale] = useState(false);
   const [showVesting, setShowVesting] = useState(false);
+  const [showAddressBook, setShowAddressBook] = useState(false);
   
   // ✅ PHASE 1: Chain-Scoped State Management
   // Per-chain state to prevent cross-chain contamination
@@ -923,6 +925,35 @@ export default function Dashboard() {
   // Wallet tab content
   const renderWalletContent = () => (
     <div className="space-y-6">
+          {/* Header with Address Book & Settings */}
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <ChainSelector 
+                currentChain={currentChain}
+                isOpen={showChainSelector}
+                onToggle={() => setShowChainSelector(!showChainSelector)}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowAddressBook(true)}
+                className="w-10 h-10 bg-gradient-to-br from-orange-100 to-orange-50 hover:from-orange-200 hover:to-orange-100 rounded-xl flex items-center justify-center transition-all shadow-sm hover:shadow-md group"
+                title="Address book"
+              >
+                <BookUser className="w-5 h-5 text-orange-600 group-hover:scale-110 transition-transform" />
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowSettings(true)}
+                className="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-xl flex items-center justify-center transition-all"
+                title="Settings"
+              >
+                <Settings className="w-5 h-5 text-gray-600" />
+              </motion.button>
+            </div>
+          </div>
+
           {/* Portfolio Value Card */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -2211,6 +2242,13 @@ export default function Dashboard() {
       >
         <Zap className="w-8 h-8 text-white" />
       </motion.button>
+
+      {/* Address Book Modal */}
+      <AddressBook
+        isOpen={showAddressBook}
+        onClose={() => setShowAddressBook(false)}
+        onSelectContact={() => {}} // Not used in standalone mode
+      />
 
     </>
   );
