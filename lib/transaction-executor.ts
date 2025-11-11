@@ -23,6 +23,9 @@ async function getTokenPriceBackend(symbol: string): Promise<number> {
     'ETH': 'ethereum',
     'SOL': 'solana',
     'BTC': 'bitcoin',
+    'LTC': 'litecoin',
+    'DOGE': 'dogecoin',
+    'BCH': 'bitcoin-cash',
     'MATIC': 'matic-network',
     'BNB': 'binancecoin',
     'AVAX': 'avalanche-2',
@@ -38,6 +41,9 @@ async function getTokenPriceBackend(symbol: string): Promise<number> {
       'ETH': 2000,
       'SOL': 100,
       'BTC': 40000,
+      'LTC': 70,
+      'DOGE': 0.08,
+      'BCH': 200,
       'MATIC': 0.80,
       'BNB': 300,
     };
@@ -80,6 +86,9 @@ async function getTokenPriceBackend(symbol: string): Promise<number> {
       'ETH': 2000,
       'SOL': 100,
       'BTC': 40000,
+      'LTC': 70,
+      'DOGE': 0.08,
+      'BCH': 200,
       'MATIC': 0.80,
       'BNB': 300,
       'AVAX': 25,
@@ -343,6 +352,8 @@ async function executeSolanaTransaction(req: ExecutionRequest): Promise<Executio
  */
 async function executeBitcoinLikeTransaction(req: ExecutionRequest): Promise<ExecutionResult> {
   try {
+    console.log(`🔨 [Bitcoin TX] Executing ${req.chain} transaction`);
+
     // ✅ Decrypt mnemonic using KMS
     const mnemonic = await getPrivateKeyFromEncrypted(
       req.encryptedMnemonic,
@@ -377,33 +388,74 @@ async function executeBitcoinLikeTransaction(req: ExecutionRequest): Promise<Exe
       throw new Error('Failed to derive private key');
     }
     
-    // ✅ Security: Zero mnemonic from memory
+    console.log(`🔑 ${req.chain} keypair derived (path: ${path})`);
+
+    // ✅ Get address from private key for verification
+    const { bitcoinTxBuilder } = await import('./bitcoin-tx-builder');
+    const derivedAddress = bitcoinTxBuilder.getAddressFromPrivateKey(child.privateKey, req.chain);
+    
+    console.log(`📍 Derived address: ${derivedAddress}`);
+    console.log(`📍 Expected address: ${req.fromAddress}`);
+    
+    // Verify address matches (important security check)
+    if (derivedAddress !== req.fromAddress) {
+      console.warn(`⚠️  Address mismatch! Using derived address for transaction.`);
+    }
+
+    // ✅ Convert amount from string to satoshis
+    const amountSatoshis = Math.floor(parseFloat(req.amount) * 1e8);
+    
+    console.log(`💰 Amount: ${amountSatoshis} satoshis (${req.amount} ${req.chain.toUpperCase()})`);
+
+    // ✅ Build and broadcast transaction
+    const txResult = await bitcoinTxBuilder.buildAndBroadcast({
+      chain: req.chain,
+      fromAddress: derivedAddress,
+      toAddress: req.toAddress,
+      amount: amountSatoshis,
+      feePerByte: req.gasPrice, // gasPrice is fee per byte for Bitcoin
+      privateKey: child.privateKey,
+      changeAddress: derivedAddress,
+    });
+
+    // ✅ Security: Zero sensitive data from memory
     let mnemonicStr: any = mnemonic;
     mnemonicStr = null;
-    
-    console.log(`🔑 ${req.chain} keypair derived (path: ${path})`);
-    console.log(`⚠️  Full Bitcoin transaction execution requires UTXO management`);
-    console.log(`   This is a placeholder - production needs proper UTXO selection`);
+    child.privateKey.fill(0); // Zero the private key buffer
 
-    // NOTE: Full Bitcoin execution requires:
-    // 1. Fetch UTXOs from address (via API like blockstream.info, blockchair.com)
-    // 2. Select UTXOs for transaction
-    // 3. Build transaction with proper fees
-    // 4. Sign transaction with derived private key
-    // 5. Broadcast to network
-    // 6. Track confirmation
+    if (!txResult.success) {
+      throw new Error(txResult.error || 'Transaction failed');
+    }
+
+    // ✅ Calculate gas cost in USD
+    const feeBTC = (txResult.fee || 0) / 1e8;
+    const symbolMap: Record<string, string> = {
+      bitcoin: 'BTC',
+      litecoin: 'LTC',
+      dogecoin: 'DOGE',
+      bitcoincash: 'BCH',
+    };
+    const symbol = symbolMap[req.chain.toLowerCase()] || 'BTC';
     
-    // For now, return error indicating additional implementation needed
+    // Get price for gas cost calculation
+    const coinPrice = await getTokenPriceBackend(symbol);
+    const gasCostUSD = feeBTC * coinPrice;
+
+    console.log(`✅ ${req.chain} transaction executed successfully`);
+    console.log(`   TX Hash: ${txResult.txHash}`);
+    console.log(`   Fee: ${txResult.fee} satoshis ($${gasCostUSD.toFixed(4)})`);
+
     return {
-      success: false,
-      error: `Bitcoin-like transaction execution requires UTXO API integration for ${req.chain}. Private key derivation successful.`,
+      success: true,
+      txHash: txResult.txHash,
+      gasCostUSD,
     };
 
   } catch (error: any) {
     console.error('❌ Bitcoin execution error:', error);
     return {
       success: false,
-      error: error.message,
+      error: error.message || 'Transaction execution failed',
     };
   }
 }

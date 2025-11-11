@@ -475,6 +475,65 @@ class GasPriceService {
   }
   
   /**
+   * Get Bitcoin-like chain fee recommendations (sat/byte)
+   */
+  private async getBitcoinFees(chain: string): Promise<GasPrice> {
+    try {
+      console.log(`[Gas Service] Fetching Bitcoin fees for ${chain}`);
+      
+      // Import blockchair service dynamically
+      const { blockchairService } = await import('./blockchair-service');
+      
+      // Get fee recommendations from Blockchair
+      const fees = await blockchairService.getFeeRecommendations(chain);
+      
+      console.log(`✅ [Gas Service] Bitcoin fees for ${chain}:`, fees);
+      
+      // Convert sat/byte fees to our GasPrice format
+      return {
+        maxFeePerGas: fees.fastest,
+        maxPriorityFeePerGas: 0, // Not applicable for Bitcoin
+        baseFee: fees.medium,
+        gasPrice: fees.medium,
+        slow: fees.slow,
+        standard: fees.medium,
+        fast: fees.fast,
+        instant: fees.fastest,
+        timestamp: Date.now(),
+        blockNumber: 0, // Bitcoin doesn't have blocks in same way
+        source: 'api',
+      };
+      
+    } catch (error) {
+      console.error(`❌ [Gas Service] Bitcoin fee fetch error:`, error);
+      
+      // Fallback fees per chain (sat/byte)
+      const fallbackFees: Record<string, { slow: number; standard: number; fast: number; fastest: number }> = {
+        bitcoin: { slow: 5, standard: 20, fast: 50, fastest: 100 },
+        litecoin: { slow: 2, standard: 10, fast: 20, fastest: 50 },
+        dogecoin: { slow: 100, standard: 200, fast: 500, fastest: 1000 },
+        bitcoincash: { slow: 1, standard: 2, fast: 3, fastest: 5 },
+      };
+      
+      const chainFees = fallbackFees[chain] || fallbackFees.bitcoin;
+      
+      return {
+        maxFeePerGas: chainFees.fastest,
+        maxPriorityFeePerGas: 0,
+        baseFee: chainFees.standard,
+        gasPrice: chainFees.standard,
+        slow: chainFees.slow,
+        standard: chainFees.standard,
+        fast: chainFees.fast,
+        instant: chainFees.fastest,
+        timestamp: Date.now(),
+        blockNumber: 0,
+        source: 'fallback',
+      };
+    }
+  }
+  
+  /**
    * Default/fallback gas price
    */
   private getDefaultGasPrice(): GasPrice {
