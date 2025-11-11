@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Star, ChevronDown, Users } from 'lucide-react';
+import { X, Star, ChevronDown, Users, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { CHAINS } from '@/lib/chains';
 import { BlockchainService } from '@/lib/blockchain';
@@ -44,7 +44,6 @@ export default function AddContactModal({
   const [selectedEmoji, setSelectedEmoji] = useState('👤');
   const [selectedChain, setSelectedChain] = useState(prefillChain || 'ethereum');
   const [address, setAddress] = useState(prefillAddress || '');
-  const [addressLabel, setAddressLabel] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [customTag, setCustomTag] = useState('');
   const [notes, setNotes] = useState('');
@@ -53,6 +52,11 @@ export default function AddContactModal({
   const [isSaving, setIsSaving] = useState(false);
   const [showChainDropdown, setShowChainDropdown] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  
+  // Real-time validation states
+  const [addressValidation, setAddressValidation] = useState<'idle' | 'validating' | 'valid' | 'invalid'>('idle');
+  const [duplicateWarning, setDuplicateWarning] = useState<{show: boolean, existingName: string} | null>(null);
 
   useBlockBodyScroll(isOpen);
 
@@ -64,65 +68,76 @@ export default function AddContactModal({
     if (isOpen && editContact) {
       setName(editContact.name);
       setSelectedEmoji(editContact.emoji || '👤');
+      setSelectedChain(editContact.chain);
+      setAddress(editContact.address);
       setTags(editContact.tags || []);
       setNotes(editContact.notes || '');
       setIsFavorite(editContact.is_favorite || false);
-      
-      if (editContact.addresses && editContact.addresses.length > 0) {
-        const firstAddr = editContact.addresses[0];
-        setSelectedChain(firstAddr.chain);
-        setAddress(firstAddr.address);
-        setAddressLabel(firstAddr.label || '');
-      }
     } else if (isOpen) {
       // Reset form for new contact
       setName('');
       setSelectedEmoji('👤');
       setSelectedChain(prefillChain || 'ethereum');
       setAddress(prefillAddress || '');
-      setAddressLabel('');
       setTags([]);
       setCustomTag('');
       setNotes('');
       setIsFavorite(false);
       setError('');
+      setAddressValidation('idle');
+      setDuplicateWarning(null);
+      setShowSuccessAnimation(false);
     }
   }, [isOpen, editContact, prefillChain, prefillAddress]);
 
-  const validateAddress = () => {
-    if (!address.trim()) {
-      setError('Address is required');
-      return false;
+  // Real-time address validation
+  useEffect(() => {
+    if (!address || address.length < 10) {
+      setAddressValidation('idle');
+      return;
     }
 
-    // For Solana, use basic validation
-    if (selectedChain === 'solana') {
-      const isValid = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
-      if (!isValid) {
-        setError('Invalid Solana address (Base58, 32-44 characters)');
-        return false;
+    const validateTimeout = setTimeout(async () => {
+      setAddressValidation('validating');
+      
+      // Validate address format
+      let isValid = false;
+      if (selectedChain === 'solana') {
+        isValid = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
+      } else if (['bitcoin', 'litecoin', 'dogecoin', 'bitcoin-cash'].includes(selectedChain)) {
+        isValid = /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$|^bc1[ac-hj-np-z02-9]{39,59}$|^[LM][a-km-zA-HJ-NP-Z1-9]{26,33}$|^D[5-9A-HJ-NP-U][1-9A-HJ-NP-Za-km-z]{32}$|^[qp][a-z0-9]{41}$/.test(address);
+      } else {
+        isValid = BlockchainService.isValidAddress(address);
       }
-      return true;
-    }
 
-    // For Bitcoin-like chains, use basic validation
-    if (['bitcoin', 'litecoin', 'dogecoin', 'bitcoin-cash'].includes(selectedChain)) {
-      const isValid = /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$|^bc1[ac-hj-np-z02-9]{39,59}$|^[LM][a-km-zA-HJ-NP-Z1-9]{26,33}$|^D[5-9A-HJ-NP-U][1-9A-HJ-NP-Za-km-z]{32}$|^[qp][a-z0-9]{41}$/.test(address);
-      if (!isValid) {
-        setError('Invalid Bitcoin-like address');
-        return false;
+      setAddressValidation(isValid ? 'valid' : 'invalid');
+
+      // Check for duplicates (only if valid and not editing)
+      if (isValid && !editContact && user) {
+        try {
+          const { data } = await supabase
+            .from('address_book')
+            .select('name')
+            .eq('user_id', user.id)
+            .eq('chain', selectedChain)
+            .eq('address', address.trim())
+            .limit(1)
+            .single();
+
+          if (data) {
+            setDuplicateWarning({ show: true, existingName: data.name });
+          } else {
+            setDuplicateWarning(null);
+          }
+        } catch (err) {
+          // No duplicate found (expected error)
+          setDuplicateWarning(null);
+        }
       }
-      return true;
-    }
+    }, 500);
 
-    // For EVM chains, use BlockchainService static method
-    if (!BlockchainService.isValidAddress(address)) {
-      setError('Invalid Ethereum address (0x...)');
-      return false;
-    }
-
-    return true;
-  };
+    return () => clearTimeout(validateTimeout);
+  }, [address, selectedChain, user, editContact]);
 
   const handleSave = async () => {
     if (!user) {
@@ -135,7 +150,13 @@ export default function AddContactModal({
       return;
     }
 
-    if (!validateAddress()) {
+    if (!address.trim()) {
+      setError('Address is required');
+      return;
+    }
+
+    if (addressValidation === 'invalid') {
+      setError('Please enter a valid address');
       return;
     }
 
@@ -146,67 +167,45 @@ export default function AddContactModal({
       if (editContact) {
         // Update existing contact
         const { error: updateError } = await supabase
-          .from('contacts')
+          .from('address_book')
           .update({
             name: name.trim(),
+            chain: selectedChain,
+            address: address.trim(),
             emoji: selectedEmoji,
             tags,
             notes: notes.trim() || null,
             is_favorite: isFavorite,
-            updated_at: new Date().toISOString(),
           })
           .eq('id', editContact.id);
 
         if (updateError) throw updateError;
-
-        // Update address if changed
-        if (editContact.addresses && editContact.addresses.length > 0) {
-          const { error: addrError } = await supabase
-            .from('contact_addresses')
-            .update({
-              chain: selectedChain,
-              address: address.trim(),
-              label: addressLabel.trim() || null,
-            })
-            .eq('id', editContact.addresses[0].id);
-
-          if (addrError) throw addrError;
-        }
       } else {
         // Create new contact
-        const { data: newContact, error: insertError } = await supabase
-          .from('contacts')
+        const { error: insertError } = await supabase
+          .from('address_book')
           .insert({
             user_id: user.id,
             name: name.trim(),
+            chain: selectedChain,
+            address: address.trim(),
             emoji: selectedEmoji,
             tags,
             notes: notes.trim() || null,
             is_favorite: isFavorite,
-          })
-          .select()
-          .single();
-
-        if (insertError) throw insertError;
-
-        // Add address
-        const { error: addrError } = await supabase
-          .from('contact_addresses')
-          .insert({
-            contact_id: newContact.id,
-            chain: selectedChain,
-            address: address.trim(),
-            label: addressLabel.trim() || null,
           });
 
-        if (addrError) throw addrError;
+        if (insertError) throw insertError;
       }
 
-      onSaved();
+      // Show success animation
+      setShowSuccessAnimation(true);
+      setTimeout(() => {
+        onSaved();
+      }, 1000);
     } catch (err: any) {
       console.error('Failed to save contact:', err);
       setError(err.message || 'Failed to save contact');
-    } finally {
       setIsSaving(false);
     }
   };
@@ -234,6 +233,7 @@ export default function AddContactModal({
     value: key,
     label: chain.name,
     logo: chain.icon,
+    logoUrl: chain.logoUrl,
   }));
 
   const selectedChainOption = chainOptions.find(opt => opt.value === selectedChain) || chainOptions[0];
@@ -252,7 +252,8 @@ export default function AddContactModal({
             <div className="pt-4 pb-2">
               <button
                 onClick={onClose}
-                className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
+                disabled={isSaving}
+                className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors disabled:opacity-50"
               >
                 ← Back
               </button>
@@ -278,13 +279,52 @@ export default function AddContactModal({
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-6">
               <div className="p-6 space-y-6">
                 {/* Error Message */}
-                {error && (
+                {error && !showSuccessAnimation && (
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-red-50 border border-red-200 rounded-xl p-4"
+                    className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3"
                   >
-                    <p className="text-sm text-red-600">{error}</p>
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-red-600 flex-1">{error}</p>
+                  </motion.div>
+                )}
+
+                {/* Success Animation */}
+                <AnimatePresence>
+                  {showSuccessAnimation && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3"
+                    >
+                      <CheckCircle2 className="w-6 h-6 text-green-600" />
+                      <p className="text-sm text-green-700 font-semibold">
+                        Contact {editContact ? 'updated' : 'saved'} successfully!
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Duplicate Warning */}
+                {duplicateWarning?.show && !showSuccessAnimation && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-yellow-50 border border-yellow-200 rounded-xl p-4"
+                  >
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm text-yellow-800 font-semibold mb-1">
+                          This address already exists
+                        </p>
+                        <p className="text-xs text-yellow-700">
+                          You already have this address saved as "{duplicateWarning.existingName}". You can still add it again if you want.
+                        </p>
+                      </div>
+                    </div>
                   </motion.div>
                 )}
 
@@ -299,7 +339,8 @@ export default function AddContactModal({
                       <button
                         type="button"
                         onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                        className="w-14 h-14 bg-gradient-to-br from-orange-100 to-orange-50 rounded-xl flex items-center justify-center text-3xl hover:from-orange-200 hover:to-orange-100 transition-all"
+                        disabled={isSaving}
+                        className="w-14 h-14 bg-gradient-to-br from-orange-100 to-orange-50 rounded-xl flex items-center justify-center text-3xl hover:from-orange-200 hover:to-orange-100 transition-all disabled:opacity-50"
                       >
                         {selectedEmoji}
                       </button>
@@ -342,14 +383,16 @@ export default function AddContactModal({
                       placeholder="John Doe"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                      disabled={isSaving}
+                      className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     />
 
                     {/* Favorite Star */}
                     <button
                       type="button"
                       onClick={() => setIsFavorite(!isFavorite)}
-                      className={`w-14 h-14 rounded-xl flex items-center justify-center transition-all ${
+                      disabled={isSaving}
+                      className={`w-14 h-14 rounded-xl flex items-center justify-center transition-all disabled:opacity-50 ${
                         isFavorite
                           ? 'bg-yellow-100 hover:bg-yellow-200'
                           : 'bg-gray-100 hover:bg-gray-200'
@@ -373,9 +416,18 @@ export default function AddContactModal({
                   <div className="relative">
                     <button
                       onClick={() => setShowChainDropdown(!showChainDropdown)}
-                      className="w-full flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
+                      disabled={isSaving}
+                      className="w-full flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <span className="text-xl">{selectedChainOption.logo}</span>
+                      {selectedChainOption.logoUrl ? (
+                        <img 
+                          src={selectedChainOption.logoUrl} 
+                          alt={selectedChainOption.label}
+                          className="w-5 h-5 rounded-full"
+                        />
+                      ) : (
+                        <span className="text-xl">{selectedChainOption.logo}</span>
+                      )}
                       <span className="text-sm font-medium text-gray-700 flex-1 text-left">
                         {selectedChainOption.label}
                       </span>
@@ -401,13 +453,22 @@ export default function AddContactModal({
                                 onClick={() => {
                                   setSelectedChain(option.value);
                                   setShowChainDropdown(false);
-                                  setError(''); // Clear validation error
+                                  setError('');
+                                  setAddressValidation('idle');
                                 }}
                                 className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors ${
                                   selectedChain === option.value ? 'bg-orange-50' : ''
                                 }`}
                               >
-                                <span className="text-lg">{option.logo}</span>
+                                {option.logoUrl ? (
+                                  <img 
+                                    src={option.logoUrl} 
+                                    alt={option.label}
+                                    className="w-5 h-5 rounded-full"
+                                  />
+                                ) : (
+                                  <span className="text-lg">{option.logo}</span>
+                                )}
                                 <span className={`text-sm font-medium flex-1 text-left ${
                                   selectedChain === option.value ? 'text-orange-600' : 'text-gray-700'
                                 }`}>
@@ -422,35 +483,57 @@ export default function AddContactModal({
                   </div>
                 </div>
 
-                {/* Address */}
+                {/* Address with Real-time Validation */}
                 <div className="space-y-3">
                   <label className="text-sm font-semibold text-gray-700">
                     Address
                   </label>
-                  <input
-                    type="text"
-                    placeholder={selectedChain === 'solana' ? 'Solana address...' : '0x...'}
-                    value={address}
-                    onChange={(e) => {
-                      setAddress(e.target.value);
-                      setError(''); // Clear error on change
-                    }}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl font-mono text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
-                  />
-                </div>
-
-                {/* Address Label (Optional) */}
-                <div className="space-y-3">
-                  <label className="text-sm font-semibold text-gray-700">
-                    Label <span className="text-gray-400 font-normal">(optional)</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Primary, Business, Trading..."
-                    value={addressLabel}
-                    onChange={(e) => setAddressLabel(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder={selectedChain === 'solana' ? 'Solana address...' : '0x...'}
+                      value={address}
+                      onChange={(e) => {
+                        setAddress(e.target.value);
+                        setError('');
+                      }}
+                      disabled={isSaving}
+                      className={`w-full px-4 py-3 pr-12 border rounded-xl font-mono text-sm focus:outline-none focus:ring-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                        addressValidation === 'valid' 
+                          ? 'border-green-500 focus:ring-green-500/20 focus:border-green-500' 
+                          : addressValidation === 'invalid'
+                          ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
+                          : 'border-gray-200 focus:ring-orange-500/20 focus:border-orange-500'
+                      }`}
+                    />
+                    
+                    {/* Validation Icons */}
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      {addressValidation === 'validating' && (
+                        <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                      )}
+                      {addressValidation === 'valid' && (
+                        <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      )}
+                      {addressValidation === 'invalid' && (
+                        <AlertCircle className="w-5 h-5 text-red-500" />
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Helper Text */}
+                  {addressValidation === 'valid' && (
+                    <p className="text-xs text-green-600 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Valid {CHAINS[selectedChain]?.name || selectedChain} address
+                    </p>
+                  )}
+                  {addressValidation === 'invalid' && address.length >= 10 && (
+                    <p className="text-xs text-red-600 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      Invalid address format
+                    </p>
+                  )}
                 </div>
 
                 {/* Tags */}
@@ -464,7 +547,8 @@ export default function AddContactModal({
                         key={tag}
                         type="button"
                         onClick={() => toggleTag(tag)}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                        disabled={isSaving}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 ${
                           tags.includes(tag)
                             ? 'bg-orange-500 text-white'
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -486,7 +570,8 @@ export default function AddContactModal({
                           <button
                             type="button"
                             onClick={() => removeTag(tag)}
-                            className="hover:text-orange-900"
+                            disabled={isSaving}
+                            className="hover:text-orange-900 disabled:opacity-50"
                           >
                             <X className="w-3 h-3" />
                           </button>
@@ -502,12 +587,13 @@ export default function AddContactModal({
                       value={customTag}
                       onChange={(e) => setCustomTag(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomTag())}
-                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                      disabled={isSaving}
+                      className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 disabled:opacity-50"
                     />
                     <button
                       type="button"
                       onClick={addCustomTag}
-                      disabled={!customTag.trim()}
+                      disabled={!customTag.trim() || isSaving}
                       className="px-4 py-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 rounded-lg text-sm font-medium transition-all"
                     >
                       Add
@@ -525,7 +611,8 @@ export default function AddContactModal({
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     rows={3}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                    disabled={isSaving}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all disabled:opacity-50"
                   />
                 </div>
               </div>
@@ -542,10 +629,22 @@ export default function AddContactModal({
               </button>
               <button
                 onClick={handleSave}
-                disabled={isSaving || !name.trim() || !address.trim()}
-                className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all shadow-sm hover:shadow-md"
+                disabled={isSaving || !name.trim() || !address.trim() || addressValidation === 'invalid' || addressValidation === 'validating'}
+                className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2"
               >
-                {isSaving ? 'Saving...' : editContact ? 'Save changes' : 'Add contact'}
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Saving...
+                  </>
+                ) : showSuccessAnimation ? (
+                  <>
+                    <CheckCircle2 className="w-5 h-5" />
+                    Saved!
+                  </>
+                ) : (
+                  editContact ? 'Save changes' : 'Add contact'
+                )}
               </button>
             </div>
           </div>
