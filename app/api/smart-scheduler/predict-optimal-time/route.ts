@@ -111,11 +111,17 @@ export async function POST(req: NextRequest) {
 Predict the optimal time to execute this transaction within the next ${max_wait_hours} hours.
 
 **Requirements:**
-1. Only recommend if you're 95%+ confident there will be savings
-2. If current gas is already at/near optimal levels, recommend executing now
+1. Recommend waiting ONLY if estimated savings are >= 5% AND you're 70%+ confident
+2. If current gas is already at/near optimal levels (< 5% savings possible), recommend executing now
 3. Consider time-of-day patterns (nights are usually cheaper)
 4. Consider day-of-week patterns (weekends sometimes cheaper)
 5. Provide 2-3 alternative time slots
+6. Be practical: 70-90% confidence is acceptable if savings are significant (> 10%)
+
+**Important:**
+- Don't require 95% confidence - that's too strict!
+- If you can save users 10-50%, recommend waiting even with 70-90% confidence
+- Only recommend "execute now" if savings are truly minimal (< 5%)
 
 **Response Format (JSON only, no markdown):**
 {

@@ -398,7 +398,12 @@ export default function SmartScheduleModal({
                       <div className="bg-orange-50 rounded-xl p-4">
                         <div className="text-xs text-gray-600 mb-1">Confidence score</div>
                         <div className="text-orange-600 font-semibold">
-                          {optimalTiming.confidence_score}% (below 95% threshold)
+                          {optimalTiming.confidence_score}% 
+                          {optimalTiming.confidence_score < 70 
+                            ? ' (below 70% threshold)' 
+                            : optimalTiming.estimated_savings_percent < 5 
+                              ? ' (minimal savings)' 
+                              : ''}
                         </div>
                       </div>
                     </div>

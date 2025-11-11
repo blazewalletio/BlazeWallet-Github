@@ -270,9 +270,13 @@ class SmartSchedulerService {
         savings: prediction.estimated_savings_percent,
       });
 
-      // Check if we should execute now (low confidence or current gas is already optimal)
-      const should_execute_now = prediction.confidence_score < 95 || 
-                                   prediction.estimated_savings_percent < 5;
+      // Check if we should execute now
+      // Execute now ONLY if:
+      // 1. Savings are minimal (< 5%) - not worth waiting
+      // 2. OR confidence is very low (< 70%) - prediction unreliable
+      // Otherwise: WAIT for optimal time (even with 70-95% confidence if savings > 5%)
+      const should_execute_now = prediction.estimated_savings_percent < 5 || 
+                                   prediction.confidence_score < 70;
 
       return {
         optimal_time: new Date(prediction.optimal_time),
