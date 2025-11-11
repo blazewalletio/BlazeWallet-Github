@@ -71,28 +71,76 @@ export default function TransactionHistory() {
     }
 
     try {
-      // Load from API with rate limiting
-      const txs = await apiQueue.add(async () => {
-        const blockchain = MultiChainService.getInstance(currentChain); // ✅ Use singleton
-        return await blockchain.getTransactionHistory(displayAddress, 10);
+      // ✅ Load BOTH on-chain transactions AND scheduled transactions
+      const [onChainTxs, scheduledTxs] = await Promise.all([
+        // 1. On-chain transactions from blockchain explorers
+        apiQueue.add(async () => {
+          const blockchain = MultiChainService.getInstance(currentChain);
+          return await blockchain.getTransactionHistory(displayAddress, 10);
+        }),
+        
+        // 2. Executed scheduled transactions from Supabase
+        apiQueue.add(async () => {
+          try {
+            const response = await fetch(
+              `/api/smart-scheduler/history?address=${displayAddress}&chain=${currentChain}`
+            );
+            if (!response.ok) throw new Error('Failed to fetch scheduled transactions');
+            const data = await response.json();
+            return data.transactions || [];
+          } catch (error) {
+            console.error('❌ Error loading scheduled transactions:', error);
+            return [];
+          }
+        })
+      ]);
+
+      // ✅ Combine and deduplicate transactions by hash
+      const txMap = new Map<string, Transaction>();
+      
+      // Add on-chain transactions first
+      onChainTxs.forEach(tx => txMap.set(tx.hash.toLowerCase(), tx));
+      
+      // Add/merge scheduled transactions
+      scheduledTxs.forEach((scheduledTx: any) => {
+        if (scheduledTx.transaction_hash) {
+          const hash = scheduledTx.transaction_hash.toLowerCase();
+          
+          // If not already in map from on-chain data, create transaction object
+          if (!txMap.has(hash)) {
+            txMap.set(hash, {
+              hash: scheduledTx.transaction_hash,
+              from: scheduledTx.from_address,
+              to: scheduledTx.to_address,
+              value: scheduledTx.amount,
+              timestamp: new Date(scheduledTx.executed_at).getTime(),
+              isError: scheduledTx.status === 'failed',
+              tokenSymbol: scheduledTx.token_symbol || chain.nativeCurrency.symbol,
+              tokenName: scheduledTx.token_symbol || chain.nativeCurrency.name,
+              type: 'Smart Send',
+              logoUrl: chain.logoUrl
+            });
+          }
+        }
       });
 
-      // ✅ DEBUG: Log transaction details to see token metadata
-      console.log('📋 [TransactionHistory] Raw transactions:', txs.map(tx => ({
-        hash: tx.hash.substring(0, 8),
-        tokenName: tx.tokenName,
-        tokenSymbol: tx.tokenSymbol,
-        logoUrl: tx.logoUrl,
-        mint: tx.mint
-      })));
+      // Convert map to array and sort by timestamp (newest first)
+      const allTransactions = Array.from(txMap.values()).sort((a, b) => b.timestamp - a.timestamp);
+
+      // ✅ DEBUG: Log transaction details
+      console.log('📋 [TransactionHistory] Combined transactions:', {
+        onChain: onChainTxs.length,
+        scheduled: scheduledTxs.length,
+        total: allTransactions.length
+      });
 
       // ✅ Update with fresh data (smooth transition, no jarring reload)
-      setTransactions(txs);
+      setTransactions(allTransactions);
       
       // Cache for 30 minutes
-      await transactionCache.set(cacheKey, txs, 30 * 60 * 1000);
+      await transactionCache.set(cacheKey, allTransactions, 30 * 60 * 1000);
       
-      console.log(`✅ Successfully loaded ${txs.length} fresh transactions for ${currentChain}`);
+      console.log(`✅ Successfully loaded ${allTransactions.length} fresh transactions for ${currentChain}`);
     } catch (error) {
       console.error(`❌ Error loading transactions for ${currentChain}:`, error);
       
