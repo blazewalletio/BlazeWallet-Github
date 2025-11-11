@@ -928,11 +928,7 @@ export default function Dashboard() {
           {/* Header with Address Book & Settings */}
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
-              <ChainSelector 
-                currentChain={currentChain}
-                isOpen={showChainSelector}
-                onToggle={() => setShowChainSelector(!showChainSelector)}
-              />
+              {/* ChainSelector modal is rendered at the bottom */}
             </div>
             <div className="flex items-center gap-2">
               <motion.button

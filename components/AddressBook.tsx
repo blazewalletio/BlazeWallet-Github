@@ -176,7 +176,7 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
     ...Object.entries(CHAINS).map(([key, chain]) => ({
       value: key,
       label: chain.name,
-      logo: chain.logo,
+      logo: chain.icon,
     })),
   ];
 
@@ -359,7 +359,7 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
                                 .map((addr) => (
                                   <div key={addr.id} className="flex items-center gap-2">
                                     <span className="text-xs">
-                                      {CHAINS[addr.chain]?.logo || '🌐'}
+                                      {CHAINS[addr.chain]?.icon || '🌐'}
                                     </span>
                                     <span className="text-xs text-gray-600 font-mono truncate">
                                       {addr.address.slice(0, 6)}...{addr.address.slice(-4)}

@@ -95,13 +95,29 @@ export default function AddContactModal({
       return false;
     }
 
-    if (!BlockchainService.isValidAddress(address, selectedChain)) {
-      const hint = selectedChain === 'solana' 
-        ? 'Solana address (Base58, 32-44 characters)'
-        : selectedChain.includes('bitcoin') || selectedChain === 'litecoin' || selectedChain === 'dogecoin'
-        ? 'Bitcoin-like address'
-        : 'Ethereum address (0x...)';
-      setError(`Invalid ${hint}`);
+    // For Solana, use basic validation
+    if (selectedChain === 'solana') {
+      const isValid = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
+      if (!isValid) {
+        setError('Invalid Solana address (Base58, 32-44 characters)');
+        return false;
+      }
+      return true;
+    }
+
+    // For Bitcoin-like chains, use basic validation
+    if (['bitcoin', 'litecoin', 'dogecoin', 'bitcoin-cash'].includes(selectedChain)) {
+      const isValid = /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$|^bc1[ac-hj-np-z02-9]{39,59}$|^[LM][a-km-zA-HJ-NP-Z1-9]{26,33}$|^D[5-9A-HJ-NP-U][1-9A-HJ-NP-Za-km-z]{32}$|^[qp][a-z0-9]{41}$/.test(address);
+      if (!isValid) {
+        setError('Invalid Bitcoin-like address');
+        return false;
+      }
+      return true;
+    }
+
+    // For EVM chains, use BlockchainService static method
+    if (!BlockchainService.isValidAddress(address)) {
+      setError('Invalid Ethereum address (0x...)');
       return false;
     }
 
@@ -217,7 +233,7 @@ export default function AddContactModal({
   const chainOptions = Object.entries(CHAINS).map(([key, chain]) => ({
     value: key,
     label: chain.name,
-    logo: chain.logo,
+    logo: chain.icon,
   }));
 
   const selectedChainOption = chainOptions.find(opt => opt.value === selectedChain) || chainOptions[0];
