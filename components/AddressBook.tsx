@@ -38,7 +38,11 @@ interface AddressBookProps {
 }
 
 export default function AddressBook({ isOpen, onClose, onSelectContact, filterChain }: AddressBookProps) {
-  const { user } = useWalletStore();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+  }, []);
   
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
