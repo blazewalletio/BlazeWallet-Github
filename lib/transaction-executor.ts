@@ -14,6 +14,86 @@ import { ethers } from 'ethers';
 import { Connection, PublicKey, Transaction as SolanaTransaction, SystemProgram, sendAndConfirmTransaction, Keypair } from '@solana/web3.js';
 import * as bitcoin from 'bitcoinjs-lib';
 
+/**
+ * Backend-compatible price fetcher using CoinGecko API directly
+ * Works in serverless/edge runtime without relative URLs
+ */
+async function getTokenPriceBackend(symbol: string): Promise<number> {
+  const COINGECKO_IDS: Record<string, string> = {
+    'ETH': 'ethereum',
+    'SOL': 'solana',
+    'BTC': 'bitcoin',
+    'MATIC': 'matic-network',
+    'BNB': 'binancecoin',
+    'AVAX': 'avalanche-2',
+    'FTM': 'fantom',
+    'CRO': 'crypto-com-chain',
+  };
+
+  const coinId = COINGECKO_IDS[symbol];
+  if (!coinId) {
+    console.warn(`⚠️ [PriceBackend] Unknown symbol: ${symbol}, using fallback`);
+    // Fallback prices for common tokens
+    const fallbacks: Record<string, number> = {
+      'ETH': 2000,
+      'SOL': 100,
+      'BTC': 40000,
+      'MATIC': 0.80,
+      'BNB': 300,
+    };
+    return fallbacks[symbol] || 100;
+  }
+
+  try {
+    console.log(`🔍 [PriceBackend] Fetching ${symbol} price from CoinGecko...`);
+    
+    // Direct CoinGecko API call (works in backend)
+    const response = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd`,
+      {
+        headers: {
+          'Accept': 'application/json',
+        },
+        signal: AbortSignal.timeout(5000), // 5 second timeout
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    const price = data[coinId]?.usd;
+
+    if (price && price > 0) {
+      console.log(`✅ [PriceBackend] ${symbol} = $${price}`);
+      return price;
+    }
+
+    throw new Error('Invalid price data');
+
+  } catch (error) {
+    console.error(`❌ [PriceBackend] Failed to fetch ${symbol}:`, error instanceof Error ? error.message : 'Unknown');
+    
+    // Fallback prices
+    const fallbacks: Record<string, number> = {
+      'ETH': 2000,
+      'SOL': 100,
+      'BTC': 40000,
+      'MATIC': 0.80,
+      'BNB': 300,
+      'AVAX': 25,
+      'FTM': 0.50,
+      'CRO': 0.10,
+    };
+    
+    const fallbackPrice = fallbacks[symbol] || 100;
+    console.log(`⚠️ [PriceBackend] Using fallback for ${symbol}: $${fallbackPrice}`);
+    return fallbackPrice;
+  }
+}
+
+
 export interface ExecutionRequest {
   chain: string;
   fromAddress: string;
@@ -130,10 +210,8 @@ async function executeEVMTransaction(req: ExecutionRequest): Promise<ExecutionRe
     const gasCostWei = gasUsed * gasPrice;
     const gasCostETH = Number(ethers.formatEther(gasCostWei));
     
-    // Get ETH price for USD conversion
-    const { PriceService } = await import('@/lib/price-service');
-    const priceService = new PriceService();
-    const ethPrice = await priceService.getPrice('ETH') || 2000;
+    // Get ETH price for USD conversion (backend-compatible)
+    const ethPrice = await getTokenPriceBackend('ETH');
     const gasCostUSD = gasCostETH * ethPrice;
 
     console.log(`✅ EVM transaction executed: ${receipt.hash}`);
@@ -238,10 +316,8 @@ async function executeSolanaTransaction(req: ExecutionRequest): Promise<Executio
     const feeLamports = txDetails?.meta?.fee || 5000;
     const feeSOL = feeLamports / 1e9;
 
-    // Get SOL price
-    const { PriceService } = await import('@/lib/price-service');
-    const priceService = new PriceService();
-    const solPrice = await priceService.getPrice('SOL') || 100;
+    // Get SOL price (backend-compatible)
+    const solPrice = await getTokenPriceBackend('SOL');
     const gasCostUSD = feeSOL * solPrice;
 
     console.log(`✅ Solana transaction executed: ${signature}`);
