@@ -76,7 +76,7 @@ export default function TransactionHistory() {
         // 1. On-chain transactions from blockchain explorers
         apiQueue.add(async () => {
           const blockchain = MultiChainService.getInstance(currentChain);
-          return await blockchain.getTransactionHistory(displayAddress, 10);
+          return await blockchain.getTransactionHistory(displayAddress, 50);
         }),
         
         // 2. Executed scheduled transactions from Supabase
