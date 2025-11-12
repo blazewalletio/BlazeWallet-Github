@@ -23,13 +23,13 @@
     width: 100%;
   }
 
-  /* Clean card styles - BRUTALIST */
+  /* Clean card styles */
   .glass {
-    @apply bg-white border-2 border-gray-300;
+    @apply bg-white border border-gray-200;
   }
 
   .glass-card {
-    @apply bg-white p-6 border-2 border-gray-300 shadow-md;
+    @apply bg-white rounded-2xl p-6 border border-gray-200 shadow-soft;
   }
 
   /* Scrollbar styling */
@@ -68,20 +68,20 @@
 
 @layer components {
   .btn-primary {
-    @apply px-6 py-3 bg-primary-600 text-white font-semibold border-2 border-primary-700;
-    @apply hover:bg-primary-700 hover:shadow-lg;
+    @apply px-6 py-3 bg-primary-600 text-white rounded-xl font-semibold;
+    @apply hover:bg-primary-700 hover:shadow-soft-lg;
     @apply active:scale-[0.98] transition-all duration-150;
   }
 
   .btn-secondary {
-    @apply px-6 py-3 bg-gray-100 text-gray-900 font-semibold border-2 border-gray-300;
-    @apply hover:bg-gray-200 hover:shadow-md;
+    @apply px-6 py-3 bg-gray-100 text-gray-900 rounded-xl font-semibold border border-gray-200;
+    @apply hover:bg-gray-200 hover:shadow-soft;
     @apply active:scale-[0.98] transition-all duration-150;
   }
 
   .input-field {
-    @apply w-full bg-white border-2 border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400;
-    @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500;
+    @apply w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-400;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
     @apply transition-all duration-150;
   }
 
@@ -90,16 +90,16 @@
   }
 
   .modal-content {
-    @apply bg-white border-2 border-gray-300 shadow-xl;
+    @apply bg-white rounded-2xl border border-gray-200 shadow-soft-xl;
   }
 
   .modal-header {
-    @apply sticky top-0 bg-white border-b-2 border-gray-300 px-6 py-4;
+    @apply sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-2xl;
   }
 
   .card-hover {
     @apply transform transition-all duration-200;
-    @apply hover:shadow-lg hover:-translate-y-0.5;
+    @apply hover:shadow-soft-lg hover:-translate-y-0.5;
   }
 }
 
