@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Loader2, CheckCircle2, Flame, ChevronDown, Check, AlertTriangle, Lightbulb, Users } from 'lucide-react';
+import { ArrowRight, Loader2, CheckCircle2, Flame, ChevronDown, Check, AlertTriangle, Lightbulb, Users, Zap } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { MultiChainService } from '@/lib/multi-chain-service';
@@ -891,7 +891,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                   disabled={!toAddress || !amount || !selectedAsset}
                   className="flex-1 py-4 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl"
                 >
-                  <span>⚡</span>
+                  <Zap className="w-5 h-5" />
                   Smart schedule
                 </button>
                 <button
