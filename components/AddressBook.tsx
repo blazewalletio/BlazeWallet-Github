@@ -3,16 +3,11 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Plus, Star, Edit2, Trash2, X, ChevronDown, Users, CheckCircle2 } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { CHAINS } from '@/lib/chains';
 import AddContactModal from './AddContactModal';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { getCurrentAccount } from '@/lib/account-manager';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 interface Contact {
   id: string;

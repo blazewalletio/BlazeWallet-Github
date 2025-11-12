@@ -3,16 +3,11 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Star, ChevronDown, Users, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { CHAINS } from '@/lib/chains';
 import { BlockchainService } from '@/lib/blockchain';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { getCurrentAccount } from '@/lib/account-manager';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 interface AddContactModalProps {
   isOpen: boolean;
