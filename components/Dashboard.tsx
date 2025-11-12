@@ -925,11 +925,11 @@ export default function Dashboard() {
   // Wallet tab content
   const renderWalletContent = () => (
     <div className="space-y-6">
-          {/* Portfolio Value Card */}
+          {/* Portfolio Value Card - BRUTALIST DESIGN */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass-card relative overflow-hidden card-3d subtle-shimmer"
+            className="glass-card relative overflow-hidden card-3d subtle-shimmer border-2 border-gray-300 shadow-lg"
           >
             <div className="absolute inset-0 bg-gradient-primary opacity-5 animate-gradient" />
             <div className="relative z-10">
@@ -1048,10 +1048,10 @@ export default function Dashboard() {
                     key={range.label}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => setSelectedTimeRange(range.hours)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    className={`px-3 py-1.5 text-xs font-medium transition-all border ${
                       selectedTimeRange === range.hours
-                        ? 'bg-primary-600 text-white shadow-soft'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-primary-600 text-white shadow-soft border-orange-500'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-300'
                     }`}
                   >
                     {range.label}
@@ -1061,14 +1061,14 @@ export default function Dashboard() {
             </div>
           </motion.div>
 
-          {/* Presale Card - Mobile Only */}
+          {/* Presale Card - Mobile Only - BRUTALIST */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`md:hidden glass-card card-hover relative overflow-hidden border-2 transition-all ${
+            className={`md:hidden glass-card card-hover relative overflow-hidden border-2 transition-all shadow-md ${
               isPriorityListLive 
-                ? 'border-green-300' 
-                : 'border-orange-200'
+                ? 'border-green-400' 
+                : 'border-orange-300'
             }`}
             onClick={() => setShowPresale(true)}
           >
@@ -1081,7 +1081,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="relative flex-shrink-0">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                    <div className={`w-12 h-12 flex items-center justify-center ${
                       isPriorityListLive
                         ? 'bg-gradient-to-r from-green-500 to-emerald-600'
                         : 'bg-gradient-to-r from-orange-500 to-yellow-500'
@@ -1092,7 +1092,7 @@ export default function Dashboard() {
                       <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        className="absolute -top-1 -right-1 px-1.5 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded-full shadow-lg"
+                        className="absolute -top-1 -right-1 px-1.5 py-0.5 bg-green-500 text-white text-[10px] font-bold shadow-lg"
                         style={{
                           animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
                         }}
@@ -1105,7 +1105,7 @@ export default function Dashboard() {
                     <div className="font-semibold text-gray-900 text-lg flex items-center gap-2">
                       BLAZE Presale
                       {isPriorityListLive && (
-                        <span className="text-[10px] font-semibold text-green-600 bg-green-100 px-1.5 py-0.5 rounded-full">
+                        <span className="text-[10px] font-semibold text-green-600 bg-green-100 px-1.5 py-0.5">
                           LIVE
                         </span>
                       )}
@@ -1136,7 +1136,7 @@ export default function Dashboard() {
             onViewAll={() => setShowScheduledTransactions(true)}
           />
 
-          {/* Quick Actions */}
+          {/* Quick Actions - BRUTALIST */}
           <div className="grid grid-cols-4 gap-3">
             <motion.button
               initial={{ opacity: 0, scale: 0.9 }}
@@ -1145,7 +1145,7 @@ export default function Dashboard() {
               whileTap={{ scale: 0.95 }}
               whileHover={{ scale: 1.05 }}
               onClick={() => setShowBuyModal(true)}
-              className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+              className="bg-gradient-to-br from-blue-500 to-cyan-500 p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all border-2 border-blue-600"
             >
               <CreditCard className="w-8 h-8 mx-auto text-white mb-2" />
               <div className="text-sm font-bold text-white">Buy</div>
@@ -1158,7 +1158,7 @@ export default function Dashboard() {
               whileTap={{ scale: 0.95 }}
               whileHover={{ scale: 1.05 }}
               onClick={() => setShowSendModal(true)}
-              className="bg-gradient-to-br from-rose-500 to-orange-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+              className="bg-gradient-to-br from-rose-500 to-orange-500 p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all border-2 border-rose-600"
             >
               <ArrowUpRight className="w-8 h-8 mx-auto text-white mb-2" />
               <div className="text-sm font-bold text-white">Send</div>
@@ -1171,7 +1171,7 @@ export default function Dashboard() {
               whileTap={{ scale: 0.95 }}
               whileHover={{ scale: 1.05 }}
               onClick={() => setShowReceiveModal(true)}
-              className="bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+              className="bg-gradient-to-br from-emerald-500 to-teal-500 p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all border-2 border-emerald-600"
             >
               <ArrowDownLeft className="w-8 h-8 mx-auto text-white mb-2" />
               <div className="text-sm font-bold text-white">Receive</div>
@@ -1184,14 +1184,14 @@ export default function Dashboard() {
               whileTap={{ scale: 0.95 }}
               whileHover={{ scale: 1.05 }}
               onClick={() => setShowSwapModal(true)}
-              className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+              className="bg-gradient-to-br from-purple-500 to-pink-500 p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all border-2 border-purple-600"
             >
               <Repeat className="w-8 h-8 mx-auto text-white mb-2" />
               <div className="text-sm font-bold text-white">Swap</div>
             </motion.button>
           </div>
 
-          {/* ⚡ Lightning Network Button - Only for Bitcoin */}
+          {/* ⚡ Lightning Network Button - Only for Bitcoin - BRUTALIST */}
           {currentChain === 'bitcoin' && (
             <motion.button
               initial={{ opacity: 0, y: 20 }}
@@ -1202,7 +1202,7 @@ export default function Dashboard() {
                 setQuickPayInitialMethod('lightning'); // ⚡ Auto-select Lightning
                 setShowQuickPay(true);
               }}
-              className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 rounded-xl p-4 shadow-lg hover:shadow-xl transition-all group relative overflow-hidden mt-3"
+              className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 p-4 shadow-lg hover:shadow-xl transition-all group relative overflow-hidden mt-3 border-2 border-purple-600"
             >
               {/* Animated background */}
               <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 via-orange-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -1222,25 +1222,25 @@ export default function Dashboard() {
             </motion.button>
           )}
 
-          {/* Add Tokens Button */}
+          {/* Add Tokens Button - BRUTALIST */}
           <motion.button
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => setShowTokenSelector(true)}
-            className="w-full glass-card card-hover p-3 flex items-center justify-center gap-2 mt-3"
+            className="w-full glass-card card-hover p-3 flex items-center justify-center gap-2 mt-3 border-2 border-gray-300 shadow-md"
           >
             <Plus className="w-4 h-4" />
             <span className="text-sm font-semibold">Add tokens</span>
           </motion.button>
 
-      {/* Native Currency */}
+      {/* Native Currency - BRUTALIST */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="glass-card"
+        className="glass-card border-2 border-gray-300 shadow-lg"
       >
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-semibold">Assets</h3>
@@ -1250,11 +1250,11 @@ export default function Dashboard() {
           {/* Native Token */}
           <motion.div
             whileTap={{ scale: 0.98 }}
-            className="glass p-4 rounded-xl flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer"
+            className="glass p-4 flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer border border-gray-200"
           >
             <div className="flex items-center gap-4">
               <div 
-                className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-xl font-bold overflow-hidden"
+                className="w-12 h-12 bg-white flex items-center justify-center text-xl font-bold overflow-hidden border border-gray-300"
               >
                 {chain.logoUrl ? (
                   <img 
@@ -1305,10 +1305,10 @@ export default function Dashboard() {
                     setSelectedToken(token);
                     setShowTokenDetail(true);
                   }}
-                  className="glass p-4 rounded-xl flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer relative"
+                  className="glass p-4 flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer relative border border-gray-200"
                 >
                   <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xl overflow-hidden flex-shrink-0">
+                    <div className="w-12 h-12 bg-white flex items-center justify-center text-xl overflow-hidden flex-shrink-0 border border-gray-300">
                       {(() => {
                         const logoUrl = token.logo;
                         
@@ -1340,7 +1340,7 @@ export default function Dashboard() {
                       <div className="font-semibold flex items-center gap-2">
                         <span className="truncate">{token.name}</span>
                         {isUnknownToken && (
-                          <span className="text-xs text-orange-500 bg-orange-100 px-2 py-0.5 rounded-full flex-shrink-0">
+                          <span className="text-xs text-orange-500 bg-orange-100 px-2 py-0.5 flex-shrink-0">
                             Unknown
                           </span>
                         )}
@@ -1368,7 +1368,7 @@ export default function Dashboard() {
                           handleRefreshToken(token.address);
                         }}
                         disabled={isRefreshing}
-                        className="ml-2 p-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-all disabled:opacity-50 flex-shrink-0"
+                        className="ml-2 p-2 bg-orange-500 hover:bg-orange-600 text-white transition-all disabled:opacity-50 flex-shrink-0 border border-orange-600"
                         title="Refresh token metadata from Jupiter"
                       >
                         <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -1664,18 +1664,18 @@ export default function Dashboard() {
   return (
     <>
       <div className="min-h-screen pb-24">
-        {/* Header with Network Selector */}
-        <div className="sticky top-0 z-30 backdrop-blur-xl bg-white/95 border-b border-gray-200 shadow-sm">
+        {/* Header with Network Selector - BRUTALIST */}
+        <div className="sticky top-0 z-30 backdrop-blur-xl bg-white/95 border-b-2 border-gray-300 shadow-md">
           <div className="max-w-4xl mx-auto px-4 py-4">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setShowChainSelector(true)}
-                  className="flex items-center gap-2 glass-card px-3 sm:px-4 py-2 rounded-xl hover:bg-gray-50 min-w-0"
+                  className="flex items-center gap-2 glass-card px-3 sm:px-4 py-2 hover:bg-gray-50 min-w-0 border-2 border-gray-300 shadow-md"
                 >
                   <div 
-                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white flex items-center justify-center text-base sm:text-lg flex-shrink-0 overflow-hidden"
+                    className="w-7 h-7 sm:w-8 sm:h-8 bg-white flex items-center justify-center text-base sm:text-lg flex-shrink-0 overflow-hidden border border-gray-300"
                   >
                     {chain.logoUrl ? (
                       <img 
@@ -1704,7 +1704,7 @@ export default function Dashboard() {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setShowPresale(true)}
-                  className="hidden md:flex px-4 py-2.5 sm:py-3 rounded-xl items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all"
+                  className="hidden md:flex px-4 py-2.5 sm:py-3 items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all border-2 border-green-600"
                   title="Join Presale"
                 >
                   <Rocket className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -1714,14 +1714,14 @@ export default function Dashboard() {
                   whileTap={{ scale: 0.95 }}
                   onClick={() => fetchData(true)}
                   disabled={isRefreshing}
-                  className="glass-card p-2.5 sm:p-3 rounded-xl hover:bg-gray-50"
+                  className="glass-card p-2.5 sm:p-3 hover:bg-gray-50 border-2 border-gray-300"
                 >
                   <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 text-gray-700 ${isRefreshing ? 'animate-spin' : ''}`} />
                 </motion.button>
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setShowAddressBook(true)}
-                  className="glass-card p-2.5 sm:p-3 rounded-xl hover:bg-orange-50"
+                  className="glass-card p-2.5 sm:p-3 hover:bg-orange-50 border-2 border-orange-300"
                   title="Address book"
                 >
                   <Users className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
@@ -1729,7 +1729,7 @@ export default function Dashboard() {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setShowSettings(true)}
-                  className="glass-card p-2.5 sm:p-3 rounded-xl hover:bg-gray-50"
+                  className="glass-card p-2.5 sm:p-3 hover:bg-gray-50 border-2 border-gray-300"
                 >
                   <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />
                 </motion.button>
@@ -1739,7 +1739,7 @@ export default function Dashboard() {
                     lockWallet();
                     setShowPasswordUnlock(true); // ✅ Show unlock modal immediately
                   }}
-                  className="glass-card p-2.5 sm:p-3 rounded-xl hover:bg-orange-50 text-orange-600"
+                  className="glass-card p-2.5 sm:p-3 hover:bg-orange-50 text-orange-600 border-2 border-orange-300"
                   title="Lock wallet"
                 >
                   <Lock className="w-4 h-4 sm:w-5 sm:h-5" />
