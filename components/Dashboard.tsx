@@ -1730,10 +1730,10 @@ export default function Dashboard() {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setShowAddressBook(true)}
-                  className="glass-card p-2.5 sm:p-3 rounded-xl hover:bg-orange-50"
+                  className="glass-card p-2.5 sm:p-3 rounded-xl hover:bg-gray-50"
                   title="Address book"
                 >
-                  <Users className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
+                  <Users className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />
                 </motion.button>
                 <motion.button
                   whileTap={{ scale: 0.95 }}
