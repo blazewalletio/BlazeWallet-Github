@@ -347,7 +347,7 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
                             {/* Contact Info */}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-semibold text-gray-900 truncate">
+                                <h3 className="font-semibold text-gray-900 break-words leading-tight">
                                   {contact.name}
                                 </h3>
                                 {contact.is_favorite && (
@@ -398,7 +398,7 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
                               {/* Notes (Expanded) */}
                               {contact.notes && expandedContact === contact.id && (
                                 <div className="mt-3 pt-3 border-t border-gray-100">
-                                  <p className="text-xs text-gray-600">{contact.notes}</p>
+                                  <p className="text-xs text-gray-600 break-words whitespace-normal">{contact.notes}</p>
                                 </div>
                               )}
 
