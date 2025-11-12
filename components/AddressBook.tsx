@@ -35,7 +35,7 @@ interface AddressBookProps {
 }
 
 export default function AddressBook({ isOpen, onClose, onSelectContact, filterChain }: AddressBookProps) {
-  const [userId, setUserId] = useState<string | null>(null);  // Changed from 'user' to 'userId'
+  const [userId, setUserId] = useState<string | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -88,7 +88,6 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
       setContacts(data || []);
     } catch (error) {
       console.error('Failed to load contacts:', error);
-      setContacts([]);
     } finally {
       setIsLoading(false);
     }
@@ -97,36 +96,22 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
   const filterAndSortContacts = () => {
     let filtered = [...contacts];
 
+    // Filter by chain
     if (selectedChainFilter !== 'all') {
-      filtered = filtered.filter(contact => contact.chain === selectedChainFilter);
+      filtered = filtered.filter(c => c.chain === selectedChainFilter);
     }
 
+    // Filter by search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(contact =>
-        contact.name.toLowerCase().includes(query) ||
-        contact.tags.some(tag => tag.toLowerCase().includes(query)) ||
-        contact.address.toLowerCase().includes(query)
+      filtered = filtered.filter(c =>
+        c.name.toLowerCase().includes(query) ||
+        c.address.toLowerCase().includes(query) ||
+        c.tags.some(tag => tag.toLowerCase().includes(query))
       );
     }
 
     setFilteredContacts(filtered);
-  };
-
-  const handleDeleteContact = async (contactId: string) => {
-    if (!confirm('Are you sure you want to delete this contact?')) return;
-
-    try {
-      const { error } = await supabase
-        .from('address_book')
-        .delete()
-        .eq('id', contactId);
-
-      if (error) throw error;
-      await loadContacts();
-    } catch (error) {
-      console.error('Failed to delete contact:', error);
-    }
   };
 
   const handleToggleFavorite = async (contact: Contact) => {
@@ -137,18 +122,33 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
         .eq('id', contact.id);
 
       if (error) throw error;
-      await loadContacts();
+      loadContacts();
     } catch (error) {
       console.error('Failed to toggle favorite:', error);
     }
   };
 
+  const handleDeleteContact = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this contact?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('address_book')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      loadContacts();
+    } catch (error) {
+      console.error('Failed to delete contact:', error);
+    }
+  };
+
   const handleSelectContact = (contact: Contact) => {
-    if (!onSelectContact) return;
-    onSelectContact({
-      address: contact.address,
-      name: contact.name,
-    });
+    if (onSelectContact) {
+      onSelectContact({ address: contact.address, name: contact.name });
+      onClose();
+    }
   };
 
   if (!isOpen) return null;
@@ -159,44 +159,46 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
       value: key,
       label: chain.name,
       logo: chain.icon,
-      logoUrl: chain.logoUrl,
+      logoUrl: chain.logoUrl || null,
     })),
   ];
 
   const selectedChainOption = chainOptions.find(opt => opt.value === selectedChainFilter) || chainOptions[0];
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
-      >
-        <div className="min-h-full flex flex-col">
-          <div className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 pt-safe pb-safe">
-            {/* Header */}
-            <div className="pt-4 pb-2">
-              <button
-                onClick={onClose}
-                className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
-              >
-                ← Back
-              </button>
-            </div>
+    <>
+      {/* Backdrop */}
+      <div 
+        className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
+        onClick={onClose}
+      />
 
-            <div className="mb-6">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0">
+      {/* Modal */}
+      <motion.div
+        initial={{ opacity: 0, y: 50 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 50 }}
+        className="fixed inset-x-0 bottom-0 top-0 sm:inset-4 sm:top-auto sm:bottom-4 sm:max-w-2xl sm:mx-auto z-50 flex flex-col bg-gradient-to-br from-orange-50 to-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden"
+      >
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-6 pb-24">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
                   <Users className="w-6 h-6 text-white" />
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Address book</h2>
-                  <p className="text-sm text-gray-600">
-                    {contacts.length} {contacts.length === 1 ? 'contact' : 'contacts'} saved
-                  </p>
+                  <p className="text-sm text-gray-600">{contacts.length} contact{contacts.length !== 1 ? 's' : ''} saved</p>
                 </div>
               </div>
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-600" />
+              </button>
             </div>
 
             {/* Main Card */}
@@ -336,131 +338,135 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
                           key={contact.id}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="border border-gray-200 rounded-xl p-4 hover:border-orange-300 hover:bg-orange-50/30 transition-all"
+                          className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-md transition-all"
                         >
-                          <div className="flex items-start gap-4">
-                            {/* Emoji Avatar */}
-                            <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-orange-50 rounded-xl flex items-center justify-center flex-shrink-0 text-2xl">
-                              {contact.emoji}
-                            </div>
+                          <div className="p-4">
+                            <div className="flex items-start gap-3">
+                              {/* Emoji Avatar */}
+                              <div className="w-14 h-14 bg-gradient-to-br from-orange-100 to-orange-50 rounded-xl flex items-center justify-center flex-shrink-0 text-2xl">
+                                {contact.emoji}
+                              </div>
 
-                            {/* Contact Info */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-semibold text-gray-900 break-words leading-tight">
+                              {/* Contact Info */}
+                              <div className="flex-1 min-w-0">
+                                {/* Name */}
+                                <h3 className="font-bold text-gray-900 text-base mb-1 leading-tight">
                                   {contact.name}
                                 </h3>
-                                {contact.is_favorite && (
-                                  <Star className="w-4 h-4 text-yellow-500 fill-yellow-500 flex-shrink-0" />
-                                )}
-                              </div>
 
-                              {/* Chain Badge */}
-                              <div className="flex items-center gap-2 mb-2">
-                                {CHAINS[contact.chain]?.logoUrl ? (
-                                  <img 
-                                    src={CHAINS[contact.chain].logoUrl} 
-                                    alt={CHAINS[contact.chain].name}
-                                    className="w-4 h-4 rounded-full"
-                                  />
-                                ) : (
-                                  <span className="text-xs">{CHAINS[contact.chain]?.icon || '🌐'}</span>
-                                )}
-                                <span className="text-xs text-gray-600 font-medium">
-                                  {CHAINS[contact.chain]?.name || contact.chain}
-                                </span>
-                              </div>
-
-                              {/* Tags */}
-                              {contact.tags.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mb-2">
-                                  {contact.tags.slice(0, 3).map((tag, idx) => (
-                                    <span
-                                      key={idx}
-                                      className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-md"
-                                    >
-                                      {tag}
-                                    </span>
-                                  ))}
-                                  {contact.tags.length > 3 && (
-                                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-md">
-                                      +{contact.tags.length - 3}
-                                    </span>
+                                {/* Chain */}
+                                <div className="flex items-center gap-1.5 mb-2">
+                                  {CHAINS[contact.chain]?.logoUrl ? (
+                                    <img 
+                                      src={CHAINS[contact.chain].logoUrl} 
+                                      alt={CHAINS[contact.chain].name}
+                                      className="w-4 h-4 rounded-full"
+                                    />
+                                  ) : (
+                                    <span className="text-xs">{CHAINS[contact.chain]?.icon || '🌐'}</span>
                                   )}
+                                  <span className="text-xs text-gray-600 font-medium">
+                                    {CHAINS[contact.chain]?.name || contact.chain}
+                                  </span>
                                 </div>
-                              )}
 
-                              {/* Address */}
-                              <div className="text-xs text-gray-600 font-mono truncate">
-                                {contact.address.slice(0, 12)}...{contact.address.slice(-8)}
+                                {/* Address */}
+                                <div className="text-xs text-gray-500 font-mono mb-2">
+                                  {contact.address.slice(0, 10)}...{contact.address.slice(-8)}
+                                </div>
+
+                                {/* Tags */}
+                                {contact.tags.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {contact.tags.slice(0, 3).map((tag, idx) => (
+                                      <span
+                                        key={idx}
+                                        className="px-2 py-0.5 bg-orange-50 text-orange-700 text-xs rounded-md font-medium"
+                                      >
+                                        {tag}
+                                      </span>
+                                    ))}
+                                    {contact.tags.length > 3 && (
+                                      <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-md font-medium">
+                                        +{contact.tags.length - 3}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                               </div>
 
-                              {/* Notes (Expanded) */}
-                              {contact.notes && expandedContact === contact.id && (
-                                <div className="mt-3 pt-3 border-t border-gray-100">
-                                  <p className="text-xs text-gray-600 break-words whitespace-normal">{contact.notes}</p>
-                                </div>
-                              )}
-
-                              {/* Expand button for notes */}
-                              {contact.notes && expandedContact !== contact.id && (
+                              {/* Actions */}
+                              <div className="flex flex-col gap-2">
                                 <button
-                                  onClick={() => setExpandedContact(contact.id)}
-                                  className="text-xs text-orange-600 hover:text-orange-700 mt-2"
+                                  onClick={() => handleToggleFavorite(contact)}
+                                  className="p-2 hover:bg-gray-50 rounded-lg transition-colors"
                                 >
-                                  Show notes
+                                  <Star className={`w-4 h-4 ${contact.is_favorite ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`} />
                                 </button>
-                              )}
-
-                              {expandedContact === contact.id && contact.notes && (
+                                
                                 <button
-                                  onClick={() => setExpandedContact(null)}
-                                  className="text-xs text-orange-600 hover:text-orange-700 mt-2"
+                                  onClick={() => {
+                                    setSelectedContact(contact);
+                                    setShowAddModal(true);
+                                  }}
+                                  className="p-2 hover:bg-gray-50 rounded-lg transition-colors"
                                 >
-                                  Hide notes
+                                  <Edit2 className="w-4 h-4 text-gray-400" />
                                 </button>
-                              )}
+
+                                <button
+                                  onClick={() => handleDeleteContact(contact.id)}
+                                  className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                                >
+                                  <Trash2 className="w-4 h-4 text-gray-400" />
+                                </button>
+                              </div>
                             </div>
 
-                            {/* Actions */}
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleToggleFavorite(contact)}
-                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                                title={contact.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
-                              >
-                                <Star className={`w-4 h-4 ${contact.is_favorite ? 'text-yellow-500 fill-yellow-500' : 'text-gray-400'}`} />
-                              </button>
-
-                              <button
-                                onClick={() => {
-                                  setSelectedContact(contact);
-                                  setShowAddModal(true);
-                                }}
-                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                                title="Edit contact"
-                              >
-                                <Edit2 className="w-4 h-4 text-gray-600" />
-                              </button>
-
-                              <button
-                                onClick={() => handleDeleteContact(contact.id)}
-                                className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Delete contact"
-                              >
-                                <Trash2 className="w-4 h-4 text-red-500" />
-                              </button>
-
-                              {onSelectContact && (
-                                <button
-                                  onClick={() => handleSelectContact(contact)}
-                                  className="px-3 py-1.5 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white text-xs font-semibold rounded-lg transition-all"
-                                >
-                                  Select
-                                </button>
-                              )}
-                            </div>
+                            {/* Notes Section */}
+                            {contact.notes && (
+                              <div className="mt-3 pt-3 border-t border-gray-100">
+                                <AnimatePresence>
+                                  {expandedContact === contact.id ? (
+                                    <motion.div
+                                      initial={{ height: 0, opacity: 0 }}
+                                      animate={{ height: 'auto', opacity: 1 }}
+                                      exit={{ height: 0, opacity: 0 }}
+                                    >
+                                      <p className="text-sm text-gray-700 mb-2 leading-relaxed">
+                                        {contact.notes}
+                                      </p>
+                                      <button
+                                        onClick={() => setExpandedContact(null)}
+                                        className="text-xs text-orange-600 hover:text-orange-700 font-medium"
+                                      >
+                                        Hide notes
+                                      </button>
+                                    </motion.div>
+                                  ) : (
+                                    <button
+                                      onClick={() => setExpandedContact(contact.id)}
+                                      className="text-xs text-orange-600 hover:text-orange-700 font-medium"
+                                    >
+                                      Show notes
+                                    </button>
+                                  )}
+                                </AnimatePresence>
+                              </div>
+                            )}
                           </div>
+
+                          {/* Select Button */}
+                          {onSelectContact && (
+                            <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
+                              <button
+                                onClick={() => handleSelectContact(contact)}
+                                className="w-full py-2.5 px-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-lg font-semibold transition-all text-sm"
+                              >
+                                Select
+                              </button>
+                            </div>
+                          )}
                         </motion.div>
                       ))
                     )}
@@ -485,8 +491,8 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
           setSelectedContact(null);
         }}
         editContact={selectedContact}
-        prefillChain={selectedChainFilter !== 'all' ? selectedChainFilter : undefined}
+        prefillChain={filterChain}
       />
-    </AnimatePresence>
+    </>
   );
 }
