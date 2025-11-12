@@ -2226,7 +2226,6 @@ export default function Dashboard() {
       <AddressBook
         isOpen={showAddressBook}
         onClose={() => setShowAddressBook(false)}
-        onSelectContact={() => {}} // Not used in standalone mode
       />
 
     </>

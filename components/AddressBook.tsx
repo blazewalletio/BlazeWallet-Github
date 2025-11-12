@@ -178,7 +178,7 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
         initial={{ opacity: 0, y: 50 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 50 }}
-        className="fixed inset-x-0 bottom-0 top-0 sm:inset-4 sm:top-auto sm:bottom-4 sm:max-w-2xl sm:mx-auto z-50 flex flex-col bg-gradient-to-br from-orange-50 to-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden"
+        className="fixed inset-0 sm:inset-4 sm:top-auto sm:bottom-4 sm:max-w-2xl sm:mx-auto z-50 flex flex-col bg-gradient-to-br from-orange-50 to-white sm:rounded-3xl shadow-2xl overflow-hidden"
       >
         <div className="flex-1 overflow-y-auto">
           <div className="p-6 pb-24">
@@ -210,10 +210,10 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                     <input
                       type="text"
-                      placeholder="Search by name, address, or tags..."
+                      placeholder="Search contacts..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-sm"
                     />
                   </div>
 
