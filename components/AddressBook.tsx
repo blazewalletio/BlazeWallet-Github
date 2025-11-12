@@ -20,6 +20,7 @@ interface Contact {
   chain: string;
   address: string;
   emoji: string;
+  profile_image?: string; // Base64 image or URL
   tags: string[];
   notes?: string;
   is_favorite: boolean;
@@ -342,9 +343,17 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
                         >
                           <div className="p-4">
                             <div className="flex items-start gap-3">
-                              {/* Emoji Avatar */}
-                              <div className="w-14 h-14 bg-gradient-to-br from-orange-100 to-orange-50 rounded-xl flex items-center justify-center flex-shrink-0 text-2xl">
-                                {contact.emoji}
+                              {/* Profile Avatar - Photo or Emoji */}
+                              <div className="w-14 h-14 bg-gradient-to-br from-orange-100 to-orange-50 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                {contact.profile_image ? (
+                                  <img 
+                                    src={contact.profile_image} 
+                                    alt={contact.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <span className="text-2xl">{contact.emoji}</span>
+                                )}
                               </div>
 
                               {/* Contact Info */}

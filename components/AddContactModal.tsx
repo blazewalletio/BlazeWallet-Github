@@ -40,9 +40,10 @@ export default function AddContactModal({
   prefillChain,
   prefillAddress,
 }: AddContactModalProps) {
-  const [userId, setUserId] = useState<string | null>(null);  // Changed from 'user' to 'userId'
+  const [userId, setUserId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [selectedEmoji, setSelectedEmoji] = useState('👤');
+  const [profileImage, setProfileImage] = useState<string | null>(null); // ✨ NEW
   const [selectedChain, setSelectedChain] = useState(prefillChain || 'ethereum');
   const [address, setAddress] = useState(prefillAddress || '');
   const [tags, setTags] = useState<string[]>([]);
@@ -81,6 +82,7 @@ export default function AddContactModal({
     if (isOpen && editContact) {
       setName(editContact.name);
       setSelectedEmoji(editContact.emoji || '👤');
+      setProfileImage(editContact.profile_image || null); // ✨ NEW
       setSelectedChain(editContact.chain);
       setAddress(editContact.address);
       setTags(editContact.tags || []);
@@ -90,6 +92,7 @@ export default function AddContactModal({
       // Reset form for new contact
       setName('');
       setSelectedEmoji('👤');
+      setProfileImage(null); // ✨ NEW
       setSelectedChain(prefillChain || 'ethereum');
       setAddress(prefillAddress || '');
       setTags([]);
@@ -152,6 +155,54 @@ export default function AddContactModal({
     return () => clearTimeout(validateTimeout);
   }, [address, selectedChain, userId, editContact]);
 
+  // ✨ NEW: Handle image upload
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      setError('Image too large. Please use an image smaller than 2MB.');
+      return;
+    }
+
+    // Check file type
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        // Create canvas to resize image
+        const canvas = document.createElement('canvas');
+        const size = 128;
+        canvas.width = size;
+        canvas.height = size;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        // Calculate crop dimensions (square crop from center)
+        const minDim = Math.min(img.width, img.height);
+        const sx = (img.width - minDim) / 2;
+        const sy = (img.height - minDim) / 2;
+
+        // Draw and resize
+        ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, size, size);
+
+        // Convert to Base64 (JPEG for smaller size)
+        const base64 = canvas.toDataURL('image/jpeg', 0.85);
+        setProfileImage(base64);
+        setError('');
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSave = async () => {
     console.log('🔍 [AddContactModal] handleSave called');
     console.log('🔍 [AddContactModal] Current userId state:', userId);
@@ -193,6 +244,7 @@ export default function AddContactModal({
             chain: selectedChain,
             address: address.trim(),
             emoji: selectedEmoji,
+            profile_image: profileImage, // ✨ NEW
             tags,
             notes: notes.trim() || null,
             is_favorite: isFavorite,
@@ -213,6 +265,7 @@ export default function AddContactModal({
           chain: selectedChain,
           address: address.trim(),
           emoji: selectedEmoji,
+          profile_image: profileImage, // ✨ NEW
           tags,
           notes: notes.trim() || null,
           is_favorite: isFavorite,
@@ -361,53 +414,103 @@ export default function AddContactModal({
                   </motion.div>
                 )}
 
-                {/* Name & Emoji */}
+                {/* Name & Profile Photo */}
                 <div className="space-y-3">
                   <label className="text-sm font-semibold text-gray-700">
                     Contact name
                   </label>
                   <div className="flex gap-3">
-                    {/* Emoji Picker Button */}
+                    {/* Profile Photo / Emoji Picker */}
                     <div className="relative">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                        id="profile-image-upload"
+                        disabled={isSaving}
+                      />
                       <button
                         type="button"
-                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        onClick={() => document.getElementById('profile-image-upload')?.click()}
                         disabled={isSaving}
-                        className="w-14 h-14 bg-gradient-to-br from-orange-100 to-orange-50 rounded-xl flex items-center justify-center text-3xl hover:from-orange-200 hover:to-orange-100 transition-all disabled:opacity-50"
+                        className="w-14 h-14 bg-gradient-to-br from-orange-100 to-orange-50 rounded-full flex items-center justify-center overflow-hidden hover:from-orange-200 hover:to-orange-100 transition-all disabled:opacity-50 group relative"
+                        title="Click to upload photo"
                       >
-                        {selectedEmoji}
+                        {profileImage ? (
+                          <>
+                            <img 
+                              src={profileImage} 
+                              alt="Profile" 
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <span className="text-white text-xs font-medium">Change</span>
+                            </div>
+                          </>
+                        ) : (
+                          <span className="text-3xl">{selectedEmoji}</span>
+                        )}
                       </button>
 
-                      <AnimatePresence>
-                        {showEmojiPicker && (
-                          <>
-                            <div 
-                              className="fixed inset-0 z-10" 
-                              onClick={() => setShowEmojiPicker(false)}
-                            />
-                            <motion.div
-                              initial={{ opacity: 0, scale: 0.9 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              exit={{ opacity: 0, scale: 0.9 }}
-                              className="absolute left-0 top-16 z-20 bg-white rounded-xl shadow-xl border border-gray-200 p-3 grid grid-cols-6 gap-2 w-64"
-                            >
-                              {EMOJI_OPTIONS.map((emoji) => (
-                                <button
-                                  key={emoji}
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedEmoji(emoji);
-                                    setShowEmojiPicker(false);
-                                  }}
-                                  className="text-2xl hover:bg-orange-50 rounded-lg p-2 transition-colors"
+                      {/* Secondary button for emoji picker (only show if no photo) */}
+                      {!profileImage && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                            disabled={isSaving}
+                            className="absolute -bottom-1 -right-1 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center text-white text-xs hover:bg-orange-600 transition-all disabled:opacity-50 shadow-md"
+                            title="Change emoji"
+                          >
+                            ✏️
+                          </button>
+
+                          <AnimatePresence>
+                            {showEmojiPicker && (
+                              <>
+                                <div 
+                                  className="fixed inset-0 z-10" 
+                                  onClick={() => setShowEmojiPicker(false)}
+                                />
+                                <motion.div
+                                  initial={{ opacity: 0, scale: 0.9 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  exit={{ opacity: 0, scale: 0.9 }}
+                                  className="absolute left-0 top-16 z-20 bg-white rounded-xl shadow-xl border border-gray-200 p-3 grid grid-cols-6 gap-2 w-64"
                                 >
-                                  {emoji}
-                                </button>
-                              ))}
-                            </motion.div>
-                          </>
-                        )}
-                      </AnimatePresence>
+                                  {EMOJI_OPTIONS.map((emoji) => (
+                                    <button
+                                      key={emoji}
+                                      type="button"
+                                      onClick={() => {
+                                        setSelectedEmoji(emoji);
+                                        setShowEmojiPicker(false);
+                                      }}
+                                      className="text-2xl hover:bg-orange-50 rounded-lg p-2 transition-colors"
+                                    >
+                                      {emoji}
+                                    </button>
+                                  ))}
+                                </motion.div>
+                              </>
+                            )}
+                          </AnimatePresence>
+                        </>
+                      )}
+
+                      {/* Remove photo button (only show if photo exists) */}
+                      {profileImage && (
+                        <button
+                          type="button"
+                          onClick={() => setProfileImage(null)}
+                          disabled={isSaving}
+                          className="absolute -bottom-1 -right-1 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white text-xs hover:bg-red-600 transition-all disabled:opacity-50 shadow-md"
+                          title="Remove photo"
+                        >
+                          ✕
+                        </button>
+                      )}
                     </div>
 
                     {/* Name Input */}
