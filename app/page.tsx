@@ -9,6 +9,7 @@ import PasswordSetupModal from '@/components/PasswordSetupModal';
 import PasswordUnlockModal from '@/components/PasswordUnlockModal';
 import BiometricAuthModal from '@/components/BiometricAuthModal';
 import QRLoginModal from '@/components/QRLoginModal';
+import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import { logger } from '@/lib/logger';
 
 export default function Home() {
@@ -248,6 +249,9 @@ export default function Home() {
       ) : (
         <>
           <Dashboard />
+          
+          {/* PWA Install Prompt */}
+          <PWAInstallPrompt />
           
           {/* Password Setup Modal */}
           <PasswordSetupModal
