@@ -150,21 +150,22 @@ export class BlockchainService {
                 logoUrl: getCurrencyLogoSync(chainConfig?.nativeCurrency.symbol || 'ETH'), // ✅ Dynamic currency logo
               }));
             } else {
-              logger.warn(`Block explorer API failed: ${data.message || 'Unknown error'}`);
+              // Silent - this is expected when no API key is configured
+              logger.log(`Block explorer API response: ${data.message || 'No data'}`);
             }
           }
         } catch (explorerError) {
-          logger.warn('Block explorer API unavailable, falling back to RPC scan');
+          // Silent - this is expected when no API key is configured
+          logger.log('Block explorer API unavailable (expected without API key)');
         }
       }
 
-      // No API key or API failed - show helpful message
-      logger.error('❌ Transaction history unavailable');
-      logger.error('📋 To view transaction history, add a valid Etherscan API key:');
-      logger.error('   1. Create free account: https://etherscan.io/register');
-      logger.error('   2. Get API key: https://etherscan.io/myapikey');
-      logger.error('   3. Add to Vercel: NEXT_PUBLIC_ETHERSCAN_API_KEY');
-      logger.error('   4. Redeploy app');
+      // No API key or API failed - silent fallback (this is expected behavior)
+      // Only log in development, not as error
+      if (process.env.NODE_ENV === 'development') {
+        logger.log('ℹ️ Transaction history unavailable (no API key configured)');
+        logger.log('   To enable: Add NEXT_PUBLIC_ETHERSCAN_API_KEY to Vercel environment variables');
+      }
       
       return [];
 
