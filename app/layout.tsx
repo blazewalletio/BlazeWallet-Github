@@ -13,18 +13,20 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: [
-      { url: '/blaze-logo.png', type: 'image/png', sizes: '512x512' },
-      { url: '/blaze-logo.png', type: 'image/png', sizes: '192x192' },
-      { url: '/blaze-logo.png', type: 'image/png', sizes: '32x32' },
-      { url: '/blaze-logo.png', type: 'image/png', sizes: '16x16' }
+      { url: '/icons/icon-512x512.png', type: 'image/png', sizes: '512x512' },
+      { url: '/icons/icon-192x192.png', type: 'image/png', sizes: '192x192' },
+      { url: '/icons/icon-144x144.png', type: 'image/png', sizes: '144x144' },
     ],
-    shortcut: '/blaze-logo.png',
-    apple: '/blaze-logo.png',
+    shortcut: '/icons/icon-192x192.png',
+    apple: '/icons/icon-192x192.png',
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "BLAZE Wallet",
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
   },
   formatDetection: {
     telephone: false,
