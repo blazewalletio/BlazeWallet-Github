@@ -24,15 +24,22 @@ export function usePWAInstall() {
   const { isLocked, address } = useWalletStore();
 
   useEffect(() => {
+    console.log('🔍 [PWA] Hook loaded - isLocked:', isLocked, 'address:', address?.substring(0, 10));
+    
     // Only show if wallet is unlocked (user is logged in)
     // Wallet is unlocked when: isLocked = false AND address exists
     if (isLocked || !address) {
+      console.log('⏸️ [PWA] Not showing - wallet locked or no address');
       return;
     }
 
+    console.log('✅ [PWA] Wallet is unlocked, setting up listener...');
+
     // Check if already installed
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    console.log('📱 [PWA] isStandalone:', isStandalone);
     if (isStandalone) {
+      console.log('✅ [PWA] Already installed as PWA');
       setState(prev => ({ ...prev, isInstalled: true }));
       return;
     }
@@ -40,14 +47,19 @@ export function usePWAInstall() {
     // Check localStorage for user preferences
     const dismissed = localStorage.getItem('pwa-prompt-dismissed') === 'true';
     const installed = localStorage.getItem('pwa-installed') === 'true';
+    console.log('💾 [PWA] localStorage - dismissed:', dismissed, 'installed:', installed);
 
     // Don't show if permanently dismissed or already installed
     if (dismissed || installed) {
+      console.log('🚫 [PWA] Not showing - dismissed or installed');
       return;
     }
 
+    console.log('🎯 [PWA] All checks passed, waiting for beforeinstallprompt event...');
+
     // Listen for install prompt
     const handleBeforeInstallPrompt = (e: Event) => {
+      console.log('🎉 [PWA] beforeinstallprompt event fired!');
       e.preventDefault();
       const promptEvent = e as BeforeInstallPromptEvent;
       
@@ -57,8 +69,10 @@ export function usePWAInstall() {
         promptEvent,
       }));
 
+      console.log('⏰ [PWA] Showing prompt in 3 seconds...');
       // Show prompt after 3 seconds (user is logged in, let them see dashboard first)
       setTimeout(() => {
+        console.log('✨ [PWA] Showing prompt NOW!');
         setState(prev => ({
           ...prev,
           showPrompt: true,
@@ -66,6 +80,7 @@ export function usePWAInstall() {
 
         // Auto-dismiss after 8 seconds
         setTimeout(() => {
+          console.log('👋 [PWA] Auto-dismissing after 8 seconds');
           setState(prev => ({
             ...prev,
             showPrompt: false,
@@ -74,9 +89,11 @@ export function usePWAInstall() {
       }, 3000);
     };
 
+    console.log('👂 [PWA] Added beforeinstallprompt listener');
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     return () => {
+      console.log('🧹 [PWA] Cleanup - removing listener');
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
   }, [isLocked, address]); // Re-run when wallet unlocks
