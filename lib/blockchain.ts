@@ -96,6 +96,11 @@ export class BlockchainService {
           42161: process.env.NEXT_PUBLIC_ARBISCAN_API_KEY || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY,
           10: process.env.NEXT_PUBLIC_OPTIMISM_API_KEY || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY,
           8453: process.env.NEXT_PUBLIC_BASESCAN_API_KEY || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY,
+          43114: process.env.NEXT_PUBLIC_SNOWTRACE_API_KEY || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY,
+          250: process.env.NEXT_PUBLIC_FTMSCAN_API_KEY || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY,
+          25: process.env.NEXT_PUBLIC_CRONOSCAN_API_KEY || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY,
+          324: process.env.NEXT_PUBLIC_ZKSYNC_API_KEY || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY,
+          59144: process.env.NEXT_PUBLIC_LINEASCAN_API_KEY || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY,
         };
         return keys[chain] || process.env.NEXT_PUBLIC_ETHERSCAN_API_KEY || '';
       };
@@ -109,6 +114,11 @@ export class BlockchainService {
         42161: { url: 'https://api.arbiscan.io/api', v2: false }, // Arbitrum
         10: { url: 'https://api-optimistic.etherscan.io/api', v2: false }, // Optimism
         8453: { url: 'https://api.basescan.org/api', v2: false }, // Base
+        43114: { url: 'https://api.snowtrace.io/api', v2: false }, // Avalanche
+        250: { url: 'https://api.ftmscan.com/api', v2: false }, // Fantom
+        25: { url: 'https://api.cronoscan.com/api', v2: false }, // Cronos
+        324: { url: 'https://api-era.zksync.network/api', v2: false }, // zkSync Era
+        59144: { url: 'https://api.lineascan.build/api', v2: false }, // Linea
         11155111: { url: 'https://api-sepolia.etherscan.io/api', v2: false }, // Sepolia
       };
 
