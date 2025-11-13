@@ -46,16 +46,19 @@ export function usePWAInstall() {
 
     // Listen for install prompt
     const handleBeforeInstallPrompt = (e: Event) => {
+      // CRITICAL: Prevent the default mini-infobar/native prompt
       e.preventDefault();
+      
       const promptEvent = e as BeforeInstallPromptEvent;
       
+      // Store the event so we can trigger it later
       setState(prev => ({
         ...prev,
         canInstall: true,
         promptEvent,
       }));
 
-      // Show prompt after 3 seconds if conditions are met
+      // Show OUR custom prompt after 3 seconds if conditions are met
       if (shouldShowBasedOnVisits || visitCount === 0) {
         setTimeout(() => {
           setState(prev => ({
