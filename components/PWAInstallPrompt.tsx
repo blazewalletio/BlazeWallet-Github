@@ -59,12 +59,12 @@ export default function PWAInstallPrompt() {
     <AnimatePresence>
       {showPrompt && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop - only on mobile */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 md:hidden"
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] md:hidden"
             onClick={handleDismiss}
           />
 
@@ -74,7 +74,7 @@ export default function PWAInstallPrompt() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed bottom-0 left-0 right-0 md:bottom-6 md:left-6 md:right-auto md:max-w-md z-50"
+            className="fixed bottom-0 left-0 right-0 md:bottom-6 md:left-6 md:right-auto md:max-w-md z-[100] pb-20 md:pb-0"
           >
             <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-orange-500/20 rounded-t-3xl md:rounded-3xl shadow-2xl overflow-hidden">
               {/* Gradient accent bar */}
