@@ -59,6 +59,8 @@ export async function GET(request: Request) {
 
     if (coinIds.length === 0) {
       // Silent 400 - expected for unknown tokens (will fallback to DexScreener)
+      // Don't log this as error - it's part of normal operation
+      logger.log(`[PriceAPI] Unknown symbols: ${symbols.join(', ')} - will fallback to DexScreener`);
       return NextResponse.json({ error: 'No valid symbols' }, { status: 400 });
     }
 

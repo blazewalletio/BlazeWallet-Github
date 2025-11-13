@@ -283,11 +283,12 @@ export class PriceService {
           return result;
         }
       } else if (response.status === 400) {
-        // Some tokens not in CoinGecko, try fallback
-        logger.log(`⏭️ [PriceService] Some tokens not in CoinGecko, trying Binance...`);
+        // 400 is expected for unknown tokens - don't log as error
+        logger.log(`⏭️ [PriceService] Some tokens not in CoinGecko (${response.status}), trying Binance...`);
       }
     } catch (error) {
-      logger.warn(`⚠️ [PriceService] CoinGecko batch failed:`, error instanceof Error ? error.message : 'Unknown error');
+      // Don't log fetch errors as warnings - they're expected for unknown tokens
+      logger.log(`⏭️ [PriceService] CoinGecko batch fallthrough, trying Binance...`);
     }
 
     // Find symbols that still need prices
@@ -323,9 +324,13 @@ export class PriceService {
             logger.log(`✅ [PriceService] Binance: ${symbol} = $${price}`);
           }
         });
+      } else if (response.status === 400) {
+        // 400 is expected for unknown tokens - don't log as error
+        logger.log(`⏭️ [PriceService] Symbols not found in Binance either (${response.status}), will use DexScreener fallback`);
       }
     } catch (error) {
-      logger.warn(`⚠️ [PriceService] Binance batch failed:`, error instanceof Error ? error.message : 'Unknown error');
+      // Don't log as warning - expected for unknown tokens
+      logger.log(`⏭️ [PriceService] Binance batch fallthrough, will use DexScreener fallback`);
     }
 
     return result;

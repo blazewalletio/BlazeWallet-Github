@@ -266,7 +266,10 @@ export default function Dashboard() {
     // 2. Clear any loading states from previous chain
     // (Chain-specific states will handle themselves)
     
-    // 3. Load cached data voor nieuwe chain (instant!)
+    // 3. IMMEDIATELY clear stale tokens from previous chain to prevent display issues
+    updateTokens(currentChain, []); // Clear tokens for this chain first
+    
+    // 4. Load cached data voor nieuwe chain (instant!)
     const loadCachedData = async () => {
       if (!displayAddress) return;
       
@@ -301,7 +304,7 @@ export default function Dashboard() {
     
     loadCachedData();
     
-    // 4. Start fresh fetch voor nieuwe chain (always fetch to get latest balance!)
+    // 5. Start fresh fetch voor nieuwe chain (always fetch to get latest balance!)
     const fetchTimer = setTimeout(() => {
       fetchData(false); // Always fetch fresh data on chain switch
     }, 100);
