@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Zap, CreditCard, Scan, Check, Camera, AlertCircle, ArrowRight, Copy, User, RefreshCw, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
@@ -293,7 +294,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       }
     } catch (error) {
       logger.error('❌ Error parsing QR code:', error);
-      alert('Could not parse QR code. Please try again.');
+      toast('Could not parse QR code. Please try again.');
       setMode('scan');
       startCamera();
     }
@@ -317,12 +318,12 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         setRecipientAddress(detectedAddress);
         setMode('address');
       } else {
-        alert('Invalid wallet address QR code.');
+        toast.error('Invalid wallet address QR code.');
         setMode('address');
       }
     } catch (error) {
       logger.error('Error parsing address QR:', error);
-      alert('Could not parse QR code.');
+      toast('Could not parse QR code.');
       setMode('address');
     }
   };
@@ -406,7 +407,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
 
   const handleAmountNext = () => {
     if (!amount || amount <= 0) {
-      alert('Please enter a valid amount');
+      toast('Please enter a valid amount');
       return;
     }
     
@@ -419,7 +420,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
 
   const handleAddressNext = () => {
     if (!recipientAddress || recipientAddress.length < 26) {
-      alert('Please enter a valid wallet address');
+      toast('Please enter a valid wallet address');
       return;
     }
     
@@ -447,10 +448,10 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       if (text && text.length >= 26) {
         setRecipientAddress(text);
       } else {
-        alert('Invalid address in clipboard');
+        toast.error('Invalid address in clipboard');
       }
     } catch (error) {
-      alert('Could not access clipboard. Please paste manually.');
+      toast('Could not access clipboard. Please paste manually.');
     }
   };
 
@@ -810,7 +811,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                         <div className="text-xs font-semibold text-gray-900">Scan QR</div>
                       </button>
                       <button
-                        onClick={() => alert('Contacts feature coming soon!')}
+                        onClick={() => toast('Contacts feature coming soon!')}
                         className="p-3 bg-white border-2 border-gray-200 hover:border-purple-300 rounded-xl text-center transition-all"
                       >
                         <User className="w-5 h-5 text-purple-600 mx-auto mb-1" />
@@ -1249,10 +1250,10 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                           if (text && (text.startsWith('lnbc') || text.startsWith('lightning:'))) {
                             setLightningInvoiceInput(text);
                           } else {
-                            alert('❌ No Lightning invoice found in clipboard');
+                            toast.error('❌ No Lightning invoice found in clipboard');
                           }
                         } catch (error) {
-                          alert('Could not access clipboard. Please paste manually.');
+                          toast('Could not access clipboard. Please paste manually.');
                         }
                       }}
                       className="p-4 bg-white border-2 border-gray-200 hover:border-blue-300 rounded-xl text-center transition-all"
@@ -1276,7 +1277,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   <button
                     onClick={async () => {
                       if (!lightningInvoiceInput || (!lightningInvoiceInput.startsWith('lnbc') && !lightningInvoiceInput.startsWith('lightning:'))) {
-                        alert('❌ Please enter a valid Lightning invoice (starts with lnbc...)');
+                        toast.error('❌ Please enter a valid Lightning invoice (starts with lnbc...)');
                         return;
                       }
                       
@@ -1284,7 +1285,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                         // Validate invoice first
                         const validation = lightningService.validateInvoice(lightningInvoiceInput);
                         if (!validation.valid) {
-                          alert(`❌ Invalid invoice: ${validation.error}`);
+                          toast.error(`❌ Invalid invoice: ${validation.error}`);
                           return;
                         }
 
@@ -1315,12 +1316,12 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                           }, 3000);
                         } else {
                           setMode('lightning-send');
-                          alert(`❌ Payment failed: ${payment.error}`);
+                          toast.error(`❌ Payment failed: ${payment.error}`);
                         }
                       } catch (error: any) {
                         logger.error('❌ Lightning payment error:', error);
                         setMode('lightning-send');
-                        alert(`❌ Payment failed: ${error.message || 'Unknown error'}`);
+                        toast.error(`❌ Payment failed: ${error.message || 'Unknown error'}`);
                       }
                     }}
                     disabled={!lightningInvoiceInput}
@@ -1408,7 +1409,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                       <button
                         onClick={async () => {
                           if (!amount || amount <= 0) {
-                            alert('❌ Please enter a valid amount');
+                            toast.error('❌ Please enter a valid amount');
                             return;
                           }
 
@@ -1483,7 +1484,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                                 );
                               }
                             } else {
-                              alert(`❌ Failed to generate invoice: ${error.message || 'Unknown error'}`);
+                              toast.error(`❌ Failed to generate invoice: ${error.message || 'Unknown error'}`);
                             }
                           }
                         }}
@@ -1524,7 +1525,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                         <button
                           onClick={() => {
                               navigator.clipboard.writeText(lightningInvoice);
-                              alert('✅ Invoice copied to clipboard!');
+                              toast('✅ Invoice copied to clipboard!');
                           }}
                             className="w-full py-2 rounded-lg bg-white border border-purple-300 hover:bg-purple-50 text-purple-700 font-semibold text-sm transition-colors"
                         >

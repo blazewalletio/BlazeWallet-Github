@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Palette, Sparkles, Lock, Check, AlertTriangle } from 'lucide-react';
 import { logger } from '@/lib/logger';
@@ -68,7 +69,7 @@ export default function NFTMintModal({ isOpen, onClose }: NFTMintModalProps) {
     await new Promise(resolve => setTimeout(resolve, 2000));
     setIsMinting(false);
     
-    alert(`🎉 Successfully minted ${skins[selectedSkin].name}!`);
+    toast(`🎉 Successfully minted ${skins[selectedSkin].name}!`);
     onClose();
   };
 

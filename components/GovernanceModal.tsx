@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Vote, Plus, TrendingUp, TrendingDown, Clock } from 'lucide-react';
 import { logger } from '@/lib/logger';
@@ -60,15 +61,15 @@ export default function GovernanceModal({ isOpen, onClose }: GovernanceModalProp
   ];
 
   const handleVote = (proposalId: number, support: boolean) => {
-    alert(`Voted ${support ? 'FOR' : 'AGAINST'} proposal ${proposalId}!`);
+    toast(`Voted ${support ? 'FOR' : 'AGAINST'} proposal ${proposalId}!`);
   };
 
   const handleCreateProposal = () => {
     if (!newProposal.title || !newProposal.description) {
-      alert('Please fill in all fields');
+      toast('Please fill in all fields');
       return;
     }
-    alert('Proposal created! It will be active in 24 hours.');
+    toast('Proposal created! It will be active in 24 hours.');
     setNewProposal({ title: '', description: '' });
     setActiveTab('vote');
   };

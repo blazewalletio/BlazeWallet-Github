@@ -1,6 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 import { CreditCard, Banknote, ShieldCheck, Flame, ExternalLink } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
@@ -23,52 +24,64 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
 
   const handleBuy = async (currencyCode?: string) => {
     if (!address) {
-      alert('Please connect your wallet first');
+      toast('Please connect your wallet first');
       return;
     }
 
     // Validate wallet address format for the selected currency
     if (currencyCode && !TransakService.validateWalletAddress(address, currencyCode)) {
-      alert(`⚠️ Invalid wallet address format for ${currencyCode}. Please ensure you're using the correct wallet for this cryptocurrency.`);
+      toast.error(`⚠️ Invalid wallet address format for ${currencyCode}. Please ensure you're using the correct wallet for this cryptocurrency.`);
       return;
     }
 
     // Create multi-chain wallet addresses for better compatibility
     const walletAddresses = TransakService.createWalletAddresses(address, chain.id);
 
-        try {
-          logger.log('🔥 BUY MODAL DEBUG: Starting NEW Transak integration...');
-          logger.log('Wallet Address:', address);
-          logger.log('Wallet Addresses:', walletAddresses);
-          logger.log('Currency Code:', currencyCode);
-          
-          await TransakService.openWidget({
-            walletAddress: address,
-            walletAddresses: walletAddresses,
-            currencyCode: currencyCode || 'ETH', // Default to ETH if undefined
-            baseCurrencyCode: 'EUR', // Default to EUR for Dutch market
-            apiKey: process.env.NEXT_PUBLIC_TRANSAK_API_KEY || '55950bec-d22c-4d0a-937e-7bff2cb26296', // Transak API key from env
-            environment: 'STAGING', // Try STAGING first to test
-            themeColor: '#F97316', // BLAZE orange
-            disableWalletAddressForm: true, // Hide wallet address input since we provide it
-            hideMenu: false, // Show Transak menu
-            isAutoFillUserData: false, // Let users fill their own data
-          });
+    try {
+      logger.log('🔥 BUY MODAL DEBUG: Starting Transak integration...');
+      logger.log('Wallet Address:', address);
+      logger.log('Wallet Addresses:', walletAddresses);
+      logger.log('Currency Code:', currencyCode);
+      
+      // 🔒 SECURITY: Use server-side endpoint to hide API key
+      const response = await fetch('/api/transak/init', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          walletAddress: address,
+          walletAddresses: walletAddresses,
+          currencyCode: currencyCode || 'ETH',
+          baseCurrencyCode: 'EUR',
+          chainId: chain.id,
+        }),
+      });
 
-          logger.log('✅ BUY MODAL SUCCESS: Transak widget opened with session');
-          // Close modal after opening Transak
-          setTimeout(() => onClose(), 500);
-        } catch (error) {
-          logger.error('❌ BUY MODAL ERROR:', error);
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          
-          // Check if it's a business profile issue
-          if (errorMessage.includes('Invalid API key') || errorMessage.includes('T-INF-201')) {
-            alert(`Transak Error: Please complete your Business Profile in the Transak Dashboard first.\n\nGo to: dashboard.transak.com/developers\nComplete all 3 steps of "Complete Your Business Profile"`);
-          } else {
-            alert(`Failed to open Transak: ${errorMessage}`);
-          }
-        }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to initialize Transak');
+      }
+
+      const { widgetUrl } = await response.json();
+      
+      // Open Transak in new window
+      window.open(widgetUrl, '_blank', 'width=500,height=700');
+
+      logger.log('✅ BUY MODAL SUCCESS: Transak widget opened');
+      // Close modal after opening Transak
+      setTimeout(() => onClose(), 500);
+    } catch (error) {
+      logger.error('❌ BUY MODAL ERROR:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // Check if it's a business profile issue
+      if (errorMessage.includes('Invalid API key') || errorMessage.includes('T-INF-201')) {
+        toast.error(`Transak Error: Please complete your Business Profile in the Transak Dashboard first.\n\nGo to: dashboard.transak.com/developers\nComplete all 3 steps of "Complete Your Business Profile"`);
+      } else {
+        toast.error(`Failed to open Transak: ${errorMessage}`);
+      }
+    }
   };
 
   if (!isOpen) return null;

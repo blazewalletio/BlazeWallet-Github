@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Lock, TrendingUp, Zap, Crown, Gift, Sparkles, Rocket, Target, BarChart3 } from 'lucide-react';
 import { logger } from '@/lib/logger';
@@ -63,7 +64,7 @@ export default function StakingModal({ isOpen, onClose }: StakingModalProps) {
     
     setIsStaking(false);
     setAmount('');
-    alert(`🔥 Staked ${amount} BLAZE successfully!`);
+    toast(`🔥 Staked ${amount} BLAZE successfully!`);
     onClose();
   };
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { Rocket, TrendingUp, Users, Clock, ArrowLeft, ExternalLink } from 'lucide-react';
 import { logger } from '@/lib/logger';
@@ -69,10 +70,10 @@ export default function LaunchpadDashboard() {
 
   const handleInvest = () => {
     if (!investAmount || parseFloat(investAmount) < selectedProject.minAllocation) {
-      alert(`Minimum investment is $${selectedProject.minAllocation}`);
+      toast(`Minimum investment is $${selectedProject.minAllocation}`);
       return;
     }
-    alert(`Investment of $${investAmount} submitted!`);
+    toast(`Investment of $${investAmount} submitted!`);
     setSelectedProject(null);
     setInvestAmount('');
   };

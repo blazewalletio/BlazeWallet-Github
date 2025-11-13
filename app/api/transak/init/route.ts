@@ -1,7 +1,7 @@
 /**
  * 🔒 TRANSAK API - Server-Side Integration
  * 
- * Generates one-time Transak session tokens
+ * Generates secure Transak widget URL
  * Keeps API key secure on server
  */
 
@@ -12,7 +12,13 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const { walletAddress, fiatAmount, fiatCurrency, cryptoCurrency } = await req.json();
+    const { 
+      walletAddress, 
+      walletAddresses,
+      currencyCode,
+      baseCurrencyCode,
+      chainId 
+    } = await req.json();
     
     // Validate required fields
     if (!walletAddress) {
@@ -23,7 +29,7 @@ export async function POST(req: NextRequest) {
     }
     
     // Get Transak API key from server environment (secure!)
-    const transakApiKey = process.env.TRANSAK_API_KEY;
+    const transakApiKey = process.env.TRANSAK_API_KEY || process.env.NEXT_PUBLIC_TRANSAK_API_KEY;
     
     if (!transakApiKey) {
       return NextResponse.json(
@@ -35,22 +41,51 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // Generate Transak widget parameters
-    const transakConfig = {
+    // Build Transak widget URL with parameters
+    const params = new URLSearchParams({
       apiKey: transakApiKey,
       environment: process.env.TRANSAK_ENVIRONMENT || 'STAGING',
-      walletAddress,
-      fiatAmount: fiatAmount || 100,
-      fiatCurrency: fiatCurrency || 'EUR',
-      cryptoCurrencyCode: cryptoCurrency || 'ETH',
-      networks: 'ethereum,polygon,arbitrum,optimism,base',
-      disableWalletAddressForm: true,
-      themeColor: 'f97316', // Blaze orange
-    };
+      defaultCryptoCurrency: currencyCode || 'ETH',
+      defaultFiatCurrency: baseCurrencyCode || 'EUR',
+      walletAddress: walletAddress,
+      themeColor: 'f97316', // Blaze orange (without #)
+      hideMenu: 'false',
+      disableWalletAddressForm: 'true',
+      isAutoFillUserData: 'false',
+    });
+    
+    // Add multi-chain wallet addresses if provided
+    if (walletAddresses) {
+      Object.entries(walletAddresses).forEach(([key, value]) => {
+        params.append(`walletAddressesData[${key}]`, value as string);
+      });
+    }
+    
+    // Add network based on chainId
+    if (chainId) {
+      const networkMap: Record<string, string> = {
+        'ethereum': 'ethereum',
+        'polygon': 'polygon',
+        'arbitrum': 'arbitrum',
+        'optimism': 'optimism',
+        'base': 'base',
+        'bsc': 'bsc',
+        'avalanche': 'avaxcchain',
+      };
+      
+      const network = networkMap[chainId];
+      if (network) {
+        params.append('network', network);
+      }
+    }
+    
+    const widgetUrl = `https://global.transak.com/?${params.toString()}`;
+    
+    logger.log('✅ Transak widget URL generated');
     
     return NextResponse.json({
       success: true,
-      config: transakConfig,
+      widgetUrl,
     });
     
   } catch (error: any) {
@@ -61,4 +96,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

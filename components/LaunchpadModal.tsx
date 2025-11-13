@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Rocket, Lock, TrendingUp, Users, Clock, AlertCircle } from 'lucide-react';
 import { logger } from '@/lib/logger';
@@ -85,7 +86,7 @@ export default function LaunchpadModal({ isOpen, onClose }: LaunchpadModalProps)
 
   const handleInvest = () => {
     if (!selectedProject || !investAmount) return;
-    alert(`Invested $${investAmount} in ${selectedProject.name}!`);
+    toast(`Invested $${investAmount} in ${selectedProject.name}!`);
     setInvestAmount('');
     setSelectedProject(null);
   };
