@@ -28,6 +28,15 @@ export function usePWAInstall() {
       return;
     }
 
+    // Detect browser - beforeinstallprompt only works on Android Chrome
+    // On iOS/Safari, the native share menu is the only way to install
+    const isAndroidChrome = /android/i.test(navigator.userAgent) && /chrome/i.test(navigator.userAgent);
+    
+    if (!isAndroidChrome) {
+      // For iOS/Safari - don't show custom prompt, native flow only
+      return;
+    }
+
     // Check localStorage for user preferences
     const dismissed = localStorage.getItem('pwa-prompt-dismissed') === 'true';
     const visitCount = parseInt(localStorage.getItem('pwa-prompt-visit-count') || '0');
@@ -44,7 +53,7 @@ export function usePWAInstall() {
     // Show after 3 visits if "Later" was clicked
     const shouldShowBasedOnVisits = visitCount >= 2; // 0, 1, 2 = show on 3rd visit
 
-    // Listen for install prompt
+    // Listen for install prompt (Android Chrome only)
     const handleBeforeInstallPrompt = (e: Event) => {
       // CRITICAL: Prevent the default mini-infobar/native prompt
       e.preventDefault();
