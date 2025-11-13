@@ -127,14 +127,22 @@ export default function WalletTab() {
   };
 
   const updateChartData = () => {
-    const recentSnapshots = portfolioHistory.getRecentSnapshots(20, selectedTimeRange);
+    if (!address) return;
+    
+    // ✅ Filter snapshots by current chain and address
+    const recentSnapshots = portfolioHistory.getRecentSnapshots(20, selectedTimeRange, currentChain, address);
     if (recentSnapshots.length > 0) {
       setChartData(recentSnapshots.map(s => s.balance));
       
-      const rangeChange = portfolioHistory.getChangePercentage(selectedTimeRange);
+      // Update change percentage for selected range (chain-specific)
+      const rangeChange = portfolioHistory.getChangePercentage(selectedTimeRange, currentChain, address);
       if (rangeChange !== 0) {
         setChange24h(rangeChange);
       }
+    } else {
+      // No data yet for this chain/time range
+      setChartData([]);
+      setChange24h(0);
     }
   };
 

@@ -796,16 +796,23 @@ export default function Dashboard() {
 
   // Update chart data when time range changes
   const updateChartData = () => {
-    const recentSnapshots = portfolioHistory.getRecentSnapshots(20, selectedTimeRange);
+    if (!displayAddress) return;
+    
+    // ✅ Filter snapshots by current chain and address
+    const recentSnapshots = portfolioHistory.getRecentSnapshots(20, selectedTimeRange, currentChain, displayAddress);
     if (recentSnapshots.length > 0) {
       setChartData(recentSnapshots.map(s => s.balance));
       
-      // Update change percentage for selected range
-      const rangeChange = portfolioHistory.getChangePercentage(selectedTimeRange);
+      // Update change percentage for selected range (chain-specific)
+      const rangeChange = portfolioHistory.getChangePercentage(selectedTimeRange, currentChain, displayAddress);
       if (rangeChange !== 0) {
         // ✅ Update chain-specific state instead of global setChange24h
         updateCurrentChainState({ change24h: rangeChange });
       }
+    } else {
+      // No data yet for this chain/time range
+      setChartData([]);
+      updateCurrentChainState({ change24h: 0 });
     }
   };
 

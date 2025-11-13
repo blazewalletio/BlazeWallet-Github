@@ -69,29 +69,38 @@ export class PortfolioHistory {
     this.saveToStorage();
   }
 
-  // Get snapshots within a specific time range
-  getSnapshotsInRange(hours: number | null = null): BalanceSnapshot[] {
+  // Get snapshots within a specific time range (optionally filtered by chain and address)
+  getSnapshotsInRange(hours: number | null = null, chain?: string, address?: string): BalanceSnapshot[] {
     if (this.snapshots.length === 0) {
       return [];
     }
 
-    // If null, return all snapshots
+    // Filter by chain and address if provided
+    let filtered = this.snapshots;
+    if (chain) {
+      filtered = filtered.filter(s => s.chain === chain);
+    }
+    if (address) {
+      filtered = filtered.filter(s => s.address === address);
+    }
+
+    // If null, return all filtered snapshots
     if (hours === null) {
-      return this.snapshots;
+      return filtered;
     }
 
     const now = Date.now();
     const cutoffTime = now - (hours * 60 * 60 * 1000);
 
     // Filter snapshots within the time range
-    const filtered = this.snapshots.filter(s => s.timestamp >= cutoffTime);
+    const timeFiltered = filtered.filter(s => s.timestamp >= cutoffTime);
 
-    return filtered.length > 0 ? filtered : this.snapshots;
+    return timeFiltered.length > 0 ? timeFiltered : filtered;
   }
 
-  // Get recent snapshots for chart (last N points from a time range)
-  getRecentSnapshots(count: number = 20, hours: number | null = null): BalanceSnapshot[] {
-    const rangeSnapshots = this.getSnapshotsInRange(hours);
+  // Get recent snapshots for chart (last N points from a time range, optionally filtered by chain and address)
+  getRecentSnapshots(count: number = 20, hours: number | null = null, chain?: string, address?: string): BalanceSnapshot[] {
+    const rangeSnapshots = this.getSnapshotsInRange(hours, chain, address);
     
     if (rangeSnapshots.length === 0) {
       return [];
@@ -114,9 +123,9 @@ export class PortfolioHistory {
     return result;
   }
 
-  // Get the change percentage over a specific time range
-  getChangePercentage(hours: number | null = null): number {
-    const rangeSnapshots = this.getSnapshotsInRange(hours);
+  // Get the change percentage over a specific time range (optionally filtered by chain and address)
+  getChangePercentage(hours: number | null = null, chain?: string, address?: string): number {
+    const rangeSnapshots = this.getSnapshotsInRange(hours, chain, address);
     
     if (rangeSnapshots.length < 2) {
       return 0;
@@ -130,9 +139,9 @@ export class PortfolioHistory {
     return ((last - first) / first) * 100;
   }
 
-  // Get change in absolute value over a specific time range
-  getChangeValue(hours: number | null = null): number {
-    const rangeSnapshots = this.getSnapshotsInRange(hours);
+  // Get change in absolute value over a specific time range (optionally filtered by chain and address)
+  getChangeValue(hours: number | null = null, chain?: string, address?: string): number {
+    const rangeSnapshots = this.getSnapshotsInRange(hours, chain, address);
     
     if (rangeSnapshots.length < 2) {
       return 0;
