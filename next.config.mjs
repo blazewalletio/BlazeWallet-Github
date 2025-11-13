@@ -15,7 +15,7 @@ const nextConfig = {
       style-src 'self' 'unsafe-inline';
       img-src 'self' blob: data: https:;
       font-src 'self';
-      connect-src 'self' https://ldehmephukevxumwdbwt.supabase.co https://api.openai.com https://api.coingecko.com https://*.etherscan.io https://*.bscscan.com https://*.polygonscan.com https://*.arbiscan.io https://*.optimistic.etherscan.io https://*.basescan.org https://*.snowtrace.io https://*.ftmscan.com https://*.cronoscan.com https://*.lineascan.build https://*.blockchair.com https://global.transak.com https://*.alchemy.com https://*.infura.io https://*.quicknode.pro https://api.dexscreener.com https://price.jup.ag https://api.binance.com wss://ldehmephukevxumwdbwt.supabase.co;
+      connect-src 'self' https://ldehmephukevxumwdbwt.supabase.co https://api.openai.com https://api.coingecko.com https://*.etherscan.io https://*.bscscan.com https://*.polygonscan.com https://*.arbiscan.io https://*.optimistic.etherscan.io https://*.basescan.org https://*.snowtrace.io https://*.ftmscan.com https://*.cronoscan.com https://*.lineascan.build https://*.blockchair.com https://blockstream.info https://global.transak.com https://*.alchemy.com https://*.infura.io https://*.quicknode.pro https://api.dexscreener.com https://price.jup.ag https://api.binance.com wss://ldehmephukevxumwdbwt.supabase.co;
       frame-src https://global.transak.com;
       object-src 'none';
       base-uri 'self';
