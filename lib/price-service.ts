@@ -29,12 +29,8 @@ export class PriceService {
     // Try primary API (CoinGecko)
     const price = await this.fetchPriceWithFallback(symbol);
     
-    if (price > 0) {
-      return price;
-    }
-
-    logger.error(`❌ [PriceService] Failed to get price for ${symbol}, returning 0`);
-    return 0;
+    // Return price (0 if not found - will use DexScreener)
+    return price;
   }
 
   /**
@@ -201,6 +197,9 @@ export class PriceService {
           logger.log(`✅ [PriceService] CoinGecko: ${symbol} = $${price}`);
           return price;
         }
+      } else if (response.status === 400) {
+        // 400 = Token not in CoinGecko mapping, silently try fallback
+        logger.log(`⏭️ [PriceService] ${symbol} not in CoinGecko, trying fallback...`);
       }
     } catch (error) {
       logger.warn(`⚠️ [PriceService] CoinGecko failed for ${symbol}:`, error instanceof Error ? error.message : 'Unknown error');
@@ -229,12 +228,20 @@ export class PriceService {
           logger.log(`✅ [PriceService] Binance: ${symbol} = $${price}`);
           return price;
         }
+      } else if (response.status === 400) {
+        // 400 = Token not in Binance either, will use DexScreener
+        logger.log(`⏭️ [PriceService] ${symbol} not in Binance, will use DexScreener fallback`);
       }
     } catch (error) {
       logger.warn(`⚠️ [PriceService] Binance failed for ${symbol}:`, error instanceof Error ? error.message : 'Unknown error');
     }
 
-    logger.error(`❌ [PriceService] All APIs failed for ${symbol}`);
+    // Silent fail for getPrice() - DexScreener will be used as final fallback
+    // Only log if it's a well-known token (not a meme coin)
+    const knownTokens = ['ETH', 'BTC', 'SOL', 'MATIC', 'BNB', 'USDT', 'USDC'];
+    if (knownTokens.includes(symbol.toUpperCase())) {
+      logger.error(`❌ [PriceService] All APIs failed for ${symbol}`);
+    }
     return 0;
   }
 
@@ -275,6 +282,9 @@ export class PriceService {
         if (Object.keys(result).length === symbols.length) {
           return result;
         }
+      } else if (response.status === 400) {
+        // Some tokens not in CoinGecko, try fallback
+        logger.log(`⏭️ [PriceService] Some tokens not in CoinGecko, trying Binance...`);
       }
     } catch (error) {
       logger.warn(`⚠️ [PriceService] CoinGecko batch failed:`, error instanceof Error ? error.message : 'Unknown error');
