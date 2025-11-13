@@ -4,6 +4,7 @@ import "./globals.css";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { Toaster } from 'react-hot-toast';
 import CSRFTokenInitializer from "@/components/CSRFTokenInitializer";
+import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -57,6 +58,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <ErrorBoundary>
           <CSRFTokenInitializer />
+          <ServiceWorkerRegistration />
           <div className="h-screen overflow-hidden bg-gray-50">
             <main className="relative h-full overflow-y-auto">
               {children}
