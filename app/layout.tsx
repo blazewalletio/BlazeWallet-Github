@@ -4,6 +4,7 @@ import "./globals.css";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { Toaster } from 'react-hot-toast';
 import CSRFTokenInitializer from "@/components/CSRFTokenInitializer";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -57,6 +58,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <ErrorBoundary>
           <CSRFTokenInitializer />
+          <PWAInstallPrompt />
           <div className="h-screen overflow-hidden bg-gray-50">
             <main className="relative h-full overflow-y-auto">
               {children}

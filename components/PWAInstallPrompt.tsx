@@ -1,160 +1,189 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, X, Smartphone, Monitor, Wifi } from 'lucide-react';
-import { logger } from '@/lib/logger';
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
+import { Download, X, Zap, Lock, Smartphone, HardDrive } from 'lucide-react';
+import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { useEffect, useState } from 'react';
+import Image from 'next/image';
 
 export default function PWAInstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [showPrompt, setShowPrompt] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [deviceType, setDeviceType] = useState<'mobile' | 'desktop'>('desktop');
+  const { showPrompt, install, dismissLater, dismissPermanently, canInstall } = usePWAInstall();
+  const [timeLeft, setTimeLeft] = useState(8);
+  const [shouldPulse, setShouldPulse] = useState(false);
 
+  // Countdown timer and pulse animation
   useEffect(() => {
-    // Check if already installed
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsInstalled(true);
-      return;
-    }
+    if (!showPrompt) return;
 
-    // Detect device type
-    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    setDeviceType(isMobile ? 'mobile' : 'desktop');
+    const interval = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 2) {
+          setShouldPulse(true);
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
-    // Listen for beforeinstallprompt event
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-      
-      // Show prompt after a delay (don't be too aggressive)
-      setTimeout(() => {
-        setShowPrompt(true);
-      }, 3000);
-    };
+    return () => clearInterval(interval);
+  }, [showPrompt]);
 
-    // Listen for app installed event
-    const handleAppInstalled = () => {
-      setIsInstalled(true);
-      setShowPrompt(false);
-      setDeferredPrompt(null);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
-  }, []);
-
-  const handleInstall = async () => {
-    if (!deferredPrompt) return;
-
-    try {
-      await deferredPrompt.prompt();
-      const choiceResult = await deferredPrompt.userChoice;
-      
-      if (choiceResult.outcome === 'accepted') {
-        logger.log('PWA installation accepted');
-      } else {
-        logger.log('PWA installation dismissed');
-      }
-      
-      setDeferredPrompt(null);
-      setShowPrompt(false);
-    } catch (error) {
-      logger.error('Error installing PWA:', error);
-    }
-  };
-
-  const handleDismiss = () => {
-    setShowPrompt(false);
-    // Don't show again for this session
-    sessionStorage.setItem('pwa_prompt_dismissed', 'true');
-  };
-
-  // Don't show if already installed or dismissed this session
-  if (isInstalled || sessionStorage.getItem('pwa_prompt_dismissed') || !showPrompt) {
-    return null;
-  }
+  if (!canInstall || !showPrompt) return null;
 
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: 100 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 100 }}
-        className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:max-w-sm"
-      >
-        <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-4 shadow-2xl border border-slate-700">
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-theme-primary to-theme-primary rounded-xl flex items-center justify-center">
-                <Download className="w-6 h-6 text-white" />
+      {showPrompt && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50"
+            onClick={dismissLater}
+          />
+
+          {/* Prompt Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ 
+              opacity: 1, 
+              y: 0, 
+              scale: shouldPulse ? [1, 1.02, 1] : 1 
+            }}
+            exit={{ opacity: 0, y: 50, scale: 0.9 }}
+            transition={{ 
+              type: 'spring', 
+              damping: 25, 
+              stiffness: 300,
+              scale: shouldPulse ? { duration: 0.3, repeat: 2 } : undefined
+            }}
+            className="fixed bottom-6 right-6 z-50 w-[340px] max-w-[calc(100vw-48px)]"
+          >
+            <div className="relative bg-white rounded-2xl border border-gray-200 shadow-soft-xl overflow-hidden">
+              {/* Gradient Top Border */}
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-500 to-primary-600" />
+
+              {/* Close Button */}
+              <button
+                onClick={dismissPermanently}
+                className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-gray-100 transition-colors group"
+              >
+                <X className="w-4 h-4 text-gray-400 group-hover:text-gray-600" />
+              </button>
+
+              {/* Content */}
+              <div className="p-4 pt-5">
+                {/* Header */}
+                <div className="flex items-start gap-3 mb-4">
+                  {/* Blaze Logo with Gradient Border */}
+                  <div className="relative flex-shrink-0">
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl blur-sm opacity-20" />
+                    <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 p-0.5">
+                      <div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center">
+                        <Image 
+                          src="/blaze-logo.png" 
+                          alt="Blaze" 
+                          width={24} 
+                          height={24}
+                          className="object-contain"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base font-semibold text-gray-900 mb-0.5">
+                      Installeer BLAZE Wallet
+                    </h3>
+                    <p className="text-xs text-gray-600">
+                      Voor de beste ervaring
+                    </p>
+                  </div>
+                </div>
+
+                {/* Features */}
+                <div className="space-y-2.5 mb-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-primary-50 flex items-center justify-center">
+                      <Zap className="w-4 h-4 text-primary-600" />
+                    </div>
+                    <span className="text-xs text-gray-700 font-medium">
+                      Snellere toegang
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-primary-50 flex items-center justify-center">
+                      <Lock className="w-4 h-4 text-primary-600" />
+                    </div>
+                    <span className="text-xs text-gray-700 font-medium">
+                      Biometric security
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-primary-50 flex items-center justify-center">
+                      <Smartphone className="w-4 h-4 text-primary-600" />
+                    </div>
+                    <span className="text-xs text-gray-700 font-medium">
+                      Offline functionaliteit
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-primary-50 flex items-center justify-center">
+                      <HardDrive className="w-4 h-4 text-primary-600" />
+                    </div>
+                    <span className="text-xs text-gray-700 font-medium">
+                      Desktop synchronisatie
+                    </span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={install}
+                    className="flex-1 px-4 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-xl font-semibold text-sm shadow-soft hover:shadow-soft-lg hover:brightness-110 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Installeer Nu
+                  </motion.button>
+
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={dismissLater}
+                    className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-semibold text-sm border border-gray-200 hover:bg-gray-200 transition-all"
+                  >
+                    Later
+                  </motion.button>
+                </div>
+
+                {/* Auto-dismiss indicator */}
+                {timeLeft > 0 && (
+                  <div className="mt-3 flex items-center justify-center gap-1.5">
+                    <div className="flex gap-1">
+                      {[...Array(8)].map((_, i) => (
+                        <div
+                          key={i}
+                          className={`w-1 h-1 rounded-full transition-all duration-300 ${
+                            i < timeLeft 
+                              ? 'bg-primary-500' 
+                              : 'bg-gray-300'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-white">
-                  Installeer BLAZE Wallet
-                </h3>
-                <p className="text-sm text-theme-text-muted">
-                  {deviceType === 'mobile' ? 'Voor snelle toegang' : 'Voor desktop toegang'}
-                </p>
-              </div>
             </div>
-            <button
-              onClick={handleDismiss}
-              className="text-theme-text-muted hover:text-white transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="space-y-3 mb-4">
-            <div className="flex items-center space-x-2 text-sm text-slate-300">
-              <Smartphone className="w-4 h-4" />
-              <span>Biometric security</span>
-            </div>
-            <div className="flex items-center space-x-2 text-sm text-slate-300">
-              <Monitor className="w-4 h-4" />
-              <span>Desktop synchronisatie</span>
-            </div>
-            <div className="flex items-center space-x-2 text-sm text-slate-300">
-              <Wifi className="w-4 h-4" />
-              <span>Offline functionaliteit</span>
-            </div>
-          </div>
-
-          <div className="flex space-x-2">
-            <button
-              onClick={handleInstall}
-              className="flex-1 bg-gradient-to-r from-theme-primary to-theme-primary hover:from-theme-primary hover:to-theme-primary text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2"
-            >
-              <Download className="w-4 h-4" />
-              <span>Installeer</span>
-            </button>
-            <button
-              onClick={handleDismiss}
-              className="px-4 py-3 text-theme-text-muted hover:text-white transition-colors rounded-xl"
-            >
-              Later
-            </button>
-          </div>
-
-          <div className="mt-3 text-xs text-theme-text-muted text-center">
-            {deviceType === 'mobile' 
-              ? 'Tap het installatie-icoon in je browser' 
-              : 'Click the install icon in your browser address bar'
-            }
-          </div>
-        </div>
-      </motion.div>
+          </motion.div>
+        </>
+      )}
     </AnimatePresence>
   );
 }
