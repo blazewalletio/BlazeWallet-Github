@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useWalletStore } from '@/lib/wallet-store';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -20,57 +19,33 @@ export function usePWAInstall() {
     showPrompt: false,
     promptEvent: null,
   });
-  const [isHydrated, setIsHydrated] = useState(false);
-
-  const { isLocked, address } = useWalletStore();
-
-  // Wait for client-side hydration to complete
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
 
   useEffect(() => {
-    if (!isHydrated) {
-      console.log('⏳ [PWA] Waiting for hydration...');
-      return;
-    }
-
-    console.log('🔍 [PWA] Hook loaded - isLocked:', isLocked, 'address:', address?.substring(0, 10));
-    
-    // Only show if wallet is unlocked (user is logged in)
-    // Wallet is unlocked when: isLocked = false AND address exists
-    if (isLocked || !address) {
-      console.log('⏸️ [PWA] Not showing - wallet locked or no address');
-      return;
-    }
-
-    console.log('✅ [PWA] Wallet is unlocked, setting up listener...');
-
     // Check if already installed
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-    console.log('📱 [PWA] isStandalone:', isStandalone);
     if (isStandalone) {
-      console.log('✅ [PWA] Already installed as PWA');
       setState(prev => ({ ...prev, isInstalled: true }));
       return;
     }
 
     // Check localStorage for user preferences
     const dismissed = localStorage.getItem('pwa-prompt-dismissed') === 'true';
-    const installed = localStorage.getItem('pwa-installed') === 'true';
-    console.log('💾 [PWA] localStorage - dismissed:', dismissed, 'installed:', installed);
+    const visitCount = parseInt(localStorage.getItem('pwa-prompt-visit-count') || '0');
+    const lastShown = localStorage.getItem('pwa-prompt-last-shown');
 
-    // Don't show if permanently dismissed or already installed
-    if (dismissed || installed) {
-      console.log('🚫 [PWA] Not showing - dismissed or installed');
+    // Increment visit count
+    localStorage.setItem('pwa-prompt-visit-count', (visitCount + 1).toString());
+
+    // Don't show if permanently dismissed
+    if (dismissed) {
       return;
     }
 
-    console.log('🎯 [PWA] All checks passed, waiting for beforeinstallprompt event...');
+    // Show after 3 visits if "Later" was clicked
+    const shouldShowBasedOnVisits = visitCount >= 2; // 0, 1, 2 = show on 3rd visit
 
     // Listen for install prompt
     const handleBeforeInstallPrompt = (e: Event) => {
-      console.log('🎉 [PWA] beforeinstallprompt event fired!');
       e.preventDefault();
       const promptEvent = e as BeforeInstallPromptEvent;
       
@@ -80,34 +55,31 @@ export function usePWAInstall() {
         promptEvent,
       }));
 
-      console.log('⏰ [PWA] Showing prompt in 3 seconds...');
-      // Show prompt after 3 seconds (user is logged in, let them see dashboard first)
-      setTimeout(() => {
-        console.log('✨ [PWA] Showing prompt NOW!');
-        setState(prev => ({
-          ...prev,
-          showPrompt: true,
-        }));
-
-        // Auto-dismiss after 8 seconds
+      // Show prompt after 3 seconds if conditions are met
+      if (shouldShowBasedOnVisits || visitCount === 0) {
         setTimeout(() => {
-          console.log('👋 [PWA] Auto-dismissing after 8 seconds');
           setState(prev => ({
             ...prev,
-            showPrompt: false,
+            showPrompt: true,
           }));
-        }, 8000);
-      }, 3000);
+
+          // Auto-dismiss after 8 seconds
+          setTimeout(() => {
+            setState(prev => ({
+              ...prev,
+              showPrompt: false,
+            }));
+          }, 8000);
+        }, 3000);
+      }
     };
 
-    console.log('👂 [PWA] Added beforeinstallprompt listener');
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
 
     return () => {
-      console.log('🧹 [PWA] Cleanup - removing listener');
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
-  }, [isLocked, address, isHydrated]); // Re-run when wallet unlocks or hydration completes
+  }, []);
 
   const install = async () => {
     if (!state.promptEvent) return;
@@ -130,12 +102,13 @@ export function usePWAInstall() {
   };
 
   const dismissLater = () => {
-    // Just hide for this session, will show again on next login
+    // Reset visit count, will show again after 3 visits
+    localStorage.setItem('pwa-prompt-visit-count', '0');
+    localStorage.setItem('pwa-prompt-last-shown', Date.now().toString());
     setState(prev => ({ ...prev, showPrompt: false }));
   };
 
   const dismissPermanently = () => {
-    // Permanently dismiss - never show again
     localStorage.setItem('pwa-prompt-dismissed', 'true');
     setState(prev => ({ ...prev, showPrompt: false }));
   };

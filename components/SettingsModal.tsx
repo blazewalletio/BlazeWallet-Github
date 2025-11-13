@@ -4,14 +4,11 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Shield, Key, Trash2, 
-  Eye, EyeOff, Copy, Check, Bell, Moon, Settings, Fingerprint, CheckCircle, XCircle, Bug,
-  Download, Zap, Lock, Wifi, Monitor
+  Eye, EyeOff, Copy, Check, Bell, Moon, Settings, Fingerprint, CheckCircle, XCircle, Bug
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import BiometricSetupModal from './BiometricSetupModal';
-import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { logger } from '@/lib/logger';
-import Image from 'next/image';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -22,7 +19,6 @@ interface SettingsModalProps {
 export default function SettingsModal({ isOpen, onClose, onOpenDebug }: SettingsModalProps) {
   const { mnemonic, resetWallet, address, getCurrentAddress } = useWalletStore();
   const displayAddress = getCurrentAddress(); // ✅ Get correct address for current chain
-  const { canInstall, isInstalled, install, dismissPermanently } = usePWAInstall();
   const [showMnemonic, setShowMnemonic] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -31,7 +27,6 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
   const [biometricLoading, setBiometricLoading] = useState(false);
   const [biometricError, setBiometricError] = useState('');
   const [showBiometricSetup, setShowBiometricSetup] = useState(false);
-  const [pwaInstalling, setPwaInstalling] = useState(false);
 
   // Check biometric status on mount - WALLET-SPECIFIC
   useEffect(() => {
@@ -129,18 +124,6 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
     resetWallet();
     onClose();
     window.location.reload();
-  };
-
-  const handleInstallPWA = async () => {
-    setPwaInstalling(true);
-    try {
-      await install();
-      // Success handled by usePWAInstall hook
-    } catch (error) {
-      logger.error('Failed to install PWA:', error);
-    } finally {
-      setPwaInstalling(false);
-    }
   };
 
   if (!isOpen) return null;
@@ -389,128 +372,6 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
                 </div>
               </div>
             </div>
-
-            {/* PWA Installation */}
-            {!isInstalled && (
-              <div className="glass-card p-6 border border-primary-200 bg-gradient-to-br from-primary-50 to-sky-50">
-                <div className="flex items-start gap-4 mb-4">
-                  <div className="relative w-12 h-12 flex-shrink-0">
-                    <Image 
-                      src="/icons/icon-192x192.png" 
-                      alt="Blaze Wallet" 
-                      width={48} 
-                      height={48} 
-                      className="rounded-xl"
-                    />
-                    <div className="absolute inset-0 border-2 border-transparent rounded-xl"
-                      style={{
-                        borderImage: 'linear-gradient(45deg, #0ea5e9, #0284c7) 1',
-                        borderImageSlice: 1,
-                      }}
-                    ></div>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900 mb-1">
-                      Installeer BLAZE Wallet
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      Krijg instant toegang met één klik, zonder je browser te openen
-                    </p>
-                  </div>
-                </div>
-
-                {/* Benefits Grid */}
-                <div className="grid grid-cols-2 gap-3 mb-5">
-                  <div className="bg-white/60 backdrop-blur-sm p-3 rounded-xl border border-primary-100">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Zap className="w-4 h-4 text-primary-600" />
-                      <span className="font-semibold text-sm text-gray-900">Snellere toegang</span>
-                    </div>
-                    <p className="text-xs text-gray-600">Direct vanuit je home screen</p>
-                  </div>
-                  
-                  <div className="bg-white/60 backdrop-blur-sm p-3 rounded-xl border border-primary-100">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Lock className="w-4 h-4 text-primary-600" />
-                      <span className="font-semibold text-sm text-gray-900">Extra veilig</span>
-                    </div>
-                    <p className="text-xs text-gray-600">Geïsoleerde app sandbox</p>
-                  </div>
-                  
-                  <div className="bg-white/60 backdrop-blur-sm p-3 rounded-xl border border-primary-100">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Wifi className="w-4 h-4 text-primary-600" />
-                      <span className="font-semibold text-sm text-gray-900">Offline support</span>
-                    </div>
-                    <p className="text-xs text-gray-600">Werkt zonder internet</p>
-                  </div>
-                  
-                  <div className="bg-white/60 backdrop-blur-sm p-3 rounded-xl border border-primary-100">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Monitor className="w-4 h-4 text-primary-600" />
-                      <span className="font-semibold text-sm text-gray-900">Desktop sync</span>
-                    </div>
-                    <p className="text-xs text-gray-600">Overal beschikbaar</p>
-                  </div>
-                </div>
-
-                {/* Install Button */}
-                {canInstall ? (
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={handleInstallPWA}
-                    disabled={pwaInstalling}
-                    className="w-full py-3.5 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 disabled:from-gray-300 disabled:to-gray-400 text-white rounded-xl font-bold text-sm shadow-soft hover:shadow-soft-lg transition-all disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    <Download className="w-5 h-5" />
-                    {pwaInstalling ? 'Installeren...' : 'Installeer App'}
-                  </motion.button>
-                ) : (
-                  <div className="text-center py-3">
-                    <p className="text-sm text-gray-600 mb-2">
-                      ℹ️ Installatie niet beschikbaar
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      Je browser ondersteunt momenteel geen app-installatie, of je hebt de installatie-prompt eerder afgesloten. 
-                      Probeer deze pagina te openen in <strong>Chrome</strong> of <strong>Safari</strong> om te installeren.
-                    </p>
-                  </div>
-                )}
-
-                {/* How it works */}
-                <div className="mt-4 pt-4 border-t border-primary-200">
-                  <details className="text-xs text-gray-600">
-                    <summary className="cursor-pointer font-semibold text-gray-700 hover:text-gray-900 transition-colors">
-                      Hoe werkt het? 📱
-                    </summary>
-                    <div className="mt-2 space-y-1 pl-4">
-                      <p>• <strong>Chrome (Android):</strong> Klik op "Installeer App" of kies "Toevoegen aan startscherm" in het menu</p>
-                      <p>• <strong>Safari (iOS):</strong> Tik op het deel-icoon en kies "Zet op beginscherm"</p>
-                      <p>• <strong>Desktop:</strong> Klik op het installatie-icoon in de adresbalk of gebruik "Installeer App"</p>
-                    </div>
-                  </details>
-                </div>
-              </div>
-            )}
-
-            {/* PWA Already Installed */}
-            {isInstalled && (
-              <div className="glass-card p-6 border border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
-                    <CheckCircle className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">App geïnstalleerd!</h3>
-                    <p className="text-sm text-gray-600">Je gebruikt al de geïnstalleerde versie</p>
-                  </div>
-                </div>
-                <div className="mt-3 text-xs text-gray-600 bg-white/60 p-3 rounded-xl border border-green-200">
-                  <strong>Tip:</strong> Je kunt BLAZE nu altijd direct openen vanuit je home screen, app drawer, of dock! 🚀
-                </div>
-              </div>
-            )}
 
             {/* Developer Tools - Mobile Only */}
             <div className="glass-card p-6 lg:hidden">
