@@ -20,6 +20,10 @@ async function ensureCSRFToken(): Promise<string> {
       const response = await fetch('/api/csrf-token');
       const data = await response.json();
       token = data.token;
+      
+      if (!token) {
+        throw new Error('No CSRF token received from server');
+      }
     } catch (error) {
       console.error('Failed to fetch CSRF token:', error);
       throw new Error('Could not initialize security token');
