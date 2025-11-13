@@ -6,6 +6,7 @@ import { Fingerprint, Shield, AlertCircle, CheckCircle, X } from 'lucide-react';
 import { WebAuthnService } from '@/lib/webauthn-service';
 import { BiometricStore } from '@/lib/biometric-store';
 import { useWalletStore } from '@/lib/wallet-store';
+import { logger } from '@/lib/logger';
 
 interface BiometricAuthModalProps {
   isOpen: boolean;
@@ -81,12 +82,12 @@ export default function BiometricAuthModal({
           // ✅ SECURITY: Store password for biometric unlock AFTER credential registration
           // This ensures password can only be retrieved with biometric authentication
           if (password) {
-            console.log('💾 Storing password for biometric access...');
+            logger.log('💾 Storing password for biometric access...');
             const stored = await biometricStore.storePassword(password, walletIdentifier);
             if (!stored) {
-              console.warn('⚠️ Failed to store password for biometric access');
+              logger.warn('⚠️ Failed to store password for biometric access');
             } else {
-              console.log('✅ Password stored securely for biometric unlock');
+              logger.log('✅ Password stored securely for biometric unlock');
             }
           }
           
@@ -130,7 +131,7 @@ export default function BiometricAuthModal({
         }
       }
     } catch (error: any) {
-      console.error('Biometric auth error:', error);
+      logger.error('Biometric auth error:', error);
       setError(error.message || 'Er is een fout opgetreden');
     } finally {
       setIsLoading(false);

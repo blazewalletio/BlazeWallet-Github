@@ -1,6 +1,7 @@
 import { ethers } from 'ethers';
 import { CHAINS } from './chains';
 import { getCurrencyLogoSync } from './currency-logo-service';
+import { logger } from '@/lib/logger';
 
 export class BlockchainService {
   private provider: ethers.JsonRpcProvider;
@@ -25,10 +26,10 @@ export class BlockchainService {
       // Force latest block to avoid cached data
       const balance = await this.provider.getBalance(address, 'latest');
       const formatted = ethers.formatEther(balance);
-      console.log(`Balance for ${address}: ${formatted} on chain ${this.chainKey}`);
+      logger.log(`Balance for ${address}: ${formatted} on chain ${this.chainKey}`);
       return formatted;
     } catch (error) {
-      console.error('Error fetching balance:', error);
+      logger.error('Error fetching balance:', error);
       throw error; // Re-throw so we can see the actual error
     }
   }
@@ -46,7 +47,7 @@ export class BlockchainService {
 
       return { slow, standard, fast };
     } catch (error) {
-      console.error('Error fetching gas price:', error);
+      logger.error('Error fetching gas price:', error);
       return { slow: '0', standard: '0', fast: '0' };
     }
   }
@@ -74,7 +75,7 @@ export class BlockchainService {
       const transaction = await connectedWallet.sendTransaction(tx);
       return transaction;
     } catch (error) {
-      console.error('Error sending transaction:', error);
+      logger.error('Error sending transaction:', error);
       throw error;
     }
   }
@@ -120,7 +121,7 @@ export class BlockchainService {
           // Use Next.js API route to avoid CORS issues
           const proxyUrl = `/api/transactions?chainId=${chainId}&address=${address}&limit=${limit}`;
           
-          console.log(`🔍 Trying block explorer API for chain ${chainId}...`);
+          logger.log(`🔍 Trying block explorer API for chain ${chainId}...`);
 
           const response = await fetch(proxyUrl);
           
@@ -128,7 +129,7 @@ export class BlockchainService {
             const data = await response.json();
 
             if (data.status === '1' && data.result && Array.isArray(data.result)) {
-              console.log(`✅ Loaded ${data.result.length} transactions from block explorer`);
+              logger.log(`✅ Loaded ${data.result.length} transactions from block explorer`);
               
               // Get chain config for metadata
               const chainConfig = CHAINS[this.chainKey];
@@ -149,26 +150,26 @@ export class BlockchainService {
                 logoUrl: getCurrencyLogoSync(chainConfig?.nativeCurrency.symbol || 'ETH'), // ✅ Dynamic currency logo
               }));
             } else {
-              console.warn(`Block explorer API failed: ${data.message || 'Unknown error'}`);
+              logger.warn(`Block explorer API failed: ${data.message || 'Unknown error'}`);
             }
           }
         } catch (explorerError) {
-          console.warn('Block explorer API unavailable, falling back to RPC scan');
+          logger.warn('Block explorer API unavailable, falling back to RPC scan');
         }
       }
 
       // No API key or API failed - show helpful message
-      console.error('❌ Transaction history unavailable');
-      console.error('📋 To view transaction history, add a valid Etherscan API key:');
-      console.error('   1. Create free account: https://etherscan.io/register');
-      console.error('   2. Get API key: https://etherscan.io/myapikey');
-      console.error('   3. Add to Vercel: NEXT_PUBLIC_ETHERSCAN_API_KEY');
-      console.error('   4. Redeploy app');
+      logger.error('❌ Transaction history unavailable');
+      logger.error('📋 To view transaction history, add a valid Etherscan API key:');
+      logger.error('   1. Create free account: https://etherscan.io/register');
+      logger.error('   2. Get API key: https://etherscan.io/myapikey');
+      logger.error('   3. Add to Vercel: NEXT_PUBLIC_ETHERSCAN_API_KEY');
+      logger.error('   4. Redeploy app');
       
       return [];
 
     } catch (error) {
-      console.error('Error fetching transaction history:', error);
+      logger.error('Error fetching transaction history:', error);
       return [];
     }
   }
@@ -197,7 +198,7 @@ export class BlockchainService {
       
       return feeInUSD;
     } catch (error) {
-      console.error('Error estimating fee:', error);
+      logger.error('Error estimating fee:', error);
       return '0';
     }
   }

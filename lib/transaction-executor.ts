@@ -13,6 +13,7 @@
 import { ethers } from 'ethers';
 import { Connection, PublicKey, Transaction as SolanaTransaction, SystemProgram, sendAndConfirmTransaction, Keypair } from '@solana/web3.js';
 import * as bitcoin from 'bitcoinjs-lib';
+import { logger } from '@/lib/logger';
 
 /**
  * Backend-compatible price fetcher using CoinGecko API directly
@@ -35,7 +36,7 @@ async function getTokenPriceBackend(symbol: string): Promise<number> {
 
   const coinId = COINGECKO_IDS[symbol];
   if (!coinId) {
-    console.warn(`⚠️ [PriceBackend] Unknown symbol: ${symbol}, using fallback`);
+    logger.warn(`⚠️ [PriceBackend] Unknown symbol: ${symbol}, using fallback`);
     // Fallback prices for common tokens
     const fallbacks: Record<string, number> = {
       'ETH': 2000,
@@ -51,7 +52,7 @@ async function getTokenPriceBackend(symbol: string): Promise<number> {
   }
 
   try {
-    console.log(`🔍 [PriceBackend] Fetching ${symbol} price from CoinGecko...`);
+    logger.log(`🔍 [PriceBackend] Fetching ${symbol} price from CoinGecko...`);
     
     // Direct CoinGecko API call (works in backend)
     const response = await fetch(
@@ -72,14 +73,14 @@ async function getTokenPriceBackend(symbol: string): Promise<number> {
     const price = data[coinId]?.usd;
 
     if (price && price > 0) {
-      console.log(`✅ [PriceBackend] ${symbol} = $${price}`);
+      logger.log(`✅ [PriceBackend] ${symbol} = $${price}`);
       return price;
     }
 
     throw new Error('Invalid price data');
 
   } catch (error) {
-    console.error(`❌ [PriceBackend] Failed to fetch ${symbol}:`, error instanceof Error ? error.message : 'Unknown');
+    logger.error(`❌ [PriceBackend] Failed to fetch ${symbol}:`, error instanceof Error ? error.message : 'Unknown');
     
     // Fallback prices
     const fallbacks: Record<string, number> = {
@@ -97,7 +98,7 @@ async function getTokenPriceBackend(symbol: string): Promise<number> {
     };
     
     const fallbackPrice = fallbacks[symbol] || 100;
-    console.log(`⚠️ [PriceBackend] Using fallback for ${symbol}: $${fallbackPrice}`);
+    logger.log(`⚠️ [PriceBackend] Using fallback for ${symbol}: $${fallbackPrice}`);
     return fallbackPrice;
   }
 }
@@ -129,7 +130,7 @@ export interface ExecutionResult {
  */
 export async function executeScheduledTransaction(req: ExecutionRequest): Promise<ExecutionResult> {
   try {
-    console.log(`🚀 Executing transaction on ${req.chain}...`);
+    logger.log(`🚀 Executing transaction on ${req.chain}...`);
 
     const chain = req.chain.toLowerCase();
 
@@ -144,7 +145,7 @@ export async function executeScheduledTransaction(req: ExecutionRequest): Promis
     }
 
   } catch (error: any) {
-    console.error('❌ Execution error:', error);
+    logger.error('❌ Execution error:', error);
     return {
       success: false,
       error: error.message || 'Unknown execution error',
@@ -178,7 +179,7 @@ async function executeEVMTransaction(req: ExecutionRequest): Promise<ExecutionRe
     let mnemonicStr: any = mnemonic;
     mnemonicStr = null;
     
-    console.log(`🔑 EVM wallet derived: ${wallet.address}`);
+    logger.log(`🔑 EVM wallet derived: ${wallet.address}`);
 
     let tx: any;
     let receipt: any;
@@ -223,9 +224,9 @@ async function executeEVMTransaction(req: ExecutionRequest): Promise<ExecutionRe
     const ethPrice = await getTokenPriceBackend('ETH');
     const gasCostUSD = gasCostETH * ethPrice;
 
-    console.log(`✅ EVM transaction executed: ${receipt.hash}`);
-    console.log(`   Gas used: ${gasUsed.toString()}`);
-    console.log(`   Gas cost: $${gasCostUSD.toFixed(4)}`);
+    logger.log(`✅ EVM transaction executed: ${receipt.hash}`);
+    logger.log(`   Gas used: ${gasUsed.toString()}`);
+    logger.log(`   Gas cost: $${gasCostUSD.toFixed(4)}`);
 
     return {
       success: true,
@@ -235,7 +236,7 @@ async function executeEVMTransaction(req: ExecutionRequest): Promise<ExecutionRe
     };
 
   } catch (error: any) {
-    console.error('❌ EVM execution error:', error);
+    logger.error('❌ EVM execution error:', error);
     return {
       success: false,
       error: error.message,
@@ -270,7 +271,7 @@ async function executeSolanaTransaction(req: ExecutionRequest): Promise<Executio
     let mnemonicStr: any = mnemonic;
     mnemonicStr = null;
     
-    console.log(`🔑 Solana keypair derived: ${fromKeypair.publicKey.toBase58()}`);
+    logger.log(`🔑 Solana keypair derived: ${fromKeypair.publicKey.toBase58()}`);
 
     const toPubkey = new PublicKey(req.toAddress);
 
@@ -329,8 +330,8 @@ async function executeSolanaTransaction(req: ExecutionRequest): Promise<Executio
     const solPrice = await getTokenPriceBackend('SOL');
     const gasCostUSD = feeSOL * solPrice;
 
-    console.log(`✅ Solana transaction executed: ${signature}`);
-    console.log(`   Fee: ${feeLamports} lamports ($${gasCostUSD.toFixed(4)})`);
+    logger.log(`✅ Solana transaction executed: ${signature}`);
+    logger.log(`   Fee: ${feeLamports} lamports ($${gasCostUSD.toFixed(4)})`);
 
     return {
       success: true,
@@ -339,7 +340,7 @@ async function executeSolanaTransaction(req: ExecutionRequest): Promise<Executio
     };
 
   } catch (error: any) {
-    console.error('❌ Solana execution error:', error);
+    logger.error('❌ Solana execution error:', error);
     return {
       success: false,
       error: error.message,
@@ -352,7 +353,7 @@ async function executeSolanaTransaction(req: ExecutionRequest): Promise<Executio
  */
 async function executeBitcoinLikeTransaction(req: ExecutionRequest): Promise<ExecutionResult> {
   try {
-    console.log(`🔨 [Bitcoin TX] Executing ${req.chain} transaction`);
+    logger.log(`🔨 [Bitcoin TX] Executing ${req.chain} transaction`);
 
     // ✅ Decrypt mnemonic using KMS
     const mnemonic = await getPrivateKeyFromEncrypted(
@@ -388,25 +389,25 @@ async function executeBitcoinLikeTransaction(req: ExecutionRequest): Promise<Exe
       throw new Error('Failed to derive private key');
     }
     
-    console.log(`🔑 ${req.chain} keypair derived (path: ${path})`);
+    logger.log(`🔑 ${req.chain} keypair derived (path: ${path})`);
 
     // ✅ Get address from private key for verification
     const { bitcoinTxBuilder } = await import('./bitcoin-tx-builder');
     const privateKeyBuffer = Buffer.from(child.privateKey);
     const derivedAddress = bitcoinTxBuilder.getAddressFromPrivateKey(privateKeyBuffer, req.chain);
     
-    console.log(`📍 Derived address: ${derivedAddress}`);
-    console.log(`📍 Expected address: ${req.fromAddress}`);
+    logger.log(`📍 Derived address: ${derivedAddress}`);
+    logger.log(`📍 Expected address: ${req.fromAddress}`);
     
     // Verify address matches (important security check)
     if (derivedAddress !== req.fromAddress) {
-      console.warn(`⚠️  Address mismatch! Using derived address for transaction.`);
+      logger.warn(`⚠️  Address mismatch! Using derived address for transaction.`);
     }
 
     // ✅ Convert amount from string to satoshis
     const amountSatoshis = Math.floor(parseFloat(req.amount) * 1e8);
     
-    console.log(`💰 Amount: ${amountSatoshis} satoshis (${req.amount} ${req.chain.toUpperCase()})`);
+    logger.log(`💰 Amount: ${amountSatoshis} satoshis (${req.amount} ${req.chain.toUpperCase()})`);
 
     // ✅ Build and broadcast transaction
     const txResult = await bitcoinTxBuilder.buildAndBroadcast({
@@ -442,9 +443,9 @@ async function executeBitcoinLikeTransaction(req: ExecutionRequest): Promise<Exe
     const coinPrice = await getTokenPriceBackend(symbol);
     const gasCostUSD = feeBTC * coinPrice;
 
-    console.log(`✅ ${req.chain} transaction executed successfully`);
-    console.log(`   TX Hash: ${txResult.txHash}`);
-    console.log(`   Fee: ${txResult.fee} satoshis ($${gasCostUSD.toFixed(4)})`);
+    logger.log(`✅ ${req.chain} transaction executed successfully`);
+    logger.log(`   TX Hash: ${txResult.txHash}`);
+    logger.log(`   Fee: ${txResult.fee} satoshis ($${gasCostUSD.toFixed(4)})`);
 
     return {
       success: true,
@@ -453,7 +454,7 @@ async function executeBitcoinLikeTransaction(req: ExecutionRequest): Promise<Exe
     };
 
   } catch (error: any) {
-    console.error('❌ Bitcoin execution error:', error);
+    logger.error('❌ Bitcoin execution error:', error);
     return {
       success: false,
       error: error.message || 'Transaction execution failed',
@@ -493,12 +494,12 @@ async function getPrivateKeyFromEncrypted(
   kmsEncryptedEphemeralKey: string
 ): Promise<string | null> {
   try {
-    console.log('🔐 Decrypting mnemonic...');
+    logger.log('🔐 Decrypting mnemonic...');
 
     // Step 1: Decrypt ephemeral key using AWS KMS
     const { kmsService } = await import('./kms-service');
     const ephemeralKeyRaw = await kmsService.decryptEphemeralKey(kmsEncryptedEphemeralKey);
-    console.log('✅ Ephemeral key decrypted via KMS');
+    logger.log('✅ Ephemeral key decrypted via KMS');
 
     // Step 2: Decrypt mnemonic using ephemeral key
     const { EphemeralKeyCrypto } = await import('./ephemeral-key-crypto');
@@ -506,16 +507,16 @@ async function getPrivateKeyFromEncrypted(
       encryptedMnemonic,
       new Uint8Array(ephemeralKeyRaw)
     );
-    console.log('✅ Mnemonic decrypted');
+    logger.log('✅ Mnemonic decrypted');
 
     // Step 3: Immediate cleanup of ephemeral key
     EphemeralKeyCrypto.zeroMemory(ephemeralKeyRaw);
-    console.log('✅ Ephemeral key zeroed from memory');
+    logger.log('✅ Ephemeral key zeroed from memory');
 
     return mnemonic;
 
   } catch (error: any) {
-    console.error('❌ Failed to decrypt mnemonic:', error);
+    logger.error('❌ Failed to decrypt mnemonic:', error);
     return null;
   }
 }
@@ -525,7 +526,7 @@ async function getPrivateKeyFromEncrypted(
  * Kept for reference but no longer used
  */
 async function getPrivateKey(address: string): Promise<string | null> {
-  console.warn('⚠️  getPrivateKey() is deprecated - use getPrivateKeyFromEncrypted() instead');
+  logger.warn('⚠️  getPrivateKey() is deprecated - use getPrivateKeyFromEncrypted() instead');
   return null;
 }
 

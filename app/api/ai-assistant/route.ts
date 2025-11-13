@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { logger } from '@/lib/logger';
 
 // Force dynamic rendering (no static generation)
 export const dynamic = 'force-dynamic';
@@ -227,7 +228,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('🤖 [AI API] Processing query:', {
+    logger.log('🤖 [AI API] Processing query:', {
       query: trimmedQuery.substring(0, 50) + '...',
       chain: context.chain,
       userId: userId?.substring(0, 8)
@@ -239,7 +240,7 @@ export async function POST(req: NextRequest) {
     // Step 1: Check cache
     const cached = await aiCache.get(trimmedQuery, context);
     if (cached) {
-      console.log('✅ [AI API] Cache hit - returning cached response');
+      logger.log('✅ [AI API] Cache hit - returning cached response');
       return NextResponse.json({
         ...cached,
         cached: true,
@@ -252,7 +253,7 @@ export async function POST(req: NextRequest) {
       const rateLimit = await aiCache.checkRateLimit(userId, 50);
       
       if (!rateLimit.allowed) {
-        console.warn('🚫 [AI API] Rate limit exceeded:', userId);
+        logger.warn('🚫 [AI API] Rate limit exceeded:', userId);
         return NextResponse.json(
           {
             error: 'Rate limit exceeded',
@@ -264,11 +265,11 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      console.log('✅ [AI API] Rate limit OK:', rateLimit);
+      logger.log('✅ [AI API] Rate limit OK:', rateLimit);
     }
 
     // Step 3: Call OpenAI GPT-4o-mini
-    console.log('📡 [AI API] Calling OpenAI...');
+    logger.log('📡 [AI API] Calling OpenAI...');
     
     // Build conversation messages with optional history
     const messages: Array<{role: 'system' | 'user' | 'assistant', content: string}> = [
@@ -282,7 +283,7 @@ export async function POST(req: NextRequest) {
     if (conversationHistory && conversationHistory.length > 0) {
       const recentHistory = conversationHistory.slice(-10); // Keep last 10 messages
       messages.push(...recentHistory as any);
-      console.log(`💬 [AI API] Including ${recentHistory.length} messages from history`);
+      logger.log(`💬 [AI API] Including ${recentHistory.length} messages from history`);
     }
 
     // Add current query with context
@@ -316,21 +317,21 @@ Parse this command and return structured JSON response.`
 
     const response = JSON.parse(responseText);
     
-    console.log('✅ [AI API] OpenAI response:', {
+    logger.log('✅ [AI API] OpenAI response:', {
       intent: response.intent,
       confidence: response.confidence
     });
 
     // Step 4: Validate addresses if this is a send transaction
     if (response.intent === 'send' && response.params?.to) {
-      console.log('🔍 [AI API] Validating recipient address:', response.params.to);
+      logger.log('🔍 [AI API] Validating recipient address:', response.params.to);
       
       try {
         const { addressValidator } = await import('@/lib/address-validator');
         const validation = addressValidator.validate(response.params.to);
         
         if (!validation.isValid) {
-          console.warn('⚠️ [AI API] Invalid address detected:', validation.error);
+          logger.warn('⚠️ [AI API] Invalid address detected:', validation.error);
           
           // Update response to clarify
           return NextResponse.json({
@@ -350,7 +351,7 @@ Parse this command and return structured JSON response.`
           
           if (validation.chainType !== expectedChainType) {
             const chainName = addressValidator.getChainName(validation.chainType!);
-            console.warn(`⚠️ [AI API] Chain mismatch: address is for ${chainName}, but transaction is for ${response.params.chain}`);
+            logger.warn(`⚠️ [AI API] Chain mismatch: address is for ${chainName}, but transaction is for ${response.params.chain}`);
             
             return NextResponse.json({
               intent: 'clarify',
@@ -365,7 +366,7 @@ Parse this command and return structured JSON response.`
           }
         }
         
-        console.log('✅ [AI API] Address validated successfully:', validation.chainType);
+        logger.log('✅ [AI API] Address validated successfully:', validation.chainType);
         
         // Add chain type to response if not present
         if (!response.params.chain && validation.chainType) {
@@ -378,7 +379,7 @@ Parse this command and return structured JSON response.`
             'bitcoin-cash': 'bitcoincash'
           };
           response.params.chain = chainMap[validation.chainType] || context.chain;
-          console.log(`🔗 [AI API] Auto-detected chain: ${response.params.chain}`);
+          logger.log(`🔗 [AI API] Auto-detected chain: ${response.params.chain}`);
         }
         
         // Use normalized/checksum address
@@ -387,7 +388,7 @@ Parse this command and return structured JSON response.`
         }
         
       } catch (error: any) {
-        console.error('❌ [AI API] Address validation error:', error);
+        logger.error('❌ [AI API] Address validation error:', error);
         // Continue without validation (non-blocking)
       }
     }
@@ -406,7 +407,7 @@ Parse this command and return structured JSON response.`
     });
 
   } catch (error: any) {
-    console.error('❌ [AI API] Error:', error);
+    logger.error('❌ [AI API] Error:', error);
 
     // Handle specific OpenAI errors
     if (error.status === 401) {

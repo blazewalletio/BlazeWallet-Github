@@ -17,6 +17,7 @@ import {
   Smartphone
 } from 'lucide-react';
 import SettingsModal from '../SettingsModal';
+import { logger } from '@/lib/logger';
 
 export default function SettingsTab() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);

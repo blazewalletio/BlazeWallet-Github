@@ -3,6 +3,8 @@
 // Updated to use new Session API (mandatory migration)
 // Superior fiat-to-crypto solution with automatic wallet delivery
 
+import { logger } from '@/lib/logger';
+
 export interface TransakConfig {
   walletAddress: string;
   walletAddresses?: { [key: string]: string }; // Multi-chain wallet addresses
@@ -56,10 +58,10 @@ export class TransakService {
       ? this.API_PRODUCTION_URL 
       : this.API_STAGING_URL;
 
-    console.log('🔥 TRANSAK SESSION DEBUG:');
-    console.log('API Base URL:', baseUrl);
-    console.log('API Key:', apiKey ? `${apiKey.substring(0, 8)}...` : 'MISSING');
-    console.log('Environment:', config.environment);
+    logger.log('🔥 TRANSAK SESSION DEBUG:');
+    logger.log('API Base URL:', baseUrl);
+    logger.log('API Key:', apiKey ? `${apiKey.substring(0, 8)}...` : 'MISSING');
+    logger.log('Environment:', config.environment);
 
     const sessionData = {
       widgetParams: {
@@ -83,10 +85,10 @@ export class TransakService {
       landingPage: 'HomePage'
     };
 
-    console.log('Session Data:', JSON.stringify(sessionData, null, 2));
+    logger.log('Session Data:', JSON.stringify(sessionData, null, 2));
 
     try {
-      console.log('Making request to:', `${baseUrl}/auth/public/v2/session`);
+      logger.log('Making request to:', `${baseUrl}/auth/public/v2/session`);
       
       const response = await fetch(`${baseUrl}/auth/public/v2/session`, {
         method: 'POST',
@@ -98,20 +100,20 @@ export class TransakService {
         body: JSON.stringify(sessionData),
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      logger.log('Response status:', response.status);
+      logger.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ TRANSAK SESSION ERROR:', response.status, errorText);
+        logger.error('❌ TRANSAK SESSION ERROR:', response.status, errorText);
         throw new Error(`Transak session creation failed: ${response.status} ${errorText}`);
       }
 
       const result = await response.json();
-      console.log('✅ TRANSAK SESSION SUCCESS:', result);
+      logger.log('✅ TRANSAK SESSION SUCCESS:', result);
       return result;
     } catch (error) {
-      console.error('❌ TRANSAK SESSION ERROR:', error);
+      logger.error('❌ TRANSAK SESSION ERROR:', error);
       throw error;
     }
   }
@@ -119,7 +121,7 @@ export class TransakService {
   // Open Transak widget with session (NEW METHOD with fallback)
   static async openWidget(config: TransakConfig) {
     try {
-      console.log('🔥 TRANSAK WIDGET DEBUG: Starting new session-based integration...');
+      logger.log('🔥 TRANSAK WIDGET DEBUG: Starting new session-based integration...');
       
       // Step 1: Try to create session
       try {
@@ -135,15 +137,15 @@ export class TransakService {
         // NEW: Only apiKey and sessionId are allowed in URL
         const url = `${baseUrl}?apiKey=${apiKey}&sessionId=${session.sessionId}`;
         
-        console.log('✅ SESSION SUCCESS - Final Transak URL:', url.replace(apiKey, '***API_KEY***'));
-        console.log('Session ID:', session.sessionId);
-        console.log('Opening Transak widget with session...');
+        logger.log('✅ SESSION SUCCESS - Final Transak URL:', url.replace(apiKey, '***API_KEY***'));
+        logger.log('Session ID:', session.sessionId);
+        logger.log('Opening Transak widget with session...');
 
         this.openPopup(url);
         return;
         
       } catch (sessionError) {
-        console.warn('⚠️ SESSION API FAILED, falling back to legacy method:', sessionError);
+        logger.warn('⚠️ SESSION API FAILED, falling back to legacy method:', sessionError);
         
         // FALLBACK: Use legacy method if session creation fails
         const baseUrl = config.environment === 'PRODUCTION' 
@@ -173,13 +175,13 @@ export class TransakService {
 
         const url = `${baseUrl}?${params.toString()}`;
         
-        console.log('⚠️ FALLBACK - Final Transak URL:', url.replace(apiKey, '***API_KEY***'));
-        console.log('Opening Transak widget with legacy method...');
+        logger.log('⚠️ FALLBACK - Final Transak URL:', url.replace(apiKey, '***API_KEY***'));
+        logger.log('Opening Transak widget with legacy method...');
 
         this.openPopup(url);
       }
     } catch (error) {
-      console.error('❌ TRANSAK WIDGET ERROR:', error);
+      logger.error('❌ TRANSAK WIDGET ERROR:', error);
       throw error;
     }
   }
@@ -199,10 +201,10 @@ export class TransakService {
     
     // DEBUG: Check if popup opened successfully
     if (!popup || popup.closed || typeof popup.closed == 'undefined') {
-      console.error('❌ TRANSAK ERROR: Popup blocked! Please allow popups for this site.');
+      logger.error('❌ TRANSAK ERROR: Popup blocked! Please allow popups for this site.');
       throw new Error('Popup blocked by browser');
     } else {
-      console.log('✅ TRANSAK SUCCESS: Widget opened');
+      logger.log('✅ TRANSAK SUCCESS: Widget opened');
     }
   }
 

@@ -19,6 +19,7 @@ import BuyModal from '../BuyModal';
 import TokenSelector from '../TokenSelector';
 import AnimatedNumber from '../AnimatedNumber';
 import { getPortfolioHistory } from '@/lib/portfolio-history';
+import { logger } from '@/lib/logger';
 
 export default function WalletTab() {
   const { 
@@ -58,16 +59,16 @@ export default function WalletTab() {
     
     try {
       const timestamp = Date.now();
-      console.log(`[${timestamp}] Fetching balance for ${address} on ${currentChain}`);
+      logger.log(`[${timestamp}] Fetching balance for ${address} on ${currentChain}`);
       
       const bal = await blockchain.getBalance(address);
-      console.log(`[${timestamp}] Balance received: ${bal} ${chain.nativeCurrency.symbol}`);
+      logger.log(`[${timestamp}] Balance received: ${bal} ${chain.nativeCurrency.symbol}`);
       updateBalance(bal);
 
       const nativePrice = await priceService.getPrice(chain.nativeCurrency.symbol);
       const nativeValueUSD = parseFloat(bal) * nativePrice;
       
-      console.log(`[${timestamp}] Native balance details:`, {
+      logger.log(`[${timestamp}] Native balance details:`, {
         balance: bal,
         symbol: chain.nativeCurrency.symbol,
         priceUSD: nativePrice,
@@ -119,7 +120,7 @@ export default function WalletTab() {
       updateChartData();
       
     } catch (error) {
-      console.error('Error fetching data:', error);
+      logger.error('Error fetching data:', error);
     } finally {
       setIsRefreshing(false);
     }

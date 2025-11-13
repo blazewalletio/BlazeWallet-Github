@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { gasPriceService } from '@/lib/gas-price-service';
 import { ethers } from 'ethers';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes max
@@ -42,7 +43,7 @@ export async function GET(req: NextRequest) {
     const cronSecret = req.url.includes('CRON_SECRET=') ? new URL(req.url).searchParams.get('CRON_SECRET') : null;
     
     // Debug logging
-    console.log('🔐 Auth check:', {
+    logger.log('🔐 Auth check:', {
       userAgent,
       vercelCronHeader: vercelCronHeader ? 'present' : 'missing',
       vercelId: vercelId ? 'present' : 'missing',
@@ -56,7 +57,7 @@ export async function GET(req: NextRequest) {
     
     // Allow: Vercel requests (via headers), Authorization header, or query param secret
     if (!isVercelCron && authHeader !== `Bearer ${CRON_SECRET}` && cronSecret !== CRON_SECRET) {
-      console.error('❌ Unauthorized cron attempt', {
+      logger.error('❌ Unauthorized cron attempt', {
         vercelCronHeader,
         vercelId: !!vercelId,
         vercelDeploymentId: !!vercelDeploymentId,
@@ -82,10 +83,10 @@ export async function GET(req: NextRequest) {
       }, { status: 401 });
     }
 
-    console.log('\n========================================');
-    console.log('⏰ [CRON] SMART SEND EXECUTION JOB');
-    console.log('========================================');
-    console.log('🕐 Time:', new Date().toISOString());
+    logger.log('\n========================================');
+    logger.log('⏰ [CRON] SMART SEND EXECUTION JOB');
+    logger.log('========================================');
+    logger.log('🕐 Time:', new Date().toISOString());
 
     // Get all pending scheduled transactions
     const { data: pendingTxs, error: fetchError } = await supabase
@@ -102,11 +103,11 @@ export async function GET(req: NextRequest) {
       throw new Error(`Failed to fetch pending transactions: ${fetchError.message}`);
     }
 
-    console.log(`📊 Found ${pendingTxs?.length || 0} pending transactions`);
+    logger.log(`📊 Found ${pendingTxs?.length || 0} pending transactions`);
 
     if (!pendingTxs || pendingTxs.length === 0) {
-      console.log('✅ No transactions to execute');
-      console.log('========================================\n');
+      logger.log('✅ No transactions to execute');
+      logger.log('========================================\n');
       return NextResponse.json({
         success: true,
         message: 'No transactions to execute',
@@ -121,18 +122,18 @@ export async function GET(req: NextRequest) {
 
     for (const tx of pendingTxs) {
       try {
-        console.log(`\n💫 Processing transaction ${tx.id}`);
-        console.log(`   Chain: ${tx.chain}`);
-        console.log(`   Amount: ${tx.amount} ${tx.token_symbol}`);
-        console.log(`   To: ${tx.to_address}`);
+        logger.log(`\n💫 Processing transaction ${tx.id}`);
+        logger.log(`   Chain: ${tx.chain}`);
+        logger.log(`   Amount: ${tx.amount} ${tx.token_symbol}`);
+        logger.log(`   To: ${tx.to_address}`);
 
         // Check current gas price
         const currentGas = await gasPriceService.getGasPrice(tx.chain);
-        console.log(`   Current gas: ${currentGas.standard.toFixed(2)}`);
+        logger.log(`   Current gas: ${currentGas.standard.toFixed(2)}`);
 
         // Check if gas is acceptable
         if (tx.optimal_gas_threshold && currentGas.standard > tx.optimal_gas_threshold) {
-          console.log(`   ⏭️  Skipping - gas too high (${currentGas.standard} > ${tx.optimal_gas_threshold})`);
+          logger.log(`   ⏭️  Skipping - gas too high (${currentGas.standard} > ${tx.optimal_gas_threshold})`);
           
           // Check if we should expire it
           const maxWaitReached = new Date() > new Date(tx.expires_at);
@@ -141,7 +142,7 @@ export async function GET(req: NextRequest) {
               .from('scheduled_transactions')
               .update({ status: 'expired', updated_at: new Date().toISOString() })
               .eq('id', tx.id);
-            console.log(`   ⏱️  Transaction expired`);
+            logger.log(`   ⏱️  Transaction expired`);
           }
           
           skipped++;
@@ -179,14 +180,14 @@ export async function GET(req: NextRequest) {
           // Send notification (will implement in next step)
           await sendNotification(tx, result);
 
-          console.log(`   ✅ Transaction executed: ${result.txHash}`);
+          logger.log(`   ✅ Transaction executed: ${result.txHash}`);
           executed++;
         } else {
           throw new Error(result.error || 'Unknown execution error');
         }
 
       } catch (error: any) {
-        console.error(`   ❌ Failed to execute ${tx.id}:`, error.message);
+        logger.error(`   ❌ Failed to execute ${tx.id}:`, error.message);
 
         // Update retry count
         const newRetryCount = (tx.retry_count || 0) + 1;
@@ -203,7 +204,7 @@ export async function GET(req: NextRequest) {
               updated_at: new Date().toISOString(),
             })
             .eq('id', tx.id);
-          console.log(`   ❌ Transaction failed after ${maxRetries} retries`);
+          logger.log(`   ❌ Transaction failed after ${maxRetries} retries`);
         } else {
           // Mark as pending for retry
           await supabase
@@ -215,18 +216,18 @@ export async function GET(req: NextRequest) {
               updated_at: new Date().toISOString(),
             })
             .eq('id', tx.id);
-          console.log(`   🔄 Will retry (attempt ${newRetryCount}/${maxRetries})`);
+          logger.log(`   🔄 Will retry (attempt ${newRetryCount}/${maxRetries})`);
         }
 
         failed++;
       }
     }
 
-    console.log('\n📊 EXECUTION SUMMARY:');
-    console.log(`   ✅ Executed: ${executed}`);
-    console.log(`   ❌ Failed: ${failed}`);
-    console.log(`   ⏭️  Skipped: ${skipped}`);
-    console.log('========================================\n');
+    logger.log('\n📊 EXECUTION SUMMARY:');
+    logger.log(`   ✅ Executed: ${executed}`);
+    logger.log(`   ❌ Failed: ${failed}`);
+    logger.log(`   ⏭️  Skipped: ${skipped}`);
+    logger.log('========================================\n');
 
     return NextResponse.json({
       success: true,
@@ -237,7 +238,7 @@ export async function GET(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('❌ [CRON] Fatal error:', error);
+    logger.error('❌ [CRON] Fatal error:', error);
 
     return NextResponse.json({
       success: false,
@@ -288,7 +289,7 @@ async function executeTransaction(tx: any, currentGasPrice: number): Promise<{
           key_deleted_at: new Date().toISOString(),
         })
         .eq('id', tx.id);
-      console.log(`   🔒 Encrypted keys deleted after execution`);
+      logger.log(`   🔒 Encrypted keys deleted after execution`);
     }
 
     return result;
@@ -336,10 +337,10 @@ async function trackSavings(tx: any, actualGasPrice: number, actualGasCostUSD: n
       p_was_scheduled: true,
     });
 
-    console.log(`   💰 Tracked savings: $${savings.toFixed(2)} (${savingsPercentage.toFixed(1)}%)`);
+    logger.log(`   💰 Tracked savings: $${savings.toFixed(2)} (${savingsPercentage.toFixed(1)}%)`);
 
   } catch (error: any) {
-    console.error('   ⚠️  Failed to track savings:', error.message);
+    logger.error('   ⚠️  Failed to track savings:', error.message);
   }
 }
 
@@ -364,10 +365,10 @@ async function sendNotification(tx: any, result: any) {
         read: false,
       });
 
-    console.log(`   📧 Notification queued`);
+    logger.log(`   📧 Notification queued`);
 
   } catch (error: any) {
-    console.error('   ⚠️  Failed to send notification:', error.message);
+    logger.error('   ⚠️  Failed to send notification:', error.message);
   }
 }
 

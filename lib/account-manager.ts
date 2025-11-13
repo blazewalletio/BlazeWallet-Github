@@ -4,6 +4,8 @@
  * Perfect integration with Supabase
  */
 
+import { logger } from '@/lib/logger';
+
 export interface WalletAccount {
   id: string;                    // supabase_user_id or wallet hash
   type: 'email' | 'seed';
@@ -103,7 +105,7 @@ export function getRecentAccounts(): WalletAccount[] {
       isActive: false,
     }));
   } catch (error) {
-    console.error('Failed to parse recent accounts:', error);
+    logger.error('Failed to parse recent accounts:', error);
     return [];
   }
 }
@@ -130,7 +132,7 @@ export function saveCurrentAccountToRecent(): void {
   
   localStorage.setItem(RECENT_ACCOUNTS_KEY, JSON.stringify(updated));
   
-  console.log('✅ Saved current account to recent:', currentAccount.displayName);
+  logger.log('✅ Saved current account to recent:', currentAccount.displayName);
 }
 
 /**
@@ -143,7 +145,7 @@ export async function switchToEmailAccount(
 ): Promise<void> {
   if (typeof window === 'undefined') return;
   
-  console.log('🔄 Switching to email account:', email);
+  logger.log('🔄 Switching to email account:', email);
   
   // Save current account before switching
   saveCurrentAccountToRecent();
@@ -158,7 +160,7 @@ export async function switchToEmailAccount(
   // Clear session flag to require unlock
   sessionStorage.removeItem('wallet_unlocked_this_session');
   
-  console.log('✅ Switched to email account:', email);
+  logger.log('✅ Switched to email account:', email);
 }
 
 /**
@@ -167,7 +169,7 @@ export async function switchToEmailAccount(
 export async function switchToSeedWallet(walletId: string): Promise<void> {
   if (typeof window === 'undefined') return;
   
-  console.log('🔄 Switching to seed wallet:', walletId);
+  logger.log('🔄 Switching to seed wallet:', walletId);
   
   // Save current account before switching
   saveCurrentAccountToRecent();
@@ -190,7 +192,7 @@ export async function switchToSeedWallet(walletId: string): Promise<void> {
   // Clear session flag to require unlock
   sessionStorage.removeItem('wallet_unlocked_this_session');
   
-  console.log('✅ Switched to seed wallet:', walletId);
+  logger.log('✅ Switched to seed wallet:', walletId);
 }
 
 /**
@@ -204,7 +206,7 @@ export function removeAccount(accountId: string): void {
   
   localStorage.setItem(RECENT_ACCOUNTS_KEY, JSON.stringify(filtered));
   
-  console.log('✅ Removed account from recent:', accountId);
+  logger.log('✅ Removed account from recent:', accountId);
 }
 
 /**
@@ -214,7 +216,7 @@ export function clearRecentAccounts(): void {
   if (typeof window === 'undefined') return;
   
   localStorage.removeItem(RECENT_ACCOUNTS_KEY);
-  console.log('✅ Cleared all recent accounts');
+  logger.log('✅ Cleared all recent accounts');
 }
 
 /**

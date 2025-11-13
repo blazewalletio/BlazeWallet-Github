@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { Activity, Clock, ArrowUpRight, ArrowDownLeft, Repeat } from 'lucide-react';
 import TransactionHistory from '../TransactionHistory';
+import { logger } from '@/lib/logger';
 
 export default function HistoryTab() {
   return (

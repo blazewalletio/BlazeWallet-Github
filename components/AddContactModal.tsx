@@ -8,6 +8,7 @@ import { CHAINS } from '@/lib/chains';
 import { BlockchainService } from '@/lib/blockchain';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { getCurrentAccount } from '@/lib/account-manager';
+import { logger } from '@/lib/logger';
 
 interface AddContactModalProps {
   isOpen: boolean;
@@ -58,17 +59,17 @@ export default function AddContactModal({
   useBlockBodyScroll(isOpen);
 
   useEffect(() => {
-    console.log('🔍 [AddContactModal] Fetching user ID from account manager...');
+    logger.log('🔍 [AddContactModal] Fetching user ID from account manager...');
     const account = getCurrentAccount();
-    console.log('🔍 [AddContactModal] Current account:', account);
+    logger.log('🔍 [AddContactModal] Current account:', account);
     
     if (account) {
       // Use displayName (email) or id (wallet hash) as user_id
       const userIdentifier = account.email || account.id;
-      console.log('✅ [AddContactModal] User identifier:', userIdentifier);
+      logger.log('✅ [AddContactModal] User identifier:', userIdentifier);
       setUserId(userIdentifier);
     } else {
-      console.error('❌ [AddContactModal] No account found!');
+      logger.error('❌ [AddContactModal] No account found!');
       setUserId(null);
     }
   }, []);
@@ -199,16 +200,16 @@ export default function AddContactModal({
   };
 
   const handleSave = async () => {
-    console.log('🔍 [AddContactModal] handleSave called');
-    console.log('🔍 [AddContactModal] Current userId state:', userId);
+    logger.log('🔍 [AddContactModal] handleSave called');
+    logger.log('🔍 [AddContactModal] Current userId state:', userId);
     
     if (!userId) {
-      console.error('❌ [AddContactModal] No user ID found!');
+      logger.error('❌ [AddContactModal] No user ID found!');
       setError('Please log in to save contacts');
       return;
     }
 
-    console.log('✅ [AddContactModal] User is logged in, proceeding...');
+    logger.log('✅ [AddContactModal] User is logged in, proceeding...');
 
     if (!name.trim()) {
       setError('Name is required');
@@ -231,7 +232,7 @@ export default function AddContactModal({
     try {
       if (editContact) {
         // Update existing contact
-        console.log('🔄 [AddContactModal] Updating contact:', editContact.id);
+        logger.log('🔄 [AddContactModal] Updating contact:', editContact.id);
         const { error: updateError } = await supabase
           .from('address_book')
           .update({
@@ -247,13 +248,13 @@ export default function AddContactModal({
           .eq('id', editContact.id);
 
         if (updateError) {
-          console.error('❌ [AddContactModal] Update error:', updateError);
+          logger.error('❌ [AddContactModal] Update error:', updateError);
           throw updateError;
         }
-        console.log('✅ [AddContactModal] Contact updated successfully');
+        logger.log('✅ [AddContactModal] Contact updated successfully');
       } else {
         // Create new contact
-        console.log('➕ [AddContactModal] Creating new contact for user:', userId);
+        logger.log('➕ [AddContactModal] Creating new contact for user:', userId);
         const contactData = {
           user_id: userId,
           name: name.trim(),
@@ -265,7 +266,7 @@ export default function AddContactModal({
           notes: notes.trim() || null,
           is_favorite: isFavorite,
         };
-        console.log('📝 [AddContactModal] Contact data:', contactData);
+        logger.log('📝 [AddContactModal] Contact data:', contactData);
         
         const { data: insertData, error: insertError } = await supabase
           .from('address_book')
@@ -273,10 +274,10 @@ export default function AddContactModal({
           .select();
 
         if (insertError) {
-          console.error('❌ [AddContactModal] Insert error:', insertError);
+          logger.error('❌ [AddContactModal] Insert error:', insertError);
           throw insertError;
         }
-        console.log('✅ [AddContactModal] Contact created successfully:', insertData);
+        logger.log('✅ [AddContactModal] Contact created successfully:', insertData);
       }
 
       // Show success animation
@@ -285,7 +286,7 @@ export default function AddContactModal({
         onSaved();
       }, 1000);
     } catch (err: any) {
-      console.error('❌ [AddContactModal] Failed to save contact:', err);
+      logger.error('❌ [AddContactModal] Failed to save contact:', err);
       setError(err.message || 'Failed to save contact');
       setIsSaving(false);
     }

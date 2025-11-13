@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, Rocket, Users, Sparkles } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface CountdownWidgetProps {
   targetDate: Date;

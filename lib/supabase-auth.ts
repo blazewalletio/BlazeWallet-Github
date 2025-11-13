@@ -4,6 +4,7 @@
 import { supabase } from './supabase';
 import * as bip39 from 'bip39';
 import { ethers } from 'ethers';
+import { logger } from '@/lib/logger';
 
 // =============================================================================
 // ENCRYPTION UTILITIES
@@ -172,7 +173,7 @@ export async function signUpWithEmail(
       });
 
     if (walletError) {
-      console.error('Failed to save encrypted wallet:', walletError);
+      logger.error('Failed to save encrypted wallet:', walletError);
       // User is created but wallet save failed - still return success
       // User can always recover with mnemonic
     }
@@ -197,7 +198,7 @@ export async function signUpWithEmail(
       mnemonic, // Return mnemonic so user can back it up
     };
   } catch (error: any) {
-    console.error('Sign up error:', error);
+    logger.error('Sign up error:', error);
     return { success: false, error: error.message || 'Failed to sign up' };
   }
 }
@@ -259,7 +260,7 @@ export async function signInWithEmail(
       mnemonic,
     };
   } catch (error: any) {
-    console.error('Sign in error:', error);
+    logger.error('Sign in error:', error);
     return { success: false, error: error.message || 'Failed to sign in' };
   }
 }
@@ -282,7 +283,7 @@ export async function signInWithGoogle(): Promise<{ success: boolean; error?: st
 
     return { success: true };
   } catch (error: any) {
-    console.error('Google sign in error:', error);
+    logger.error('Google sign in error:', error);
     return { success: false, error: error.message || 'Failed to sign in with Google' };
   }
 }
@@ -305,7 +306,7 @@ export async function signInWithApple(): Promise<{ success: boolean; error?: str
 
     return { success: true };
   } catch (error: any) {
-    console.error('Apple sign in error:', error);
+    logger.error('Apple sign in error:', error);
     return { success: false, error: error.message || 'Failed to sign in with Apple' };
   }
 }
@@ -330,7 +331,7 @@ export async function signOut(): Promise<{ success: boolean; error?: string }> {
 
     return { success: true };
   } catch (error: any) {
-    console.error('Sign out error:', error);
+    logger.error('Sign out error:', error);
     return { success: false, error: error.message || 'Failed to sign out' };
   }
 }
@@ -390,7 +391,7 @@ export async function updateCloudWallet(
 
     return { success: true };
   } catch (error: any) {
-    console.error('Update cloud wallet error:', error);
+    logger.error('Update cloud wallet error:', error);
     return { success: false, error: error.message || 'Failed to update cloud wallet' };
   }
 }

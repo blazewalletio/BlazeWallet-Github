@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Shield, AlertCircle, Check } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
+import { logger } from '@/lib/logger';
 
 interface PasswordSetupModalProps {
   isOpen: boolean;
@@ -44,7 +45,7 @@ export default function PasswordSetupModal({ isOpen, onComplete }: PasswordSetup
 
     setIsLoading(true);
     try {
-      console.log('🔐 Setting up password...');
+      logger.log('🔐 Setting up password...');
       await setWalletPassword(password);
       
       // ✅ SECURITY: Do NOT store password for biometric access here
@@ -58,10 +59,10 @@ export default function PasswordSetupModal({ isOpen, onComplete }: PasswordSetup
         localStorage.removeItem('force_password_setup');
       }
       
-      console.log('✅ Password setup complete!');
+      logger.log('✅ Password setup complete!');
       onComplete(password); // Pass password for biometric setup
     } catch (error: any) {
-      console.error('Password setup error:', error);
+      logger.error('Password setup error:', error);
       const errorMessage = error?.message || 'Er is een fout opgetreden. Probeer opnieuw.';
       setError(errorMessage);
     } finally {

@@ -9,6 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 // TODO: Import your LND/CLN client here
 // import { LndClient } from '@/lib/lnd-client';
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`⚡ Creating Lightning invoice: ${amountSats} sats`);
+    logger.log(`⚡ Creating Lightning invoice: ${amountSats} sats`);
 
     // TODO: Replace with actual LND/CLN implementation
     // const lnd = new LndClient();
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
       invoice: mockInvoice,
     });
   } catch (error: any) {
-    console.error('❌ Failed to create Lightning invoice:', error);
+    logger.error('❌ Failed to create Lightning invoice:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to create invoice' },
       { status: 500 }

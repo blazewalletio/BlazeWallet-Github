@@ -8,6 +8,7 @@ import { PresaleService } from '@/lib/presale-service';
 import { PRESALE_CONSTANTS, CURRENT_PRESALE } from '@/lib/presale-config';
 import { CHAINS } from '@/lib/chains';
 import { ethers } from 'ethers';
+import { logger } from '@/lib/logger';
 
 interface PresaleModalProps {
   isOpen: boolean;
@@ -15,7 +16,7 @@ interface PresaleModalProps {
 }
 
 export default function PresaleModal({ isOpen, onClose }: PresaleModalProps) {
-  console.log('🎯 PresaleModal component rendered:', { isOpen });
+  logger.log('🎯 PresaleModal component rendered:', { isOpen });
   
   const { wallet, address, currentChain } = useWalletStore();
   const [contributionAmount, setContributionAmount] = useState('');
@@ -53,34 +54,34 @@ export default function PresaleModal({ isOpen, onClose }: PresaleModalProps) {
 
   // Load presale data when modal opens
   useEffect(() => {
-    console.log('🔄 PresaleModal useEffect triggered:', {
+    logger.log('🔄 PresaleModal useEffect triggered:', {
       isOpen,
       hasWallet: !!wallet,
       hasAddress: !!address
     });
     
     if (isOpen && wallet && address) {
-      console.log('✅ Conditions met, calling loadPresaleData...');
+      logger.log('✅ Conditions met, calling loadPresaleData...');
       loadPresaleData();
     } else {
-      console.log('❌ Conditions not met, not calling loadPresaleData');
+      logger.log('❌ Conditions not met, not calling loadPresaleData');
     }
   }, [isOpen, wallet, address]);
 
   const loadPresaleData = async () => {
-    console.log('🚀 loadPresaleData called!');
-    console.log('🚀 Wallet exists:', !!wallet);
-    console.log('🚀 Presale address:', CURRENT_PRESALE.presaleAddress);
+    logger.log('🚀 loadPresaleData called!');
+    logger.log('🚀 Wallet exists:', !!wallet);
+    logger.log('🚀 Presale address:', CURRENT_PRESALE.presaleAddress);
     
     if (!wallet || !CURRENT_PRESALE.presaleAddress) {
-      console.log('❌ Missing wallet or presale address');
+      logger.log('❌ Missing wallet or presale address');
       setError('Presale not configured. Please deploy contracts first.');
       return;
     }
 
     // Check if wallet has provider, and create one if needed
     if (!wallet.provider) {
-      console.log('🔧 Wallet has no provider, creating one...');
+      logger.log('🔧 Wallet has no provider, creating one...');
       try {
         // Create a provider for the current chain
         const chainConfig = CHAINS[currentChain];
@@ -89,17 +90,17 @@ export default function PresaleModal({ isOpen, onClose }: PresaleModalProps) {
         // Connect wallet to provider
         const connectedWallet = wallet.connect(provider);
         
-        console.log('✅ Provider created and wallet connected');
+        logger.log('✅ Provider created and wallet connected');
         
         // Update wallet in store
         useWalletStore.setState({ wallet: connectedWallet });
         
         // Use the connected wallet for the presale service
-        console.log('✅ All checks passed, starting to load presale data...');
+        logger.log('✅ All checks passed, starting to load presale data...');
         setIsLoading(true);
         
         const presaleService = new PresaleService(wallet);
-        console.log('🔍 Creating PresaleService with connected wallet:', {
+        logger.log('🔍 Creating PresaleService with connected wallet:', {
           hasProvider: !!wallet.provider,
           address: wallet.address,
           providerType: 'JsonRpcProvider'
@@ -109,32 +110,32 @@ export default function PresaleModal({ isOpen, onClose }: PresaleModalProps) {
         await loadPresaleDataWithService(presaleService);
         
       } catch (error) {
-        console.error('❌ Error creating provider:', error);
+        logger.error('❌ Error creating provider:', error);
         setError('Failed to connect wallet to blockchain');
         setIsLoading(false);
         return;
       }
     } else {
       // Wallet already has provider
-      console.log('✅ All checks passed, starting to load presale data...');
+      logger.log('✅ All checks passed, starting to load presale data...');
       setIsLoading(true);
       
       try {
-        console.log('🔍 Creating PresaleService with wallet:', {
+        logger.log('🔍 Creating PresaleService with wallet:', {
           hasProvider: !!wallet.provider,
           address: wallet.address,
           providerType: 'JsonRpcProvider'
         });
         
         const presaleService = new PresaleService(wallet);
-        console.log('🔍 PresaleService created successfully');
+        logger.log('🔍 PresaleService created successfully');
         
         // Continue with presale data loading
         await loadPresaleDataWithService(presaleService);
         
       } catch (err: any) {
-        console.error('❌ Error loading presale data:', err);
-        console.error('❌ Error details:', {
+        logger.error('❌ Error loading presale data:', err);
+        logger.error('❌ Error details:', {
           message: err.message,
           code: err.code,
           reason: err.reason,
@@ -147,7 +148,7 @@ export default function PresaleModal({ isOpen, onClose }: PresaleModalProps) {
         }
       } finally {
         setIsLoading(false);
-        console.log('🏁 loadPresaleData completed');
+        logger.log('🏁 loadPresaleData completed');
       }
     }
   };
@@ -164,7 +165,7 @@ export default function PresaleModal({ isOpen, onClose }: PresaleModalProps) {
     // Load presale info
     const info = await presaleService.getPresaleInfo();
     
-    console.log('🔍 Presale info from service:', {
+    logger.log('🔍 Presale info from service:', {
       raised: info.raised,
       participants: info.participantCount,
       timeRemaining: info.timeRemaining,
@@ -175,7 +176,7 @@ export default function PresaleModal({ isOpen, onClose }: PresaleModalProps) {
     // Debug time formatting
     const days = Math.floor(info.timeRemaining / (24 * 60 * 60 * 1000));
     const hours = Math.floor((info.timeRemaining % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
-    console.log('⏰ Time formatting debug:', {
+    logger.log('⏰ Time formatting debug:', {
       timeRemainingMs: info.timeRemaining,
       days,
       hours,
@@ -223,7 +224,7 @@ export default function PresaleModal({ isOpen, onClose }: PresaleModalProps) {
       // Ensure wallet has provider
       let walletWithProvider = wallet;
       if (!wallet.provider) {
-        console.log('🔧 Wallet has no provider, creating one for contribution...');
+        logger.log('🔧 Wallet has no provider, creating one for contribution...');
         const chainConfig = CHAINS[currentChain];
         const provider = new ethers.JsonRpcProvider(chainConfig.rpcUrl);
         walletWithProvider = wallet.connect(provider);

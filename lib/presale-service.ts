@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import { CURRENT_PRESALE, PRESALE_CONSTANTS } from './presale-config';
+import { logger } from '@/lib/logger';
 
 // Simplified ABIs - only functions we need
 const PRESALE_ABI = [
@@ -78,12 +79,12 @@ export class PresaleService {
    */
   async getPresaleInfo(): Promise<PresaleInfo> {
     try {
-      console.log('🔍 Fetching presale info from contract:', CURRENT_PRESALE.presaleAddress);
-      console.log('🔍 Using provider: Browser provider');
+      logger.log('🔍 Fetching presale info from contract:', CURRENT_PRESALE.presaleAddress);
+      logger.log('🔍 Using provider: Browser provider');
       
       const info = await this.presaleContract.getPresaleInfo();
       
-      console.log('📊 Raw contract result:', {
+      logger.log('📊 Raw contract result:', {
         active: info.active,
         finalized: info.finalized,
         raised: info.raised.toString(),
@@ -100,7 +101,7 @@ export class PresaleService {
       const timeRemainingSeconds = Number(info.timeRemaining);
       const timeRemainingMs = timeRemainingSeconds * 1000;
       
-      console.log('💰 Conversion:', {
+      logger.log('💰 Conversion:', {
         raisedBNB,
         bnbPrice,
         raisedUSD,
@@ -119,12 +120,12 @@ export class PresaleService {
         bnbPrice: bnbPrice, // Include BNB price for frontend calculations
       };
       
-      console.log('✅ Final result:', result);
+      logger.log('✅ Final result:', result);
       
       return result;
     } catch (error) {
-      console.error('❌ Error getting presale info:', error);
-      console.error('❌ Error details:', {
+      logger.error('❌ Error getting presale info:', error);
+      logger.error('❌ Error details:', {
         message: (error as any).message,
         code: (error as any).code,
         reason: (error as any).reason,
@@ -150,7 +151,7 @@ export class PresaleService {
         hasClaimed: info.claimed,
       };
     } catch (error) {
-      console.error('Error getting user info:', error);
+      logger.error('Error getting user info:', error);
       throw error;
     }
   }
@@ -165,7 +166,7 @@ export class PresaleService {
       const bnbPrice = await this.getBNBPrice();
       const amountBNB = amountUSD / bnbPrice;
       
-      console.log(`Contributing $${amountUSD} (${amountBNB.toFixed(4)} BNB)`);
+      logger.log(`Contributing $${amountUSD} (${amountBNB.toFixed(4)} BNB)`);
       
       // Check limits
       if (amountUSD < PRESALE_CONSTANTS.minContribution) {
@@ -174,7 +175,7 @@ export class PresaleService {
       
       // Send transaction
       const valueInWei = ethers.parseEther(amountBNB.toFixed(18));
-      console.log('💰 Contributing:', {
+      logger.log('💰 Contributing:', {
         amountUSD: amountUSD,
         amountBNB: amountBNB.toFixed(4),
         valueInWei: valueInWei.toString(),
@@ -185,7 +186,7 @@ export class PresaleService {
       const iface = new ethers.Interface(PRESALE_ABI);
       const data = iface.encodeFunctionData('contribute', []);
       
-      console.log('📝 Transaction data:', {
+      logger.log('📝 Transaction data:', {
         to: this.presaleContract.target,
         value: valueInWei.toString(),
         data: data
@@ -199,18 +200,18 @@ export class PresaleService {
         gasLimit: 300000, // Set gas limit to avoid estimation issues
       });
       
-      console.log('Transaction sent:', tx.hash);
+      logger.log('Transaction sent:', tx.hash);
       
       // Wait for confirmation
       const receipt = await tx.wait();
       if (!receipt) {
         throw new Error('Transaction receipt is null');
       }
-      console.log('Transaction confirmed:', receipt.hash);
+      logger.log('Transaction confirmed:', receipt.hash);
       
       return receipt.hash;
     } catch (error: any) {
-      console.error('Error contributing:', error);
+      logger.error('Error contributing:', error);
       
       // Parse error message
       if (error.message.includes('Below minimum contribution')) {
@@ -238,14 +239,14 @@ export class PresaleService {
         gasLimit: 200000,
       });
       
-      console.log('Claim transaction sent:', tx.hash);
+      logger.log('Claim transaction sent:', tx.hash);
       
       const receipt = await tx.wait();
-      console.log('Tokens claimed:', receipt.hash);
+      logger.log('Tokens claimed:', receipt.hash);
       
       return receipt.hash;
     } catch (error: any) {
-      console.error('Error claiming tokens:', error);
+      logger.error('Error claiming tokens:', error);
       
       if (error.message.includes('Presale not finalized')) {
         throw new Error('Presale is not finalized yet. Please wait.');
@@ -271,7 +272,7 @@ export class PresaleService {
       const receipt = await tx.wait();
       return receipt.hash;
     } catch (error) {
-      console.error('Error claiming refund:', error);
+      logger.error('Error claiming refund:', error);
       throw error;
     }
   }
@@ -288,7 +289,7 @@ export class PresaleService {
       const balance = await this.tokenContract.balanceOf(address);
       return parseFloat(ethers.formatUnits(balance, 18));
     } catch (error) {
-      console.error('Error getting token balance:', error);
+      logger.error('Error getting token balance:', error);
       return 0;
     }
   }
@@ -302,17 +303,17 @@ export class PresaleService {
       // Fetch real-time BNB price from CoinGecko via our API proxy
       const response = await fetch('/api/prices?symbols=BNB');
       if (!response.ok) {
-        console.warn('Failed to fetch BNB price, using fallback');
+        logger.warn('Failed to fetch BNB price, using fallback');
         return 600; // Fallback price
       }
       
       const data = await response.json();
       const bnbPrice = data.prices?.BNB || 600;
       
-      console.log('💰 Live BNB Price:', bnbPrice);
+      logger.log('💰 Live BNB Price:', bnbPrice);
       return bnbPrice;
     } catch (error) {
-      console.error('Error fetching BNB price:', error);
+      logger.error('Error fetching BNB price:', error);
       return 600; // Fallback to safe estimate
     }
   }

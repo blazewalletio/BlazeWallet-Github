@@ -3,6 +3,8 @@
  * Only logs in development, strips sensitive data in production
  */
 
+import { logger } from '@/lib/logger';
+
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
 export const secureLog = {
@@ -11,7 +13,7 @@ export const secureLog = {
    */
   info: (...args: any[]) => {
     if (isDevelopment) {
-      console.log('[INFO]', ...args);
+      logger.log('[INFO]', ...args);
     }
   },
 
@@ -20,7 +22,7 @@ export const secureLog = {
    */
   warn: (...args: any[]) => {
     if (isDevelopment) {
-      console.warn('[WARN]', ...args);
+      logger.warn('[WARN]', ...args);
     }
   },
 
@@ -29,10 +31,10 @@ export const secureLog = {
    */
   error: (message: string, error?: any) => {
     if (isDevelopment) {
-      console.error('[ERROR]', message, error);
+      logger.error('[ERROR]', message, error);
     } else {
       // In production, only log generic error message
-      console.error('[ERROR]', message);
+      logger.error('[ERROR]', message);
     }
   },
 
@@ -42,7 +44,7 @@ export const secureLog = {
    */
   sensitive: (...args: any[]) => {
     if (isDevelopment) {
-      console.log('[🔐 SENSITIVE - DEV ONLY]', ...args);
+      logger.log('[🔐 SENSITIVE - DEV ONLY]', ...args);
     }
     // Silently ignore in production
   },
@@ -70,7 +72,7 @@ export const isSecureContext = (): boolean => {
  */
 export const warnIfInsecure = () => {
   if (!isSecureContext()) {
-    console.warn('⚠️ WARNING: Application is not running in a secure context (HTTPS). Sensitive data may be at risk.');
+    logger.warn('⚠️ WARNING: Application is not running in a secure context (HTTPS). Sensitive data may be at risk.');
   }
 };
 

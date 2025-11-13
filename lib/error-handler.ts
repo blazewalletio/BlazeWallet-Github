@@ -9,6 +9,7 @@
  */
 
 import { secureLog } from './secure-log';
+import { logger } from '@/lib/logger';
 
 export enum ErrorCode {
   // Wallet Errors

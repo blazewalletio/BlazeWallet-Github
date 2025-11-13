@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 /**
  * 🚀 HYBRID AI CACHE SERVICE
@@ -59,7 +60,7 @@ class AICache {
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
     
     if (!supabaseUrl || !supabaseAnonKey) {
-      console.warn('⚠️ [AI Cache] Supabase not configured, cache will be limited to localStorage');
+      logger.warn('⚠️ [AI Cache] Supabase not configured, cache will be limited to localStorage');
       return null;
     }
     
@@ -109,10 +110,10 @@ class AICache {
         return null;
       }
 
-      console.log('✅ [AI Cache] Hit: localStorage (0ms)');
+      logger.log('✅ [AI Cache] Hit: localStorage (0ms)');
       return entry.response;
     } catch (error) {
-      console.warn('⚠️ [AI Cache] localStorage error:', error);
+      logger.warn('⚠️ [AI Cache] localStorage error:', error);
       return null;
     }
   }
@@ -127,7 +128,7 @@ class AICache {
       const key = this.localStoragePrefix + queryHash;
       localStorage.setItem(key, JSON.stringify(entry));
     } catch (error) {
-      console.warn('⚠️ [AI Cache] localStorage save error:', error);
+      logger.warn('⚠️ [AI Cache] localStorage save error:', error);
     }
   }
 
@@ -148,7 +149,7 @@ class AICache {
 
       if (error || !data) return null;
 
-      console.log('✅ [AI Cache] Hit: Supabase (50ms)', {
+      logger.log('✅ [AI Cache] Hit: Supabase (50ms)', {
         hitCount: data.hit_count,
         age: Math.round((Date.now() - new Date(data.created_at).getTime()) / 1000 / 60) + 'm'
       });
@@ -167,7 +168,7 @@ class AICache {
 
       return data.response as AIResponse;
     } catch (error) {
-      console.warn('⚠️ [AI Cache] Supabase error:', error);
+      logger.warn('⚠️ [AI Cache] Supabase error:', error);
       return null;
     }
   }
@@ -200,12 +201,12 @@ class AICache {
         .upsert(entry, { onConflict: 'query_hash' });
 
       if (error) {
-        console.warn('⚠️ [AI Cache] Supabase save error:', error);
+        logger.warn('⚠️ [AI Cache] Supabase save error:', error);
       } else {
-        console.log('💾 [AI Cache] Saved to Supabase');
+        logger.log('💾 [AI Cache] Saved to Supabase');
       }
     } catch (error) {
-      console.warn('⚠️ [AI Cache] Supabase save error:', error);
+      logger.warn('⚠️ [AI Cache] Supabase save error:', error);
     }
   }
 
@@ -226,7 +227,7 @@ class AICache {
     const supabaseResult = await this.getFromSupabase(queryHash);
     if (supabaseResult) return supabaseResult;
 
-    console.log('❌ [AI Cache] Miss - will call API');
+    logger.log('❌ [AI Cache] Miss - will call API');
     return null;
   }
 
@@ -275,9 +276,9 @@ class AICache {
           localStorage.removeItem(key);
         }
       });
-      console.log('🧹 [AI Cache] Cleared localStorage');
+      logger.log('🧹 [AI Cache] Cleared localStorage');
     } catch (error) {
-      console.warn('⚠️ [AI Cache] Clear error:', error);
+      logger.warn('⚠️ [AI Cache] Clear error:', error);
     }
   }
 
@@ -331,7 +332,7 @@ class AICache {
         cacheSize: Math.round(totalEntries * 0.5) + ' KB' // Rough estimate
       };
     } catch (error) {
-      console.warn('⚠️ [AI Cache] Stats error:', error);
+      logger.warn('⚠️ [AI Cache] Stats error:', error);
       return {
         totalEntries: 0,
         totalHits: 0,
@@ -364,15 +365,15 @@ class AICache {
         });
 
       if (error) {
-        console.error('❌ [Rate Limit] Check error:', error);
+        logger.error('❌ [Rate Limit] Check error:', error);
         // Fail open (allow request)
         return { allowed: true, remaining: maxQueries, total: maxQueries };
       }
 
-      console.log('✅ [Rate Limit]', data);
+      logger.log('✅ [Rate Limit]', data);
       return data as { allowed: boolean; remaining: number; total: number; current?: number };
     } catch (error) {
-      console.error('❌ [Rate Limit] Error:', error);
+      logger.error('❌ [Rate Limit] Error:', error);
       // Fail open
       return { allowed: true, remaining: maxQueries, total: maxQueries };
     }

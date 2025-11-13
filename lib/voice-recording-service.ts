@@ -5,6 +5,8 @@
  * Converts audio to blob and transcribes via Whisper API
  */
 
+import { logger } from '@/lib/logger';
+
 export interface VoiceRecordingResult {
   success: boolean;
   text?: string;
@@ -30,7 +32,7 @@ class VoiceRecordingService {
    */
   async startRecording(): Promise<{ success: boolean; error?: string }> {
     try {
-      console.log('🎙️ [Voice] Requesting microphone permission...');
+      logger.log('🎙️ [Voice] Requesting microphone permission...');
 
       // Request microphone access
       this.stream = await navigator.mediaDevices.getUserMedia({ 
@@ -48,7 +50,7 @@ class VoiceRecordingService {
         throw new Error('No supported audio format available');
       }
 
-      console.log(`🎙️ [Voice] Using format: ${mimeType}`);
+      logger.log(`🎙️ [Voice] Using format: ${mimeType}`);
 
       // Create MediaRecorder
       this.mediaRecorder = new MediaRecorder(this.stream, { mimeType });
@@ -63,11 +65,11 @@ class VoiceRecordingService {
 
       // Start recording
       this.mediaRecorder.start();
-      console.log('🎙️ [Voice] Recording started');
+      logger.log('🎙️ [Voice] Recording started');
 
       return { success: true };
     } catch (error: any) {
-      console.error('❌ [Voice] Failed to start recording:', error);
+      logger.error('❌ [Voice] Failed to start recording:', error);
       
       let errorMessage = 'Failed to start recording';
       
@@ -95,7 +97,7 @@ class VoiceRecordingService {
 
       this.mediaRecorder.onstop = () => {
         const audioBlob = new Blob(this.audioChunks, { type: this.mediaRecorder!.mimeType });
-        console.log(`🎙️ [Voice] Recording stopped (${(audioBlob.size / 1024).toFixed(1)}KB)`);
+        logger.log(`🎙️ [Voice] Recording stopped (${(audioBlob.size / 1024).toFixed(1)}KB)`);
         
         // Stop all tracks
         if (this.stream) {
@@ -142,14 +144,14 @@ class VoiceRecordingService {
       
       if (timeSinceLastTranscription < this.MIN_INTERVAL_MS) {
         const waitTime = Math.ceil((this.MIN_INTERVAL_MS - timeSinceLastTranscription) / 1000);
-        console.warn(`⏰ [Voice] Rate limit protection: Please wait ${waitTime} seconds`);
+        logger.warn(`⏰ [Voice] Rate limit protection: Please wait ${waitTime} seconds`);
         return {
           success: false,
           error: `Please wait ${waitTime} seconds before next transcription to avoid rate limits.`,
         };
       }
 
-      console.log('📤 [Voice] Uploading audio for transcription...', {
+      logger.log('📤 [Voice] Uploading audio for transcription...', {
         size: `${(audioBlob.size / 1024).toFixed(1)}KB`,
         type: audioBlob.type
       });
@@ -164,7 +166,7 @@ class VoiceRecordingService {
       formData.append('audio', audioBlob, 'recording.webm');
       formData.append('userId', userId);
 
-      console.log('📤 [Voice] Sending to API...');
+      logger.log('📤 [Voice] Sending to API...');
 
       // Update last transcription time
       this.lastTranscriptionTime = now;
@@ -182,11 +184,11 @@ class VoiceRecordingService {
 
         clearTimeout(timeoutId);
 
-        console.log('📡 [Voice] API response status:', response.status);
+        logger.log('📡 [Voice] API response status:', response.status);
 
         if (!response.ok) {
           const errorData = await response.json();
-          console.error('❌ [Voice] API error:', errorData);
+          logger.error('❌ [Voice] API error:', errorData);
           
           // Handle 429 specifically
           if (response.status === 429) {
@@ -201,7 +203,7 @@ class VoiceRecordingService {
 
         const data = await response.json();
         
-        console.log('✅ [Voice] Transcription successful:', data.text);
+        logger.log('✅ [Voice] Transcription successful:', data.text);
 
         return {
           success: true,
@@ -211,7 +213,7 @@ class VoiceRecordingService {
         clearTimeout(timeoutId);
       }
     } catch (error: any) {
-      console.error('❌ [Voice] Transcription error:', {
+      logger.error('❌ [Voice] Transcription error:', {
         message: error.message,
         name: error.name,
         stack: error.stack?.split('\n').slice(0, 3)
@@ -251,7 +253,7 @@ class VoiceRecordingService {
     }
 
     this.audioChunks = [];
-    console.log('🎙️ [Voice] Recording cancelled');
+    logger.log('🎙️ [Voice] Recording cancelled');
   }
 
   /**

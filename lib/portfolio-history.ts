@@ -1,4 +1,6 @@
 // Portfolio history tracking - stores real balance snapshots over time
+import { logger } from '@/lib/logger';
+
 interface BalanceSnapshot {
   timestamp: number;
   balance: number; // in USD
@@ -25,7 +27,7 @@ export class PortfolioHistory {
         this.snapshots = JSON.parse(stored);
       }
     } catch (error) {
-      console.error('Error loading portfolio history:', error);
+      logger.error('Error loading portfolio history:', error);
       this.snapshots = [];
     }
   }
@@ -35,7 +37,7 @@ export class PortfolioHistory {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.snapshots));
     } catch (error) {
-      console.error('Error saving portfolio history:', error);
+      logger.error('Error saving portfolio history:', error);
     }
   }
 

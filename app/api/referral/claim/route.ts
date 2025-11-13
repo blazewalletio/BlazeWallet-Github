@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 // Mock database - in production, use a real database
 const referralTransactions = new Map<string, any[]>();
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
       transactionsClaimed: pendingTransactions.length,
     });
   } catch (error) {
-    console.error('Error claiming referral rewards:', error);
+    logger.error('Error claiming referral rewards:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

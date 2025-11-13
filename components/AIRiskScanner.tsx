@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { aiService } from '@/lib/ai-service';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Search, AlertTriangle, CheckCircle, XCircle, Loader2, ArrowLeft, Info, ExternalLink } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface AIRiskScannerProps {
   onClose: () => void;

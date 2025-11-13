@@ -1,4 +1,5 @@
 import { Chain } from './types';
+import { logger } from '@/lib/logger';
 
 export const CHAINS: Record<string, Chain> = {
   ethereum: {

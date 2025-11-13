@@ -1,6 +1,7 @@
 import { ethers } from 'ethers';
 import { PublicKey } from '@solana/web3.js';
 import * as bitcoin from 'bitcoinjs-lib';
+import { logger } from '@/lib/logger';
 
 export type ChainType = 'evm' | 'solana' | 'bitcoin' | 'litecoin' | 'dogecoin' | 'bitcoin-cash';
 

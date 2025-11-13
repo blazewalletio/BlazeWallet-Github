@@ -10,6 +10,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { smartSchedulerService, type SavingsStats } from '@/lib/smart-scheduler-service';
 import { useWalletStore } from '@/lib/wallet-store';
+import { logger } from '@/lib/logger';
 
 export default function SavingsTracker() {
   const { address: walletAddress } = useWalletStore();
@@ -32,7 +33,7 @@ export default function SavingsTracker() {
       setStats(data.stats);
       setRecentSavings(data.recent_savings);
     } catch (error) {
-      console.error('Failed to load savings:', error);
+      logger.error('Failed to load savings:', error);
     } finally {
       setLoading(false);
     }

@@ -13,6 +13,7 @@
  */
 
 import * as bolt11 from 'light-bolt11-decoder';
+import { logger } from '@/lib/logger';
 
 // WebLN types
 interface WebLN {
@@ -142,9 +143,9 @@ export class BlazeLightningService {
    */
   private detectWebLN() {
     if (typeof window !== 'undefined' && window.webln) {
-      console.log('✅ WebLN wallet detected!');
+      logger.log('✅ WebLN wallet detected!');
     } else {
-      console.log('ℹ️ No WebLN wallet detected. User needs Alby/Zeus/etc.');
+      logger.log('ℹ️ No WebLN wallet detected. User needs Alby/Zeus/etc.');
     }
   }
 
@@ -160,12 +161,12 @@ export class BlazeLightningService {
    */
   async enableWebLN(): Promise<boolean> {
     if (!this.isWebLNAvailable()) {
-      console.log('❌ WebLN not available');
+      logger.log('❌ WebLN not available');
       return false;
     }
 
     try {
-      console.log('🔐 Requesting WebLN permission...');
+      logger.log('🔐 Requesting WebLN permission...');
       await window.webln!.enable();
       
       // Get wallet info
@@ -173,7 +174,7 @@ export class BlazeLightningService {
       this.walletInfo = info.node;
       this.weblnEnabled = true;
       
-      console.log('✅ WebLN enabled!', {
+      logger.log('✅ WebLN enabled!', {
         wallet: info.node.alias,
         pubkey: info.node.pubkey.substring(0, 16) + '...',
         methods: info.methods,
@@ -181,7 +182,7 @@ export class BlazeLightningService {
       
       return true;
     } catch (error: any) {
-      console.error('❌ Failed to enable WebLN:', error);
+      logger.error('❌ Failed to enable WebLN:', error);
       return false;
     }
   }
@@ -238,7 +239,7 @@ export class BlazeLightningService {
         timestamp: Number(timestamp) * 1000,
       };
     } catch (error) {
-      console.error('❌ Failed to decode invoice:', error);
+      logger.error('❌ Failed to decode invoice:', error);
       return null;
     }
   }
@@ -276,7 +277,7 @@ export class BlazeLightningService {
     description: string = 'Blaze Wallet Payment'
   ): Promise<LightningInvoice | null> {
     try {
-      console.log(`⚡ Creating Lightning invoice for ${amountSats} sats via WebLN...`);
+      logger.log(`⚡ Creating Lightning invoice for ${amountSats} sats via WebLN...`);
 
       // Check if WebLN is enabled
       if (!this.weblnEnabled) {
@@ -292,7 +293,7 @@ export class BlazeLightningService {
         defaultMemo: description,
       });
 
-      console.log('✅ Invoice created via WebLN:', response.paymentRequest.substring(0, 40) + '...');
+      logger.log('✅ Invoice created via WebLN:', response.paymentRequest.substring(0, 40) + '...');
 
       // Decode the invoice to get full details
       const decoded = this.decodeInvoice(response.paymentRequest);
@@ -309,7 +310,7 @@ export class BlazeLightningService {
         expiresAt: decoded.expiresAt,
       };
     } catch (error: any) {
-      console.error('❌ Failed to create invoice:', error);
+      logger.error('❌ Failed to create invoice:', error);
       throw new Error(error.message || 'Failed to create Lightning invoice');
     }
   }
@@ -320,7 +321,7 @@ export class BlazeLightningService {
    */
   async payInvoice(bolt11: string): Promise<LightningPayment> {
     try {
-      console.log('⚡ Paying Lightning invoice via WebLN...');
+      logger.log('⚡ Paying Lightning invoice via WebLN...');
 
       // Validate invoice first
       const validation = this.validateInvoice(bolt11);
@@ -345,7 +346,7 @@ export class BlazeLightningService {
       // Send payment via user's wallet
       const response = await window.webln!.sendPayment(bolt11);
       
-      console.log('✅ Payment successful via WebLN!');
+      logger.log('✅ Payment successful via WebLN!');
 
       return {
         success: true,
@@ -354,7 +355,7 @@ export class BlazeLightningService {
         feeSats: response.route?.total_fees || 0,
       };
     } catch (error: any) {
-      console.error('❌ Failed to pay invoice:', error);
+      logger.error('❌ Failed to pay invoice:', error);
       return {
         success: false,
         error: error.message || 'Payment failed',
@@ -368,8 +369,8 @@ export class BlazeLightningService {
    * This returns mock data - users see balance in their own wallet
    */
   async getBalance(): Promise<LightningBalance | null> {
-    console.log('ℹ️ WebLN doesn\'t expose balance for privacy reasons');
-    console.log('💡 Users can check their balance in their Lightning wallet (Alby, Zeus, etc.)');
+    logger.log('ℹ️ WebLN doesn\'t expose balance for privacy reasons');
+    logger.log('💡 Users can check their balance in their Lightning wallet (Alby, Zeus, etc.)');
     
     // Return null to indicate balance not available
     return null;
@@ -381,8 +382,8 @@ export class BlazeLightningService {
    * Users need to check their wallet for incoming payments
    */
   async checkInvoiceStatus(paymentHash: string): Promise<{ settled: boolean; settledAt?: number }> {
-    console.log('ℹ️ WebLN doesn\'t support invoice monitoring');
-    console.log('💡 Users will see payment confirmation in their Lightning wallet');
+    logger.log('ℹ️ WebLN doesn\'t support invoice monitoring');
+    logger.log('💡 Users will see payment confirmation in their Lightning wallet');
     
     // Always return unsettled - monitoring not supported
     return { settled: false };

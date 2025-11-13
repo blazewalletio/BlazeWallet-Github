@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Gift, TrendingUp, Zap, ExternalLink, AlertCircle, CheckCircle } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { CashbackService, CashbackStats, CashbackTransaction } from '@/lib/cashback-service';
+import { logger } from '@/lib/logger';
 
 export default function CashbackTracker() {
   const { wallet } = useWalletStore();
@@ -39,7 +40,7 @@ export default function CashbackTracker() {
         setStats(statsData);
         setRecentCashback(transactionsData);
       } catch (err: any) {
-        console.error('Error loading cashback data:', err);
+        logger.error('Error loading cashback data:', err);
         setError(err.message || 'Failed to load cashback data');
       } finally {
         setIsLoading(false);
@@ -72,7 +73,7 @@ export default function CashbackTracker() {
       setRecentCashback(transactionsData);
       
     } catch (err: any) {
-      console.error('Error claiming cashback:', err);
+      logger.error('Error claiming cashback:', err);
       setError(err.message || 'Failed to claim cashback');
     } finally {
       setIsClaiming(false);

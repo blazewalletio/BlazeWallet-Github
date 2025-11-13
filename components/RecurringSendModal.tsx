@@ -17,6 +17,7 @@ import {
   Check, AlertCircle, Sparkles, TrendingDown
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -90,7 +91,7 @@ export default function RecurringSendModal({
         throw new Error(insertError.message);
       }
 
-      console.log('✅ Recurring send created:', data.id);
+      logger.log('✅ Recurring send created:', data.id);
       setSuccess(true);
 
       // Close after 2 seconds
@@ -100,7 +101,7 @@ export default function RecurringSendModal({
       }, 2000);
 
     } catch (err: any) {
-      console.error('❌ Failed to create recurring send:', err);
+      logger.error('❌ Failed to create recurring send:', err);
       setError(err.message || 'Failed to set up recurring send');
     } finally {
       setLoading(false);

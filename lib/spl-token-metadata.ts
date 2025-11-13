@@ -39,6 +39,7 @@
 import { getMetaplexMetadata } from './metaplex-metadata';
 import { dexScreenerService } from './dexscreener-service';
 import { coinGeckoTokenService } from './coingecko-token-service';
+import { logger } from '@/lib/logger';
 
 export interface SPLTokenMetadata {
   mint: string;
@@ -177,7 +178,7 @@ class JupiterTokenCache {
   private async initDB(): Promise<void> {
     return new Promise((resolve) => {
       if (!window.indexedDB) {
-        console.warn('⚠️ IndexedDB not available for Jupiter cache');
+        logger.warn('⚠️ IndexedDB not available for Jupiter cache');
         resolve();
         return;
       }
@@ -185,13 +186,13 @@ class JupiterTokenCache {
       const request = indexedDB.open(this.dbName, 2); // Version 2 with metadata store
 
       request.onerror = () => {
-        console.error('❌ Failed to open Jupiter cache DB:', request.error);
+        logger.error('❌ Failed to open Jupiter cache DB:', request.error);
         resolve();
       };
 
       request.onsuccess = () => {
         this.db = request.result;
-        console.log('✅ IndexedDB initialized for Jupiter token cache (lazy mode)');
+        logger.log('✅ IndexedDB initialized for Jupiter token cache (lazy mode)');
         
         // Check if we need to sync in background
         this.checkAndSync().then(() => resolve());
@@ -205,13 +206,13 @@ class JupiterTokenCache {
           const tokenStore = db.createObjectStore(this.storeName, { keyPath: 'mint' });
           tokenStore.createIndex('mint', 'mint', { unique: true }); // ✅ Index for fast lookup
           tokenStore.createIndex('symbol', 'symbol', { unique: false });
-          console.log('✅ Created Jupiter tokens store with mint index');
+          logger.log('✅ Created Jupiter tokens store with mint index');
         }
         
         // Create metadata store for sync tracking
         if (!db.objectStoreNames.contains(this.metaStoreName)) {
           const metaStore = db.createObjectStore(this.metaStoreName, { keyPath: 'key' });
-          console.log('✅ Created metadata store for sync tracking');
+          logger.log('✅ Created metadata store for sync tracking');
         }
       };
     });
@@ -240,7 +241,7 @@ class JupiterTokenCache {
 
       return token || null;
     } catch (error) {
-      console.warn(`IndexedDB lookup failed for ${mint}:`, error);
+      logger.warn(`IndexedDB lookup failed for ${mint}:`, error);
       return null;
     }
   }
@@ -267,13 +268,13 @@ class JupiterTokenCache {
       const isStale = now - this.lastSyncTime > this.cacheDuration;
 
       if (isStale) {
-        console.log('🔄 Jupiter token cache is stale, syncing in background...');
+        logger.log('🔄 Jupiter token cache is stale, syncing in background...');
         this.syncInBackground(); // Fire and forget
       } else {
-        console.log(`⚡ Jupiter token cache is fresh (synced ${Math.floor((now - this.lastSyncTime) / 3600000)}h ago)`);
+        logger.log(`⚡ Jupiter token cache is fresh (synced ${Math.floor((now - this.lastSyncTime) / 3600000)}h ago)`);
       }
     } catch (error) {
-      console.warn('Failed to check sync status:', error);
+      logger.warn('Failed to check sync status:', error);
     }
   }
 
@@ -286,7 +287,7 @@ class JupiterTokenCache {
     this.isSyncing = true;
 
     try {
-      console.log('🔄 [Background] Fetching Jupiter token list...');
+      logger.log('🔄 [Background] Fetching Jupiter token list...');
       
       const response = await fetch('/api/jupiter-tokens', {
         cache: 'default',
@@ -299,7 +300,7 @@ class JupiterTokenCache {
       const data = await response.json();
       const tokens: any[] = Array.isArray(data) ? data : (data.tokens || []);
       
-      console.log(`🪐 [Background] Got ${tokens.length} tokens from Jupiter API`);
+      logger.log(`🪐 [Background] Got ${tokens.length} tokens from Jupiter API`);
       
       // Save to IndexedDB in batches (non-blocking)
       const batchSize = 1000;
@@ -347,10 +348,10 @@ class JupiterTokenCache {
       });
 
       this.lastSyncTime = Date.now();
-      console.log(`✅ [Background] Synced ${saved} Jupiter tokens to IndexedDB`);
+      logger.log(`✅ [Background] Synced ${saved} Jupiter tokens to IndexedDB`);
       
     } catch (error) {
-      console.error('❌ [Background] Failed to sync Jupiter tokens:', error);
+      logger.error('❌ [Background] Failed to sync Jupiter tokens:', error);
     } finally {
       this.isSyncing = false;
     }
@@ -360,7 +361,7 @@ class JupiterTokenCache {
    * Legacy method for compatibility - now triggers background sync
    */
   async getTokenList(): Promise<Map<string, SPLTokenMetadata>> {
-    console.warn('⚠️ getTokenList() is deprecated - use getMintMetadata() for instant lookup');
+    logger.warn('⚠️ getTokenList() is deprecated - use getMintMetadata() for instant lookup');
     
     // Trigger sync if needed
     if (this.initPromise) {
@@ -378,7 +379,7 @@ class JupiterTokenCache {
     transaction.objectStore(this.metaStoreName).clear();
     
     this.lastSyncTime = 0;
-    console.log('🧹 Cleared Jupiter token cache');
+    logger.log('🧹 Cleared Jupiter token cache');
   }
 
   /**
@@ -395,18 +396,18 @@ class JupiterTokenCache {
     }
 
     if (!this.db) {
-      console.error('IndexedDB not available for token refresh');
+      logger.error('IndexedDB not available for token refresh');
       return null;
     }
 
     try {
-      console.log(`🔄 [Manual Refresh] Fetching metadata for ${mint.substring(0, 8)}...`);
+      logger.log(`🔄 [Manual Refresh] Fetching metadata for ${mint.substring(0, 8)}...`);
       
       let metadata: SPLTokenMetadata | null = null;
       
       // Try Tier 3: DexScreener first (most likely to have new tokens!)
       try {
-        console.log(`🔍 [Manual Refresh] Trying DexScreener...`);
+        logger.log(`🔍 [Manual Refresh] Trying DexScreener...`);
         const dexToken = await dexScreenerService.getTokenMetadata(mint);
         
         if (dexToken) {
@@ -417,16 +418,16 @@ class JupiterTokenCache {
             decimals: 9,
             logoURI: dexToken.logoURI || '/crypto-solana.png',
           };
-          console.log(`✅ [Manual Refresh] DexScreener found: ${metadata.symbol}`);
+          logger.log(`✅ [Manual Refresh] DexScreener found: ${metadata.symbol}`);
         }
       } catch (error) {
-        console.warn(`⚠️ [Manual Refresh] DexScreener failed:`, error);
+        logger.warn(`⚠️ [Manual Refresh] DexScreener failed:`, error);
       }
       
       // Try Tier 4: CoinGecko if DexScreener failed
       if (!metadata) {
         try {
-          console.log(`🦎 [Manual Refresh] Trying CoinGecko...`);
+          logger.log(`🦎 [Manual Refresh] Trying CoinGecko...`);
           const geckoToken = await coinGeckoTokenService.getTokenMetadata(mint);
           
           if (geckoToken) {
@@ -438,24 +439,24 @@ class JupiterTokenCache {
               logoURI: geckoToken.logoURI || '/crypto-solana.png',
               coingeckoId: geckoToken.coingeckoId,
             };
-            console.log(`✅ [Manual Refresh] CoinGecko found: ${metadata.symbol}`);
+            logger.log(`✅ [Manual Refresh] CoinGecko found: ${metadata.symbol}`);
           }
         } catch (error) {
-          console.warn(`⚠️ [Manual Refresh] CoinGecko failed:`, error);
+          logger.warn(`⚠️ [Manual Refresh] CoinGecko failed:`, error);
         }
       }
       
       // Try Tier 5: Metaplex as last resort
       if (!metadata) {
         try {
-          console.log(`🔍 [Manual Refresh] Trying Metaplex on-chain...`);
+          logger.log(`🔍 [Manual Refresh] Trying Metaplex on-chain...`);
           metadata = await getMetaplexMetadata(mint);
           
           if (metadata) {
-            console.log(`✅ [Manual Refresh] Metaplex found: ${metadata.symbol}`);
+            logger.log(`✅ [Manual Refresh] Metaplex found: ${metadata.symbol}`);
           }
         } catch (error) {
-          console.warn(`⚠️ [Manual Refresh] Metaplex failed:`, error);
+          logger.warn(`⚠️ [Manual Refresh] Metaplex failed:`, error);
         }
       }
       
@@ -473,7 +474,7 @@ class JupiterTokenCache {
         transaction.onerror = () => reject(transaction.error);
       });
 
-      console.log(`✅ [Manual Refresh] Saved metadata for ${metadata.symbol} (${metadata.name}) to cache`);
+      logger.log(`✅ [Manual Refresh] Saved metadata for ${metadata.symbol} (${metadata.name}) to cache`);
       
       // Clear DexScreener/CoinGecko caches to force fresh fetch next time
       dexScreenerService.clearCache(mint);
@@ -481,7 +482,7 @@ class JupiterTokenCache {
       
       return metadata;
     } catch (error) {
-      console.error(`❌ [Manual Refresh] Failed for ${mint.substring(0, 8)}...:`, error);
+      logger.error(`❌ [Manual Refresh] Failed for ${mint.substring(0, 8)}...:`, error);
       return null;
     }
   }
@@ -506,7 +507,7 @@ export async function getSPLTokenMetadata(mint: string): Promise<SPLTokenMetadat
   
   // Tier 1: Check hardcoded popular tokens (instant, zero latency)
   if (POPULAR_SPL_TOKENS[mint]) {
-    console.log(`⚡ [Tier 1] Hardcoded token: ${POPULAR_SPL_TOKENS[mint].symbol}`);
+    logger.log(`⚡ [Tier 1] Hardcoded token: ${POPULAR_SPL_TOKENS[mint].symbol}`);
     return POPULAR_SPL_TOKENS[mint];
   }
 
@@ -516,21 +517,21 @@ export async function getSPLTokenMetadata(mint: string): Promise<SPLTokenMetadat
     
     if (jupiterToken) {
       const elapsed = Date.now() - startTime;
-      console.log(`⚡ [Tier 2] Jupiter cache hit in ${elapsed}ms: ${jupiterToken.symbol}`);
+      logger.log(`⚡ [Tier 2] Jupiter cache hit in ${elapsed}ms: ${jupiterToken.symbol}`);
       return jupiterToken;
     }
   } catch (error) {
-    console.warn(`⚠️ [Tier 2] Jupiter IndexedDB lookup failed for ${mint}`, error);
+    logger.warn(`⚠️ [Tier 2] Jupiter IndexedDB lookup failed for ${mint}`, error);
   }
 
   // Tier 3: DexScreener API (🔥 NEW! Works for ALL DEX-traded tokens including ai16z!)
   try {
-    console.log(`🔍 [Tier 3] Trying DexScreener for ${mint.substring(0, 8)}...`);
+    logger.log(`🔍 [Tier 3] Trying DexScreener for ${mint.substring(0, 8)}...`);
     const dexToken = await dexScreenerService.getTokenMetadata(mint);
     
     if (dexToken) {
       const elapsed = Date.now() - startTime;
-      console.log(`✅ [Tier 3] DexScreener success in ${elapsed}ms: ${dexToken.symbol}`);
+      logger.log(`✅ [Tier 3] DexScreener success in ${elapsed}ms: ${dexToken.symbol}`);
       
       // Convert to our format
       const metadata: SPLTokenMetadata = {
@@ -545,23 +546,23 @@ export async function getSPLTokenMetadata(mint: string): Promise<SPLTokenMetadat
       try {
         await saveToJupiterCache(mint, metadata);
       } catch (cacheError) {
-        console.warn('Failed to cache DexScreener result:', cacheError);
+        logger.warn('Failed to cache DexScreener result:', cacheError);
       }
       
       return metadata;
     }
   } catch (error) {
-    console.warn(`⚠️ [Tier 3] DexScreener fetch failed for ${mint.substring(0, 8)}...:`, error);
+    logger.warn(`⚠️ [Tier 3] DexScreener fetch failed for ${mint.substring(0, 8)}...:`, error);
   }
 
   // Tier 4: CoinGecko API (🔥 NEW! Works for tokens on exchanges like ai16z!)
   try {
-    console.log(`🦎 [Tier 4] Trying CoinGecko for ${mint.substring(0, 8)}...`);
+    logger.log(`🦎 [Tier 4] Trying CoinGecko for ${mint.substring(0, 8)}...`);
     const geckoToken = await coinGeckoTokenService.getTokenMetadata(mint);
     
     if (geckoToken) {
       const elapsed = Date.now() - startTime;
-      console.log(`✅ [Tier 4] CoinGecko success in ${elapsed}ms: ${geckoToken.symbol}`);
+      logger.log(`✅ [Tier 4] CoinGecko success in ${elapsed}ms: ${geckoToken.symbol}`);
       
       // Convert to our format
       const metadata: SPLTokenMetadata = {
@@ -577,65 +578,65 @@ export async function getSPLTokenMetadata(mint: string): Promise<SPLTokenMetadat
       try {
         await saveToJupiterCache(mint, metadata);
       } catch (cacheError) {
-        console.warn('Failed to cache CoinGecko result:', cacheError);
+        logger.warn('Failed to cache CoinGecko result:', cacheError);
       }
       
       return metadata;
     }
   } catch (error) {
-    console.warn(`⚠️ [Tier 4] CoinGecko fetch failed for ${mint.substring(0, 8)}...:`, error);
+    logger.warn(`⚠️ [Tier 4] CoinGecko fetch failed for ${mint.substring(0, 8)}...:`, error);
   }
 
   // Tier 5: Metaplex on-chain metadata (rare but reliable for tokens with on-chain metadata)
   try {
-    console.log(`🔍 [Tier 5] Trying Metaplex on-chain for ${mint.substring(0, 8)}...`);
+    logger.log(`🔍 [Tier 5] Trying Metaplex on-chain for ${mint.substring(0, 8)}...`);
     const metaplexMetadata = await getMetaplexMetadata(mint);
     
     if (metaplexMetadata) {
       const elapsed = Date.now() - startTime;
-      console.log(`✅ [Tier 5] Metaplex success in ${elapsed}ms: ${metaplexMetadata.symbol}`);
+      logger.log(`✅ [Tier 5] Metaplex success in ${elapsed}ms: ${metaplexMetadata.symbol}`);
       
       // ✅ Save to Jupiter cache for next time (progressive enhancement!)
       try {
         await saveToJupiterCache(mint, metaplexMetadata);
       } catch (cacheError) {
-        console.warn('Failed to cache Metaplex result:', cacheError);
+        logger.warn('Failed to cache Metaplex result:', cacheError);
       }
       
       return metaplexMetadata;
     }
   } catch (error) {
-    console.warn(`⚠️ [Tier 5] Metaplex on-chain fetch failed for ${mint.substring(0, 8)}...:`, error);
+    logger.warn(`⚠️ [Tier 5] Metaplex on-chain fetch failed for ${mint.substring(0, 8)}...:`, error);
   }
 
   // 🆕 Tier 6: Direct RPC Account Info Fetch (ALWAYS WORKS for any token!)
   // This fetches the token account data directly from Solana RPC
   // Works even for brand new tokens that aren't indexed anywhere yet
   try {
-    console.log(`🔍 [Tier 6] Trying direct RPC account info for ${mint.substring(0, 8)}...`);
+    logger.log(`🔍 [Tier 6] Trying direct RPC account info for ${mint.substring(0, 8)}...`);
     const rpcMetadata = await getTokenAccountInfo(mint);
     
     if (rpcMetadata) {
       const elapsed = Date.now() - startTime;
-      console.log(`✅ [Tier 6] RPC account info success in ${elapsed}ms: ${rpcMetadata.symbol || 'Token'}`);
+      logger.log(`✅ [Tier 6] RPC account info success in ${elapsed}ms: ${rpcMetadata.symbol || 'Token'}`);
       
       // Save to cache for next time
       try {
         await saveToJupiterCache(mint, rpcMetadata);
       } catch (cacheError) {
-        console.warn('Failed to cache RPC result:', cacheError);
+        logger.warn('Failed to cache RPC result:', cacheError);
       }
       
       return rpcMetadata;
     }
   } catch (error) {
-    console.warn(`⚠️ [Tier 6] RPC account info fetch failed for ${mint.substring(0, 8)}...:`, error);
+    logger.warn(`⚠️ [Tier 6] RPC account info fetch failed for ${mint.substring(0, 8)}...:`, error);
   }
 
   // Tier 7: Ultimate Fallback (always works, prevents UI breakage)
   const elapsed = Date.now() - startTime;
-  console.warn(`⚠️ [Tier 7] All sources failed after ${elapsed}ms for ${mint.substring(0, 8)}...`);
-  console.warn(`⚠️ This token may be extremely new or the mint address may be invalid`);
+  logger.warn(`⚠️ [Tier 7] All sources failed after ${elapsed}ms for ${mint.substring(0, 8)}...`);
+  logger.warn(`⚠️ This token may be extremely new or the mint address may be invalid`);
   
   // Use a more descriptive fallback
   const shortMint = `${mint.slice(0, 4)}...${mint.slice(-4)}`;
@@ -702,7 +703,7 @@ async function getTokenAccountInfo(mint: string): Promise<SPLTokenMetadata | nul
 
     return null;
   } catch (error) {
-    console.warn('[getTokenAccountInfo] Failed:', error);
+    logger.warn('[getTokenAccountInfo] Failed:', error);
     return null;
   }
 }
@@ -718,7 +719,7 @@ async function saveToJupiterCache(mint: string, metadata: SPLTokenMetadata): Pro
     const transaction = jupiterCache['db'].transaction(['tokens'], 'readwrite');
     const objectStore = transaction.objectStore('tokens');
     objectStore.put(metadata);
-    console.log(`💾 [Cache] Saved ${metadata.symbol} to Jupiter cache for future use`);
+    logger.log(`💾 [Cache] Saved ${metadata.symbol} to Jupiter cache for future use`);
   }
 }
 

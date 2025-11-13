@@ -1,4 +1,5 @@
 import { ethers } from 'ethers';
+import { logger } from '@/lib/logger';
 
 export interface Token {
   address: string;

@@ -6,6 +6,7 @@ import { useWalletStore } from '@/lib/wallet-store';
 import { CHAINS } from '@/lib/chains';
 import { Rocket, CheckCircle2, AlertCircle, ExternalLink, Copy, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '@/lib/logger';
 
 export default function DeployContract() {
   const { wallet, currentChain } = useWalletStore();
@@ -41,9 +42,9 @@ export default function DeployContract() {
         throw new Error(`No ${chain.nativeCurrency.symbol} for gas fees. Get some ${chain.nativeCurrency.symbol} first!`);
       }
 
-      console.log('🚀 Deploying BLAZE Token...');
-      console.log('From:', wallet.address);
-      console.log('Balance:', ethers.formatEther(balance), chain.nativeCurrency.symbol);
+      logger.log('🚀 Deploying BLAZE Token...');
+      logger.log('From:', wallet.address);
+      logger.log('Balance:', ethers.formatEther(balance), chain.nativeCurrency.symbol);
 
       // Simple ERC20 deployment (you'll need to add actual bytecode)
       // For now, this is a placeholder showing the structure
@@ -65,7 +66,7 @@ export default function DeployContract() {
       }, 2000);
 
     } catch (err: any) {
-      console.error('Deployment error:', err);
+      logger.error('Deployment error:', err);
       setError(err.message || 'Deployment failed');
       setDeploying(false);
     }

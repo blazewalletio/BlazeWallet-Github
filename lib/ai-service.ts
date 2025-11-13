@@ -1,5 +1,6 @@
 // AI Service - Central AI functionality for BlazeWallet
 import { ethers } from 'ethers';
+import { logger } from '@/lib/logger';
 
 export interface AIResponse {
   success: boolean;
@@ -30,28 +31,28 @@ class AIService {
   private readonly MAX_RETRIES = 2; // Reduced retries to avoid long waits
 
   setApiKey(key: string) {
-    console.log('🔑 Setting API key...', key.substring(0, 8) + '...');
+    logger.log('🔑 Setting API key...', key.substring(0, 8) + '...');
     this.apiKey = key;
     if (typeof window !== 'undefined') {
       localStorage.setItem('ai_api_key', key);
-      console.log('✅ API key saved to localStorage');
+      logger.log('✅ API key saved to localStorage');
     }
   }
 
   getApiKey(): string | null {
     if (this.apiKey) {
-      console.log('🔑 Using in-memory API key:', this.apiKey.substring(0, 8) + '...');
+      logger.log('🔑 Using in-memory API key:', this.apiKey.substring(0, 8) + '...');
       return this.apiKey;
     }
     if (typeof window !== 'undefined') {
       const storedKey = localStorage.getItem('ai_api_key');
       if (storedKey) {
-        console.log('🔑 Loaded API key from localStorage:', storedKey.substring(0, 8) + '...');
+        logger.log('🔑 Loaded API key from localStorage:', storedKey.substring(0, 8) + '...');
         this.apiKey = storedKey; // Cache it
         return storedKey;
       }
     }
-    console.log('❌ No API key found');
+    logger.log('❌ No API key found');
     return null;
   }
 
@@ -61,7 +62,7 @@ class AIService {
     
     if (timeSinceLastCall < this.RATE_LIMIT_MS) {
       const waitTime = this.RATE_LIMIT_MS - timeSinceLastCall;
-      console.log(`⏰ Rate limit: please wait ${Math.ceil(waitTime / 1000)} seconds`);
+      logger.log(`⏰ Rate limit: please wait ${Math.ceil(waitTime / 1000)} seconds`);
       return false;
     }
     
@@ -76,7 +77,7 @@ class AIService {
       const failureTime = parseInt(recentFailure);
       const now = Date.now();
       if (now - failureTime < 30000) { // 30 seconds
-        console.log('🚫 Recent 429 error detected, waiting longer...');
+        logger.log('🚫 Recent 429 error detected, waiting longer...');
         return true;
       } else {
         localStorage.removeItem('ai_recent_429');
@@ -104,7 +105,7 @@ class AIService {
           
           if (attempt < maxRetries) {
             const backoffMs = Math.pow(2, attempt + 2) * 1000; // Exponential backoff: 8s, 16s
-            console.log(`⏳ Retry ${attempt}/${maxRetries} in ${backoffMs/1000}s...`);
+            logger.log(`⏳ Retry ${attempt}/${maxRetries} in ${backoffMs/1000}s...`);
             await this.sleep(backoffMs);
             continue;
           }
@@ -195,7 +196,7 @@ class AIService {
     }
   ): Promise<AIResponse> {
     try {
-      console.log('🤖 [AI Service] Processing command:', input.substring(0, 50));
+      logger.log('🤖 [AI Service] Processing command:', input.substring(0, 50));
 
       // Get user ID for rate limiting (prefer Supabase auth, fallback to email/anonymous)
       let userId = 'anonymous';
@@ -205,21 +206,21 @@ class AIService {
         const supabaseUserId = localStorage.getItem('supabase_user_id');
         if (supabaseUserId && supabaseUserId !== 'null') {
           userId = supabaseUserId;
-          console.log('🔐 [AI Service] Using Supabase user ID for rate limiting');
+          logger.log('🔐 [AI Service] Using Supabase user ID for rate limiting');
         }
         // Priority 2: Email (less secure, but better than nothing)
         else {
           const walletEmail = localStorage.getItem('wallet_email');
           if (walletEmail && walletEmail !== 'null') {
             userId = walletEmail;
-            console.log('📧 [AI Service] Using email for rate limiting');
+            logger.log('📧 [AI Service] Using email for rate limiting');
           } else {
-            console.log('👤 [AI Service] Using anonymous for rate limiting (no auth)');
+            logger.log('👤 [AI Service] Using anonymous for rate limiting (no auth)');
           }
         }
       }
 
-      console.log('🆔 [AI Service] Rate limit userId:', userId.substring(0, 20) + '...');
+      logger.log('🆔 [AI Service] Rate limit userId:', userId.substring(0, 20) + '...');
 
       // Build conversation history for API (only last 5 exchanges = 10 messages max)
       const conversationHistory: Array<{role: 'user' | 'assistant', content: string}> = [];
@@ -266,7 +267,7 @@ class AIService {
 
       const data = await response.json();
       
-      console.log('✅ [AI Service] Response:', {
+      logger.log('✅ [AI Service] Response:', {
         intent: data.intent,
         cached: data.cached,
         source: data.source
@@ -321,7 +322,7 @@ class AIService {
       return result;
 
     } catch (error: any) {
-      console.error('❌ [AI Service] Error:', error);
+      logger.error('❌ [AI Service] Error:', error);
 
       // Fallback to simple pattern matching
       const intent = this.parseTransactionIntent(input, context);
@@ -352,7 +353,7 @@ class AIService {
 
   private async processWithOpenAI(input: string, context: any): Promise<AIResponse> {
     try {
-      console.log('🤖 Processing command with OpenAI...');
+      logger.log('🤖 Processing command with OpenAI...');
       
       return await this.retryWithBackoff(async () => {
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -376,10 +377,10 @@ class AIService {
           }),
         });
 
-        console.log('📡 OpenAI command response status:', response.status);
+        logger.log('📡 OpenAI command response status:', response.status);
 
         if (!response.ok) {
-          console.error('❌ OpenAI API error:', response.status, response.statusText);
+          logger.error('❌ OpenAI API error:', response.status, response.statusText);
           
           // Parse error response
           const errorData = await response.json().catch(() => ({}));
@@ -401,10 +402,10 @@ class AIService {
         }
 
         const data = await response.json();
-        console.log('✅ OpenAI command response data:', data);
+        logger.log('✅ OpenAI command response data:', data);
 
         if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-          console.error('❌ Invalid OpenAI response structure:', data);
+          logger.error('❌ Invalid OpenAI response structure:', data);
           throw new Error('OpenAI gaf een onverwacht antwoord.');
         }
 
@@ -421,7 +422,7 @@ class AIService {
         };
       });
     } catch (error) {
-      console.error('OpenAI error:', error);
+      logger.error('OpenAI error:', error);
       throw error;
     }
   }
@@ -439,13 +440,13 @@ class AIService {
       const { addressValidator } = await import('./address-validator');
       const { securityAPI } = await import('./security-api');
       
-      console.log(`🔍 [AI Service] Starting risk analysis for: ${address.substring(0, 10)}...`);
+      logger.log(`🔍 [AI Service] Starting risk analysis for: ${address.substring(0, 10)}...`);
       
       // Step 1: Validate address and detect chain
       const validation = addressValidator.validate(address);
       
       if (!validation.isValid) {
-        console.error(`❌ [AI Service] Invalid address:`, validation.error);
+        logger.error(`❌ [AI Service] Invalid address:`, validation.error);
         return {
           risk: 'critical',
           warnings: [validation.error || 'Invalid address format'],
@@ -454,7 +455,7 @@ class AIService {
         };
       }
       
-      console.log(`✅ [AI Service] Address valid - Chain: ${validation.chainType}`);
+      logger.log(`✅ [AI Service] Address valid - Chain: ${validation.chainType}`);
       
       const chainName = addressValidator.getChainName(validation.chainType!);
       
@@ -465,8 +466,8 @@ class AIService {
         type
       );
       
-      console.log(`📊 [AI Service] Security score: ${securityCheck.riskScore}/100`);
-      console.log(`⚠️  [AI Service] Warnings:`, securityCheck.warnings.length);
+      logger.log(`📊 [AI Service] Security score: ${securityCheck.riskScore}/100`);
+      logger.log(`⚠️  [AI Service] Warnings:`, securityCheck.warnings.length);
       
       // Step 3: Determine risk level from score
       let risk: 'low' | 'medium' | 'high' | 'critical';
@@ -483,7 +484,7 @@ class AIService {
       // Step 4: Build detailed explanation
       const details = this.getRiskDetails(risk, securityCheck.warnings);
       
-      console.log(`🎯 [AI Service] Final risk: ${risk} (${securityCheck.riskScore}/100)`);
+      logger.log(`🎯 [AI Service] Final risk: ${risk} (${securityCheck.riskScore}/100)`);
       
       return {
         risk,
@@ -495,7 +496,7 @@ class AIService {
       };
       
     } catch (error) {
-      console.error('❌ [AI Service] Risk analysis error:', error);
+      logger.error('❌ [AI Service] Risk analysis error:', error);
       return {
         risk: 'medium',
         warnings: ['Could not complete full security analysis'],
@@ -648,7 +649,7 @@ class AIService {
         optimalTime: 'Over een paar uur',
       };
     } catch (error) {
-      console.error('Gas prediction error:', error);
+      logger.error('Gas prediction error:', error);
       return {
         recommendation: 'now',
         estimatedSavings: 0,
@@ -666,7 +667,7 @@ class AIService {
       // Check if we have an API key
       const apiKey = this.getApiKey();
       if (!apiKey) {
-        console.log('❌ No API key available for chat');
+        logger.log('❌ No API key available for chat');
         return 'I cannot answer your question without an OpenAI API key. Set this up in Settings → AI Configuration.';
       }
 
@@ -709,7 +710,7 @@ class AIService {
 
       // If we have API key, use OpenAI
       if (apiKey) {
-        console.log('🤖 Making OpenAI API call...');
+        logger.log('🤖 Making OpenAI API call...');
         
         return await this.retryWithBackoff(async () => {
           const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -735,10 +736,10 @@ class AIService {
             }),
           });
 
-          console.log('📡 OpenAI response status:', response.status);
+          logger.log('📡 OpenAI response status:', response.status);
 
           if (!response.ok) {
-            console.error('❌ OpenAI API error:', response.status, response.statusText);
+            logger.error('❌ OpenAI API error:', response.status, response.statusText);
             
             // Parse error response
             const errorData = await response.json().catch(() => ({}));
@@ -760,10 +761,10 @@ class AIService {
           }
 
           const data = await response.json();
-          console.log('✅ OpenAI response data:', data);
+          logger.log('✅ OpenAI response data:', data);
 
           if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-            console.error('❌ Invalid OpenAI response structure:', data);
+            logger.error('❌ Invalid OpenAI response structure:', data);
             throw new Error('OpenAI gaf een onverwacht antwoord. Probeer opnieuw.');
           }
 
@@ -783,7 +784,7 @@ class AIService {
       // No API key available
       return 'I cannot answer your question without an OpenAI API key. Set this up in Settings → AI Configuration.';
     } catch (error: any) {
-      console.error('Chat error:', error);
+      logger.error('Chat error:', error);
       
       // Provide helpful fallback responses when OpenAI is unavailable
       if (error.message?.includes('Te veel requests')) {

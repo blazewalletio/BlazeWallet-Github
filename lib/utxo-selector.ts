@@ -11,6 +11,7 @@
  */
 
 import { UTXO } from './blockchair-service';
+import { logger } from '@/lib/logger';
 
 export interface SelectionResult {
   inputs: UTXO[];
@@ -84,7 +85,7 @@ class UTXOSelector {
     }
 
     // Insufficient funds
-    console.error(`❌ [UTXO] Insufficient funds: need ${targetAmount}, have ${totalInput}`);
+    logger.error(`❌ [UTXO] Insufficient funds: need ${targetAmount}, have ${totalInput}`);
     return null;
   }
 
@@ -160,7 +161,7 @@ class UTXOSelector {
     if (match) {
       const change = match.value - targetAmount - estimatedFee;
       
-      console.log(`✅ [UTXO] Found single UTXO match: ${match.value} satoshis`);
+      logger.log(`✅ [UTXO] Found single UTXO match: ${match.value} satoshis`);
       
       return {
         inputs: [match],
@@ -178,21 +179,21 @@ class UTXOSelector {
    * Smart selection: tries multiple strategies and picks the best
    */
   selectOptimal(utxos: UTXO[], options: SelectionOptions): SelectionResult | null {
-    console.log(`🎯 [UTXO] Selecting optimal UTXOs for ${options.targetAmount} satoshis`);
-    console.log(`   Available UTXOs: ${utxos.length}`);
-    console.log(`   Total available: ${utxos.reduce((sum, u) => sum + u.value, 0)} satoshis`);
+    logger.log(`🎯 [UTXO] Selecting optimal UTXOs for ${options.targetAmount} satoshis`);
+    logger.log(`   Available UTXOs: ${utxos.length}`);
+    logger.log(`   Total available: ${utxos.reduce((sum, u) => sum + u.value, 0)} satoshis`);
 
     // Strategy 1: Try single UTXO (most efficient)
     const singleResult = this.selectSingleUTXO(utxos, options);
     if (singleResult) {
-      console.log(`✅ [UTXO] Using single UTXO strategy (lowest fees)`);
+      logger.log(`✅ [UTXO] Using single UTXO strategy (lowest fees)`);
       return singleResult;
     }
 
     // Strategy 2: Try largest first (usually good)
     const largestResult = this.selectLargestFirst(utxos, options);
     if (!largestResult) {
-      console.error(`❌ [UTXO] No valid selection found (insufficient funds)`);
+      logger.error(`❌ [UTXO] No valid selection found (insufficient funds)`);
       return null;
     }
 
@@ -201,11 +202,11 @@ class UTXOSelector {
 
     // Compare and return the one with fewer inputs (lower fees)
     if (smallestResult && smallestResult.inputs.length < largestResult.inputs.length) {
-      console.log(`✅ [UTXO] Using smallest-first strategy (${smallestResult.inputs.length} inputs)`);
+      logger.log(`✅ [UTXO] Using smallest-first strategy (${smallestResult.inputs.length} inputs)`);
       return smallestResult;
     }
 
-    console.log(`✅ [UTXO] Using largest-first strategy (${largestResult.inputs.length} inputs)`);
+    logger.log(`✅ [UTXO] Using largest-first strategy (${largestResult.inputs.length} inputs)`);
     return largestResult;
   }
 
@@ -215,30 +216,30 @@ class UTXOSelector {
   validateSelection(result: SelectionResult, targetAmount: number): boolean {
     // Check total input covers output + fee
     if (result.totalInput < result.totalOutput + result.fee) {
-      console.error(`❌ [UTXO] Invalid selection: insufficient input`);
+      logger.error(`❌ [UTXO] Invalid selection: insufficient input`);
       return false;
     }
 
     // Check change + fee math
     const expectedChange = result.totalInput - result.totalOutput - result.fee;
     if (Math.abs(expectedChange - result.change) > 1) { // Allow 1 satoshi rounding
-      console.error(`❌ [UTXO] Invalid selection: change calculation error`);
+      logger.error(`❌ [UTXO] Invalid selection: change calculation error`);
       return false;
     }
 
     // Check inputs are not empty
     if (result.inputs.length === 0) {
-      console.error(`❌ [UTXO] Invalid selection: no inputs`);
+      logger.error(`❌ [UTXO] Invalid selection: no inputs`);
       return false;
     }
 
     // Check target amount matches
     if (result.totalOutput !== targetAmount) {
-      console.error(`❌ [UTXO] Invalid selection: output mismatch`);
+      logger.error(`❌ [UTXO] Invalid selection: output mismatch`);
       return false;
     }
 
-    console.log(`✅ [UTXO] Selection validated successfully`);
+    logger.log(`✅ [UTXO] Selection validated successfully`);
     return true;
   }
 

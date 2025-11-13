@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,12 +37,12 @@ interface ScheduleRequest {
 
 export async function POST(req: NextRequest) {
   try {
-    console.log('\n========================================');
-    console.log('📅 [Smart Send] SCHEDULE TRANSACTION');
-    console.log('========================================');
+    logger.log('\n========================================');
+    logger.log('📅 [Smart Send] SCHEDULE TRANSACTION');
+    logger.log('========================================');
 
     const body: ScheduleRequest = await req.json();
-    console.log('📊 Request:', { 
+    logger.log('📊 Request:', { 
       chain: body.chain, 
       amount: body.amount, 
       token: body.tokenSymbol,
@@ -87,14 +88,14 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
-      console.error('❌ Supabase error:', error);
+      logger.error('❌ Supabase error:', error);
       throw new Error(`Failed to schedule transaction: ${error.message}`);
     }
 
-    console.log('✅ Transaction scheduled:', data.id);
-    console.log('📅 Execution time:', scheduledDate.toLocaleString());
-    console.log('💰 Estimated savings: $', body.estimatedSavingsUSD.toFixed(2));
-    console.log('========================================\n');
+    logger.log('✅ Transaction scheduled:', data.id);
+    logger.log('📅 Execution time:', scheduledDate.toLocaleString());
+    logger.log('💰 Estimated savings: $', body.estimatedSavingsUSD.toFixed(2));
+    logger.log('========================================\n');
 
     return NextResponse.json({
       success: true,
@@ -108,7 +109,7 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('❌ [Smart Send] Schedule error:', error);
+    logger.error('❌ [Smart Send] Schedule error:', error);
 
     return NextResponse.json({
       success: false,
@@ -151,7 +152,7 @@ export async function GET(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('❌ [Smart Send] Get scheduled error:', error);
+    logger.error('❌ [Smart Send] Get scheduled error:', error);
 
     return NextResponse.json({
       success: false,
@@ -186,7 +187,7 @@ export async function DELETE(req: NextRequest) {
       throw new Error(error.message);
     }
 
-    console.log('✅ Transaction cancelled:', id);
+    logger.log('✅ Transaction cancelled:', id);
 
     return NextResponse.json({
       success: true,
@@ -194,7 +195,7 @@ export async function DELETE(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('❌ [Smart Send] Cancel error:', error);
+    logger.error('❌ [Smart Send] Cancel error:', error);
 
     return NextResponse.json({
       success: false,

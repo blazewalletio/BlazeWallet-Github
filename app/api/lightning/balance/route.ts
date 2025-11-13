@@ -8,13 +8,14 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 // TODO: Import your LND/CLN client here
 // import { LndClient } from '@/lib/lnd-client';
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('⚡ Fetching Lightning balance...');
+    logger.log('⚡ Fetching Lightning balance...');
 
     // TODO: Replace with actual LND/CLN implementation
     // const lnd = new LndClient();
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
       balance: mockBalance,
     });
   } catch (error: any) {
-    console.error('❌ Failed to fetch Lightning balance:', error);
+    logger.error('❌ Failed to fetch Lightning balance:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to fetch balance' },
       { status: 500 }

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { gasPriceService } from '@/lib/gas-price-service';
+import { logger } from '@/lib/logger';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -70,7 +71,7 @@ export default function GasAlerts({ userId, defaultChain = 'ethereum' }: GasAler
       })) || []);
 
     } catch (error: any) {
-      console.error('[Gas Alerts] Failed to load:', error);
+      logger.error('[Gas Alerts] Failed to load:', error);
     } finally {
       setLoading(false);
     }
@@ -88,7 +89,7 @@ export default function GasAlerts({ userId, defaultChain = 'ethereum' }: GasAler
       setAlerts(alerts.filter(a => a.id !== alertId));
 
     } catch (error: any) {
-      console.error('[Gas Alerts] Failed to delete:', error);
+      logger.error('[Gas Alerts] Failed to delete:', error);
     }
   };
 
@@ -108,7 +109,7 @@ export default function GasAlerts({ userId, defaultChain = 'ethereum' }: GasAler
       ));
 
     } catch (error: any) {
-      console.error('[Gas Alerts] Failed to toggle:', error);
+      logger.error('[Gas Alerts] Failed to toggle:', error);
     }
   };
 
@@ -251,7 +252,7 @@ function AddAlertModal({ userId, defaultChain, onClose, onSuccess }: AddAlertMod
         setTargetGasPrice((gas.standard * 0.7).toFixed(0));
       }
     } catch (error) {
-      console.error('Failed to load current gas:', error);
+      logger.error('Failed to load current gas:', error);
     }
   };
 
@@ -276,7 +277,7 @@ function AddAlertModal({ userId, defaultChain, onClose, onSuccess }: AddAlertMod
       onSuccess();
 
     } catch (err: any) {
-      console.error('Failed to create alert:', err);
+      logger.error('Failed to create alert:', err);
       setError(err.message);
     } finally {
       setLoading(false);

@@ -6,6 +6,7 @@ import { Lock, TrendingUp, Zap, Crown, Gift, Loader2, CheckCircle2, AlertCircle 
 import { useWalletStore } from '@/lib/wallet-store';
 import { StakingService, StakeInfo, StakingStats } from '@/lib/staking-service';
 import { ethers } from 'ethers';
+import { logger } from '@/lib/logger';
 
 export default function StakingDashboard() {
   const { address, wallet } = useWalletStore();
@@ -87,9 +88,9 @@ export default function StakingDashboard() {
       setBalance(bal);
       setError('');
     } catch (err: any) {
-      console.error('Error loading staking data:', err);
+      logger.error('Error loading staking data:', err);
       // Don't show error for loading issues, just log them
-      console.log('Could not load staking data - wallet might not be connected');
+      logger.log('Could not load staking data - wallet might not be connected');
     } finally {
       setIsLoading(false);
     }
@@ -141,7 +142,7 @@ export default function StakingDashboard() {
       // Reload data
       await loadStakingData();
     } catch (err: any) {
-      console.error('Error staking:', err);
+      logger.error('Error staking:', err);
       
       // Simplify error messages for better UX
       let errorMessage = 'Failed to stake tokens';
@@ -191,7 +192,7 @@ export default function StakingDashboard() {
       // Reload data
       await loadStakingData();
     } catch (err: any) {
-      console.error('Error unstaking:', err);
+      logger.error('Error unstaking:', err);
       setError(err.message || 'Failed to unstake tokens');
     } finally {
       setIsUnstaking(false);
@@ -223,7 +224,7 @@ export default function StakingDashboard() {
       // Reload data
       await loadStakingData();
     } catch (err: any) {
-      console.error('Error claiming rewards:', err);
+      logger.error('Error claiming rewards:', err);
       setError(err.message || 'Failed to claim rewards');
     } finally {
       setIsClaiming(false);

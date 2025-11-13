@@ -1,4 +1,5 @@
 import { registerPlugin } from '@capacitor/core';
+import { logger } from '@/lib/logger';
 
 export interface BreezBridgePlugin {
   /**

@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import { CONTRACTS, BlazeWalletSkinsABI, BlazeTokenABI } from './contracts-config';
+import { logger } from '@/lib/logger';
 
 export interface NFTCollection {
   id: number;
@@ -81,7 +82,7 @@ export class NFTService {
 
       return collections.reverse(); // Show newest first
     } catch (error) {
-      console.error('Error fetching NFT collections:', error);
+      logger.error('Error fetching NFT collections:', error);
       throw error;
     }
   }
@@ -110,7 +111,7 @@ export class NFTService {
 
       return userNFTs;
     } catch (error) {
-      console.error('Error fetching user NFTs:', error);
+      logger.error('Error fetching user NFTs:', error);
       throw error;
     }
   }
@@ -149,7 +150,7 @@ export class NFTService {
         premiumDiscount: Number(premiumDiscount),
       };
     } catch (error) {
-      console.error('Error fetching NFT stats:', error);
+      logger.error('Error fetching NFT stats:', error);
       throw error;
     }
   }
@@ -179,21 +180,21 @@ export class NFTService {
       // Approve tokens if needed
       const allowance = await this.blazeTokenContract.allowance(userAddress, CONTRACTS.nftSkins);
       if (allowance < price) {
-        console.log('Approving BLAZE tokens...');
+        logger.log('Approving BLAZE tokens...');
         const approveTx = await this.blazeTokenContract.approve(CONTRACTS.nftSkins, price);
         await approveTx.wait();
-        console.log('BLAZE tokens approved');
+        logger.log('BLAZE tokens approved');
       }
 
       // Mint the NFT
-      console.log('Minting NFT...');
+      logger.log('Minting NFT...');
       const tx = await this.nftContract.mintSkin(collectionId);
       const receipt = await tx.wait();
 
-      console.log('NFT minted successfully!');
+      logger.log('NFT minted successfully!');
       return receipt.hash;
     } catch (error: any) {
-      console.error('Error minting NFT:', error);
+      logger.error('Error minting NFT:', error);
       if (error.code === 'ACTION_REJECTED') {
         throw new Error('Transaction rejected by user');
       }
@@ -272,7 +273,7 @@ export class NFTService {
         hasDiscount,
       };
     } catch (error) {
-      console.error('Error checking mint eligibility:', error);
+      logger.error('Error checking mint eligibility:', error);
       throw error;
     }
   }

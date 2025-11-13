@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Vote, Plus, TrendingUp, TrendingDown, Clock } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface GovernanceModalProps {
   isOpen: boolean;

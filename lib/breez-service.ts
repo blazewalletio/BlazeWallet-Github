@@ -14,6 +14,7 @@
 
 import BreezBridge from './capacitor-breez-bridge';
 import { Capacitor } from '@capacitor/core';
+import { logger } from '@/lib/logger';
 
 class BreezService {
   private connected = false;
@@ -44,7 +45,7 @@ class BreezService {
    */
   async connect(certificate: string): Promise<void> {
     if (this.connected) {
-      console.log('✅ Already connected to Breez');
+      logger.log('✅ Already connected to Breez');
       return;
     }
 
@@ -52,16 +53,16 @@ class BreezService {
 
     try {
       if (this.isNativePlatform()) {
-        console.log('⚡ Connecting to Breez SDK (Native)...');
+        logger.log('⚡ Connecting to Breez SDK (Native)...');
         await BreezBridge.connect({ certificate });
-        console.log('✅ Connected to Breez SDK (Native)');
+        logger.log('✅ Connected to Breez SDK (Native)');
       } else {
-        console.log('ℹ️ Running on web - using WebLN fallback');
+        logger.log('ℹ️ Running on web - using WebLN fallback');
       }
       
       this.connected = true;
     } catch (error: any) {
-      console.error('❌ Failed to connect to Breez:', error);
+      logger.error('❌ Failed to connect to Breez:', error);
       throw new Error(`Failed to connect: ${error.message}`);
     }
   }
@@ -74,7 +75,7 @@ class BreezService {
       throw new Error('Not connected to Breez');
     }
     // Syncing is handled automatically by Breez SDK
-    console.log('⚡ Syncing node state...');
+    logger.log('⚡ Syncing node state...');
   }
 
   /**
@@ -94,7 +95,7 @@ class BreezService {
       const nodeInfo = await BreezBridge.getNodeInfo();
       return nodeInfo;
     } catch (error: any) {
-      console.error('❌ Failed to get node info:', error);
+      logger.error('❌ Failed to get node info:', error);
       throw new Error(`Failed to get node info: ${error.message}`);
     }
   }
@@ -111,7 +112,7 @@ class BreezService {
       const nodeInfo = await this.getNodeInfo();
       return Math.floor(nodeInfo.channelsBalanceMsat / 1000);
     } catch (error) {
-      console.error('❌ Failed to get balance:', error);
+      logger.error('❌ Failed to get balance:', error);
       return 0;
     }
   }
@@ -125,17 +126,17 @@ class BreezService {
     }
 
     try {
-      console.log(`⚡ Creating invoice for ${amountSats} sats...`);
+      logger.log(`⚡ Creating invoice for ${amountSats} sats...`);
       
       const response = await BreezBridge.createInvoice({
         amountSats,
         description,
       });
 
-      console.log('✅ Invoice created:', response.bolt11.substring(0, 40) + '...');
+      logger.log('✅ Invoice created:', response.bolt11.substring(0, 40) + '...');
       return response.bolt11;
     } catch (error: any) {
-      console.error('❌ Failed to create invoice:', error);
+      logger.error('❌ Failed to create invoice:', error);
       throw error;
     }
   }
@@ -152,14 +153,14 @@ class BreezService {
     }
 
     try {
-      console.log(`⚡ Paying invoice: ${bolt11.substring(0, 40)}...`);
+      logger.log(`⚡ Paying invoice: ${bolt11.substring(0, 40)}...`);
       
       const response = await BreezBridge.payInvoice({ bolt11 });
 
-      console.log('✅ Payment successful:', response.paymentHash);
+      logger.log('✅ Payment successful:', response.paymentHash);
       return response;
     } catch (error: any) {
-      console.error('❌ Failed to pay invoice:', error);
+      logger.error('❌ Failed to pay invoice:', error);
       throw error;
     }
   }
@@ -180,7 +181,7 @@ class BreezService {
         amount: amountTag?.value ? parseInt(amountTag.value) / 1000 : undefined,
       };
     } catch (error) {
-      console.error('Failed to decode invoice:', error);
+      logger.error('Failed to decode invoice:', error);
       return null;
     }
   }
@@ -204,7 +205,7 @@ class BreezService {
 
     // Note: List payments would need to be implemented in the native bridge
     // For now, return empty array
-    console.warn('⚠️ listPayments not yet implemented in Capacitor bridge');
+    logger.warn('⚠️ listPayments not yet implemented in Capacitor bridge');
     return [];
   }
 
@@ -214,7 +215,7 @@ class BreezService {
   addEventListener(callback: (event: any) => void): void {
     if (this.isNativePlatform()) {
       // TODO: Implement event forwarding from native bridge
-      console.warn('⚠️ Event listeners not yet implemented in Capacitor bridge');
+      logger.warn('⚠️ Event listeners not yet implemented in Capacitor bridge');
     }
   }
 
@@ -229,9 +230,9 @@ class BreezService {
     try {
       await BreezBridge.disconnect();
       this.connected = false;
-      console.log('✅ Disconnected from Breez');
+      logger.log('✅ Disconnected from Breez');
     } catch (error) {
-      console.error('❌ Failed to disconnect:', error);
+      logger.error('❌ Failed to disconnect:', error);
     }
   }
 }

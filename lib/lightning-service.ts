@@ -16,6 +16,7 @@
 import { breezService } from './breez-service';
 import { lightningService as webLNService } from './lightning-service-web';
 import type { LightningInvoice, LightningPayment, DecodedInvoice } from './lightning-service-web';
+import { logger } from '@/lib/logger';
 
 export type { LightningInvoice, LightningPayment, DecodedInvoice };
 
@@ -46,7 +47,7 @@ export class UnifiedLightningService {
   private static instance: UnifiedLightningService | null = null;
 
   private constructor() {
-    console.log(`⚡ Unified Lightning Service initialized`);
+    logger.log(`⚡ Unified Lightning Service initialized`);
   }
 
   static getInstance(): UnifiedLightningService {
@@ -82,21 +83,21 @@ export class UnifiedLightningService {
   async initialize(): Promise<boolean> {
     try {
       if (this.isNativePlatform()) {
-        console.log('🔌 Initializing Breez SDK...');
+        logger.log('🔌 Initializing Breez SDK...');
         // Get certificate from environment variable
         const certificate = process.env.NEXT_PUBLIC_GREENLIGHT_CERT || '';
         if (!certificate) {
-          console.warn('⚠️ Greenlight certificate not found');
+          logger.warn('⚠️ Greenlight certificate not found');
           return false;
         }
         await breezService.connect(certificate);
         return breezService.isAvailable();
       } else {
-        console.log('🔌 Initializing WebLN...');
+        logger.log('🔌 Initializing WebLN...');
         return await webLNService.enableWebLN();
       }
     } catch (error) {
-      console.error('❌ Failed to initialize Lightning:', error);
+      logger.error('❌ Failed to initialize Lightning:', error);
       return false;
     }
   }
@@ -117,7 +118,7 @@ export class UnifiedLightningService {
         return null;
       }
     } catch (error) {
-      console.error('❌ Failed to get balance:', error);
+      logger.error('❌ Failed to get balance:', error);
       return null;
     }
   }
@@ -132,10 +133,10 @@ export class UnifiedLightningService {
   async createInvoice(amountSats: number, description: string = 'Blaze Wallet Payment'): Promise<string> {
     try {
       if (this.isNativePlatform()) {
-        console.log('⚡ Creating invoice via Breez SDK...');
+        logger.log('⚡ Creating invoice via Breez SDK...');
         return await breezService.createInvoice(amountSats, description);
       } else {
-        console.log('⚡ Creating invoice via WebLN...');
+        logger.log('⚡ Creating invoice via WebLN...');
         const invoice = await webLNService.createInvoice(amountSats, description);
         if (!invoice) {
           throw new Error('Failed to create invoice');
@@ -143,7 +144,7 @@ export class UnifiedLightningService {
         return invoice.bolt11;
       }
     } catch (error: any) {
-      console.error('❌ Failed to create invoice:', error);
+      logger.error('❌ Failed to create invoice:', error);
       throw new Error(error.message || 'Failed to create Lightning invoice');
     }
   }
@@ -157,7 +158,7 @@ export class UnifiedLightningService {
   async payInvoice(bolt11: string): Promise<LightningPayment> {
     try {
       if (this.isNativePlatform()) {
-        console.log('⚡ Paying invoice via Breez SDK...');
+        logger.log('⚡ Paying invoice via Breez SDK...');
         const response = await breezService.payInvoice(bolt11);
         return {
           success: true,
@@ -166,11 +167,11 @@ export class UnifiedLightningService {
           feeSats: 0, // Fee not returned by bridge yet
         };
       } else {
-        console.log('⚡ Paying invoice via WebLN...');
+        logger.log('⚡ Paying invoice via WebLN...');
         return await webLNService.payInvoice(bolt11);
       }
     } catch (error: any) {
-      console.error('❌ Failed to pay invoice:', error);
+      logger.error('❌ Failed to pay invoice:', error);
       return {
         success: false,
         error: error.message || 'Payment failed',
@@ -214,7 +215,7 @@ export class UnifiedLightningService {
         return [];
       }
     } catch (error) {
-      console.error('❌ Failed to get transactions:', error);
+      logger.error('❌ Failed to get transactions:', error);
       return [];
     }
   }

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mail, Loader2, AlertCircle } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface NewEmailModalProps {
   isOpen: boolean;

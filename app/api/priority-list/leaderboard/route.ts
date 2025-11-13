@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PriorityListService } from '@/lib/priority-list-service';
+import { logger } from '@/lib/logger';
 
 // GET /api/priority-list/leaderboard - Get referral leaderboard
 export async function GET(request: NextRequest) {
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
       data: leaderboard,
     });
   } catch (error) {
-    console.error('Error fetching leaderboard:', error);
+    logger.error('Error fetching leaderboard:', error);
     return NextResponse.json(
       { success: false, message: 'Failed to fetch leaderboard' },
       { status: 500 }

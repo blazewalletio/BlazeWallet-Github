@@ -19,6 +19,7 @@ import {
   fetchDigitalAssetByMetadata,
 } from '@metaplex-foundation/mpl-token-metadata';
 import { SPLTokenMetadata } from './spl-token-metadata';
+import { logger } from '@/lib/logger';
 
 // Cache for Metaplex fetches to avoid redundant RPC calls
 const metaplexCache = new Map<string, { data: SPLTokenMetadata | null; timestamp: number }>();
@@ -40,12 +41,12 @@ export async function getMetaplexMetadata(
   // Check memory cache first (avoid RPC spam)
   const cached = metaplexCache.get(mint);
   if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-    console.log(`⚡ [Metaplex] Using cached metadata for ${mint}`);
+    logger.log(`⚡ [Metaplex] Using cached metadata for ${mint}`);
     return cached.data;
   }
 
   try {
-    console.log(`🔍 [Metaplex] Fetching on-chain metadata for ${mint}...`);
+    logger.log(`🔍 [Metaplex] Fetching on-chain metadata for ${mint}...`);
     const startTime = Date.now();
 
     // Create UMI instance (Metaplex's new framework)
@@ -58,7 +59,7 @@ export async function getMetaplexMetadata(
     const asset = await fetchDigitalAsset(umi, mintPublicKey);
     
     const fetchTime = Date.now() - startTime;
-    console.log(`✅ [Metaplex] Fetched metadata in ${fetchTime}ms`);
+    logger.log(`✅ [Metaplex] Fetched metadata in ${fetchTime}ms`);
     
     // Extract metadata
     const metadata = asset.metadata;
@@ -77,7 +78,7 @@ export async function getMetaplexMetadata(
           logoURI = offChainData.image || offChainData.icon;
         }
       } catch (error) {
-        console.warn(`⚠️ [Metaplex] Failed to fetch off-chain metadata from ${metadata.uri}:`, error);
+        logger.warn(`⚠️ [Metaplex] Failed to fetch off-chain metadata from ${metadata.uri}:`, error);
         // Continue without logo
       }
     }
@@ -94,12 +95,12 @@ export async function getMetaplexMetadata(
     // Cache result
     metaplexCache.set(mint, { data: result, timestamp: Date.now() });
     
-    console.log(`✅ [Metaplex] Got token: ${result.name} (${result.symbol})`);
+    logger.log(`✅ [Metaplex] Got token: ${result.name} (${result.symbol})`);
     
     return result;
     
   } catch (error) {
-    console.warn(`⚠️ [Metaplex] Failed to fetch metadata for ${mint}:`, error);
+    logger.warn(`⚠️ [Metaplex] Failed to fetch metadata for ${mint}:`, error);
     
     // Cache null result to avoid repeated failures
     metaplexCache.set(mint, { data: null, timestamp: Date.now() });
@@ -131,7 +132,7 @@ export async function getMultipleMetaplexMetadata(
       if (result.status === 'fulfilled') {
         results.set(mint, result.value);
       } else {
-        console.error(`Failed to fetch Metaplex metadata for ${mint}:`, result.reason);
+        logger.error(`Failed to fetch Metaplex metadata for ${mint}:`, result.reason);
         results.set(mint, null);
       }
     });
@@ -150,6 +151,6 @@ export async function getMultipleMetaplexMetadata(
  */
 export function clearMetaplexCache() {
   metaplexCache.clear();
-  console.log('🧹 Cleared Metaplex metadata cache');
+  logger.log('🧹 Cleared Metaplex metadata cache');
 }
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 // Retry helper for API calls with exponential backoff
 async function fetchWithRetry(
@@ -15,7 +16,7 @@ async function fetchWithRetry(
       // If rate limited (429) or server error (5xx), retry
       if (response.status === 429 || response.status >= 500) {
         const waitTime = Math.pow(2, i) * 1000; // Exponential backoff
-        console.log(`   ⏳ Rate limited or server error, retrying in ${waitTime}ms... (attempt ${i + 1}/${maxRetries})`);
+        logger.log(`   ⏳ Rate limited or server error, retrying in ${waitTime}ms... (attempt ${i + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
         continue;
       }
@@ -25,7 +26,7 @@ async function fetchWithRetry(
       lastError = error as Error;
       if (i < maxRetries - 1) {
         const waitTime = Math.pow(2, i) * 1000;
-        console.log(`   ⏳ Request failed, retrying in ${waitTime}ms... (attempt ${i + 1}/${maxRetries})`);
+        logger.log(`   ⏳ Request failed, retrying in ${waitTime}ms... (attempt ${i + 1}/${maxRetries})`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
       }
     }
@@ -98,9 +99,9 @@ export async function GET(request: NextRequest) {
     // Build API URL - all chains use standard V1 format now
     const apiUrl = `${config.url}?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&page=1&offset=${limit}&sort=desc&apikey=${apiKey}`;
 
-    console.log(`🔍 Fetching transactions for chain ${chainId} from ${config.url}...`);
-    console.log(`   Address: ${address}`);
-    console.log(`   API Key: ${apiKey ? 'Present' : 'Missing'}`);
+    logger.log(`🔍 Fetching transactions for chain ${chainId} from ${config.url}...`);
+    logger.log(`   Address: ${address}`);
+    logger.log(`   API Key: ${apiKey ? 'Present' : 'Missing'}`);
 
     const response = await fetchWithRetry(apiUrl, {
       headers: {
@@ -110,18 +111,18 @@ export async function GET(request: NextRequest) {
     }, 3);
 
     if (!response.ok) {
-      console.error(`❌ API returned status ${response.status}`);
+      logger.error(`❌ API returned status ${response.status}`);
       const errorText = await response.text();
-      console.error(`   Error response: ${errorText.substring(0, 200)}`);
+      logger.error(`   Error response: ${errorText.substring(0, 200)}`);
       throw new Error(`Block explorer API returned ${response.status}: ${errorText.substring(0, 100)}`);
     }
 
     const data = await response.json();
     
     // Log API response for debugging
-    console.log(`   API Status: ${data.status}`);
-    console.log(`   Message: ${data.message}`);
-    console.log(`   Result count: ${Array.isArray(data.result) ? data.result.length : 'N/A'}`);
+    logger.log(`   API Status: ${data.status}`);
+    logger.log(`   Message: ${data.message}`);
+    logger.log(`   Result count: ${Array.isArray(data.result) ? data.result.length : 'N/A'}`);
 
     // Add CORS headers (secure - whitelist only)
     const origin = request.headers.get('origin');
@@ -151,7 +152,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data, { headers: corsHeaders });
 
   } catch (error: any) {
-    console.error('Transaction proxy error:', error);
+    logger.error('Transaction proxy error:', error);
     return NextResponse.json(
       { 
         error: 'Failed to fetch transactions',

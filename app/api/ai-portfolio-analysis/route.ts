@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -24,7 +25,7 @@ function getOpenAI() {
     throw new Error('Portfolio Advisor API key not configured');
   }
   
-  console.log('🤖 [Portfolio Advisor] Using API key:', apiKey.substring(0, 20) + '...');
+  logger.log('🤖 [Portfolio Advisor] Using API key:', apiKey.substring(0, 20) + '...');
   
   return new OpenAI({
     apiKey: apiKey,
@@ -79,12 +80,12 @@ interface AnalysisResponse {
 
 export async function POST(req: NextRequest) {
   try {
-    console.log('🤖 [Portfolio Advisor] Receiving analysis request...');
+    logger.log('🤖 [Portfolio Advisor] Receiving analysis request...');
     
     const body: AnalysisRequest = await req.json();
     const { tokens, totalValue, chain, totalValueChange24h } = body;
     
-    console.log('📊 [Portfolio Advisor] Analyzing portfolio:', {
+    logger.log('📊 [Portfolio Advisor] Analyzing portfolio:', {
       tokens: tokens.length,
       totalValue: `$${totalValue.toFixed(2)}`,
       chain
@@ -96,7 +97,7 @@ export async function POST(req: NextRequest) {
     // Build AI prompt
     const prompt = buildAnalysisPrompt(tokens, totalValue, chain, totalValueChange24h || 0, metrics);
     
-    console.log('🧠 [Portfolio Advisor] Sending to OpenAI GPT-4o-mini...');
+    logger.log('🧠 [Portfolio Advisor] Sending to OpenAI GPT-4o-mini...');
     
     // Call OpenAI
     const openai = getOpenAI();
@@ -133,7 +134,7 @@ export async function POST(req: NextRequest) {
     const duration = Date.now() - startTime;
     const aiResponse = JSON.parse(completion.choices[0].message.content || '{}');
     
-    console.log(`✅ [Portfolio Advisor] Analysis complete in ${duration}ms`);
+    logger.log(`✅ [Portfolio Advisor] Analysis complete in ${duration}ms`);
     
     // Format response
     const response: AnalysisResponse = {
@@ -153,7 +154,7 @@ export async function POST(req: NextRequest) {
     });
     
   } catch (error: any) {
-    console.error('❌ [Portfolio Advisor] Analysis error:', {
+    logger.error('❌ [Portfolio Advisor] Analysis error:', {
       message: error.message,
       status: error.status,
       type: error.type

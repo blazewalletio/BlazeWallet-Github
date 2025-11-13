@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { gasPriceService } from '@/lib/gas-price-service';
 import { priceService } from '@/lib/price-service';
+import { logger } from '@/lib/logger';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
     const cronSecret = req.url.includes('CRON_SECRET=') ? new URL(req.url).searchParams.get('CRON_SECRET') : null;
     
     // Debug logging
-    console.log('🔐 Auth check:', {
+    logger.log('🔐 Auth check:', {
       userAgent,
       isVercelCron,
       hasAuthHeader: !!authHeader,
@@ -35,14 +36,14 @@ export async function GET(req: NextRequest) {
     
     // Allow: Vercel Cron, Authorization header, or query param secret
     if (!isVercelCron && authHeader !== `Bearer ${CRON_SECRET}` && cronSecret !== CRON_SECRET) {
-      console.error('❌ Unauthorized cron request');
+      logger.error('❌ Unauthorized cron request');
       return NextResponse.json({ 
         error: 'Unauthorized',
         debug: { isVercelCron, hasAuth: !!authHeader, hasSecret: !!cronSecret }
       }, { status: 401 });
     }
 
-    console.log('🔄 Smart Scheduler cron job started...');
+    logger.log('🔄 Smart Scheduler cron job started...');
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -58,16 +59,16 @@ export async function GET(req: NextRequest) {
       .limit(50); // Process max 50 per run
 
     if (fetchError) {
-      console.error('❌ Failed to fetch pending transactions:', fetchError);
+      logger.error('❌ Failed to fetch pending transactions:', fetchError);
       return NextResponse.json({ error: fetchError.message }, { status: 500 });
     }
 
     if (!pendingTxs || pendingTxs.length === 0) {
-      console.log('✅ No pending transactions to execute');
+      logger.log('✅ No pending transactions to execute');
       return NextResponse.json({ success: true, executed: 0 });
     }
 
-    console.log(`📋 Found ${pendingTxs.length} pending transactions`);
+    logger.log(`📋 Found ${pendingTxs.length} pending transactions`);
 
     let executed = 0;
     let skipped = 0;
@@ -82,7 +83,7 @@ export async function GET(req: NextRequest) {
             .from('scheduled_transactions')
             .update({ status: 'expired', updated_at: new Date().toISOString() })
             .eq('id', tx.id);
-          console.log(`⏰ Transaction ${tx.id} expired`);
+          logger.log(`⏰ Transaction ${tx.id} expired`);
           skipped++;
           continue;
         }
@@ -91,7 +92,7 @@ export async function GET(req: NextRequest) {
         const currentGasData = await gasPriceService.getGasPrice(tx.chain);
         
         if (!currentGasData) {
-          console.error(`❌ Failed to get gas price for ${tx.chain}`);
+          logger.error(`❌ Failed to get gas price for ${tx.chain}`);
           skipped++;
           continue;
         }
@@ -110,7 +111,7 @@ export async function GET(req: NextRequest) {
         }
 
         if (!shouldExecute) {
-          console.log(`⏳ Gas too high for transaction ${tx.id} (${currentGasPrice} > ${tx.optimal_gas_threshold})`);
+          logger.log(`⏳ Gas too high for transaction ${tx.id} (${currentGasPrice} > ${tx.optimal_gas_threshold})`);
           skipped++;
           continue;
         }
@@ -134,7 +135,7 @@ export async function GET(req: NextRequest) {
             gasCostUSD = ((21000 * currentGasPrice) / 1e9) * nativePrice; // EVM
           }
         } catch (e) {
-          console.error('Failed to calculate gas cost:', e);
+          logger.error('Failed to calculate gas cost:', e);
         }
 
         // Calculate savings
@@ -159,7 +160,7 @@ export async function GET(req: NextRequest) {
           .eq('id', tx.id);
 
         if (updateError) {
-          console.error(`❌ Failed to update transaction ${tx.id}:`, updateError);
+          logger.error(`❌ Failed to update transaction ${tx.id}:`, updateError);
           failed++;
           continue;
         }
@@ -204,11 +205,11 @@ export async function GET(req: NextRequest) {
           },
         });
 
-        console.log(`✅ Transaction ${tx.id} executed successfully (Saved: $${savings.toFixed(2)})`);
+        logger.log(`✅ Transaction ${tx.id} executed successfully (Saved: $${savings.toFixed(2)})`);
         executed++;
 
       } catch (txError: any) {
-        console.error(`❌ Failed to process transaction ${tx.id}:`, txError);
+        logger.error(`❌ Failed to process transaction ${tx.id}:`, txError);
         
         // Update as failed
         await supabase
@@ -225,7 +226,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    console.log(`✅ Cron job completed: ${executed} executed, ${skipped} skipped, ${failed} failed`);
+    logger.log(`✅ Cron job completed: ${executed} executed, ${skipped} skipped, ${failed} failed`);
 
     return NextResponse.json({
       success: true,
@@ -236,7 +237,7 @@ export async function GET(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('❌ Smart Scheduler cron error:', error);
+    logger.error('❌ Smart Scheduler cron error:', error);
     return NextResponse.json(
       { error: 'Internal server error', details: error.message },
       { status: 500 }

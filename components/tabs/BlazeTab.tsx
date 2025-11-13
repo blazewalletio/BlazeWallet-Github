@@ -25,6 +25,7 @@ import NFTMintDashboard from '../NFTMintDashboard';
 import CashbackTracker from '../CashbackTracker';
 import VestingDashboard from '../VestingDashboard';
 import { useWalletStore } from '@/lib/wallet-store';
+import { logger } from '@/lib/logger';
 
 export default function BlazeTab() {
   const { address } = useWalletStore();

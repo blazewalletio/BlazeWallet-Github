@@ -6,6 +6,7 @@ import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { CHAINS } from '@/lib/chains';
 import { TransakService } from '@/lib/transak-service';
+import { logger } from '@/lib/logger';
 
 interface BuyModalProps {
   isOpen: boolean;
@@ -36,10 +37,10 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
     const walletAddresses = TransakService.createWalletAddresses(address, chain.id);
 
         try {
-          console.log('🔥 BUY MODAL DEBUG: Starting NEW Transak integration...');
-          console.log('Wallet Address:', address);
-          console.log('Wallet Addresses:', walletAddresses);
-          console.log('Currency Code:', currencyCode);
+          logger.log('🔥 BUY MODAL DEBUG: Starting NEW Transak integration...');
+          logger.log('Wallet Address:', address);
+          logger.log('Wallet Addresses:', walletAddresses);
+          logger.log('Currency Code:', currencyCode);
           
           await TransakService.openWidget({
             walletAddress: address,
@@ -54,11 +55,11 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
             isAutoFillUserData: false, // Let users fill their own data
           });
 
-          console.log('✅ BUY MODAL SUCCESS: Transak widget opened with session');
+          logger.log('✅ BUY MODAL SUCCESS: Transak widget opened with session');
           // Close modal after opening Transak
           setTimeout(() => onClose(), 500);
         } catch (error) {
-          console.error('❌ BUY MODAL ERROR:', error);
+          logger.error('❌ BUY MODAL ERROR:', error);
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           
           // Check if it's a business profile issue

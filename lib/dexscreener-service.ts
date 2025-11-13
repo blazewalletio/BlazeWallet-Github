@@ -9,6 +9,8 @@
  * - Rate limit: ~300 req/min (we cache aggressively)
  */
 
+import { logger } from '@/lib/logger';
+
 export interface DexScreenerToken {
   name: string;
   symbol: string;
@@ -55,7 +57,7 @@ class DexScreenerService {
 
   private async fetchTokenMetadata(mint: string): Promise<DexScreenerToken | null> {
     try {
-      console.log(`🔍 [DexScreener] Fetching metadata for ${mint.substring(0, 8)}...`);
+      logger.log(`🔍 [DexScreener] Fetching metadata for ${mint.substring(0, 8)}...`);
       
       const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`, {
         headers: {
@@ -64,7 +66,7 @@ class DexScreenerService {
       });
 
       if (!response.ok) {
-        console.warn(`⚠️ [DexScreener] API returned ${response.status} for ${mint.substring(0, 8)}...`);
+        logger.warn(`⚠️ [DexScreener] API returned ${response.status} for ${mint.substring(0, 8)}...`);
         return null;
       }
 
@@ -72,7 +74,7 @@ class DexScreenerService {
 
       // DexScreener returns pairs, we need to extract the base token
       if (!data.pairs || data.pairs.length === 0) {
-        console.log(`ℹ️ [DexScreener] No trading pairs found for ${mint.substring(0, 8)}...`);
+        logger.log(`ℹ️ [DexScreener] No trading pairs found for ${mint.substring(0, 8)}...`);
         return null;
       }
 
@@ -87,7 +89,7 @@ class DexScreenerService {
       
       // Verify it's the correct token (sometimes DexScreener returns quote token)
       if (token.address.toLowerCase() !== mint.toLowerCase()) {
-        console.warn(`⚠️ [DexScreener] Token address mismatch for ${mint.substring(0, 8)}...`);
+        logger.warn(`⚠️ [DexScreener] Token address mismatch for ${mint.substring(0, 8)}...`);
         return null;
       }
 
@@ -102,11 +104,11 @@ class DexScreenerService {
         priceChange24h: bestPair.priceChange?.h24,
       };
 
-      console.log(`✅ [DexScreener] Found ${result.symbol} (${result.name})`);
+      logger.log(`✅ [DexScreener] Found ${result.symbol} (${result.name})`);
       
       return result;
     } catch (error) {
-      console.error(`❌ [DexScreener] Failed to fetch ${mint.substring(0, 8)}...:`, error);
+      logger.error(`❌ [DexScreener] Failed to fetch ${mint.substring(0, 8)}...:`, error);
       return null;
     }
   }
@@ -136,10 +138,10 @@ class DexScreenerService {
   clearCache(mint?: string) {
     if (mint) {
       this.cache.delete(mint);
-      console.log(`🧹 [DexScreener] Cleared cache for ${mint.substring(0, 8)}...`);
+      logger.log(`🧹 [DexScreener] Cleared cache for ${mint.substring(0, 8)}...`);
     } else {
       this.cache.clear();
-      console.log('🧹 [DexScreener] Cleared all cache');
+      logger.log('🧹 [DexScreener] Cleared all cache');
     }
   }
 }

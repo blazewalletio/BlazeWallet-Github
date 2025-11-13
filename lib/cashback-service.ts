@@ -1,4 +1,5 @@
 import { ethers } from 'ethers';
+import { logger } from '@/lib/logger';
 
 export interface CashbackTransaction {
   id: string;
@@ -59,7 +60,7 @@ export class CashbackService {
       }
       return await response.json();
     } catch (error) {
-      console.error('Error fetching cashback stats:', error);
+      logger.error('Error fetching cashback stats:', error);
       throw error;
     }
   }
@@ -75,7 +76,7 @@ export class CashbackService {
       }
       return await response.json();
     } catch (error) {
-      console.error('Error fetching cashback transactions:', error);
+      logger.error('Error fetching cashback transactions:', error);
       throw error;
     }
   }
@@ -91,7 +92,7 @@ export class CashbackService {
       }
       return await response.json();
     } catch (error) {
-      console.error('Error fetching cashback config:', error);
+      logger.error('Error fetching cashback config:', error);
       throw error;
     }
   }
@@ -128,7 +129,7 @@ export class CashbackService {
       const result = await response.json();
       return result.transactionHash;
     } catch (error) {
-      console.error('Error claiming cashback:', error);
+      logger.error('Error claiming cashback:', error);
       throw error;
     }
   }
@@ -231,7 +232,7 @@ export class CashbackService {
         throw new Error(`Failed to record cashback transaction: ${response.statusText}`);
       }
     } catch (error) {
-      console.error('Error recording cashback transaction:', error);
+      logger.error('Error recording cashback transaction:', error);
       throw error;
     }
   }

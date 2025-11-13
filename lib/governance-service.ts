@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import { CONTRACT_ADDRESSES } from './contracts-config';
+import { logger } from '@/lib/logger';
 
 export interface Proposal {
   id: number;
@@ -174,13 +175,13 @@ export class GovernanceService {
           });
         } catch (error) {
           // Proposal might not exist, skip it
-          console.log(`Proposal ${i} not found, skipping...`);
+          logger.log(`Proposal ${i} not found, skipping...`);
         }
       }
       
       return proposals;
     } catch (error) {
-      console.error('Error getting proposals:', error);
+      logger.error('Error getting proposals:', error);
       throw error;
     }
   }
@@ -216,7 +217,7 @@ export class GovernanceService {
         votingPowerFormatted: Number(ethers.formatEther(votingPower))
       };
     } catch (error) {
-      console.error('Error getting governance stats:', error);
+      logger.error('Error getting governance stats:', error);
       throw error;
     }
   }
@@ -229,7 +230,7 @@ export class GovernanceService {
       const balance = await this.blazeToken.balanceOf(userAddress);
       return balance;
     } catch (error) {
-      console.error('Error getting voting power:', error);
+      logger.error('Error getting voting power:', error);
       throw error;
     }
   }
@@ -239,14 +240,14 @@ export class GovernanceService {
    */
   async createProposal(description: string): Promise<string> {
     try {
-      console.log('Creating proposal...');
+      logger.log('Creating proposal...');
       const tx = await this.contract.createProposal(description);
       const receipt = await tx.wait();
       
-      console.log('Proposal created successfully!');
+      logger.log('Proposal created successfully!');
       return receipt.hash;
     } catch (error: any) {
-      console.error('Error creating proposal:', error);
+      logger.error('Error creating proposal:', error);
       if (error.code === 'ACTION_REJECTED') {
         throw new Error('Transaction rejected by user');
       }
@@ -262,14 +263,14 @@ export class GovernanceService {
    */
   async vote(proposalId: number, support: boolean): Promise<string> {
     try {
-      console.log(`Voting ${support ? 'for' : 'against'} proposal ${proposalId}...`);
+      logger.log(`Voting ${support ? 'for' : 'against'} proposal ${proposalId}...`);
       const tx = await this.contract.vote(proposalId, support);
       const receipt = await tx.wait();
       
-      console.log('Vote cast successfully!');
+      logger.log('Vote cast successfully!');
       return receipt.hash;
     } catch (error: any) {
-      console.error('Error voting:', error);
+      logger.error('Error voting:', error);
       if (error.code === 'ACTION_REJECTED') {
         throw new Error('Transaction rejected by user');
       }
@@ -295,7 +296,7 @@ export class GovernanceService {
       
       return balance >= threshold;
     } catch (error) {
-      console.error('Error checking proposal eligibility:', error);
+      logger.error('Error checking proposal eligibility:', error);
       return false;
     }
   }
@@ -308,7 +309,7 @@ export class GovernanceService {
       const threshold = await this.contract.proposalThreshold();
       return ethers.formatEther(threshold);
     } catch (error) {
-      console.error('Error getting proposal threshold:', error);
+      logger.error('Error getting proposal threshold:', error);
       return '10000'; // Default fallback
     }
   }

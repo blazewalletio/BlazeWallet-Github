@@ -6,6 +6,7 @@ import { Download, CheckCircle2, Copy, Check, Sparkles, Shield, Zap, Lock, Alert
 import { useWalletStore } from '@/lib/wallet-store';
 import { signUpWithEmail, signInWithEmail, signInWithGoogle, signInWithApple } from '@/lib/supabase-auth';
 import BlazeLogoImage from './BlazeLogoImage';
+import { logger } from '@/lib/logger';
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -50,7 +51,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     if (typeof window !== 'undefined') {
       const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       setIsMobileDevice(isMobile);
-      console.log('📱 Device detection:', { isMobile });
+      logger.log('📱 Device detection:', { isMobile });
     }
   }, []);
 
@@ -65,20 +66,20 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       setMnemonic(phrase);
       setStep('mnemonic');
       
-      console.log('🔄 New wallet created successfully, setting flags for password setup');
+      logger.log('🔄 New wallet created successfully, setting flags for password setup');
       
       // Set flags to indicate we just created a new wallet without password
       if (typeof window !== 'undefined') {
         localStorage.setItem('wallet_just_created', 'true');
-        console.log('✅ Set wallet_just_created flag');
+        logger.log('✅ Set wallet_just_created flag');
         
         // Also set a more direct flag
         localStorage.setItem('force_password_setup', 'true');
-        console.log('✅ Set force_password_setup flag');
+        logger.log('✅ Set force_password_setup flag');
       }
       
     } catch (err) {
-      console.error('Error creating wallet:', err);
+      logger.error('Error creating wallet:', err);
       setError('Something went wrong creating the wallet.');
     } finally {
       setIsLoading(false);
@@ -91,21 +92,21 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       setIsLoading(true);
       await importWallet(importInput.trim());
       
-      console.log('🔄 Wallet imported successfully, setting flags for password setup');
+      logger.log('🔄 Wallet imported successfully, setting flags for password setup');
       
       // Set flags to indicate we just imported a wallet without password
       if (typeof window !== 'undefined') {
         localStorage.setItem('wallet_just_imported', 'true');
-        console.log('✅ Set wallet_just_imported flag');
+        logger.log('✅ Set wallet_just_imported flag');
         
         // Also set a more direct flag
         localStorage.setItem('force_password_setup', 'true');
-        console.log('✅ Set force_password_setup flag');
+        logger.log('✅ Set force_password_setup flag');
       }
       
       // Check if mobile - offer biometric setup
       if (isMobileDevice) {
-        console.log('📱 Mobile device detected - offering biometric setup after seed phrase import');
+        logger.log('📱 Mobile device detected - offering biometric setup after seed phrase import');
         setStep('biometric-setup');
       } else {
         // Desktop - complete onboarding
@@ -113,7 +114,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       }
       
     } catch (err) {
-      console.error('Error importing wallet:', err);
+      logger.error('Error importing wallet:', err);
       setError('Invalid recovery phrase. Check the words and try again.');
     } finally {
       setIsLoading(false);
@@ -144,11 +145,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     // All correct! Check if we should show biometric setup
     if (createdViaEmail && isMobileDevice) {
       // Email wallet on mobile - offer biometric setup first
-      console.log('📱 Email wallet on mobile - showing biometric setup');
+      logger.log('📱 Email wallet on mobile - showing biometric setup');
       setStep('biometric-setup');
     } else if (isMobileDevice) {
       // Seed phrase wallet on mobile - offer biometric setup
-      console.log('📱 Seed phrase wallet on mobile - showing biometric setup');
+      logger.log('📱 Seed phrase wallet on mobile - showing biometric setup');
       setStep('biometric-setup');
     } else {
       // Desktop - complete onboarding directly
@@ -235,7 +236,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
         if (isMobileDevice && !biometricEnabled) {
           // Offer biometric setup after email login
-          console.log('📱 Mobile device detected - offering biometric setup');
+          logger.log('📱 Mobile device detected - offering biometric setup');
           // Store password temporarily for biometric setup
           if (typeof window !== 'undefined') {
             sessionStorage.setItem('pending_biometric_password', password);
@@ -247,7 +248,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         }
       }
     } catch (err) {
-      console.error('Error with email auth:', err);
+      logger.error('Error with email auth:', err);
       setError('Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
@@ -1335,7 +1336,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                           ? (localStorage.getItem('wallet_email') || 'BLAZE User')
                           : `Wallet ${walletIdentifier.substring(0, 8)}...`;
                         
-                        console.log(`🔐 Registering biometric credential for ${walletType} wallet...`);
+                        logger.log(`🔐 Registering biometric credential for ${walletType} wallet...`);
                         const result = await webauthnService.register(walletIdentifier, displayName, walletType);
                         
                         if (!result.success || !result.credential) {
@@ -1346,7 +1347,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                         webauthnService.storeCredential(result.credential, walletIdentifier);
                         
                         // ✅ WALLET-SPECIFIC: Store password for THIS wallet only
-                        console.log('💾 Storing password for biometric access...');
+                        logger.log('💾 Storing password for biometric access...');
                         const stored = await biometricStore.storePassword(storedPassword, walletIdentifier);
                         
                         if (!stored) {
@@ -1359,12 +1360,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                           sessionStorage.removeItem('pending_biometric_password'); // Clear password
                         }
                         
-                        console.log('✅ Biometric enabled successfully');
+                        logger.log('✅ Biometric enabled successfully');
                         
                         // Complete onboarding
                         onComplete();
                       } catch (err: any) {
-                        console.error('Biometric setup error:', err);
+                        logger.error('Biometric setup error:', err);
                         setError(err.message || 'Biometric setup failed');
                       }
                     }}
@@ -1376,7 +1377,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
               <button
                     onClick={() => {
-                      console.log('Biometric setup skipped');
+                      logger.log('Biometric setup skipped');
                       // Clear password from session storage
                       if (typeof window !== 'undefined') {
                         sessionStorage.removeItem('pending_biometric_password');

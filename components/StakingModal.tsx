@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Lock, TrendingUp, Zap, Crown, Gift, Sparkles, Rocket, Target, BarChart3 } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface StakingModalProps {
   isOpen: boolean;

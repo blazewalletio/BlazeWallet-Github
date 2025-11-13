@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import * as bolt11 from 'light-bolt11-decoder';
+import { logger } from '@/lib/logger';
 
 // TODO: Import your LND/CLN client here
 // import { LndClient } from '@/lib/lnd-client';
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`⚡ Paying Lightning invoice...`);
+    logger.log(`⚡ Paying Lightning invoice...`);
 
     // Decode invoice to check details
     const decoded = decodeInvoice(cleanInvoice);
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`💸 Paying ${decoded.amountSats} sats to ${decoded.destination.substring(0, 10)}...`);
+    logger.log(`💸 Paying ${decoded.amountSats} sats to ${decoded.destination.substring(0, 10)}...`);
 
     // TODO: Replace with actual LND/CLN implementation
     // const lnd = new LndClient();
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(mockPayment);
   } catch (error: any) {
-    console.error('❌ Failed to pay Lightning invoice:', error);
+    logger.error('❌ Failed to pay Lightning invoice:', error);
     return NextResponse.json(
       { error: error.message || 'Payment failed' },
       { status: 500 }
@@ -132,7 +133,7 @@ function decodeInvoice(bolt11String: string) {
       destination,
     };
   } catch (error) {
-    console.error('Failed to decode invoice:', error);
+    logger.error('Failed to decode invoice:', error);
     return null;
   }
 }

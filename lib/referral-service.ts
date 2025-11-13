@@ -1,4 +1,5 @@
 import { ethers } from 'ethers';
+import { logger } from '@/lib/logger';
 
 export interface ReferralData {
   userAddress: string;
@@ -68,7 +69,7 @@ export class ReferralService {
       }
       return await response.json();
     } catch (error) {
-      console.error('Error fetching referral data:', error);
+      logger.error('Error fetching referral data:', error);
       throw error;
     }
   }
@@ -84,7 +85,7 @@ export class ReferralService {
       }
       return await response.json();
     } catch (error) {
-      console.error('Error fetching referral stats:', error);
+      logger.error('Error fetching referral stats:', error);
       throw error;
     }
   }
@@ -100,7 +101,7 @@ export class ReferralService {
       }
       return await response.json();
     } catch (error) {
-      console.error('Error fetching referral transactions:', error);
+      logger.error('Error fetching referral transactions:', error);
       throw error;
     }
   }
@@ -116,7 +117,7 @@ export class ReferralService {
       }
       return await response.json();
     } catch (error) {
-      console.error('Error fetching referral config:', error);
+      logger.error('Error fetching referral config:', error);
       throw error;
     }
   }
@@ -151,7 +152,7 @@ export class ReferralService {
       const result = await response.json();
       return result.transactionHash;
     } catch (error) {
-      console.error('Error claiming referral rewards:', error);
+      logger.error('Error claiming referral rewards:', error);
       throw error;
     }
   }
@@ -199,7 +200,7 @@ export class ReferralService {
         throw new Error(`Failed to record referral signup: ${response.statusText}`);
       }
     } catch (error) {
-      console.error('Error recording referral signup:', error);
+      logger.error('Error recording referral signup:', error);
       throw error;
     }
   }
@@ -233,7 +234,7 @@ export class ReferralService {
         throw new Error(`Failed to record fee share: ${response.statusText}`);
       }
     } catch (error) {
-      console.error('Error recording fee share:', error);
+      logger.error('Error recording fee share:', error);
       throw error;
     }
   }
@@ -253,7 +254,7 @@ export class ReferralService {
       }
       return await response.json();
     } catch (error) {
-      console.error('Error validating referral code:', error);
+      logger.error('Error validating referral code:', error);
       return {
         isValid: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -269,7 +270,7 @@ export class ReferralService {
       const data = await this.getReferralData(userAddress);
       return !!data.referralCode;
     } catch (error) {
-      console.error('Error checking referral code:', error);
+      logger.error('Error checking referral code:', error);
       return false;
     }
   }

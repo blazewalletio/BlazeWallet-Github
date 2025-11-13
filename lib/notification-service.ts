@@ -12,6 +12,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -48,7 +49,7 @@ class NotificationService {
 
       return data || [];
     } catch (error) {
-      console.error('[Notifications] Failed to fetch:', error);
+      logger.error('[Notifications] Failed to fetch:', error);
       return [];
     }
   }
@@ -69,7 +70,7 @@ class NotificationService {
       this.unreadCount = count || 0;
       return this.unreadCount;
     } catch (error) {
-      console.error('[Notifications] Failed to get unread count:', error);
+      logger.error('[Notifications] Failed to get unread count:', error);
       return 0;
     }
   }
@@ -86,7 +87,7 @@ class NotificationService {
 
       if (error) throw error;
     } catch (error) {
-      console.error('[Notifications] Failed to mark as read:', error);
+      logger.error('[Notifications] Failed to mark as read:', error);
     }
   }
 
@@ -106,7 +107,7 @@ class NotificationService {
       this.unreadCount = 0;
       this.notifyListeners([]);
     } catch (error) {
-      console.error('[Notifications] Failed to mark all as read:', error);
+      logger.error('[Notifications] Failed to mark all as read:', error);
     }
   }
 
@@ -122,7 +123,7 @@ class NotificationService {
 
       if (error) throw error;
     } catch (error) {
-      console.error('[Notifications] Failed to delete:', error);
+      logger.error('[Notifications] Failed to delete:', error);
     }
   }
 
@@ -176,7 +177,7 @@ class NotificationService {
    */
   async requestPushPermission(): Promise<boolean> {
     if (!('Notification' in window)) {
-      console.warn('[Notifications] Push notifications not supported');
+      logger.warn('[Notifications] Push notifications not supported');
       return false;
     }
 

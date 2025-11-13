@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { gasPriceService } from '@/lib/gas-price-service';
 import { PriceService } from '@/lib/price-service';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -25,19 +26,19 @@ interface ComparisonRequest {
 
 export async function POST(req: NextRequest) {
   try {
-    console.log('\n========================================');
-    console.log('⚡ [Smart Send] NEW COMPARISON REQUEST');
-    console.log('========================================');
+    logger.log('\n========================================');
+    logger.log('⚡ [Smart Send] NEW COMPARISON REQUEST');
+    logger.log('========================================');
 
     const body: ComparisonRequest = await req.json();
     const { chain, amount, token, transactionType = 'transfer' } = body;
 
-    console.log('📊 Request:', { chain, amount, token, transactionType });
+    logger.log('📊 Request:', { chain, amount, token, transactionType });
 
     // Get current gas price
-    console.log(`⛽ Fetching current gas for ${chain}...`);
+    logger.log(`⛽ Fetching current gas for ${chain}...`);
     const currentGas = await gasPriceService.getGasPrice(chain);
-    console.log('✅ Current gas:', currentGas.gasPrice, currentGas.source);
+    logger.log('✅ Current gas:', currentGas.gasPrice, currentGas.source);
 
     // Get historical data for AI prediction
     const { gasHistoryService } = await import('@/lib/gas-history-service');
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
     const nativeCurrency = nativeCurrencyMap[chain.toLowerCase()] || 'ETH';
     const nativePrice = await priceService.getPrice(nativeCurrency) || 2000;
 
-    console.log(`💰 ${nativeCurrency} price: $${nativePrice}`);
+    logger.log(`💰 ${nativeCurrency} price: $${nativePrice}`);
 
     // Calculate USD costs (chain-specific)
     const calculateCosts = (gasPrice: number) => {
@@ -109,10 +110,10 @@ export async function POST(req: NextRequest) {
       currentGas.standard < avgGas * 1.1 ? 'medium' :
       currentGas.standard < avgGas * 1.3 ? 'high' : 'very_high';
 
-    console.log('📊 Current gas level:', currentLevel);
+    logger.log('📊 Current gas level:', currentLevel);
 
     // Use AI to predict optimal time and gas price
-    console.log('🤖 Calling OpenAI for optimal time prediction...');
+    logger.log('🤖 Calling OpenAI for optimal time prediction...');
 
     const apiKey = process.env.GAS_OPTIMIZER_API_KEY || process.env.OPENAI_API_KEY;
     if (!apiKey) {
@@ -174,7 +175,7 @@ Respond in JSON:
     }
 
     const prediction = JSON.parse(aiResponse);
-    console.log('✅ AI prediction:', prediction);
+    logger.log('✅ AI prediction:', prediction);
 
     // Calculate optimal costs
     const optimalCosts = calculateCosts(prediction.predictedGasPrice);
@@ -218,14 +219,14 @@ Respond in JSON:
       },
     };
 
-    console.log('✅ [Smart Send] Comparison complete');
-    console.log('💰 Savings:', savingsUSD.toFixed(2), 'USD');
-    console.log('========================================\n');
+    logger.log('✅ [Smart Send] Comparison complete');
+    logger.log('💰 Savings:', savingsUSD.toFixed(2), 'USD');
+    logger.log('========================================\n');
 
     return NextResponse.json(response);
 
   } catch (error: any) {
-    console.error('❌ [Smart Send] Error:', error);
+    logger.error('❌ [Smart Send] Error:', error);
 
     return NextResponse.json({
       success: false,

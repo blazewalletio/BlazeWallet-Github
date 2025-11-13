@@ -7,6 +7,7 @@ import { useWalletStore } from '@/lib/wallet-store';
 import { getCurrentAccount, switchToEmailAccount, switchToSeedWallet, WalletAccount, saveCurrentAccountToRecent, getAccountsByType } from '@/lib/account-manager';
 import AccountSelectorDropdown from './AccountSelectorDropdown';
 import NewEmailModal from './NewEmailModal';
+import { logger } from '@/lib/logger';
 
 interface PasswordUnlockModalProps {
   isOpen: boolean;
@@ -32,7 +33,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     if (isOpen) {
       const account = getCurrentAccount();
       setCurrentAccount(account);
-      console.log('📧 Current account loaded:', account);
+      logger.log('📧 Current account loaded:', account);
     }
   }, [isOpen]);
 
@@ -50,7 +51,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         
         // ✅ CHECK: Only show biometric on production domain
         if (!webauthnService.isOnProductionDomain()) {
-          console.log('🚫 Biometric disabled: Not on production domain (my.blazewallet.io)');
+          logger.log('🚫 Biometric disabled: Not on production domain (my.blazewallet.io)');
           setBiometricAvailable(false);
           return;
         }
@@ -64,7 +65,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         
         const hasStoredPassword = biometricStore.hasStoredPassword(walletIdentifier); // ✅ Wallet-specific check
         
-        console.log(`🔍 Biometric check for wallet ${walletIdentifier.substring(0, 8)}...:`, hasStoredPassword);
+        logger.log(`🔍 Biometric check for wallet ${walletIdentifier.substring(0, 8)}...:`, hasStoredPassword);
         
         // Show biometric button if has stored password for this wallet
         setBiometricAvailable(hasStoredPassword);
@@ -162,7 +163,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
 
   // Handle account switching
   const handleSelectAccount = async (account: WalletAccount) => {
-    console.log('🔄 Switching account:', account);
+    logger.log('🔄 Switching account:', account);
     setPassword('');
     setError('');
     setPendingNewEmail(null);
@@ -180,7 +181,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
           localStorage.setItem('supabase_user_id', account.id);
           localStorage.setItem('wallet_created_with_email', 'true');
           
-          console.log('✅ Updated localStorage for email account:', account.email);
+          logger.log('✅ Updated localStorage for email account:', account.email);
         }
         
         setCurrentAccount(account);
@@ -191,7 +192,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         setCurrentAccount(updatedAccount);
       }
     } catch (err: any) {
-      console.error('Failed to switch account:', err);
+      logger.error('Failed to switch account:', err);
       setError(err.message || 'Failed to switch account');
       
       // ✅ FIX: Revert to previous account on failure
@@ -206,7 +207,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
 
   // Handle adding new email
   const handleAddNewEmail = async (email: string) => {
-    console.log('➕ Adding new email account:', email);
+    logger.log('➕ Adding new email account:', email);
     setPendingNewEmail(email);
     setCurrentAccount({
       id: 'pending',

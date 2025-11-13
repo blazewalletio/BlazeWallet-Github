@@ -8,6 +8,8 @@
  * - Rate limit: 10-50 calls/minute (free tier)
  */
 
+import { logger } from '@/lib/logger';
+
 export interface CoinGeckoTokenMetadata {
   mint: string;
   name: string;
@@ -50,7 +52,7 @@ class CoinGeckoTokenService {
 
   private async fetchTokenMetadata(mint: string): Promise<CoinGeckoTokenMetadata | null> {
     try {
-      console.log(`🦎 [CoinGecko] Fetching metadata for ${mint.substring(0, 8)}...`);
+      logger.log(`🦎 [CoinGecko] Fetching metadata for ${mint.substring(0, 8)}...`);
       
       // CoinGecko API endpoint for Solana tokens
       const response = await fetch(
@@ -63,24 +65,24 @@ class CoinGeckoTokenService {
       );
 
       if (response.status === 404) {
-        console.log(`ℹ️ [CoinGecko] Token not found: ${mint.substring(0, 8)}...`);
+        logger.log(`ℹ️ [CoinGecko] Token not found: ${mint.substring(0, 8)}...`);
         return null;
       }
 
       if (response.status === 429) {
-        console.warn('⚠️ [CoinGecko] Rate limit hit, skipping...');
+        logger.warn('⚠️ [CoinGecko] Rate limit hit, skipping...');
         return null;
       }
 
       if (!response.ok) {
-        console.warn(`⚠️ [CoinGecko] API returned ${response.status} for ${mint.substring(0, 8)}...`);
+        logger.warn(`⚠️ [CoinGecko] API returned ${response.status} for ${mint.substring(0, 8)}...`);
         return null;
       }
 
       const data = await response.json();
 
       if (!data.id) {
-        console.log(`ℹ️ [CoinGecko] No metadata for ${mint.substring(0, 8)}...`);
+        logger.log(`ℹ️ [CoinGecko] No metadata for ${mint.substring(0, 8)}...`);
         return null;
       }
 
@@ -92,13 +94,13 @@ class CoinGeckoTokenService {
         coingeckoId: data.id,
       };
 
-      console.log(`✅ [CoinGecko] Found ${result.symbol} (${result.name})`);
+      logger.log(`✅ [CoinGecko] Found ${result.symbol} (${result.name})`);
       
       return result;
     } catch (error: any) {
       // Don't log as error for 404s (expected for many tokens)
       if (error.status !== 404) {
-        console.error(`❌ [CoinGecko] Failed to fetch ${mint.substring(0, 8)}...:`, error);
+        logger.error(`❌ [CoinGecko] Failed to fetch ${mint.substring(0, 8)}...:`, error);
       }
       return null;
     }
@@ -110,10 +112,10 @@ class CoinGeckoTokenService {
   clearCache(mint?: string) {
     if (mint) {
       this.cache.delete(mint);
-      console.log(`🧹 [CoinGecko] Cleared cache for ${mint.substring(0, 8)}...`);
+      logger.log(`🧹 [CoinGecko] Cleared cache for ${mint.substring(0, 8)}...`);
     } else {
       this.cache.clear();
-      console.log('🧹 [CoinGecko] Cleared all cache');
+      logger.log('🧹 [CoinGecko] Cleared all cache');
     }
   }
 }

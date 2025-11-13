@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { aiService } from '@/lib/ai-service';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Send, Loader2, AlertCircle, CheckCircle, ArrowLeft, Info, TrendingUp, Zap, AlertTriangle, Trash2, Mic, MessageCircle } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface AITransactionAssistantProps {
   onClose: () => void;
@@ -161,7 +162,7 @@ export default function AITransactionAssistant({
         onExecuteAction(currentResponse.action);
         // onClose() is called in Dashboard after modal opens
       } catch (error) {
-        console.error('❌ [AI Assistant] Execute error:', error);
+        logger.error('❌ [AI Assistant] Execute error:', error);
       } finally {
         setIsExecuting(false);
       }

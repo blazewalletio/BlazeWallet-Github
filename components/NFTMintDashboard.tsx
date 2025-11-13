@@ -6,6 +6,7 @@ import { Palette, Sparkles, ArrowLeft, AlertCircle, CheckCircle } from 'lucide-r
 import { useWalletStore } from '@/lib/wallet-store';
 import { NFTService, NFTCollection, NFTStats } from '@/lib/nft-service';
 import { ethers } from 'ethers';
+import { logger } from '@/lib/logger';
 
 export default function NFTMintDashboard() {
   const { wallet } = useWalletStore();
@@ -43,7 +44,7 @@ export default function NFTMintDashboard() {
         setCollections(collectionsData);
         setStats(statsData);
       } catch (err: any) {
-        console.error('Error loading NFT data:', err);
+        logger.error('Error loading NFT data:', err);
         setError(err.message || 'Failed to load NFT data');
       } finally {
         setIsLoading(false);
@@ -93,7 +94,7 @@ export default function NFTMintDashboard() {
       setSuccess(null);
       
       const collection = collections[selectedSkin];
-      console.log('Minting NFT from collection:', collection.name);
+      logger.log('Minting NFT from collection:', collection.name);
       
       const txHash = await nftService.mintNFT(collection.id);
       
@@ -110,7 +111,7 @@ export default function NFTMintDashboard() {
       setStats(statsData);
       
     } catch (err: any) {
-      console.error('Error minting NFT:', err);
+      logger.error('Error minting NFT:', err);
       setError(err.message || 'Failed to mint NFT');
     } finally {
       setIsMinting(false);

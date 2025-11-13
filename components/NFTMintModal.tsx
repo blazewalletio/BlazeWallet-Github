@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Palette, Sparkles, Lock, Check, AlertTriangle } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface NFTMintModalProps {
   isOpen: boolean;

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Key, ChevronDown, Check, PlusCircle, KeyRound } from 'lucide-react';
 import { WalletAccount, getAccountsByType } from '@/lib/account-manager';
+import { logger } from '@/lib/logger';
 
 interface AccountSelectorDropdownProps {
   currentAccount: WalletAccount | null;

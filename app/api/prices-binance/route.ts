@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 // Force dynamic rendering for this API route
 export const dynamic = 'force-dynamic';
@@ -77,7 +78,7 @@ export async function GET(request: Request) {
         );
 
         if (!response.ok) {
-          console.error(`Binance API error for ${ticker}:`, response.status);
+          logger.error(`Binance API error for ${ticker}:`, response.status);
           return null;
         }
 
@@ -88,7 +89,7 @@ export async function GET(request: Request) {
           change24h: parseFloat(data.priceChangePercent),
         };
       } catch (error) {
-        console.error(`Error fetching ${ticker} from Binance:`, error);
+        logger.error(`Error fetching ${ticker} from Binance:`, error);
         return null;
       }
     });
@@ -115,7 +116,7 @@ export async function GET(request: Request) {
     return NextResponse.json(result);
 
   } catch (error) {
-    console.error('Error fetching Binance prices:', error);
+    logger.error('Error fetching Binance prices:', error);
     return NextResponse.json(
       { error: 'Failed to fetch prices from Binance' },
       { status: 500 }

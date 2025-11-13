@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { kmsService } from '@/lib/kms-service';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 10;
@@ -18,8 +19,8 @@ const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
 export async function GET(req: NextRequest) {
   try {
-    console.log('[KMS] Public key request received');
-    console.log('[KMS] Environment check:', {
+    logger.log('[KMS] Public key request received');
+    logger.log('[KMS] Environment check:', {
       region: process.env.AWS_REGION,
       keyAlias: process.env.AWS_KMS_KEY_ALIAS,
       keyId: process.env.KMS_KEY_ID,
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
 
     // Fetch fresh public key
     const publicKey = await kmsService.getPublicKey();
-    console.log('[KMS] Public key retrieved successfully');
+    logger.log('[KMS] Public key retrieved successfully');
 
     // Update cache
     cachedPublicKey = publicKey;
@@ -52,7 +53,7 @@ export async function GET(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('❌ Failed to get public key:', error);
+    logger.error('❌ Failed to get public key:', error);
     return NextResponse.json({
       success: false,
       error: 'Failed to retrieve public key',

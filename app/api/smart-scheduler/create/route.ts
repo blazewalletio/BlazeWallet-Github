@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
   try {
     const body: CreateScheduleRequest = await req.json();
 
-    console.log('📥 Received schedule request:', {
+    logger.log('📥 Received schedule request:', {
       user_id: body.user_id,
       supabase_user_id: body.supabase_user_id,
       chain: body.chain,
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
     // Initialize Supabase with service role key (bypasses RLS for write)
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('🔑 Supabase client initialized with service role key');
+    logger.log('🔑 Supabase client initialized with service role key');
 
     // Calculate expiration time (default: scheduled_for + max_wait_hours)
     let expires_at = null;
@@ -86,7 +87,7 @@ export async function POST(req: NextRequest) {
       expires_at = new Date(Date.now() + body.max_wait_hours * 60 * 60 * 1000).toISOString();
     }
 
-    console.log('💾 Inserting scheduled transaction:', {
+    logger.log('💾 Inserting scheduled transaction:', {
       user_id: body.user_id,
       supabase_user_id: body.supabase_user_id,
       chain: body.chain.toLowerCase(),
@@ -124,14 +125,14 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
-      console.error('❌ Supabase error:', error);
+      logger.error('❌ Supabase error:', error);
       return NextResponse.json(
         { error: 'Failed to create scheduled transaction', details: error.message },
         { status: 500 }
       );
     }
 
-    console.log('✅ Scheduled transaction created:', data.id);
+    logger.log('✅ Scheduled transaction created:', data.id);
 
     // Create notification
     await supabase.from('notifications').insert({
@@ -154,7 +155,7 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('❌ Smart Scheduler API error:', error);
+    logger.error('❌ Smart Scheduler API error:', error);
     return NextResponse.json(
       { error: 'Internal server error', details: error.message },
       { status: 500 }

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 // Force dynamic rendering for this API route
 export const dynamic = 'force-dynamic';
@@ -93,7 +94,7 @@ export async function GET(request: Request) {
     return NextResponse.json(result);
 
   } catch (error) {
-    console.error('Error fetching prices:', error);
+    logger.error('Error fetching prices:', error);
     return NextResponse.json(
       { error: 'Failed to fetch prices' },
       { status: 500 }

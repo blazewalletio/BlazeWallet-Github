@@ -25,6 +25,7 @@ import { CHAINS } from '@/lib/chains';
 import { refreshTokenMetadata } from '@/lib/spl-token-metadata';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { getTokenPriceHistory, calculatePriceChange, getPriceRange } from '@/lib/token-price-history';
+import { logger } from '@/lib/logger';
 
 interface TokenDetailModalProps {
   token: Token;
@@ -93,14 +94,14 @@ export default function TokenDetailModal({
         );
         
         if (result.success) {
-          console.log(`✅ Price history loaded from ${result.source}`);
+          logger.log(`✅ Price history loaded from ${result.source}`);
           setPriceHistory(result.prices);
         } else {
-          console.warn(`⚠️ No price history available for ${token.symbol}: ${result.error}`);
+          logger.warn(`⚠️ No price history available for ${token.symbol}: ${result.error}`);
           setPriceHistory([]);
         }
       } catch (error) {
-        console.error('❌ Failed to load price history:', error);
+        logger.error('❌ Failed to load price history:', error);
         setPriceHistory([]);
       } finally {
         setIsLoadingChart(false);

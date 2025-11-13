@@ -19,6 +19,7 @@ import {
   Clock, Zap, BarChart3, Award, Sparkles, RefreshCw
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -118,7 +119,7 @@ export default function GasSavingsDashboard({ userId }: GasSavingsDashboardProps
       })) || []);
 
     } catch (error: any) {
-      console.error('[Savings Dashboard] Error:', error);
+      logger.error('[Savings Dashboard] Error:', error);
     } finally {
       setLoading(false);
     }

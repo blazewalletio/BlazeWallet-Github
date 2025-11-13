@@ -18,6 +18,7 @@
  */
 
 import { CHAINS } from './chains';
+import { logger } from '@/lib/logger';
 
 export type ChainType = 'ethereum' | 'polygon' | 'arbitrum' | 'base' | 'bsc' | 'optimism' | 'avalanche' | 'fantom' | 'cronos' | 'zksync' | 'linea' | 'solana' | 'bitcoin' | 'litecoin' | 'dogecoin' | 'bitcoincash' | 'unknown';
 export type ConfidenceLevel = 'high' | 'medium' | 'low';
@@ -51,20 +52,20 @@ export class QRParser {
    * Main entry point - parse any QR code data
    */
   static parse(data: string): ParsedQRData {
-    console.log('🔍 [QRParser] Parsing QR data:', data.substring(0, 100));
+    logger.log('🔍 [QRParser] Parsing QR data:', data.substring(0, 100));
     
     // Try protocol-based parsing first
     if (data.includes(':')) {
       const protocolResult = this.parseProtocol(data);
       if (protocolResult.isValid) {
-        console.log('✅ [QRParser] Protocol-based parse success:', protocolResult.chain);
+        logger.log('✅ [QRParser] Protocol-based parse success:', protocolResult.chain);
         return protocolResult;
       }
     }
     
     // Fallback to address-only detection
     const addressResult = this.parseAddress(data);
-    console.log('✅ [QRParser] Address-based parse result:', addressResult.chain, addressResult.confidence);
+    logger.log('✅ [QRParser] Address-based parse result:', addressResult.chain, addressResult.confidence);
     return addressResult;
   }
   
@@ -183,7 +184,7 @@ export class QRParser {
         isValid: true,
       };
     } catch (error) {
-      console.error('Error parsing ethereum protocol:', error);
+      logger.error('Error parsing ethereum protocol:', error);
       return {
         address: '',
         chain: 'ethereum',
@@ -236,7 +237,7 @@ export class QRParser {
         warnings: splToken ? ['SPL token transfers not yet supported in Quick Pay'] : undefined,
       };
     } catch (error) {
-      console.error('Error parsing solana protocol:', error);
+      logger.error('Error parsing solana protocol:', error);
       return {
         address: '',
         chain: 'solana',
@@ -287,7 +288,7 @@ export class QRParser {
         isValid: true,
       };
     } catch (error) {
-      console.error('Error parsing bitcoin protocol:', error);
+      logger.error('Error parsing bitcoin protocol:', error);
       return {
         address: '',
         chain: 'bitcoin',
@@ -338,7 +339,7 @@ export class QRParser {
         isValid: true,
       };
     } catch (error) {
-      console.error('Error parsing litecoin protocol:', error);
+      logger.error('Error parsing litecoin protocol:', error);
       return {
         address: '',
         chain: 'litecoin',
@@ -389,7 +390,7 @@ export class QRParser {
         isValid: true,
       };
     } catch (error) {
-      console.error('Error parsing dogecoin protocol:', error);
+      logger.error('Error parsing dogecoin protocol:', error);
       return {
         address: '',
         chain: 'dogecoin',
@@ -440,7 +441,7 @@ export class QRParser {
         isValid: true,
       };
     } catch (error) {
-      console.error('Error parsing bitcoincash protocol:', error);
+      logger.error('Error parsing bitcoincash protocol:', error);
       return {
         address: '',
         chain: 'bitcoincash',
@@ -509,7 +510,7 @@ export class QRParser {
         isValid: true,
       };
     } catch (error) {
-      console.error('Error parsing universal link:', error);
+      logger.error('Error parsing universal link:', error);
       return {
         address: '',
         chain: 'unknown',

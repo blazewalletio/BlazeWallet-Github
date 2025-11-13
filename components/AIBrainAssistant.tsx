@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Sparkles, Shield, PieChart, Zap, MessageSquare, ArrowRight, ArrowLeft } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface AIBrainAssistantProps {
   onClose: () => void;

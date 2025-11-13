@@ -7,6 +7,8 @@
  */
 
 // ✅ Node.js compatibility: Use webcrypto for backend
+import { logger } from '@/lib/logger';
+
 const getCrypto = () => {
   if (typeof window !== 'undefined') {
     // Browser environment
@@ -24,7 +26,7 @@ const getCrypto = () => {
     const { webcrypto } = require('crypto');
     return webcrypto;
   } catch (error) {
-    console.error('❌ Failed to load webcrypto:', error);
+    logger.error('❌ Failed to load webcrypto:', error);
     throw new Error('Web Crypto API not available');
   }
 };

@@ -3,6 +3,7 @@
 
 import { supabase, PriorityListRegistration, PriorityListStats, ReferralLeaderboardEntry } from './supabase';
 import { sendEmail, generateUserConfirmationEmail, generateAdminNotificationEmail } from './email-service';
+import { logger } from '@/lib/logger';
 
 export interface RegisterOptions {
   email?: string;
@@ -168,7 +169,7 @@ export class PriorityListService {
         .single();
 
       if (error) {
-        console.error('Supabase insert error:', error);
+        logger.error('Supabase insert error:', error);
         return {
           success: false,
           message: 'Failed to register. Please try again.',
@@ -228,7 +229,7 @@ export class PriorityListService {
         isEarlyBird: data.is_early_bird,
       };
     } catch (error) {
-      console.error('Error registering for priority list:', error);
+      logger.error('Error registering for priority list:', error);
       return {
         success: false,
         message: 'Failed to register. Please try again.',
@@ -284,7 +285,7 @@ export class PriorityListService {
         message: 'Email verified successfully!',
       };
     } catch (error) {
-      console.error('Error verifying email:', error);
+      logger.error('Error verifying email:', error);
       return {
         success: false,
         message: 'Failed to verify email. Please try again.',
@@ -303,7 +304,7 @@ export class PriorityListService {
       .single();
 
     if (error) {
-      console.error('Error fetching registration:', error);
+      logger.error('Error fetching registration:', error);
       return null;
     }
 
@@ -320,7 +321,7 @@ export class PriorityListService {
       .single();
 
     if (error) {
-      console.error('Error fetching stats:', error);
+      logger.error('Error fetching stats:', error);
       return null;
     }
 
@@ -337,7 +338,7 @@ export class PriorityListService {
       .limit(limit);
 
     if (error) {
-      console.error('Error fetching leaderboard:', error);
+      logger.error('Error fetching leaderboard:', error);
       return [];
     }
 
@@ -355,7 +356,7 @@ export class PriorityListService {
       .order('registered_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching referrals:', error);
+      logger.error('Error fetching referrals:', error);
       return [];
     }
 

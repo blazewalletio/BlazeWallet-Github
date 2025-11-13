@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Rocket, TrendingUp, Users, Clock, ArrowLeft, ExternalLink } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 export default function LaunchpadDashboard() {
   const [selectedProject, setSelectedProject] = useState<any>(null);

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Fingerprint, Eye, EyeOff, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface BiometricSetupModalProps {
   isOpen: boolean;
@@ -98,7 +99,7 @@ export default function BiometricSetupModal({ isOpen, onClose, onSuccess }: Biom
         ? (localStorage.getItem('wallet_email') || 'BLAZE User')
         : `Wallet ${walletIdentifier.substring(0, 8)}...`;
       
-      console.log(`🔐 Setting up biometric for ${walletType} wallet:`, displayName);
+      logger.log(`🔐 Setting up biometric for ${walletType} wallet:`, displayName);
       
       // ✅ WALLET-SPECIFIC: Register WebAuthn credential with wallet identifier
       const result = await webauthnService.register(walletIdentifier, displayName, walletType);
@@ -117,7 +118,7 @@ export default function BiometricSetupModal({ isOpen, onClose, onSuccess }: Biom
         throw new Error('Failed to store password for biometric access');
       }
       
-      console.log(`✅ Biometric enabled for wallet: ${walletIdentifier.substring(0, 8)}...`);
+      logger.log(`✅ Biometric enabled for wallet: ${walletIdentifier.substring(0, 8)}...`);
       
       // Success!
       setStep('success');
@@ -132,7 +133,7 @@ export default function BiometricSetupModal({ isOpen, onClose, onSuccess }: Biom
       }, 1500);
       
     } catch (error: any) {
-      console.error('Biometric registration error:', error);
+      logger.error('Biometric registration error:', error);
       setError(error.message || 'Failed to enable biometric authentication');
       setStep('password'); // Go back to password step
       setIsLoading(false);

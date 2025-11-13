@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import { CONTRACT_ADDRESSES } from './contracts-config';
+import { logger } from '@/lib/logger';
 
 export interface Project {
   id: number;
@@ -193,13 +194,13 @@ export class LaunchpadService {
           });
         } catch (error) {
           // Project might not exist, skip it
-          console.log(`Project ${i} not found, skipping...`);
+          logger.log(`Project ${i} not found, skipping...`);
         }
       }
       
       return projects;
     } catch (error) {
-      console.error('Error getting projects:', error);
+      logger.error('Error getting projects:', error);
       throw error;
     }
   }
@@ -247,7 +248,7 @@ export class LaunchpadService {
         hasEarlyAccess
       };
     } catch (error) {
-      console.error('Error getting launchpad stats:', error);
+      logger.error('Error getting launchpad stats:', error);
       throw error;
     }
   }
@@ -258,15 +259,15 @@ export class LaunchpadService {
   async contribute(projectId: number, amountBNB: string): Promise<string> {
     try {
       const amountWei = ethers.parseEther(amountBNB);
-      console.log(`Contributing ${amountBNB} BNB to project ${projectId}...`);
+      logger.log(`Contributing ${amountBNB} BNB to project ${projectId}...`);
       
       const tx = await this.contract.contribute(projectId, { value: amountWei });
       const receipt = await tx.wait();
       
-      console.log('Contribution successful!');
+      logger.log('Contribution successful!');
       return receipt.hash;
     } catch (error: any) {
-      console.error('Error contributing:', error);
+      logger.error('Error contributing:', error);
       if (error.code === 'ACTION_REJECTED') {
         throw new Error('Transaction rejected by user');
       }
@@ -294,7 +295,7 @@ export class LaunchpadService {
       const contribution = await this.contract.getContribution(projectId, userAddress);
       return ethers.formatEther(contribution);
     } catch (error) {
-      console.error('Error getting user contribution:', error);
+      logger.error('Error getting user contribution:', error);
       return '0';
     }
   }
@@ -311,7 +312,7 @@ export class LaunchpadService {
       
       return balance >= threshold;
     } catch (error) {
-      console.error('Error checking early access:', error);
+      logger.error('Error checking early access:', error);
       return false;
     }
   }
@@ -324,7 +325,7 @@ export class LaunchpadService {
       const threshold = await this.contract.earlyAccessThreshold();
       return ethers.formatEther(threshold);
     } catch (error) {
-      console.error('Error getting early access threshold:', error);
+      logger.error('Error getting early access threshold:', error);
       return '5000'; // Default fallback
     }
   }
@@ -337,7 +338,7 @@ export class LaunchpadService {
       const duration = await this.contract.earlyAccessDuration();
       return Number(duration);
     } catch (error) {
-      console.error('Error getting early access duration:', error);
+      logger.error('Error getting early access duration:', error);
       return 3600; // Default 1 hour
     }
   }

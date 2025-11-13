@@ -7,6 +7,7 @@
  */
 
 import { KMSClient, GetPublicKeyCommand, DecryptCommand } from '@aws-sdk/client-kms';
+import { logger } from '@/lib/logger';
 
 export class KMSService {
   private client: KMSClient;
@@ -27,7 +28,7 @@ export class KMSService {
 
     this.keyId = aliasEnv || idEnv || 'alias/blaze-scheduled-tx';
 
-    console.log('[KMSService] Initializing KMS client with configuration:', {
+    logger.log('[KMSService] Initializing KMS client with configuration:', {
       region: this.region,
       hasAccessKey: Boolean(accessKey),
       accessKeyPreview: accessKey ? `${accessKey.slice(0, 4)}…${accessKey.slice(-4)}` : null,
@@ -52,7 +53,7 @@ export class KMSService {
    */
   async getPublicKey(): Promise<string> {
     try {
-      console.log('[KMSService] Calling GetPublicKeyCommand', {
+      logger.log('[KMSService] Calling GetPublicKeyCommand', {
         keyId: this.keyId,
         region: this.region,
       });
@@ -64,7 +65,7 @@ export class KMSService {
         throw new Error('Failed to retrieve public key');
       }
 
-      console.log('[KMSService] GetPublicKey response metadata:', {
+      logger.log('[KMSService] GetPublicKey response metadata:', {
         keyId: this.keyId,
         httpStatus: response.$metadata?.httpStatusCode,
         requestId: response.$metadata?.requestId,
@@ -76,7 +77,7 @@ export class KMSService {
 
       return publicKeyPem;
     } catch (error: any) {
-      console.error('❌ Failed to get KMS public key:', {
+      logger.error('❌ Failed to get KMS public key:', {
         message: error?.message,
         name: error?.name,
         stack: error?.stack,
@@ -108,7 +109,7 @@ export class KMSService {
 
       return Buffer.from(response.Plaintext);
     } catch (error: any) {
-      console.error('❌ KMS decryption failed:', error);
+      logger.error('❌ KMS decryption failed:', error);
       throw new Error('Failed to decrypt ephemeral key');
     }
   }
@@ -119,10 +120,10 @@ export class KMSService {
   async testConnection(): Promise<boolean> {
     try {
       await this.getPublicKey();
-      console.log('✅ KMS connection test passed');
+      logger.log('✅ KMS connection test passed');
       return true;
     } catch (error) {
-      console.error('❌ KMS connection test failed:', error);
+      logger.error('❌ KMS connection test failed:', error);
       return false;
     }
   }

@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { logger } from '@/lib/logger';
 import { 
   Bot, 
   Shield, 

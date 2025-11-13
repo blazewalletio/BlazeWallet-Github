@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, X, Smartphone, Monitor, Wifi } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -61,15 +62,15 @@ export default function PWAInstallPrompt() {
       const choiceResult = await deferredPrompt.userChoice;
       
       if (choiceResult.outcome === 'accepted') {
-        console.log('PWA installation accepted');
+        logger.log('PWA installation accepted');
       } else {
-        console.log('PWA installation dismissed');
+        logger.log('PWA installation dismissed');
       }
       
       setDeferredPrompt(null);
       setShowPrompt(false);
     } catch (error) {
-      console.error('Error installing PWA:', error);
+      logger.error('Error installing PWA:', error);
     }
   };
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Lock, TrendingUp, Clock, CheckCircle, ArrowRight } from 'lucide-react';
 import AnimatedNumber from './AnimatedNumber';
+import { logger } from '@/lib/logger';
 
 export default function VestingDashboard() {
   // Mock vesting data - would be fetched via contract calls
@@ -32,7 +33,7 @@ export default function VestingDashboard() {
 
   const handleClaimVesting = async () => {
     // TODO: Implement actual contract call
-    console.log('Claiming vested tokens...');
+    logger.log('Claiming vested tokens...');
   };
 
   return (

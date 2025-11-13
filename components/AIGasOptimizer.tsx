@@ -21,6 +21,7 @@ import {
   CheckCircle, Bell, Calendar, DollarSign, Activity, BarChart3,
   Sparkles, Shield, RefreshCw, ChevronDown, ChevronUp, Info
 } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface AIGasOptimizerProps {
   onClose: () => void;
@@ -83,7 +84,7 @@ export default function AIGasOptimizer({ onClose, chain }: AIGasOptimizerProps) 
     setError(null);
     
     try {
-      console.log('⛽ [Gas Optimizer] Requesting analysis...', { chain, selectedTxType, urgency });
+      logger.log('⛽ [Gas Optimizer] Requesting analysis...', { chain, selectedTxType, urgency });
       
       const response = await fetch('/api/gas-optimizer', {
         method: 'POST',
@@ -102,9 +103,9 @@ export default function AIGasOptimizer({ onClose, chain }: AIGasOptimizerProps) 
       }
       
       setAnalysis(data.analysis);
-      console.log('✅ [Gas Optimizer] Analysis loaded:', data.analysis);
+      logger.log('✅ [Gas Optimizer] Analysis loaded:', data.analysis);
     } catch (err: any) {
-      console.error('❌ [Gas Optimizer] Error:', err);
+      logger.error('❌ [Gas Optimizer] Error:', err);
       setError(err.message);
     } finally {
       setLoading(false);

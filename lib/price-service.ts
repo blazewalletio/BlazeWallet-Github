@@ -1,6 +1,7 @@
 // Live crypto price service with multi-API fallback system
 import { dexScreenerService } from './dexscreener-service';
 import { LRUCache } from './lru-cache'; // ✅ PERFORMANCE: LRU cache for better memory management
+import { logger } from '@/lib/logger';
 
 export class PriceService {
   // ✅ PERFORMANCE FIX: Use LRU cache instead of Map for automatic eviction
@@ -19,11 +20,11 @@ export class PriceService {
     // Check LRU cache first (auto-evicts old entries)
     const cached = this.cache.get(symbol);
     if (cached) {
-      console.log(`💰 [PriceService] Cache hit for ${symbol}: $${cached.price} (${cached.source})`);
+      logger.log(`💰 [PriceService] Cache hit for ${symbol}: $${cached.price} (${cached.source})`);
       return cached.price;
     }
 
-    console.log(`🔍 [PriceService] Fetching price for ${symbol}...`);
+    logger.log(`🔍 [PriceService] Fetching price for ${symbol}...`);
 
     // Try primary API (CoinGecko)
     const price = await this.fetchPriceWithFallback(symbol);
@@ -32,7 +33,7 @@ export class PriceService {
       return price;
     }
 
-    console.error(`❌ [PriceService] Failed to get price for ${symbol}, returning 0`);
+    logger.error(`❌ [PriceService] Failed to get price for ${symbol}, returning 0`);
     return 0;
   }
 
@@ -40,7 +41,7 @@ export class PriceService {
    * Get multiple prices in batch (optimized)
    */
   async getMultiplePrices(symbols: string[]): Promise<Record<string, number>> {
-    console.log(`🔍 [PriceService] Fetching multiple prices for: ${symbols.join(', ')}`);
+    logger.log(`🔍 [PriceService] Fetching multiple prices for: ${symbols.join(', ')}`);
 
     // Check which symbols are in LRU cache
     const uncachedSymbols: string[] = [];
@@ -55,7 +56,7 @@ export class PriceService {
       }
     });
 
-    console.log(`💾 [PriceService] Cache hits: ${symbols.length - uncachedSymbols.length}/${symbols.length}`);
+    logger.log(`💾 [PriceService] Cache hits: ${symbols.length - uncachedSymbols.length}/${symbols.length}`);
 
     // If all cached, return immediately
     if (uncachedSymbols.length === 0) {
@@ -99,11 +100,11 @@ export class PriceService {
     // Check mint cache first (TTL handled internally)
     const cached = this.mintCache.get(mint);
     if (cached) {
-      console.log(`💰 [PriceService] Mint cache hit for ${mint.substring(0, 8)}...: $${cached.price} (${cached.source})`);
+      logger.log(`💰 [PriceService] Mint cache hit for ${mint.substring(0, 8)}...: $${cached.price} (${cached.source})`);
       return { price: cached.price, change24h: cached.change24h };
     }
 
-    console.log(`🔍 [PriceService] Fetching price by mint for ${mint.substring(0, 8)}...`);
+    logger.log(`🔍 [PriceService] Fetching price by mint for ${mint.substring(0, 8)}...`);
 
     try {
       // Try DexScreener (best for DEX-traded tokens)
@@ -120,15 +121,15 @@ export class PriceService {
           source: 'dexscreener',
         }, this.cacheDuration);
         
-        console.log(`✅ [PriceService] DexScreener: ${mint.substring(0, 8)}... = $${price}`);
+        logger.log(`✅ [PriceService] DexScreener: ${mint.substring(0, 8)}... = $${price}`);
         return { price, change24h };
       }
     } catch (error) {
-      console.warn(`⚠️ [PriceService] DexScreener failed for ${mint.substring(0, 8)}...:`, error instanceof Error ? error.message : 'Unknown error');
+      logger.warn(`⚠️ [PriceService] DexScreener failed for ${mint.substring(0, 8)}...:`, error instanceof Error ? error.message : 'Unknown error');
     }
 
     // If API fails, return 0 (LRU cache would have returned cached value if fresh)
-    console.error(`❌ [PriceService] Failed to get price by mint for ${mint.substring(0, 8)}...`);
+    logger.error(`❌ [PriceService] Failed to get price by mint for ${mint.substring(0, 8)}...`);
     return { price: 0, change24h: 0 };
   }
 
@@ -137,7 +138,7 @@ export class PriceService {
    * Optimized batch method with rate limiting for DexScreener
    */
   async getPricesByMints(mints: string[]): Promise<Map<string, { price: number; change24h: number }>> {
-    console.log(`🔍 [PriceService] Fetching prices for ${mints.length} mints...`);
+    logger.log(`🔍 [PriceService] Fetching prices for ${mints.length} mints...`);
     
     const result = new Map<string, { price: number; change24h: number }>();
     const now = Date.now();
@@ -153,7 +154,7 @@ export class PriceService {
       }
     });
 
-    console.log(`💾 [PriceService] Mint cache hits: ${result.size}/${mints.length}`);
+    logger.log(`💾 [PriceService] Mint cache hits: ${result.size}/${mints.length}`);
 
     if (uncachedMints.length === 0) {
       return result;
@@ -179,7 +180,7 @@ export class PriceService {
   private async fetchPriceWithFallback(symbol: string): Promise<number> {
     // Try CoinGecko first
     try {
-      console.log(`📡 [PriceService] Trying CoinGecko for ${symbol}...`);
+      logger.log(`📡 [PriceService] Trying CoinGecko for ${symbol}...`);
       const response = await fetch(`${this.primaryApiUrl}?symbols=${symbol}`, {
         signal: AbortSignal.timeout(5000), // 5 second timeout
       });
@@ -197,17 +198,17 @@ export class PriceService {
             source: 'coingecko',
           }, this.cacheDuration);
           
-          console.log(`✅ [PriceService] CoinGecko: ${symbol} = $${price}`);
+          logger.log(`✅ [PriceService] CoinGecko: ${symbol} = $${price}`);
           return price;
         }
       }
     } catch (error) {
-      console.warn(`⚠️ [PriceService] CoinGecko failed for ${symbol}:`, error instanceof Error ? error.message : 'Unknown error');
+      logger.warn(`⚠️ [PriceService] CoinGecko failed for ${symbol}:`, error instanceof Error ? error.message : 'Unknown error');
     }
 
     // Try Binance fallback
     try {
-      console.log(`📡 [PriceService] Trying Binance for ${symbol}...`);
+      logger.log(`📡 [PriceService] Trying Binance for ${symbol}...`);
       const response = await fetch(`${this.fallbackApiUrl}?symbols=${symbol}`, {
         signal: AbortSignal.timeout(5000), // 5 second timeout
       });
@@ -225,15 +226,15 @@ export class PriceService {
             source: 'binance',
           }, this.cacheDuration);
           
-          console.log(`✅ [PriceService] Binance: ${symbol} = $${price}`);
+          logger.log(`✅ [PriceService] Binance: ${symbol} = $${price}`);
           return price;
         }
       }
     } catch (error) {
-      console.warn(`⚠️ [PriceService] Binance failed for ${symbol}:`, error instanceof Error ? error.message : 'Unknown error');
+      logger.warn(`⚠️ [PriceService] Binance failed for ${symbol}:`, error instanceof Error ? error.message : 'Unknown error');
     }
 
-    console.error(`❌ [PriceService] All APIs failed for ${symbol}`);
+    logger.error(`❌ [PriceService] All APIs failed for ${symbol}`);
     return 0;
   }
 
@@ -245,7 +246,7 @@ export class PriceService {
 
     // Try CoinGecko first (batch request)
     try {
-      console.log(`📡 [PriceService] Trying CoinGecko batch for: ${symbols.join(', ')}`);
+      logger.log(`📡 [PriceService] Trying CoinGecko batch for: ${symbols.join(', ')}`);
       const response = await fetch(`${this.primaryApiUrl}?symbols=${symbols.join(',')}`, {
         signal: AbortSignal.timeout(10000), // 10 second timeout for batch
       });
@@ -266,7 +267,7 @@ export class PriceService {
               source: 'coingecko'
             }, this.cacheDuration);
             
-            console.log(`✅ [PriceService] CoinGecko: ${symbol} = $${price}`);
+            logger.log(`✅ [PriceService] CoinGecko: ${symbol} = $${price}`);
           }
         });
 
@@ -276,7 +277,7 @@ export class PriceService {
         }
       }
     } catch (error) {
-      console.warn(`⚠️ [PriceService] CoinGecko batch failed:`, error instanceof Error ? error.message : 'Unknown error');
+      logger.warn(`⚠️ [PriceService] CoinGecko batch failed:`, error instanceof Error ? error.message : 'Unknown error');
     }
 
     // Find symbols that still need prices
@@ -288,7 +289,7 @@ export class PriceService {
 
     // Try Binance fallback for missing symbols
     try {
-      console.log(`📡 [PriceService] Trying Binance batch for missing: ${missingSymbols.join(', ')}`);
+      logger.log(`📡 [PriceService] Trying Binance batch for missing: ${missingSymbols.join(', ')}`);
       const response = await fetch(`${this.fallbackApiUrl}?symbols=${missingSymbols.join(',')}`, {
         signal: AbortSignal.timeout(10000),
       });
@@ -309,12 +310,12 @@ export class PriceService {
               source: 'binance'
             }, this.cacheDuration);
             
-            console.log(`✅ [PriceService] Binance: ${symbol} = $${price}`);
+            logger.log(`✅ [PriceService] Binance: ${symbol} = $${price}`);
           }
         });
       }
     } catch (error) {
-      console.warn(`⚠️ [PriceService] Binance batch failed:`, error instanceof Error ? error.message : 'Unknown error');
+      logger.warn(`⚠️ [PriceService] Binance batch failed:`, error instanceof Error ? error.message : 'Unknown error');
     }
 
     return result;
@@ -335,7 +336,7 @@ export class PriceService {
       return new Map();
     }
 
-    console.log(`\n🔍 [PriceService] Fetching prices for ${addresses.length} addresses on ${chain}`);
+    logger.log(`\n🔍 [PriceService] Fetching prices for ${addresses.length} addresses on ${chain}`);
 
     const result = new Map<string, { price: number; change24h: number }>();
     const now = Date.now();
@@ -347,18 +348,18 @@ export class PriceService {
       const cached = this.addressCache.get(addressLower);
       if (cached) {
         result.set(addressLower, { price: cached.price, change24h: cached.change24h });
-        console.log(`💾 [PriceService] Cache hit: ${addressLower.substring(0, 10)}... = $${cached.price}`);
+        logger.log(`💾 [PriceService] Cache hit: ${addressLower.substring(0, 10)}... = $${cached.price}`);
       } else {
         uncachedAddresses.push(addressLower);
       }
     });
 
     if (uncachedAddresses.length === 0) {
-      console.log(`✅ [PriceService] All ${addresses.length} addresses from cache (0 API calls!)`);
+      logger.log(`✅ [PriceService] All ${addresses.length} addresses from cache (0 API calls!)`);
       return result;
     }
 
-    console.log(`📡 [PriceService] Fetching ${uncachedAddresses.length}/${addresses.length} uncached addresses...`);
+    logger.log(`📡 [PriceService] Fetching ${uncachedAddresses.length}/${addresses.length} uncached addresses...`);
 
     // ✅ STEP 2: Fetch from CoinGecko by address (batch request = efficient!)
     try {
@@ -385,21 +386,21 @@ export class PriceService {
               source: 'coingecko-address',
             }, this.cacheDuration);
             
-            console.log(`✅ [PriceService] CoinGecko: ${address.substring(0, 10)}... = $${priceData.price}`);
+            logger.log(`✅ [PriceService] CoinGecko: ${address.substring(0, 10)}... = $${priceData.price}`);
           }
         });
       } else {
-        console.error(`❌ [PriceService] CoinGecko address API failed: ${response.status}`);
+        logger.error(`❌ [PriceService] CoinGecko address API failed: ${response.status}`);
       }
     } catch (error) {
-      console.error('❌ [PriceService] Error fetching prices by address:', error);
+      logger.error('❌ [PriceService] Error fetching prices by address:', error);
     }
 
     // ✅ STEP 3: FALLBACK - Try DexScreener for addresses without prices (sequential with rate limit)
     const missingAddresses = uncachedAddresses.filter(addr => !result.has(addr));
     
     if (missingAddresses.length > 0) {
-      console.log(`\n🔄 [PriceService] Trying DexScreener fallback for ${missingAddresses.length} missing...`);
+      logger.log(`\n🔄 [PriceService] Trying DexScreener fallback for ${missingAddresses.length} missing...`);
       
       // Limit to 5 DexScreener calls to avoid long waits (250ms * 5 = 1.25s max)
       const maxDexScreenerCalls = Math.min(missingAddresses.length, 5);
@@ -423,7 +424,7 @@ export class PriceService {
               source: 'dexscreener',
             }, this.cacheDuration);
             
-            console.log(`✅ [PriceService] DexScreener: ${address.substring(0, 10)}... = $${priceData.price}`);
+            logger.log(`✅ [PriceService] DexScreener: ${address.substring(0, 10)}... = $${priceData.price}`);
           }
           
           // Rate limit: 250ms between requests (respects DexScreener 300/min limit)
@@ -431,12 +432,12 @@ export class PriceService {
             await new Promise(resolve => setTimeout(resolve, 250));
           }
         } catch (error) {
-          console.warn(`⚠️ [PriceService] DexScreener failed for ${address.substring(0, 10)}...:`, error);
+          logger.warn(`⚠️ [PriceService] DexScreener failed for ${address.substring(0, 10)}...:`, error);
         }
       }
       
       if (missingAddresses.length > maxDexScreenerCalls) {
-        console.log(`ℹ️ [PriceService] Skipped ${missingAddresses.length - maxDexScreenerCalls} DexScreener lookups (performance optimization)`);
+        logger.log(`ℹ️ [PriceService] Skipped ${missingAddresses.length - maxDexScreenerCalls} DexScreener lookups (performance optimization)`);
       }
     }
 
@@ -445,7 +446,7 @@ export class PriceService {
       if (!result.has(address)) {
         const cached = this.addressCache.get(address);
         if (cached) {
-          console.warn(`⚠️ [PriceService] Using stale cache for ${address.substring(0, 10)}...: $${cached.price}`);
+          logger.warn(`⚠️ [PriceService] Using stale cache for ${address.substring(0, 10)}...: $${cached.price}`);
           result.set(address, { price: cached.price, change24h: cached.change24h });
         } else {
           // No price available anywhere
@@ -454,7 +455,7 @@ export class PriceService {
       }
     });
 
-    console.log(`✅ [PriceService] Final: ${result.size}/${addresses.length} addresses processed`);
+    logger.log(`✅ [PriceService] Final: ${result.size}/${addresses.length} addresses processed`);
     return result;
   }
 
@@ -480,7 +481,7 @@ export class PriceService {
    * Clear cache (for manual refresh / force update)
    */
   clearCache() {
-    console.log('🗑️ [PriceService] Clearing all caches (manual refresh)');
+    logger.log('🗑️ [PriceService] Clearing all caches (manual refresh)');
     this.cache.clear();
     this.mintCache.clear();
     this.addressCache.clear(); // ✅ NEW: Also clear address cache

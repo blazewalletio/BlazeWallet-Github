@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { logger } from '@/lib/logger';
 import { 
   Users, 
   CheckCircle, 
@@ -50,35 +51,35 @@ export default function AdminDashboard() {
   // Load admin data
   const loadAdminData = async () => {
     if (!adminEmail) {
-      console.log('❌ No admin email provided');
+      logger.log('❌ No admin email provided');
       return;
     }
 
-    console.log('🔐 Attempting admin login with email:', adminEmail);
+    logger.log('🔐 Attempting admin login with email:', adminEmail);
     setIsLoading(true);
     setError('');
     
     try {
       const url = `/api/priority-list/admin?admin=${encodeURIComponent(adminEmail)}`;
-      console.log('📡 Fetching admin data from:', url);
+      logger.log('📡 Fetching admin data from:', url);
       
       const response = await fetch(url);
-      console.log('📥 Response status:', response.status);
+      logger.log('📥 Response status:', response.status);
       
       const result = await response.json();
-      console.log('📦 Response data:', result);
+      logger.log('📦 Response data:', result);
       
       if (result.success) {
-        console.log('✅ Admin authorization successful!');
+        logger.log('✅ Admin authorization successful!');
         setData(result.data);
         setIsAuthorized(true);
       } else {
-        console.log('❌ Admin authorization failed:', result.message);
+        logger.log('❌ Admin authorization failed:', result.message);
         setError(result.message || 'Unauthorized');
         setIsAuthorized(false);
       }
     } catch (err) {
-      console.error('💥 Error loading admin data:', err);
+      logger.error('💥 Error loading admin data:', err);
       setError('Failed to load admin data');
       setIsAuthorized(false);
     } finally {

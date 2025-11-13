@@ -19,6 +19,7 @@ import * as bip39 from 'bip39';
 import { BIP32Factory } from 'bip32';
 import * as ecc from '@bitcoinerlab/secp256k1';
 import { getCurrencyLogoSync } from './currency-logo-service';
+import { logger } from '@/lib/logger';
 
 // Initialize BIP32 with secp256k1
 bitcoin.initEccLib(ecc);
@@ -192,7 +193,7 @@ export class BitcoinService {
         total: (confirmed - spent) + unconfirmed,
       };
     } catch (error) {
-      console.error('Error fetching Bitcoin balance:', error);
+      logger.error('Error fetching Bitcoin balance:', error);
       throw error;
     }
   }
@@ -217,7 +218,7 @@ export class BitcoinService {
         confirmations: utxo.status?.confirmed ? utxo.status.block_height : 0,
       }));
     } catch (error) {
-      console.error('Error fetching UTXOs:', error);
+      logger.error('Error fetching UTXOs:', error);
       throw error;
     }
   }
@@ -269,7 +270,7 @@ export class BitcoinService {
         fastTotal: Math.ceil(fastRate * txSize),
       };
     } catch (error) {
-      console.error('Error estimating fees:', error);
+      logger.error('Error estimating fees:', error);
       return this.getDefaultFees(utxos || [], outputs);
     }
   }
@@ -435,7 +436,7 @@ export class BitcoinService {
       const txid = await response.text();
       return txid;
     } catch (error) {
-      console.error('Error broadcasting transaction:', error);
+      logger.error('Error broadcasting transaction:', error);
       throw error;
     }
   }
@@ -497,7 +498,7 @@ export class BitcoinService {
 
       return transactions;
     } catch (error) {
-      console.error('Error fetching transaction history:', error);
+      logger.error('Error fetching transaction history:', error);
       return [];
     }
   }

@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { gasPriceService } from '@/lib/gas-price-service';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -83,16 +84,16 @@ interface GasAnalysisResponse {
  */
 export async function POST(req: NextRequest) {
   try {
-    console.log('\n========================================');
-    console.log('⛽ [Gas Optimizer] NEW ANALYSIS REQUEST');
-    console.log('========================================');
-    console.log('📅 Timestamp:', new Date().toISOString());
+    logger.log('\n========================================');
+    logger.log('⛽ [Gas Optimizer] NEW ANALYSIS REQUEST');
+    logger.log('========================================');
+    logger.log('📅 Timestamp:', new Date().toISOString());
     
     // Parse request
     const body: GasAnalysisRequest = await req.json();
     const { chain, transactionType = 'transfer', urgency = 'medium', userId } = body;
     
-    console.log('📊 Request:', { chain, transactionType, urgency, userId });
+    logger.log('📊 Request:', { chain, transactionType, urgency, userId });
     
     // Validate chain
     if (!chain) {
@@ -103,9 +104,9 @@ export async function POST(req: NextRequest) {
     }
     
     // Get real-time gas price
-    console.log(`⛽ Fetching real-time gas for ${chain}...`);
+    logger.log(`⛽ Fetching real-time gas for ${chain}...`);
     const gasPrice = await gasPriceService.getGasPrice(chain);
-    console.log('✅ Gas price fetched:', gasPrice);
+    logger.log('✅ Gas price fetched:', gasPrice);
     
     // Get historical data from Supabase
     const { gasHistoryService } = await import('@/lib/gas-history-service');
@@ -144,7 +145,7 @@ export async function POST(req: NextRequest) {
     const nativeCurrency = nativeCurrencyMap[chain.toLowerCase()] || 'ETH';
     const nativePrice = await priceService.getPrice(nativeCurrency) || 2000; // Fallback to 2000 if fetch fails
     
-    console.log(`💰 [Gas Optimizer] ${nativeCurrency} price: $${nativePrice}`);
+    logger.log(`💰 [Gas Optimizer] ${nativeCurrency} price: $${nativePrice}`);
     
     // Calculate USD costs (chain-specific logic!)
     let usdCosts: {
@@ -164,7 +165,7 @@ export async function POST(req: NextRequest) {
         contract: lamportsToSOL(100000) * nativePrice, // Complex program: ~100k lamports
       };
       
-      console.log(`💰 Solana costs:`, usdCosts);
+      logger.log(`💰 Solana costs:`, usdCosts);
       
     } else if (chain === 'bitcoin' || chain === 'litecoin' || chain === 'dogecoin' || chain === 'bitcoincash') {
       // Bitcoin-like: sat/vB * transaction size → BTC → USD
@@ -185,7 +186,7 @@ export async function POST(req: NextRequest) {
         contract: 0, // Not applicable for Bitcoin-like chains
       };
       
-      console.log(`💰 ${chain} costs (sat/vB: ${satPerVB}):`, usdCosts);
+      logger.log(`💰 ${chain} costs (sat/vB: ${satPerVB}):`, usdCosts);
       
     } else {
       // EVM chains: gwei * gas units → ETH → USD
@@ -199,7 +200,7 @@ export async function POST(req: NextRequest) {
         contract: gweiToUsd(gasPrice.standard, 300000),
       };
       
-      console.log(`💰 EVM costs (gwei: ${gasPrice.standard}):`, usdCosts);
+      logger.log(`💰 EVM costs (gwei: ${gasPrice.standard}):`, usdCosts);
     }
     
     // Determine gas level
@@ -211,7 +212,7 @@ export async function POST(req: NextRequest) {
       currentGas < avgGas * 1.1 ? 'medium' :
       currentGas < avgGas * 1.3 ? 'high' : 'very_high';
     
-    console.log('📊 Gas level:', gasLevel, `(current: ${currentGas}, avg: ${avgGas})`);
+    logger.log('📊 Gas level:', gasLevel, `(current: ${currentGas}, avg: ${avgGas})`);
     
     // Build AI prompt
     const prompt = `You are an expert blockchain gas fee analyst. Analyze this gas price data and provide actionable recommendations.
@@ -260,11 +261,11 @@ Respond in JSON format:
 }`;
     
     // Call OpenAI
-    console.log('🤖 Calling OpenAI GPT-4o-mini...');
+    logger.log('🤖 Calling OpenAI GPT-4o-mini...');
     const apiKey = process.env.GAS_OPTIMIZER_API_KEY || process.env.OPENAI_API_KEY;
     
     if (!apiKey) {
-      console.error('❌ No OpenAI API key configured');
+      logger.error('❌ No OpenAI API key configured');
       return NextResponse.json({
         success: false,
         error: 'AI service not configured',
@@ -291,8 +292,8 @@ Respond in JSON format:
     });
     
     const aiResponse = completion.choices[0].message.content;
-    console.log('✅ OpenAI response received');
-    console.log('📄 Response:', aiResponse);
+    logger.log('✅ OpenAI response received');
+    logger.log('📄 Response:', aiResponse);
     
     if (!aiResponse) {
       throw new Error('No response from OpenAI');
@@ -328,13 +329,13 @@ Respond in JSON format:
       },
     };
     
-    console.log('✅ [Gas Optimizer] Analysis complete');
-    console.log('========================================\n');
+    logger.log('✅ [Gas Optimizer] Analysis complete');
+    logger.log('========================================\n');
     
     return NextResponse.json(response);
     
   } catch (error: any) {
-    console.error('❌ [Gas Optimizer] Error:', error);
+    logger.error('❌ [Gas Optimizer] Error:', error);
     
     return NextResponse.json({
       success: false,

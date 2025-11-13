@@ -1,6 +1,8 @@
 // Priority List Service for Blaze Presale
 // Handles registration from October 27, 2025 with 48-hour exclusivity
 
+import { logger } from '@/lib/logger';
+
 export interface PriorityListEntry {
   id: string;
   walletAddress: string;
@@ -149,7 +151,7 @@ export class PriorityListService {
         entry,
       };
     } catch (error) {
-      console.error('Error registering for priority list:', error);
+      logger.error('Error registering for priority list:', error);
       return {
         success: false,
         message: 'Failed to register. Please try again.',
@@ -315,7 +317,7 @@ export class PriorityListService {
       };
       localStorage.setItem('blaze_priority_list', JSON.stringify(data));
     } catch (error) {
-      console.error('Failed to save priority list to storage:', error);
+      logger.error('Failed to save priority list to storage:', error);
     }
   }
 
@@ -328,7 +330,7 @@ export class PriorityListService {
         this.stats = parsed.stats;
       }
     } catch (error) {
-      console.error('Failed to load priority list from storage:', error);
+      logger.error('Failed to load priority list from storage:', error);
     }
   }
 }

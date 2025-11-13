@@ -11,6 +11,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, ChevronRight, Clock, DollarSign } from 'lucide-react';
 import { smartSchedulerService, type ScheduledTransaction } from '@/lib/smart-scheduler-service';
+import { logger } from '@/lib/logger';
 
 interface UpcomingTransactionsBannerProps {
   userId: string;
@@ -33,15 +34,15 @@ export default function UpcomingTransactionsBanner({
 
   const loadTransactions = async () => {
     if (!userId) {
-      console.log('⚠️ [UpcomingBanner] No userId provided');
+      logger.log('⚠️ [UpcomingBanner] No userId provided');
       return;
     }
     
-    console.log('🔍 [UpcomingBanner] Loading transactions for:', { userId, chain });
+    logger.log('🔍 [UpcomingBanner] Loading transactions for:', { userId, chain });
     
     try {
       const data = await smartSchedulerService.getScheduledTransactions(userId, chain, 'pending');
-      console.log('✅ [UpcomingBanner] Loaded transactions:', data);
+      logger.log('✅ [UpcomingBanner] Loaded transactions:', data);
       setTransactions(data);
       
       // Calculate total estimated savings
@@ -49,10 +50,10 @@ export default function UpcomingTransactionsBanner({
       setTotalSavings(savings);
       
       if (data.length === 0) {
-        console.log('ℹ️ [UpcomingBanner] No pending transactions found');
+        logger.log('ℹ️ [UpcomingBanner] No pending transactions found');
       }
     } catch (error) {
-      console.error('❌ [UpcomingBanner] Failed to load scheduled transactions:', error);
+      logger.error('❌ [UpcomingBanner] Failed to load scheduled transactions:', error);
     } finally {
       setLoading(false);
     }
@@ -60,16 +61,16 @@ export default function UpcomingTransactionsBanner({
 
   // Don't render if no transactions
   if (loading) {
-    console.log('⏳ [UpcomingBanner] Still loading...');
+    logger.log('⏳ [UpcomingBanner] Still loading...');
     return null;
   }
   
   if (transactions.length === 0) {
-    console.log('💤 [UpcomingBanner] No transactions to display');
+    logger.log('💤 [UpcomingBanner] No transactions to display');
     return null;
   }
   
-  console.log('🎯 [UpcomingBanner] Rendering banner with', transactions.length, 'transaction(s)');
+  logger.log('🎯 [UpcomingBanner] Rendering banner with', transactions.length, 'transaction(s)');
 
   const nextTransaction = transactions[0];
   const timeUntilExecution = nextTransaction.scheduled_for 

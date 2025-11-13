@@ -15,6 +15,7 @@
  */
 
 import { ethers } from 'ethers';
+import { logger } from '@/lib/logger';
 
 // Chain-specific API endpoints
 const ETHERSCAN_APIS = {
@@ -80,7 +81,7 @@ class GasPriceService {
         throw error;
       }
       
-      console.warn(`[Gas Service] Retry attempt remaining: ${retries}`);
+      logger.warn(`[Gas Service] Retry attempt remaining: ${retries}`);
       await new Promise(resolve => setTimeout(resolve, delay));
       
       // Exponential backoff
@@ -96,7 +97,7 @@ class GasPriceService {
     const cached = this.cache.get(cacheKey);
     
     if (cached && cached.expires > Date.now()) {
-      console.log(`[Gas Service] Cache hit for ${chainName}`);
+      logger.log(`[Gas Service] Cache hit for ${chainName}`);
       return cached.data;
     }
     
@@ -119,15 +120,15 @@ class GasPriceService {
         expires: Date.now() + this.CACHE_DURATION,
       });
       
-      console.log(`[Gas Service] ✅ Gas fetched for ${chainName}:`, gasPrice.gasPrice, gasPrice.source);
+      logger.log(`[Gas Service] ✅ Gas fetched for ${chainName}:`, gasPrice.gasPrice, gasPrice.source);
       
       return gasPrice;
     } catch (error) {
-      console.error(`[Gas Service] ❌ All retries failed for ${chainName}:`, error);
+      logger.error(`[Gas Service] ❌ All retries failed for ${chainName}:`, error);
       
       // Last resort: return default fallback
       const fallback = this.getDefaultGasPrice();
-      console.warn(`[Gas Service] Using fallback for ${chainName}:`, fallback);
+      logger.warn(`[Gas Service] Using fallback for ${chainName}:`, fallback);
       return fallback;
     }
   }
@@ -172,7 +173,7 @@ class GasPriceService {
       // Fallback to RPC
       return await this.getEVMGasPriceFromRPC(chainName);
     } catch (error) {
-      console.error(`[Gas Service] Error fetching EVM gas for ${chainName}:`, error);
+      logger.error(`[Gas Service] Error fetching EVM gas for ${chainName}:`, error);
       return await this.getEVMGasPriceFromRPC(chainName);
     }
   }
@@ -211,7 +212,7 @@ class GasPriceService {
         source: 'rpc',
       };
     } catch (error) {
-      console.error(`[Gas Service] RPC fallback failed for ${chainName}:`, error);
+      logger.error(`[Gas Service] RPC fallback failed for ${chainName}:`, error);
       // Last resort: return conservative estimates
       return this.getDefaultGasPrice();
     }
@@ -231,7 +232,7 @@ class GasPriceService {
       // Try to get real-time priority fees from Solana RPC
       const rpcUrl = 'https://api.mainnet-beta.solana.com';
       
-      console.log('[Gas Service] ⛽ Fetching Solana prioritization fees...');
+      logger.log('[Gas Service] ⛽ Fetching Solana prioritization fees...');
       
       // Get recent prioritization fees (Solana 1.14+)
       const response = await fetch(rpcUrl, {
@@ -260,7 +261,7 @@ class GasPriceService {
         throw new Error('Invalid RPC response format');
       }
       
-      console.log(`[Gas Service] ✅ Got ${data.result.length} fee samples`);
+      logger.log(`[Gas Service] ✅ Got ${data.result.length} fee samples`);
       
       // Extract prioritization fees (can be 0 during low network activity)
       const allFees = data.result.map((f: any) => f.prioritizationFee || 0);
@@ -272,11 +273,11 @@ class GasPriceService {
         // Use median of non-zero fees
         nonZeroFees.sort((a: number, b: number) => a - b);
         priorityFee = nonZeroFees[Math.floor(nonZeroFees.length / 2)];
-        console.log(`[Gas Service] 💰 Median priority fee: ${priorityFee} lamports (${nonZeroFees.length}/${allFees.length} non-zero)`);
+        logger.log(`[Gas Service] 💰 Median priority fee: ${priorityFee} lamports (${nonZeroFees.length}/${allFees.length} non-zero)`);
       } else {
         // All fees are 0 = low network activity
         // This is NORMAL and ACCURATE - not a failure!
-        console.log('[Gas Service] ℹ️  No priority fees (low network activity)');
+        logger.log('[Gas Service] ℹ️  No priority fees (low network activity)');
       }
       
       // Calculate tier fees
@@ -285,7 +286,7 @@ class GasPriceService {
       const fastFee = BASE_FEE + Math.floor(priorityFee * 2);
       const instantFee = BASE_FEE + Math.floor(priorityFee * 5);
       
-      console.log(`[Gas Service] ✅ Solana gas fetched: ${standardFee} lamports (base: ${BASE_FEE}, priority: ${priorityFee})`);
+      logger.log(`[Gas Service] ✅ Solana gas fetched: ${standardFee} lamports (base: ${BASE_FEE}, priority: ${priorityFee})`);
       
       // Return in lamports (not gwei!)
       return {
@@ -304,8 +305,8 @@ class GasPriceService {
       
     } catch (error) {
       // ❌ CRITICAL: RPC failed - this should be VERY rare
-      console.error('[Gas Service] ❌ Solana RPC failed:', error instanceof Error ? error.message : 'Unknown error');
-      console.error('[Gas Service] 🚨 This is a critical error - returning base fee only as emergency fallback');
+      logger.error('[Gas Service] ❌ Solana RPC failed:', error instanceof Error ? error.message : 'Unknown error');
+      logger.error('[Gas Service] 🚨 This is a critical error - returning base fee only as emergency fallback');
       
       // Emergency fallback: Just base fee (no priority)
       // This is the absolute minimum but still accurate
@@ -369,7 +370,7 @@ class GasPriceService {
    */
   private async getBitcoinFees(chain: string): Promise<GasPrice> {
     try {
-      console.log(`[Gas Service] Fetching Bitcoin fees for ${chain}`);
+      logger.log(`[Gas Service] Fetching Bitcoin fees for ${chain}`);
       
       // Import blockchair service dynamically
       const { blockchairService } = await import('./blockchair-service');
@@ -377,7 +378,7 @@ class GasPriceService {
       // Get fee recommendations from Blockchair
       const fees = await blockchairService.getFeeRecommendations(chain);
       
-      console.log(`✅ [Gas Service] Bitcoin fees for ${chain}:`, fees);
+      logger.log(`✅ [Gas Service] Bitcoin fees for ${chain}:`, fees);
       
       // Convert sat/byte fees to our GasPrice format
       return {
@@ -395,7 +396,7 @@ class GasPriceService {
       };
       
     } catch (error) {
-      console.error(`❌ [Gas Service] Bitcoin fee fetch error:`, error);
+      logger.error(`❌ [Gas Service] Bitcoin fee fetch error:`, error);
       
       // Fallback fees per chain (sat/byte)
       const fallbackFees: Record<string, { slow: number; standard: number; fast: number; fastest: number }> = {

@@ -11,9 +11,10 @@ import { ethers } from 'ethers';
 import { PriorityListService } from '@/lib/priority-list-service';
 import PriorityListModal from '@/components/PriorityListModal';
 import CountdownWidget from '@/components/CountdownWidget';
+import { logger } from '@/lib/logger';
 
 export default function PresaleDashboard() {
-  console.log('🎯 PresaleDashboard component rendered');
+  logger.log('🎯 PresaleDashboard component rendered');
   
   const { wallet, address, currentChain } = useWalletStore();
   const [contributionAmount, setContributionAmount] = useState('');
@@ -69,10 +70,10 @@ export default function PresaleDashboard() {
 
   // Load presale data
   const loadPresaleData = async () => {
-    console.log('🔄 Loading presale data...');
+    logger.log('🔄 Loading presale data...');
     
     if (!wallet || !address) {
-      console.log('❌ No wallet or address available');
+      logger.log('❌ No wallet or address available');
       return;
     }
 
@@ -83,25 +84,25 @@ export default function PresaleDashboard() {
       // Create provider if needed
       let walletWithProvider = wallet;
       
-      console.log('🔗 Wallet details:', {
+      logger.log('🔗 Wallet details:', {
         hasWallet: !!wallet,
         hasAddress: !!address,
         hasProvider: !!walletWithProvider.provider,
         currentChain: currentChain,
       });
       if (!walletWithProvider.provider) {
-        console.log('🔧 Creating provider for wallet...');
+        logger.log('🔧 Creating provider for wallet...');
         const chain = CHAINS[currentChain];
         const provider = new ethers.JsonRpcProvider(chain.rpcUrl);
         walletWithProvider = wallet.connect(provider);
-        console.log('✅ Provider created and wallet connected');
+        logger.log('✅ Provider created and wallet connected');
       }
 
       const presaleService = new PresaleService(walletWithProvider);
       
-      console.log('📊 Fetching presale info...');
+      logger.log('📊 Fetching presale info...');
       const info = await presaleService.getPresaleInfo();
-      console.log('📊 Presale info received:', info);
+      logger.log('📊 Presale info received:', info);
 
       setPresaleInfo({
         ...presaleInfo,
@@ -113,9 +114,9 @@ export default function PresaleDashboard() {
         bnbPrice: info.bnbPrice, // Update BNB price from contract
       });
 
-      console.log('📊 Fetching user info...');
+      logger.log('📊 Fetching user info...');
       const user = await presaleService.getUserInfo(address);
-      console.log('📊 User info received:', user);
+      logger.log('📊 User info received:', user);
 
       setUserInfo({
         contribution: user.contribution,
@@ -124,7 +125,7 @@ export default function PresaleDashboard() {
       });
 
     } catch (err) {
-      console.error('❌ Error loading presale data:', err);
+      logger.error('❌ Error loading presale data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load presale data');
     } finally {
       setIsLoading(false);
@@ -133,7 +134,7 @@ export default function PresaleDashboard() {
 
   // Load data when component mounts or wallet changes
   useEffect(() => {
-    console.log('🔄 useEffect triggered - loading presale data');
+    logger.log('🔄 useEffect triggered - loading presale data');
     loadPresaleData();
   }, [wallet, address, currentChain]);
 
@@ -159,7 +160,7 @@ export default function PresaleDashboard() {
         });
       }
     } catch (err) {
-      console.error('Error loading priority list status:', err);
+      logger.error('Error loading priority list status:', err);
     }
   };
 
@@ -191,7 +192,7 @@ export default function PresaleDashboard() {
     setSuccess('');
 
     try {
-      console.log('💰 Starting contribution process...');
+      logger.log('💰 Starting contribution process...');
       
       // Create provider if needed
       let walletWithProvider = wallet;
@@ -203,10 +204,10 @@ export default function PresaleDashboard() {
 
       const presaleService = new PresaleService(walletWithProvider);
       
-      console.log('💰 Contributing amount:', amountUSD);
+      logger.log('💰 Contributing amount:', amountUSD);
       const tx = await presaleService.contribute(amountUSD);
       
-      console.log('💰 Transaction submitted:', tx);
+      logger.log('💰 Transaction submitted:', tx);
       setSuccess(`Contribution successful! Transaction: ${tx.slice(0, 10)}...`);
       
       // Refresh data
@@ -215,7 +216,7 @@ export default function PresaleDashboard() {
       }, 2000);
 
     } catch (err) {
-      console.error('❌ Contribution error:', err);
+      logger.error('❌ Contribution error:', err);
       setError(err instanceof Error ? err.message : 'Contribution failed');
     } finally {
       setIsContributing(false);

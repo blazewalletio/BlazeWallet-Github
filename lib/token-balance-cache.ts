@@ -10,6 +10,8 @@
  * - ✅ PHASE 4: Stores native price to prevent cross-chain contamination
  */
 
+import { logger } from '@/lib/logger';
+
 const CACHE_VERSION = 3; // ✅ PHASE 4: Bump for native price storage!
 
 interface CachedTokenData {
@@ -38,7 +40,7 @@ class TokenBalanceCache {
   private async initDB(): Promise<void> {
     return new Promise((resolve) => {
       if (!window.indexedDB) {
-        console.warn('⚠️ IndexedDB not available for token cache');
+        logger.warn('⚠️ IndexedDB not available for token cache');
         resolve();
         return;
       }
@@ -46,13 +48,13 @@ class TokenBalanceCache {
       const request = indexedDB.open(this.dbName, 1);
 
       request.onerror = () => {
-        console.error('❌ Failed to open token cache DB:', request.error);
+        logger.error('❌ Failed to open token cache DB:', request.error);
         resolve();
       };
 
       request.onsuccess = () => {
         this.db = request.result;
-        console.log('✅ IndexedDB initialized for token balance cache');
+        logger.log('✅ IndexedDB initialized for token balance cache');
         this.cleanupExpired();
         resolve();
       };
@@ -95,7 +97,7 @@ class TokenBalanceCache {
           return result;
         }
       } catch (error) {
-        console.warn('Token cache read failed:', error);
+        logger.warn('Token cache read failed:', error);
       }
     }
 
@@ -137,7 +139,7 @@ class TokenBalanceCache {
       try {
         await this.setToDB(cached);
       } catch (error) {
-        console.warn('Token cache write failed:', error);
+        logger.warn('Token cache write failed:', error);
       }
     }
 
@@ -154,9 +156,9 @@ class TokenBalanceCache {
       if (this.db) {
         try {
           await this.deleteFromDB(key);
-          console.log(`✅ Cleared token balance cache for ${chain}:${address}`);
+          logger.log(`✅ Cleared token balance cache for ${chain}:${address}`);
         } catch (error) {
-          console.error('Failed to clear specific token cache:', error);
+          logger.error('Failed to clear specific token cache:', error);
         }
       }
       return;
@@ -175,9 +177,9 @@ class TokenBalanceCache {
           request.onsuccess = () => resolve();
           request.onerror = () => reject(request.error);
         });
-        console.log('✅ Cleared all token balance cache');
+        logger.log('✅ Cleared all token balance cache');
       } catch (error) {
-        console.error('Failed to clear token cache:', error);
+        logger.error('Failed to clear token cache:', error);
       }
     }
   }
@@ -203,7 +205,7 @@ class TokenBalanceCache {
             cursor.continue();
           } else {
             if (count > 0) {
-              console.log(`🧹 Cleaned up ${count} expired token cache entries`);
+              logger.log(`🧹 Cleaned up ${count} expired token cache entries`);
             }
             resolve();
           }
@@ -212,7 +214,7 @@ class TokenBalanceCache {
         request.onerror = () => reject(request.error);
       });
     } catch (error) {
-      console.warn('Failed to cleanup token cache:', error);
+      logger.warn('Failed to cleanup token cache:', error);
     }
 
     // Cleanup memory cache

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import BiometricSetupModal from './BiometricSetupModal';
+import { logger } from '@/lib/logger';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -41,7 +42,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
           
           // ✅ CHECK: Only show biometric on production domain
           if (!webauthnService.isOnProductionDomain()) {
-            console.log('🚫 Biometric disabled: Not on production domain (my.blazewallet.io)');
+            logger.log('🚫 Biometric disabled: Not on production domain (my.blazewallet.io)');
             setBiometricEnabled(false);
             setIsMobile(false);
             return;
@@ -52,12 +53,12 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
             const biometricStore = BiometricStore.getInstance();
             const enabled = biometricStore.hasStoredPassword(walletIdentifier);
             setBiometricEnabled(enabled);
-            console.log(`🔍 Biometric check for wallet ${walletIdentifier.substring(0, 8)}...: ${enabled}`);
+            logger.log(`🔍 Biometric check for wallet ${walletIdentifier.substring(0, 8)}...: ${enabled}`);
           } else {
             setBiometricEnabled(false);
           }
         } catch (error) {
-          console.error('Error checking biometric status:', error);
+          logger.error('Error checking biometric status:', error);
           setBiometricEnabled(false);
         }
       };
@@ -112,7 +113,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
       biometricStore.removePassword(walletIdentifier);
       
       setBiometricEnabled(false);
-      console.log(`✅ Biometric disabled for wallet: ${walletIdentifier.substring(0, 8)}...`);
+      logger.log(`✅ Biometric disabled for wallet: ${walletIdentifier.substring(0, 8)}...`);
       
     } catch (error: any) {
       setBiometricError(error.message || 'Failed to disable biometric authentication');

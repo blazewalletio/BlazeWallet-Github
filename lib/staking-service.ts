@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import { CONTRACTS, BlazeTokenABI } from './contracts-config';
+import { logger } from '@/lib/logger';
 
 export interface StakeInfo {
   amount: string;
@@ -93,7 +94,7 @@ export class StakingService {
         canUnstake,
       };
     } catch (error) {
-      console.error('Error getting stake info:', error);
+      logger.error('Error getting stake info:', error);
       throw error;
     }
   }
@@ -134,7 +135,7 @@ export class StakingService {
         stakingAPY,
       };
     } catch (error) {
-      console.error('Error getting staking stats:', error);
+      logger.error('Error getting staking stats:', error);
       throw error;
     }
   }
@@ -152,23 +153,23 @@ export class StakingService {
       const amountWei = ethers.parseEther(amount);
 
       // First approve the contract to spend tokens
-      console.log('Approving tokens...');
+      logger.log('Approving tokens...');
       const approveTx = await this.contract.approve(
         CONTRACTS.blazeToken,
         amountWei
       );
       await approveTx.wait();
-      console.log('Tokens approved');
+      logger.log('Tokens approved');
 
       // Then stake
-      console.log('Staking tokens...');
+      logger.log('Staking tokens...');
       const tx = await this.contract.stakeTokens(amountWei, lockPeriod);
       const receipt = await tx.wait();
 
-      console.log('Stake successful!');
+      logger.log('Stake successful!');
       return receipt.hash;
     } catch (error: any) {
-      console.error('Error staking:', error);
+      logger.error('Error staking:', error);
       if (error.code === 'ACTION_REJECTED') {
         throw new Error('Transaction rejected by user');
       }
@@ -181,14 +182,14 @@ export class StakingService {
    */
   async unstake(): Promise<string> {
     try {
-      console.log('Unstaking tokens...');
+      logger.log('Unstaking tokens...');
       const tx = await this.contract.unstakeTokens();
       const receipt = await tx.wait();
 
-      console.log('Unstake successful!');
+      logger.log('Unstake successful!');
       return receipt.hash;
     } catch (error: any) {
-      console.error('Error unstaking:', error);
+      logger.error('Error unstaking:', error);
       if (error.code === 'ACTION_REJECTED') {
         throw new Error('Transaction rejected by user');
       }
@@ -204,14 +205,14 @@ export class StakingService {
    */
   async claimRewards(): Promise<string> {
     try {
-      console.log('Claiming rewards...');
+      logger.log('Claiming rewards...');
       const tx = await this.contract.claimRewards();
       const receipt = await tx.wait();
 
-      console.log('Rewards claimed!');
+      logger.log('Rewards claimed!');
       return receipt.hash;
     } catch (error: any) {
-      console.error('Error claiming rewards:', error);
+      logger.error('Error claiming rewards:', error);
       if (error.code === 'ACTION_REJECTED') {
         throw new Error('Transaction rejected by user');
       }
@@ -242,18 +243,18 @@ export class StakingService {
    */
   async getBalance(address: string): Promise<string> {
     try {
-      console.log('🔍 Getting balance for address:', address);
-      console.log('🔍 Using contract address:', this.contract.target);
+      logger.log('🔍 Getting balance for address:', address);
+      logger.log('🔍 Using contract address:', this.contract.target);
       
       const balance = await this.contract.balanceOf(address);
       const formattedBalance = ethers.formatEther(balance);
       
-      console.log('🔍 Raw balance:', balance.toString());
-      console.log('🔍 Formatted balance:', formattedBalance);
+      logger.log('🔍 Raw balance:', balance.toString());
+      logger.log('🔍 Formatted balance:', formattedBalance);
       
       return formattedBalance;
     } catch (error) {
-      console.error('❌ Error getting balance:', error);
+      logger.error('❌ Error getting balance:', error);
       throw error;
     }
   }
@@ -266,7 +267,7 @@ export class StakingService {
       const allowance = await this.contract.allowance(owner, spender);
       return ethers.formatEther(allowance);
     } catch (error) {
-      console.error('Error getting allowance:', error);
+      logger.error('Error getting allowance:', error);
       throw error;
     }
   }

@@ -5,6 +5,7 @@ import { aiService } from '@/lib/ai-service';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Settings, Key, CheckCircle, AlertCircle, Eye, EyeOff, Flame } from 'lucide-react';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
+import { logger } from '@/lib/logger';
 
 interface AISettingsModalProps {
   onClose: () => void;

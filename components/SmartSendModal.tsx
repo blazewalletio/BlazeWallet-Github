@@ -13,6 +13,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '@/lib/logger';
 import { 
   X, Clock, Zap, DollarSign, TrendingDown, Calendar,
   ArrowRight, Check, AlertCircle, Sparkles, Info
@@ -79,7 +80,7 @@ export default function SmartSendModal({
     setError(null);
 
     try {
-      console.log('⚡ [Smart Send] Fetching gas comparison...', { chain, amount, token });
+      logger.log('⚡ [Smart Send] Fetching gas comparison...', { chain, amount, token });
 
       const response = await fetch('/api/smart-send/compare', {
         method: 'POST',
@@ -108,7 +109,7 @@ export default function SmartSendModal({
       }
 
     } catch (err: any) {
-      console.error('❌ [Smart Send] Error:', err);
+      logger.error('❌ [Smart Send] Error:', err);
       setError(err.message);
     } finally {
       setLoading(false);

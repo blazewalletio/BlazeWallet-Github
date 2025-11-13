@@ -10,6 +10,7 @@ import ParticleEffect from './ParticleEffect';
 import jsQR from 'jsqr';
 import { QRParser, ParsedQRData, ChainType } from '@/lib/qr-parser';
 import { lightningService, LightningInvoice } from '@/lib/lightning-service';
+import { logger } from '@/lib/logger';
 
 interface QuickPayModalProps {
   isOpen: boolean;
@@ -83,7 +84,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         }, 100);
       }
     } catch (error: any) {
-      console.error('Camera error:', error);
+      logger.error('Camera error:', error);
       setCameraError('Could not access camera. Please grant camera permissions.');
       setScanning(false);
     }
@@ -105,7 +106,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
 
   // ⚡ LIGHTNING PAYMENT MONITORING
   const startPaymentMonitoring = (paymentHash: string) => {
-    console.log(`⚡ Starting payment monitoring for ${paymentHash.substring(0, 10)}...`);
+    logger.log(`⚡ Starting payment monitoring for ${paymentHash.substring(0, 10)}...`);
     
     // Clear any existing interval
     if (paymentMonitorInterval) {
@@ -118,7 +119,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         const status = await lightningService.checkInvoiceStatus(paymentHash);
         
         if (status.settled) {
-          console.log('✅ Payment received!');
+          logger.log('✅ Payment received!');
           clearInterval(interval);
           setPaymentMonitorInterval(null);
           
@@ -132,7 +133,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
           }, 3000);
         }
       } catch (error) {
-        console.error('Failed to check payment status:', error);
+        logger.error('Failed to check payment status:', error);
       }
     }, 2000);
 
@@ -143,7 +144,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       if (interval) {
         clearInterval(interval);
         setPaymentMonitorInterval(null);
-        console.log('⚠️ Payment monitoring stopped (invoice expired)');
+        logger.log('⚠️ Payment monitoring stopped (invoice expired)');
       }
     }, 900000);
   };
@@ -182,7 +183,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
             setCryptoUSDValue(usdValue);
           }
         } catch (error) {
-          console.error('Error fetching USD value:', error);
+          logger.error('Error fetching USD value:', error);
           setCryptoUSDValue(null);
         }
       };
@@ -210,7 +211,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     const code = jsQR(imageData.data, imageData.width, imageData.height);
     
     if (code) {
-      console.log('QR Code detected:', code.data);
+      logger.log('QR Code detected:', code.data);
       handleQRCodeDetected(code.data);
     }
   };
@@ -218,17 +219,17 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   const handleQRCodeDetected = (data: string) => {
     stopCamera();
     
-    console.log('🔍 [QuickPay] QR code detected (RAW):', data);
-    console.log('🔍 [QuickPay] QR code length:', data.length);
-    console.log('🔍 [QuickPay] QR code type:', typeof data);
+    logger.log('🔍 [QuickPay] QR code detected (RAW):', data);
+    logger.log('🔍 [QuickPay] QR code length:', data.length);
+    logger.log('🔍 [QuickPay] QR code type:', typeof data);
     
     try {
       // ✅ Parse QR code using intelligent parser
       const parsed = QRParser.parse(data);
       setParsedQR(parsed);
       
-      console.log('📋 [QuickPay] Parsed result (FULL):', parsed);
-      console.log('📋 [QuickPay] Parsed result (SUMMARY):', {
+      logger.log('📋 [QuickPay] Parsed result (FULL):', parsed);
+      logger.log('📋 [QuickPay] Parsed result (SUMMARY):', {
         chain: parsed.chain,
         confidence: parsed.confidence,
         address: parsed.address ? (parsed.address.substring(0, 10) + '...') : 'NO ADDRESS',
@@ -240,7 +241,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       
       // Check if QR is valid
       if (!parsed.isValid || parsed.chain === 'unknown') {
-        console.error('❌ [QuickPay] Invalid QR detected:', {
+        logger.error('❌ [QuickPay] Invalid QR detected:', {
           isValid: parsed.isValid,
           chain: parsed.chain,
           warnings: parsed.warnings,
@@ -280,18 +281,18 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       
       if (detectedChain !== currentChain) {
         // Chain mismatch detected - need to switch
-        console.log(`🔄 [QuickPay] Chain switch needed: ${currentChain} → ${detectedChain}`);
+        logger.log(`🔄 [QuickPay] Chain switch needed: ${currentChain} → ${detectedChain}`);
         setNeedsChainSwitch(true);
         setMode('chain-switch');
       } else {
         // Same chain - proceed directly to confirmation
-        console.log(`✅ [QuickPay] Chain matches: ${detectedChain}`);
+        logger.log(`✅ [QuickPay] Chain matches: ${detectedChain}`);
         setScannedAddress(parsed.address);
         setScannedAmount(parsed.amount || '');
         setMode('confirm');
       }
     } catch (error) {
-      console.error('❌ Error parsing QR code:', error);
+      logger.error('❌ Error parsing QR code:', error);
       alert('Could not parse QR code. Please try again.');
       setMode('scan');
       startCamera();
@@ -320,7 +321,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         setMode('address');
       }
     } catch (error) {
-      console.error('Error parsing address QR:', error);
+      logger.error('Error parsing address QR:', error);
       alert('Could not parse QR code.');
       setMode('address');
     }
@@ -361,7 +362,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       setLightningQR(qr);
       setMode('lightning');
     } catch (error) {
-      console.error('Error generating QR:', error);
+      logger.error('Error generating QR:', error);
     }
   };
 
@@ -1027,7 +1028,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     <button
                       onClick={() => {
                         // Switch chain and proceed to confirm
-                        console.log(`🔄 [QuickPay] Switching chain: ${currentChain} → ${parsedQR.chain}`);
+                        logger.log(`🔄 [QuickPay] Switching chain: ${currentChain} → ${parsedQR.chain}`);
                         switchChain(parsedQR.chain);
                         setScannedAddress(parsedQR.address);
                         setScannedAmount(parsedQR.amount || '');
@@ -1305,7 +1306,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                         const payment = await lightningService.payInvoice(lightningInvoiceInput);
                         
                         if (payment.success) {
-                          console.log('✅ Lightning payment successful!', payment);
+                          logger.log('✅ Lightning payment successful!', payment);
                           setMode('success');
                           setShowSuccess(true);
                           setTimeout(() => {
@@ -1317,7 +1318,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                           alert(`❌ Payment failed: ${payment.error}`);
                         }
                       } catch (error: any) {
-                        console.error('❌ Lightning payment error:', error);
+                        logger.error('❌ Lightning payment error:', error);
                         setMode('lightning-send');
                         alert(`❌ Payment failed: ${error.message || 'Unknown error'}`);
                       }
@@ -1416,7 +1417,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                             // For now, assume 1 EUR = ~2000 sats (approximate)
                             const amountSats = Math.floor(amount * 2000);
                             
-                            console.log(`⚡ Generating Lightning invoice for €${amount} (${amountSats} sats)...`);
+                            logger.log(`⚡ Generating Lightning invoice for €${amount} (${amountSats} sats)...`);
 
                             // Create invoice via Lightning service
                             const invoice = await lightningService.createInvoice(
@@ -1428,7 +1429,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                               throw new Error('Failed to create invoice');
                             }
 
-                            console.log('✅ Invoice created:', invoice.substring(0, 40) + '...');
+                            logger.log('✅ Invoice created:', invoice.substring(0, 40) + '...');
                             setLightningInvoice(invoice);
 
                             // Generate QR code
@@ -1448,7 +1449,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                               startPaymentMonitoring(decoded.paymentHash);
                             }
                           } catch (error: any) {
-                            console.error('❌ Failed to generate invoice:', error);
+                            logger.error('❌ Failed to generate invoice:', error);
                             
                             // User-friendly error messages
                             if (error.message?.includes('WebLN not available')) {

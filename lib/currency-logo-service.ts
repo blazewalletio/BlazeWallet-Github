@@ -10,6 +10,8 @@
  * 3. Local fallback logos for major currencies
  */
 
+import { logger } from '@/lib/logger';
+
 interface CurrencyLogoCache {
   [key: string]: {
     logo: string;
@@ -106,7 +108,7 @@ export async function getCurrencyLogo(
       return cryptoCompareLogo;
     }
   } catch (error) {
-    console.warn(`[CurrencyLogoService] Failed to fetch logo for ${symbol}:`, error);
+    logger.warn(`[CurrencyLogoService] Failed to fetch logo for ${symbol}:`, error);
   }
 
   // Fallback to generic crypto logo
@@ -169,7 +171,7 @@ async function getCoinGeckoLogo(
       }
     }
   } catch (error) {
-    console.warn(`[CoinGecko] Failed to fetch logo for ${symbol}:`, error);
+    logger.warn(`[CoinGecko] Failed to fetch logo for ${symbol}:`, error);
   }
 
   return null;
@@ -192,7 +194,7 @@ async function getCryptoCompareLogo(symbol: string): Promise<string | null> {
       }
     }
   } catch (error) {
-    console.warn(`[CryptoCompare] Failed to fetch logo for ${symbol}:`, error);
+    logger.warn(`[CryptoCompare] Failed to fetch logo for ${symbol}:`, error);
   }
 
   return null;

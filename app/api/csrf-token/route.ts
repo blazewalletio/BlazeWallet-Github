@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 

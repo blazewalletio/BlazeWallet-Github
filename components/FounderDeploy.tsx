@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Rocket, AlertCircle, CheckCircle2, Copy, ExternalLink } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { CHAINS } from '@/lib/chains';
+import { logger } from '@/lib/logger';
 
 export default function FounderDeploy() {
   const { wallet, currentChain, balance } = useWalletStore();

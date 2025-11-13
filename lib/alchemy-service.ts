@@ -1,6 +1,7 @@
 import { Alchemy, Network, AssetTransfersCategory, SortingOrder } from 'alchemy-sdk';
 import { ethers } from 'ethers';
 import { Token } from './types';
+import { logger } from '@/lib/logger';
 
 const ALCHEMY_API_KEY = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY || 'V9A0m8eB58qyWJpajjs6Y';
 
@@ -47,7 +48,7 @@ export class AlchemyService {
 
     // Only log once per chain (prevent console spam)
     if (!AlchemyService.initialized.has(chainKey)) {
-      console.log(`🔮 [AlchemyService] Initialized for ${chainKey} (${network})`);
+      logger.log(`🔮 [AlchemyService] Initialized for ${chainKey} (${network})`);
       AlchemyService.initialized.add(chainKey);
     }
   }
@@ -58,19 +59,19 @@ export class AlchemyService {
    */
   async getAllTokenBalances(address: string): Promise<EnrichedToken[]> {
     try {
-      console.log(`\n🔮 [AlchemyService] Fetching all ERC20 tokens for ${address.substring(0, 8)}...`);
+      logger.log(`\n🔮 [AlchemyService] Fetching all ERC20 tokens for ${address.substring(0, 8)}...`);
       
       // Get all token balances (includes zero balances initially)
       const balances = await this.alchemy.core.getTokenBalances(address);
       
-      console.log(`📊 [AlchemyService] Found ${balances.tokenBalances.length} total tokens`);
+      logger.log(`📊 [AlchemyService] Found ${balances.tokenBalances.length} total tokens`);
       
       // Filter out zero balances
       const nonZeroBalances = balances.tokenBalances.filter(
         token => token.tokenBalance && token.tokenBalance !== '0x0' && token.tokenBalance !== '0x'
       );
 
-      console.log(`✅ [AlchemyService] ${nonZeroBalances.length} tokens with non-zero balance`);
+      logger.log(`✅ [AlchemyService] ${nonZeroBalances.length} tokens with non-zero balance`);
 
       if (nonZeroBalances.length === 0) {
         return [];
@@ -100,7 +101,7 @@ export class AlchemyService {
               logo: metadata.logo || null,
             };
           } catch (error) {
-            console.warn(`⚠️ [AlchemyService] Failed to get metadata for ${token.contractAddress}:`, error);
+            logger.warn(`⚠️ [AlchemyService] Failed to get metadata for ${token.contractAddress}:`, error);
             return null;
           }
         })
@@ -109,11 +110,11 @@ export class AlchemyService {
       // Filter out failed tokens and null values
       const validTokens = enrichedTokens.filter((token): token is EnrichedToken => token !== null);
 
-      console.log(`✅ [AlchemyService] Successfully enriched ${validTokens.length} tokens`);
+      logger.log(`✅ [AlchemyService] Successfully enriched ${validTokens.length} tokens`);
       
       return validTokens;
     } catch (error) {
-      console.error('❌ [AlchemyService] Error fetching token balances:', error);
+      logger.error('❌ [AlchemyService] Error fetching token balances:', error);
       throw error;
     }
   }
@@ -124,7 +125,7 @@ export class AlchemyService {
    */
   async getFullTransactionHistory(address: string, limit: number = 20): Promise<any[]> {
     try {
-      console.log(`\n🔮 [AlchemyService] Fetching transaction history for ${address.substring(0, 8)}...`);
+      logger.log(`\n🔮 [AlchemyService] Fetching transaction history for ${address.substring(0, 8)}...`);
       
       // Get both incoming and outgoing transfers
       const [outgoing, incoming] = await Promise.all([
@@ -170,7 +171,7 @@ export class AlchemyService {
       // Take only the requested limit
       const limitedTransfers = uniqueTransfers.slice(0, limit);
 
-      console.log(`✅ [AlchemyService] Found ${limitedTransfers.length} transactions`);
+      logger.log(`✅ [AlchemyService] Found ${limitedTransfers.length} transactions`);
 
       // ✅ NEW: Fetch logos for ERC20 tokens on-demand
       const transactionsWithLogos = await Promise.all(
@@ -186,9 +187,9 @@ export class AlchemyService {
             try {
               const metadata = await this.alchemy.core.getTokenMetadata(tx.rawContract.address);
               logoUrl = metadata.logo || '/crypto-placeholder.png';
-              console.log(`🔮 [AlchemyService] Fetched logo for ${tx.asset || 'token'}: ${logoUrl ? 'found' : 'using placeholder'}`);
+              logger.log(`🔮 [AlchemyService] Fetched logo for ${tx.asset || 'token'}: ${logoUrl ? 'found' : 'using placeholder'}`);
             } catch (error) {
-              console.warn(`⚠️ [AlchemyService] Failed to fetch logo for ${tx.rawContract.address}`);
+              logger.warn(`⚠️ [AlchemyService] Failed to fetch logo for ${tx.rawContract.address}`);
               logoUrl = '/crypto-placeholder.png';
             }
           } else {
@@ -215,7 +216,7 @@ export class AlchemyService {
 
       return transactionsWithLogos;
     } catch (error) {
-      console.error('❌ [AlchemyService] Error fetching transaction history:', error);
+      logger.error('❌ [AlchemyService] Error fetching transaction history:', error);
       throw error;
     }
   }
@@ -253,7 +254,7 @@ export class AlchemyService {
       if (num < 1000) return num.toFixed(4);
       return num.toFixed(2);
     } catch (error) {
-      console.warn(`⚠️ [AlchemyService] Error formatting balance ${hexBalance}:`, error);
+      logger.warn(`⚠️ [AlchemyService] Error formatting balance ${hexBalance}:`, error);
       return '0';
     }
   }

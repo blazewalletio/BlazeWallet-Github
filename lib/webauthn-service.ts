@@ -8,6 +8,8 @@
  * - Each wallet gets its own unique biometric credential
  */
 
+import { logger } from '@/lib/logger';
+
 export interface WebAuthnCredential {
   id: string;
   publicKey: string;
@@ -64,7 +66,7 @@ export class WebAuthnService {
       const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
       return available;
     } catch (error) {
-      console.error('Error checking platform authenticator:', error);
+      logger.error('Error checking platform authenticator:', error);
       return false;
     }
   }
@@ -150,7 +152,7 @@ export class WebAuthnService {
       return { success: true, credential: credentialData };
 
     } catch (error: any) {
-      console.error('WebAuthn registration error:', error);
+      logger.error('WebAuthn registration error:', error);
       
       // Handle specific error cases
       if (error.name === 'NotAllowedError') {
@@ -213,7 +215,7 @@ export class WebAuthnService {
       return { success: true, credential: credentialData };
 
     } catch (error: any) {
-      console.error('[WebAuthnService] Authentication error:', error.name, error.message);
+      logger.error('[WebAuthnService] Authentication error:', error.name, error.message);
       
       // Handle specific error cases
       if (error.name === 'NotAllowedError') {
@@ -290,9 +292,9 @@ export class WebAuthnService {
       };
       
       localStorage.setItem('biometric_data', JSON.stringify(allData));
-      console.log(`✅ Biometric credential stored for wallet: ${walletIdentifier.substring(0, 8)}...`);
+      logger.log(`✅ Biometric credential stored for wallet: ${walletIdentifier.substring(0, 8)}...`);
     } catch (error) {
-      console.error('Error storing WebAuthn credential:', error);
+      logger.error('Error storing WebAuthn credential:', error);
     }
   }
 
@@ -313,7 +315,7 @@ export class WebAuthnService {
       
       return walletData.credential;
     } catch (error) {
-      console.error('Error retrieving WebAuthn credential:', error);
+      logger.error('Error retrieving WebAuthn credential:', error);
       return null;
     }
   }
@@ -328,7 +330,7 @@ export class WebAuthnService {
       const stored = localStorage.getItem('biometric_data');
       return stored ? JSON.parse(stored) : {};
     } catch (error) {
-      console.error('Error retrieving biometric data:', error);
+      logger.error('Error retrieving biometric data:', error);
       return {};
     }
   }
@@ -344,9 +346,9 @@ export class WebAuthnService {
       const allData = this.getAllBiometricData();
       delete allData[walletIdentifier];
       localStorage.setItem('biometric_data', JSON.stringify(allData));
-      console.log(`✅ Biometric credential removed for wallet: ${walletIdentifier.substring(0, 8)}...`);
+      logger.log(`✅ Biometric credential removed for wallet: ${walletIdentifier.substring(0, 8)}...`);
     } catch (error) {
-      console.error('Error removing WebAuthn credential:', error);
+      logger.error('Error removing WebAuthn credential:', error);
     }
   }
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion, useSpring, useTransform } from 'framer-motion';
+import { logger } from '@/lib/logger';
 
 interface AnimatedNumberProps {
   value: number;

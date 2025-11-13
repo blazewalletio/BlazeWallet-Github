@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { aiService } from '@/lib/ai-service';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Send, Loader2, ArrowLeft } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface Message {
   role: 'user' | 'assistant';

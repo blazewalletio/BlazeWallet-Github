@@ -12,6 +12,7 @@ import { priceService } from '@/lib/price-service';
 import ParticleEffect from './ParticleEffect';
 import SmartScheduleModal from './SmartScheduleModal';
 import AddressBook from './AddressBook';
+import { logger } from '@/lib/logger';
 
 interface Asset {
   symbol: string;
@@ -90,7 +91,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
   // ✅ AI Assistant Pre-fill Effect
   useEffect(() => {
     if (isOpen && prefillData && availableAssets.length > 0) {
-      console.log('🤖 [SendModal] Applying AI pre-fill data:', prefillData);
+      logger.log('🤖 [SendModal] Applying AI pre-fill data:', prefillData);
       
       // Pre-fill recipient address
       if (prefillData.recipient) {
@@ -101,7 +102,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
       if (prefillData.amount) {
         if (prefillData.amount === 'max' || prefillData.amount === 'all') {
           // Will be handled after asset selection
-          console.log('🤖 [SendModal] Will set max amount after asset selection');
+          logger.log('🤖 [SendModal] Will set max amount after asset selection');
         } else {
           setAmount(prefillData.amount);
         }
@@ -116,15 +117,15 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
         
         if (matchingAsset) {
           setSelectedAsset(matchingAsset);
-          console.log('🤖 [SendModal] Selected asset:', matchingAsset.symbol);
+          logger.log('🤖 [SendModal] Selected asset:', matchingAsset.symbol);
           
           // If amount was 'max'/'all', set it now
           if (prefillData.amount === 'max' || prefillData.amount === 'all') {
             setAmount(matchingAsset.balance);
-            console.log('🤖 [SendModal] Set max amount:', matchingAsset.balance);
+            logger.log('🤖 [SendModal] Set max amount:', matchingAsset.balance);
           }
         } else {
-          console.warn('⚠️ [SendModal] Token not found:', tokenSymbol);
+          logger.warn('⚠️ [SendModal] Token not found:', tokenSymbol);
         }
       }
     }
@@ -162,12 +163,12 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
       }
 
       if (!displayAddress) {
-        console.error('❌ No wallet address available for', chain);
+        logger.error('❌ No wallet address available for', chain);
         setIsLoadingAssets(false);
         return;
       }
 
-      console.log(`🔍 [SendModal] Fetching assets for ${chain} (address: ${displayAddress})`);
+      logger.log(`🔍 [SendModal] Fetching assets for ${chain} (address: ${displayAddress})`);
       
       const nativeBalance = await chainService.getBalance(displayAddress);
       const nativeSymbol = chainConfig.nativeCurrency.symbol;
@@ -215,7 +216,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
       // ✅ Fetch ERC20 tokens for EVM chains from wallet store
       else {
         const chainTokens = getChainTokens(chain);
-        console.log(`🪙 [SendModal] Found ${chainTokens.length} cached tokens for ${chain}`);
+        logger.log(`🪙 [SendModal] Found ${chainTokens.length} cached tokens for ${chain}`);
         
         for (const token of chainTokens) {
           // Skip native currency (already added)
@@ -245,9 +246,9 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
         setSelectedAsset(assets[0]);
       }
       
-      console.log(`✅ Loaded ${assets.length} assets for ${chain}:`, assets);
+      logger.log(`✅ Loaded ${assets.length} assets for ${chain}:`, assets);
     } catch (error) {
-      console.error('❌ Failed to fetch assets:', error);
+      logger.error('❌ Failed to fetch assets:', error);
       setAvailableAssets([]);
       setSelectedAsset(null);
     } finally {
@@ -345,7 +346,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
 
         setBalanceWarning(null);
       } catch (err) {
-        console.error('Error checking balance:', err);
+        logger.error('Error checking balance:', err);
         setBalanceWarning(null);
       }
     };
@@ -442,7 +443,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
       
       // ✅ CRITICAL: Invalidate cache after successful transaction!
       // This ensures balance updates immediately on next view
-      console.log('🗑️ [SendModal] Clearing cache after successful transaction');
+      logger.log('🗑️ [SendModal] Clearing cache after successful transaction');
       const { tokenBalanceCache } = await import('@/lib/token-balance-cache');
       const currentAddress = selectedChain === 'solana' 
         ? useWalletStore.getState().solanaAddress 
@@ -456,7 +457,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
         await tx.wait();
       }
     } catch (err: any) {
-      console.error('Error sending transaction:', err);
+      logger.error('Error sending transaction:', err);
       
       // ✅ User-friendly error messages
       let userMessage = 'Transaction failed';
@@ -501,7 +502,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
       
       // Add technical details for debugging if available
       if (technicalDetails && technicalDetails !== userMessage) {
-        console.error('📋 Technical error details:', technicalDetails);
+        logger.error('📋 Technical error details:', technicalDetails);
       }
       
       setError(userMessage);

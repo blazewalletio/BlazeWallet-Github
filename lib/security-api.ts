@@ -1,4 +1,5 @@
 import { ChainType } from './address-validator';
+import { logger } from '@/lib/logger';
 
 export interface SecurityCheckResult {
   isScam: boolean;
@@ -77,7 +78,7 @@ class SecurityAPIService {
       );
       
       if (!response.ok) {
-        console.warn('⚠️ GoPlus API error:', response.status);
+        logger.warn('⚠️ GoPlus API error:', response.status);
         return this.fallbackCheck(address, chainType);
       }
       
@@ -187,7 +188,7 @@ class SecurityAPIService {
       }
       
     } catch (error) {
-      console.error('❌ GoPlus API error:', error);
+      logger.error('❌ GoPlus API error:', error);
       return this.fallbackCheck(address, chainType);
     }
     
@@ -233,7 +234,7 @@ class SecurityAPIService {
       
       return { isReported: false, reports: 0 };
     } catch (error) {
-      console.warn('⚠️ Chainabuse API error:', error);
+      logger.warn('⚠️ Chainabuse API error:', error);
       return { isReported: false, reports: 0 };
     }
   }
@@ -340,7 +341,7 @@ class SecurityAPIService {
     chainType: ChainType,
     type: 'contract' | 'wallet' = 'contract'
   ): Promise<SecurityCheckResult> {
-    console.log(`🔍 Starting comprehensive security check for ${chainType} ${type}:`, address);
+    logger.log(`🔍 Starting comprehensive security check for ${chainType} ${type}:`, address);
     
     // Run primary check (GoPlus for EVM contracts)
     let result: SecurityCheckResult;
@@ -364,11 +365,11 @@ class SecurityAPIService {
           result.sources.push('Chainabuse.com');
         }
       } catch (error) {
-        console.warn('⚠️ Chainabuse check skipped:', error);
+        logger.warn('⚠️ Chainabuse check skipped:', error);
       }
     }
     
-    console.log(`✅ Security check complete. Score: ${result.riskScore}/100`);
+    logger.log(`✅ Security check complete. Score: ${result.riskScore}/100`);
     return result;
   }
 }

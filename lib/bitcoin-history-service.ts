@@ -6,6 +6,7 @@
  */
 
 import { blockchairService } from './blockchair-service';
+import { logger } from '@/lib/logger';
 
 export interface BitcoinTransaction {
   hash: string;
@@ -29,7 +30,7 @@ class BitcoinHistoryService {
     limit: number = 50
   ): Promise<BitcoinTransaction[]> {
     try {
-      console.log(`📋 [Bitcoin History] Fetching history for ${address} on ${chain}`);
+      logger.log(`📋 [Bitcoin History] Fetching history for ${address} on ${chain}`);
       
       const txHistory = await blockchairService.getTransactionHistory(chain, address, limit);
       
@@ -50,12 +51,12 @@ class BitcoinHistoryService {
         };
       });
       
-      console.log(`✅ [Bitcoin History] Found ${transactions.length} transactions`);
+      logger.log(`✅ [Bitcoin History] Found ${transactions.length} transactions`);
       
       return transactions;
       
     } catch (error) {
-      console.error(`❌ [Bitcoin History] Error fetching history:`, error);
+      logger.error(`❌ [Bitcoin History] Error fetching history:`, error);
       return [];
     }
   }

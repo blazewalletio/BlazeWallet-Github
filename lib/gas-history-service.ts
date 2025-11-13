@@ -10,6 +10,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { gasPriceService, GasPrice } from './gas-price-service';
+import { logger } from '@/lib/logger';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -55,7 +56,7 @@ class GasHistoryService {
         .order('created_at', { ascending: true });
       
       if (error) {
-        console.error(`[Gas History] Supabase error:`, error);
+        logger.error(`[Gas History] Supabase error:`, error);
         return [];
       }
       
@@ -70,7 +71,7 @@ class GasHistoryService {
         instant: parseFloat(row.instant || row.gas_price * 1.5),
       }));
     } catch (error) {
-      console.error(`[Gas History] Error fetching history:`, error);
+      logger.error(`[Gas History] Error fetching history:`, error);
       return [];
     }
   }
@@ -155,7 +156,7 @@ class GasHistoryService {
         volatility,
       };
     } catch (error) {
-      console.error(`[Gas History] Error calculating statistics:`, error);
+      logger.error(`[Gas History] Error calculating statistics:`, error);
       
       // Fallback: use current gas price
       const currentGas = await gasPriceService.getGasPrice(chain);
@@ -195,10 +196,10 @@ class GasHistoryService {
         });
       
       if (error) {
-        console.error(`[Gas History] Error recording gas price:`, error);
+        logger.error(`[Gas History] Error recording gas price:`, error);
       }
     } catch (error) {
-      console.error(`[Gas History] Error in recordGasPrice:`, error);
+      logger.error(`[Gas History] Error in recordGasPrice:`, error);
     }
   }
   

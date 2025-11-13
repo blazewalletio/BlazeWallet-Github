@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { logger } from '@/lib/logger';
 
 /**
  * Block body scroll when a modal/overlay is open

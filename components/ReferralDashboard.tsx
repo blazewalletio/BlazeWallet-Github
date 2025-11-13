@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Users, Gift, Copy, Check, ExternalLink, AlertCircle, CheckCircle } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { ReferralService, ReferralData, ReferralStats, ReferralTransaction } from '@/lib/referral-service';
+import { logger } from '@/lib/logger';
 
 export default function ReferralDashboard() {
   const { wallet } = useWalletStore();
@@ -43,7 +44,7 @@ export default function ReferralDashboard() {
         setStats(statsData);
         setRecentTransactions(transactionsData);
       } catch (err: any) {
-        console.error('Error loading referral data:', err);
+        logger.error('Error loading referral data:', err);
         setError(err.message || 'Failed to load referral data');
       } finally {
         setIsLoading(false);
@@ -85,7 +86,7 @@ export default function ReferralDashboard() {
       setRecentTransactions(transactionsData);
       
     } catch (err: any) {
-      console.error('Error claiming referral rewards:', err);
+      logger.error('Error claiming referral rewards:', err);
       setError(err.message || 'Failed to claim referral rewards');
     } finally {
       setIsClaiming(false);

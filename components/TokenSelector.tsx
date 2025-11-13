@@ -10,6 +10,7 @@ import { ethers } from 'ethers';
 import { PublicKey } from '@solana/web3.js';
 import { getSPLTokenMetadata } from '@/lib/spl-token-metadata';
 import { getCurrencyLogoSync } from '@/lib/currency-logo-service';
+import { logger } from '@/lib/logger';
 
 interface TokenSelectorProps {
   isOpen: boolean;
@@ -71,7 +72,7 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
         setError('Token imports not supported for this chain');
       }
     } catch (err: any) {
-      console.error('❌ Error adding token:', err);
+      logger.error('❌ Error adding token:', err);
       setError(err.message || 'Failed to add token');
     } finally {
       setIsLoading(false);
@@ -83,7 +84,7 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
       // Validate Solana address
       const mintAddress = new PublicKey(address);
       
-      console.log('🔍 Fetching SPL token metadata:', mintAddress.toBase58());
+      logger.log('🔍 Fetching SPL token metadata:', mintAddress.toBase58());
       
       // Fetch metadata using our 7-tier system
       const metadata = await getSPLTokenMetadata(mintAddress.toBase58());
@@ -99,7 +100,7 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
         logo,
       };
 
-      console.log('✅ SPL token metadata fetched:', token);
+      logger.log('✅ SPL token metadata fetched:', token);
       
       addToken(token);
       setSuccess(true);
@@ -110,7 +111,7 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
         onClose();
       }, 1500);
     } catch (err: any) {
-      console.error('❌ Failed to add Solana token:', err);
+      logger.error('❌ Failed to add Solana token:', err);
       throw new Error('Invalid SPL token address or token not found');
     }
   };
@@ -138,7 +139,7 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
         provider
       );
 
-      console.log('🔍 Fetching ERC20 token metadata:', checksummedAddress);
+      logger.log('🔍 Fetching ERC20 token metadata:', checksummedAddress);
 
       const [name, symbol, decimals] = await Promise.all([
         tokenContract.name(),
@@ -157,7 +158,7 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
         logo,
       };
 
-      console.log('✅ ERC20 token metadata fetched:', token);
+      logger.log('✅ ERC20 token metadata fetched:', token);
       
       addToken(token);
       setSuccess(true);
@@ -168,7 +169,7 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
         onClose();
       }, 1500);
     } catch (err: any) {
-      console.error('❌ Failed to add EVM token:', err);
+      logger.error('❌ Failed to add EVM token:', err);
       throw new Error('Invalid token address or unable to fetch token data');
     }
   };

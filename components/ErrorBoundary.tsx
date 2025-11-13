@@ -4,6 +4,7 @@ import React, { Component, ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { secureLog } from '@/lib/secure-log';
+import { logger } from '@/lib/logger';
 
 interface Props {
   children: ReactNode;

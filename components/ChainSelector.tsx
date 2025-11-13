@@ -5,6 +5,7 @@ import { X, Check, Zap } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { CHAINS } from '@/lib/chains';
 import { useEffect, useRef } from 'react';
+import { logger } from '@/lib/logger';
 
 interface ChainSelectorProps {
   isOpen: boolean;

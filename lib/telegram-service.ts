@@ -32,6 +32,8 @@
  * - Admin action logs
  */
 
+import { logger } from '@/lib/logger';
+
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID;
 const TELEGRAM_PRIORITY_GROUP_ID = process.env.TELEGRAM_PRIORITY_GROUP_ID;
@@ -52,7 +54,7 @@ interface TelegramMessage {
  */
 async function sendTelegramMessage(message: TelegramMessage): Promise<boolean> {
   if (!TELEGRAM_API_URL) {
-    console.warn('Telegram bot not configured. Skipping notification.');
+    logger.warn('Telegram bot not configured. Skipping notification.');
     return false;
   }
 
@@ -68,14 +70,14 @@ async function sendTelegramMessage(message: TelegramMessage): Promise<boolean> {
     const result = await response.json();
     
     if (!result.ok) {
-      console.error('Telegram API error:', result);
+      logger.error('Telegram API error:', result);
       return false;
     }
 
-    console.log('Telegram message sent successfully');
+    logger.log('Telegram message sent successfully');
     return true;
   } catch (error) {
-    console.error('Failed to send Telegram message:', error);
+    logger.error('Failed to send Telegram message:', error);
     return false;
   }
 }
@@ -85,7 +87,7 @@ async function sendTelegramMessage(message: TelegramMessage): Promise<boolean> {
  */
 export async function sendAdminNotification(text: string): Promise<boolean> {
   if (!TELEGRAM_ADMIN_CHAT_ID) {
-    console.warn('Admin chat ID not configured. Skipping notification.');
+    logger.warn('Admin chat ID not configured. Skipping notification.');
     return false;
   }
 
@@ -101,7 +103,7 @@ export async function sendAdminNotification(text: string): Promise<boolean> {
  */
 export async function sendGroupNotification(text: string): Promise<boolean> {
   if (!TELEGRAM_PRIORITY_GROUP_ID) {
-    console.warn('Priority group ID not configured. Skipping notification.');
+    logger.warn('Priority group ID not configured. Skipping notification.');
     return false;
   }
 

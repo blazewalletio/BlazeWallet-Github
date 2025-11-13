@@ -6,6 +6,7 @@ import { Bug, X, Copy, Check, ExternalLink } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { CHAINS } from '@/lib/chains';
 import { BlockchainService } from '@/lib/blockchain';
+import { logger } from '@/lib/logger';
 
 export default function DebugPanel({ externalOpen = false, onExternalClose }: { externalOpen?: boolean; onExternalClose?: () => void }) {
   const [isOpen, setIsOpen] = useState(false);

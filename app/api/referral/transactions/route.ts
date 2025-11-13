@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 // Force dynamic rendering for this API route
 export const dynamic = 'force-dynamic';
@@ -131,7 +132,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(sortedTransactions);
   } catch (error) {
-    console.error('Error fetching referral transactions:', error);
+    logger.error('Error fetching referral transactions:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

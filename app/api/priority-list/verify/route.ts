@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PriorityListService } from '@/lib/priority-list-service';
+import { logger } from '@/lib/logger';
 
 // GET /api/priority-list/verify?token=xxx - Verify email
 export async function GET(request: NextRequest) {
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
       );
     }
   } catch (error) {
-    console.error('Error verifying email:', error);
+    logger.error('Error verifying email:', error);
     return NextResponse.json(
       { success: false, message: 'Failed to verify email' },
       { status: 500 }

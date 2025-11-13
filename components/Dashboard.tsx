@@ -20,6 +20,7 @@ import { CHAINS, POPULAR_TOKENS } from '@/lib/chains';
 import { Token } from '@/lib/types';
 import { tokenBalanceCache } from '@/lib/token-balance-cache';
 import { refreshTokenMetadata } from '@/lib/spl-token-metadata';
+import { logger } from '@/lib/logger';
 import ChainSelector from './ChainSelector';
 import TokenSelector from './TokenSelector';
 import PortfolioChart from './PortfolioChart';
@@ -253,12 +254,12 @@ export default function Dashboard() {
       ? Array.from(activeFetchControllers.current.keys())[0] 
       : null;
     
-    console.log(`🔄 [Dashboard] Chain switching: ${prevChain || 'initial'} → ${currentChain}`);
+    logger.log(`🔄 [Dashboard] Chain switching: ${prevChain || 'initial'} → ${currentChain}`);
     
     // 1. Abort ALL active fetches (cleanup)
     activeFetchControllers.current.forEach((controller, chain) => {
       controller.abort();
-      console.log(`🚫 [Dashboard] Aborted stale fetch for ${chain}`);
+      logger.log(`🚫 [Dashboard] Aborted stale fetch for ${chain}`);
     });
     activeFetchControllers.current.clear();
     
@@ -272,7 +273,7 @@ export default function Dashboard() {
       const cachedResult = await tokenBalanceCache.getStale(currentChain, displayAddress);
       
       if (cachedResult.tokens && cachedResult.nativeBalance) {
-        console.log(`⚡ [Dashboard] Loading cached state for ${currentChain}`);
+        logger.log(`⚡ [Dashboard] Loading cached state for ${currentChain}`);
         
         // Update global balance state (voor compatibility)
         updateBalance(cachedResult.nativeBalance);
@@ -287,7 +288,7 @@ export default function Dashboard() {
         );
         const totalValue = cachedResult.nativeValueUSD + tokensTotalUSD;
         
-        console.log(`⚡ Cached totals: Native $${cachedResult.nativeValueUSD.toFixed(2)} + Tokens $${tokensTotalUSD.toFixed(2)} = $${totalValue.toFixed(2)}`);
+        logger.log(`⚡ Cached totals: Native $${cachedResult.nativeValueUSD.toFixed(2)} + Tokens $${tokensTotalUSD.toFixed(2)} = $${totalValue.toFixed(2)}`);
         
         // Update chain-specific state
         updateCurrentChainState({
@@ -314,7 +315,7 @@ export default function Dashboard() {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden && displayAddress) {
-        console.log('👁️ [Dashboard] Tab became visible - checking for fresh data');
+        logger.log('👁️ [Dashboard] Tab became visible - checking for fresh data');
         // Force a fresh fetch when user returns to tab
         fetchData(false);
       }
@@ -341,7 +342,7 @@ export default function Dashboard() {
     const existingController = activeFetchControllers.current.get(currentChain);
     if (existingController) {
       existingController.abort();
-      console.log(`🚫 [Dashboard] Cancelled previous fetch for ${currentChain}`);
+      logger.log(`🚫 [Dashboard] Cancelled previous fetch for ${currentChain}`);
     }
     
     // Create new abort controller for this fetch
@@ -352,19 +353,19 @@ export default function Dashboard() {
     // Helper: Check if this fetch is still relevant
     const isStillRelevant = () => {
       if (controller.signal.aborted) {
-        console.log(`⚠️ [Dashboard] Fetch ${fetchId} was aborted`);
+        logger.log(`⚠️ [Dashboard] Fetch ${fetchId} was aborted`);
         return false;
       }
       const currentController = activeFetchControllers.current.get(currentChain);
       if (currentController !== controller) {
-        console.log(`⚠️ [Dashboard] Fetch ${fetchId} is outdated, newer fetch started`);
+        logger.log(`⚠️ [Dashboard] Fetch ${fetchId} is outdated, newer fetch started`);
         return false;
       }
       return true;
     };
     
     const timestamp = Date.now();
-    console.log(`\n========== FETCH DATA START [${fetchId}] ==========`);
+    logger.log(`\n========== FETCH DATA START [${fetchId}] ==========`);
     
     // Update chain state: start refreshing
     updateCurrentChainState({ 
@@ -384,7 +385,7 @@ export default function Dashboard() {
       }
       
       // ✅ Show cached data INSTANTLY
-      console.log(`⚡ Loaded from cache (${isStale ? 'stale' : 'fresh'}): ${cachedTokens.length} tokens, balance: ${cachedBalance}`);
+      logger.log(`⚡ Loaded from cache (${isStale ? 'stale' : 'fresh'}): ${cachedTokens.length} tokens, balance: ${cachedBalance}`);
       
       updateBalance(cachedBalance);
       updateTokens(currentChain, cachedTokens); // ✅ Chain-specific!
@@ -404,35 +405,35 @@ export default function Dashboard() {
         nativeBalance: cachedBalance,
       });
       
-      console.log(`💰 Cached total: Native $${cachedNativeValueUSD.toFixed(2)} + Tokens $${cachedTokensTotal.toFixed(2)} = $${cachedTotal.toFixed(2)}`);
+      logger.log(`💰 Cached total: Native $${cachedNativeValueUSD.toFixed(2)} + Tokens $${cachedTokensTotal.toFixed(2)} = $${cachedTotal.toFixed(2)}`);
       
       // ✅ IMPROVED: Only skip fresh fetch if NOT forced AND cache is very fresh (< 2 min for native balance)
       const cacheAge = cacheTimestamp > 0 ? Date.now() - cacheTimestamp : Infinity;
       const isCacheVeryFresh = cacheAge < 2 * 60 * 1000; // 2 minutes
       
       if (!isStale && !force && isCacheVeryFresh) {
-        console.log('✅ Using fresh cached data, skipping fetch');
+        logger.log('✅ Using fresh cached data, skipping fetch');
         updateCurrentChainState({ isRefreshing: false, activeFetchId: null });
         activeFetchControllers.current.delete(currentChain);
         return;
       }
       
       // ✅ If stale, old (>2 min), or forced, continue to refresh
-      console.log(`🔄 Refreshing data in background... (age: ${Math.round(cacheAge / 1000)}s, forced: ${force})`);
+      logger.log(`🔄 Refreshing data in background... (age: ${Math.round(cacheAge / 1000)}s, forced: ${force})`);
     }
     
     // ✅ If manual refresh, clear price cache for ultra-fresh data
     if (force) {
-      console.log('🔄 [Dashboard] Manual refresh - clearing price cache');
+      logger.log('🔄 [Dashboard] Manual refresh - clearing price cache');
       priceService.clearCache();
     }
     
     try {
-      console.log(`🌐 Chain: ${currentChain} (${chain.name})`);
-      console.log(`📍 Display Address: ${displayAddress}`);
+      logger.log(`🌐 Chain: ${currentChain} (${chain.name})`);
+      logger.log(`📍 Display Address: ${displayAddress}`);
       
       // ✅ STEP 1: Fetch native balance
-      console.log(`\n--- STEP 1: Fetch Native Balance ---`);
+      logger.log(`\n--- STEP 1: Fetch Native Balance ---`);
       const bal = await blockchain.getBalance(displayAddress);
       
       // ✅ Abort check after balance fetch
@@ -440,11 +441,11 @@ export default function Dashboard() {
         throw new Error('Fetch aborted');
       }
       
-      console.log(`[${timestamp}] ✅ Balance received: ${bal} ${chain.nativeCurrency.symbol}`);
+      logger.log(`[${timestamp}] ✅ Balance received: ${bal} ${chain.nativeCurrency.symbol}`);
       updateBalance(bal);
 
       // ✅ STEP 2: Fetch ALL prices in ONE batch request (optimized!)
-      console.log(`\n--- STEP 2: Fetch Prices (Batch) ---`);
+      logger.log(`\n--- STEP 2: Fetch Prices (Batch) ---`);
       const popularTokens = POPULAR_TOKENS[currentChain] || [];
       const allSymbols = [chain.nativeCurrency.symbol];
       
@@ -453,7 +454,7 @@ export default function Dashboard() {
         allSymbols.push(...popularTokens.map(t => t.symbol));
       }
       
-      console.log(`[${timestamp}] 📡 Fetching prices for: ${allSymbols.join(', ')}`);
+      logger.log(`[${timestamp}] 📡 Fetching prices for: ${allSymbols.join(', ')}`);
       const pricesMap = await priceService.getMultiplePrices(allSymbols);
       
       // ✅ Abort check after price fetch
@@ -461,7 +462,7 @@ export default function Dashboard() {
         throw new Error('Fetch aborted');
       }
       
-      console.log(`[${timestamp}] 💰 Prices received:`, pricesMap);
+      logger.log(`[${timestamp}] 💰 Prices received:`, pricesMap);
       
       // Extract native price
       const nativePrice = pricesMap[chain.nativeCurrency.symbol] || 0;
@@ -473,7 +474,7 @@ export default function Dashboard() {
       });
       
       const nativeValueUSD = parseFloat(bal) * nativePrice;
-      console.log(`[${timestamp}] 💵 Native token value:`, {
+      logger.log(`[${timestamp}] 💵 Native token value:`, {
         balance: bal,
         symbol: chain.nativeCurrency.symbol,
         priceUSD: nativePrice,
@@ -485,8 +486,8 @@ export default function Dashboard() {
       
       if (currentChain === 'solana') {
         // ✅ SOLANA: Fetch SPL tokens
-        console.log(`\n--- STEP 3: Fetch SPL Token Balances (Solana) ---`);
-        console.log(`[${timestamp}] 🪙 Fetching SPL tokens from chain...`);
+        logger.log(`\n--- STEP 3: Fetch SPL Token Balances (Solana) ---`);
+        logger.log(`[${timestamp}] 🪙 Fetching SPL tokens from chain...`);
         
         const solanaService = blockchain as any; // Access Solana-specific methods
         const splTokens = await solanaService.getSPLTokenBalances(displayAddress);
@@ -496,16 +497,16 @@ export default function Dashboard() {
           throw new Error('Fetch aborted');
         }
         
-        console.log(`[${timestamp}] ✅ Found ${splTokens.length} SPL tokens with balance`);
-        console.log(`[${timestamp}] 📊 SPL Tokens:`, splTokens);
+        logger.log(`[${timestamp}] ✅ Found ${splTokens.length} SPL tokens with balance`);
+        logger.log(`[${timestamp}] 📊 SPL Tokens:`, splTokens);
         
         if (splTokens.length > 0) {
           // ✅ STEP 4: Fetch prices for SPL tokens (using mint addresses for DexScreener!)
-          console.log(`\n--- STEP 4: Fetch SPL Token Prices ---`);
+          logger.log(`\n--- STEP 4: Fetch SPL Token Prices ---`);
           
           // Try symbol-based pricing first (CoinGecko/Binance) for popular tokens
           const splSymbols = splTokens.map((t: any) => t.symbol);
-          console.log(`[${timestamp}] 📡 Fetching prices for SPL tokens: ${splSymbols.join(', ')}`);
+          logger.log(`[${timestamp}] 📡 Fetching prices for SPL tokens: ${splSymbols.join(', ')}`);
           
           const splPricesMap = await priceService.getMultiplePrices(splSymbols);
           
@@ -514,13 +515,13 @@ export default function Dashboard() {
             throw new Error('Fetch aborted');
           }
           
-          console.log(`[${timestamp}] 💰 SPL prices received:`, splPricesMap);
+          logger.log(`[${timestamp}] 💰 SPL prices received:`, splPricesMap);
           
           // For tokens without a symbol price, try mint-based pricing (DexScreener)
           const tokensNeedingMintPrice = splTokens.filter((t: any) => !splPricesMap[t.symbol] || splPricesMap[t.symbol] === 0);
           
           if (tokensNeedingMintPrice.length > 0) {
-            console.log(`[${timestamp}] 🔍 Fetching DexScreener prices for ${tokensNeedingMintPrice.length} tokens without CoinGecko/Binance prices...`);
+            logger.log(`[${timestamp}] 🔍 Fetching DexScreener prices for ${tokensNeedingMintPrice.length} tokens without CoinGecko/Binance prices...`);
             const mints = tokensNeedingMintPrice.map((t: any) => t.address);
             const mintPrices = await priceService.getPricesByMints(mints);
             
@@ -534,7 +535,7 @@ export default function Dashboard() {
               const mintPrice = mintPrices.get(token.address);
               if (mintPrice && mintPrice.price > 0) {
                 splPricesMap[token.symbol] = mintPrice.price;
-                console.log(`[${timestamp}] 💰 DexScreener: ${token.symbol} = $${mintPrice.price}`);
+                logger.log(`[${timestamp}] 💰 DexScreener: ${token.symbol} = $${mintPrice.price}`);
               }
             });
           }
@@ -559,11 +560,11 @@ export default function Dashboard() {
                     change24h = mintPrice.change24h;
                   }
                 } catch (error) {
-                  console.warn(`Failed to get 24h change for ${token.symbol}:`, error);
+                  logger.warn(`Failed to get 24h change for ${token.symbol}:`, error);
                 }
               }
               
-              console.log(`[${timestamp}] 💰 ${token.symbol}:`, {
+              logger.log(`[${timestamp}] 💰 ${token.symbol}:`, {
                 balance: token.balance,
                 price: price,
                 balanceUSD: balanceUSD.toFixed(2),
@@ -580,18 +581,18 @@ export default function Dashboard() {
             })
           );
           
-          console.log(`[${timestamp}] ✅ Final tokensWithValue:`, tokensWithValue);
+          logger.log(`[${timestamp}] ✅ Final tokensWithValue:`, tokensWithValue);
         }
         
       } else if (displayAddress) {
         // ✅ EVM: Fetch ERC20 tokens
-        console.log(`\n--- STEP 3: Fetch Token Balances (EVM) ---`);
+        logger.log(`\n--- STEP 3: Fetch Token Balances (EVM) ---`);
         
         // ✅ NEW: Try Alchemy first (auto-detects ALL tokens!)
         let erc20Tokens: any[] = [];
         
         try {
-          console.log(`[${timestamp}] 🔮 Attempting to fetch ALL ERC20 tokens via Alchemy...`);
+          logger.log(`[${timestamp}] 🔮 Attempting to fetch ALL ERC20 tokens via Alchemy...`);
           erc20Tokens = await blockchain.getERC20TokenBalances(displayAddress);
           
           // ✅ Abort check after ERC20 fetch
@@ -600,17 +601,17 @@ export default function Dashboard() {
           }
           
           if (erc20Tokens.length > 0) {
-            console.log(`[${timestamp}] ✅ Alchemy found ${erc20Tokens.length} ERC20 tokens with balance`);
+            logger.log(`[${timestamp}] ✅ Alchemy found ${erc20Tokens.length} ERC20 tokens with balance`);
           } else {
-            console.log(`[${timestamp}] ℹ️ No tokens found via Alchemy, falling back to POPULAR_TOKENS`);
+            logger.log(`[${timestamp}] ℹ️ No tokens found via Alchemy, falling back to POPULAR_TOKENS`);
           }
         } catch (error) {
-          console.warn(`[${timestamp}] ⚠️ Alchemy failed, falling back to POPULAR_TOKENS:`, error);
+          logger.warn(`[${timestamp}] ⚠️ Alchemy failed, falling back to POPULAR_TOKENS:`, error);
         }
         
         // Fallback to POPULAR_TOKENS if Alchemy returned nothing
         if (erc20Tokens.length === 0 && popularTokens.length > 0) {
-          console.log(`[${timestamp}] 🪙 Fetching balances for ${popularTokens.length} popular ERC20 tokens...`);
+          logger.log(`[${timestamp}] 🪙 Fetching balances for ${popularTokens.length} popular ERC20 tokens...`);
           
           const tokensWithBalance = await tokenService.getMultipleTokenBalances(
             popularTokens,
@@ -623,16 +624,16 @@ export default function Dashboard() {
           }
           
           erc20Tokens = tokensWithBalance.filter(t => parseFloat(t.balance || '0') > 0);
-          console.log(`[${timestamp}] ✅ Token balances received:`, erc20Tokens.map(t => `${t.symbol}: ${t.balance}`));
+          logger.log(`[${timestamp}] ✅ Token balances received:`, erc20Tokens.map(t => `${t.symbol}: ${t.balance}`));
         }
         
         // ✅ STEP 4: Enrich with USD prices
         if (erc20Tokens.length > 0) {
-          console.log(`\n--- STEP 4: Fetch Token Prices (by Contract Address) ---`);
+          logger.log(`\n--- STEP 4: Fetch Token Prices (by Contract Address) ---`);
           
           // ✅ NEW: Use contract addresses instead of symbols!
           const tokenAddresses = erc20Tokens.map((t: any) => t.address);
-          console.log(`[${timestamp}] 📡 Fetching prices for ${tokenAddresses.length} addresses via CoinGecko + DexScreener...`);
+          logger.log(`[${timestamp}] 📡 Fetching prices for ${tokenAddresses.length} addresses via CoinGecko + DexScreener...`);
           
           // Use new address-based price lookup (hybrid: CoinGecko + DexScreener)
           const pricesByAddress = await priceService.getPricesByAddresses(tokenAddresses, currentChain);
@@ -642,7 +643,7 @@ export default function Dashboard() {
             throw new Error('Fetch aborted');
           }
           
-          console.log(`[${timestamp}] 💰 Received prices for ${pricesByAddress.size}/${tokenAddresses.length} tokens`);
+          logger.log(`[${timestamp}] 💰 Received prices for ${pricesByAddress.size}/${tokenAddresses.length} tokens`);
           
           // Combine tokens with prices
           const tokensWithPrices = erc20Tokens.map((token: any) => {
@@ -653,9 +654,9 @@ export default function Dashboard() {
             
             // ✅ DEBUG: Log price data to identify missing prices
             if (priceData.price === 0 && balanceNum > 0) {
-              console.warn(`⚠️ [Dashboard] No price data for ${token.symbol}! Balance: ${token.balance}, Address: ${token.address}`);
+              logger.warn(`⚠️ [Dashboard] No price data for ${token.symbol}! Balance: ${token.balance}, Address: ${token.address}`);
             } else {
-              console.log(`[${timestamp}] 💰 ${token.symbol}: ${token.balance} × $${priceData.price.toFixed(2)} = $${balanceUSD.toFixed(2)}`);
+              logger.log(`[${timestamp}] 💰 ${token.symbol}: ${token.balance} × $${priceData.price.toFixed(2)} = $${balanceUSD.toFixed(2)}`);
             }
             
             return {
@@ -672,12 +673,12 @@ export default function Dashboard() {
             t => parseFloat(t.balance || '0') > 0
           );
           
-          console.log(`[${timestamp}] ✅ Final ${tokensWithValue.length} tokens with value`);
+          logger.log(`[${timestamp}] ✅ Final ${tokensWithValue.length} tokens with value`);
         }
       }
 
       // ✅ STEP 5: Update tokens and calculate total portfolio value
-      console.log(`\n--- STEP 5: Calculate Total Portfolio Value ---`);
+      logger.log(`\n--- STEP 5: Calculate Total Portfolio Value ---`);
       
       // ✅ FINAL abort check before state update
       if (!isStillRelevant()) {
@@ -701,7 +702,7 @@ export default function Dashboard() {
           nativeBalance: bal,
         });
         
-        console.log(`[${timestamp}] 📊 Portfolio Summary:`, {
+        logger.log(`[${timestamp}] 📊 Portfolio Summary:`, {
           nativeValueUSD: nativeValueUSD.toFixed(2),
           tokensTotalUSD: tokensTotalUSD.toFixed(2),
           tokensCount: tokensWithValue.length,
@@ -722,7 +723,7 @@ export default function Dashboard() {
           nativeBalance: bal,
         });
         
-        console.log(`[${timestamp}] 📊 Portfolio Summary (Native Only):`, {
+        logger.log(`[${timestamp}] 📊 Portfolio Summary (Native Only):`, {
           totalValueUSD: nativeValueUSD.toFixed(2)
         });
         
@@ -733,7 +734,7 @@ export default function Dashboard() {
       }
 
       // ✅ STEP 6: Get 24h change for native token
-      console.log(`\n--- STEP 6: Fetch 24h Change ---`);
+      logger.log(`\n--- STEP 6: Fetch 24h Change ---`);
       const nativeChange = await priceService.get24hChange(chain.nativeCurrency.symbol);
       
       // ✅ Abort check after 24h change fetch
@@ -746,7 +747,7 @@ export default function Dashboard() {
         change24h: nativeChange,
       });
       
-      console.log(`[${timestamp}] 📈 24h Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
+      logger.log(`[${timestamp}] 📈 24h Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
       
       // ✅ PHASE 4: Cache with native price included
       await tokenBalanceCache.set(
@@ -757,12 +758,12 @@ export default function Dashboard() {
         nativePrice, // ✅ STORE native price in cache!
         15 * 60 * 1000 // 15 minutes
       );
-      console.log('💾 Cached fresh token and balance data');
+      logger.log('💾 Cached fresh token and balance data');
       
       // Update chart data from history based on selected time range
       updateChartData();
       
-      console.log(`========== FETCH DATA COMPLETE [${Date.now() - timestamp}ms] ==========\n`);
+      logger.log(`========== FETCH DATA COMPLETE [${Date.now() - timestamp}ms] ==========\n`);
       
       // ✅ Success: Mark fetch as complete and cleanup
       updateCurrentChainState({
@@ -774,12 +775,12 @@ export default function Dashboard() {
     } catch (error) {
       // ✅ Handle aborted fetches gracefully
       if (error instanceof Error && error.message === 'Fetch aborted') {
-        console.log(`✅ [Dashboard] Fetch ${fetchId} successfully aborted`);
+        logger.log(`✅ [Dashboard] Fetch ${fetchId} successfully aborted`);
         return; // Silent return, state already cleaned up
       }
       
-      console.error('❌ Error fetching data:', error);
-      console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+      logger.error('❌ Error fetching data:', error);
+      logger.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
       
       // ✅ Update chain-specific state with error
       updateCurrentChainState({
@@ -814,13 +815,13 @@ export default function Dashboard() {
     setRefreshingToken(tokenAddress);
     
     try {
-      console.log(`🔄 Refreshing metadata for token: ${tokenAddress}`);
+      logger.log(`🔄 Refreshing metadata for token: ${tokenAddress}`);
       
       // Fetch fresh metadata from Jupiter
       const metadata = await refreshTokenMetadata(tokenAddress);
       
       if (metadata) {
-        console.log(`✅ Got metadata: ${metadata.name} (${metadata.symbol})`);
+        logger.log(`✅ Got metadata: ${metadata.name} (${metadata.symbol})`);
         
         // Update token in local state
         // ✅ Use chain-specific updateTokens
@@ -839,10 +840,10 @@ export default function Dashboard() {
         // Refresh full data to update cache
         await fetchData(false);
       } else {
-        console.warn('❌ Failed to fetch token metadata');
+        logger.warn('❌ Failed to fetch token metadata');
       }
     } catch (error) {
-      console.error('❌ Error refreshing token:', error);
+      logger.error('❌ Error refreshing token:', error);
     } finally {
       setRefreshingToken(null);
     }
@@ -865,7 +866,7 @@ export default function Dashboard() {
           setIsPriorityListLive(result.data.isRegistrationOpen || false);
         }
       } catch (error) {
-        console.error('Error checking priority list status:', error);
+        logger.error('Error checking priority list status:', error);
       }
     };
 
@@ -1332,7 +1333,7 @@ export default function Dashboard() {
                               alt={token.symbol}
                               className="w-full h-full object-cover"
                               onError={(e) => {
-                                console.error(`❌ Failed to load logo for ${token.symbol}:`, logoUrl);
+                                logger.error(`❌ Failed to load logo for ${token.symbol}:`, logoUrl);
                                 // Fallback to symbol if image fails to load
                                 e.currentTarget.style.display = 'none';
                                 e.currentTarget.parentElement!.textContent = token.symbol[0];
@@ -1341,7 +1342,7 @@ export default function Dashboard() {
                           );
                         }
                         
-                        console.log(`⚠️ Using fallback for ${token.symbol}, logo:`, logoUrl);
+                        logger.log(`⚠️ Using fallback for ${token.symbol}, logo:`, logoUrl);
                         return logoUrl || token.symbol[0];
                       })()}
                     </div>
@@ -1829,7 +1830,7 @@ export default function Dashboard() {
               chain: currentChain,
             }}
             onExecuteAction={(action) => {
-              console.log('🤖 [Dashboard] Executing AI action:', action);
+              logger.log('🤖 [Dashboard] Executing AI action:', action);
               
               // Handle action execution with pre-fill data
               if (action.type === 'send') {
@@ -2151,13 +2152,13 @@ export default function Dashboard() {
       <PasswordUnlockModal
         isOpen={showPasswordUnlock}
         onComplete={() => {
-          console.log('✅ Wallet unlocked successfully - refreshing data');
+          logger.log('✅ Wallet unlocked successfully - refreshing data');
           setShowPasswordUnlock(false);
           fetchData(true); // Refresh all wallet data
         }}
         onFallback={() => {
           // User wants to use recovery phrase instead
-          console.log('⚠️ User requested fallback to recovery phrase');
+          logger.log('⚠️ User requested fallback to recovery phrase');
           // Keep modal open, user will use recovery phrase option in modal
         }}
       />

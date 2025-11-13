@@ -9,6 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 // TODO: Import your LND/CLN client here
 // import { LndClient } from '@/lib/lnd-client';
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`⚡ Checking invoice status: ${paymentHash.substring(0, 10)}...`);
+    logger.log(`⚡ Checking invoice status: ${paymentHash.substring(0, 10)}...`);
 
     // TODO: Replace with actual LND/CLN implementation
     // const lnd = new LndClient();
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
       settledAt: undefined,
     });
   } catch (error: any) {
-    console.error('❌ Failed to check invoice status:', error);
+    logger.error('❌ Failed to check invoice status:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to check invoice' },
       { status: 500 }

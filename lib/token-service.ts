@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
 import { Token } from './types';
+import { logger } from '@/lib/logger';
 
 const ERC20_ABI = [
   'function balanceOf(address) view returns (uint256)',
@@ -23,7 +24,7 @@ export class TokenService {
       const decimals = await contract.decimals();
       return ethers.formatUnits(balance, decimals);
     } catch (error) {
-      console.error('Error fetching token balance:', error);
+      logger.error('Error fetching token balance:', error);
       return '0';
     }
   }
@@ -44,7 +45,7 @@ export class TokenService {
         decimals,
       };
     } catch (error) {
-      console.error('Error fetching token info:', error);
+      logger.error('Error fetching token info:', error);
       throw error;
     }
   }
@@ -65,7 +66,7 @@ export class TokenService {
       
       return tx;
     } catch (error) {
-      console.error('Error sending token:', error);
+      logger.error('Error sending token:', error);
       throw error;
     }
   }

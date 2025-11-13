@@ -15,6 +15,7 @@ import * as bip39 from 'bip39';
 import bs58 from 'bs58';
 import { getSPLTokenMetadata, SPLTokenMetadata } from './spl-token-metadata';
 import { getCurrencyLogoSync } from './currency-logo-service';
+import { logger } from '@/lib/logger';
 
 // SPL Token Program IDs (support both legacy and Token-2022!)
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
@@ -69,18 +70,18 @@ export class SolanaService {
    */
   async getBalance(address: string): Promise<string> {
     try {
-      console.log('🔍 [SolanaService] Fetching balance for:', address);
-      console.log('🔍 [SolanaService] Using RPC:', this.rpcUrl);
+      logger.log('🔍 [SolanaService] Fetching balance for:', address);
+      logger.log('🔍 [SolanaService] Using RPC:', this.rpcUrl);
       
       const publicKey = new PublicKey(address);
-      console.log('🔍 [SolanaService] PublicKey created:', publicKey.toBase58());
+      logger.log('🔍 [SolanaService] PublicKey created:', publicKey.toBase58());
       
       // Get native SOL balance
       const nativeBalance = await this.connection.getBalance(publicKey);
-      console.log('🔍 [SolanaService] Raw native balance (lamports):', nativeBalance);
+      logger.log('🔍 [SolanaService] Raw native balance (lamports):', nativeBalance);
       
       const nativeSol = nativeBalance / LAMPORTS_PER_SOL;
-      console.log('✅ [SolanaService] Native SOL balance:', nativeSol);
+      logger.log('✅ [SolanaService] Native SOL balance:', nativeSol);
       
       // 🛡️ ALSO get wrapped SOL balance to include in total
       let wrappedSol = 0;
@@ -99,20 +100,20 @@ export class SolanaService {
         if (wrappedSolAccount) {
           const info = wrappedSolAccount.account.data as ParsedAccountData;
           wrappedSol = parseFloat(info.parsed?.info?.tokenAmount?.uiAmountString || '0');
-          console.log(`🛡️ [SolanaService] Found wrapped SOL: ${wrappedSol}`);
+          logger.log(`🛡️ [SolanaService] Found wrapped SOL: ${wrappedSol}`);
         }
       } catch (error) {
-        console.warn('⚠️ [SolanaService] Failed to fetch wrapped SOL, using native only:', error);
+        logger.warn('⚠️ [SolanaService] Failed to fetch wrapped SOL, using native only:', error);
       }
       
       // Total SOL = native + wrapped
       const totalSol = nativeSol + wrappedSol;
-      console.log(`✅ [SolanaService] Total SOL balance: ${nativeSol} native + ${wrappedSol} wrapped = ${totalSol}`);
+      logger.log(`✅ [SolanaService] Total SOL balance: ${nativeSol} native + ${wrappedSol} wrapped = ${totalSol}`);
       
       return totalSol.toString();
     } catch (error) {
-      console.error('❌ [SolanaService] Error fetching Solana balance:', error);
-      console.error('❌ [SolanaService] Error details:', {
+      logger.error('❌ [SolanaService] Error fetching Solana balance:', error);
+      logger.error('❌ [SolanaService] Error details:', {
         message: error instanceof Error ? error.message : 'Unknown error',
         address,
         rpcUrl: this.rpcUrl
@@ -156,7 +157,7 @@ export class SolanaService {
 
       return signature;
     } catch (error) {
-      console.error('Error sending Solana transaction:', error);
+      logger.error('Error sending Solana transaction:', error);
       throw error;
     }
   }
@@ -172,7 +173,7 @@ export class SolanaService {
     accountIndex: number = 0
   ): Promise<string> {
     try {
-      console.log('🪙 [SolanaService] Sending SPL token:', {
+      logger.log('🪙 [SolanaService] Sending SPL token:', {
         tokenMint: tokenMintAddress,
         to: toAddress,
         amount,
@@ -222,7 +223,7 @@ export class SolanaService {
           )
         );
         
-        console.log('🆕 Creating associated token account for recipient');
+        logger.log('🆕 Creating associated token account for recipient');
       } else {
         toTokenAccount = toTokenAccounts.value[0].pubkey;
       }
@@ -253,10 +254,10 @@ export class SolanaService {
         [fromKeypair]
       );
 
-      console.log('✅ [SolanaService] SPL token transfer successful:', signature);
+      logger.log('✅ [SolanaService] SPL token transfer successful:', signature);
       return signature;
     } catch (error) {
-      console.error('❌ [SolanaService] Error sending SPL token:', error);
+      logger.error('❌ [SolanaService] Error sending SPL token:', error);
       throw error;
     }
   }
@@ -310,7 +311,7 @@ export class SolanaService {
               logoUrl: txDetails.logoUrl,      // ✅ FIX: Pass logo URL for watermark
             };
           } catch (err) {
-            console.error('Error parsing Solana transaction:', err);
+            logger.error('Error parsing Solana transaction:', err);
             return null;
           }
         })
@@ -319,7 +320,7 @@ export class SolanaService {
       // Filter out null transactions
       return transactions.filter((tx) => tx !== null);
     } catch (error) {
-      console.error('Error fetching Solana transaction history:', error);
+      logger.error('Error fetching Solana transaction history:', error);
       throw error; // Propagate error for retry logic
     }
   }
@@ -342,7 +343,7 @@ export class SolanaService {
         
         if (i < maxRetries - 1) {
           const waitTime = Math.pow(2, i) * 1000; // Exponential backoff
-          console.log(`⏳ Solana RPC retry ${i + 1}/${maxRetries}, waiting ${waitTime}ms...`);
+          logger.log(`⏳ Solana RPC retry ${i + 1}/${maxRetries}, waiting ${waitTime}ms...`);
           await new Promise(resolve => setTimeout(resolve, waitTime));
         }
       }
@@ -462,20 +463,20 @@ export class SolanaService {
                 // ✅ FIX: Extract mint and fetch metadata
                 const mint = postBalance.mint || preBalance.mint;
                 
-                console.log(`🔍 [SPL Transfer] Fetching metadata for mint: ${mint}`);
+                logger.log(`🔍 [SPL Transfer] Fetching metadata for mint: ${mint}`);
                 
                 let metadata;
                 try {
                   // Fetch token metadata (uses 7-tier: hardcoded + Jupiter + DexScreener + CoinGecko + Metaplex + RPC!)
                   metadata = await getSPLTokenMetadata(mint);
                   
-                  console.log(`✅ [SPL Transfer] Got metadata:`, {
+                  logger.log(`✅ [SPL Transfer] Got metadata:`, {
                     symbol: metadata.symbol,
                     name: metadata.name,
                     logoURI: metadata.logoURI
                   });
                 } catch (metadataError) {
-                  console.error(`❌ [SPL Transfer] Metadata fetch failed for ${mint}:`, metadataError);
+                  logger.error(`❌ [SPL Transfer] Metadata fetch failed for ${mint}:`, metadataError);
                   // Use fallback metadata
                   metadata = {
                     mint,
@@ -508,19 +509,19 @@ export class SolanaService {
         
         // 🆕 FALLBACK: For failed transactions or those without balance changes,
         // try to extract mint from ANY token balance (pre OR post) and fetch metadata
-        console.log(`⚠️ [SPL Transfer] No balance diff found, trying fallback metadata fetch...`);
+        logger.log(`⚠️ [SPL Transfer] No balance diff found, trying fallback metadata fetch...`);
         
         if (tx.meta?.preTokenBalances && tx.meta.preTokenBalances.length > 0) {
           const firstBalance = tx.meta.preTokenBalances[0];
           const mint = firstBalance.mint;
           
           if (mint) {
-            console.log(`🔍 [SPL Transfer FALLBACK] Fetching metadata for mint: ${mint}`);
+            logger.log(`🔍 [SPL Transfer FALLBACK] Fetching metadata for mint: ${mint}`);
             
             try {
               const metadata = await getSPLTokenMetadata(mint);
               
-              console.log(`✅ [SPL Transfer FALLBACK] Got metadata:`, {
+              logger.log(`✅ [SPL Transfer FALLBACK] Got metadata:`, {
                 symbol: metadata.symbol,
                 name: metadata.name,
                 logoURI: metadata.logoURI
@@ -537,7 +538,7 @@ export class SolanaService {
                 logoUrl: metadata.logoURI || '/crypto-solana.png',
               };
             } catch (metadataError) {
-              console.error(`❌ [SPL Transfer FALLBACK] Metadata fetch failed for ${mint}:`, metadataError);
+              logger.error(`❌ [SPL Transfer FALLBACK] Metadata fetch failed for ${mint}:`, metadataError);
             }
           }
         }
@@ -548,12 +549,12 @@ export class SolanaService {
           const mint = firstBalance.mint;
           
           if (mint) {
-            console.log(`🔍 [SPL Transfer FALLBACK POST] Fetching metadata for mint: ${mint}`);
+            logger.log(`🔍 [SPL Transfer FALLBACK POST] Fetching metadata for mint: ${mint}`);
             
             try {
               const metadata = await getSPLTokenMetadata(mint);
               
-              console.log(`✅ [SPL Transfer FALLBACK POST] Got metadata:`, {
+              logger.log(`✅ [SPL Transfer FALLBACK POST] Got metadata:`, {
                 symbol: metadata.symbol,
                 name: metadata.name,
                 logoURI: metadata.logoURI
@@ -570,13 +571,13 @@ export class SolanaService {
                 logoUrl: metadata.logoURI || '/crypto-solana.png',
               };
             } catch (metadataError) {
-              console.error(`❌ [SPL Transfer FALLBACK POST] Metadata fetch failed for ${mint}:`, metadataError);
+              logger.error(`❌ [SPL Transfer FALLBACK POST] Metadata fetch failed for ${mint}:`, metadataError);
             }
           }
         }
         
         // Ultimate fallback if we really can't find any token info
-        console.warn(`⚠️ [SPL Transfer] No token balances found, using generic fallback`);
+        logger.warn(`⚠️ [SPL Transfer] No token balances found, using generic fallback`);
         return {
           from: accountKeys[0]?.toBase58() || '',
           to: accountKeys[1]?.toBase58() || '',
@@ -616,7 +617,7 @@ export class SolanaService {
       // Return in SOL
       return (feeCalculator.lamportsPerSignature / LAMPORTS_PER_SOL).toString();
     } catch (error) {
-      console.error('Error fetching Solana fee:', error);
+      logger.error('Error fetching Solana fee:', error);
       // Return default fee estimate
       return '0.000005';
     }
@@ -631,7 +632,7 @@ export class SolanaService {
       const accountInfo = await this.connection.getAccountInfo(publicKey);
       return accountInfo;
     } catch (error) {
-      console.error('Error fetching account info:', error);
+      logger.error('Error fetching account info:', error);
       return null;
     }
   }
@@ -643,14 +644,14 @@ export class SolanaService {
    */
   async getSPLTokenAccounts(address: string): Promise<any[]> {
     try {
-      console.log('🪙 [SolanaService] Fetching SPL token accounts for:', address);
+      logger.log('🪙 [SolanaService] Fetching SPL token accounts for:', address);
       
       const publicKey = new PublicKey(address);
       
       // ✅ FIX: Fetch BOTH token programs in parallel to support Token-2022!
       // Many new tokens (like ai16z) use Token-2022 standard
-      console.log('🪙 [SolanaService] Fetching TOKEN_PROGRAM_ID accounts...');
-      console.log('🪙 [SolanaService] Fetching TOKEN_2022_PROGRAM_ID accounts...');
+      logger.log('🪙 [SolanaService] Fetching TOKEN_PROGRAM_ID accounts...');
+      logger.log('🪙 [SolanaService] Fetching TOKEN_2022_PROGRAM_ID accounts...');
       
       const [responseV1, responseV2] = await Promise.all([
         this.connection.getParsedTokenAccountsByOwner(
@@ -669,7 +670,7 @@ export class SolanaService {
         ...responseV2.value,
       ];
 
-      console.log(`🪙 [SolanaService] Found ${responseV1.value.length} legacy + ${responseV2.value.length} Token-2022 = ${allAccounts.length} total SPL token accounts`);
+      logger.log(`🪙 [SolanaService] Found ${responseV1.value.length} legacy + ${responseV2.value.length} Token-2022 = ${allAccounts.length} total SPL token accounts`);
       
       // Filter out accounts with zero balance
       const nonZeroAccounts = allAccounts.filter(account => {
@@ -678,7 +679,7 @@ export class SolanaService {
         return tokenAmount && parseFloat(tokenAmount.uiAmountString) > 0;
       });
 
-      console.log(`🪙 [SolanaService] ${nonZeroAccounts.length} tokens with non-zero balance`);
+      logger.log(`🪙 [SolanaService] ${nonZeroAccounts.length} tokens with non-zero balance`);
       
       // 🛡️ FILTER OUT WRAPPED SOL to prevent double-counting!
       // Wrapped SOL should be counted as native SOL, not as SPL token
@@ -688,14 +689,14 @@ export class SolanaService {
         
         if (mint === WRAPPED_SOL_MINT) {
           const wsolBalance = info.parsed?.info?.tokenAmount?.uiAmountString;
-          console.log(`🛡️ [SolanaService] FILTERED OUT Wrapped SOL (${wsolBalance}) to prevent double-counting`);
+          logger.log(`🛡️ [SolanaService] FILTERED OUT Wrapped SOL (${wsolBalance}) to prevent double-counting`);
           return false; // Exclude wrapped SOL
         }
         
         return true;
       });
       
-      console.log(`🪙 [SolanaService] ${filteredAccounts.length} tokens after filtering wrapped SOL`);
+      logger.log(`🪙 [SolanaService] ${filteredAccounts.length} tokens after filtering wrapped SOL`);
       
       return filteredAccounts.map(account => {
         const info = account.account.data as ParsedAccountData;
@@ -707,7 +708,7 @@ export class SolanaService {
         };
       });
     } catch (error) {
-      console.error('❌ [SolanaService] Error fetching SPL token accounts:', error);
+      logger.error('❌ [SolanaService] Error fetching SPL token accounts:', error);
       return [];
     }
   }
@@ -718,17 +719,17 @@ export class SolanaService {
    */
   async getSPLTokenBalances(address: string): Promise<any[]> {
     try {
-      console.log('\n========== SPL TOKEN FETCH START ==========');
+      logger.log('\n========== SPL TOKEN FETCH START ==========');
       
       // Step 1: Get all token accounts
       const tokenAccounts = await this.getSPLTokenAccounts(address);
       
       if (tokenAccounts.length === 0) {
-        console.log('✅ [SolanaService] No SPL tokens found');
+        logger.log('✅ [SolanaService] No SPL tokens found');
         return [];
       }
 
-      console.log(`📊 [SolanaService] Processing ${tokenAccounts.length} SPL tokens...`);
+      logger.log(`📊 [SolanaService] Processing ${tokenAccounts.length} SPL tokens...`);
       
       // Step 2: Get metadata for all tokens
       const tokensWithMetadata = await Promise.all(
@@ -746,7 +747,7 @@ export class SolanaService {
               // priceUSD and balanceUSD will be added by Dashboard
             };
           } catch (error) {
-            console.error(`Error fetching metadata for ${account.mint}:`, error);
+            logger.error(`Error fetching metadata for ${account.mint}:`, error);
             
             // Return basic info even if metadata fetch fails
             return {
@@ -761,12 +762,12 @@ export class SolanaService {
         })
       );
 
-      console.log(`✅ [SolanaService] Successfully processed ${tokensWithMetadata.length} SPL tokens`);
-      console.log('========== SPL TOKEN FETCH COMPLETE ==========\n');
+      logger.log(`✅ [SolanaService] Successfully processed ${tokensWithMetadata.length} SPL tokens`);
+      logger.log('========== SPL TOKEN FETCH COMPLETE ==========\n');
       
       return tokensWithMetadata;
     } catch (error) {
-      console.error('❌ [SolanaService] Error in getSPLTokenBalances:', error);
+      logger.error('❌ [SolanaService] Error in getSPLTokenBalances:', error);
       return [];
     }
   }

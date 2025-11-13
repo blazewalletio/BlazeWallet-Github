@@ -4,6 +4,8 @@
  * Automatic CSRF token handling for all POST/PUT/DELETE requests
  */
 
+import { logger } from '@/lib/logger';
+
 function getCookie(name: string): string | null {
   if (typeof document === 'undefined') return null;
   
@@ -25,7 +27,7 @@ async function ensureCSRFToken(): Promise<string> {
         throw new Error('No CSRF token received from server');
       }
     } catch (error) {
-      console.error('Failed to fetch CSRF token:', error);
+      logger.error('Failed to fetch CSRF token:', error);
       throw new Error('Could not initialize security token');
     }
   }

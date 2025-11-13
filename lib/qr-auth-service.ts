@@ -4,6 +4,7 @@
  */
 
 import QRCode from 'qrcode';
+import { logger } from '@/lib/logger';
 
 export interface QRLoginSession {
   id: string;
@@ -203,7 +204,7 @@ export class QRAuthService {
         timestamp: data.timestamp
       };
     } catch (error) {
-      console.error('Error parsing QR code:', error);
+      logger.error('Error parsing QR code:', error);
       return null;
     }
   }

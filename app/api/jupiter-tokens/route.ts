@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /**
  * Jupiter Token List API Proxy
@@ -24,7 +25,7 @@ async function fetchJupiterTokensWithRetry(maxRetries = 3): Promise<any[]> {
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     for (const url of urls) {
       try {
-        console.log(`🪐 [API] Attempt ${attempt + 1}/${maxRetries}, trying: ${url}`);
+        logger.log(`🪐 [API] Attempt ${attempt + 1}/${maxRetries}, trying: ${url}`);
         
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
@@ -40,7 +41,7 @@ async function fetchJupiterTokensWithRetry(maxRetries = 3): Promise<any[]> {
         clearTimeout(timeoutId);
 
         if (!response.ok) {
-          console.warn(`⚠️ [API] ${url} returned ${response.status}`);
+          logger.warn(`⚠️ [API] ${url} returned ${response.status}`);
           continue; // Try next URL
         }
 
@@ -48,15 +49,15 @@ async function fetchJupiterTokensWithRetry(maxRetries = 3): Promise<any[]> {
         
         // Validate response
         if (!Array.isArray(tokens) || tokens.length === 0) {
-          console.warn(`⚠️ [API] Invalid response from ${url}:`, tokens);
+          logger.warn(`⚠️ [API] Invalid response from ${url}:`, tokens);
           continue; // Try next URL
         }
 
-        console.log(`✅ [API] Successfully fetched ${tokens.length} tokens from ${url}`);
+        logger.log(`✅ [API] Successfully fetched ${tokens.length} tokens from ${url}`);
         return tokens;
 
       } catch (error: any) {
-        console.error(`❌ [API] Error fetching from ${url}:`, error.message);
+        logger.error(`❌ [API] Error fetching from ${url}:`, error.message);
         // Continue to next URL
       }
     }
@@ -64,7 +65,7 @@ async function fetchJupiterTokensWithRetry(maxRetries = 3): Promise<any[]> {
     // Wait before retrying all URLs
     if (attempt < maxRetries - 1) {
       const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
-      console.log(`⏳ [API] Waiting ${delay}ms before retry...`);
+      logger.log(`⏳ [API] Waiting ${delay}ms before retry...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
@@ -74,7 +75,7 @@ async function fetchJupiterTokensWithRetry(maxRetries = 3): Promise<any[]> {
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('🪐 [API] Fetching Jupiter token list...');
+    logger.log('🪐 [API] Fetching Jupiter token list...');
     
     const tokens = await fetchJupiterTokensWithRetry();
 
@@ -87,7 +88,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error('❌ [API] All attempts failed:', error);
+    logger.error('❌ [API] All attempts failed:', error);
     
     // Return empty array with 200 status for graceful degradation
     // Client will handle empty array by using fallback

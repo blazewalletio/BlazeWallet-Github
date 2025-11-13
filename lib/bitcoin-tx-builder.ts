@@ -12,6 +12,7 @@ import { ECPairFactory } from 'ecpair';
 import * as ecc from 'tiny-secp256k1';
 import { UTXO, blockchairService } from './blockchair-service';
 import { utxoSelector, SelectionResult } from './utxo-selector';
+import { logger } from '@/lib/logger';
 
 // Initialize ECPair for signing
 const ECPair = ECPairFactory(ecc);
@@ -41,11 +42,11 @@ class BitcoinTransactionBuilder {
    */
   async buildAndBroadcast(request: TransactionRequest): Promise<TransactionResult> {
     try {
-      console.log(`\n🔨 [Bitcoin TX] Building transaction on ${request.chain}`);
-      console.log(`   From: ${request.fromAddress}`);
-      console.log(`   To: ${request.toAddress}`);
-      console.log(`   Amount: ${request.amount} satoshis`);
-      console.log(`   Fee rate: ${request.feePerByte} sat/byte`);
+      logger.log(`\n🔨 [Bitcoin TX] Building transaction on ${request.chain}`);
+      logger.log(`   From: ${request.fromAddress}`);
+      logger.log(`   To: ${request.toAddress}`);
+      logger.log(`   Amount: ${request.amount} satoshis`);
+      logger.log(`   Fee rate: ${request.feePerByte} sat/byte`);
 
       // 1. Get network config
       const network = this.getNetwork(request.chain);
@@ -65,7 +66,7 @@ class BitcoinTransactionBuilder {
         throw new Error('No usable UTXOs (all are dust)');
       }
 
-      console.log(`   Available UTXOs: ${usableUTXOs.length}`);
+      logger.log(`   Available UTXOs: ${usableUTXOs.length}`);
 
       // 4. Select UTXOs
       const selection = utxoSelector.selectOptimal(usableUTXOs, {
@@ -83,10 +84,10 @@ class BitcoinTransactionBuilder {
         throw new Error('Invalid UTXO selection');
       }
 
-      console.log(`   Selected ${selection.inputs.length} inputs`);
-      console.log(`   Total input: ${selection.totalInput} satoshis`);
-      console.log(`   Fee: ${selection.fee} satoshis`);
-      console.log(`   Change: ${selection.change} satoshis`);
+      logger.log(`   Selected ${selection.inputs.length} inputs`);
+      logger.log(`   Total input: ${selection.totalInput} satoshis`);
+      logger.log(`   Fee: ${selection.fee} satoshis`);
+      logger.log(`   Change: ${selection.change} satoshis`);
 
       // 6. Build PSBT
       const psbt = new bitcoin.Psbt({ network });
@@ -114,13 +115,13 @@ class BitcoinTransactionBuilder {
       }
 
       // 9. Sign all inputs
-      console.log(`   Signing ${selection.inputs.length} inputs...`);
+      logger.log(`   Signing ${selection.inputs.length} inputs...`);
       for (let i = 0; i < selection.inputs.length; i++) {
         psbt.signInput(i, keyPair);
       }
 
       // 10. Validate signatures
-      console.log(`   Validating signatures...`);
+      logger.log(`   Validating signatures...`);
       for (let i = 0; i < selection.inputs.length; i++) {
         if (!psbt.validateSignaturesOfInput(i, () => true)) {
           throw new Error(`Invalid signature for input ${i}`);
@@ -128,7 +129,7 @@ class BitcoinTransactionBuilder {
       }
 
       // 11. Finalize PSBT
-      console.log(`   Finalizing transaction...`);
+      logger.log(`   Finalizing transaction...`);
       psbt.finalizeAllInputs();
 
       // 12. Extract raw transaction
@@ -136,12 +137,12 @@ class BitcoinTransactionBuilder {
       const rawTxHex = rawTx.toHex();
       const txId = rawTx.getId();
 
-      console.log(`✅ [Bitcoin TX] Transaction built successfully`);
-      console.log(`   TX ID: ${txId}`);
-      console.log(`   Size: ${rawTx.virtualSize()} vBytes`);
+      logger.log(`✅ [Bitcoin TX] Transaction built successfully`);
+      logger.log(`   TX ID: ${txId}`);
+      logger.log(`   Size: ${rawTx.virtualSize()} vBytes`);
 
       // 13. Broadcast
-      console.log(`📡 [Bitcoin TX] Broadcasting...`);
+      logger.log(`📡 [Bitcoin TX] Broadcasting...`);
       const broadcastResult = await blockchairService.broadcastTransaction(
         request.chain,
         rawTxHex
@@ -151,7 +152,7 @@ class BitcoinTransactionBuilder {
         throw new Error(`Broadcast failed: ${broadcastResult.error}`);
       }
 
-      console.log(`✅ [Bitcoin TX] Broadcast successful!`);
+      logger.log(`✅ [Bitcoin TX] Broadcast successful!`);
 
       return {
         success: true,
@@ -161,7 +162,7 @@ class BitcoinTransactionBuilder {
       };
 
     } catch (error: any) {
-      console.error(`❌ [Bitcoin TX] Error:`, error);
+      logger.error(`❌ [Bitcoin TX] Error:`, error);
       return {
         success: false,
         error: error.message || 'Transaction build failed',
@@ -298,7 +299,7 @@ class BitcoinTransactionBuilder {
       };
 
     } catch (error: any) {
-      console.error(`❌ [Bitcoin TX] Fee estimation error:`, error);
+      logger.error(`❌ [Bitcoin TX] Fee estimation error:`, error);
       throw error;
     }
   }

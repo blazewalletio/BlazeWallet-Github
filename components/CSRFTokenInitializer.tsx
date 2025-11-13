@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { logger } from '@/lib/logger';
 
 /**
  * CSRF Token Initializer
@@ -12,10 +13,10 @@ export default function CSRFTokenInitializer() {
     fetch('/api/csrf-token')
       .then(res => res.json())
       .then(data => {
-        console.log('✅ CSRF token initialized');
+        logger.log('✅ CSRF token initialized');
       })
       .catch(err => {
-        console.error('❌ Failed to initialize CSRF token:', err);
+        logger.error('❌ Failed to initialize CSRF token:', err);
       });
   }, []);
   

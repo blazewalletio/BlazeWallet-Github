@@ -8,6 +8,7 @@ import { WebAuthnService } from './webauthn-service';
 import { BiometricStore } from './biometric-store';
 import { secureLog } from './secure-log';
 import { SolanaService } from './solana-service';
+import { logger } from '@/lib/logger';
 
 export interface WalletState {
   wallet: ethers.HDNodeWallet | null;
@@ -297,7 +298,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       
       // ✅ WALLET-SPECIFIC: Get identifier for THIS wallet
       const walletIdentifier = get().getWalletIdentifier();
-      console.log('🔐 [wallet-store] unlockWithBiometric - walletIdentifier:', walletIdentifier);
+      logger.log('🔐 [wallet-store] unlockWithBiometric - walletIdentifier:', walletIdentifier);
       
       if (!walletIdentifier) {
         throw new Error('Cannot determine wallet identifier for biometric unlock');
@@ -305,16 +306,16 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       
       // Check if biometric password is stored for THIS wallet
       const hasPassword = biometricStore.hasStoredPassword(walletIdentifier);
-      console.log('🔍 [wallet-store] hasStoredPassword check:', hasPassword);
+      logger.log('🔍 [wallet-store] hasStoredPassword check:', hasPassword);
       
       if (!hasPassword) {
         throw new Error('Face ID is not set up for this wallet. Go to Settings to enable it.');
       }
 
       // Retrieve password using biometric authentication (Face ID / Touch ID) FOR THIS WALLET
-      console.log('🔐 [wallet-store] Calling retrievePassword...');
+      logger.log('🔐 [wallet-store] Calling retrievePassword...');
       const password = await biometricStore.retrievePassword(walletIdentifier);
-      console.log('✅ [wallet-store] Password retrieved successfully');
+      logger.log('✅ [wallet-store] Password retrieved successfully');
       
       if (!password) {
         throw new Error('Could not retrieve password');
@@ -328,7 +329,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         ? localStorage.getItem('wallet_email')
         : null;
 
-      console.log('🔍 [wallet-store] Wallet type:', { createdWithEmail, email });
+      logger.log('🔍 [wallet-store] Wallet type:', { createdWithEmail, email });
 
       if (createdWithEmail && email) {
         // Email wallet: use Supabase auth to decrypt
@@ -696,7 +697,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     
     // Only lock if wallet is unlocked
     if (wallet && !isLocked && Date.now() - lastActivity > AUTO_LOCK_TIME) {
-      console.log('🔒 [Security] Auto-locking wallet after 15 minutes of inactivity');
+      logger.log('🔒 [Security] Auto-locking wallet after 15 minutes of inactivity');
       
       get().lockWallet(); // Use existing lockWallet method
     }

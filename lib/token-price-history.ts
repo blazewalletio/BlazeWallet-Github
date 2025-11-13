@@ -8,6 +8,8 @@
  * TIER 4: DexScreener (DEX tokens) - Ultimate fallback
  */
 
+import { logger } from '@/lib/logger';
+
 interface PriceDataPoint {
   timestamp: number;
   price: number;
@@ -38,11 +40,11 @@ export async function getTokenPriceHistory(
   // Check cache first
   const cached = priceHistoryCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    console.log(`📊 [Cache] Using cached price history for ${symbol}`);
+    logger.log(`📊 [Cache] Using cached price history for ${symbol}`);
     return cached.data;
   }
 
-  console.log(`📊 Fetching price history for ${symbol} (${days}d)...`);
+  logger.log(`📊 Fetching price history for ${symbol} (${days}d)...`);
 
   // TIER 1: Jupiter API for Solana SPL tokens
   if (chain?.toLowerCase() === 'solana' && contractAddress) {
@@ -70,7 +72,7 @@ export async function getTokenPriceHistory(
   }
 
   // TIER 4: Generate synthetic data from current price if available
-  console.warn(`⚠️ No price history available for ${symbol} from any API`);
+  logger.warn(`⚠️ No price history available for ${symbol} from any API`);
   return { prices: [], success: false, error: 'No data available', source: 'none' };
 }
 
@@ -83,7 +85,7 @@ async function fetchJupiterPriceHistory(
   days: number
 ): Promise<PriceHistoryResult> {
   try {
-    console.log(`🪐 [Jupiter] Fetching price history for ${contractAddress}...`);
+    logger.log(`🪐 [Jupiter] Fetching price history for ${contractAddress}...`);
     
     // Jupiter price API endpoint
     const response = await fetch(
@@ -121,11 +123,11 @@ async function fetchJupiterPriceHistory(
       });
     }
 
-    console.log(`✅ [Jupiter] Got ${prices.length} price points`);
+    logger.log(`✅ [Jupiter] Got ${prices.length} price points`);
     return { prices, success: true, source: 'Jupiter' };
     
   } catch (error) {
-    console.warn(`❌ [Jupiter] Failed:`, error);
+    logger.warn(`❌ [Jupiter] Failed:`, error);
     return { prices: [], success: false, error: String(error), source: 'Jupiter' };
   }
 }
@@ -140,7 +142,7 @@ async function fetchCoinGeckoPriceHistory(
   chain?: string
 ): Promise<PriceHistoryResult> {
   try {
-    console.log(`🦎 [CoinGecko] Fetching price history for ${symbol}...`);
+    logger.log(`🦎 [CoinGecko] Fetching price history for ${symbol}...`);
     
     // Try to get CoinGecko ID
     let coinGeckoId = getCoinGeckoId(symbol);
@@ -181,11 +183,11 @@ async function fetchCoinGeckoPriceHistory(
       price,
     }));
 
-    console.log(`✅ [CoinGecko] Got ${prices.length} price points`);
+    logger.log(`✅ [CoinGecko] Got ${prices.length} price points`);
     return { prices, success: true, source: 'CoinGecko' };
     
   } catch (error) {
-    console.warn(`❌ [CoinGecko] Failed:`, error);
+    logger.warn(`❌ [CoinGecko] Failed:`, error);
     return { prices: [], success: false, error: String(error), source: 'CoinGecko' };
   }
 }
@@ -238,7 +240,7 @@ async function fetchDexScreenerPriceHistory(
   days: number
 ): Promise<PriceHistoryResult> {
   try {
-    console.log(`🔍 [DexScreener] Fetching price history for ${contractAddress}...`);
+    logger.log(`🔍 [DexScreener] Fetching price history for ${contractAddress}...`);
     
     const chainMap: Record<string, string> = {
       'ethereum': 'ethereum',
@@ -298,11 +300,11 @@ async function fetchDexScreenerPriceHistory(
       });
     }
 
-    console.log(`✅ [DexScreener] Got ${prices.length} synthetic price points`);
+    logger.log(`✅ [DexScreener] Got ${prices.length} synthetic price points`);
     return { prices, success: true, source: 'DexScreener' };
     
   } catch (error) {
-    console.warn(`❌ [DexScreener] Failed:`, error);
+    logger.warn(`❌ [DexScreener] Failed:`, error);
     return { prices: [], success: false, error: String(error), source: 'DexScreener' };
   }
 }

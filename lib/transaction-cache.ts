@@ -10,6 +10,8 @@
  * - Reduces API calls by 80-95%
  */
 
+import { logger } from '@/lib/logger';
+
 const CACHE_VERSION = 9; // ✅ Force complete cache clear for fallback metadata fix
 
 interface CachedTransaction {
@@ -39,7 +41,7 @@ class TransactionCache {
   private async initDB(): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!window.indexedDB) {
-        console.warn('⚠️ IndexedDB not available, using memory cache');
+        logger.warn('⚠️ IndexedDB not available, using memory cache');
         resolve();
         return;
       }
@@ -47,13 +49,13 @@ class TransactionCache {
       const request = indexedDB.open(this.dbName, 2); // ✅ Increment DB version
 
       request.onerror = () => {
-        console.error('❌ Failed to open IndexedDB:', request.error);
+        logger.error('❌ Failed to open IndexedDB:', request.error);
         resolve(); // Fallback to memory cache
       };
 
       request.onsuccess = () => {
         this.db = request.result;
-        console.log('✅ IndexedDB initialized for transaction cache (v2)');
+        logger.log('✅ IndexedDB initialized for transaction cache (v2)');
         this.cleanupExpired(); // Clean up on init
         resolve();
       };
@@ -64,13 +66,13 @@ class TransactionCache {
         // ✅ Clear old cache on version upgrade
         if (db.objectStoreNames.contains(this.storeName)) {
           db.deleteObjectStore(this.storeName);
-          console.log('🔄 Cleared old transaction cache (version upgrade)');
+          logger.log('🔄 Cleared old transaction cache (version upgrade)');
         }
         
         const objectStore = db.createObjectStore(this.storeName, { keyPath: 'key' });
         objectStore.createIndex('expiresAt', 'expiresAt', { unique: false });
         objectStore.createIndex('version', 'version', { unique: false }); // ✅ NEW: Version index
-        console.log('✅ Created IndexedDB object store for transactions (v2)');
+        logger.log('✅ Created IndexedDB object store for transactions (v2)');
       };
     });
   }
@@ -91,7 +93,7 @@ class TransactionCache {
         const result = await this.getFromDBWithStale(key);
         return result;
       } catch (error) {
-        console.warn('IndexedDB read failed, trying memory cache:', error);
+        logger.warn('IndexedDB read failed, trying memory cache:', error);
       }
     }
 
@@ -130,7 +132,7 @@ class TransactionCache {
       try {
         await this.setToDB(cached);
       } catch (error) {
-        console.warn('IndexedDB write failed, using memory cache:', error);
+        logger.warn('IndexedDB write failed, using memory cache:', error);
       }
     }
 
@@ -156,9 +158,9 @@ class TransactionCache {
           request.onsuccess = () => resolve();
           request.onerror = () => reject(request.error);
         });
-        console.log('✅ Cleared transaction cache');
+        logger.log('✅ Cleared transaction cache');
       } catch (error) {
-        console.error('Failed to clear IndexedDB cache:', error);
+        logger.error('Failed to clear IndexedDB cache:', error);
       }
     }
   }
@@ -188,7 +190,7 @@ class TransactionCache {
             cursor.continue();
           } else {
             if (deletedCount > 0) {
-              console.log(`🧹 Cleaned up ${deletedCount} expired transaction cache entries`);
+              logger.log(`🧹 Cleaned up ${deletedCount} expired transaction cache entries`);
             }
             resolve();
           }
@@ -197,7 +199,7 @@ class TransactionCache {
         request.onerror = () => reject(request.error);
       });
     } catch (error) {
-      console.warn('Failed to cleanup expired entries:', error);
+      logger.warn('Failed to cleanup expired entries:', error);
     }
 
     // Cleanup memory cache
@@ -210,7 +212,7 @@ class TransactionCache {
     }
     
     if (memoryDeletedCount > 0) {
-      console.log(`🧹 Cleaned up ${memoryDeletedCount} expired memory cache entries`);
+      logger.log(`🧹 Cleaned up ${memoryDeletedCount} expired memory cache entries`);
     }
   }
 
@@ -231,7 +233,7 @@ class TransactionCache {
 
         // ✅ Check version - invalidate if old format
         if (cached.version !== CACHE_VERSION) {
-          console.log(`🔄 Cache version mismatch (${cached.version} vs ${CACHE_VERSION}), invalidating...`);
+          logger.log(`🔄 Cache version mismatch (${cached.version} vs ${CACHE_VERSION}), invalidating...`);
           this.deleteFromDB(key);
           resolve({ data: null, isStale: false });
           return;

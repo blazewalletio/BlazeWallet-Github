@@ -1,21 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 // Supabase configuration
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-console.log('🔍 Supabase Configuration Check:');
-console.log('  NEXT_PUBLIC_SUPABASE_URL:', supabaseUrl ? `${supabaseUrl.slice(0, 20)}...` : '❌ NOT SET');
-console.log('  NEXT_PUBLIC_SUPABASE_ANON_KEY:', supabaseAnonKey ? `${supabaseAnonKey.slice(0, 20)}...` : '❌ NOT SET');
+logger.log('🔍 Supabase Configuration Check:');
+logger.log('  NEXT_PUBLIC_SUPABASE_URL:', supabaseUrl ? `${supabaseUrl.slice(0, 20)}...` : '❌ NOT SET');
+logger.log('  NEXT_PUBLIC_SUPABASE_ANON_KEY:', supabaseAnonKey ? `${supabaseAnonKey.slice(0, 20)}...` : '❌ NOT SET');
 
 // Warn during build if variables are missing, but don't crash
 if (!supabaseUrl || !supabaseAnonKey) {
   if (typeof window === 'undefined') {
     // Server-side (build time or runtime)
-    console.warn('⚠️  Supabase environment variables not set. Some features may not work.');
-    console.warn('⚠️  Required variables:');
-    console.warn('    - NEXT_PUBLIC_SUPABASE_URL');
-    console.warn('    - NEXT_PUBLIC_SUPABASE_ANON_KEY');
+    logger.warn('⚠️  Supabase environment variables not set. Some features may not work.');
+    logger.warn('⚠️  Required variables:');
+    logger.warn('    - NEXT_PUBLIC_SUPABASE_URL');
+    logger.warn('    - NEXT_PUBLIC_SUPABASE_ANON_KEY');
   }
 }
 

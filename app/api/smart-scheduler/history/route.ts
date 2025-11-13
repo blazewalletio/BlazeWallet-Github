@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    console.log(`📋 [History API] Fetching scheduled transactions for ${address} on ${chain || 'all chains'}`);
+    logger.log(`📋 [History API] Fetching scheduled transactions for ${address} on ${chain || 'all chains'}`);
 
     // Build query
     let query = supabase
@@ -47,11 +48,11 @@ export async function GET(req: NextRequest) {
     const { data: transactions, error } = await query;
 
     if (error) {
-      console.error('❌ [History API] Supabase error:', error);
+      logger.error('❌ [History API] Supabase error:', error);
       throw error;
     }
 
-    console.log(`✅ [History API] Found ${transactions?.length || 0} scheduled transactions`);
+    logger.log(`✅ [History API] Found ${transactions?.length || 0} scheduled transactions`);
 
     return NextResponse.json({
       success: true,
@@ -60,7 +61,7 @@ export async function GET(req: NextRequest) {
     });
 
   } catch (error) {
-    console.error('❌ [History API] Error:', error);
+    logger.error('❌ [History API] Error:', error);
     return NextResponse.json(
       { 
         error: 'Failed to fetch transaction history',

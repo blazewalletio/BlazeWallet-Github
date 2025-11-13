@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
     });
     
   } catch (error: any) {
-    console.error('Transak init error:', error);
+    logger.error('Transak init error:', error);
     return NextResponse.json(
       { error: 'Failed to initialize Transak', details: error.message },
       { status: 500 }

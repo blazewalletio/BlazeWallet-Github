@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import confetti from 'canvas-confetti';
+import { logger } from '@/lib/logger';
 
 interface ParticleEffectProps {
   trigger: boolean;

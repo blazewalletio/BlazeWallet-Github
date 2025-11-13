@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
+import { logger } from '@/lib/logger';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
     const body: PredictionRequest = await req.json();
     const { chain, current_gas_price, max_wait_hours = 24 } = body;
 
-    console.log('🤖 AI Prediction request:', {
+    logger.log('🤖 AI Prediction request:', {
       chain,
       current_gas_price,
       max_wait_hours,
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
     const cached = predictionCache.get(cacheKey);
     
     if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
-      console.log('✅ Cache hit for', cacheKey);
+      logger.log('✅ Cache hit for', cacheKey);
       return NextResponse.json({
         success: true,
         data: cached.data,
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    console.log('📡 Cache miss, fetching fresh prediction...');
+    logger.log('📡 Cache miss, fetching fresh prediction...');
 
     // 1. Fetch 7-day historical gas data
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -76,15 +77,15 @@ export async function POST(req: NextRequest) {
       .order('created_at', { ascending: true });
 
     if (histError) {
-      console.error('❌ Failed to fetch historical data:', histError);
+      logger.error('❌ Failed to fetch historical data:', histError);
     }
 
-    console.log(`📊 Fetched ${historicalData?.length || 0} historical gas records`);
+    logger.log(`📊 Fetched ${historicalData?.length || 0} historical gas records`);
 
     // 2. Analyze patterns
     const analysis = analyzeGasPatterns(historicalData || [], current_gas_price);
 
-    console.log('📈 Pattern analysis:', analysis);
+    logger.log('📈 Pattern analysis:', analysis);
 
     // 3. Use OpenAI for intelligent prediction
     const openai = new OpenAI({ apiKey: openaiKey });
@@ -156,7 +157,7 @@ Predict the optimal time to execute this transaction within the next ${max_wait_
     });
 
     const aiResponse = completion.choices[0].message.content;
-    console.log('🤖 OpenAI response:', aiResponse);
+    logger.log('🤖 OpenAI response:', aiResponse);
 
     // Parse AI response
     let prediction: any;
@@ -165,7 +166,7 @@ Predict the optimal time to execute this transaction within the next ${max_wait_
       const cleanedResponse = aiResponse?.replace(/```json\n?|\n?```/g, '').trim() || '{}';
       prediction = JSON.parse(cleanedResponse);
     } catch (e) {
-      console.error('❌ Failed to parse AI response:', e);
+      logger.error('❌ Failed to parse AI response:', e);
       throw new Error('Failed to parse AI prediction');
     }
 
@@ -176,7 +177,7 @@ Predict the optimal time to execute this transaction within the next ${max_wait_
 
     // Fix: If optimal time is in the past (with 5 sec buffer) or beyond max wait, set to +1 minute
     if (optimalTime < (now - 5000) || optimalTime > maxWaitTime) {
-      console.warn('⚠️ AI predicted invalid time, adjusting to +1 minute');
+      logger.warn('⚠️ AI predicted invalid time, adjusting to +1 minute');
       prediction.optimal_time = new Date(now + 60000).toISOString(); // +1 minute from now
       prediction.confidence_score = Math.min(prediction.confidence_score || 0, 90);
       prediction.reasoning = 'Current gas price is already near optimal. ' + (prediction.reasoning || '');
@@ -217,7 +218,7 @@ Predict the optimal time to execute this transaction within the next ${max_wait_
       alternative_times: prediction.alternative_times || [],
     };
 
-    console.log('✅ Final prediction:', response);
+    logger.log('✅ Final prediction:', response);
 
     // Store in cache
     predictionCache.set(cacheKey, {
@@ -231,7 +232,7 @@ Predict the optimal time to execute this transaction within the next ${max_wait_
     });
 
   } catch (error: any) {
-    console.error('❌ Prediction API error:', error);
+    logger.error('❌ Prediction API error:', error);
     return NextResponse.json(
       { error: 'Failed to predict optimal time', details: error.message },
       { status: 500 }
@@ -342,7 +343,7 @@ async function calculateSavingsUSD(
     
     // Use relative URL instead of absolute URL
     const apiUrl = `https://my.blazewallet.io/api/prices?symbols=${symbol}`;
-    console.log(`💰 Fetching ${symbol} price from:`, apiUrl);
+    logger.log(`💰 Fetching ${symbol} price from:`, apiUrl);
     
     const priceResponse = await fetch(apiUrl);
     let nativePrice = 0;
@@ -351,16 +352,16 @@ async function calculateSavingsUSD(
       try {
         const priceData = await priceResponse.json();
         nativePrice = priceData.prices?.[0]?.price || 0;
-        console.log(`✅ ${symbol} price: $${nativePrice}`);
+        logger.log(`✅ ${symbol} price: $${nativePrice}`);
       } catch (e) {
-        console.error('Failed to parse price response:', e);
+        logger.error('Failed to parse price response:', e);
       }
     } else {
-      console.error(`❌ Price API failed: ${priceResponse.status}`);
+      logger.error(`❌ Price API failed: ${priceResponse.status}`);
     }
 
     if (!nativePrice) {
-      console.warn('⚠️ Using fallback prices');
+      logger.warn('⚠️ Using fallback prices');
       // Fallback prices if API fails
       const fallbackPrices: Record<string, number> = {
         'ETH': 2500,
@@ -382,25 +383,25 @@ async function calculateSavingsUSD(
       // gasPrice is already in lamports (e.g., 5000 lamports = 0.000005 SOL)
       currentCostUSD = (currentGas / 1_000_000_000) * nativePrice;
       predictedCostUSD = (predictedGas / 1_000_000_000) * nativePrice;
-      console.log(`💰 Solana: ${currentGas} lamports ($${currentCostUSD.toFixed(6)}) → ${predictedGas} lamports ($${predictedCostUSD.toFixed(6)})`);
+      logger.log(`💰 Solana: ${currentGas} lamports ($${currentCostUSD.toFixed(6)}) → ${predictedGas} lamports ($${predictedCostUSD.toFixed(6)})`);
     } else if (chain.includes('bitcoin') || chain === 'litecoin' || chain === 'dogecoin' || chain === 'bitcoincash') {
       // Bitcoin-like: sat/vB * 250 bytes / 100M = BTC
       currentCostUSD = ((currentGas * 250) / 100_000_000) * nativePrice;
       predictedCostUSD = ((predictedGas * 250) / 100_000_000) * nativePrice;
-      console.log(`💰 ${chain}: ${currentGas} sat/vB ($${currentCostUSD.toFixed(6)}) → ${predictedGas} sat/vB ($${predictedCostUSD.toFixed(6)})`);
+      logger.log(`💰 ${chain}: ${currentGas} sat/vB ($${currentCostUSD.toFixed(6)}) → ${predictedGas} sat/vB ($${predictedCostUSD.toFixed(6)})`);
     } else {
       // EVM chains: (gas_units * gas_price) / 1e9 = ETH
       currentCostUSD = ((gasUnits * currentGas) / 1e9) * nativePrice;
       predictedCostUSD = ((gasUnits * predictedGas) / 1e9) * nativePrice;
-      console.log(`💰 EVM: ${currentGas} gwei ($${currentCostUSD.toFixed(6)}) → ${predictedGas} gwei ($${predictedCostUSD.toFixed(6)})`);
+      logger.log(`💰 EVM: ${currentGas} gwei ($${currentCostUSD.toFixed(6)}) → ${predictedGas} gwei ($${predictedCostUSD.toFixed(6)})`);
     }
 
     const savingsUSD = Math.max(0, currentCostUSD - predictedCostUSD);
-    console.log(`✅ Total USD savings: $${savingsUSD.toFixed(6)}`);
+    logger.log(`✅ Total USD savings: $${savingsUSD.toFixed(6)}`);
     
     return savingsUSD;
   } catch (e) {
-    console.error('Failed to calculate USD savings:', e);
+    logger.error('Failed to calculate USD savings:', e);
     return 0;
   }
 }

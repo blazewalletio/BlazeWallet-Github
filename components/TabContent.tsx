@@ -22,6 +22,7 @@ import ReferralDashboard from './ReferralDashboard';
 import NFTMintDashboard from './NFTMintDashboard';
 import CashbackTracker from './CashbackTracker';
 import PresaleDashboard from './PresaleDashboard';
+import { logger } from '@/lib/logger';
 
 interface TabContentProps {
   activeTab: TabType;
@@ -90,7 +91,7 @@ export default function TabContent({
           setIsPriorityListLive(result.data.isRegistrationOpen || false);
         }
       } catch (error) {
-        console.error('Error checking priority list status:', error);
+        logger.error('Error checking priority list status:', error);
       }
     };
 

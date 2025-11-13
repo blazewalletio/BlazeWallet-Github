@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { logger } from '@/lib/logger';
 
 // Admin email whitelist
 const ADMIN_EMAILS_RAW = process.env.ADMIN_EMAILS || '';
@@ -9,7 +10,7 @@ const ADMIN_EMAILS = ADMIN_EMAILS_RAW.split(',').map(e => e.trim()).filter(e => 
 const FALLBACK_ADMIN_EMAILS = ['info@blazewallet.io'];
 const ALLOWED_ADMINS = ADMIN_EMAILS.length > 0 ? ADMIN_EMAILS : FALLBACK_ADMIN_EMAILS;
 
-console.log('🔐 Admin emails configured:', {
+logger.log('🔐 Admin emails configured:', {
   fromEnv: ADMIN_EMAILS.length > 0,
   count: ALLOWED_ADMINS.length,
   emails: ALLOWED_ADMINS,
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const adminEmail = searchParams.get('admin');
     
-    console.log('🔍 Admin login attempt:', { 
+    logger.log('🔍 Admin login attempt:', { 
       adminEmail, 
       allowedEmails: ALLOWED_ADMINS,
       isAllowed: adminEmail ? ALLOWED_ADMINS.includes(adminEmail) : false
@@ -29,25 +30,25 @@ export async function GET(request: NextRequest) {
     
     // Check admin authorization
     if (!adminEmail || !ALLOWED_ADMINS.includes(adminEmail)) {
-      console.log('❌ Unauthorized admin login attempt:', adminEmail);
+      logger.log('❌ Unauthorized admin login attempt:', adminEmail);
       return NextResponse.json(
         { success: false, message: `Unauthorized - Invalid admin email. Allowed: ${ALLOWED_ADMINS.join(', ')}` },
         { status: 401 }
       );
     }
 
-    console.log('✅ Admin authorized:', adminEmail);
+    logger.log('✅ Admin authorized:', adminEmail);
 
     // Get all registrations
-    console.log('📊 Fetching registrations from Supabase...');
+    logger.log('📊 Fetching registrations from Supabase...');
     const { data: registrations, error: regError } = await supabase
       .from('priority_list_registrations')
       .select('*')
       .order('registered_at', { ascending: false });
 
     if (regError) {
-      console.error('❌ Error fetching registrations:', regError);
-      console.error('Error details:', JSON.stringify(regError, null, 2));
+      logger.error('❌ Error fetching registrations:', regError);
+      logger.error('Error details:', JSON.stringify(regError, null, 2));
       
       // Return empty data instead of error if table doesn't exist yet
       return NextResponse.json({
@@ -68,31 +69,31 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    console.log('✅ Registrations fetched:', registrations?.length || 0);
+    logger.log('✅ Registrations fetched:', registrations?.length || 0);
 
     // Get stats
-    console.log('📊 Fetching stats from Supabase...');
+    logger.log('📊 Fetching stats from Supabase...');
     const { data: stats, error: statsError } = await supabase
       .from('priority_list_stats')
       .select('*')
       .single();
 
     if (statsError) {
-      console.warn('⚠️  Error fetching stats (using defaults):', statsError.message);
+      logger.warn('⚠️  Error fetching stats (using defaults):', statsError.message);
     }
 
     // Get leaderboard
-    console.log('🏆 Fetching leaderboard from Supabase...');
+    logger.log('🏆 Fetching leaderboard from Supabase...');
     const { data: leaderboard, error: leaderboardError } = await supabase
       .from('referral_leaderboard')
       .select('*')
       .limit(20);
 
     if (leaderboardError) {
-      console.warn('⚠️  Error fetching leaderboard (using empty):', leaderboardError.message);
+      logger.warn('⚠️  Error fetching leaderboard (using empty):', leaderboardError.message);
     }
 
-    console.log('✅ Admin data ready:', { 
+    logger.log('✅ Admin data ready:', { 
       registrations: registrations?.length || 0,
       hasStats: !!stats,
       leaderboard: leaderboard?.length || 0
@@ -107,7 +108,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error in admin API:', error);
+    logger.error('Error in admin API:', error);
     return NextResponse.json(
       { success: false, message: 'Internal server error' },
       { status: 500 }
@@ -121,11 +122,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { adminEmail, action, walletAddress } = body;
     
-    console.log('🔍 Admin action attempt:', { adminEmail, action, walletAddress });
+    logger.log('🔍 Admin action attempt:', { adminEmail, action, walletAddress });
     
     // Check admin authorization
     if (!adminEmail || !ALLOWED_ADMINS.includes(adminEmail)) {
-      console.log('❌ Unauthorized admin action attempt:', adminEmail);
+      logger.log('❌ Unauthorized admin action attempt:', adminEmail);
       return NextResponse.json(
         { success: false, message: 'Unauthorized - Invalid admin email' },
         { status: 401 }
@@ -148,7 +149,7 @@ export async function POST(request: NextRequest) {
           .eq('wallet_address', walletAddress.toLowerCase());
 
         if (verifyError) {
-          console.error('Verify error:', verifyError);
+          logger.error('Verify error:', verifyError);
           return NextResponse.json(
             { success: false, message: 'Failed to verify registration' },
             { status: 500 }
@@ -174,7 +175,7 @@ export async function POST(request: NextRequest) {
           .eq('wallet_address', walletAddress.toLowerCase());
 
         if (deleteError) {
-          console.error('Delete error:', deleteError);
+          logger.error('Delete error:', deleteError);
           return NextResponse.json(
             { success: false, message: 'Failed to delete registration' },
             { status: 500 }
@@ -200,7 +201,7 @@ export async function POST(request: NextRequest) {
         );
     }
   } catch (error) {
-    console.error('Error in admin action:', error);
+    logger.error('Error in admin action:', error);
     return NextResponse.json(
       { success: false, message: 'Internal server error' },
       { status: 500 }

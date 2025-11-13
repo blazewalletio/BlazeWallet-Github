@@ -6,6 +6,7 @@
 
 import { gasPriceService } from './gas-price-service';
 import { priceService } from './price-service';
+import { logger } from '@/lib/logger';
 
 export interface ScheduledTransaction {
   id: string;
@@ -97,7 +98,7 @@ class SmartSchedulerService {
           currentGasCostUSD = ((21000 * currentGasPrice) / 1e9) * nativePrice;
         }
       } catch (e) {
-        console.error('Failed to calculate gas cost:', e);
+        logger.error('Failed to calculate gas cost:', e);
       }
 
       // Get supabase_user_id from localStorage if available
@@ -120,13 +121,13 @@ class SmartSchedulerService {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('❌ Schedule transaction error:', data);
+        logger.error('❌ Schedule transaction error:', data);
         throw new Error(data.error || 'Failed to create scheduled transaction');
       }
 
       return data.data;
     } catch (error: any) {
-      console.error('❌ Failed to schedule transaction:', error);
+      logger.error('❌ Failed to schedule transaction:', error);
       throw error;
     }
   }
@@ -158,7 +159,7 @@ class SmartSchedulerService {
 
       return data.data;
     } catch (error: any) {
-      console.error('❌ Failed to fetch scheduled transactions:', error);
+      logger.error('❌ Failed to fetch scheduled transactions:', error);
       throw error;
     }
   }
@@ -183,7 +184,7 @@ class SmartSchedulerService {
         throw new Error(data.error || 'Failed to cancel transaction');
       }
     } catch (error: any) {
-      console.error('❌ Failed to cancel transaction:', error);
+      logger.error('❌ Failed to cancel transaction:', error);
       throw error;
     }
   }
@@ -208,7 +209,7 @@ class SmartSchedulerService {
         recent_savings: data.recent_savings,
       };
     } catch (error: any) {
-      console.error('❌ Failed to fetch savings stats:', error);
+      logger.error('❌ Failed to fetch savings stats:', error);
       throw error;
     }
   }
@@ -242,7 +243,7 @@ class SmartSchedulerService {
         throw new Error('Failed to fetch current gas price');
       }
 
-      console.log('🤖 Requesting AI prediction for', chain, 'current gas:', currentGas);
+      logger.log('🤖 Requesting AI prediction for', chain, 'current gas:', currentGas);
 
       // Call AI prediction API
       const response = await fetch('/api/smart-scheduler/predict-optimal-time', {
@@ -258,13 +259,13 @@ class SmartSchedulerService {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('❌ AI prediction failed:', data);
+        logger.error('❌ AI prediction failed:', data);
         throw new Error(data.error || 'Failed to predict optimal time');
       }
 
       const prediction = data.data;
 
-      console.log('✅ AI prediction received:', {
+      logger.log('✅ AI prediction received:', {
         optimal_time: prediction.optimal_time,
         confidence: prediction.confidence_score,
         savings: prediction.estimated_savings_percent,
@@ -294,7 +295,7 @@ class SmartSchedulerService {
         })),
       };
     } catch (error) {
-      console.error('❌ Failed to calculate optimal timing:', error);
+      logger.error('❌ Failed to calculate optimal timing:', error);
       
       // Fallback: recommend executing now if prediction fails
       const currentGasData = await gasPriceService.getGasPrice(chain);
@@ -350,7 +351,7 @@ class SmartSchedulerService {
         return ((21000 * gasPrice) / 1e9) * nativePrice;
       }
     } catch (error) {
-      console.error('❌ Failed to estimate transaction cost:', error);
+      logger.error('❌ Failed to estimate transaction cost:', error);
       return 0;
     }
   }

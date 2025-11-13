@@ -6,6 +6,7 @@ import { Copy, Check, Share2, Flame } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import QRCode from 'qrcode';
+import { logger } from '@/lib/logger';
 
 interface ReceiveModalProps {
   isOpen: boolean;
@@ -42,7 +43,7 @@ export default function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
       });
       setQrDataURL(qrCodeDataURL);
     } catch (error) {
-      console.error('Error generating QR code:', error);
+      logger.error('Error generating QR code:', error);
     }
   };
 
@@ -54,7 +55,7 @@ export default function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error('Failed to copy displayAddress:', error);
+      logger.error('Failed to copy displayAddress:', error);
     }
   };
 
@@ -68,7 +69,7 @@ export default function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
           text: displayAddress,
         });
       } catch (error) {
-        console.error('Error sharing:', error);
+        logger.error('Error sharing:', error);
       }
     } else {
       copyAddress();

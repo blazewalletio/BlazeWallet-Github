@@ -10,6 +10,7 @@ import PasswordUnlockModal from '@/components/PasswordUnlockModal';
 import BiometricAuthModal from '@/components/BiometricAuthModal';
 import QRLoginModal from '@/components/QRLoginModal';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
+import { logger } from '@/lib/logger';
 
 export default function Home() {
   const [hasWallet, setHasWallet] = useState<boolean | null>(null);
@@ -35,7 +36,7 @@ export default function Home() {
     };
     
     checkMobile();
-    console.log('🔍 Device detection:', { 
+    logger.log('🔍 Device detection:', { 
       userAgent: navigator.userAgent,
       isMobile: /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
     });
@@ -51,8 +52,8 @@ export default function Home() {
       const hasPasswordStored = localStorage.getItem('has_password') === 'true';
       const biometricEnabled = localStorage.getItem('biometric_enabled') === 'true';
       
-            console.log('🔍 Checking wallet state:', { hasEncryptedWallet: !!hasEncryptedWallet, storedAddress, hasPasswordStored, biometricEnabled, isMobile });
-            console.log('🔍 LocalStorage check:', {
+            logger.log('🔍 Checking wallet state:', { hasEncryptedWallet: !!hasEncryptedWallet, storedAddress, hasPasswordStored, biometricEnabled, isMobile });
+            logger.log('🔍 LocalStorage check:', {
               encrypted_wallet: !!localStorage.getItem('encrypted_wallet'), // Don't log actual value
               wallet_address: localStorage.getItem('wallet_address'),
               wallet_mnemonic: localStorage.getItem('wallet_mnemonic'),
@@ -82,11 +83,11 @@ export default function Home() {
               const timeSince = now - parseInt(lastActivity);
               
               if (timeSince > SESSION_TIMEOUT) {
-                console.log('⏰ Session expired (inactive for ' + Math.round(timeSince / 60000) + ' minutes) - clearing session');
+                logger.log('⏰ Session expired (inactive for ' + Math.round(timeSince / 60000) + ' minutes) - clearing session');
                 sessionStorage.clear();
                 // Fall through to normal unlock flow below
               } else {
-                console.log('🔄 Session active (last activity: ' + Math.round(timeSince / 1000) + 's ago) - attempting auto-unlock');
+                logger.log('🔄 Session active (last activity: ' + Math.round(timeSince / 1000) + 's ago) - attempting auto-unlock');
                 
                 // Update activity timestamp
                 sessionStorage.setItem('last_activity', now.toString());
@@ -94,20 +95,20 @@ export default function Home() {
                 // Attempt auto-unlock based on user's preferred method
                 if (biometricEnabled && isMobile) {
                   // Biometric is enabled on mobile - try direct biometric unlock
-                  console.log('👤 Biometric enabled - attempting direct Face ID/Touch ID unlock');
+                  logger.log('👤 Biometric enabled - attempting direct Face ID/Touch ID unlock');
                   
                   try {
                     const { unlockWithBiometric } = useWalletStore.getState();
                     await unlockWithBiometric();
                     
-                    console.log('✅ Wallet unlocked with biometrics successfully');
+                    logger.log('✅ Wallet unlocked with biometrics successfully');
                     setShowPasswordUnlock(false);
                     return;
                     
                   } catch (error: any) {
-                    console.log('⚠️ Biometric unlock failed, showing password modal:', error.message);
+                    logger.log('⚠️ Biometric unlock failed, showing password modal:', error.message);
                     const stillEnabled = localStorage.getItem('biometric_enabled') === 'true';
-                    console.log('🔍 Biometric still enabled after error?', stillEnabled);
+                    logger.log('🔍 Biometric still enabled after error?', stillEnabled);
                     
                     // Fall back to password unlock modal
                     setShowPasswordUnlock(true);
@@ -115,48 +116,48 @@ export default function Home() {
                   }
                 } else {
                   // No biometric or desktop - show password unlock modal
-                  console.log('🔑 Showing password unlock modal (session active)');
+                  logger.log('🔑 Showing password unlock modal (session active)');
                   setShowPasswordUnlock(true);
                   return;
                 }
               }
             } else {
               // No last_activity timestamp - set it and continue with normal flow
-              console.log('📝 No activity timestamp found - setting initial timestamp');
+              logger.log('📝 No activity timestamp found - setting initial timestamp');
               sessionStorage.setItem('last_activity', now.toString());
             }
           }
           
           // Check if biometric is enabled AND device is mobile
-          console.log('🔍 Auth flow decision:', { biometricEnabled, isMobile });
+          logger.log('🔍 Auth flow decision:', { biometricEnabled, isMobile });
           
           if (biometricEnabled && isMobile) {
             // Biometric is enabled on mobile - try direct biometric unlock
-            console.log('👤 Biometric enabled - attempting direct Face ID/Touch ID unlock');
+            logger.log('👤 Biometric enabled - attempting direct Face ID/Touch ID unlock');
             
             try {
               const { unlockWithBiometric } = useWalletStore.getState();
               await unlockWithBiometric();
               
-              console.log('✅ Wallet unlocked with biometrics successfully');
+              logger.log('✅ Wallet unlocked with biometrics successfully');
               // Wallet is now unlocked, explicitly prevent password modal from showing
               setShowPasswordUnlock(false); // ✅ FIX: Explicitly prevent modal
               // No need to call setHasWallet(true) - wallet is already loaded
               return;
               
             } catch (error: any) {
-              console.log('⚠️ Biometric unlock failed, showing password modal:', error.message);
+              logger.log('⚠️ Biometric unlock failed, showing password modal:', error.message);
               // Check if biometric is still enabled after the error
               // (it might have been auto-cleared if data was corrupt)
               const stillEnabled = localStorage.getItem('biometric_enabled') === 'true';
-              console.log('🔍 Biometric still enabled after error?', stillEnabled);
+              logger.log('🔍 Biometric still enabled after error?', stillEnabled);
               
               // Fall back to password unlock modal
               setShowPasswordUnlock(true);
             }
           } else {
             // No biometric or desktop - show password unlock modal
-            console.log('🔑 Showing password unlock modal');
+            logger.log('🔑 Showing password unlock modal');
             setShowPasswordUnlock(true);
           }
         } else {
@@ -169,7 +170,7 @@ export default function Home() {
           
           // Skip password setup if wallet was created with email (password already set)
           if (createdWithEmail) {
-            console.log('✅ Wallet created with email - skipping password setup');
+            logger.log('✅ Wallet created with email - skipping password setup');
             setHasWallet(true);
             // Wallet is already unlocked, no need for password modal
             return;
@@ -181,26 +182,26 @@ export default function Home() {
                 // Clear the flag
                 localStorage.removeItem('force_password_setup');
                 localStorage.removeItem('wallet_just_imported');
-                console.log('🚨 FORCE: Password setup required after wallet import');
+                logger.log('🚨 FORCE: Password setup required after wallet import');
               } else if (justImported) {
                 // Clear the flag
                 localStorage.removeItem('wallet_just_imported');
-                console.log('🔄 Wallet just imported - showing password setup');
+                logger.log('🔄 Wallet just imported - showing password setup');
               } else if (justCreated) {
                 // Clear the flag
                 localStorage.removeItem('wallet_just_created');
-                console.log('🔄 Wallet just created - showing password setup');
+                logger.log('🔄 Wallet just created - showing password setup');
               } else if (storedMnemonic) {
                 // Legacy case - re-import from stored mnemonic
                 await importWallet(storedMnemonic);
-                console.log('🔄 Legacy wallet found - re-importing and showing password setup');
+                logger.log('🔄 Legacy wallet found - re-importing and showing password setup');
               }
               
               setHasWallet(true);
-              console.log('🎯 Triggering password setup modal');
+              logger.log('🎯 Triggering password setup modal');
               setShowPasswordSetup(true); // Prompt to set password
             } catch (error) {
-              console.error('Error importing wallet:', error);
+              logger.error('Error importing wallet:', error);
               setHasWallet(false);
             }
           } else {

@@ -2,6 +2,7 @@
 
 import { Crown, Zap, Star } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { logger } from '@/lib/logger';
 
 interface PremiumBadgeProps {
   isPremium: boolean;

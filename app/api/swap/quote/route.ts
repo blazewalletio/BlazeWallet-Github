@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 // Force dynamic rendering for this API route
 export const dynamic = 'force-dynamic';
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
     try {
       const url = `https://api.1inch.dev/swap/v6.0/${chainId}/quote?src=${src}&dst=${dst}&amount=${amount}`;
       
-      console.log('Trying 1inch API...');
+      logger.log('Trying 1inch API...');
 
       const response = await fetch(url, {
         headers: {
@@ -49,7 +50,7 @@ export async function GET(request: Request) {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ 1inch success!');
+        logger.log('✅ 1inch success!');
         
         return NextResponse.json({
           toTokenAmount: data.dstAmount || data.toTokenAmount || data.toAmount,
@@ -64,10 +65,10 @@ export async function GET(request: Request) {
           },
         });
       } else {
-        console.log('1inch failed:', response.status);
+        logger.log('1inch failed:', response.status);
       }
     } catch (error) {
-      console.log('1inch error, falling back to price estimate');
+      logger.log('1inch error, falling back to price estimate');
     }
   }
 
@@ -78,7 +79,7 @@ export async function GET(request: Request) {
     const dstId = TOKEN_TO_COINGECKO[dst];
 
     if (!srcId || !dstId) {
-      console.error('Token not supported:', { src, dst });
+      logger.error('Token not supported:', { src, dst });
       return NextResponse.json({
         toTokenAmount: '0',
         estimatedGas: '200000',
@@ -93,7 +94,7 @@ export async function GET(request: Request) {
 
     // Fetch prices from CoinGecko
     const priceUrl = `${COINGECKO_API_URL}/simple/price?ids=${srcId},${dstId}&vs_currencies=usd`;
-    console.log('Fetching prices from CoinGecko:', priceUrl);
+    logger.log('Fetching prices from CoinGecko:', priceUrl);
 
     const priceResponse = await fetch(priceUrl, {
       headers: { 'Accept': 'application/json' },
@@ -104,7 +105,7 @@ export async function GET(request: Request) {
     }
 
     const priceData = await priceResponse.json();
-    console.log('Price data:', priceData);
+    logger.log('Price data:', priceData);
 
     const srcPrice = priceData[srcId]?.usd;
     const dstPrice = priceData[dstId]?.usd;
@@ -126,7 +127,7 @@ export async function GET(request: Request) {
     // Apply 0.3% fee to simulate DEX fees
     const outputWithFee = Math.floor(outputAmountWei * 0.997);
 
-    console.log('Swap calculation:', {
+    logger.log('Swap calculation:', {
       amountInEth,
       srcPrice,
       dstPrice,
@@ -149,7 +150,7 @@ export async function GET(request: Request) {
     });
 
   } catch (error) {
-    console.error('Error calculating swap quote:', error);
+    logger.error('Error calculating swap quote:', error);
     
     return NextResponse.json({
       toTokenAmount: '0',

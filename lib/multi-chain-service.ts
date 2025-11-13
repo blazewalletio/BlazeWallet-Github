@@ -5,6 +5,7 @@ import { AlchemyService } from './alchemy-service';
 import { BitcoinService } from './bitcoin-service';
 import { BitcoinForkService } from './bitcoin-fork-service';
 import { CHAINS } from './chains';
+import { logger } from '@/lib/logger';
 
 /**
  * Unified Multi-Chain Service
@@ -42,10 +43,10 @@ export class MultiChainService {
           this.alchemyService = new AlchemyService(chainKey);
           // Only log once during initialization
           if (!MultiChainService.instances.has(chainKey)) {
-            console.log(`✅ [MultiChainService] Alchemy enabled for ${chainKey}`);
+            logger.log(`✅ [MultiChainService] Alchemy enabled for ${chainKey}`);
           }
         } catch (error) {
-          console.warn(`⚠️ [MultiChainService] Alchemy initialization failed for ${chainKey}, using fallback`);
+          logger.warn(`⚠️ [MultiChainService] Alchemy initialization failed for ${chainKey}, using fallback`);
         }
       }
     }
@@ -70,7 +71,7 @@ export class MultiChainService {
    */
   static clearCache() {
     this.instances.clear();
-    console.log('🧹 [MultiChainService] Cache cleared');
+    logger.log('🧹 [MultiChainService] Cache cleared');
   }
 
   private isSolana(): boolean {
@@ -230,10 +231,10 @@ export class MultiChainService {
     // ✅ NEW: Use Alchemy if available (includes ERC20 transfers!)
     if (this.alchemyService && !this.isSolana() && !this.isBitcoin() && !this.isBitcoinFork()) {
       try {
-        console.log(`🔮 [MultiChainService] Using Alchemy for transaction history`);
+        logger.log(`🔮 [MultiChainService] Using Alchemy for transaction history`);
         return await this.alchemyService.getFullTransactionHistory(address, limit);
       } catch (error) {
-        console.warn(`⚠️ [MultiChainService] Alchemy failed, falling back to Etherscan API`);
+        logger.warn(`⚠️ [MultiChainService] Alchemy failed, falling back to Etherscan API`);
       }
     }
     
@@ -306,7 +307,7 @@ export class MultiChainService {
     // Use Alchemy if available (auto-detects ALL tokens)
     if (this.alchemyService && !this.isSolana()) {
       try {
-        console.log(`🔮 [MultiChainService] Using Alchemy for ERC20 token detection`);
+        logger.log(`🔮 [MultiChainService] Using Alchemy for ERC20 token detection`);
         const tokens = await this.alchemyService.getAllTokenBalances(address);
         
         // Map to standard Token format
@@ -319,7 +320,7 @@ export class MultiChainService {
           logo: token.logo || '/crypto-placeholder.png',
         }));
       } catch (error) {
-        console.warn(`⚠️ [MultiChainService] Alchemy failed for ERC20 tokens, using fallback`);
+        logger.warn(`⚠️ [MultiChainService] Alchemy failed for ERC20 tokens, using fallback`);
       }
     }
     

@@ -8,6 +8,8 @@
  * Rate Limits: 10,000 requests/day (free tier)
  */
 
+import { logger } from '@/lib/logger';
+
 export interface UTXO {
   transaction_hash: string;
   index: number;
@@ -57,7 +59,7 @@ class BlockchairService {
       const chainName = this.getChainName(chain);
       const url = `${this.baseUrl}/${chainName}/dashboards/address/${address}`;
       
-      console.log(`🔍 [Blockchair] Fetching address data for ${address} on ${chainName}`);
+      logger.log(`🔍 [Blockchair] Fetching address data for ${address} on ${chainName}`);
       
       const params = new URLSearchParams();
       if (this.apiKey) {
@@ -100,13 +102,13 @@ class BlockchairService {
           data.context.state - utxo.block_id + 1 : undefined,
       }));
 
-      console.log(`✅ [Blockchair] Found ${utxos.length} UTXOs for ${address}`);
-      console.log(`💰 [Blockchair] Balance: ${info.balance} satoshis`);
+      logger.log(`✅ [Blockchair] Found ${utxos.length} UTXOs for ${address}`);
+      logger.log(`💰 [Blockchair] Balance: ${info.balance} satoshis`);
 
       return { info, utxos };
 
     } catch (error) {
-      console.error(`❌ [Blockchair] Error fetching address data:`, error);
+      logger.error(`❌ [Blockchair] Error fetching address data:`, error);
       throw error;
     }
   }
@@ -119,7 +121,7 @@ class BlockchairService {
       const chainName = this.getChainName(chain);
       const url = `${this.baseUrl}/${chainName}/stats`;
       
-      console.log(`🔍 [Blockchair] Fetching fee recommendations for ${chainName}`);
+      logger.log(`🔍 [Blockchair] Fetching fee recommendations for ${chainName}`);
       
       const params = new URLSearchParams();
       if (this.apiKey) {
@@ -150,12 +152,12 @@ class BlockchairService {
         slow: Math.max(1, Math.ceil(suggestedFee * 0.5)), // 0.5x for slow, min 1
       };
 
-      console.log(`✅ [Blockchair] Fee recommendations:`, fees);
+      logger.log(`✅ [Blockchair] Fee recommendations:`, fees);
 
       return fees;
 
     } catch (error) {
-      console.error(`❌ [Blockchair] Error fetching fees:`, error);
+      logger.error(`❌ [Blockchair] Error fetching fees:`, error);
       
       // Fallback fees per chain
       const fallbackFees: Record<string, FeeRecommendation> = {
@@ -177,7 +179,7 @@ class BlockchairService {
       const chainName = this.getChainName(chain);
       const url = `${this.baseUrl}/${chainName}/push/transaction`;
       
-      console.log(`📡 [Blockchair] Broadcasting transaction on ${chainName}`);
+      logger.log(`📡 [Blockchair] Broadcasting transaction on ${chainName}`);
       
       const params = new URLSearchParams();
       if (this.apiKey) {
@@ -208,7 +210,7 @@ class BlockchairService {
         throw new Error('No transaction hash in response');
       }
 
-      console.log(`✅ [Blockchair] Transaction broadcast successful: ${txHash}`);
+      logger.log(`✅ [Blockchair] Transaction broadcast successful: ${txHash}`);
 
       return {
         success: true,
@@ -216,7 +218,7 @@ class BlockchairService {
       };
 
     } catch (error: any) {
-      console.error(`❌ [Blockchair] Broadcast error:`, error);
+      logger.error(`❌ [Blockchair] Broadcast error:`, error);
       return {
         success: false,
         error: error.message || 'Broadcast failed',
@@ -232,7 +234,7 @@ class BlockchairService {
       const chainName = this.getChainName(chain);
       const url = `${this.baseUrl}/${chainName}/dashboards/address/${address}`;
       
-      console.log(`🔍 [Blockchair] Fetching transaction history for ${address}`);
+      logger.log(`🔍 [Blockchair] Fetching transaction history for ${address}`);
       
       const params = new URLSearchParams();
       params.append('limit', limit.toString());
@@ -266,12 +268,12 @@ class BlockchairService {
         block_id: tx.block_id,
       }));
 
-      console.log(`✅ [Blockchair] Found ${transactions.length} transactions`);
+      logger.log(`✅ [Blockchair] Found ${transactions.length} transactions`);
 
       return transactions;
 
     } catch (error) {
-      console.error(`❌ [Blockchair] Error fetching transaction history:`, error);
+      logger.error(`❌ [Blockchair] Error fetching transaction history:`, error);
       return [];
     }
   }

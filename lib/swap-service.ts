@@ -2,6 +2,7 @@
 // Docs: https://docs.1inch.io/docs/aggregation-protocol/api/swagger
 
 import { ethers } from 'ethers';
+import { logger } from '@/lib/logger';
 
 export interface SwapQuote {
   fromToken: string;
@@ -37,7 +38,7 @@ export class SwapService {
     try {
       const chain = this.chainEndpoints[this.chainId];
       if (!chain) {
-        console.error('Chain not supported by 1inch');
+        logger.error('Chain not supported by 1inch');
         return null;
       }
 
@@ -50,18 +51,18 @@ export class SwapService {
       });
 
       const url = `/api/swap/quote?${params.toString()}`;
-      console.log('Fetching 1inch quote via proxy:', url);
+      logger.log('Fetching 1inch quote via proxy:', url);
 
       const response = await fetch(url);
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('1inch API error:', response.status, errorData);
+        logger.error('1inch API error:', response.status, errorData);
         return null;
       }
 
       const data = await response.json();
-      console.log('1inch quote response:', data);
+      logger.log('1inch quote response:', data);
 
       return {
         fromToken,
@@ -72,7 +73,7 @@ export class SwapService {
         protocols: data.protocols || [],
       };
     } catch (error) {
-      console.error('Error fetching swap quote:', error);
+      logger.error('Error fetching swap quote:', error);
       return null;
     }
   }
@@ -102,20 +103,20 @@ export class SwapService {
       });
 
       const url = `/api/swap/transaction?${params.toString()}`;
-      console.log('Fetching 1inch swap tx via proxy:', url);
+      logger.log('Fetching 1inch swap tx via proxy:', url);
 
       const response = await fetch(url);
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('1inch swap API error:', response.status, errorData);
+        logger.error('1inch swap API error:', response.status, errorData);
         throw new Error(`1inch API error: ${response.status}`);
       }
 
       const data = await response.json();
       return data.tx || data;
     } catch (error) {
-      console.error('Error fetching swap transaction:', error);
+      logger.error('Error fetching swap transaction:', error);
       throw error;
     }
   }

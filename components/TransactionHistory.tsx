@@ -17,6 +17,7 @@ import { MultiChainService } from '@/lib/multi-chain-service';
 import { CHAINS } from '@/lib/chains';
 import { transactionCache } from '@/lib/transaction-cache';
 import { apiQueue } from '@/lib/api-queue';
+import { logger } from '@/lib/logger';
 
 interface Transaction {
   hash: string;
@@ -54,7 +55,7 @@ export default function TransactionHistory() {
     
     if (cachedData && cachedData.length > 0) {
       // ✅ Show cached data INSTANTLY (even if stale)
-      console.log(`⚡ Loaded ${cachedData.length} transactions from cache (${isStale ? 'stale' : 'fresh'}) for ${currentChain}`);
+      logger.log(`⚡ Loaded ${cachedData.length} transactions from cache (${isStale ? 'stale' : 'fresh'}) for ${currentChain}`);
       setTransactions(cachedData);
       setLoading(false); // ✅ Stop loading immediately
       
@@ -64,7 +65,7 @@ export default function TransactionHistory() {
       }
       
       // ✅ If stale, continue to refresh in background (no loading state!)
-      console.log('🔄 Refreshing stale transaction data in background...');
+      logger.log('🔄 Refreshing stale transaction data in background...');
     } else {
       // No cached data - show loading state
       setLoading(true);
@@ -89,7 +90,7 @@ export default function TransactionHistory() {
             const data = await response.json();
             return data.transactions || [];
           } catch (error) {
-            console.error('❌ Error loading scheduled transactions:', error);
+            logger.error('❌ Error loading scheduled transactions:', error);
             return [];
           }
         })
@@ -128,7 +129,7 @@ export default function TransactionHistory() {
       const allTransactions = Array.from(txMap.values()).sort((a, b) => b.timestamp - a.timestamp);
 
       // ✅ DEBUG: Log transaction details
-      console.log('📋 [TransactionHistory] Combined transactions:', {
+      logger.log('📋 [TransactionHistory] Combined transactions:', {
         onChain: onChainTxs.length,
         scheduled: scheduledTxs.length,
         total: allTransactions.length
@@ -140,9 +141,9 @@ export default function TransactionHistory() {
       // Cache for 30 minutes
       await transactionCache.set(cacheKey, allTransactions, 30 * 60 * 1000);
       
-      console.log(`✅ Successfully loaded ${allTransactions.length} fresh transactions for ${currentChain}`);
+      logger.log(`✅ Successfully loaded ${allTransactions.length} fresh transactions for ${currentChain}`);
     } catch (error) {
-      console.error(`❌ Error loading transactions for ${currentChain}:`, error);
+      logger.error(`❌ Error loading transactions for ${currentChain}:`, error);
       
       // ✅ If we have stale data, keep showing it despite error
       if (!cachedData || cachedData.length === 0) {

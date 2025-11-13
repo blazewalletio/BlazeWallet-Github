@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PriorityListService } from '@/lib/priority-list-service';
+import { logger } from '@/lib/logger';
 
 // GET /api/priority-list - Get priority list status and stats
 export async function GET(request: NextRequest) {
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error fetching priority list status:', error);
+    logger.error('Error fetching priority list status:', error);
     return NextResponse.json(
       { success: false, message: 'Failed to fetch priority list status' },
       { status: 500 }
@@ -63,14 +64,14 @@ export async function GET(request: NextRequest) {
 // POST /api/priority-list - Register for priority list
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔥 API: Priority list registration request received');
+    logger.log('🔥 API: Priority list registration request received');
     
     const body = await request.json();
-    console.log('📦 Request body:', JSON.stringify(body, null, 2));
+    logger.log('📦 Request body:', JSON.stringify(body, null, 2));
     
     const { walletAddress, email, telegram, twitter, referralCode } = body;
     
-    console.log('🔍 Parsed fields:', {
+    logger.log('🔍 Parsed fields:', {
       walletAddress,
       email,
       telegram,
@@ -79,14 +80,14 @@ export async function POST(request: NextRequest) {
     });
 
     if (!walletAddress) {
-      console.error('❌ Missing wallet address');
+      logger.error('❌ Missing wallet address');
       return NextResponse.json(
         { success: false, message: 'Wallet address is required' },
         { status: 400 }
       );
     }
     
-    console.log('✅ Wallet address present, calling PriorityListService...');
+    logger.log('✅ Wallet address present, calling PriorityListService...');
 
     const result = await PriorityListService.registerForPriorityList(walletAddress, {
       email,
@@ -95,10 +96,10 @@ export async function POST(request: NextRequest) {
       referralCode,
     });
     
-    console.log('📥 Service result:', JSON.stringify(result, null, 2));
+    logger.log('📥 Service result:', JSON.stringify(result, null, 2));
 
     if (result.success) {
-      console.log('✅ Registration successful!');
+      logger.log('✅ Registration successful!');
       return NextResponse.json({
         success: true,
         message: result.message,
@@ -109,15 +110,15 @@ export async function POST(request: NextRequest) {
         },
       });
     } else {
-      console.error('❌ Registration failed:', result.message);
+      logger.error('❌ Registration failed:', result.message);
       return NextResponse.json(
         { success: false, message: result.message },
         { status: 400 }
       );
     }
   } catch (error) {
-    console.error('💥 API Error registering for priority list:', error);
-    console.error('💥 Error details:', {
+    logger.error('💥 API Error registering for priority list:', error);
+    logger.error('💥 Error details:', {
       name: error instanceof Error ? error.name : 'Unknown',
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined

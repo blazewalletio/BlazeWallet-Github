@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Rocket, Lock, TrendingUp, Users, Clock, AlertCircle } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface LaunchpadModalProps {
   isOpen: boolean;

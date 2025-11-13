@@ -8,6 +8,7 @@ import { CHAINS } from '@/lib/chains';
 import AddContactModal from './AddContactModal';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { getCurrentAccount } from '@/lib/account-manager';
+import { logger } from '@/lib/logger';
 
 interface Contact {
   id: string;
@@ -83,7 +84,7 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
       if (error) throw error;
       setContacts(data || []);
     } catch (error) {
-      console.error('Failed to load contacts:', error);
+      logger.error('Failed to load contacts:', error);
     } finally {
       setIsLoading(false);
     }
@@ -120,7 +121,7 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
       if (error) throw error;
       loadContacts();
     } catch (error) {
-      console.error('Failed to toggle favorite:', error);
+      logger.error('Failed to toggle favorite:', error);
     }
   };
 
@@ -136,7 +137,7 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
       if (error) throw error;
       loadContacts();
     } catch (error) {
-      console.error('Failed to delete contact:', error);
+      logger.error('Failed to delete contact:', error);
     }
   };
 

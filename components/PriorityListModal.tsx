@@ -20,6 +20,7 @@ import {
   Wallet
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
+import { logger } from '@/lib/logger';
 
 interface PriorityListData {
   stats: {
@@ -46,9 +47,9 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
   const wallet = useWalletStore();
   const address = wallet.address;
   
-  console.log('🔍 PriorityListModal rendered');
-  console.log('📍 Current wallet address:', address);
-  console.log('🔐 Wallet state:', { address: wallet.address, isLocked: wallet.isLocked });
+  logger.log('🔍 PriorityListModal rendered');
+  logger.log('📍 Current wallet address:', address);
+  logger.log('🔐 Wallet state:', { address: wallet.address, isLocked: wallet.isLocked });
   
   const [data, setData] = useState<PriorityListData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -118,26 +119,26 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
 
   // Register for priority list
   const handleRegister = async () => {
-    console.log('🔥 Priority List Registration Started');
-    console.log('📍 Wallet address:', address);
-    console.log('📧 Email:', email);
-    console.log('📱 Telegram:', telegram);
-    console.log('🐦 Twitter:', twitter);
-    console.log('🎫 Referral code:', referralCode);
+    logger.log('🔥 Priority List Registration Started');
+    logger.log('📍 Wallet address:', address);
+    logger.log('📧 Email:', email);
+    logger.log('📱 Telegram:', telegram);
+    logger.log('🐦 Twitter:', twitter);
+    logger.log('🎫 Referral code:', referralCode);
     
     if (!address) {
-      console.error('❌ No wallet address found');
+      logger.error('❌ No wallet address found');
       setError('Please connect your wallet first');
       return;
     }
 
     // Validate fields
     if (email && !validateEmail(email)) {
-      console.error('❌ Invalid email format');
+      logger.error('❌ Invalid email format');
       return;
     }
     if (referralCode && !validateReferralCode(referralCode)) {
-      console.error('❌ Invalid referral code format');
+      logger.error('❌ Invalid referral code format');
       return;
     }
 
@@ -154,7 +155,7 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
         referralCode: referralCode || undefined,
       };
       
-      console.log('📤 Sending registration request:', payload);
+      logger.log('📤 Sending registration request:', payload);
       
       const response = await fetch('/api/priority-list', {
         method: 'POST',
@@ -165,10 +166,10 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
       });
 
       const result = await response.json();
-      console.log('📥 Registration response:', result);
+      logger.log('📥 Registration response:', result);
       
       if (result.success) {
-        console.log('✅ Registration successful!');
+        logger.log('✅ Registration successful!');
         setSuccess(result.message);
         
         // ✅ PERFORMANCE FIX: Use canvas-confetti instead of react-confetti component
@@ -181,11 +182,11 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
         
         await loadPriorityListData(); // Reload data
       } else {
-        console.error('❌ Registration failed:', result.message);
+        logger.error('❌ Registration failed:', result.message);
         setError(result.message);
       }
     } catch (err) {
-      console.error('💥 Registration error:', err);
+      logger.error('💥 Registration error:', err);
       setError('Failed to register for priority list');
     } finally {
       setIsRegistering(false);

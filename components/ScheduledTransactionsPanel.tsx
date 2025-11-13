@@ -22,6 +22,7 @@ import {
 import { smartSchedulerService, type ScheduledTransaction } from '@/lib/smart-scheduler-service';
 import { useWalletStore } from '@/lib/wallet-store';
 import { getCurrencyLogoSync } from '@/lib/currency-logo-service';
+import { logger } from '@/lib/logger';
 
 interface ScheduledTransactionsPanelProps {
   isOpen: boolean;
@@ -52,7 +53,7 @@ export default function ScheduledTransactionsPanel({ isOpen, chain, onClose }: S
       const data = await smartSchedulerService.getScheduledTransactions(userId, chain, filter);
       setTransactions(data);
     } catch (error) {
-      console.error('Failed to load scheduled transactions:', error);
+      logger.error('Failed to load scheduled transactions:', error);
     } finally {
       setLoading(false);
     }
@@ -66,7 +67,7 @@ export default function ScheduledTransactionsPanel({ isOpen, chain, onClose }: S
       await smartSchedulerService.cancelTransaction(transactionId, userId);
       await loadTransactions();
     } catch (error) {
-      console.error('Failed to cancel transaction:', error);
+      logger.error('Failed to cancel transaction:', error);
     } finally {
       setCancellingId(null);
     }

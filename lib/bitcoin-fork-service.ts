@@ -23,6 +23,7 @@ import { BIP32Factory } from 'bip32';
 import * as ecc from '@bitcoinerlab/secp256k1';
 import { CHAINS } from './chains';
 import { getCurrencyLogoSync } from './currency-logo-service';
+import { logger } from '@/lib/logger';
 
 // Initialize BIP32 with secp256k1
 bitcoin.initEccLib(ecc);
@@ -206,7 +207,7 @@ export class BitcoinForkService {
       const response = await fetch(`${this.config.apiBaseUrl}/addrs/${address}/balance`);
       
       if (!response.ok) {
-        console.warn(`[${this.config.symbol}] Balance fetch failed, returning 0`);
+        logger.warn(`[${this.config.symbol}] Balance fetch failed, returning 0`);
         return { confirmed: 0, unconfirmed: 0, total: 0 };
       }
 
@@ -218,7 +219,7 @@ export class BitcoinForkService {
         total: (data.balance || 0) + (data.unconfirmed_balance || 0),
       };
     } catch (error) {
-      console.error(`[${this.config.symbol}] Error fetching balance:`, error);
+      logger.error(`[${this.config.symbol}] Error fetching balance:`, error);
       return { confirmed: 0, unconfirmed: 0, total: 0 };
     }
   }
@@ -231,7 +232,7 @@ export class BitcoinForkService {
       const response = await fetch(`${this.config.apiBaseUrl}/addrs/${address}?unspentOnly=true`);
       
       if (!response.ok) {
-        console.warn(`[${this.config.symbol}] UTXO fetch failed`);
+        logger.warn(`[${this.config.symbol}] UTXO fetch failed`);
         return [];
       }
 
@@ -244,7 +245,7 @@ export class BitcoinForkService {
         confirmations: utxo.confirmations,
       }));
     } catch (error) {
-      console.error(`[${this.config.symbol}] Error fetching UTXOs:`, error);
+      logger.error(`[${this.config.symbol}] Error fetching UTXOs:`, error);
       return [];
     }
   }
@@ -301,7 +302,7 @@ export class BitcoinForkService {
         fastTotal: 0,
       };
     } catch (error) {
-      console.error(`[${this.config.symbol}] Error estimating fees:`, error);
+      logger.error(`[${this.config.symbol}] Error estimating fees:`, error);
       // Fallback to conservative estimates
       return {
         slow: 10,
@@ -423,7 +424,7 @@ export class BitcoinForkService {
       const data = await response.json();
       return data.tx.hash;
     } catch (error) {
-      console.error(`[${this.config.symbol}] Broadcast error:`, error);
+      logger.error(`[${this.config.symbol}] Broadcast error:`, error);
       throw error;
     }
   }
@@ -436,7 +437,7 @@ export class BitcoinForkService {
       const response = await fetch(`${this.config.apiBaseUrl}/addrs/${address}/full?limit=${limit}`);
       
       if (!response.ok) {
-        console.warn(`[${this.config.symbol}] Transaction history fetch failed`);
+        logger.warn(`[${this.config.symbol}] Transaction history fetch failed`);
         return [];
       }
 
@@ -487,7 +488,7 @@ export class BitcoinForkService {
 
       return transactions;
     } catch (error) {
-      console.error(`[${this.config.symbol}] Error fetching transaction history:`, error);
+      logger.error(`[${this.config.symbol}] Error fetching transaction history:`, error);
       return [];
     }
   }

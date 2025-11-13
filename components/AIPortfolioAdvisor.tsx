@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingUp, Lightbulb, PieChart, AlertCircle, ArrowLeft, Loader2, Activity, Shield, Target, TrendingDown, CheckCircle, AlertTriangle, RefreshCw, ShoppingCart, DollarSign, BarChart3 } from 'lucide-react';
 import Image from 'next/image';
 import { getCurrencyLogoSync } from '@/lib/currency-logo-service';
+import { logger } from '@/lib/logger';
 
 interface AIPortfolioAdvisorProps {
   onClose: () => void;
@@ -68,8 +69,8 @@ export default function AIPortfolioAdvisor({
     setError(null);
     
     try {
-      console.log('📊 [Portfolio Advisor] Fetching AI analysis...');
-      console.log('📊 [Portfolio Advisor] Raw tokens:', tokens);
+      logger.log('📊 [Portfolio Advisor] Fetching AI analysis...');
+      logger.log('📊 [Portfolio Advisor] Raw tokens:', tokens);
       
       const response = await fetch('/api/ai-portfolio-analysis', {
         method: 'POST',
@@ -100,10 +101,10 @@ export default function AIPortfolioAdvisor({
       const data = await response.json();
 
       if (data.success) {
-        console.log('✅ [Portfolio Advisor] Analysis received');
+        logger.log('✅ [Portfolio Advisor] Analysis received');
         setAnalysis(data.data);
       } else {
-        console.error('❌ [Portfolio Advisor] API error:', data.error);
+        logger.error('❌ [Portfolio Advisor] API error:', data.error);
         setError(data.error || 'Failed to analyze portfolio');
         // Use fallback if available
         if (data.fallback) {
@@ -111,7 +112,7 @@ export default function AIPortfolioAdvisor({
         }
       }
     } catch (err: any) {
-      console.error('❌ [Portfolio Advisor] Fetch error:', err);
+      logger.error('❌ [Portfolio Advisor] Fetch error:', err);
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
@@ -403,7 +404,7 @@ export default function AIPortfolioAdvisor({
                     // Get correct logo - Dashboard uses 'logo' property
                     const logoUrl = token.logo || getCurrencyLogoSync(token.symbol);
                     
-                    console.log(`📊 Token ${token.symbol}:`, {
+                    logger.log(`📊 Token ${token.symbol}:`, {
                       balance: token.balance,
                       priceUSD: token.priceUSD,
                       balanceUSD: token.balanceUSD,

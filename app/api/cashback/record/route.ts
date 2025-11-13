@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 // Mock database - in production, use a real database
 const cashbackDatabase = new Map<string, any[]>();
@@ -53,14 +54,14 @@ export async function POST(request: NextRequest) {
     userTransactions.push(newTransaction);
     cashbackDatabase.set(address, userTransactions);
 
-    console.log('Recorded cashback transaction:', newTransaction);
+    logger.log('Recorded cashback transaction:', newTransaction);
 
     return NextResponse.json({
       success: true,
       transaction: newTransaction,
     });
   } catch (error) {
-    console.error('Error recording cashback transaction:', error);
+    logger.error('Error recording cashback transaction:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

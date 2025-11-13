@@ -1,10 +1,11 @@
 import { WebPlugin } from '@capacitor/core';
 import type { BreezBridgePlugin } from './index';
+import { logger } from '@/lib/logger';
 
 // Web fallback - uses WebLN
 export class BreezBridgeWeb extends WebPlugin implements BreezBridgePlugin {
   async connect(options: { certificate: string }): Promise<void> {
-    console.log('ℹ️ Breez Bridge (Web): Using WebLN fallback');
+    logger.log('ℹ️ Breez Bridge (Web): Using WebLN fallback');
     // WebLN doesn't need connection
     return Promise.resolve();
   }
@@ -42,7 +43,7 @@ export class BreezBridgeWeb extends WebPlugin implements BreezBridgePlugin {
           const paymentHashTag = decoded.sections.find((s: any) => s.name === 'payment_hash');
           paymentHash = paymentHashTag?.value || '';
         } catch (e) {
-          console.warn('Could not decode invoice for payment hash');
+          logger.warn('Could not decode invoice for payment hash');
         }
         
         return {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 // Force dynamic rendering (required for API routes with query params)
 export const dynamic = 'force-dynamic';
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
     // CoinGecko API endpoint for token prices by contract address
     const url = `https://api.coingecko.com/api/v3/simple/token_price/${platform}?contract_addresses=${addresses.join(',')}&vs_currencies=usd&include_24hr_change=true`;
 
-    console.log(`📡 [Prices by Address] Fetching from CoinGecko for ${addresses.length} addresses on ${chain}`);
+    logger.log(`📡 [Prices by Address] Fetching from CoinGecko for ${addresses.length} addresses on ${chain}`);
 
     const response = await fetch(url, {
       headers: {
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (!response.ok) {
-      console.error(`❌ [Prices by Address] CoinGecko error: ${response.status}`);
+      logger.error(`❌ [Prices by Address] CoinGecko error: ${response.status}`);
       return NextResponse.json(
         { error: `CoinGecko API error: ${response.status}` },
         { status: response.status }
@@ -84,14 +85,14 @@ export async function GET(request: NextRequest) {
           price: data[addressLower].usd || 0,
           change24h: data[addressLower].usd_24h_change || 0,
         };
-        console.log(`✅ [Prices by Address] ${addressLower.substring(0, 10)}...: $${result[addressLower].price}`);
+        logger.log(`✅ [Prices by Address] ${addressLower.substring(0, 10)}...: $${result[addressLower].price}`);
       } else {
         // Address not found in CoinGecko
         result[addressLower] = {
           price: 0,
           change24h: 0,
         };
-        console.warn(`⚠️ [Prices by Address] No data for ${addressLower.substring(0, 10)}...`);
+        logger.warn(`⚠️ [Prices by Address] No data for ${addressLower.substring(0, 10)}...`);
       }
     }
 
@@ -102,7 +103,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('❌ [Prices by Address] Error:', error);
+    logger.error('❌ [Prices by Address] Error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch token prices' },
       { status: 500 }

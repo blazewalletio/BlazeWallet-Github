@@ -8,6 +8,7 @@ import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { CHAINS, POPULAR_TOKENS } from '@/lib/chains';
 import { SwapService } from '@/lib/swap-service';
 import { ethers } from 'ethers';
+import { logger } from '@/lib/logger';
 
 interface SwapModalProps {
   isOpen: boolean;
@@ -51,7 +52,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   // ✅ AI Assistant Pre-fill Effect
   useEffect(() => {
     if (isOpen && prefillData) {
-      console.log('🤖 [SwapModal] Applying AI pre-fill data:', prefillData);
+      logger.log('🤖 [SwapModal] Applying AI pre-fill data:', prefillData);
       
       // Pre-fill fromToken
       if (prefillData.fromToken) {
@@ -60,7 +61,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         // Check if it's native token
         if (tokenSymbol === chain?.nativeCurrency.symbol.toUpperCase()) {
           setFromToken('native');
-          console.log('🤖 [SwapModal] Set from token: native');
+          logger.log('🤖 [SwapModal] Set from token: native');
         } else {
           // Find matching token in popular tokens
           const matchingToken = popularTokens.find(
@@ -68,7 +69,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           );
           if (matchingToken) {
             setFromToken(matchingToken.address);
-            console.log('🤖 [SwapModal] Set from token:', matchingToken.symbol);
+            logger.log('🤖 [SwapModal] Set from token:', matchingToken.symbol);
           }
         }
       }
@@ -80,7 +81,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         // Check if it's native token
         if (tokenSymbol === chain?.nativeCurrency.symbol.toUpperCase()) {
           setToToken('native');
-          console.log('🤖 [SwapModal] Set to token: native');
+          logger.log('🤖 [SwapModal] Set to token: native');
         } else {
           // Find matching token in popular tokens
           const matchingToken = popularTokens.find(
@@ -88,7 +89,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           );
           if (matchingToken) {
             setToToken(matchingToken.address);
-            console.log('🤖 [SwapModal] Set to token:', matchingToken.symbol);
+            logger.log('🤖 [SwapModal] Set to token:', matchingToken.symbol);
           }
         }
       }
@@ -98,10 +99,10 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         if (prefillData.amount === 'max' || prefillData.amount === 'all') {
           // Use full balance
           setFromAmount(balance || '0');
-          console.log('🤖 [SwapModal] Set max amount:', balance);
+          logger.log('🤖 [SwapModal] Set max amount:', balance);
         } else {
           setFromAmount(prefillData.amount);
-          console.log('🤖 [SwapModal] Set amount:', prefillData.amount);
+          logger.log('🤖 [SwapModal] Set amount:', prefillData.amount);
         }
       }
     }
@@ -146,14 +147,14 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       const outputAmount = (quoteData as any)?.toTokenAmount || (quoteData as any)?.toAmount;
       const sourceProvider = (quoteData as any)?.source;
       
-      console.log('Quote received:', {
+      logger.log('Quote received:', {
         outputAmount,
         source: sourceProvider,
         protocols: (quoteData as any)?.protocols
       });
       
       if (quoteData && outputAmount && outputAmount !== '0') {
-        console.log('✅ Quote success!');
+        logger.log('✅ Quote success!');
         setQuote(quoteData);
         
         // Format output amount based on token decimals
@@ -163,7 +164,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         
         setSwapProvider(sourceProvider === '1inch' ? '1inch' : 'price-estimate');
       } else {
-        console.error('Quote check failed:', {
+        logger.error('Quote check failed:', {
           hasQuoteData: !!quoteData,
           outputAmount,
           sourceProvider
@@ -171,7 +172,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         setError('No quote available for this token pair');
       }
     } catch (err: any) {
-      console.error('Quote error:', err);
+      logger.error('Quote error:', err);
       setError(err.message || 'Error fetching quote');
     } finally {
       setIsLoadingQuote(false);
@@ -197,7 +198,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
 
       // Execute swap via 1inch
       if (swapProvider === '1inch') {
-        console.log('Executing 1inch swap...');
+        logger.log('Executing 1inch swap...');
         const swapService = new SwapService(chain.id);
         
         const txData = await swapService.getSwapTransaction(
@@ -229,7 +230,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         throw new Error('Direct swapping not possible. Add 1inch API key (see ONEINCH_API_SETUP.md) or use external DEX.');
       }
 
-      console.log('✅ Swap successful:', txHash);
+      logger.log('✅ Swap successful:', txHash);
       setSuccess(true);
       
       // Reset form after 2 seconds
@@ -242,7 +243,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       }, 2000);
 
     } catch (err: any) {
-      console.error('Swap error:', err);
+      logger.error('Swap error:', err);
       setError(err.message || 'Swap failed');
     } finally {
       setIsSwapping(false);

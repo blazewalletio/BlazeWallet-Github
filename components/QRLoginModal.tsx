@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Smartphone, QrCode, Shield, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
 import { QRAuthService } from '@/lib/qr-auth-service';
 import { useWalletStore } from '@/lib/wallet-store';
+import { logger } from '@/lib/logger';
 
 interface QRLoginModalProps {
   isOpen: boolean;
@@ -58,7 +59,7 @@ export default function QRLoginModal({ isOpen, onSuccess, onCancel }: QRLoginMod
       waitForApproval(newSessionId);
 
     } catch (error: any) {
-      console.error('Error generating QR code:', error);
+      logger.error('Error generating QR code:', error);
       setError('Kon QR code niet genereren. Probeer opnieuw.');
       setStatus('error');
     }
@@ -87,7 +88,7 @@ export default function QRLoginModal({ isOpen, onSuccess, onCancel }: QRLoginMod
         setStatus('expired');
       }
     } catch (error: any) {
-      console.error('Error waiting for approval:', error);
+      logger.error('Error waiting for approval:', error);
       setError('Er is een fout opgetreden tijdens het wachten op goedkeuring');
       setStatus('error');
     }

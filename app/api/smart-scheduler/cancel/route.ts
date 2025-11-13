@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
-      console.error('❌ Supabase error:', error);
+      logger.error('❌ Supabase error:', error);
       return NextResponse.json(
         { error: 'Failed to cancel transaction', details: error.message },
         { status: 500 }
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('✅ Scheduled transaction cancelled:', transaction_id);
+    logger.log('✅ Scheduled transaction cancelled:', transaction_id);
 
     // Create notification
     await supabase.from('notifications').insert({
@@ -73,7 +74,7 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('❌ Smart Scheduler API error:', error);
+    logger.error('❌ Smart Scheduler API error:', error);
     return NextResponse.json(
       { error: 'Internal server error', details: error.message },
       { status: 500 }

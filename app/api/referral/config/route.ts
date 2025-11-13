@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 export async function GET() {
   try {
@@ -12,7 +13,7 @@ export async function GET() {
 
     return NextResponse.json(config);
   } catch (error) {
-    console.error('Error fetching referral config:', error);
+    logger.error('Error fetching referral config:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

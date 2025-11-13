@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 const RESEND_API_KEY = 're_GSrnNH5V_NDNNHf7dDeFjEqJ2xR6CZeSx';
 const RESEND_API_URL = 'https://api.resend.com/emails';
@@ -31,14 +32,14 @@ export async function sendEmail(params: SendEmailParams): Promise<{ success: boo
 
     if (!response.ok) {
       const error = await response.text();
-      console.error('Resend API error:', error);
+      logger.error('Resend API error:', error);
       return { success: false, error: `Failed to send email: ${error}` };
     }
 
     const data = await response.json();
     return { success: true, messageId: data.id };
   } catch (error) {
-    console.error('Error sending email:', error);
+    logger.error('Error sending email:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }

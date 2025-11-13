@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Vote, Plus, TrendingUp, TrendingDown, Clock, ArrowLeft, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { GovernanceService, Proposal, GovernanceStats } from '@/lib/governance-service';
+import { logger } from '@/lib/logger';
 
 export default function GovernanceDashboard() {
   const { wallet, address, currentChain } = useWalletStore();
@@ -46,7 +47,7 @@ export default function GovernanceDashboard() {
         setCanCreateProposal(canCreate);
         
       } catch (error: any) {
-        console.error('Error loading governance data:', error);
+        logger.error('Error loading governance data:', error);
         setError(error.message || 'Failed to load governance data');
       } finally {
         setIsLoading(false);
@@ -77,7 +78,7 @@ export default function GovernanceDashboard() {
       }, 2000);
       
     } catch (error: any) {
-      console.error('Error voting:', error);
+      logger.error('Error voting:', error);
       setError(error.message || 'Failed to cast vote');
     }
   };
@@ -110,7 +111,7 @@ export default function GovernanceDashboard() {
       }, 2000);
       
     } catch (error: any) {
-      console.error('Error creating proposal:', error);
+      logger.error('Error creating proposal:', error);
       setError(error.message || 'Failed to create proposal');
     }
   };

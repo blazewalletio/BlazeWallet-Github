@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 // Force dynamic rendering for this API route
 export const dynamic = 'force-dynamic';
@@ -34,7 +35,7 @@ export async function GET(request: Request) {
   try {
     const url = `https://api.1inch.dev/swap/v6.0/${chainId}/swap?src=${src}&dst=${dst}&amount=${amount}&from=${from}&slippage=${slippage}&disableEstimate=true`;
     
-    console.log('1inch swap transaction request...');
+    logger.log('1inch swap transaction request...');
 
     const response = await fetch(url, {
       headers: {
@@ -45,7 +46,7 @@ export async function GET(request: Request) {
 
     if (response.ok) {
       const data = await response.json();
-      console.log('✅ 1inch swap transaction ready');
+      logger.log('✅ 1inch swap transaction ready');
       
       return NextResponse.json(data, {
         headers: {
@@ -56,14 +57,14 @@ export async function GET(request: Request) {
     }
 
     const errorText = await response.text();
-    console.error('1inch swap error:', response.status, errorText);
+    logger.error('1inch swap error:', response.status, errorText);
     
     return NextResponse.json(
       { error: `1inch API error: ${response.status}` },
       { status: response.status }
     );
   } catch (error) {
-    console.error('1inch swap failed:', error);
+    logger.error('1inch swap failed:', error);
     return NextResponse.json(
       { error: 'Swap transaction failed' },
       { status: 500 }
