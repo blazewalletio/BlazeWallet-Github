@@ -23,14 +23,12 @@ export function usePWAInstall() {
 
     // Listen for beforeinstallprompt event
     const handler = (e: Event) => {
-      // ✅ CRITICAL: Prevent the native browser prompt
+      // Prevent the native browser prompt
       e.preventDefault();
       
       // Store the event for later use
       setDeferredPrompt(e as BeforeInstallPromptEvent);
       setIsInstallable(true);
-      
-      console.log('✅ PWA install prompt intercepted - showing custom UI');
     };
 
     window.addEventListener('beforeinstallprompt', handler);
@@ -40,7 +38,6 @@ export function usePWAInstall() {
       setIsInstalled(true);
       setIsInstallable(false);
       setDeferredPrompt(null);
-      console.log('✅ PWA installed successfully');
     };
 
     window.addEventListener('appinstalled', installHandler);
@@ -52,10 +49,7 @@ export function usePWAInstall() {
   }, []);
 
   const promptInstall = async () => {
-    if (!deferredPrompt) {
-      console.warn('⚠️ No deferred prompt available');
-      return false;
-    }
+    if (!deferredPrompt) return false;
 
     try {
       // Show the native prompt when user clicks our custom button
@@ -63,8 +57,6 @@ export function usePWAInstall() {
       
       // Wait for user choice
       const { outcome } = await deferredPrompt.userChoice;
-      
-      console.log(`PWA install outcome: ${outcome}`);
       
       if (outcome === 'accepted') {
         setIsInstalled(true);
