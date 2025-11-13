@@ -62,6 +62,7 @@ export async function GET(request: Request) {
       .filter(Boolean);
 
     if (tickers.length === 0) {
+      // Silent 400 - expected for unknown tokens (will fallback to DexScreener)
       return NextResponse.json({ error: 'No valid symbols for Binance' }, { status: 400 });
     }
 
