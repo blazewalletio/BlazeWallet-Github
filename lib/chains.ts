@@ -158,7 +158,7 @@ export const CHAINS: Record<string, Chain> = {
     id: 250,
     name: 'Fantom',
     shortName: 'FTM',
-    rpcUrl: 'https://fantom.publicnode.com',
+    rpcUrl: 'https://rpcapi.fantom.network',
     explorerUrl: 'https://ftmscan.com',
     nativeCurrency: {
       name: 'Fantom',
