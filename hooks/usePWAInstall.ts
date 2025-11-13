@@ -20,10 +20,21 @@ export function usePWAInstall() {
     showPrompt: false,
     promptEvent: null,
   });
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const { isLocked, address } = useWalletStore();
 
+  // Wait for client-side hydration to complete
   useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) {
+      console.log('⏳ [PWA] Waiting for hydration...');
+      return;
+    }
+
     console.log('🔍 [PWA] Hook loaded - isLocked:', isLocked, 'address:', address?.substring(0, 10));
     
     // Only show if wallet is unlocked (user is logged in)
@@ -96,7 +107,7 @@ export function usePWAInstall() {
       console.log('🧹 [PWA] Cleanup - removing listener');
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     };
-  }, [isLocked, address]); // Re-run when wallet unlocks
+  }, [isLocked, address, isHydrated]); // Re-run when wallet unlocks or hydration completes
 
   const install = async () => {
     if (!state.promptEvent) return;
