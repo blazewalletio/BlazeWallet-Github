@@ -123,15 +123,32 @@ export async function GET(request: NextRequest) {
     console.log(`   Message: ${data.message}`);
     console.log(`   Result count: ${Array.isArray(data.result) ? data.result.length : 'N/A'}`);
 
-    // Add CORS headers
-    return NextResponse.json(data, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
-      },
-    });
+    // Add CORS headers (secure - whitelist only)
+    const origin = request.headers.get('origin');
+    const allowedOrigins = [
+      'https://blazewallet.io',
+      'https://my.blazewallet.io',
+      'http://localhost:3000',
+      'http://localhost:3001',
+    ];
+    
+    // Allow Vercel preview deployments (specific pattern)
+    const isVercelPreview = origin?.match(
+      /^https:\/\/blaze-wallet-[a-z0-9]+-[a-z0-9]+\.vercel\.app$/
+    );
+    
+    let corsHeaders: Record<string, string> = {
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+    };
+    
+    if (origin && (allowedOrigins.includes(origin) || isVercelPreview)) {
+      corsHeaders['Access-Control-Allow-Origin'] = origin;
+      corsHeaders['Vary'] = 'Origin'; // Important for CDN caching
+    }
+    
+    return NextResponse.json(data, { headers: corsHeaders });
 
   } catch (error: any) {
     console.error('Transaction proxy error:', error);
@@ -145,13 +162,33 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Handle OPTIONS for CORS
-export async function OPTIONS() {
+// Handle OPTIONS for CORS (secure - whitelist only)
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin');
+  const allowedOrigins = [
+    'https://blazewallet.io',
+    'https://my.blazewallet.io',
+    'http://localhost:3000',
+    'http://localhost:3001',
+  ];
+  
+  const isVercelPreview = origin?.match(
+    /^https:\/\/blaze-wallet-[a-z0-9]+-[a-z0-9]+\.vercel\.app$/
+  );
+  
+  let corsHeaders: Record<string, string> = {
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Max-Age': '86400', // 24 hours preflight cache
+  };
+  
+  if (origin && (allowedOrigins.includes(origin) || isVercelPreview)) {
+    corsHeaders['Access-Control-Allow-Origin'] = origin;
+    corsHeaders['Vary'] = 'Origin';
+  }
+  
   return new NextResponse(null, {
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    },
+    status: 204,
+    headers: corsHeaders,
   });
 }
