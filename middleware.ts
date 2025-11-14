@@ -39,6 +39,7 @@ export async function middleware(request: NextRequest) {
     '/api/ai-transaction',
     '/api/ai-assistant',
     '/api/ai-risk-scanner',
+    '/api/gas-optimizer',
   ];
   
   if (publicEndpoints.some(ep => pathname.startsWith(ep))) {
