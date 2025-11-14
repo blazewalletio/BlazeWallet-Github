@@ -243,7 +243,11 @@ export default function AIPortfolioAdvisor({
             <div className="space-y-6">
               {/* Portfolio Summary */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-6 rounded-xl bg-white border border-gray-200">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="glass-card p-6"
+                >
                   <div className="text-sm text-gray-600 mb-1">Total value</div>
                   <div className="text-2xl font-bold text-gray-900">${totalValue.toFixed(2)}</div>
                   {totalValueChange24h !== 0 && (
@@ -251,16 +255,26 @@ export default function AIPortfolioAdvisor({
                       {totalValueChange24h > 0 ? '+' : ''}{totalValueChange24h.toFixed(2)}% (24h)
                     </div>
                   )}
-                </div>
-                <div className="p-6 rounded-xl bg-white border border-gray-200">
+                </motion.div>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.05 }}
+                  className="glass-card p-6"
+                >
                   <div className="text-sm text-gray-600 mb-1">Assets</div>
                   <div className="text-2xl font-bold text-gray-900">{tokens.length} token{tokens.length !== 1 ? 's' : ''}</div>
                   <div className="text-sm text-gray-600 mt-1">On {chain}</div>
-                </div>
+                </motion.div>
               </div>
 
               {/* Portfolio Health Score */}
-              <div className="p-6 rounded-xl bg-gradient-to-br from-orange-50 to-yellow-50 border border-orange-200">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="glass-card p-6 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 border border-blue-500/20"
+              >
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <Shield className="w-5 h-5 text-orange-600" />
@@ -323,11 +337,11 @@ export default function AIPortfolioAdvisor({
 
               {/* AI Insights */}
               {analysis.insights.length > 0 && (
-                <div className="space-y-3 bg-white rounded-xl border border-gray-200 p-6">
+                <div className="glass-card p-6 space-y-3">
                   <div className="flex items-center gap-2 text-gray-900">
-                    <TrendingUp className="w-5 h-5 text-orange-500" />
-                    <h3 className="font-semibold">AI Insights</h3>
-                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
+                    <TrendingUp className="w-5 h-5 text-blue-600" />
+                    <h3 className="text-lg font-semibold">AI Insights</h3>
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
                       {analysis.insights.length}
                     </span>
                   </div>
@@ -350,11 +364,11 @@ export default function AIPortfolioAdvisor({
 
               {/* Smart Recommendations */}
               {analysis.recommendations.length > 0 && (
-                <div className="space-y-3 bg-white rounded-xl border border-gray-200 p-6">
+                <div className="glass-card p-6 space-y-3">
                   <div className="flex items-center gap-2 text-gray-900">
-                    <Lightbulb className="w-5 h-5 text-orange-500" />
-                    <h3 className="font-semibold">Smart Recommendations</h3>
-                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
+                    <Lightbulb className="w-5 h-5 text-blue-600" />
+                    <h3 className="text-lg font-semibold">Smart Recommendations</h3>
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
                       {analysis.recommendations.length}
                     </span>
                   </div>
