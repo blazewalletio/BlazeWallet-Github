@@ -8,6 +8,7 @@ import { getCurrencyLogoSync } from '@/lib/currency-logo-service';
 import { logger } from '@/lib/logger';
 
 interface AIPortfolioAdvisorProps {
+  isOpen: boolean;
   onClose: () => void;
   tokens: any[];
   totalValue: number;
@@ -47,6 +48,7 @@ interface AnalysisData {
 }
 
 export default function AIPortfolioAdvisor({ 
+  isOpen,
   onClose, 
   tokens, 
   totalValue,
@@ -180,6 +182,8 @@ export default function AIPortfolioAdvisor({
     if (type === 'rebalance') return <Activity className="w-5 h-5 text-orange-600" />;
     return <Target className="w-5 h-5 text-blue-600" />;
   };
+
+  if (!isOpen) return null;
 
   return (
     <AnimatePresence>

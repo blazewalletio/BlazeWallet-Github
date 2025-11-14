@@ -1906,6 +1906,7 @@ export default function Dashboard() {
 
         {showAIPortfolioAdvisor && (
           <AIPortfolioAdvisor
+            isOpen={showAIPortfolioAdvisor}
             onClose={() => setShowAIPortfolioAdvisor(false)}
             tokens={tokens}
             totalValue={totalValueUSD}
