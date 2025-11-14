@@ -800,19 +800,23 @@ export default function Dashboard() {
     
     // ✅ Filter snapshots by current chain and address
     const recentSnapshots = portfolioHistory.getRecentSnapshots(20, selectedTimeRange, currentChain, displayAddress);
-    if (recentSnapshots.length > 0) {
+    if (recentSnapshots.length >= 2) {
+      // ✅ Only use portfolio history if we have enough data points (at least 2)
       setChartData(recentSnapshots.map(s => s.balance));
       
       // Update change percentage for selected range (chain-specific)
       const rangeChange = portfolioHistory.getChangePercentage(selectedTimeRange, currentChain, displayAddress);
-      if (rangeChange !== 0) {
-        // ✅ Update chain-specific state instead of global setChange24h
-        updateCurrentChainState({ change24h: rangeChange });
-      }
+      // ✅ Always update change percentage when we have valid history data
+      updateCurrentChainState({ change24h: rangeChange });
+    } else if (recentSnapshots.length === 1) {
+      // Only 1 snapshot - show it but keep native change percentage
+      setChartData(recentSnapshots.map(s => s.balance));
+      // Don't update change24h - keep the native token change
     } else {
       // No data yet for this chain/time range
       setChartData([]);
-      updateCurrentChainState({ change24h: 0 });
+      // ✅ Don't override the native change if there's no history data yet
+      // Keep the existing change24h value (from native token price change)
     }
   };
 
