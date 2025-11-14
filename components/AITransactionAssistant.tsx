@@ -230,71 +230,98 @@ export default function AITransactionAssistant({
           <div className="space-y-6">
             {/* Welcome / Examples */}
             {conversation.length === 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="glass-card bg-gradient-to-br from-purple-500/5 to-pink-500/5 border border-purple-500/20 space-y-4"
-              >
-                <div className="flex items-start gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
-                    <Sparkles className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 mb-1">Welcome to AI Assistant!</h3>
-                    <p className="text-sm text-gray-600">
-                      I can help you with transactions using natural language. Try one of these examples:
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {examples.map((example, i) => (
-                    <button
-                      key={i}
-                      onClick={() => handleExampleClick(example)}
-                      className="text-left px-4 py-3 rounded-xl bg-white hover:bg-gray-50 text-sm text-gray-700 border border-gray-200 transition-colors group"
-                    >
-                      <div className="flex items-start gap-2">
-                        <MessageCircle className="w-4 h-4 mt-0.5 text-gray-400 group-hover:text-purple-600 transition-colors flex-shrink-0" />
-                        <span className="flex-1 group-hover:text-purple-600 transition-colors">
-                          {example}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-
+              <>
                 {/* Info cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
-                  <div className="glass-card bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20">
-                    <div className="flex items-start gap-2">
-                      <Zap className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-xs font-semibold text-gray-900">Fast & Smart</p>
-                        <p className="text-xs text-gray-600">90% cached responses</p>
-                      </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="glass-card p-6"
+                  >
+                    <div className="flex items-center gap-2 text-blue-600 mb-2">
+                      <Zap className="w-5 h-5" />
+                      <span className="text-sm font-semibold">Fast & Smart</span>
                     </div>
-                  </div>
-                  <div className="glass-card bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20">
-                    <div className="flex items-start gap-2">
-                      <TrendingUp className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-xs font-semibold text-gray-900">18 Chains</p>
-                        <p className="text-xs text-gray-600">All addresses supported</p>
-                      </div>
+                    <div className="text-2xl font-bold text-gray-900">90%</div>
+                    <div className="text-sm text-gray-600 mt-1">
+                      Cached responses
                     </div>
-                  </div>
-                  <div className="glass-card bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20">
-                    <div className="flex items-start gap-2">
-                      <Info className="w-4 h-4 text-purple-600 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="text-xs font-semibold text-gray-900">Proactive</p>
-                        <p className="text-xs text-gray-600">Warns about risks</p>
-                      </div>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.05 }}
+                    className="glass-card p-6"
+                  >
+                    <div className="flex items-center gap-2 text-green-600 mb-2">
+                      <TrendingUp className="w-5 h-5" />
+                      <span className="text-sm font-semibold">18 Chains</span>
                     </div>
-                  </div>
+                    <div className="text-2xl font-bold text-gray-900">All</div>
+                    <div className="text-sm text-gray-600 mt-1">
+                      Addresses supported
+                    </div>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="glass-card p-6"
+                  >
+                    <div className="flex items-center gap-2 text-purple-600 mb-2">
+                      <Info className="w-5 h-5" />
+                      <span className="text-sm font-semibold">Proactive</span>
+                    </div>
+                    <div className="text-2xl font-bold text-gray-900">AI</div>
+                    <div className="text-sm text-gray-600 mt-1">
+                      Warns about risks
+                    </div>
+                  </motion.div>
                 </div>
-              </motion.div>
+
+                {/* Examples */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                  className="glass-card p-6"
+                >
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Try these examples:</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {examples.map((example, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleExampleClick(example)}
+                        className="text-left px-4 py-3 rounded-xl bg-gray-50 hover:bg-gray-100 text-sm text-gray-700 border border-gray-200 transition-colors group"
+                      >
+                        <div className="flex items-start gap-2">
+                          <MessageCircle className="w-4 h-4 mt-0.5 text-gray-400 group-hover:text-purple-600 transition-colors flex-shrink-0" />
+                          <span className="flex-1 group-hover:text-purple-600 transition-colors font-medium">
+                            {example}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+
+                {/* How it Works */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="glass-card p-6 bg-gradient-to-br from-purple-500/5 to-pink-500/5 border border-purple-500/20"
+                >
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">How AI Assistant Works</h3>
+                  <p className="text-sm text-gray-600 leading-relaxed">
+                    Type natural language commands like "Send 50 USDC to 0x..." or "Swap 1 ETH to USDC". 
+                    The AI will understand your intent, validate the transaction, warn you about potential risks, 
+                    and help you execute it safely. Powered by GPT-4o-mini.
+                  </p>
+                </motion.div>
+              </>
             )}
 
             {/* Conversation History */}
