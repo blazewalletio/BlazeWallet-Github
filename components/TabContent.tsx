@@ -543,19 +543,7 @@ export default function TabContent({
       {showSettings && <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />}
       
       {/* Full Screen Modals */}
-      {showStaking && (
-        <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
-          <div className="p-4">
-            <button 
-              onClick={() => setShowStaking(false)}
-              className="mb-4 flex items-center gap-2 text-gray-600 hover:text-gray-900"
-            >
-              ← Back
-            </button>
-            <StakingDashboard />
-          </div>
-        </div>
-      )}
+      <StakingDashboard isOpen={showStaking} onClose={() => setShowStaking(false)} />
       
       {showGovernance && (
         <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
