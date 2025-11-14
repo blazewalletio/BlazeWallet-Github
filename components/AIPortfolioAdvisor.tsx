@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { TrendingUp, Lightbulb, PieChart, AlertCircle, ArrowLeft, Loader2, Activity, Shield, Target, TrendingDown, CheckCircle, AlertTriangle, RefreshCw, ShoppingCart, DollarSign, BarChart3 } from 'lucide-react';
 import Image from 'next/image';
 import { getCurrencyLogoSync } from '@/lib/currency-logo-service';
@@ -186,17 +186,16 @@ export default function AIPortfolioAdvisor({
   if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
-      >
-        <div className="max-w-4xl mx-auto p-6 pb-24">
-          {/* Back Button */}
-          <button
-            onClick={onClose}
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
+    >
+      <div className="max-w-4xl mx-auto p-6 pb-24">
+        {/* Back Button */}
+        <button
+          onClick={onClose}
             className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
           >
             ← Back to Dashboard
@@ -520,6 +519,5 @@ export default function AIPortfolioAdvisor({
           )}
         </div>
       </motion.div>
-    </AnimatePresence>
   );
 }
