@@ -1,13 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Users, Gift, Copy, Check, ExternalLink, AlertCircle, CheckCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Users, Gift, Copy, Check, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
+import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { ReferralService, ReferralData, ReferralStats, ReferralTransaction } from '@/lib/referral-service';
 import { logger } from '@/lib/logger';
 
-export default function ReferralDashboard() {
+interface ReferralDashboardProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function ReferralDashboard({ isOpen, onClose }: ReferralDashboardProps) {
   const { wallet } = useWalletStore();
   const [copied, setCopied] = useState(false);
   const [referralData, setReferralData] = useState<ReferralData | null>(null);
@@ -20,39 +26,44 @@ export default function ReferralDashboard() {
   
   const referralService = new ReferralService();
 
-  // Load data when wallet connects
+  // Block body scroll when modal is open
+  useBlockBodyScroll(isOpen);
+
+  // Load data when modal opens
   useEffect(() => {
-    const loadData = async () => {
-      if (!wallet) {
-        setIsLoading(false);
-        return;
-      }
+    if (isOpen) {
+      loadData();
+    }
+  }, [isOpen, wallet]);
 
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        const userAddress = await wallet.getAddress();
-        
-        const [data, statsData, transactionsData] = await Promise.all([
-          referralService.getReferralData(userAddress),
-          referralService.getReferralStats(userAddress),
-          referralService.getReferralTransactions(userAddress, 5),
-        ]);
-        
-        setReferralData(data);
-        setStats(statsData);
-        setRecentTransactions(transactionsData);
-      } catch (err: any) {
-        logger.error('Error loading referral data:', err);
-        setError(err.message || 'Failed to load referral data');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const loadData = async () => {
+    if (!wallet) {
+      setIsLoading(false);
+      return;
+    }
 
-    loadData();
-  }, [wallet]);
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const userAddress = await wallet.getAddress();
+      
+      const [data, statsData, transactionsData] = await Promise.all([
+        referralService.getReferralData(userAddress),
+        referralService.getReferralStats(userAddress),
+        referralService.getReferralTransactions(userAddress, 5),
+      ]);
+      
+      setReferralData(data);
+      setStats(statsData);
+      setRecentTransactions(transactionsData);
+    } catch (err: any) {
+      logger.error('Error loading referral data:', err);
+      setError(err.message || 'Failed to load referral data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const copyReferralLink = () => {
     if (!referralData) return;
@@ -75,15 +86,7 @@ export default function ReferralDashboard() {
       setSuccess(`Successfully claimed ${stats.pendingRewardsFormatted.toFixed(4)} BLAZE! Transaction: ${txHash.slice(0, 10)}...`);
       
       // Reload data
-      const [data, statsData, transactionsData] = await Promise.all([
-        referralService.getReferralData(userAddress),
-        referralService.getReferralStats(userAddress),
-        referralService.getReferralTransactions(userAddress, 5),
-      ]);
-      
-      setReferralData(data);
-      setStats(statsData);
-      setRecentTransactions(transactionsData);
+      await loadData();
       
     } catch (err: any) {
       logger.error('Error claiming referral rewards:', err);
@@ -103,241 +106,303 @@ export default function ReferralDashboard() {
     return `${Math.floor(diff / 86400000)} days ago`;
   };
 
+  if (!isOpen) return null;
+
+  if (isLoading) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
+      >
+        <div className="max-w-4xl mx-auto p-6">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading referral data...</p>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
-          <Users className="w-6 h-6 text-orange-500" />
-          Referral Program
-        </h2>
-        <p className="text-gray-600">
-          Earn 50 BLAZE per referral + 10% of their transaction fees forever!
-        </p>
-      </div>
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
+      >
+        <div className="max-w-4xl mx-auto p-6 pb-24">
+          {/* Back Button */}
+          <button
+            onClick={onClose}
+            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
+          >
+            ← Back to Dashboard
+          </button>
 
-      {/* Loading State */}
-      {isLoading && (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto" />
-          <span className="ml-3 text-gray-600">Loading referral data...</span>
-        </div>
-      )}
-
-      {/* Error State */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
-          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-          <div>
-            <h3 className="font-semibold text-red-700 mb-1">Error</h3>
-            <p className="text-sm text-red-600">{error}</p>
+          {/* Header */}
+          <div className="mb-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
+                <Users className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Referral Program</h2>
+                <p className="text-sm text-gray-600">
+                  Earn 50 BLAZE per referral + 10% of their transaction fees forever!
+                </p>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
 
-      {/* Success State */}
-      {success && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
-          <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-          <div>
-            <h3 className="font-semibold text-green-700 mb-1">Success</h3>
-            <p className="text-sm text-green-600">{success}</p>
-          </div>
-        </div>
-      )}
+          {/* Error/Success Messages */}
+          <AnimatePresence>
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="glass-card p-4 mb-6 border-l-4 border-red-500"
+              >
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-red-700 text-sm font-medium">{error}</p>
+                  </div>
+                  <button 
+                    onClick={() => setError(null)} 
+                    className="text-red-500 hover:text-red-700 text-xl font-bold leading-none"
+                  >
+                    ×
+                  </button>
+                </div>
+              </motion.div>
+            )}
 
-      {/* Stats */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/30 rounded-xl p-6"
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <Users className="w-5 h-5 text-blue-400" />
-              <span className="text-sm text-gray-600 font-semibold">Total Referrals</span>
-            </div>
-            <div className="text-3xl font-bold text-blue-400">{stats.totalReferrals}</div>
-            <div className="text-sm text-gray-600 mt-1">
-              {stats.activeReferrals} active
-            </div>
-          </motion.div>
+            {success && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="glass-card p-4 mb-6 border-l-4 border-green-500"
+              >
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-green-700 text-sm font-medium">{success}</p>
+                  </div>
+                  <button 
+                    onClick={() => setSuccess(null)} 
+                    className="text-green-500 hover:text-green-700 text-xl font-bold leading-none"
+                  >
+                    ×
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-xl p-6"
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <Gift className="w-5 h-5 text-green-400" />
-              <span className="text-sm text-gray-600 font-semibold">Total Earned</span>
-            </div>
-            <div className="text-3xl font-bold text-green-400">
-              {stats.totalEarnedFormatted.toFixed(2)} BLAZE
-            </div>
-            <div className="text-sm text-gray-600 mt-1">
-              Lifetime rewards
-            </div>
-          </motion.div>
+          {/* Stats */}
+          {stats && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="glass-card bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20"
+              >
+                <div className="flex items-center gap-2 text-blue-600 mb-2">
+                  <Users className="w-5 h-5" />
+                  <span className="text-sm font-semibold">Total Referrals</span>
+                </div>
+                <div className="text-3xl font-bold text-gray-900">{stats.totalReferrals}</div>
+                <div className="text-sm text-gray-500 mt-1">
+                  {stats.activeReferrals} active
+                </div>
+              </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-gradient-to-br from-orange-500/20 to-yellow-500/20 border border-orange-500/30 rounded-xl p-6"
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <Gift className="w-5 h-5 text-orange-400" />
-              <span className="text-sm text-gray-600 font-semibold">Pending</span>
-            </div>
-            <div className="text-3xl font-bold text-orange-400">
-              {stats.pendingRewardsFormatted.toFixed(2)} BLAZE
-            </div>
-            <div className="text-sm text-gray-600 mt-1">
-              Claimable now
-            </div>
-          </motion.div>
-        </div>
-      )}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="glass-card bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-500/20"
+              >
+                <div className="flex items-center gap-2 text-green-600 mb-2">
+                  <Gift className="w-5 h-5" />
+                  <span className="text-sm font-semibold">Total Earned</span>
+                </div>
+                <div className="text-3xl font-bold text-gray-900">
+                  {stats.totalEarnedFormatted.toFixed(2)}
+                </div>
+                <div className="text-sm text-gray-500 mt-1">
+                  BLAZE lifetime rewards
+                </div>
+              </motion.div>
 
-      {/* Referral Link */}
-      {referralData && (
-        <div className="bg-gradient-to-br from-orange-500/10 to-yellow-500/10 border border-orange-500/20 rounded-xl p-6">
-          <h3 className="font-semibold mb-4">Your Referral Link</h3>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={referralData.referralLink}
-              readOnly
-              className="flex-1 px-4 py-3 bg-white border border-gray-200 rounded-lg text-sm font-mono"
-            />
-            <button
-              onClick={copyReferralLink}
-              className="px-6 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="glass-card bg-gradient-to-br from-orange-500/10 to-yellow-500/10 border border-orange-500/20"
+              >
+                <div className="flex items-center gap-2 text-orange-600 mb-2">
+                  <Gift className="w-5 h-5" />
+                  <span className="text-sm font-semibold">Pending</span>
+                </div>
+                <div className="text-3xl font-bold text-gray-900">
+                  {stats.pendingRewardsFormatted.toFixed(2)}
+                </div>
+                <div className="text-sm text-gray-500 mt-1">
+                  BLAZE claimable now
+                </div>
+              </motion.div>
+            </div>
+          )}
+
+          {/* Referral Link */}
+          {referralData && (
+            <div className="glass-card mb-6 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 border border-blue-500/20">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Referral Link</h3>
+              <div className="flex gap-2 mb-4">
+                <input
+                  type="text"
+                  value={referralData.referralLink}
+                  readOnly
+                  className="flex-1 px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-mono focus:outline-none"
+                />
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={copyReferralLink}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white rounded-xl font-semibold transition-colors flex items-center gap-2 shadow-lg shadow-blue-500/30"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-5 h-5" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-5 h-5" />
+                      Copy
+                    </>
+                  )}
+                </motion.button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                <div className="flex items-start gap-2">
+                  <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Check className="w-3 h-3 text-blue-600" />
+                  </div>
+                  <span className="text-gray-700">Earn 50 BLAZE instantly per sign-up</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Check className="w-3 h-3 text-blue-600" />
+                  </div>
+                  <span className="text-gray-700">Get 10% of their transaction fees</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Check className="w-3 h-3 text-blue-600" />
+                  </div>
+                  <span className="text-gray-700">Lifetime passive income</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Check className="w-3 h-3 text-blue-600" />
+                  </div>
+                  <span className="text-gray-700">Unlimited referrals</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Recent Referrals */}
+          {recentTransactions.length > 0 && (
+            <div className="glass-card mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Referral Activity</h3>
+              <div className="space-y-3">
+                {recentTransactions.map((transaction) => (
+                  <div
+                    key={transaction.id}
+                    className="flex items-center justify-between py-3 border-b border-gray-200 last:border-0"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                        transaction.transactionType === 'signup' ? 'bg-gradient-to-br from-green-500 to-emerald-500' :
+                        transaction.transactionType === 'transaction_fee' ? 'bg-gradient-to-br from-blue-500 to-cyan-500' :
+                        'bg-gradient-to-br from-purple-500 to-pink-500'
+                      }`}>
+                        <Users className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <div className="font-mono text-sm text-gray-900">
+                          {transaction.referredAddress.slice(0, 6)}...{transaction.referredAddress.slice(-4)}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {transaction.transactionType === 'signup' ? 'Signup bonus' : 'Fee share'} • {formatTimeAgo(transaction.timestamp)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className={`font-semibold ${
+                        transaction.status === 'confirmed' ? 'text-green-600' :
+                        transaction.status === 'pending' ? 'text-orange-500' :
+                        'text-gray-500'
+                      }`}>
+                        +{transaction.amountFormatted.toFixed(2)} BLAZE
+                      </div>
+                      <div className="text-xs text-gray-500 capitalize">
+                        {transaction.status}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* No Referrals */}
+          {!isLoading && recentTransactions.length === 0 && (
+            <div className="glass-card text-center py-12 mb-6">
+              <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-700 mb-2">No Referrals Yet</h3>
+              <p className="text-gray-500">Share your referral link to start earning rewards!</p>
+            </div>
+          )}
+
+          {/* Claim Button */}
+          {stats && stats.pendingRewardsFormatted > 0 && (
+            <motion.button
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleClaim}
+              disabled={isClaiming}
+              className="w-full py-4 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white rounded-xl font-semibold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-500/30"
             >
-              {copied ? (
+              {isClaiming ? (
                 <>
-                  <Check className="w-5 h-5" />
-                  Copied!
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Claiming...
                 </>
               ) : (
                 <>
-                  <Copy className="w-5 h-5" />
-                  Copy
+                  <Gift className="w-5 h-5" />
+                  Claim {stats.pendingRewardsFormatted.toFixed(2)} BLAZE
                 </>
               )}
-            </button>
-          </div>
-
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div className="flex items-start gap-2">
-              <div className="w-5 h-5 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-orange-500 text-xs">✓</span>
-              </div>
-              <span>Earn 50 BLAZE instantly per sign-up</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <div className="w-5 h-5 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-orange-500 text-xs">✓</span>
-              </div>
-              <span>Get 10% of their transaction fees</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <div className="w-5 h-5 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-orange-500 text-xs">✓</span>
-              </div>
-              <span>Lifetime passive income</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <div className="w-5 h-5 rounded-full bg-orange-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-orange-500 text-xs">✓</span>
-              </div>
-              <span>Unlimited referrals</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Recent Referrals */}
-      {recentTransactions.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-xl p-6">
-          <h3 className="font-semibold mb-4">Recent Referral Activity</h3>
-          <div className="space-y-3">
-            {recentTransactions.map((transaction) => (
-              <div
-                key={transaction.id}
-                className="flex items-center justify-between py-3 border-b border-gray-200 last:border-0"
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    transaction.transactionType === 'signup' ? 'bg-gradient-to-br from-green-500 to-emerald-500' :
-                    transaction.transactionType === 'transaction_fee' ? 'bg-gradient-to-br from-blue-500 to-cyan-500' :
-                    'bg-gradient-to-br from-purple-500 to-pink-500'
-                  }`}>
-                    <Users className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <div className="font-mono text-sm">
-                      {transaction.referredAddress.slice(0, 6)}...{transaction.referredAddress.slice(-4)}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {transaction.transactionType === 'signup' ? 'Signup bonus' : 'Fee share'} • {formatTimeAgo(transaction.timestamp)}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className={`font-semibold ${
-                    transaction.status === 'confirmed' ? 'text-green-600' :
-                    transaction.status === 'pending' ? 'text-orange-500' :
-                    'text-gray-500'
-                  }`}>
-                    +{transaction.amountFormatted.toFixed(2)} BLAZE
-                  </div>
-                  <div className="text-xs text-gray-500 capitalize">
-                    {transaction.status}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* No Referrals */}
-      {!isLoading && recentTransactions.length === 0 && (
-        <div className="bg-white border border-gray-200 rounded-xl p-6 text-center">
-          <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-600 mb-2">No Referrals Yet</h3>
-          <p className="text-gray-500">Share your referral link to start earning rewards!</p>
-        </div>
-      )}
-
-      {/* Claim Button */}
-      {stats && stats.pendingRewardsFormatted > 0 && (
-        <motion.button
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={handleClaim}
-          disabled={isClaiming}
-          className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-xl font-semibold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-        >
-          {isClaiming ? (
-            <>
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Claiming...
-            </>
-          ) : (
-            <>
-              <Gift className="w-5 h-5" />
-              Claim {stats.pendingRewardsFormatted.toFixed(2)} BLAZE
-            </>
+            </motion.button>
           )}
-        </motion.button>
-      )}
-    </div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
   );
 }

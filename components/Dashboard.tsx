@@ -1980,50 +1980,9 @@ export default function Dashboard() {
       <StakingDashboard isOpen={showStaking} onClose={() => setShowStaking(false)} />
       <GovernanceDashboard isOpen={showGovernance} onClose={() => setShowGovernance(false)} />
       <CashbackTracker isOpen={showCashback} onClose={() => setShowCashback(false)} />
-
-      <AnimatePresence>
-        {showLaunchpad && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
-          >
-            <div className="max-w-4xl mx-auto p-6">
-              <button
-                onClick={() => setShowLaunchpad(false)}
-                className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold"
-              >
-                <ArrowLeft className="w-5 h-5" />
-                Back to Dashboard
-              </button>
-              <LaunchpadDashboard />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showNFTMint && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
-          >
-            <div className="max-w-4xl mx-auto p-6">
-              <button
-                onClick={() => setShowNFTMint(false)}
-                className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold"
-              >
-                <ArrowLeft className="w-5 h-5" />
-                Back to Dashboard
-              </button>
-              <NFTMintDashboard />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <LaunchpadDashboard isOpen={showLaunchpad} onClose={() => setShowLaunchpad(false)} />
+      <ReferralDashboard isOpen={showReferrals} onClose={() => setShowReferrals(false)} />
+      <NFTMintDashboard isOpen={showNFTMint} onClose={() => setShowNFTMint(false)} />
 
       <AnimatePresence>
         {showPresale && (
@@ -2042,28 +2001,6 @@ export default function Dashboard() {
                 Back to Dashboard
               </button>
               <PresaleDashboard />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      
-      {/* Full Screen Modals for Dashboards */}
-      <AnimatePresence>
-        {showReferrals && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
-          >
-            <div className="max-w-4xl mx-auto p-6">
-              <button
-                onClick={() => setShowReferrals(false)}
-                className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold"
-              >
-                ← Back to Dashboard
-              </button>
-              <ReferralDashboard />
             </div>
           </motion.div>
         )}

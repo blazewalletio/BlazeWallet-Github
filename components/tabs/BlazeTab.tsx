@@ -109,13 +109,10 @@ export default function BlazeTab() {
   ];
 
   const renderModal = () => {
-    if (!activeModal || activeModal === 'staking' || activeModal === 'governance' || activeModal === 'cashback') return null; // These have their own modals
+    if (!activeModal || activeModal === 'staking' || activeModal === 'governance' || activeModal === 'cashback' || activeModal === 'launchpad' || activeModal === 'referrals' || activeModal === 'nft-mint') return null; // These have their own modals
 
     const modalContent = {
       presale: <PresaleDashboard />,
-      launchpad: <LaunchpadDashboard />,
-      referrals: <ReferralDashboard />,
-      'nft-mint': <NFTMintDashboard />,
       vesting: isFounder ? <VestingDashboard /> : null,
     };
 
@@ -322,6 +319,18 @@ export default function BlazeTab() {
       />
       <CashbackTracker 
         isOpen={activeModal === 'cashback'} 
+        onClose={() => setActiveModal(null)} 
+      />
+      <LaunchpadDashboard 
+        isOpen={activeModal === 'launchpad'} 
+        onClose={() => setActiveModal(null)} 
+      />
+      <ReferralDashboard 
+        isOpen={activeModal === 'referrals'} 
+        onClose={() => setActiveModal(null)} 
+      />
+      <NFTMintDashboard 
+        isOpen={activeModal === 'nft-mint'} 
         onClose={() => setActiveModal(null)} 
       />
       

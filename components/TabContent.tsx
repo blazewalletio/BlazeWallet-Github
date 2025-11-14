@@ -546,20 +546,9 @@ export default function TabContent({
       <StakingDashboard isOpen={showStaking} onClose={() => setShowStaking(false)} />
       <GovernanceDashboard isOpen={showGovernance} onClose={() => setShowGovernance(false)} />
       <CashbackTracker isOpen={showCashback} onClose={() => setShowCashback(false)} />
-      
-      {showLaunchpad && (
-        <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
-          <div className="p-4">
-            <button 
-              onClick={() => setShowLaunchpad(false)}
-              className="mb-4 flex items-center gap-2 text-gray-600 hover:text-gray-900"
-            >
-              ← Back
-            </button>
-            <LaunchpadDashboard />
-          </div>
-        </div>
-      )}
+      <LaunchpadDashboard isOpen={showLaunchpad} onClose={() => setShowLaunchpad(false)} />
+      <ReferralDashboard isOpen={showReferrals} onClose={() => setShowReferrals(false)} />
+      <NFTMintDashboard isOpen={showNFTMint} onClose={() => setShowNFTMint(false)} />
       
       {showPresale && (
         <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
@@ -571,34 +560,6 @@ export default function TabContent({
               ← Back
             </button>
             <PresaleDashboard />
-          </div>
-        </div>
-      )}
-      
-      {showReferrals && (
-        <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
-          <div className="p-4">
-            <button 
-              onClick={() => setShowReferrals(false)}
-              className="mb-4 flex items-center gap-2 text-gray-600 hover:text-gray-900"
-            >
-              ← Back
-            </button>
-            <ReferralDashboard />
-          </div>
-        </div>
-      )}
-      
-      {showNFTMint && (
-        <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
-          <div className="p-4">
-            <button 
-              onClick={() => setShowNFTMint(false)}
-              className="mb-4 flex items-center gap-2 text-gray-600 hover:text-gray-900"
-            >
-              ← Back
-            </button>
-            <NFTMintDashboard />
           </div>
         </div>
       )}
