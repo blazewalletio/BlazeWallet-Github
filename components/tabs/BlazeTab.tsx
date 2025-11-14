@@ -109,15 +109,13 @@ export default function BlazeTab() {
   ];
 
   const renderModal = () => {
-    if (!activeModal || activeModal === 'staking') return null; // Staking has its own modal
+    if (!activeModal || activeModal === 'staking' || activeModal === 'governance' || activeModal === 'cashback') return null; // These have their own modals
 
     const modalContent = {
       presale: <PresaleDashboard />,
-      governance: <GovernanceDashboard />,
       launchpad: <LaunchpadDashboard />,
       referrals: <ReferralDashboard />,
       'nft-mint': <NFTMintDashboard />,
-      cashback: <CashbackTracker />,
       vesting: isFounder ? <VestingDashboard /> : null,
     };
 
@@ -316,6 +314,14 @@ export default function BlazeTab() {
       {/* Modals */}
       <StakingDashboard 
         isOpen={activeModal === 'staking'} 
+        onClose={() => setActiveModal(null)} 
+      />
+      <GovernanceDashboard 
+        isOpen={activeModal === 'governance'} 
+        onClose={() => setActiveModal(null)} 
+      />
+      <CashbackTracker 
+        isOpen={activeModal === 'cashback'} 
         onClose={() => setActiveModal(null)} 
       />
       

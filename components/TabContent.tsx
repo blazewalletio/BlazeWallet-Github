@@ -544,20 +544,8 @@ export default function TabContent({
       
       {/* Full Screen Modals */}
       <StakingDashboard isOpen={showStaking} onClose={() => setShowStaking(false)} />
-      
-      {showGovernance && (
-        <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
-          <div className="p-4">
-            <button 
-              onClick={() => setShowGovernance(false)}
-              className="mb-4 flex items-center gap-2 text-gray-600 hover:text-gray-900"
-            >
-              ← Back
-            </button>
-            <GovernanceDashboard />
-          </div>
-        </div>
-      )}
+      <GovernanceDashboard isOpen={showGovernance} onClose={() => setShowGovernance(false)} />
+      <CashbackTracker isOpen={showCashback} onClose={() => setShowCashback(false)} />
       
       {showLaunchpad && (
         <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
@@ -611,20 +599,6 @@ export default function TabContent({
               ← Back
             </button>
             <NFTMintDashboard />
-          </div>
-        </div>
-      )}
-      
-      {showCashback && (
-        <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
-          <div className="p-4">
-            <button 
-              onClick={() => setShowCashback(false)}
-              className="mb-4 flex items-center gap-2 text-gray-600 hover:text-gray-900"
-            >
-              ← Back
-            </button>
-            <CashbackTracker />
           </div>
         </div>
       )}

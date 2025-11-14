@@ -1978,28 +1978,8 @@ export default function Dashboard() {
       
       {/* BLAZE Feature Pages */}
       <StakingDashboard isOpen={showStaking} onClose={() => setShowStaking(false)} />
-
-      <AnimatePresence>
-        {showGovernance && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
-          >
-            <div className="max-w-4xl mx-auto p-6">
-              <button
-                onClick={() => setShowGovernance(false)}
-                className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold"
-              >
-                <ArrowLeft className="w-5 h-5" />
-                Back to Dashboard
-              </button>
-              <GovernanceDashboard />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <GovernanceDashboard isOpen={showGovernance} onClose={() => setShowGovernance(false)} />
+      <CashbackTracker isOpen={showCashback} onClose={() => setShowCashback(false)} />
 
       <AnimatePresence>
         {showLaunchpad && (
@@ -2084,27 +2064,6 @@ export default function Dashboard() {
                 ← Back to Dashboard
               </button>
               <ReferralDashboard />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      
-      <AnimatePresence>
-        {showCashback && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
-          >
-            <div className="max-w-4xl mx-auto p-6">
-              <button
-                onClick={() => setShowCashback(false)}
-                className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold"
-              >
-                ← Back to Dashboard
-              </button>
-              <CashbackTracker />
             </div>
           </motion.div>
         )}
