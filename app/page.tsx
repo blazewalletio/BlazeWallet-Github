@@ -125,6 +125,11 @@ export default function Home() {
               // No last_activity timestamp - set it and continue with normal flow
               logger.log('📝 No activity timestamp found - setting initial timestamp');
               sessionStorage.setItem('last_activity', now.toString());
+              
+              // ✅ FIX: Wallet is already unlocked from onboarding - don't try to unlock again!
+              // This prevents double unlock attempt that causes errors on iPhone after Face ID setup
+              logger.log('✅ Wallet already unlocked from onboarding session - skipping unlock');
+              return;
             }
           }
           
