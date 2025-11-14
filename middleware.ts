@@ -35,6 +35,9 @@ export async function middleware(request: NextRequest) {
     '/api/prices-binance',
     '/api/prices-by-address',
     '/api/jupiter-tokens',
+    '/api/ai-portfolio-analysis',
+    '/api/ai-transaction',
+    '/api/ai-risk-scanner',
   ];
   
   if (publicEndpoints.some(ep => pathname.startsWith(ep))) {
