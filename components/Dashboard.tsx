@@ -1943,27 +1943,7 @@ export default function Dashboard() {
       </AnimatePresence>
       
       {/* BLAZE Feature Pages */}
-      <AnimatePresence>
-        {showStaking && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
-          >
-            <div className="max-w-4xl mx-auto p-6">
-              <button
-                onClick={() => setShowStaking(false)}
-                className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold"
-              >
-                <ArrowLeft className="w-5 h-5" />
-                Back to Dashboard
-              </button>
-              <StakingDashboard />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <StakingDashboard isOpen={showStaking} onClose={() => setShowStaking(false)} />
 
       <AnimatePresence>
         {showGovernance && (
