@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Gift, TrendingUp, Zap, ExternalLink, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Gift, TrendingUp, Zap, ExternalLink, AlertCircle, CheckCircle2, ArrowRightLeft, Coins } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { CashbackService, CashbackStats, CashbackTransaction } from '@/lib/cashback-service';
@@ -270,7 +270,7 @@ export default function CashbackTracker({ isOpen, onClose }: CashbackTrackerProp
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center mb-3">
-                  <span className="text-2xl">💸</span>
+                  <ArrowRightLeft className="w-6 h-6 text-white" />
                 </div>
                 <h4 className="font-semibold text-gray-900 mb-2">Make a Transaction</h4>
                 <p className="text-sm text-gray-600">
@@ -279,7 +279,7 @@ export default function CashbackTracker({ isOpen, onClose }: CashbackTrackerProp
               </div>
               <div>
                 <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center mb-3">
-                  <span className="text-2xl">🎁</span>
+                  <Gift className="w-6 h-6 text-white" />
                 </div>
                 <h4 className="font-semibold text-gray-900 mb-2">Earn 2% Cashback</h4>
                 <p className="text-sm text-gray-600">
@@ -288,7 +288,7 @@ export default function CashbackTracker({ isOpen, onClose }: CashbackTrackerProp
               </div>
               <div>
                 <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center mb-3">
-                  <span className="text-2xl">💰</span>
+                  <Coins className="w-6 h-6 text-white" />
                 </div>
                 <h4 className="font-semibold text-gray-900 mb-2">Claim Rewards</h4>
                 <p className="text-sm text-gray-600">
