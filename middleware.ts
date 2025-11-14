@@ -37,6 +37,7 @@ export async function middleware(request: NextRequest) {
     '/api/jupiter-tokens',
     '/api/ai-portfolio-analysis',
     '/api/ai-transaction',
+    '/api/ai-assistant',
     '/api/ai-risk-scanner',
   ];
   
