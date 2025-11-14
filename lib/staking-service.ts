@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { CONTRACTS, BlazeTokenABI } from './contracts-config';
+import { CONTRACTS, BlazeTokenABI, CURRENT_NETWORK } from './contracts-config';
 import { CHAINS } from './chains';
 import { logger } from '@/lib/logger';
 
@@ -39,7 +39,7 @@ export class StakingService {
     // ✅ FIX: Ensure wallet has a provider before creating contract
     if (!wallet.provider) {
       logger.warn('[StakingService] Wallet has no provider, creating one...');
-      const chainConfig = CONTRACTS.network === 'testnet' ? CHAINS.bscTestnet : CHAINS.bsc;
+      const chainConfig = CURRENT_NETWORK === 'testnet' ? CHAINS.bscTestnet : CHAINS.bsc;
       const provider = new ethers.JsonRpcProvider(chainConfig.rpcUrl);
       this.wallet = wallet.connect(provider);
     }
