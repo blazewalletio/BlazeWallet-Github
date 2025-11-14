@@ -176,7 +176,6 @@ export class PriceService {
   private async fetchPriceWithFallback(symbol: string): Promise<number> {
     // Try CoinGecko first
     try {
-      logger.log(`📡 [PriceService] Trying CoinGecko for ${symbol}...`);
       const response = await fetch(`${this.primaryApiUrl}?symbols=${symbol}`, {
         signal: AbortSignal.timeout(5000), // 5 second timeout
       });
@@ -198,16 +197,18 @@ export class PriceService {
           return price;
         }
       } else if (response.status === 400) {
-        // 400 = Token not in CoinGecko mapping, silently try fallback
-        logger.log(`⏭️ [PriceService] ${symbol} not in CoinGecko, trying fallback...`);
+        // ✅ Silent 400 - expected for unknown tokens (meme coins, new tokens)
+        // Will fallback to Binance and then DexScreener
       }
     } catch (error) {
-      logger.warn(`⚠️ [PriceService] CoinGecko failed for ${symbol}:`, error instanceof Error ? error.message : 'Unknown error');
+      // ✅ Don't log network/timeout errors - they're expected
+      if (!(error instanceof Error && (error.name === 'AbortError' || error.message.includes('fetch')))) {
+        logger.warn(`⚠️ [PriceService] CoinGecko failed for ${symbol}:`, error instanceof Error ? error.message : 'Unknown error');
+      }
     }
 
     // Try Binance fallback
     try {
-      logger.log(`📡 [PriceService] Trying Binance for ${symbol}...`);
       const response = await fetch(`${this.fallbackApiUrl}?symbols=${symbol}`, {
         signal: AbortSignal.timeout(5000), // 5 second timeout
       });
@@ -229,11 +230,13 @@ export class PriceService {
           return price;
         }
       } else if (response.status === 400) {
-        // 400 = Token not in Binance either, will use DexScreener
-        logger.log(`⏭️ [PriceService] ${symbol} not in Binance, will use DexScreener fallback`);
+        // ✅ Silent 400 - token not in Binance either, will use DexScreener
       }
     } catch (error) {
-      logger.warn(`⚠️ [PriceService] Binance failed for ${symbol}:`, error instanceof Error ? error.message : 'Unknown error');
+      // ✅ Don't log network/timeout errors - they're expected
+      if (!(error instanceof Error && (error.name === 'AbortError' || error.message.includes('fetch')))) {
+        logger.warn(`⚠️ [PriceService] Binance failed for ${symbol}:`, error instanceof Error ? error.message : 'Unknown error');
+      }
     }
 
     // Silent fail for getPrice() - DexScreener will be used as final fallback
