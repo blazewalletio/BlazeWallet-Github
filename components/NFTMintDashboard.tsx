@@ -245,7 +245,7 @@ export default function NFTMintDashboard({ isOpen, onClose }: NFTMintDashboardPr
                   <Palette className="w-5 h-5" />
                   <span className="text-sm font-semibold">Your NFTs</span>
                 </div>
-                <div className="text-3xl font-bold text-gray-900">{stats.totalNFTs}</div>
+                <div className="text-3xl font-bold text-gray-900">{stats.userNFTs}</div>
                 <div className="text-sm text-gray-500 mt-1">
                   Skins collected
                 </div>
@@ -259,11 +259,11 @@ export default function NFTMintDashboard({ isOpen, onClose }: NFTMintDashboardPr
               >
                 <div className="flex items-center gap-2 text-orange-600 mb-2">
                   <Sparkles className="w-5 h-5" />
-                  <span className="text-sm font-semibold">Rarest Skin</span>
+                  <span className="text-sm font-semibold">Total Minted</span>
                 </div>
-                <div className="text-3xl font-bold text-gray-900">{stats.rareSkins}</div>
+                <div className="text-3xl font-bold text-gray-900">{stats.totalMinted}</div>
                 <div className="text-sm text-gray-500 mt-1">
-                  Legendary items
+                  Across all collections
                 </div>
               </motion.div>
 
@@ -275,11 +275,11 @@ export default function NFTMintDashboard({ isOpen, onClose }: NFTMintDashboardPr
               >
                 <div className="flex items-center gap-2 text-green-600 mb-2">
                   <Crown className="w-5 h-5" />
-                  <span className="text-sm font-semibold">Active Skin</span>
+                  <span className="text-sm font-semibold">Premium Status</span>
                 </div>
-                <div className="text-base font-bold text-gray-900">{stats.activeSkin || 'Default'}</div>
+                <div className="text-base font-bold text-gray-900">{stats.premiumStatus ? 'Active' : 'Inactive'}</div>
                 <div className="text-sm text-gray-500 mt-1">
-                  Currently equipped
+                  {stats.premiumStatus ? `${stats.premiumDiscount}% discount` : 'No discount'}
                 </div>
               </motion.div>
             </div>
