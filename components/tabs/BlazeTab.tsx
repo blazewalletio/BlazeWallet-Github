@@ -109,11 +109,10 @@ export default function BlazeTab() {
   ];
 
   const renderModal = () => {
-    if (!activeModal) return null;
+    if (!activeModal || activeModal === 'staking') return null; // Staking has its own modal
 
     const modalContent = {
       presale: <PresaleDashboard />,
-      staking: <StakingDashboard />,
       governance: <GovernanceDashboard />,
       launchpad: <LaunchpadDashboard />,
       referrals: <ReferralDashboard />,
@@ -315,6 +314,11 @@ export default function BlazeTab() {
       </div>
 
       {/* Modals */}
+      <StakingDashboard 
+        isOpen={activeModal === 'staking'} 
+        onClose={() => setActiveModal(null)} 
+      />
+      
       <AnimatePresence>
         {renderModal()}
       </AnimatePresence>
