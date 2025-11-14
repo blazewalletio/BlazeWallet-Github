@@ -5,6 +5,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { Toaster } from 'react-hot-toast';
 import CSRFTokenInitializer from "@/components/CSRFTokenInitializer";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import "@/lib/console-suppression"; // ✅ Suppress non-critical console errors
 
 const inter = Inter({ subsets: ["latin"] });
 
