@@ -805,36 +805,48 @@ export default function Dashboard() {
     
     if (recentSnapshots.length >= 2) {
       // ✅ Check if snapshots are actually within the requested time range
-      // If not, they're just old data being returned as fallback
+      // AND have enough time span between them to calculate meaningful change
       const now = Date.now();
       const cutoffTime = selectedTimeRange ? now - (selectedTimeRange * 60 * 60 * 1000) : 0;
       const oldestSnapshot = recentSnapshots[0];
+      const newestSnapshot = recentSnapshots[recentSnapshots.length - 1];
       
-      // If the oldest snapshot is older than our time range, we don't have enough recent data
+      // Time span between oldest and newest snapshot (in hours)
+      const timeSpanHours = (newestSnapshot.timestamp - oldestSnapshot.timestamp) / (1000 * 60 * 60);
+      
+      // We need at least 50% of the requested time range to have meaningful data
+      // For 24h (1d), we need at least 12 hours of data
+      // For 72h (3d), we need at least 36 hours of data
+      const minRequiredHours = selectedTimeRange ? selectedTimeRange * 0.5 : 0;
+      
       const hasValidTimeRange = !selectedTimeRange || (oldestSnapshot.timestamp >= cutoffTime);
+      const hasEnoughTimeSpan = timeSpanHours >= minRequiredHours;
       
-      if (hasValidTimeRange) {
-        // We have valid recent data - use portfolio history
+      if (hasValidTimeRange && hasEnoughTimeSpan) {
+        // We have valid recent data with enough time span - use portfolio history
         setChartData(recentSnapshots.map(s => s.balance));
         
         // Update change percentage for selected range (chain-specific)
         const rangeChange = portfolioHistory.getChangePercentage(selectedTimeRange, currentChain, displayAddress);
         updateCurrentChainState({ change24h: rangeChange });
+        logger.log(`[updateChartData] Using portfolio history: ${timeSpanHours.toFixed(1)}h span, ${rangeChange.toFixed(2)}% change`);
       } else {
-        // Snapshots are too old - keep the native change
-        setChartData(recentSnapshots.map(s => s.balance)); // Show old data in chart
+        // Snapshots are too old or too close together - keep the native change
+        setChartData(recentSnapshots.map(s => s.balance)); // Show data in chart
         // Don't update change24h - keep the native token change
-        logger.log(`[updateChartData] Snapshots too old for ${selectedTimeRange}h range, keeping native change`);
+        logger.log(`[updateChartData] Insufficient data (${timeSpanHours.toFixed(1)}h span, need ${minRequiredHours}h), keeping native change`);
       }
     } else if (recentSnapshots.length === 1) {
       // Only 1 snapshot - show it but keep native change percentage
       setChartData(recentSnapshots.map(s => s.balance));
       // Don't update change24h - keep the native token change
+      logger.log(`[updateChartData] Only 1 snapshot, keeping native change`);
     } else {
       // No data yet for this chain/time range
       setChartData([]);
       // ✅ Don't override the native change if there's no history data yet
       // Keep the existing change24h value (from native token price change)
+      logger.log(`[updateChartData] No snapshots, keeping native change`);
     }
   };
 
