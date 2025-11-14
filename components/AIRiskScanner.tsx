@@ -88,49 +88,59 @@ export default function AIRiskScanner({ onClose, initialAddress = '' }: AIRiskSc
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
       >
-        <div className="max-w-4xl mx-auto p-6">
-          {/* Header */}
+        <div className="max-w-4xl mx-auto p-6 pb-24">
+          {/* Back Button */}
           <button
             onClick={onClose}
-            className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors mb-6"
+            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
           >
-            <ArrowLeft className="w-5 h-5" />
-            Back to Dashboard
+            ← Back to Dashboard
           </button>
 
+          {/* Header */}
           <div className="mb-6">
-            <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
-              <Shield className="w-6 h-6 text-orange-500" />
-              Scam Detector
-            </h2>
-            <p className="text-gray-600">Scan addresses and contracts for security risks</p>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-orange-500 rounded-xl flex items-center justify-center">
+                <Shield className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Scam Detector</h2>
+                <p className="text-sm text-gray-600">
+                  Scan addresses and contracts for security risks
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Content */}
           <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4">
+            <div className="glass-card space-y-4">
               {/* Type selector */}
               <div className="flex gap-2">
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => setType('contract')}
-                  className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                  className={`flex-1 px-4 py-3 rounded-xl font-semibold transition-all ${
                     type === 'contract'
-                      ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-sm'
+                      ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg shadow-red-500/30'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
                   Token / Smart contract
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => setType('wallet')}
-                  className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-all ${
+                  className={`flex-1 px-4 py-3 rounded-xl font-semibold transition-all ${
                     type === 'wallet'
-                      ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-sm'
+                      ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg shadow-red-500/30'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
                   Wallet address
-                </button>
+                </motion.button>
               </div>
 
               {/* Input */}
@@ -141,13 +151,13 @@ export default function AIRiskScanner({ onClose, initialAddress = '' }: AIRiskSc
                   onChange={(e) => setAddress(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleScan()}
                   placeholder="Paste any crypto address (EVM, Solana, Bitcoin, etc.)"
-                  className="w-full px-4 py-3 pr-12 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono text-sm"
+                  className="w-full px-4 py-3 pr-12 rounded-xl bg-gray-50 border border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent font-mono text-sm"
                   disabled={loading}
                 />
                 <button
                   onClick={handleScan}
                   disabled={loading || !address.trim()}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-gradient-to-r from-orange-500 to-yellow-500 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-transform"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-all shadow-lg shadow-red-500/20"
                 >
                   {loading ? (
                     <Loader2 className="w-4 h-4 text-white animate-spin" />

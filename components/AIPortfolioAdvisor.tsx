@@ -190,21 +190,27 @@ export default function AIPortfolioAdvisor({
         className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
       >
         <div className="max-w-4xl mx-auto p-6 pb-24">
-          {/* Header */}
+          {/* Back Button */}
           <button
             onClick={onClose}
-            className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors mb-6"
+            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
           >
-            <ArrowLeft className="w-5 h-5" />
-            Back to Dashboard
+            ← Back to Dashboard
           </button>
 
+          {/* Header */}
           <div className="mb-6">
-            <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
-              <PieChart className="w-6 h-6 text-orange-500" />
-              AI Portfolio Advisor
-            </h2>
-            <p className="text-gray-600">Real-time analysis powered by GPT-4o-mini</p>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
+                <PieChart className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">AI Portfolio Advisor</h2>
+                <p className="text-sm text-gray-600">
+                  Real-time analysis powered by GPT-4o-mini
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Loading State */}
