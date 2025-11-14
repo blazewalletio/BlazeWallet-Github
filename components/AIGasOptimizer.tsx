@@ -260,14 +260,14 @@ export default function AIGasOptimizer({ onClose, chain }: AIGasOptimizerProps) 
             <div className={`p-6 rounded-xl border ${getGasLevelColor(analysis.currentGas.level)}`}>
               <div className="text-center">
                 <p className="text-sm font-medium mb-2">Current Gas Price</p>
-                <p className="text-5xl font-bold mb-1">{analysis.currentGas.price.toFixed(1)}</p>
+                <p className="text-5xl font-bold mb-1">{analysis.currentGas.price?.toFixed(1) || '0.0'}</p>
                 <p className="text-sm opacity-75">gwei · {analysis.currentGas.level.replace('_', ' ')}</p>
                 
                 {/* USD Cost for selected transaction type */}
                 <div className="mt-4 pt-4 border-t border-current opacity-50">
                   <p className="text-xs mb-1">Estimated cost for {selectedTxType}</p>
                   <p className="text-2xl font-bold">
-                    ${analysis.currentGas.usdCost[selectedTxType].toFixed(2)}
+                    ${analysis.currentGas.usdCost[selectedTxType]?.toFixed(2) || '0.00'}
                   </p>
                 </div>
               </div>
@@ -300,19 +300,19 @@ export default function AIGasOptimizer({ onClose, chain }: AIGasOptimizerProps) 
                     <div>
                       <p className="text-xs opacity-75 mb-1">Gas Saved</p>
                       <p className="text-lg font-bold">
-                        {analysis.recommendation.estimatedSavings.gas.toFixed(1)} gwei
+                        {analysis.recommendation.estimatedSavings.gas?.toFixed(1) || '0.0'} gwei
                       </p>
                     </div>
                     <div>
                       <p className="text-xs opacity-75 mb-1">USD Saved</p>
                       <p className="text-lg font-bold">
-                        ${analysis.recommendation.estimatedSavings.usd.toFixed(2)}
+                        ${analysis.recommendation.estimatedSavings.usd?.toFixed(2) || '0.00'}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs opacity-75 mb-1">Savings</p>
                       <p className="text-lg font-bold">
-                        {analysis.recommendation.estimatedSavings.percentage.toFixed(0)}%
+                        {analysis.recommendation.estimatedSavings.percentage?.toFixed(0) || '0'}%
                       </p>
                     </div>
                   </div>
@@ -367,19 +367,19 @@ export default function AIGasOptimizer({ onClose, chain }: AIGasOptimizerProps) 
                 <div>
                   <p className="text-xs text-gray-600 mb-1">Low</p>
                   <p className="text-lg font-bold text-green-600">
-                    {analysis.historical.min24h.toFixed(1)}
+                    {analysis.historical.min24h?.toFixed(1) || '0.0'}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-600 mb-1">Average</p>
                   <p className="text-lg font-bold text-orange-600">
-                    {analysis.historical.avg24h.toFixed(1)}
+                    {analysis.historical.avg24h?.toFixed(1) || '0.0'}
                   </p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-600 mb-1">High</p>
                   <p className="text-lg font-bold text-red-600">
-                    {analysis.historical.max24h.toFixed(1)}
+                    {analysis.historical.max24h?.toFixed(1) || '0.0'}
                   </p>
                 </div>
               </div>
@@ -388,11 +388,11 @@ export default function AIGasOptimizer({ onClose, chain }: AIGasOptimizerProps) 
               <div className="relative h-8 bg-gray-100 rounded-full overflow-hidden">
                 <div
                   className="absolute top-0 left-0 h-full bg-gradient-to-r from-green-500 via-yellow-500 to-red-500 transition-all duration-500"
-                  style={{ width: `${analysis.historical.percentile}%` }}
+                  style={{ width: `${analysis.historical.percentile || 50}%` }}
                 />
                 <div className="absolute inset-0 flex items-center justify-center">
                   <span className="text-xs font-medium text-gray-900 bg-white px-2 py-0.5 rounded-full">
-                    {analysis.historical.percentile.toFixed(0)}th percentile
+                    {analysis.historical.percentile?.toFixed(0) || '50'}th percentile
                   </span>
                 </div>
               </div>
