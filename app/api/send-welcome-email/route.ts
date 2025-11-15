@@ -31,9 +31,7 @@ export async function POST(request: NextRequest) {
     const { error: unverifyError } = await supabaseAdmin.auth.admin.updateUserById(
       userId,
       { 
-        email_confirm: false,
-        // Set email_confirmed_at to null explicitly
-        email_confirmed_at: null as any
+        email_confirm: false
       }
     );
 
