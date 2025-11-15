@@ -962,8 +962,8 @@ export default function Dashboard() {
         return renderBlazeContent();
       case 'history':
         return renderHistoryContent();
-      case 'settings':
-        return renderSettingsContent();
+      case 'contacts':
+        return renderContactsContent();
       default:
         return renderWalletContent();
     }
@@ -1670,41 +1670,27 @@ export default function Dashboard() {
   );
 
   // Settings tab content
-  const renderSettingsContent = () => (
+  const renderContactsContent = () => (
     <div className="space-y-4">
-      <div className="glass-card">
-        <h3 className="text-xl font-semibold mb-4">Wallet settings</h3>
-            <div className="space-y-3">
-          <button
-            onClick={() => setShowSettings(true)}
-            className="w-full p-4 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors text-left"
-          >
-            <div className="flex items-center gap-3">
-              <Settings className="w-5 h-5 text-gray-600" />
-                  <div>
-                <div className="font-semibold">General settings</div>
-                <div className="text-sm text-gray-500">Configure wallet preferences</div>
-                    </div>
-                  </div>
-          </button>
-          
-          <button
-            onClick={() => {
-              lockWallet();
-              window.location.reload();
-            }}
-            className="w-full p-4 rounded-xl border border-gray-200 hover:bg-red-50 transition-colors text-left"
-          >
-            <div className="flex items-center gap-3">
-              <LogOut className="w-5 h-5 text-red-600" />
-              <div>
-                <div className="font-semibold text-red-600">Lock wallet</div>
-                <div className="text-sm text-gray-500">Lock your wallet for security</div>
-                </div>
-                  </div>
-          </button>
-                  </div>
-                </div>
+      <div className="glass-card p-6 rounded-2xl">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center">
+            <Users className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Contacts</h2>
+            <p className="text-sm text-gray-600">Manage your saved addresses</p>
+          </div>
+        </div>
+        
+        <button
+          onClick={() => setShowAddressBook(true)}
+          className="w-full p-4 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white transition-colors text-left shadow-sm"
+        >
+          <div className="font-medium">Open Address Book</div>
+          <div className="text-sm text-white/90">View and manage your contacts</div>
+        </button>
+      </div>
     </div>
   );
 
