@@ -19,19 +19,18 @@ function EmailVerifyContent() {
     const verifyEmail = async () => {
       try {
         const token = searchParams.get('token');
-        const email = searchParams.get('email');
 
-        if (!token || !email) {
+        if (!token) {
           throw new Error('Invalid verification link');
         }
 
-        logger.log('🔐 Verifying email:', email);
+        logger.log('🔐 Verifying email with token...');
 
         // Call verification API
         const response = await fetch('/api/auth/verify-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, email }),
+          body: JSON.stringify({ token }),
         });
 
         const data = await response.json();
@@ -47,7 +46,7 @@ function EmailVerifyContent() {
 
         setStatus('success');
         setMessage('Email verified successfully!');
-        logger.log('✅ Email verified:', email);
+        logger.log('✅ Email verified successfully');
 
         // Redirect to dashboard after 2 seconds
         setTimeout(() => {
