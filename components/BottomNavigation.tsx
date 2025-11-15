@@ -8,10 +8,10 @@ import {
   Sparkles, 
   Flame, 
   History, 
-  Settings 
+  Users
 } from 'lucide-react';
 
-export type TabType = 'wallet' | 'ai' | 'blaze' | 'history' | 'settings';
+export type TabType = 'wallet' | 'ai' | 'blaze' | 'history' | 'contacts' | 'account';
 
 interface BottomNavigationProps {
   activeTab: TabType;
@@ -51,9 +51,9 @@ export default function BottomNavigation({ activeTab, onTabChange }: BottomNavig
       icon: History,
     },
     {
-      id: 'settings' as TabType,
-      label: 'Settings',
-      icon: Settings,
+      id: 'contacts' as TabType,
+      label: 'Contacts',
+      icon: Users,
     },
   ];
 

@@ -67,6 +67,12 @@ const ScheduledTransactionsPanel = dynamic(() => import('./ScheduledTransactions
 const SavingsTracker = dynamic(() => import('./SavingsTracker'), { ssr: false });
 const UpcomingTransactionsBanner = dynamic(() => import('./UpcomingTransactionsBanner'), { ssr: false });
 
+// Tab components
+const AIToolsTab = dynamic(() => import('./tabs/AIToolsTab'), { ssr: false });
+const BlazeTab = dynamic(() => import('./tabs/BlazeTab'), { ssr: false });
+const HistoryTab = dynamic(() => import('./tabs/HistoryTab'), { ssr: false });
+const AccountTab = dynamic(() => import('./tabs/AccountTab'), { ssr: false });
+
 export default function Dashboard() {
   const { 
     address, // EVM address (for backward compat)
@@ -964,15 +970,47 @@ export default function Dashboard() {
       case 'wallet':
         return renderWalletContent();
       case 'ai':
-        return renderAIContent();
+        return <AIToolsTab onOpenTool={handleAIToolOpen} />;
       case 'blaze':
-        return renderBlazeContent();
+        return <BlazeTab />;
       case 'history':
-        return renderHistoryContent();
-      case 'settings':
-        return renderSettingsContent();
+        return <HistoryTab />;
+      case 'contacts':
+        // Show address book overlay when contacts tab is active
+        if (!showAddressBook) {
+          setShowAddressBook(true);
+        }
+        return renderWalletContent(); // Show wallet content behind the overlay
+      case 'account':
+        return <AccountTab />;
       default:
         return renderWalletContent();
+    }
+  };
+
+  // Helper function to handle AI tool opening from AIToolsTab
+  const handleAIToolOpen = (toolId: string) => {
+    switch (toolId) {
+      case 'assistant':
+        setShowAIAssistant(true);
+        break;
+      case 'risk-scanner':
+        setShowRiskScanner(true);
+        break;
+      case 'portfolio-advisor':
+        setShowPortfolioAdvisor(true);
+        break;
+      case 'gas-optimizer':
+        setShowGasOptimizer(true);
+        break;
+      case 'conversational':
+        setShowConversationalAssistant(true);
+        break;
+      case 'brain':
+        setShowAIBrain(true);
+        break;
+      default:
+        logger.warn('Unknown AI tool:', toolId);
     }
   };
 
@@ -1774,18 +1812,11 @@ export default function Dashboard() {
                 </motion.button>
                 <motion.button
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => setShowAddressBook(true)}
+                  onClick={() => setActiveTab('account')}
                   className="glass-card p-2.5 sm:p-3 rounded-xl hover:bg-gray-50"
-                  title="Address book"
+                  title="Account settings"
                 >
-                  <Users className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />
-                </motion.button>
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setShowSettings(true)}
-                  className="glass-card p-2.5 sm:p-3 rounded-xl hover:bg-gray-50"
-                >
-                  <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />
+                  <User className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />
                 </motion.button>
                 <motion.button
                   whileTap={{ scale: 0.95 }}
@@ -2155,7 +2186,13 @@ export default function Dashboard() {
       {/* Address Book Modal */}
       <AddressBook
         isOpen={showAddressBook}
-        onClose={() => setShowAddressBook(false)}
+        onClose={() => {
+          setShowAddressBook(false);
+          // If we're on contacts tab, go back to wallet
+          if (activeTab === 'contacts') {
+            setActiveTab('wallet');
+          }
+        }}
       />
 
     </>
