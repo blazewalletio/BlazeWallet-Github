@@ -7,7 +7,6 @@ import {
   Crown, Wallet, ChevronRight, Edit2, Save, X
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
-import { BlockchainService } from '@/lib/blockchain';
 import { CHAINS } from '@/lib/chains';
 import { getCurrentAccount } from '@/lib/account-manager';
 import { logger } from '@/lib/logger';
@@ -250,7 +249,7 @@ export default function ProfilePage({ isOpen, onClose, onOpenSettings }: Profile
                     
                     <div className="flex items-center gap-2">
                       <code className="flex-1 text-xs font-mono text-gray-700 bg-white px-3 py-2 rounded-lg border border-gray-200">
-                        {BlockchainService.formatAddress(item.address, 12)}
+                        {item.address.slice(0, 12)}...{item.address.slice(-10)}
                       </code>
                       <button
                         onClick={() => handleCopyAddress(item.address, item.chainKey)}
