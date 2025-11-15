@@ -60,12 +60,20 @@ export default function ProfilePage({ isOpen, onClose, onOpenSettings }: Profile
   const walletAddresses = Object.entries(CHAINS).map(([key, chain]) => {
     let address = '';
     
-    if (account.evmAddress && (chain.type === 'EVM' || chain.type === 'ethereum')) {
-      address = account.evmAddress;
-    } else if (account.solanaAddress && chain.type === 'solana') {
-      address = account.solanaAddress;
-    } else if (account.bitcoinAddress && chain.type === 'bitcoin') {
-      address = account.bitcoinAddress;
+    // Determine address based on chain key
+    if (key === 'solana') {
+      address = account.solanaAddress || '';
+    } else if (key === 'bitcoin') {
+      address = account.bitcoinAddress || '';
+    } else if (key === 'litecoin') {
+      address = account.litecoinAddress || '';
+    } else if (key === 'dogecoin') {
+      address = account.dogecoinAddress || '';
+    } else if (key === 'bitcoincash') {
+      address = account.bitcoincashAddress || '';
+    } else {
+      // All other chains are EVM-based and use the same address
+      address = account.evmAddress || '';
     }
     
     return {
