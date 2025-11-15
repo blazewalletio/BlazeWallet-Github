@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
+
+// Create admin client with service role key for admin operations
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,8 +27,8 @@ export async function POST(request: NextRequest) {
 
     logger.log('🔐 Verifying email:', email, 'with token:', token.substring(0, 8) + '...');
 
-    // Get user from Supabase
-    const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(token);
+    // Get user from Supabase using admin client
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(token);
 
     if (userError || !user) {
       logger.error('❌ User not found:', userError);
@@ -45,7 +57,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update user to mark as verified
-    const { error: updateError } = await supabase.auth.admin.updateUserById(
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
       token,
       { email_confirm: true }
     );
