@@ -41,7 +41,7 @@ const SettingsModal = dynamic(() => import('./SettingsModal'), { ssr: false });
 const QuickPayModal = dynamic(() => import('./QuickPayModal'), { ssr: false });
 const TokenDetailModal = dynamic(() => import('./TokenDetailModal'), { ssr: false });
 const AddressBook = dynamic(() => import('./AddressBook'), { ssr: false });
-const ProfilePage = dynamic(() => import('./ProfilePage'), { ssr: false });
+const AccountPage = dynamic(() => import('./AccountPage'), { ssr: false });
 
 // ✅ PERFORMANCE FIX: Lazy load dashboards (only load when accessed)
 const FounderDeploy = dynamic(() => import('./FounderDeploy'), { ssr: false });
@@ -2141,8 +2141,8 @@ export default function Dashboard() {
         <Zap className="w-8 h-8 text-white" />
       </motion.button>
 
-      {/* Profile Page Modal */}
-      <ProfilePage
+      {/* Account Page Modal */}
+      <AccountPage
         isOpen={showProfile}
         onClose={() => setShowProfile(false)}
         onOpenSettings={() => {
