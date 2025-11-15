@@ -27,6 +27,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Mark user as unverified first (in case Supabase auto-verified them)
+    const { error: unverifyError } = await supabaseAdmin.auth.admin.updateUserById(
+      userId,
+      { 
+        email_confirm: false,
+        // Set email_confirmed_at to null explicitly
+        email_confirmed_at: null as any
+      }
+    );
+
+    if (unverifyError) {
+      logger.error('Failed to mark user as unverified:', unverifyError);
+      // Continue anyway - not critical
+    }
+
     // Generate secure random token (32 bytes = 64 hex characters)
     const token = crypto.randomBytes(32).toString('hex');
     
