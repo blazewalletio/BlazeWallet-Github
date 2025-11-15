@@ -199,15 +199,6 @@ export default function Dashboard() {
   // Bottom navigation state
   const [activeTab, setActiveTab] = useState<TabType>('wallet');
   
-  // ✅ Auto-open Settings modal when Settings tab is selected
-  useEffect(() => {
-    if (activeTab === 'settings') {
-      setShowSettings(true);
-      // Switch back to wallet tab immediately
-      setActiveTab('wallet');
-    }
-  }, [activeTab]);
-  
   // ✅ NEW: Token refresh state
   const [refreshingToken, setRefreshingToken] = useState<string | null>(null);
   
