@@ -21,11 +21,26 @@ import {
   Download,
   Upload,
   Trash2,
-  Edit3
+  Edit3,
+  LucideIcon
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import SettingsModal from '../SettingsModal';
 import { logger } from '@/lib/logger';
+
+interface AccountItem {
+  icon: LucideIcon;
+  label: string;
+  description: string;
+  action: () => void;
+  badge?: 'verified' | 'unverified';
+  danger?: boolean;
+}
+
+interface AccountSection {
+  title: string;
+  items: AccountItem[];
+}
 
 export default function AccountTab() {
   const { lockWallet } = useWalletStore();
@@ -39,7 +54,7 @@ export default function AccountTab() {
   
   const isEmailVerified = true; // This would come from your auth service
 
-  const accountSections = [
+  const accountSections: AccountSection[] = [
     {
       title: 'Profile',
       items: [
