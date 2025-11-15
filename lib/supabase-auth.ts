@@ -196,25 +196,28 @@ export async function signUpWithEmail(
       // It will be returned to user for backup, but not persisted locally
     }
 
-    // 7. Send custom welcome + verification email via Resend
+    // 7. Send custom welcome + verification email via API route
     try {
-      const { sendEmail, generateWelcomeVerificationEmail } = await import('./email-service');
-      
-      // Generate verification link (using Supabase token from authData)
       const verificationLink = `${typeof window !== 'undefined' ? window.location.origin : 'https://my.blazewallet.io'}/auth/verify?token=${authData.user.id}&email=${encodeURIComponent(email)}`;
       
-      const emailHtml = generateWelcomeVerificationEmail({
-        email,
-        verificationLink,
+      const response = await fetch('/api/send-welcome-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          verificationLink,
+        }),
       });
       
-      await sendEmail({
-        to: email,
-        subject: '🔥 Welcome to BLAZE Wallet - Verify & Start Trading!',
-        html: emailHtml,
-      });
+      const result = await response.json();
       
-      logger.log('✅ Welcome email sent to:', email);
+      if (result.success) {
+        logger.log('✅ Welcome email sent to:', email);
+      } else {
+        logger.error('Failed to send welcome email:', result.error);
+      }
     } catch (emailError) {
       // Don't fail signup if email fails
       logger.error('Failed to send welcome email:', emailError);

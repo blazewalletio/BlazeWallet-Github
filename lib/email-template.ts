@@ -1,4 +1,5 @@
 const ASSET_BASE_URL = 'https://my.blazewallet.io';
+const CACHE_BUST = Date.now(); // Force image reload
 
 export interface WalletWelcomeEmailParams {
   email: string;
@@ -9,13 +10,13 @@ export interface WalletWelcomeEmailParams {
 export function generateWalletStyleEmail(data: WalletWelcomeEmailParams): string {
   const { verificationLink, firstName } = data;
   const greeting = firstName?.trim() ? firstName.trim() : 'there';
-  const heroIcon = `${ASSET_BASE_URL}/email/blaze-icon-white.png`;
+  const heroIcon = `${ASSET_BASE_URL}/email/blaze-icon-white.png?v=${CACHE_BUST}`;
   const featureIcons = {
-    layers: `${ASSET_BASE_URL}/email/icons/layers.png`,
-    shield: `${ASSET_BASE_URL}/email/icons/shield.png`,
-    brain: `${ASSET_BASE_URL}/email/icons/brain.png`,
-    zap: `${ASSET_BASE_URL}/email/icons/zap.png`,
-    check: `${ASSET_BASE_URL}/email/icons/check.png`,
+    layers: `${ASSET_BASE_URL}/email/icons/layers.png?v=${CACHE_BUST}`,
+    shield: `${ASSET_BASE_URL}/email/icons/shield.png?v=${CACHE_BUST}`,
+    brain: `${ASSET_BASE_URL}/email/icons/brain.png?v=${CACHE_BUST}`,
+    zap: `${ASSET_BASE_URL}/email/icons/zap.png?v=${CACHE_BUST}`,
+    check: `${ASSET_BASE_URL}/email/icons/check.png?v=${CACHE_BUST}`,
   };
 
   return `
