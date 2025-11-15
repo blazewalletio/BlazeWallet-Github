@@ -137,12 +137,15 @@ export async function signUpWithEmail(
   password: string
 ): Promise<SignUpResult> {
   try {
-    // 1. Create Supabase user
+    // 1. Create Supabase user (with email confirmation disabled - we handle it via Resend)
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${typeof window !== 'undefined' ? window.location.origin : 'https://my.blazewallet.io'}/auth/verify`,
+        data: {
+          email_confirm: false, // Disable Supabase's built-in email confirmation
+        }
       }
     });
 
