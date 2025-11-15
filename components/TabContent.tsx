@@ -431,7 +431,7 @@ export default function TabContent({
           className="glass-card p-6 rounded-2xl text-left hover:bg-gray-50 transition-colors group"
         >
           <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-            <Users className="w-6 h-6 text-purple-600" />
+            <UsersIcon className="w-6 h-6 text-purple-600" />
           </div>
           <div className="font-semibold text-gray-900 mb-1">Referrals</div>
           <div className="text-sm text-gray-600">Earn rewards</div>
