@@ -8,10 +8,10 @@ import {
   Sparkles, 
   Flame, 
   History, 
-  Users
+  Users 
 } from 'lucide-react';
 
-export type TabType = 'wallet' | 'ai' | 'blaze' | 'history' | 'contacts' | 'account';
+export type TabType = 'wallet' | 'ai' | 'blaze' | 'history' | 'contacts';
 
 interface BottomNavigationProps {
   activeTab: TabType;

@@ -7,7 +7,7 @@ import {
   ArrowUpRight, ArrowDownLeft, ArrowLeft, RefreshCw, Settings, 
   TrendingUp, Eye, EyeOff, Plus, Zap, ChevronRight,
   Repeat, Wallet as WalletIcon, TrendingDown, PieChart, Rocket, CreditCard,
-  Lock, Gift, Vote, Users, Palette, LogOut, User,
+  Lock, Gift, Vote, Users, User, Palette, LogOut,
   Sparkles, Shield, Brain, MessageSquare, Send, Download, ShoppingCart,
   BarChart3, DollarSign, Flame, Target, Clock, CheckCircle2, XCircle, Inbox
 } from 'lucide-react';
@@ -41,6 +41,7 @@ const SettingsModal = dynamic(() => import('./SettingsModal'), { ssr: false });
 const QuickPayModal = dynamic(() => import('./QuickPayModal'), { ssr: false });
 const TokenDetailModal = dynamic(() => import('./TokenDetailModal'), { ssr: false });
 const AddressBook = dynamic(() => import('./AddressBook'), { ssr: false });
+const ProfilePage = dynamic(() => import('./ProfilePage'), { ssr: false });
 
 // ✅ PERFORMANCE FIX: Lazy load dashboards (only load when accessed)
 const FounderDeploy = dynamic(() => import('./FounderDeploy'), { ssr: false });
@@ -66,12 +67,6 @@ const AISettingsModal = dynamic(() => import('./AISettingsModal'), { ssr: false 
 const ScheduledTransactionsPanel = dynamic(() => import('./ScheduledTransactionsPanel'), { ssr: false });
 const SavingsTracker = dynamic(() => import('./SavingsTracker'), { ssr: false });
 const UpcomingTransactionsBanner = dynamic(() => import('./UpcomingTransactionsBanner'), { ssr: false });
-
-// Tab components
-const AIToolsTab = dynamic(() => import('./tabs/AIToolsTab'), { ssr: false });
-const BlazeTab = dynamic(() => import('./tabs/BlazeTab'), { ssr: false });
-const HistoryTab = dynamic(() => import('./tabs/HistoryTab'), { ssr: false });
-const AccountTab = dynamic(() => import('./tabs/AccountTab'), { ssr: false });
 
 export default function Dashboard() {
   const { 
@@ -127,6 +122,7 @@ export default function Dashboard() {
   const [showPresale, setShowPresale] = useState(false);
   const [showVesting, setShowVesting] = useState(false);
   const [showAddressBook, setShowAddressBook] = useState(false);
+  const [showProfile, setShowProfile] = useState(false); // NEW: Profile/Account page
   
   // ✅ PHASE 1: Chain-Scoped State Management
   // Per-chain state to prevent cross-chain contamination
@@ -202,6 +198,15 @@ export default function Dashboard() {
 
   // Bottom navigation state
   const [activeTab, setActiveTab] = useState<TabType>('wallet');
+  
+  // ✅ Auto-open Settings modal when Settings tab is selected
+  useEffect(() => {
+    if (activeTab === 'settings') {
+      setShowSettings(true);
+      // Switch back to wallet tab immediately
+      setActiveTab('wallet');
+    }
+  }, [activeTab]);
   
   // ✅ NEW: Token refresh state
   const [refreshingToken, setRefreshingToken] = useState<string | null>(null);
@@ -961,47 +966,15 @@ export default function Dashboard() {
       case 'wallet':
         return renderWalletContent();
       case 'ai':
-        return <AIToolsTab onOpenTool={handleAIToolOpen} />;
+        return renderAIContent();
       case 'blaze':
-        return <BlazeTab />;
+        return renderBlazeContent();
       case 'history':
-        return <HistoryTab />;
-      case 'contacts':
-        // Show address book overlay when contacts tab is active
-        if (!showAddressBook) {
-          setShowAddressBook(true);
-        }
-        return renderWalletContent(); // Show wallet content behind the overlay
-      case 'account':
-        return <AccountTab />;
+        return renderHistoryContent();
+      case 'settings':
+        return renderSettingsContent();
       default:
         return renderWalletContent();
-    }
-  };
-
-  // Helper function to handle AI tool opening from AIToolsTab
-  const handleAIToolOpen = (toolId: string) => {
-    switch (toolId) {
-      case 'assistant':
-        setShowAIAssistant(true);
-        break;
-      case 'risk-scanner':
-        setShowAIRiskScanner(true);
-        break;
-      case 'portfolio-advisor':
-        setShowAIPortfolioAdvisor(true);
-        break;
-      case 'gas-optimizer':
-        setShowAIGasOptimizer(true);
-        break;
-      case 'conversational':
-        setShowAIChat(true);
-        break;
-      case 'brain':
-        setShowAIBrain(true);
-        break;
-      default:
-        logger.warn('Unknown AI tool:', toolId);
     }
   };
 
@@ -1480,6 +1453,270 @@ export default function Dashboard() {
     </div>
   );
 
+  // AI Tools tab content
+  const renderAIContent = () => (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.32 }}
+            className="glass-card mt-4 relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-500/20 to-pink-500/20 blur-3xl" />
+            <div className="relative z-10">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-semibold flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-purple-500" />
+                  AI Tools
+                </h3>
+                <button
+                  onClick={() => setShowAISettings(true)}
+                  className="text-xs text-purple-500 hover:text-purple-600 flex items-center gap-1"
+                >
+                  <Settings className="w-3 h-3" />
+                  Configureer
+                </button>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {/* AI Transaction Assistant */}
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowAIAssistant(true)}
+                  className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left"
+                >
+                  <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center mb-3">
+                    <Sparkles className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="font-semibold mb-1">AI Assistent</div>
+                  <div className="text-xs text-slate-400">Natural language transactions</div>
+                </motion.button>
+
+                {/* AI Risk Scanner */}
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowAIRiskScanner(true)}
+                  className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left"
+                >
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-lg flex items-center justify-center mb-3">
+                    <Shield className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="font-semibold mb-1">Scam Detector</div>
+                  <div className="text-xs text-slate-400">Real-time risico scanning</div>
+                </motion.button>
+
+                {/* AI Portfolio Advisor */}
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowAIPortfolioAdvisor(true)}
+                  className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left"
+                >
+                  <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-500 rounded-lg flex items-center justify-center mb-3">
+                    <PieChart className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="font-semibold mb-1">Portfolio Advisor</div>
+                  <div className="text-xs text-slate-400">Gepersonaliseerde tips</div>
+                </motion.button>
+
+                {/* AI Gas Optimizer */}
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowAIGasOptimizer(true)}
+                  className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left"
+                >
+                  <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center mb-3">
+                    <Zap className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="font-semibold mb-1">Gas Optimizer</div>
+                  <div className="text-xs text-slate-400">Bespaar op gas fees</div>
+                </motion.button>
+
+                {/* AI Chat Assistant */}
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowAIChat(true)}
+                  className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left"
+                >
+                  <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg flex items-center justify-center mb-3">
+                    <MessageSquare className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="font-semibold mb-1">Crypto Expert</div>
+                  <div className="text-xs text-slate-400">24/7 AI support</div>
+                </motion.button>
+
+                {/* AI Brain - All Features */}
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowAIBrain(true)}
+                  className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20"
+                >
+                  <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-lg flex items-center justify-center mb-3">
+                    <Brain className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="font-semibold mb-1">AI Brain</div>
+                  <div className="text-xs text-slate-400">Alles in één interface</div>
+                </motion.button>
+              </div>
+            </div>
+          </motion.div>
+  );
+
+  // Blaze Features tab content
+  const renderBlazeContent = () => (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+            className="glass-card"
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold flex items-center gap-2">
+                <Flame className="w-5 h-5 text-orange-500" />
+                <span>BLAZE Features</span>
+              </h3>
+              <PremiumBadge isPremium={false} tokenBalance={0} threshold={10000} />
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {/* Staking */}
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowStaking(true)}
+                className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left"
+              >
+                <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center mb-3">
+                  <Lock className="w-5 h-5 text-white" />
+                </div>
+                <div className="font-semibold mb-1">Staking</div>
+                <div className="text-xs text-slate-400">Earn up to 25% APY</div>
+              </motion.button>
+
+              {/* Cashback */}
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowCashback(true)}
+                className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left"
+              >
+                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center mb-3">
+                  <Gift className="w-5 h-5 text-white" />
+                </div>
+                <div className="font-semibold mb-1">Cashback</div>
+                <div className="text-xs text-slate-400">2% on all transactions</div>
+              </motion.button>
+
+              {/* Governance */}
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowGovernance(true)}
+                className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left"
+              >
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center mb-3">
+                  <Vote className="w-5 h-5 text-white" />
+                </div>
+                <div className="font-semibold mb-1">Governance</div>
+                <div className="text-xs text-slate-400">Vote on proposals</div>
+              </motion.button>
+
+              {/* Launchpad */}
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowLaunchpad(true)}
+                className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left"
+              >
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mb-3">
+                  <Rocket className="w-5 h-5 text-white" />
+                </div>
+                <div className="font-semibold mb-1">Launchpad</div>
+                <div className="text-xs text-slate-400">Early access to IDOs</div>
+              </motion.button>
+
+              {/* Referrals */}
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowReferrals(true)}
+                className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left"
+              >
+                <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center mb-3">
+                  <Users className="w-5 h-5 text-white" />
+                </div>
+                <div className="font-semibold mb-1">Referrals</div>
+                <div className="text-xs text-slate-400">Earn 50 BLAZE/referral</div>
+              </motion.button>
+
+              {/* NFT Collection */}
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowNFTMint(true)}
+                className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left"
+              >
+                <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-purple-500 rounded-lg flex items-center justify-center mb-3">
+                  <Palette className="w-5 h-5 text-white" />
+                </div>
+                <div className="font-semibold mb-1">NFT Skins</div>
+                <div className="text-xs text-slate-400">Exclusive wallet themes</div>
+              </motion.button>
+
+              {/* Vesting (Founder Only) */}
+              {isFounder && (
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowVesting(true)}
+                  className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left border-2 border-purple-500/30"
+                >
+                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-lg flex items-center justify-center mb-3">
+                    <Lock className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="font-semibold mb-1">Vesting</div>
+                  <div className="text-xs text-slate-400">120M tokens locked</div>
+                </motion.button>
+              )}
+            </div>
+          </motion.div>
+  );
+
+  // History tab content
+  const renderHistoryContent = () => (
+    <TransactionHistory />
+  );
+
+  // Settings tab content
+  const renderSettingsContent = () => (
+    <div className="space-y-4">
+      <div className="glass-card">
+        <h3 className="text-xl font-semibold mb-4">Wallet settings</h3>
+            <div className="space-y-3">
+          <button
+            onClick={() => setShowSettings(true)}
+            className="w-full p-4 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors text-left"
+          >
+            <div className="flex items-center gap-3">
+              <Settings className="w-5 h-5 text-gray-600" />
+                  <div>
+                <div className="font-semibold">General settings</div>
+                <div className="text-sm text-gray-500">Configure wallet preferences</div>
+                    </div>
+                  </div>
+          </button>
+          
+          <button
+            onClick={() => {
+              lockWallet();
+              window.location.reload();
+            }}
+            className="w-full p-4 rounded-xl border border-gray-200 hover:bg-red-50 transition-colors text-left"
+          >
+            <div className="flex items-center gap-3">
+              <LogOut className="w-5 h-5 text-red-600" />
+              <div>
+                <div className="font-semibold text-red-600">Lock wallet</div>
+                <div className="text-sm text-gray-500">Lock your wallet for security</div>
+                </div>
+                  </div>
+          </button>
+                  </div>
+                </div>
+    </div>
+  );
+
   return (
     <>
       <div className="min-h-screen pb-24">
@@ -1539,11 +1776,19 @@ export default function Dashboard() {
                 </motion.button>
                 <motion.button
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => setActiveTab('account')}
+                  onClick={() => setShowProfile(true)}
                   className="glass-card p-2.5 sm:p-3 rounded-xl hover:bg-gray-50"
-                  title="Account settings"
+                  title="Profile"
                 >
                   <User className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowSettings(true)}
+                  className="glass-card p-2.5 sm:p-3 rounded-xl hover:bg-gray-50"
+                  title="Settings"
+                >
+                  <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />
                 </motion.button>
                 <motion.button
                   whileTap={{ scale: 0.95 }}
@@ -1910,16 +2155,20 @@ export default function Dashboard() {
         <Zap className="w-8 h-8 text-white" />
       </motion.button>
 
+      {/* Profile Page Modal */}
+      <ProfilePage
+        isOpen={showProfile}
+        onClose={() => setShowProfile(false)}
+        onOpenSettings={() => {
+          setShowProfile(false);
+          setShowSettings(true);
+        }}
+      />
+
       {/* Address Book Modal */}
       <AddressBook
         isOpen={showAddressBook}
-        onClose={() => {
-          setShowAddressBook(false);
-          // If we're on contacts tab, go back to wallet
-          if (activeTab === 'contacts') {
-            setActiveTab('wallet');
-          }
-        }}
+        onClose={() => setShowAddressBook(false)}
       />
 
     </>
