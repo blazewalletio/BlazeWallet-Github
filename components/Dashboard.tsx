@@ -199,6 +199,15 @@ export default function Dashboard() {
   // Bottom navigation state
   const [activeTab, setActiveTab] = useState<TabType>('wallet');
   
+  // ✅ Auto-open AddressBook modal when Contacts tab is selected
+  useEffect(() => {
+    if (activeTab === 'contacts') {
+      setShowAddressBook(true);
+      // Switch back to wallet tab immediately
+      setActiveTab('wallet');
+    }
+  }, [activeTab]);
+  
   // ✅ NEW: Token refresh state
   const [refreshingToken, setRefreshingToken] = useState<string | null>(null);
   
