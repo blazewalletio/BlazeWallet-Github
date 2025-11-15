@@ -201,8 +201,6 @@ export async function signUpWithEmail(
 
     // 7. Send custom welcome + verification email via API route
     try {
-      const verificationLink = `${typeof window !== 'undefined' ? window.location.origin : 'https://my.blazewallet.io'}/auth/verify?token=${authData.user.id}&email=${encodeURIComponent(email)}`;
-      
       const response = await fetch('/api/send-welcome-email', {
         method: 'POST',
         headers: {
@@ -210,7 +208,7 @@ export async function signUpWithEmail(
         },
         body: JSON.stringify({
           email,
-          verificationLink,
+          userId: authData.user.id, // Send user ID to generate secure token server-side
         }),
       });
       

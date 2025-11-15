@@ -16,30 +16,55 @@ const supabaseAdmin = createClient(
 
 export async function POST(request: NextRequest) {
   try {
-    const { token, email } = await request.json();
+    const { token } = await request.json();
 
-    if (!token || !email) {
+    if (!token) {
       return NextResponse.json(
-        { success: false, error: 'Missing token or email' },
+        { success: false, error: 'Missing verification token' },
         { status: 400 }
       );
     }
 
-    logger.log('🔐 Verifying email:', email, 'with token:', token.substring(0, 8) + '...');
+    logger.log('🔐 Verifying email with token:', token.substring(0, 8) + '...');
+
+    // Lookup token in database
+    const { data: tokenData, error: tokenError } = await supabaseAdmin
+      .from('email_verification_tokens')
+      .select('*')
+      .eq('token', token)
+      .is('used_at', null) // Token not already used
+      .single();
+
+    if (tokenError || !tokenData) {
+      logger.error('❌ Invalid or expired token:', tokenError);
+      return NextResponse.json(
+        { success: false, error: 'Invalid or expired verification link' },
+        { status: 400 }
+      );
+    }
+
+    // Check if token expired
+    if (new Date(tokenData.expires_at) < new Date()) {
+      logger.error('❌ Token expired');
+      return NextResponse.json(
+        { success: false, error: 'Verification link expired. Please request a new one.' },
+        { status: 400 }
+      );
+    }
 
     // Get user from Supabase using admin client
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(token);
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(tokenData.user_id);
 
     if (userError || !user) {
       logger.error('❌ User not found:', userError);
       return NextResponse.json(
-        { success: false, error: 'Invalid verification link' },
+        { success: false, error: 'User not found' },
         { status: 400 }
       );
     }
 
-    // Check if email matches
-    if (user.email?.toLowerCase() !== email.toLowerCase()) {
+    // Check if email matches (extra security)
+    if (user.email?.toLowerCase() !== tokenData.email.toLowerCase()) {
       logger.error('❌ Email mismatch');
       return NextResponse.json(
         { success: false, error: 'Invalid verification link' },
@@ -49,6 +74,12 @@ export async function POST(request: NextRequest) {
 
     // Check if already verified
     if (user.email_confirmed_at) {
+      // Mark token as used anyway
+      await supabaseAdmin
+        .from('email_verification_tokens')
+        .update({ used_at: new Date().toISOString() })
+        .eq('token', token);
+
       logger.log('✅ Email already verified');
       return NextResponse.json({
         success: true,
@@ -58,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     // Update user to mark as verified
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-      token,
+      tokenData.user_id,
       { email_confirm: true }
     );
 
@@ -70,7 +101,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    logger.log('✅ Email verified successfully:', email);
+    // Mark token as used
+    await supabaseAdmin
+      .from('email_verification_tokens')
+      .update({ used_at: new Date().toISOString() })
+      .eq('token', token);
+
+    logger.log('✅ Email verified successfully:', tokenData.email);
 
     return NextResponse.json({
       success: true,
