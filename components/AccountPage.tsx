@@ -11,6 +11,7 @@ import {
 import { useWalletStore } from '@/lib/wallet-store';
 import { CHAINS } from '@/lib/chains';
 import { getCurrentAccount } from '@/lib/account-manager';
+import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
 
 interface AccountPageProps {
@@ -25,17 +26,34 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [showBalance, setShowBalance] = useState(true);
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
   
   useEffect(() => {
-    if (isOpen) {
-      const currentAccount = getCurrentAccount();
-      setAccount(currentAccount);
-      setDisplayName(currentAccount?.displayName || 'BLAZE User');
-      
-      // Load balance visibility preference
-      const balanceVisibility = localStorage.getItem('showBalance');
-      setShowBalance(balanceVisibility !== 'false');
-    }
+    const loadAccountData = async () => {
+      if (isOpen) {
+        const currentAccount = getCurrentAccount();
+        setAccount(currentAccount);
+        setDisplayName(currentAccount?.displayName || 'BLAZE User');
+        
+        // Load balance visibility preference
+        const balanceVisibility = localStorage.getItem('showBalance');
+        setShowBalance(balanceVisibility !== 'false');
+
+        // Check if email is verified from Supabase
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            // Check if email_confirmed_at is set (means email is verified)
+            setIsEmailVerified(!!user.email_confirmed_at);
+            logger.log('Email verified status:', !!user.email_confirmed_at);
+          }
+        } catch (error) {
+          logger.error('Failed to load user verification status:', error);
+        }
+      }
+    };
+
+    loadAccountData();
   }, [isOpen]);
 
   const handleSaveDisplayName = () => {
@@ -108,9 +126,11 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             <div className="flex items-start gap-4">
               <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center flex-shrink-0 shadow-md relative">
                 <User className="w-7 h-7 text-white" />
-                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center border-2 border-white">
-                  <CheckCircle className="w-4 h-4 text-white" />
-                </div>
+                {isEmailVerified && (
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center border-2 border-white">
+                    <CheckCircle className="w-4 h-4 text-white" />
+                  </div>
+                )}
               </div>
               
               <div className="flex-1 min-w-0">
@@ -145,10 +165,12 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                       <h2 className="text-lg font-bold text-gray-900 truncate">
                         {displayName}
                       </h2>
-                      <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded-full flex items-center gap-1">
-                        <CheckCircle className="w-3 h-3" />
-                        Verified
-                      </span>
+                      {isEmailVerified && (
+                        <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded-full flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" />
+                          Verified
+                        </span>
+                      )}
                     </>
                   )}
                 </div>
@@ -183,9 +205,16 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <div className="flex-1 text-left">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-gray-900">Email</span>
-                    <span className="flex items-center gap-1 text-green-600 text-xs">
-                      <CheckCircle className="w-3 h-3" />
-                    </span>
+                    {isEmailVerified ? (
+                      <span className="flex items-center gap-1 text-green-600 text-xs">
+                        <CheckCircle className="w-3 h-3" />
+                        Verified
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-orange-600 text-xs">
+                        Pending verification
+                      </span>
+                    )}
                   </div>
                   <p className="text-sm text-gray-600 truncate">{account.email || 'user@blazewallet.io'}</p>
                 </div>
