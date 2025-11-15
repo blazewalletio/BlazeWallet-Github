@@ -141,6 +141,9 @@ export async function signUpWithEmail(
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: `${typeof window !== 'undefined' ? window.location.origin : 'https://my.blazewallet.io'}/auth/verify`,
+      }
     });
 
     if (authError) {
@@ -184,12 +187,37 @@ export async function signUpWithEmail(
       localStorage.setItem('has_password', 'true'); // Password is already set via email
       localStorage.setItem('encrypted_wallet', encryptedWallet); // Store encrypted version
       localStorage.setItem('wallet_created_with_email', 'true'); // Flag to skip password setup modal
-      localStorage.setItem('supabase_user_id', authData.user!.id); // ✅ NEW: Store Supabase user ID for biometric binding
+      localStorage.setItem('supabase_user_id', authData.user!.id); // ✅ Store Supabase user ID for biometric binding
+      localStorage.setItem('email_verified', 'false'); // ✅ NEW: Track verification status
       // Session flag to skip unlock modal in same session
       sessionStorage.setItem('wallet_unlocked_this_session', 'true');
       // ✅ SECURITY: Addresses are NEVER stored - they're derived from mnemonic on unlock
       // ✅ SECURITY: DO NOT store plaintext mnemonic in localStorage for email signups
       // It will be returned to user for backup, but not persisted locally
+    }
+
+    // 7. Send custom welcome + verification email via Resend
+    try {
+      const { sendEmail, generateWelcomeVerificationEmail } = await import('./email-service');
+      
+      // Generate verification link (using Supabase token from authData)
+      const verificationLink = `${typeof window !== 'undefined' ? window.location.origin : 'https://my.blazewallet.io'}/auth/verify?token=${authData.user.id}&email=${encodeURIComponent(email)}`;
+      
+      const emailHtml = generateWelcomeVerificationEmail({
+        email,
+        verificationLink,
+      });
+      
+      await sendEmail({
+        to: email,
+        subject: '🔥 Welcome to BLAZE Wallet - Verify & Start Trading!',
+        html: emailHtml,
+      });
+      
+      logger.log('✅ Welcome email sent to:', email);
+    } catch (emailError) {
+      // Don't fail signup if email fails
+      logger.error('Failed to send welcome email:', emailError);
     }
 
     return {
