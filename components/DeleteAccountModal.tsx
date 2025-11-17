@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
-import { AccountService } from '@/lib/account-service';
 
 interface DeleteAccountModalProps {
   isOpen: boolean;
