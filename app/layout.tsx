@@ -5,6 +5,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { Toaster } from 'react-hot-toast';
 import CSRFTokenInitializer from "@/components/CSRFTokenInitializer";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import "@/lib/console-suppression"; // ✅ Suppress non-critical console errors
 
 const inter = Inter({ subsets: ["latin"] });
@@ -55,17 +56,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="nl">
+    <html lang="en">
       <body className={inter.className}>
-        <ErrorBoundary>
-          <CSRFTokenInitializer />
-          <PWAInstallPrompt />
-          <div className="h-screen overflow-hidden bg-gray-50">
-            <main className="relative h-full overflow-y-auto">
-              {children}
-            </main>
-          </div>
-          <Toaster 
+        <CurrencyProvider>
+          <ErrorBoundary>
+            <CSRFTokenInitializer />
+            <PWAInstallPrompt />
+            <div className="h-screen overflow-hidden bg-gray-50">
+              <main className="relative h-full overflow-y-auto">
+                {children}
+              </main>
+            </div>
+            <Toaster 
             position="top-center"
             toastOptions={{
               duration: 4000,
@@ -103,7 +105,8 @@ export default function RootLayout({
               },
             }}
           />
-        </ErrorBoundary>
+          </ErrorBoundary>
+        </CurrencyProvider>
       </body>
     </html>
   );

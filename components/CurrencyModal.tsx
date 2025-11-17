@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, DollarSign, Check } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { SupportedCurrency, CURRENCIES } from '@/lib/currency-service';
 import { logger } from '@/lib/logger';
 
 interface CurrencyModalProps {
@@ -19,48 +20,19 @@ export default function CurrencyModal({
   currentCurrency,
   onSuccess
 }: CurrencyModalProps) {
-  const [selectedCurrency, setSelectedCurrency] = useState(currentCurrency);
+  const { setCurrency: updateCurrency } = useCurrency();
+  const [selectedCurrency, setSelectedCurrency] = useState<SupportedCurrency>(currentCurrency as SupportedCurrency);
   const [isLoading, setIsLoading] = useState(false);
 
-  const currencies = [
-    { code: 'USD', name: 'US Dollar', symbol: '$' },
-    { code: 'EUR', name: 'Euro', symbol: '€' },
-    { code: 'GBP', name: 'British Pound', symbol: '£' },
-    { code: 'JPY', name: 'Japanese Yen', symbol: '¥' },
-    { code: 'AUD', name: 'Australian Dollar', symbol: 'A$' },
-    { code: 'CAD', name: 'Canadian Dollar', symbol: 'C$' },
-    { code: 'CHF', name: 'Swiss Franc', symbol: 'Fr' },
-    { code: 'CNY', name: 'Chinese Yuan', symbol: '¥' },
-    { code: 'BTC', name: 'Bitcoin', symbol: '₿' },
-    { code: 'ETH', name: 'Ethereum', symbol: 'Ξ' }
-  ];
+  const currencies = Object.values(CURRENCIES);
 
   const handleSave = async () => {
     setIsLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      // Update currency in Supabase
-      const { error } = await supabase
-        .from('user_profiles')
-        .update({ preferred_currency: selectedCurrency })
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      // Also store in localStorage for immediate effect
-      localStorage.setItem('preferredCurrency', selectedCurrency);
-
-      // Log activity
-      await supabase.rpc('log_user_activity', {
-        p_user_id: user.id,
-        p_activity_type: 'settings_change',
-        p_description: `Currency changed to ${selectedCurrency}`,
-        p_metadata: JSON.stringify({ currency: selectedCurrency })
-      });
-
+      // Update currency via context (handles Supabase + localStorage)
+      await updateCurrency(selectedCurrency);
+      
       logger.log('Currency updated to:', selectedCurrency);
       onSuccess();
       onClose();
