@@ -18,7 +18,7 @@ import { logger } from '@/lib/logger';
 import TwoFactorModal from './TwoFactorModal';
 import ChangePasswordModal from './ChangePasswordModal';
 import ThemeSelectorModal from './ThemeSelectorModal';
-import LanguageCurrencyModal from './LanguageCurrencyModal';
+import CurrencyModal from './CurrencyModal';
 import NotificationSettingsModal from './NotificationSettingsModal';
 import AutoLockSettingsModal from './AutoLockSettingsModal';
 import DeleteAccountModal from './DeleteAccountModal';
@@ -110,7 +110,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
   const [show2FAModal, setShow2FAModal] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showThemeSelector, setShowThemeSelector] = useState(false);
-  const [showLanguageCurrency, setShowLanguageCurrency] = useState(false);
+  const [showCurrency, setShowCurrency] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAutoLock, setShowAutoLock] = useState(false);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
@@ -1101,15 +1101,15 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
               </button>
 
               <button 
-                onClick={() => setShowLanguageCurrency(true)}
+                onClick={() => setShowCurrency(true)}
                 className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
               >
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <Globe className="w-5 h-5 text-blue-600" />
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                  <Globe className="w-5 h-5 text-green-600" />
                 </div>
                 <div className="flex-1 text-left">
-                  <div className="font-semibold text-gray-900">Language & Currency</div>
-                  <p className="text-sm text-gray-600">English • {userProfile?.preferred_currency || 'USD'}</p>
+                  <div className="font-semibold text-gray-900">Currency</div>
+                  <p className="text-sm text-gray-600">{userProfile?.preferred_currency || 'USD'}</p>
                 </div>
                 <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
               </button>
@@ -1264,10 +1264,9 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
         onSuccess={handleReloadData}
       />
       
-      <LanguageCurrencyModal
-        isOpen={showLanguageCurrency}
-        onClose={() => setShowLanguageCurrency(false)}
-        currentLanguage="en"
+      <CurrencyModal
+        isOpen={showCurrency}
+        onClose={() => setShowCurrency(false)}
         currentCurrency={userProfile?.preferred_currency || 'USD'}
         onSuccess={handleReloadData}
       />
