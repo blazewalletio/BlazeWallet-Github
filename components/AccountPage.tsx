@@ -22,6 +22,7 @@ import LanguageCurrencyModal from './LanguageCurrencyModal';
 import NotificationSettingsModal from './NotificationSettingsModal';
 import AutoLockSettingsModal from './AutoLockSettingsModal';
 import DeleteAccountModal from './DeleteAccountModal';
+import ChangeEmailModal from './ChangeEmailModal';
 
 interface AccountPageProps {
   isOpen: boolean;
@@ -113,6 +114,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAutoLock, setShowAutoLock] = useState(false);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [showChangeEmail, setShowChangeEmail] = useState(false);
 
   useEffect(() => {
     const loadAccountData = async () => {
@@ -969,7 +971,10 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
           >
             <h3 className="text-lg font-bold text-gray-900 mb-3 px-1">Security</h3>
             <div className="glass-card rounded-2xl overflow-hidden">
-              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100">
+              <button 
+                onClick={() => setShowChangeEmail(true)}
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
+              >
                 <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                   <Mail className="w-5 h-5 text-blue-600" />
                 </div>
@@ -1284,6 +1289,13 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
       <DeleteAccountModal
         isOpen={showDeleteAccount}
         onClose={() => setShowDeleteAccount(false)}
+      />
+      
+      <ChangeEmailModal
+        isOpen={showChangeEmail}
+        onClose={() => setShowChangeEmail(false)}
+        currentEmail={userEmail}
+        onSuccess={handleReloadData}
       />
     </AnimatePresence>
   );
