@@ -14,15 +14,7 @@ export default function Mail1() {
     
     <!-- Header -->
     <div style="background: white; padding: 40px 40px 32px; border-bottom: 1px solid #f1f1f1;">
-      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
-        <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #f97316 0%, #fb923c 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
-          <span style="font-size: 24px;">🔥</span>
-        </div>
-        <div>
-          <div style="font-size: 20px; font-weight: 700; color: #111827;">BLAZE</div>
-          <div style="font-size: 12px; color: #6b7280; font-weight: 500;">Wallet</div>
-        </div>
-      </div>
+      <img src="https://my.blazewallet.io/blaze-logo-official.png" alt="BLAZE Wallet" width="140" height="auto" style="display: block; margin-bottom: 24px;" />
     </div>
 
     <!-- Main Content -->

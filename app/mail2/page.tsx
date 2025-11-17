@@ -14,9 +14,7 @@ export default function Mail2() {
     
     <!-- Premium Header -->
     <div style="background: linear-gradient(135deg, #f97316 0%, #fb923c 50%, #fbbf24 100%); padding: 48px 48px 56px; text-align: center;">
-      <div style="width: 64px; height: 64px; margin: 0 auto 20px; background: white; border-radius: 16px; display: inline-flex; align-items: center; justify-content: center;">
-        <span style="font-size: 32px;">🔥</span>
-      </div>
+      <img src="https://my.blazewallet.io/blaze-logo-real.png" alt="BLAZE Wallet" width="160" height="auto" style="display: block; margin: 0 auto 20px;" />
       <h1 style="margin: 0 0 12px; font-size: 36px; font-weight: 700; color: white;">
         Welcome to BLAZE
       </h1>
@@ -46,7 +44,6 @@ export default function Mail2() {
 
       <!-- Verification -->
       <div style="background: white; border: 2px solid #f97316; border-radius: 16px; padding: 40px; margin-bottom: 48px; text-align: center;">
-        <div style="font-size: 48px; margin-bottom: 20px;">✉️</div>
         <h2 style="margin: 0 0 16px; font-size: 24px; font-weight: 700; color: #111827;">
           Let's verify your email
         </h2>
@@ -69,7 +66,7 @@ export default function Mail2() {
       <div style="margin-bottom: 48px;">
         <div style="margin-bottom: 32px; padding-bottom: 32px; border-bottom: 1px solid #f3f4f6;">
           <div style="display: flex; align-items: flex-start; gap: 16px;">
-            <div style="font-size: 32px; flex-shrink: 0;">🌐</div>
+            <img src="https://my.blazewallet.io/email/icons/layers.png" alt="Multi-chain" width="32" height="32" style="flex-shrink: 0; margin-top: 4px;" />
             <div>
               <h4 style="margin: 0 0 12px; font-size: 19px; font-weight: 600; color: #111827;">
                 One wallet. 18+ blockchains.
@@ -83,7 +80,7 @@ export default function Mail2() {
         
         <div style="margin-bottom: 32px; padding-bottom: 32px; border-bottom: 1px solid #f3f4f6;">
           <div style="display: flex; align-items: flex-start; gap: 16px;">
-            <div style="font-size: 32px; flex-shrink: 0;">🤖</div>
+            <img src="https://my.blazewallet.io/email/icons/brain.png" alt="AI" width="32" height="32" style="flex-shrink: 0; margin-top: 4px;" />
             <div>
               <h4 style="margin: 0 0 12px; font-size: 19px; font-weight: 600; color: #111827;">
                 AI that protects and guides you
@@ -97,7 +94,7 @@ export default function Mail2() {
         
         <div style="margin-bottom: 32px; padding-bottom: 32px; border-bottom: 1px solid #f3f4f6;">
           <div style="display: flex; align-items: flex-start; gap: 16px;">
-            <div style="font-size: 32px; flex-shrink: 0;">💰</div>
+            <img src="https://my.blazewallet.io/email/icons/zap.png" alt="Rewards" width="32" height="32" style="flex-shrink: 0; margin-top: 4px;" />
             <div>
               <h4 style="margin: 0 0 12px; font-size: 19px; font-weight: 600; color: #111827;">
                 Earn rewards on every transaction
@@ -111,7 +108,7 @@ export default function Mail2() {
         
         <div>
           <div style="display: flex; align-items: flex-start; gap: 16px;">
-            <div style="font-size: 32px; flex-shrink: 0;">🔐</div>
+            <img src="https://my.blazewallet.io/email/icons/shield.png" alt="Security" width="32" height="32" style="flex-shrink: 0; margin-top: 4px;" />
             <div>
               <h4 style="margin: 0 0 12px; font-size: 19px; font-weight: 600; color: #111827;">
                 Security that never compromises
