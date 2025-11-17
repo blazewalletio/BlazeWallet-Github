@@ -22,7 +22,7 @@ export default function Mail3() {
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td style="padding-bottom: 24px; border-bottom: 2px solid #f97316;">
-                    <img src="https://my.blazewallet.io/blaze-logo-official.png" alt="BLAZE Wallet" width="140" height="auto" style="display: block;" />
+                    <img src="https://my.blazewallet.io/icons/icon-512x512.png" alt="BLAZE Wallet" width="56" height="56" style="display: block; border-radius: 12px;" />
                   </td>
                 </tr>
               </table>
@@ -64,7 +64,7 @@ export default function Mail3() {
                   </td>
                   <td>
                     <h3 style="margin: 0 0 12px; font-size: 21px; font-weight: 700; color: #111827; letter-spacing: -0.01em;">
-                      True Multi-Chain Freedom
+                      True multi-chain freedom
                     </h3>
                     <p style="margin: 0; font-size: 16px; line-height: 1.7; color: #6b7280;">
                       Stop juggling multiple wallets. BLAZE natively supports 18+ blockchains including Ethereum, Bitcoin, Solana, Polygon, Arbitrum, Optimism, and more. One seed phrase. One interface. Total control.
@@ -81,7 +81,7 @@ export default function Mail3() {
                   </td>
                   <td>
                     <h3 style="margin: 0 0 12px; font-size: 21px; font-weight: 700; color: #111827; letter-spacing: -0.01em;">
-                      AI-Powered Intelligence
+                      AI-powered intelligence
                     </h3>
                     <p style="margin: 0; font-size: 16px; line-height: 1.7; color: #6b7280;">
                       Our AI doesn't just sit there—it actively protects you from scams, suggests portfolio optimizations, schedules transactions during low-gas periods, and provides insights that help you make smarter decisions.
@@ -98,7 +98,7 @@ export default function Mail3() {
                   </td>
                   <td>
                     <h3 style="margin: 0 0 12px; font-size: 21px; font-weight: 700; color: #111827; letter-spacing: -0.01em;">
-                      Rewards That Actually Matter
+                      Rewards that actually matter
                     </h3>
                     <p style="margin: 0; font-size: 16px; line-height: 1.7; color: #6b7280;">
                       Earn 2% cashback in BLAZE tokens on every transaction. Stake your tokens for up to 20% APY. Participate in governance. Most wallets take from you—BLAZE gives back.
@@ -115,7 +115,7 @@ export default function Mail3() {
                   </td>
                   <td>
                     <h3 style="margin: 0 0 12px; font-size: 21px; font-weight: 700; color: #111827; letter-spacing: -0.01em;">
-                      Security Without Compromise
+                      Security without compromise
                     </h3>
                     <p style="margin: 0; font-size: 16px; line-height: 1.7; color: #6b7280;">
                       Face ID, hardware encryption, WebAuthn, optional hardware wallet integration. Your private keys never leave your device. We have zero access to your funds. Ever.
@@ -140,7 +140,7 @@ export default function Mail3() {
                 <tr>
                   <td style="background: #111827; border-radius: 10px;">
                     <a href="https://my.blazewallet.io/verify?token=demo" style="display: block; padding: 18px 48px; color: white; text-decoration: none; font-weight: 600; font-size: 17px; letter-spacing: -0.01em;">
-                      Verify Email Address →
+                      Verify email address →
                     </a>
                   </td>
                 </tr>
@@ -245,7 +245,7 @@ export default function Mail3() {
                 Welcome aboard,
               </p>
               <p style="margin: 0; font-size: 18px; font-weight: 600; color: #111827;">
-                The BLAZE Team
+                The BLAZE team
               </p>
             </td>
           </tr>
@@ -268,7 +268,7 @@ export default function Mail3() {
                   <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/about" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">About</a></td>
                   <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/security" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Security</a></td>
                   <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/support" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Support</a></td>
-                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/privacy" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Privacy Policy</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/privacy" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Privacy policy</a></td>
                 </tr>
               </table>
               

@@ -22,7 +22,7 @@ export default function Mail4() {
               <table cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td style="padding-bottom: 40px;">
-                    <img src="https://my.blazewallet.io/blaze-logo-official.png" alt="BLAZE" width="120" height="auto" style="display: block;" />
+                    <img src="https://my.blazewallet.io/icons/icon-512x512.png" alt="BLAZE" width="56" height="56" style="display: block; border-radius: 12px;" />
                   </td>
                 </tr>
               </table>

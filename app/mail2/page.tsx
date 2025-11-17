@@ -14,7 +14,7 @@ export default function Mail2() {
     
     <!-- Premium Header -->
     <div style="background: linear-gradient(135deg, #f97316 0%, #fb923c 50%, #fbbf24 100%); padding: 48px 48px 56px; text-align: center;">
-      <img src="https://my.blazewallet.io/blaze-logo-real.png" alt="BLAZE Wallet" width="160" height="auto" style="display: block; margin: 0 auto 20px;" />
+      <img src="https://my.blazewallet.io/icons/icon-512x512.png" alt="BLAZE Wallet" width="80" height="80" style="display: block; margin: 0 auto 24px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);" />
       <h1 style="margin: 0 0 12px; font-size: 36px; font-weight: 700; color: white;">
         Welcome to BLAZE
       </h1>

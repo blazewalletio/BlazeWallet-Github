@@ -14,7 +14,7 @@ export default function Mail1() {
     
     <!-- Header -->
     <div style="background: white; padding: 40px 40px 32px; border-bottom: 1px solid #f1f1f1;">
-      <img src="https://my.blazewallet.io/blaze-logo-official.png" alt="BLAZE Wallet" width="140" height="auto" style="display: block; margin-bottom: 24px;" />
+      <img src="https://my.blazewallet.io/icons/icon-512x512.png" alt="BLAZE Wallet" width="56" height="56" style="display: block; margin-bottom: 16px; border-radius: 12px;" />
     </div>
 
     <!-- Main Content -->

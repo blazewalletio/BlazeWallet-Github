@@ -22,7 +22,7 @@ export default function Mail5() {
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 40px;">
                 <tr>
                   <td style="padding-bottom: 24px; border-bottom: 2px solid #f97316;">
-                    <img src="https://my.blazewallet.io/blaze-logo-official.png" alt="BLAZE Wallet" width="140" height="auto" style="display: block;" />
+                    <img src="https://my.blazewallet.io/icons/icon-512x512.png" alt="BLAZE Wallet" width="56" height="56" style="display: block; border-radius: 12px;" />
                   </td>
                 </tr>
               </table>
