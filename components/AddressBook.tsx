@@ -176,16 +176,17 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
               onClick={onClose}
             />
 
-            {/* Full Screen Modal - Mobile: full screen, Desktop: large centered */}
+            {/* Full Screen Overlay - Both Mobile and Desktop */}
             <motion.div
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 50 }}
-              className="fixed inset-0 md:inset-8 md:top-16 md:bottom-8 md:left-1/2 md:-translate-x-1/2 md:max-w-5xl md:w-[calc(100%-4rem)] z-50 flex flex-col bg-gradient-to-br from-orange-50 to-white md:rounded-3xl shadow-2xl overflow-hidden"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-50 flex flex-col bg-gradient-to-br from-orange-50 to-white overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
         <div className="flex-1 overflow-y-auto">
-          <div className="p-6 pb-24">
+          <div className="max-w-4xl mx-auto p-6 pb-24">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
