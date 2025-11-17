@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Token } from '@/lib/types';
 import { useWalletStore } from '@/lib/wallet-store';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { CHAINS } from '@/lib/chains';
 import { refreshTokenMetadata } from '@/lib/spl-token-metadata';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
@@ -47,6 +48,7 @@ export default function TokenDetailModal({
   onRefresh,
 }: TokenDetailModalProps) {
   const { currentChain, getCurrentAddress } = useWalletStore();
+  const { formatUSDSync, symbol } = useCurrency();
   const chain = CHAINS[currentChain];
   const displayAddress = getCurrentAddress();
   
@@ -208,7 +210,7 @@ export default function TokenDetailModal({
                       {parseFloat(token.balance || '0').toFixed(6)}
                     </div>
                     <div className="text-xl text-gray-600">
-                      ≈ ${token.balanceUSD || '0.00'}
+                      ≈ {formatUSDSync(parseFloat(token.balanceUSD || '0'))}
                     </div>
                     {token.change24h !== undefined && (
                       <div className={`flex items-center gap-1 text-sm font-medium ${
@@ -297,7 +299,7 @@ export default function TokenDetailModal({
                             style={{ fontSize: '10px' }}
                             tickLine={false}
                             axisLine={false}
-                            tickFormatter={(value) => `$${value.toFixed(value < 0.01 ? 4 : 2)}`}
+                            tickFormatter={(value) => `${symbol}${value.toFixed(value < 0.01 ? 4 : 2)}`}
                             domain={['dataMin', 'dataMax']}
                           />
                           <Tooltip 
@@ -307,7 +309,7 @@ export default function TokenDetailModal({
                               borderRadius: '8px',
                               fontSize: '12px',
                             }}
-                            formatter={(value: number) => [`$${value.toFixed(value < 0.01 ? 6 : 2)}`, 'Price']}
+                            formatter={(value: number) => [`${symbol}${value.toFixed(value < 0.01 ? 6 : 2)}`, 'Price']}
                           />
                           <Area 
                             type="monotone" 
@@ -335,13 +337,13 @@ export default function TokenDetailModal({
                       <div>
                         <div className="text-xs text-gray-500 mb-1">Low</div>
                         <div className="text-sm font-semibold text-gray-900">
-                          ${getPriceRange(priceHistory).min.toFixed(getPriceRange(priceHistory).min < 0.01 ? 6 : 2)}
+                          {symbol}{getPriceRange(priceHistory).min.toFixed(getPriceRange(priceHistory).min < 0.01 ? 6 : 2)}
                         </div>
                       </div>
                       <div>
                         <div className="text-xs text-gray-500 mb-1">High</div>
                         <div className="text-sm font-semibold text-gray-900">
-                          ${getPriceRange(priceHistory).max.toFixed(getPriceRange(priceHistory).max < 0.01 ? 6 : 2)}
+                          {symbol}{getPriceRange(priceHistory).max.toFixed(getPriceRange(priceHistory).max < 0.01 ? 6 : 2)}
                         </div>
                       </div>
                       <div>
@@ -454,7 +456,7 @@ export default function TokenDetailModal({
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-600">Price</span>
                         <span className="font-medium text-gray-900">
-                          ${token.priceUSD.toFixed(token.priceUSD < 0.01 ? 6 : 2)}
+                          {symbol}{token.priceUSD.toFixed(token.priceUSD < 0.01 ? 6 : 2)}
                         </span>
                       </div>
                     )}
