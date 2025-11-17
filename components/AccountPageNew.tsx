@@ -324,15 +324,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
       
       if (!error) {
         setUserProfile({ ...userProfile, balance_visible: newValue });
-        // ✅ REMOVED localStorage - all preferences are now in Supabase for cross-device sync
-        
-        // Log activity
-        await supabase.rpc('log_user_activity', {
-          p_user_id: user.id,
-          p_activity_type: 'settings_change',
-          p_description: `Balance visibility ${newValue ? 'enabled' : 'disabled'}`,
-          p_metadata: JSON.stringify({ balance_visible: newValue })
-        });
+        localStorage.setItem('showBalance', String(newValue));
       }
     } catch (error) {
       logger.error('Failed to toggle balance visibility:', error);

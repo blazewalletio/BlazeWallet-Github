@@ -21,6 +21,7 @@ import { Token } from '@/lib/types';
 import { tokenBalanceCache } from '@/lib/token-balance-cache';
 import { refreshTokenMetadata } from '@/lib/spl-token-metadata';
 import { logger } from '@/lib/logger';
+import { supabase } from '@/lib/supabase';
 import ChainSelector from './ChainSelector';
 import TokenSelector from './TokenSelector';
 import PortfolioChart from './PortfolioChart';
@@ -199,6 +200,33 @@ export default function Dashboard() {
   // Bottom navigation state
   const [activeTab, setActiveTab] = useState<TabType>('wallet');
   
+  // ✅ Load user preferences from Supabase (cross-device sync)
+  useEffect(() => {
+    const loadUserPreferences = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('balance_visible')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (profile) {
+          setShowBalance(profile.balance_visible ?? true);
+          logger.log('✅ Loaded balance visibility from Supabase:', profile.balance_visible);
+        }
+      } catch (error) {
+        logger.error('Failed to load user preferences:', error);
+        // Default to true if error
+        setShowBalance(true);
+      }
+    };
+    
+    loadUserPreferences();
+  }, []);
+  
   // ✅ Auto-open AddressBook modal when Contacts tab is selected
   useEffect(() => {
     if (activeTab === 'contacts') {
@@ -214,6 +242,27 @@ export default function Dashboard() {
   // ✅ NEW: Token detail modal state
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [showTokenDetail, setShowTokenDetail] = useState(false);
+  
+  // ✅ Handle balance visibility toggle (syncs to Supabase for cross-device)
+  const handleToggleBalanceVisibility = async (newValue: boolean) => {
+    setShowBalance(newValue); // Optimistic update
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      await supabase
+        .from('user_profiles')
+        .update({ balance_visible: newValue })
+        .eq('user_id', user.id);
+      
+      logger.log('✅ Balance visibility updated in Supabase:', newValue);
+    } catch (error) {
+      logger.error('Failed to update balance visibility:', error);
+      // Revert on error
+      setShowBalance(!newValue);
+    }
+  };
   
   // PWA detection
   const [isPWA, setIsPWA] = useState(false);
@@ -1008,7 +1057,7 @@ export default function Dashboard() {
                         </div>
                         <motion.button
                           whileTap={{ scale: 0.9 }}
-                          onClick={() => setShowBalance(false)}
+                          onClick={() => handleToggleBalanceVisibility(false)}
                           className="text-gray-500 hover:text-gray-700"
                         >
                           <Eye className="w-5 h-5" />
@@ -1019,7 +1068,7 @@ export default function Dashboard() {
                         <h2 className="text-4xl md:text-5xl font-bold">••••••</h2>
                         <motion.button
                           whileTap={{ scale: 0.9 }}
-                          onClick={() => setShowBalance(true)}
+                          onClick={() => handleToggleBalanceVisibility(true)}
                           className="text-gray-500 hover:text-gray-700"
                         >
                           <EyeOff className="w-5 h-5" />

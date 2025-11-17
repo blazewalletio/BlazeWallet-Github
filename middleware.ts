@@ -42,6 +42,9 @@ export async function middleware(request: NextRequest) {
     '/api/gas-optimizer',
     '/api/send-welcome-email', // Email sending endpoint
     '/api/auth/verify-email', // Email verification endpoint
+    '/api/2fa', // 2FA setup/verification
+    '/api/verify-device', // Device verification
+    '/api/export-csv', // Transaction export (has auth check)
   ];
   
   if (publicEndpoints.some(ep => pathname.startsWith(ep))) {
