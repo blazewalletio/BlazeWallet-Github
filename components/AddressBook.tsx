@@ -164,19 +164,26 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
 
   return (
     <>
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
-        onClick={onClose}
-      />
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+              onClick={onClose}
+            />
 
-      {/* Modal */}
-      <motion.div
-        initial={{ opacity: 0, y: 50 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 50 }}
-        className="fixed inset-0 sm:inset-4 sm:top-auto sm:bottom-4 sm:max-w-2xl sm:mx-auto z-50 flex flex-col bg-gradient-to-br from-orange-50 to-white sm:rounded-3xl shadow-2xl overflow-hidden"
-      >
+            {/* Full Screen Modal - Mobile: full screen, Desktop: large centered */}
+            <motion.div
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 50 }}
+              className="fixed inset-0 md:inset-8 md:top-16 md:bottom-8 md:left-1/2 md:-translate-x-1/2 md:max-w-5xl md:w-[calc(100%-4rem)] z-50 flex flex-col bg-gradient-to-br from-orange-50 to-white md:rounded-3xl shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
         <div className="flex-1 overflow-y-auto">
           <div className="p-6 pb-24">
             {/* Header */}
@@ -482,6 +489,9 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
           </div>
         </div>
       </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Add/Edit Contact Modal */}
       <AddContactModal
