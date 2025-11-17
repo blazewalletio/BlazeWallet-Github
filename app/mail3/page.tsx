@@ -2,213 +2,347 @@ export default function Mail3() {
   const verificationLink = "https://my.blazewallet.io/verify?token=demo";
   
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%)', padding: '40px 20px' }}>
-      <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+    <div style={{ minHeight: '100vh', background: '#f5f5f5', padding: '40px 20px' }}>
+      <div style={{ maxWidth: '640px', margin: '0 auto', background: 'white', boxShadow: '0 2px 24px rgba(0,0,0,0.08)' }}>
         
-        {/* Minimalist Clean Design */}
-        <div style={{ 
-          background: 'white',
-          borderRadius: '32px',
-          overflow: 'hidden',
-          boxShadow: '0 20px 60px rgba(249,115,22,0.15), 0 0 0 1px rgba(249,115,22,0.1)'
-        }}>
-          
-          {/* Hero - Minimalist */}
-          <div style={{ padding: '64px 48px 48px', textAlign: 'center', borderBottom: '1px solid #f3f4f6' }}>
-            <div style={{
-              width: '72px',
-              height: '72px',
-              margin: '0 auto 24px',
-              background: 'linear-gradient(135deg, #f97316 0%, #fb923c 100%)',
-              borderRadius: '18px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 20px rgba(249,115,22,0.25)'
+        {/* Elegant Header */}
+        <div style={{ padding: '48px 48px 40px' }}>
+          <div style={{ 
+            display: 'inline-block',
+            background: 'linear-gradient(135deg, #f97316 0%, #fb923c 100%)',
+            padding: '12px 24px',
+            borderRadius: '8px',
+            marginBottom: '32px'
+          }}>
+            <span style={{ 
+              fontSize: '16px', 
+              fontWeight: 700, 
+              color: 'white',
+              letterSpacing: '0.5px'
             }}>
-              <span style={{ fontSize: '36px' }}>🔥</span>
-            </div>
-            
-            <h1 style={{ 
-              margin: '0 0 16px', 
-              color: '#111827', 
-              fontSize: '40px', 
-              fontWeight: 800,
-              letterSpacing: '-0.03em',
-              lineHeight: '1.1'
-            }}>
-              Welcome to<br />BLAZE Wallet
-            </h1>
-            <p style={{ margin: 0, color: '#6b7280', fontSize: '18px', fontWeight: 400, lineHeight: '1.6' }}>
-              The most powerful multi-chain wallet.<br />
-              Simple. Secure. Rewarding.
-            </p>
+              BLAZE WALLET
+            </span>
           </div>
 
-          {/* Verification - Clean Minimal */}
-          <div style={{ padding: '48px' }}>
-            <div style={{
-              background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
-              border: '2px solid #fbbf24',
-              borderRadius: '24px',
-              padding: '40px',
-              marginBottom: '40px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '56px', marginBottom: '20px' }}>✨</div>
-              <h2 style={{ margin: '0 0 12px', fontSize: '26px', fontWeight: 700, color: '#78350f' }}>
-                One More Step
-              </h2>
-              <p style={{ margin: '0 0 28px', color: '#92400e', fontSize: '16px', lineHeight: '1.6' }}>
-                Verify your email to activate all features
-              </p>
-              <a href={verificationLink} style={{
-                display: 'inline-block',
-                padding: '18px 48px',
-                background: 'linear-gradient(135deg, #f97316 0%, #fb923c 100%)',
-                color: 'white',
-                textDecoration: 'none',
-                borderRadius: '14px',
-                fontWeight: 700,
-                fontSize: '17px',
-                boxShadow: '0 6px 20px rgba(249,115,22,0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
-                letterSpacing: '-0.01em'
-              }}>
-                Verify Email
-              </a>
-              <p style={{ margin: '20px 0 0', color: '#a16207', fontSize: '14px' }}>
-                Link expires in 24 hours
-              </p>
-            </div>
+          <h1 style={{ 
+            margin: '0 0 24px', 
+            fontSize: '42px', 
+            fontWeight: 700, 
+            color: '#111827',
+            lineHeight: '1.1',
+            letterSpacing: '-0.02em'
+          }}>
+            Welcome to the<br />new era of crypto
+          </h1>
+          
+          <div style={{ 
+            width: '60px',
+            height: '4px',
+            background: 'linear-gradient(90deg, #f97316 0%, #fb923c 100%)',
+            borderRadius: '2px',
+            marginBottom: '32px'
+          }} />
+          
+          <p style={{ 
+            margin: '0 0 20px', 
+            fontSize: '19px', 
+            lineHeight: '1.7', 
+            color: '#374151'
+          }}>
+            Thank you for choosing BLAZE—the most advanced multi-chain wallet built for serious crypto users who demand more.
+          </p>
+          
+          <p style={{ 
+            margin: '0 0 20px', 
+            fontSize: '19px', 
+            lineHeight: '1.7', 
+            color: '#374151'
+          }}>
+            You're joining thousands of users who've discovered that managing crypto doesn't have to be complicated, insecure, or unrewarding. With BLAZE, you get the perfect balance: enterprise-level security meets consumer-grade simplicity.
+          </p>
 
-            {/* Features - Minimalist Icons */}
-            <div style={{ marginBottom: '40px' }}>
-              <h3 style={{ margin: '0 0 24px', fontSize: '22px', fontWeight: 700, color: '#111827', textAlign: 'center' }}>
-                Everything You Need
-              </h3>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                {[
-                  { icon: '⚡', title: '18 Chains', desc: 'All networks, one wallet' },
-                  { icon: '🔒', title: 'Ultra Secure', desc: 'Your keys stay yours' },
-                  { icon: '🤖', title: 'AI Assistant', desc: 'Smart recommendations' },
-                  { icon: '💰', title: '2% Rewards', desc: 'Cashback on every tx' }
-                ].map((feature, i) => (
-                  <div key={i} style={{
-                    background: '#fafafa',
-                    borderRadius: '20px',
-                    padding: '28px 24px',
-                    textAlign: 'center',
-                    border: '1px solid #f3f4f6'
-                  }}>
-                    <div style={{ fontSize: '40px', marginBottom: '12px' }}>{feature.icon}</div>
-                    <h4 style={{ margin: '0 0 6px', fontSize: '16px', fontWeight: 700, color: '#111827' }}>
-                      {feature.title}
-                    </h4>
-                    <p style={{ margin: 0, fontSize: '14px', color: '#6b7280', lineHeight: '1.4' }}>
-                      {feature.desc}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
+          <p style={{ 
+            margin: '0', 
+            fontSize: '19px', 
+            lineHeight: '1.7', 
+            color: '#374151'
+          }}>
+            Here's what sets us apart from every other wallet on the market:
+          </p>
+        </div>
 
-            {/* Quick Start */}
-            <div style={{
-              background: 'linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)',
-              borderRadius: '20px',
-              padding: '32px',
-              marginBottom: '32px'
+        {/* Key Benefits */}
+        <div style={{ padding: '0 48px 48px' }}>
+          {[
+            {
+              number: '01',
+              title: 'True Multi-Chain Freedom',
+              desc: 'Stop juggling multiple wallets. BLAZE natively supports 18+ blockchains including Ethereum, Bitcoin, Solana, Polygon, Arbitrum, Optimism, and more. One seed phrase. One interface. Total control.',
+              color: '#3b82f6'
+            },
+            {
+              number: '02',
+              title: 'AI-Powered Intelligence',
+              desc: 'Our AI doesn't just sit there—it actively protects you from scams, suggests portfolio optimizations, schedules transactions during low-gas periods, and provides insights that help you make smarter decisions.',
+              color: '#8b5cf6'
+            },
+            {
+              number: '03',
+              title: 'Rewards That Actually Matter',
+              desc: 'Earn 2% cashback in BLAZE tokens on every transaction. Stake your tokens for up to 20% APY. Participate in governance. Most wallets take from you—BLAZE gives back.',
+              color: '#10b981'
+            },
+            {
+              number: '04',
+              title: 'Security Without Compromise',
+              desc: 'Face ID, hardware encryption, WebAuthn, optional hardware wallet integration. Your private keys never leave your device. We have zero access to your funds. Ever.',
+              color: '#f59e0b'
+            }
+          ].map((item, i) => (
+            <div key={i} style={{ 
+              marginBottom: i < 3 ? '36px' : 0,
+              paddingBottom: i < 3 ? '36px' : 0,
+              borderBottom: i < 3 ? '1px solid #f3f4f6' : 'none'
             }}>
-              <h3 style={{ margin: '0 0 20px', fontSize: '20px', fontWeight: 700, color: '#111827' }}>
-                Quick Start Guide
-              </h3>
-              {[
-                'Add funds from an exchange or buy crypto',
-                'Explore AI tools and portfolio insights',
-                'Stake BLAZE for up to 20% APY',
-                'Earn 2% cashback on every transaction'
-              ].map((step, i) => (
-                <div key={i} style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '16px',
-                  marginBottom: i < 3 ? '16px' : 0
+              <div style={{ display: 'flex', gap: '20px' }}>
+                <div style={{ 
+                  fontSize: '32px', 
+                  fontWeight: 800, 
+                  color: item.color,
+                  flexShrink: 0,
+                  opacity: 0.3,
+                  fontFamily: 'monospace'
                 }}>
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    background: 'linear-gradient(135deg, #f97316 0%, #fb923c 100%)',
-                    borderRadius: '10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                    fontWeight: 700,
-                    fontSize: '14px',
-                    flexShrink: 0
+                  {item.number}
+                </div>
+                <div>
+                  <h3 style={{ 
+                    margin: '0 0 12px', 
+                    fontSize: '21px', 
+                    fontWeight: 700, 
+                    color: '#111827',
+                    letterSpacing: '-0.01em'
                   }}>
-                    {i + 1}
-                  </div>
-                  <p style={{ margin: 0, fontSize: '15px', color: '#374151', fontWeight: 500 }}>
-                    {step}
+                    {item.title}
+                  </h3>
+                  <p style={{ 
+                    margin: 0, 
+                    fontSize: '16px', 
+                    lineHeight: '1.7', 
+                    color: '#6b7280'
+                  }}>
+                    {item.desc}
                   </p>
                 </div>
-              ))}
+              </div>
             </div>
-
-            {/* CTA */}
-            <div style={{ textAlign: 'center' }}>
-              <a href="https://my.blazewallet.io" style={{
-                display: 'inline-block',
-                padding: '16px 40px',
-                background: 'white',
-                color: '#f97316',
-                textDecoration: 'none',
-                borderRadius: '12px',
-                fontWeight: 700,
-                fontSize: '16px',
-                border: '2px solid #f97316',
-                transition: 'all 0.2s'
-              }}>
-                Open Wallet →
-              </a>
-            </div>
-          </div>
-
-          {/* Footer - Minimal */}
-          <div style={{ 
-            background: '#fafafa', 
-            padding: '32px', 
-            textAlign: 'center',
-            borderTop: '1px solid #f3f4f6'
-          }}>
-            <p style={{ margin: '0 0 8px', color: '#111827', fontSize: '15px', fontWeight: 700 }}>
-              BLAZE Wallet
-            </p>
-            <p style={{ margin: '0 0 16px', color: '#6b7280', fontSize: '13px' }}>
-              Multi-Chain · Secure · Rewarding
-            </p>
-            <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginBottom: '16px' }}>
-              {['Wallet', 'About', 'Security', 'Support'].map((link, i) => (
-                <a key={i} href={`https://my.blazewallet.io/${link.toLowerCase()}`} style={{
-                  color: '#6b7280',
-                  textDecoration: 'none',
-                  fontSize: '13px',
-                  fontWeight: 500
-                }}>
-                  {link}
-                </a>
-              ))}
-            </div>
-            <p style={{ margin: 0, color: '#9ca3af', fontSize: '12px' }}>
-              © 2025 BLAZE. All rights reserved.
-            </p>
-          </div>
-
+          ))}
         </div>
+
+        {/* Verification CTA */}
+        <div style={{ 
+          background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
+          padding: '48px',
+          textAlign: 'center'
+        }}>
+          <h2 style={{ 
+            margin: '0 0 16px', 
+            fontSize: '28px', 
+            fontWeight: 700, 
+            color: '#111827',
+            letterSpacing: '-0.01em'
+          }}>
+            Ready to get started?
+          </h2>
+          <p style={{ 
+            margin: '0 0 32px', 
+            fontSize: '17px', 
+            lineHeight: '1.6', 
+            color: '#78350f',
+            maxWidth: '480px',
+            marginLeft: 'auto',
+            marginRight: 'auto'
+          }}>
+            First, let's verify your email address to ensure your account is secure and you can access all features.
+          </p>
+          <a href={verificationLink} style={{
+            display: 'inline-block',
+            padding: '18px 48px',
+            background: '#111827',
+            color: 'white',
+            textDecoration: 'none',
+            borderRadius: '10px',
+            fontWeight: 600,
+            fontSize: '17px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+            letterSpacing: '-0.01em'
+          }}>
+            Verify Email Address →
+          </a>
+          <p style={{ 
+            margin: '24px 0 0', 
+            fontSize: '14px', 
+            color: '#92400e'
+          }}>
+            Verification link expires in 24 hours
+          </p>
+        </div>
+
+        {/* Quick Start Guide */}
+        <div style={{ padding: '48px' }}>
+          <h3 style={{ 
+            margin: '0 0 28px', 
+            fontSize: '24px', 
+            fontWeight: 700, 
+            color: '#111827',
+            letterSpacing: '-0.01em'
+          }}>
+            Your BLAZE journey in 4 steps
+          </h3>
+          
+          <div>
+            {[
+              {
+                title: 'Verify your email',
+                desc: 'Click the button above to activate your account'
+              },
+              {
+                title: 'Add your first assets',
+                desc: 'Transfer from an exchange, buy with a card, or receive from another wallet'
+              },
+              {
+                title: 'Explore AI features',
+                desc: 'Let our Portfolio Advisor analyze your holdings and suggest optimizations'
+              },
+              {
+                title: 'Activate rewards',
+                desc: 'Enable staking to start earning up to 20% APY on BLAZE tokens'
+              }
+            ].map((step, i) => (
+              <div key={i} style={{ 
+                display: 'flex',
+                gap: '20px',
+                marginBottom: i < 3 ? '24px' : 0,
+                alignItems: 'flex-start'
+              }}>
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  background: 'linear-gradient(135deg, #f97316 0%, #fb923c 100%)',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontWeight: 700,
+                  fontSize: '16px',
+                  flexShrink: 0
+                }}>
+                  {i + 1}
+                </div>
+                <div style={{ paddingTop: '2px' }}>
+                  <div style={{ 
+                    fontSize: '17px', 
+                    fontWeight: 600, 
+                    color: '#111827',
+                    marginBottom: '6px'
+                  }}>
+                    {step.title}
+                  </div>
+                  <div style={{ 
+                    fontSize: '16px', 
+                    color: '#6b7280',
+                    lineHeight: '1.6'
+                  }}>
+                    {step.desc}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Support Section */}
+        <div style={{ 
+          background: '#fafafa',
+          padding: '40px 48px',
+          textAlign: 'center'
+        }}>
+          <p style={{ 
+            margin: '0 0 8px', 
+            fontSize: '17px', 
+            lineHeight: '1.7', 
+            color: '#374151'
+          }}>
+            Questions? Our support team is available 24/7
+          </p>
+          <a href="mailto:support@blazewallet.io" style={{
+            fontSize: '17px',
+            fontWeight: 600,
+            color: '#f97316',
+            textDecoration: 'none'
+          }}>
+            support@blazewallet.io
+          </a>
+        </div>
+
+        {/* Signature */}
+        <div style={{ padding: '40px 48px' }}>
+          <p style={{ margin: '0 0 8px', fontSize: '18px', color: '#374151' }}>
+            Welcome aboard,
+          </p>
+          <p style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: '#111827' }}>
+            The BLAZE Team
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div style={{ 
+          background: '#111827',
+          padding: '32px 48px',
+          textAlign: 'center'
+        }}>
+          <div style={{ marginBottom: '20px' }}>
+            <div style={{ 
+              fontSize: '14px', 
+              fontWeight: 600, 
+              color: 'white',
+              marginBottom: '6px',
+              letterSpacing: '0.5px'
+            }}>
+              BLAZE WALLET
+            </div>
+            <div style={{ fontSize: '13px', color: '#9ca3af' }}>
+              The future of multi-chain crypto management
+            </div>
+          </div>
+          
+          <div style={{ 
+            display: 'flex', 
+            gap: '20px', 
+            justifyContent: 'center',
+            marginBottom: '20px',
+            flexWrap: 'wrap'
+          }}>
+            {['Wallet', 'About', 'Security', 'Support', 'Privacy Policy'].map((link, i) => (
+              <a key={i} href={`https://my.blazewallet.io/${link.toLowerCase().replace(' ', '-')}`} style={{
+                color: '#9ca3af',
+                textDecoration: 'none',
+                fontSize: '13px',
+                fontWeight: 500
+              }}>
+                {link}
+              </a>
+            ))}
+          </div>
+          
+          <div style={{ fontSize: '12px', color: '#6b7280', lineHeight: '1.6' }}>
+            © 2025 BLAZE Wallet. All rights reserved.<br />
+            This email was sent because you created an account at my.blazewallet.io
+          </div>
+        </div>
+
       </div>
     </div>
   );
 }
-
