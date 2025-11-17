@@ -12,6 +12,7 @@ import {
   BarChart3, DollarSign, Flame, Target, Clock, CheckCircle2, XCircle, Inbox
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { MultiChainService } from '@/lib/multi-chain-service';
 import { BlockchainService } from '@/lib/blockchain';
 import { TokenService } from '@/lib/token-service';
@@ -82,6 +83,8 @@ export default function Dashboard() {
     lockWallet,
     getCurrentAddress // ✅ NEW: Get correct address for current chain
   } = useWalletStore();
+  
+  const { formatUSDSync, symbol } = useCurrency();
   
   // Get the correct address for the current chain (Solana or EVM)
   const displayAddress = getCurrentAddress();
@@ -1384,7 +1387,7 @@ export default function Dashboard() {
             </div>
             <div className="text-right">
               <div className="font-semibold">
-                ${(parseFloat(balance) * currentState.nativePriceUSD).toFixed(2)}
+                {formatUSDSync(parseFloat(balance) * currentState.nativePriceUSD)}
               </div>
               <div className={`text-sm ${isPositiveChange ? 'text-emerald-400' : 'text-rose-400'}`}>
                 {isPositiveChange ? '+' : ''}{change24h.toFixed(2)}%
@@ -1458,7 +1461,7 @@ export default function Dashboard() {
                   
                   <div className="flex items-center gap-2">
                     <div className="text-right">
-                      <div className="font-semibold">${token.balanceUSD}</div>
+                      <div className="font-semibold">{formatUSDSync(parseFloat(token.balanceUSD || '0'))}</div>
                       <div className={`text-sm ${(token.change24h || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                         {(token.change24h || 0) >= 0 ? '+' : ''}{(token.change24h || 0).toFixed(2)}%
                       </div>

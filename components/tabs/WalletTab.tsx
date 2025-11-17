@@ -8,6 +8,7 @@ import {
   TrendingDown
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { BlockchainService } from '@/lib/blockchain';
 import { TokenService } from '@/lib/token-service';
 import { PriceService } from '@/lib/price-service';
@@ -31,6 +32,8 @@ export default function WalletTab() {
     updateTokens,
     updateActivity,
   } = useWalletStore();
+  
+  const { formatUSDSync, symbol } = useCurrency();
 
   const [showBalance, setShowBalance] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -222,7 +225,7 @@ export default function WalletTab() {
                         <AnimatedNumber 
                           value={totalValueUSD} 
                           decimals={2} 
-                          prefix="$"
+                          useCurrencyPrefix
                         />
                       </h2>
                       <div className="text-right">
@@ -443,7 +446,7 @@ export default function WalletTab() {
               </div>
               <div className="text-right">
                 <div className="font-semibold">
-                  ${(parseFloat(balance) * (totalValueUSD > 0 ? totalValueUSD / (parseFloat(balance) + tokens.reduce((sum, t) => sum + parseFloat(t.balance || '0'), 0)) : 0)).toFixed(2)}
+                  {formatUSDSync(parseFloat(balance) * (totalValueUSD > 0 ? totalValueUSD / (parseFloat(balance) + tokens.reduce((sum, t) => sum + parseFloat(t.balance || '0'), 0)) : 0))}
                 </div>
                 <div className={`text-sm ${isPositiveChange ? 'text-emerald-400' : 'text-rose-400'}`}>
                   {isPositiveChange ? '+' : ''}{change24h.toFixed(2)}%
@@ -473,7 +476,7 @@ export default function WalletTab() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-semibold">${token.balanceUSD}</div>
+                  <div className="font-semibold">{formatUSDSync(parseFloat(token.balanceUSD || '0'))}</div>
                   <div className={`text-sm ${(token.change24h || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {(token.change24h || 0) >= 0 ? '+' : ''}{(token.change24h || 0).toFixed(2)}%
                   </div>

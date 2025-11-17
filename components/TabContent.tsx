@@ -125,7 +125,7 @@ export default function TabContent({
         <div className="mb-4">
           {showBalance ? (
             <div className="text-3xl font-bold text-gray-900 mb-2">
-              <AnimatedNumber value={totalValueUSD} prefix="$" decimals={2} />
+              <AnimatedNumber value={totalValueUSD} useCurrencyPrefix decimals={2} />
             </div>
           ) : (
             <div className="text-3xl font-bold text-gray-900 mb-2">••••••</div>

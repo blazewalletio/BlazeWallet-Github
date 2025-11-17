@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion, useSpring, useTransform } from 'framer-motion';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { logger } from '@/lib/logger';
 
 interface AnimatedNumberProps {
@@ -10,6 +11,7 @@ interface AnimatedNumberProps {
   prefix?: string;
   suffix?: string;
   className?: string;
+  useCurrencyPrefix?: boolean; // NEW: Use dynamic currency prefix
 }
 
 export default function AnimatedNumber({ 
@@ -17,15 +19,21 @@ export default function AnimatedNumber({
   decimals = 2, 
   prefix = '', 
   suffix = '',
-  className = ''
+  className = '',
+  useCurrencyPrefix = false
 }: AnimatedNumberProps) {
+  const { symbol, formatUSDSync } = useCurrency();
+  
+  // Use currency symbol if requested
+  const actualPrefix = useCurrencyPrefix ? symbol : prefix;
+  
   const spring = useSpring(0, { 
     stiffness: 100, 
     damping: 30,
     restDelta: 0.001 
   });
   const display = useTransform(spring, (current) =>
-    `${prefix}${current.toFixed(decimals)}${suffix}`
+    `${actualPrefix}${current.toFixed(decimals)}${suffix}`
   );
 
   const [displayValue, setDisplayValue] = useState('');
@@ -43,7 +51,7 @@ export default function AnimatedNumber({
 
   return (
     <span className={className}>
-      {displayValue || `${prefix}0${suffix}`}
+      {displayValue || `${actualPrefix}0${suffix}`}
     </span>
   );
 }
