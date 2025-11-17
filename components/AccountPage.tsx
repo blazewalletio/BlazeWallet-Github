@@ -27,6 +27,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
   const [displayName, setDisplayName] = useState('');
   const [showBalance, setShowBalance] = useState(true);
   const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [memberSince, setMemberSince] = useState('Nov 2024');
   
   useEffect(() => {
     const loadAccountData = async () => {
@@ -39,13 +40,24 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
         const balanceVisibility = localStorage.getItem('showBalance');
         setShowBalance(balanceVisibility !== 'false');
 
-        // Check if email is verified from Supabase
+        // Check if email is verified from Supabase and get created date
         try {
           const { data: { user } } = await supabase.auth.getUser();
           if (user) {
             // Check if email_confirmed_at is set (means email is verified)
             setIsEmailVerified(!!user.email_confirmed_at);
             logger.log('Email verified status:', !!user.email_confirmed_at);
+            
+            // Get created date from Supabase
+            if (user.created_at) {
+              const createdDate = new Date(user.created_at).toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short',
+                day: 'numeric' 
+              });
+              setMemberSince(createdDate);
+              logger.log('Member since:', createdDate);
+            }
           }
         } catch (error) {
           logger.error('Failed to load user verification status:', error);
@@ -75,15 +87,6 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
   };
 
   if (!isOpen || !account) return null;
-
-  // Format member since date
-  const memberSince = account.createdAt 
-    ? new Date(account.createdAt).toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'short',
-        day: 'numeric' 
-      })
-    : 'Nov 2024';
 
   return (
     <AnimatePresence>
