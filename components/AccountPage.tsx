@@ -19,6 +19,9 @@ import TwoFactorModal from './TwoFactorModal';
 import ChangePasswordModal from './ChangePasswordModal';
 import ThemeSelectorModal from './ThemeSelectorModal';
 import LanguageCurrencyModal from './LanguageCurrencyModal';
+import NotificationSettingsModal from './NotificationSettingsModal';
+import AutoLockSettingsModal from './AutoLockSettingsModal';
+import DeleteAccountModal from './DeleteAccountModal';
 
 interface AccountPageProps {
   isOpen: boolean;
@@ -107,6 +110,9 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showThemeSelector, setShowThemeSelector] = useState(false);
   const [showLanguageCurrency, setShowLanguageCurrency] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showAutoLock, setShowAutoLock] = useState(false);
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
 
   useEffect(() => {
     const loadAccountData = async () => {
@@ -1044,7 +1050,10 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
               </button>
 
-              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors">
+              <button 
+                onClick={() => setShowAutoLock(true)}
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors"
+              >
                 <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
                   <Lock className="w-5 h-5 text-indigo-600" />
                 </div>
@@ -1100,7 +1109,10 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
               </button>
 
-              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100">
+              <button 
+                onClick={() => setShowNotifications(true)}
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
+              >
                 <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
                   <Bell className="w-5 h-5 text-purple-600" />
                 </div>
@@ -1169,7 +1181,10 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
               </button>
 
-              <button className="w-full flex items-center gap-4 p-4 hover:bg-red-50 transition-colors">
+              <button 
+                onClick={() => setShowDeleteAccount(true)}
+                className="w-full flex items-center gap-4 p-4 hover:bg-red-50 transition-colors"
+              >
                 <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
                   <Trash2 className="w-5 h-5 text-red-600" />
                 </div>
@@ -1250,6 +1265,25 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
         currentLanguage="en"
         currentCurrency={userProfile?.preferred_currency || 'USD'}
         onSuccess={handleReloadData}
+      />
+      
+      <NotificationSettingsModal
+        isOpen={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        currentSettings={userProfile?.notifications_enabled || false}
+        onSuccess={handleReloadData}
+      />
+      
+      <AutoLockSettingsModal
+        isOpen={showAutoLock}
+        onClose={() => setShowAutoLock(false)}
+        currentTimeout={5}
+        onSuccess={handleReloadData}
+      />
+      
+      <DeleteAccountModal
+        isOpen={showDeleteAccount}
+        onClose={() => setShowDeleteAccount(false)}
       />
     </AnimatePresence>
   );
