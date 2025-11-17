@@ -13,6 +13,7 @@ import ParticleEffect from './ParticleEffect';
 import SmartScheduleModal from './SmartScheduleModal';
 import AddressBook from './AddressBook';
 import { logger } from '@/lib/logger';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface Asset {
   symbol: string;
@@ -52,6 +53,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
   
   const [toAddress, setToAddress] = useState('');
   const [amount, setAmount] = useState('');
+  const { formatUSDSync, symbol } = useCurrency();
   const [gasPrice, setGasPrice] = useState<{ slow: string; standard: string; fast: string } | null>(null);
   const [selectedGas, setSelectedGas] = useState<'slow' | 'standard' | 'fast'>('standard');
   const [error, setError] = useState('');
@@ -313,7 +315,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                 need: `${needed.toFixed(6)} ${chainConfig.nativeCurrency.symbol}`,
                 have: `${have.toFixed(6)} ${chainConfig.nativeCurrency.symbol}`,
                 missing: `${missing.toFixed(6)} ${chainConfig.nativeCurrency.symbol}`,
-                missingUSD: `$${missingUSD.toFixed(2)}`,
+                missingUSD: formatUSDSync(missingUSD),
               }
             });
             return;
@@ -337,7 +339,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                 need: `${needed.toFixed(6)} ${selectedAsset.symbol}`,
                 have: `${have.toFixed(6)} ${selectedAsset.symbol}`,
                 missing: `${missing.toFixed(6)} ${selectedAsset.symbol}`,
-                missingUSD: `$${missingUSD.toFixed(2)}`,
+                missingUSD: formatUSDSync(missingUSD),
               }
             });
             return;
@@ -731,7 +733,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                             </div>
                             <div className="text-right">
                               <div className="text-sm font-medium text-gray-900">
-                                ${asset.valueUSD.toFixed(2)}
+                                {formatUSDSync(asset.valueUSD)}
                               </div>
                               {selectedAsset?.symbol === asset.symbol && (
                                 <Check className="w-5 h-5 text-orange-500 ml-2 inline" />
@@ -745,7 +747,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                 )}
                 {selectedAsset && (
                   <div className="text-sm text-gray-600 mt-2">
-                    ≈ ${selectedAsset.valueUSD.toFixed(2)} USD
+                    ≈ {formatUSDSync(selectedAsset.valueUSD)}
                   </div>
                 )}
               </div>
@@ -801,7 +803,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                 </div>
                 {amount && selectedAsset && (
                   <div className="text-sm text-gray-600 mt-2">
-                    ≈ ${(parseFloat(amount) * selectedAsset.priceUSD).toFixed(2)}
+                    ≈ {formatUSDSync(parseFloat(amount) * selectedAsset.priceUSD)}
                   </div>
                 )}
               </div>
@@ -915,7 +917,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                   {amount} {selectedAsset.symbol}
                 </div>
                 <div className="text-sm text-gray-600">
-                  ≈ ${(parseFloat(amount) * selectedAsset.priceUSD).toFixed(2)}
+                  ≈ {formatUSDSync(parseFloat(amount) * selectedAsset.priceUSD)}
                 </div>
                 <div className="text-xs text-gray-500 mt-2">
                   on {CHAINS[selectedChain].name}
