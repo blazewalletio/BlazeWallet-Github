@@ -5,6 +5,7 @@ import { TrendingUp, Lightbulb, PieChart, AlertCircle, ArrowLeft, Loader2, Activ
 import Image from 'next/image';
 import { getCurrencyLogoSync } from '@/lib/currency-logo-service';
 import { logger } from '@/lib/logger';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface AIPortfolioAdvisorProps {
   onClose: () => void;
@@ -54,6 +55,7 @@ export default function AIPortfolioAdvisor({
   onBuyToken,
   onSellToken
 }: AIPortfolioAdvisorProps) {
+  const { formatUSDSync, symbol } = useCurrency();
   const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -242,7 +244,7 @@ export default function AIPortfolioAdvisor({
                   className="glass-card p-6"
                 >
                   <div className="text-sm text-gray-600 mb-1">Total value</div>
-                  <div className="text-2xl font-bold text-gray-900">${totalValue.toFixed(2)}</div>
+                  <div className="text-2xl font-bold text-gray-900">{formatUSDSync(totalValue)}</div>
                   {totalValueChange24h !== 0 && (
                     <div className={`text-sm mt-1 font-medium ${totalValueChange24h > 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {totalValueChange24h > 0 ? '+' : ''}{totalValueChange24h.toFixed(2)}% (24h)
@@ -458,7 +460,7 @@ export default function AIPortfolioAdvisor({
                               </span>
                             </div>
                             <span className="text-sm text-gray-900 font-semibold">
-                              ${tokenUsdValue.toFixed(2)}
+                              {formatUSDSync(tokenUsdValue)}
                             </span>
                           </div>
                           <div className="flex items-center gap-2">
