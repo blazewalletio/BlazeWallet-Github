@@ -1,3 +1,5 @@
+'use client';
+
 export default function Mail1() {
   const verificationLink = "https://my.blazewallet.io/verify?token=demo";
   
