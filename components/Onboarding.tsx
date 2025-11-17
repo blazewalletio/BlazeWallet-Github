@@ -1310,7 +1310,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                           : password;
                         
                         if (!storedPassword) {
-                          throw new Error('Geen wachtwoord beschikbaar voor biometric setup');
+                          throw new Error('No password available for biometric setup');
                         }
                         
                         // Register WebAuthn credential

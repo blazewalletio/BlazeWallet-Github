@@ -89,12 +89,12 @@ export default class ErrorBoundary extends Component<Props, State> {
 
               {/* Error Message */}
               <h2 className="text-2xl font-bold text-gray-900 text-center mb-4">
-                Oeps! Er ging iets mis
+                Oops! Something went wrong
               </h2>
               
               <p className="text-gray-600 text-center mb-6">
-                Er is een onverwachte fout opgetreden. Je wallet blijft veilig, 
-                maar je moet de app opnieuw starten.
+                An unexpected error occurred. Your wallet remains safe, 
+                but you need to restart the app.
               </p>
 
               {/* Error Details (Development Only) */}

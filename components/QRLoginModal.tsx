@@ -60,7 +60,7 @@ export default function QRLoginModal({ isOpen, onSuccess, onCancel }: QRLoginMod
 
     } catch (error: any) {
       logger.error('Error generating QR code:', error);
-      setError('Kon QR code niet genereren. Probeer opnieuw.');
+      setError('Could not generate QR code. Please try again.');
       setStatus('error');
     }
   };
@@ -89,7 +89,7 @@ export default function QRLoginModal({ isOpen, onSuccess, onCancel }: QRLoginMod
       }
     } catch (error: any) {
       logger.error('Error waiting for approval:', error);
-      setError('Er is een fout opgetreden tijdens het wachten op goedkeuring');
+      setError('An error occurred while waiting for approval');
       setStatus('error');
     }
   };

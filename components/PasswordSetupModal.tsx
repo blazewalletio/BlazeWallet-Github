@@ -63,7 +63,7 @@ export default function PasswordSetupModal({ isOpen, onComplete }: PasswordSetup
       onComplete(password); // Pass password for biometric setup
     } catch (error: any) {
       logger.error('Password setup error:', error);
-      const errorMessage = error?.message || 'Er is een fout opgetreden. Probeer opnieuw.';
+      const errorMessage = error?.message || 'An error occurred. Please try again.';
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -117,7 +117,7 @@ export default function PasswordSetupModal({ isOpen, onComplete }: PasswordSetup
                 Secure your wallet
               </h2>
               <p className="text-gray-600">
-                Stel een wachtwoord in om je wallet te beschermen tegen ongeautoriseerde toegang
+                Set a password to protect your wallet against unauthorized access
               </p>
             </div>
 
@@ -189,7 +189,7 @@ export default function PasswordSetupModal({ isOpen, onComplete }: PasswordSetup
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="w-full bg-gray-50 border-2 border-gray-300 rounded-xl px-4 py-3 pr-12 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
-                    placeholder="Herhaal je wachtwoord"
+                    placeholder="Repeat your password"
                     required
                   />
                   <button
@@ -226,7 +226,7 @@ export default function PasswordSetupModal({ isOpen, onComplete }: PasswordSetup
               <p className="text-xs text-gray-500">
                 Your password is encrypted and stored locally. 
                 <br />
-                Wij hebben geen toegang tot je wachtwoord.
+                We have no access to your password.
               </p>
             </div>
           </div>
