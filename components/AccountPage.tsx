@@ -15,6 +15,10 @@ import { CHAINS } from '@/lib/chains';
 import { getCurrentAccount } from '@/lib/account-manager';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
+import TwoFactorModal from './TwoFactorModal';
+import ChangePasswordModal from './ChangePasswordModal';
+import ThemeSelectorModal from './ThemeSelectorModal';
+import LanguageCurrencyModal from './LanguageCurrencyModal';
 
 interface AccountPageProps {
   isOpen: boolean;
@@ -97,6 +101,12 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
   const [showActivityLog, setShowActivityLog] = useState(false);
   const [showDevices, setShowDevices] = useState(false);
   const [copiedAddress, setCopiedAddress] = useState(false);
+  
+  // Modal states
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showThemeSelector, setShowThemeSelector] = useState(false);
+  const [showLanguageCurrency, setShowLanguageCurrency] = useState(false);
 
   useEffect(() => {
     const loadAccountData = async () => {
@@ -343,6 +353,105 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
     lockWallet();
     onClose();
     window.location.reload();
+  };
+  
+  const handleRemoveDevice = async (deviceId: string) => {
+    if (!confirm('Are you sure you want to remove this device?')) return;
+    
+    try {
+      const { error } = await supabase
+        .from('trusted_devices')
+        .delete()
+        .eq('id', deviceId);
+      
+      if (error) throw error;
+      
+      // Update local state
+      setTrustedDevices(prev => prev.filter(d => d.id !== deviceId));
+      
+      // Log activity
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.rpc('log_user_activity', {
+          p_user_id: user.id,
+          p_activity_type: 'security_alert',
+          p_description: 'Trusted device removed',
+          p_metadata: JSON.stringify({ device_id: deviceId })
+        });
+      }
+      
+      logger.log('Device removed:', deviceId);
+    } catch (error) {
+      logger.error('Failed to remove device:', error);
+      alert('Failed to remove device. Please try again.');
+    }
+  };
+  
+  const handleExportCSV = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      // Download CSV file
+      const response = await fetch(`/api/export-csv?userId=${user.id}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to export data');
+      }
+      
+      // Get filename from Content-Disposition header or use default
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const filename = contentDisposition
+        ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+        : `blaze-wallet-transactions-${new Date().toISOString().split('T')[0]}.csv`;
+      
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      logger.log('CSV exported successfully');
+    } catch (error) {
+      logger.error('Failed to export CSV:', error);
+      alert('Failed to export transaction history. Please try again.');
+    }
+  };
+  
+  const handleReloadData = async () => {
+    // Reload all data after modal changes
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+    
+    if (profile) {
+      setUserProfile(profile);
+    }
+    
+    // Recalculate security score
+    await supabase.rpc('calculate_security_score', {
+      p_user_id: user.id
+    });
+    
+    const { data: secScore } = await supabase
+      .from('user_security_scores')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+    
+    if (secScore) {
+      setSecurityScore(secScore);
+    }
   };
 
   const getSecurityScoreColor = (score: number) => {
@@ -829,7 +938,10 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                             </div>
                           </div>
                           {!device.is_current && (
-                            <button className="text-red-500 hover:text-red-700 text-sm font-medium">
+                            <button 
+                              onClick={() => handleRemoveDevice(device.id)}
+                              className="text-red-500 hover:text-red-700 text-sm font-medium"
+                            >
                               Remove
                             </button>
                           )}
@@ -874,7 +986,10 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
               </button>
 
-              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100">
+              <button 
+                onClick={() => setShow2FAModal(true)}
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
+              >
                 <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
                   <Key className="w-5 h-5 text-green-600" />
                 </div>
@@ -898,7 +1013,10 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
               </button>
 
-              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100">
+              <button 
+                onClick={() => setShowChangePassword(true)}
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
+              >
                 <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
                   <Key className="w-5 h-5 text-orange-600" />
                 </div>
@@ -968,7 +1086,10 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
               </button>
 
-              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100">
+              <button 
+                onClick={() => setShowLanguageCurrency(true)}
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
+              >
                 <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                   <Globe className="w-5 h-5 text-blue-600" />
                 </div>
@@ -992,7 +1113,10 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
               </button>
 
-              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors">
+              <button 
+                onClick={() => setShowThemeSelector(true)}
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors"
+              >
                 <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
                   <Sliders className="w-5 h-5 text-yellow-600" />
                 </div>
@@ -1031,7 +1155,10 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
               </button>
 
-              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100">
+              <button 
+                onClick={handleExportCSV}
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
+              >
                 <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                   <FileDown className="w-5 h-5 text-blue-600" />
                 </div>
@@ -1095,6 +1222,35 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
           </div>
         </div>
       </motion.div>
+      
+      {/* Modals */}
+      <TwoFactorModal
+        isOpen={show2FAModal}
+        onClose={() => setShow2FAModal(false)}
+        isEnabled={userProfile?.two_factor_enabled || false}
+        onSuccess={handleReloadData}
+      />
+      
+      <ChangePasswordModal
+        isOpen={showChangePassword}
+        onClose={() => setShowChangePassword(false)}
+        onSuccess={handleReloadData}
+      />
+      
+      <ThemeSelectorModal
+        isOpen={showThemeSelector}
+        onClose={() => setShowThemeSelector(false)}
+        currentTheme={userProfile?.theme || 'auto'}
+        onSuccess={handleReloadData}
+      />
+      
+      <LanguageCurrencyModal
+        isOpen={showLanguageCurrency}
+        onClose={() => setShowLanguageCurrency(false)}
+        currentLanguage="en"
+        currentCurrency={userProfile?.preferred_currency || 'USD'}
+        onSuccess={handleReloadData}
+      />
     </AnimatePresence>
   );
 }
