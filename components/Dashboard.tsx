@@ -1051,7 +1051,7 @@ export default function Dashboard() {
                           <AnimatedNumber 
                             value={totalValueUSD} 
                             decimals={2} 
-                            prefix="$"
+                            useCurrencyPrefix
                           />
                         </h2>
                         <div className="text-right">
