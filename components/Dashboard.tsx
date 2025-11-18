@@ -84,7 +84,15 @@ export default function Dashboard() {
     getCurrentAddress // ✅ NEW: Get correct address for current chain
   } = useWalletStore();
   
-  const { formatUSDSync, symbol } = useCurrency();
+  const { formatUSDSync, symbol, selectedCurrency, exchangeRates } = useCurrency();
+  
+  // Convert USD amount to selected currency
+  const convertUSDToCurrency = (usdAmount: number): number => {
+    if (selectedCurrency === 'USD' || !exchangeRates[selectedCurrency]) {
+      return usdAmount;
+    }
+    return usdAmount * exchangeRates[selectedCurrency];
+  };
   
   // Get the correct address for the current chain (Solana or EVM)
   const displayAddress = getCurrentAddress();
@@ -1049,7 +1057,7 @@ export default function Dashboard() {
                       <>
                         <h2 className="text-4xl md:text-5xl font-bold">
                           <AnimatedNumber 
-                            value={totalValueUSD} 
+                            value={convertUSDToCurrency(totalValueUSD)} 
                             decimals={2} 
                             useCurrencyPrefix
                           />
