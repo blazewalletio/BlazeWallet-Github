@@ -13,6 +13,8 @@ interface CurrencyContextType {
   formatUSDSync: (usdAmount: number) => string;
   convertUSD: (usdAmount: number) => Promise<number>;
   isLoading: boolean;
+  exchangeRates: Record<string, number>;
+  selectedCurrency: SupportedCurrency;
 }
 
 const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined);
@@ -140,7 +142,9 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
         formatUSD,
         formatUSDSync,
         convertUSD,
-        isLoading
+        isLoading,
+        exchangeRates,
+        selectedCurrency: currency
       }}
     >
       {children}
