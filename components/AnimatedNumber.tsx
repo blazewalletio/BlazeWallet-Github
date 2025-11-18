@@ -11,7 +11,8 @@ interface AnimatedNumberProps {
   prefix?: string;
   suffix?: string;
   className?: string;
-  useCurrencyPrefix?: boolean; // NEW: Use dynamic currency prefix
+  useCurrencyPrefix?: boolean; // Use dynamic currency prefix
+  isUSD?: boolean; // NEW: If true, value is in USD and needs conversion
 }
 
 export default function AnimatedNumber({ 
@@ -20,9 +21,23 @@ export default function AnimatedNumber({
   prefix = '', 
   suffix = '',
   className = '',
-  useCurrencyPrefix = false
+  useCurrencyPrefix = false,
+  isUSD = true // Default: assume value is in USD
 }: AnimatedNumberProps) {
-  const { symbol, formatUSDSync } = useCurrency();
+  const { symbol, formatUSDSync, selectedCurrency, exchangeRates } = useCurrency();
+  
+  // Convert USD to selected currency if needed
+  const convertedValue = isUSD && useCurrencyPrefix ? (() => {
+    if (selectedCurrency === 'USD' || !exchangeRates[selectedCurrency]) {
+      return value;
+    }
+    // For crypto (BTC/ETH), divide by rate
+    if (selectedCurrency === 'BTC' || selectedCurrency === 'ETH') {
+      return value / exchangeRates[selectedCurrency];
+    }
+    // For fiat, multiply by rate
+    return value * exchangeRates[selectedCurrency];
+  })() : value;
   
   // Use currency symbol if requested
   const actualPrefix = useCurrencyPrefix ? symbol : prefix;
@@ -39,8 +54,8 @@ export default function AnimatedNumber({
   const [displayValue, setDisplayValue] = useState('');
 
   useEffect(() => {
-    spring.set(value);
-  }, [spring, value]);
+    spring.set(convertedValue);
+  }, [spring, convertedValue]);
 
   useEffect(() => {
     const unsubscribe = display.on('change', (latest) => {
