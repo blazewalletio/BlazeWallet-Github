@@ -84,62 +84,66 @@ class CurrencyService {
       return this.rates;
     }
 
+    // Fetch real-time fiat exchange rates
     try {
-      // Use CoinGecko API for crypto prices and exchange rates
-      const response = await fetch(
-        'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd,eur,gbp,jpy,aud,cad,chf,cny'
+      const fiatResponse = await fetch(
+        'https://api.exchangerate-api.com/v4/latest/USD'
       );
-
-      if (!response.ok) throw new Error('Failed to fetch exchange rates');
-
-      const data = await response.json();
-
-      // Update rates (base is always USD = 1)
-      // Rate format: 1 USD = X CURRENCY (so multiply USD by rate to get target currency)
+      
+      if (fiatResponse.ok) {
+        const fiatData = await fiatResponse.json();
+        // fiatData.rates gives us 1 USD = X CURRENCY (direct rates)
+        this.rates = {
+          USD: 1,
+          EUR: fiatData.rates.EUR,
+          GBP: fiatData.rates.GBP,
+          JPY: fiatData.rates.JPY,
+          AUD: fiatData.rates.AUD,
+          CAD: fiatData.rates.CAD,
+          CHF: fiatData.rates.CHF,
+          CNY: fiatData.rates.CNY,
+          BTC: 0, // Will be updated below from CoinGecko
+          ETH: 0  // Will be updated below from CoinGecko
+        };
+        logger.log('✅ Real-time fiat rates loaded');
+      } else {
+        throw new Error('Fiat API failed');
+      }
+    } catch (error) {
+      // Fallback to hardcoded rates if API fails
+      logger.warn('⚠️ Using fallback fiat rates:', error);
       this.rates = {
         USD: 1,
-        EUR: 0.92,  // 1 USD = 0.92 EUR
-        GBP: 0.79,  // 1 USD = 0.79 GBP
-        JPY: 149,   // 1 USD = 149 JPY
-        AUD: 1.53,  // 1 USD = 1.53 AUD
-        CAD: 1.36,  // 1 USD = 1.36 CAD
-        CHF: 0.88,  // 1 USD = 0.88 CHF
-        CNY: 7.24,  // 1 USD = 7.24 CNY
-        BTC: data.bitcoin?.usd || 0,
-        ETH: data.ethereum?.usd || 0
+        EUR: 0.92,  // Fallback: 1 USD = 0.92 EUR
+        GBP: 0.79,  // Fallback: 1 USD = 0.79 GBP
+        JPY: 149,   // Fallback: 1 USD = 149 JPY
+        AUD: 1.53,  // Fallback: 1 USD = 1.53 AUD
+        CAD: 1.36,  // Fallback: 1 USD = 1.36 CAD
+        CHF: 0.88,  // Fallback: 1 USD = 0.88 CHF
+        CNY: 7.24,  // Fallback: 1 USD = 7.24 CNY
+        BTC: 0,
+        ETH: 0
       };
-
-      // Fetch fiat exchange rates from exchangerate-api.com (free tier)
-      try {
-        const fiatResponse = await fetch(
-          'https://api.exchangerate-api.com/v4/latest/USD'
-        );
-        
-        if (fiatResponse.ok) {
-          const fiatData = await fiatResponse.json();
-          // fiatData.rates gives us 1 USD = X CURRENCY (direct rates)
-          this.rates = {
-            ...this.rates,
-            USD: 1,
-            EUR: fiatData.rates.EUR,  // Already correct format: 1 USD = X EUR
-            GBP: fiatData.rates.GBP,
-            JPY: fiatData.rates.JPY,
-            AUD: fiatData.rates.AUD,
-            CAD: fiatData.rates.CAD,
-            CHF: fiatData.rates.CHF,
-            CNY: fiatData.rates.CNY
-          };
-        }
-      } catch (error) {
-        logger.warn('Failed to fetch fiat exchange rates, using fallback:', error);
-      }
-
-      this.lastUpdate = now;
-      logger.log('Exchange rates updated:', this.rates);
-    } catch (error) {
-      logger.error('Failed to fetch exchange rates:', error);
-      // Keep using cached rates
     }
+
+    // Fetch crypto prices from CoinGecko
+    try {
+      const cryptoResponse = await fetch(
+        'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd'
+      );
+
+      if (cryptoResponse.ok) {
+        const cryptoData = await cryptoResponse.json();
+        this.rates.BTC = cryptoData.bitcoin?.usd || 0;
+        this.rates.ETH = cryptoData.ethereum?.usd || 0;
+        logger.log('✅ Real-time crypto prices loaded');
+      }
+    } catch (error) {
+      logger.warn('⚠️ Failed to fetch crypto prices:', error);
+    }
+
+    this.lastUpdate = now;
+    logger.log('💱 Exchange rates updated:', this.rates);
 
     return this.rates;
   }
