@@ -115,9 +115,11 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
 
     let converted: number;
     if (currency === 'BTC' || currency === 'ETH') {
+      // For crypto: divide by rate (rate is price in USD per coin)
       converted = usdAmount / rate;
     } else {
-      converted = usdAmount / rate;
+      // For fiat: multiply by rate (1 USD = X CURRENCY)
+      converted = usdAmount * rate;
     }
 
     const info = CURRENCIES[currency];

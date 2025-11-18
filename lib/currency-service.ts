@@ -95,15 +95,16 @@ class CurrencyService {
       const data = await response.json();
 
       // Update rates (base is always USD = 1)
+      // Rate format: 1 USD = X CURRENCY (so multiply USD by rate to get target currency)
       this.rates = {
         USD: 1,
-        EUR: 1 / 0.92, // Approximate EUR/USD rate
-        GBP: 1 / 0.79, // Approximate GBP/USD rate
-        JPY: 1 / 149,  // Approximate JPY/USD rate
-        AUD: 1 / 1.53, // Approximate AUD/USD rate
-        CAD: 1 / 1.36, // Approximate CAD/USD rate
-        CHF: 1 / 0.88, // Approximate CHF/USD rate
-        CNY: 1 / 7.24, // Approximate CNY/USD rate
+        EUR: 0.92,  // 1 USD = 0.92 EUR
+        GBP: 0.79,  // 1 USD = 0.79 GBP
+        JPY: 149,   // 1 USD = 149 JPY
+        AUD: 1.53,  // 1 USD = 1.53 AUD
+        CAD: 1.36,  // 1 USD = 1.36 CAD
+        CHF: 0.88,  // 1 USD = 0.88 CHF
+        CNY: 7.24,  // 1 USD = 7.24 CNY
         BTC: data.bitcoin?.usd || 0,
         ETH: data.ethereum?.usd || 0
       };
@@ -116,16 +117,17 @@ class CurrencyService {
         
         if (fiatResponse.ok) {
           const fiatData = await fiatResponse.json();
+          // fiatData.rates gives us 1 USD = X CURRENCY (direct rates)
           this.rates = {
             ...this.rates,
             USD: 1,
-            EUR: 1 / fiatData.rates.EUR,
-            GBP: 1 / fiatData.rates.GBP,
-            JPY: 1 / fiatData.rates.JPY,
-            AUD: 1 / fiatData.rates.AUD,
-            CAD: 1 / fiatData.rates.CAD,
-            CHF: 1 / fiatData.rates.CHF,
-            CNY: 1 / fiatData.rates.CNY
+            EUR: fiatData.rates.EUR,  // Already correct format: 1 USD = X EUR
+            GBP: fiatData.rates.GBP,
+            JPY: fiatData.rates.JPY,
+            AUD: fiatData.rates.AUD,
+            CAD: fiatData.rates.CAD,
+            CHF: fiatData.rates.CHF,
+            CNY: fiatData.rates.CNY
           };
         }
       } catch (error) {
@@ -156,13 +158,13 @@ class CurrencyService {
       return usdAmount;
     }
 
-    // For BTC/ETH, divide by the rate (since rate is in USD)
+    // For BTC/ETH, divide by the rate (since rate is price in USD per coin)
     if (targetCurrency === 'BTC' || targetCurrency === 'ETH') {
       return usdAmount / rate;
     }
 
-    // For fiat, divide by the rate (since our rates are USD-to-X)
-    return usdAmount / rate;
+    // For fiat currencies, multiply by the rate (1 USD = X CURRENCY)
+    return usdAmount * rate;
   }
 
   /**
