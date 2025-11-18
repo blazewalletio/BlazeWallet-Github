@@ -391,6 +391,51 @@ export default function Dashboard() {
   const priceService = new PriceService();
   const portfolioHistory = getPortfolioHistory();
 
+  /**
+   * 📊 Calculate weighted average portfolio change
+   * Used when portfolio history snapshots are insufficient (< 2 snapshots or < 30 min data)
+   */
+  const calculateWeightedPortfolioChange = (
+    tokens: any[],
+    nativeBalance: number,
+    nativePrice: number,
+    nativeChange: number
+  ): number => {
+    const nativeValue = nativeBalance * nativePrice;
+    
+    // Calculate total token value
+    const tokensTotalValue = tokens.reduce(
+      (sum, token) => sum + parseFloat(token.balanceUSD || '0'),
+      0
+    );
+    
+    const totalPortfolioValue = nativeValue + tokensTotalValue;
+    
+    // Avoid division by zero
+    if (totalPortfolioValue === 0) {
+      return 0;
+    }
+    
+    // Calculate weighted change: Σ(asset_value / total_value × asset_change%)
+    let weightedChange = 0;
+    
+    // Native token contribution
+    const nativeWeight = nativeValue / totalPortfolioValue;
+    weightedChange += nativeWeight * nativeChange;
+    
+    // Each token's contribution
+    tokens.forEach(token => {
+      const tokenValue = parseFloat(token.balanceUSD || '0');
+      const tokenWeight = tokenValue / totalPortfolioValue;
+      const tokenChange = token.change24h || 0;
+      weightedChange += tokenWeight * tokenChange;
+    });
+    
+    logger.log(`📊 Weighted portfolio change: ${weightedChange.toFixed(2)}% (native: ${(nativeWeight * 100).toFixed(1)}%, tokens: ${((1 - nativeWeight) * 100).toFixed(1)}%)`);
+    
+    return weightedChange;
+  };
+
   const fetchData = async (force = false) => {
     if (!displayAddress) return;
     
@@ -799,12 +844,22 @@ export default function Dashboard() {
         throw new Error('Fetch aborted');
       }
       
-      // ✅ Update chain-specific state with native change FIRST
+      logger.log(`[${timestamp}] 📈 Native 24h Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
+      
+      // ✅ STEP 7: Calculate weighted portfolio change (instant accurate!)
+      const weightedChange = calculateWeightedPortfolioChange(
+        tokensWithValue,
+        parseFloat(bal),
+        nativePrice,
+        nativeChange
+      );
+      
+      // ✅ Update chain-specific state with WEIGHTED change (not just native)
       updateCurrentChainState({
-        change24h: nativeChange,
+        change24h: weightedChange,
       });
       
-      logger.log(`[${timestamp}] 📈 24h Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
+      logger.log(`[${timestamp}] 📊 Portfolio 24h Change: ${weightedChange >= 0 ? '+' : ''}${weightedChange.toFixed(2)}%`);
       
       // ✅ PHASE 4: Cache with native price included
       await tokenBalanceCache.set(
@@ -818,8 +873,8 @@ export default function Dashboard() {
       logger.log('💾 Cached fresh token and balance data');
       
       // ✅ Update chart data from history based on selected time range
-      // This will use portfolio history if available (>= 2 snapshots), 
-      // otherwise it will keep the native change we just set above
+      // This will override with portfolio history if available (>= 2 snapshots with enough time span), 
+      // otherwise it will keep the weighted change we just set above
       updateChartData();
       
       logger.log(`========== FETCH DATA COMPLETE [${Date.now() - timestamp}ms] ==========\n`);
@@ -883,24 +938,24 @@ export default function Dashboard() {
         // Update change percentage for selected range (chain-specific)
         const rangeChange = portfolioHistory.getChangePercentage(selectedTimeRange, currentChain, displayAddress);
         updateCurrentChainState({ change24h: rangeChange });
-        logger.log(`[updateChartData] Using portfolio history: ${timeSpanHours.toFixed(1)}h span, ${rangeChange.toFixed(2)}% change`);
+        logger.log(`[updateChartData] ✅ Using portfolio history: ${timeSpanHours.toFixed(1)}h span, ${rangeChange.toFixed(2)}% change`);
       } else {
-        // Snapshots are too old or too close together - keep the native change
+        // Snapshots are too old or too close together - keep the weighted portfolio change
         setChartData(recentSnapshots.map(s => s.balance)); // Show data in chart
-        // Don't update change24h - keep the native token change
-        logger.log(`[updateChartData] Insufficient data (${timeSpanHours.toFixed(1)}h span, need ${minRequiredHours}h), keeping native change`);
+        // Don't update change24h - keep the weighted portfolio change from fetchData
+        logger.log(`[updateChartData] ⏳ Insufficient history data (${timeSpanHours.toFixed(1)}h span, need ${minRequiredHours}h), keeping weighted change`);
       }
     } else if (recentSnapshots.length === 1) {
-      // Only 1 snapshot - show it but keep native change percentage
+      // Only 1 snapshot - show it but keep weighted portfolio change percentage
       setChartData(recentSnapshots.map(s => s.balance));
-      // Don't update change24h - keep the native token change
-      logger.log(`[updateChartData] Only 1 snapshot, keeping native change`);
+      // Don't update change24h - keep the weighted portfolio change from fetchData
+      logger.log(`[updateChartData] ⏳ Only 1 snapshot, keeping weighted change`);
     } else {
       // No data yet for this chain/time range
       setChartData([]);
-      // ✅ Don't override the native change if there's no history data yet
-      // Keep the existing change24h value (from native token price change)
-      logger.log(`[updateChartData] No snapshots, keeping native change`);
+      // ✅ Don't override the weighted change if there's no history data yet
+      // Keep the existing change24h value (weighted portfolio change from fetchData)
+      logger.log(`[updateChartData] ⏳ No snapshots yet, keeping weighted change`);
     }
   };
 
