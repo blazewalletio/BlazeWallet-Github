@@ -9,7 +9,7 @@ import {
   Repeat, Wallet as WalletIcon, TrendingDown, PieChart, Rocket, CreditCard,
   Lock, Gift, Vote, Users, User, Palette, LogOut,
   Sparkles, Shield, Brain, MessageSquare, Send, Download, ShoppingCart,
-  BarChart3, DollarSign, Flame, Target, Clock, CheckCircle2, XCircle, Inbox
+  BarChart3, DollarSign, Flame, Target, Clock, CheckCircle2, XCircle, Inbox, Star
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useCurrency } from '@/contexts/CurrencyContext';
@@ -144,6 +144,9 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState<number[]>([]);
   const [selectedTimeRange, setSelectedTimeRange] = useState<number | null>(24); // Default: 24 hours
   
+  // ⭐ FAVORITE TOKENS: Track user's favorite tokens
+  const [favoriteTokens, setFavoriteTokens] = useState<Set<string>>(new Set());
+  
   // ✅ AbortController tracking per chain
   const activeFetchControllers = useRef<Map<string, AbortController>>(new Map());
   
@@ -176,6 +179,80 @@ export default function Dashboard() {
       updated.set(currentChain, { ...current, ...updates });
       return updated;
     });
+  };
+  
+  // ⭐ FAVORITE TOKENS: Load favorites from Supabase
+  const loadFavorites = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const { data: favorites, error } = await supabase
+        .from('favorite_tokens')
+        .select('token_address')
+        .eq('user_id', user.id)
+        .eq('chain_key', currentChain);
+      
+      if (error) throw error;
+      
+      if (favorites) {
+        const favoriteSet = new Set(favorites.map(f => f.token_address.toLowerCase()));
+        setFavoriteTokens(favoriteSet);
+        logger.log(`⭐ Loaded ${favoriteSet.size} favorite tokens for ${currentChain}`);
+      }
+    } catch (error) {
+      logger.error('Failed to load favorite tokens:', error);
+    }
+  };
+  
+  // ⭐ FAVORITE TOKENS: Toggle favorite status
+  const toggleFavorite = async (tokenAddress: string, tokenSymbol: string, tokenName?: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      
+      const normalizedAddress = tokenAddress.toLowerCase();
+      const isFavorite = favoriteTokens.has(normalizedAddress);
+      
+      if (isFavorite) {
+        // Remove from favorites
+        const { error } = await supabase
+          .from('favorite_tokens')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('chain_key', currentChain)
+          .eq('token_address', tokenAddress);
+        
+        if (error) throw error;
+        
+        setFavoriteTokens(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(normalizedAddress);
+          return newSet;
+        });
+        
+        logger.log(`⭐ Removed ${tokenSymbol} from favorites`);
+      } else {
+        // Add to favorites
+        const { error } = await supabase
+          .from('favorite_tokens')
+          .insert({
+            user_id: user.id,
+            chain_key: currentChain,
+            token_address: tokenAddress,
+            token_symbol: tokenSymbol,
+            token_name: tokenName || tokenSymbol
+          });
+        
+        if (error) throw error;
+        
+        setFavoriteTokens(prev => new Set(prev).add(normalizedAddress));
+        
+        logger.log(`⭐ Added ${tokenSymbol} to favorites`);
+      }
+    } catch (error) {
+      logger.error('Failed to toggle favorite:', error);
+    }
   };
   
   // Derived state from current chain
@@ -1004,6 +1081,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchData(true); // Force refresh on mount
+    loadFavorites(); // ⭐ Load favorites when chain changes
     const interval = setInterval(() => fetchData(false), 60000); // ✅ Update every 60 seconds (was 10s - too aggressive!)
     return () => clearInterval(interval);
   }, [displayAddress, currentChain]); // ✅ Use displayAddress (changes when chain switches)
@@ -1414,8 +1492,31 @@ export default function Dashboard() {
           {/* Native Token */}
           <motion.div
             whileTap={{ scale: 0.98 }}
-            className="glass p-4 rounded-xl flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer"
+            className="glass p-4 rounded-xl flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer group relative"
           >
+            {/* ⭐ Favorite Star Button */}
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleFavorite('native', chain.nativeCurrency.symbol, chain.nativeCurrency.name);
+              }}
+              className={`absolute top-2 right-2 p-1.5 rounded-lg transition-all z-10 ${
+                favoriteTokens.has('native')
+                  ? 'opacity-100'
+                  : 'opacity-0 group-hover:opacity-100'
+              }`}
+              title={favoriteTokens.has('native') ? 'Remove from favorites' : 'Add to favorites'}
+            >
+              <Star 
+                className={`w-4 h-4 transition-all ${
+                  favoriteTokens.has('native')
+                    ? 'fill-yellow-400 text-yellow-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.5)]' 
+                    : 'text-gray-400 hover:text-yellow-500'
+                }`}
+              />
+            </motion.button>
+
             <div className="flex items-center gap-4">
               <div 
                 className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-xl font-bold overflow-hidden"
@@ -1435,7 +1536,12 @@ export default function Dashboard() {
                 )}
               </div>
               <div>
-                <div className="font-semibold">{chain.nativeCurrency.name}</div>
+                <div className="font-semibold flex items-center gap-2">
+                  <span>{chain.nativeCurrency.name}</span>
+                  {favoriteTokens.has('native') && (
+                    <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+                  )}
+                </div>
                 <div className="text-sm text-slate-400">
                   {parseFloat(balance).toFixed(4)} {chain.nativeCurrency.symbol}
                 </div>
@@ -1456,6 +1562,7 @@ export default function Dashboard() {
             {tokens.map((token, index) => {
               const isUnknownToken = token.name === 'Unknown Token' && currentChain === 'solana';
               const isRefreshing = refreshingToken === token.address;
+              const isFavorite = favoriteTokens.has(token.address.toLowerCase());
               
               return (
                 <motion.div
@@ -1469,8 +1576,31 @@ export default function Dashboard() {
                     setSelectedToken(token);
                     setShowTokenDetail(true);
                   }}
-                  className="glass p-4 rounded-xl flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer relative"
+                  className="glass p-4 rounded-xl flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer group relative"
                 >
+                  {/* ⭐ Favorite Star Button */}
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFavorite(token.address, token.symbol, token.name);
+                    }}
+                    className={`absolute top-2 right-2 p-1.5 rounded-lg transition-all z-10 ${
+                      isFavorite
+                        ? 'opacity-100'
+                        : 'opacity-0 group-hover:opacity-100'
+                    }`}
+                    title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                  >
+                    <Star 
+                      className={`w-4 h-4 transition-all ${
+                        isFavorite
+                          ? 'fill-yellow-400 text-yellow-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.5)]' 
+                          : 'text-gray-400 hover:text-yellow-500'
+                      }`}
+                    />
+                  </motion.button>
+
                   <div className="flex items-center gap-4 flex-1 min-w-0">
                     <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xl overflow-hidden flex-shrink-0">
                       {(() => {
@@ -1503,6 +1633,9 @@ export default function Dashboard() {
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold flex items-center gap-2">
                         <span className="truncate">{token.name}</span>
+                        {isFavorite && (
+                          <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+                        )}
                         {isUnknownToken && (
                           <span className="text-xs text-orange-500 bg-orange-100 px-2 py-0.5 rounded-full flex-shrink-0">
                             Unknown
