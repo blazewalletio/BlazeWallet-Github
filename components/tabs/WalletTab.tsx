@@ -586,10 +586,10 @@ export default function WalletTab() {
                           e.stopPropagation();
                           toggleFavorite(token);
                         }}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-gray-100 rounded-lg"
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                         title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                       >
-                        <Star className={`w-5 h-5 ${isFavorite ? 'text-yellow-500 fill-yellow-500' : 'text-gray-400'}`} />
+                        <Star className={`w-5 h-5 transition-colors ${isFavorite ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300 hover:text-yellow-400'}`} />
                       </button>
                     </div>
                   </motion.div>
