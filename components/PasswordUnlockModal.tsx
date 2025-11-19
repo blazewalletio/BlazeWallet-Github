@@ -107,7 +107,8 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
             throw new Error(`Too many failed attempts. Account locked for 15 minutes.`);
           }
           
-          throw new Error(result.error || `Invalid password. ${attemptResult.remainingAttempts} attempts remaining.`);
+          // Always show attempt counter, ignore Supabase error message
+          throw new Error(`Invalid password. ${attemptResult.remainingAttempts} attempt${attemptResult.remainingAttempts === 1 ? '' : 's'} remaining.`);
         }
 
         // ✅ SECURITY: Clear failed attempts on success
@@ -154,7 +155,8 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
             throw new Error(`Too many failed attempts. Account locked for 15 minutes.`);
           }
           
-          throw new Error(result.error || `Invalid password. ${attemptResult.remainingAttempts} attempts remaining.`);
+          // Always show attempt counter, ignore Supabase error message
+          throw new Error(`Invalid password. ${attemptResult.remainingAttempts} attempt${attemptResult.remainingAttempts === 1 ? '' : 's'} remaining.`);
         }
 
         // ✅ SECURITY: Clear failed attempts on success
