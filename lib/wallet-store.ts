@@ -702,14 +702,40 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   checkAutoLock: () => {
     const { lastActivity, wallet, isLocked } = get();
     
-    // ✅ SECURITY FIX: Reduced from 30min to 15min for better security
-    const AUTO_LOCK_TIME = 15 * 60 * 1000; // 15 minutes
+    // ✅ SECURITY: Auto-lock after 30 minutes of inactivity
+    const AUTO_LOCK_TIME = 30 * 60 * 1000; // 30 minutes
+    const WARNING_TIME = 28 * 60 * 1000; // 28 minutes (2min warning)
     
     // Only lock if wallet is unlocked
-    if (wallet && !isLocked && Date.now() - lastActivity > AUTO_LOCK_TIME) {
-      logger.log('🔒 [Security] Auto-locking wallet after 15 minutes of inactivity');
+    if (wallet && !isLocked) {
+      const inactiveTime = Date.now() - lastActivity;
       
-      get().lockWallet(); // Use existing lockWallet method
+      // Show warning at 28 minutes (2min before lock)
+      if (inactiveTime > WARNING_TIME && inactiveTime < AUTO_LOCK_TIME) {
+        const secondsRemaining = Math.floor((AUTO_LOCK_TIME - inactiveTime) / 1000);
+        if (typeof window !== 'undefined' && !sessionStorage.getItem('auto_lock_warning_shown')) {
+          // Only show warning once
+          sessionStorage.setItem('auto_lock_warning_shown', 'true');
+          logger.log(`⚠️ [Security] Wallet will auto-lock in ${secondsRemaining} seconds due to inactivity`);
+          
+          // Dispatch custom event for UI to show warning toast
+          window.dispatchEvent(new CustomEvent('wallet-auto-lock-warning', { 
+            detail: { secondsRemaining } 
+          }));
+        }
+      }
+      
+      // Auto-lock at 30 minutes
+      if (inactiveTime > AUTO_LOCK_TIME) {
+        logger.log('🔒 [Security] Auto-locking wallet after 30 minutes of inactivity');
+        
+        // Clear warning flag
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('auto_lock_warning_shown');
+        }
+        
+        get().lockWallet(); // Use existing lockWallet method
+      }
     }
   },
 
