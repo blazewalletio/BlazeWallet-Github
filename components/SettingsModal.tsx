@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import BiometricSetupModal from './BiometricSetupModal';
+import PasswordVerificationModal from './PasswordVerificationModal';
 import { logger } from '@/lib/logger';
 
 interface SettingsModalProps {
@@ -28,6 +29,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
   const [biometricLoading, setBiometricLoading] = useState(false);
   const [biometricError, setBiometricError] = useState('');
   const [showBiometricSetup, setShowBiometricSetup] = useState(false);
+  const [showPasswordVerification, setShowPasswordVerification] = useState(false);
 
   // Check biometric status on mount - WALLET-SPECIFIC
   useEffect(() => {

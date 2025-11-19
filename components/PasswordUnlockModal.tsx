@@ -8,6 +8,7 @@ import { getCurrentAccount, switchToEmailAccount, switchToSeedWallet, WalletAcco
 import AccountSelectorDropdown from './AccountSelectorDropdown';
 import NewEmailModal from './NewEmailModal';
 import { logger } from '@/lib/logger';
+import { rateLimitService } from '@/lib/rate-limit-service';
 
 interface PasswordUnlockModalProps {
   isOpen: boolean;
@@ -20,7 +21,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [attempts, setAttempts] = useState(0);
   const { unlockWithPassword } = useWalletStore();
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [currentAccount, setCurrentAccount] = useState<WalletAccount | null>(null);
@@ -81,10 +81,8 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     e.preventDefault();
     setError('');
 
-    if (attempts >= 3) {
-      setError("Too many failed attempts. Use your recovery phrase to start over.");
-      return;
-    }
+    // Note: Rate limiting is now handled in wallet-store.ts unlockWithPassword()
+    // The error message from there will show remaining attempts
 
     setIsLoading(true);
     try {
@@ -154,8 +152,8 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         onComplete();
       }
     } catch (error: any) {
-      setAttempts(prev => prev + 1);
-      setError(`Invalid password. Attempt ${attempts + 1}/3`);
+      // Error message from wallet-store already includes attempt count and rate limit info
+      setError(error.message || 'Failed to unlock wallet');
     } finally {
       setIsLoading(false);
     }
