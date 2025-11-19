@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { 
   ArrowUpRight, ArrowDownLeft, RefreshCw, ChevronRight,
   TrendingUp, Eye, EyeOff, Repeat, CreditCard, Plus,
-  TrendingDown
+  TrendingDown, Star
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useCurrency } from '@/contexts/CurrencyContext';
@@ -21,6 +21,7 @@ import TokenSelector from '../TokenSelector';
 import AnimatedNumber from '../AnimatedNumber';
 import { getPortfolioHistory } from '@/lib/portfolio-history';
 import { logger } from '@/lib/logger';
+import { supabase } from '@/lib/supabase';
 
 export default function WalletTab() {
   const { 
@@ -46,6 +47,7 @@ export default function WalletTab() {
   const [change24h, setChange24h] = useState(2.5);
   const [chartData, setChartData] = useState<number[]>([]);
   const [selectedTimeRange, setSelectedTimeRange] = useState<number | null>(24);
+  const [favoriteTokens, setFavoriteTokens] = useState<Set<string>>(new Set());
 
   const chain = CHAINS[currentChain];
   const blockchain = new BlockchainService(currentChain as any);
@@ -148,6 +150,86 @@ export default function WalletTab() {
       setChange24h(0);
     }
   };
+
+  // Load favorite tokens from Supabase
+  const loadFavorites = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: favorites, error } = await supabase
+        .from('favorite_tokens')
+        .select('token_address')
+        .eq('user_id', user.id)
+        .eq('chain_key', currentChain);
+
+      if (error) throw error;
+
+      if (favorites) {
+        setFavoriteTokens(new Set(favorites.map(f => f.token_address.toLowerCase())));
+      }
+    } catch (error) {
+      logger.error('Failed to load favorite tokens:', error);
+    }
+  };
+
+  // Toggle favorite status
+  const toggleFavorite = async (token: any) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const tokenAddress = token.address.toLowerCase();
+      const isFavorite = favoriteTokens.has(tokenAddress);
+
+      if (isFavorite) {
+        // Remove from favorites
+        const { error } = await supabase
+          .from('favorite_tokens')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('chain_key', currentChain)
+          .eq('token_address', tokenAddress);
+
+        if (error) throw error;
+
+        setFavoriteTokens(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(tokenAddress);
+          return newSet;
+        });
+
+        logger.log('Token removed from favorites:', token.symbol);
+      } else {
+        // Add to favorites
+        const { error } = await supabase
+          .from('favorite_tokens')
+          .insert({
+            user_id: user.id,
+            chain_key: currentChain,
+            token_address: tokenAddress,
+            token_symbol: token.symbol,
+            token_name: token.name,
+            token_decimals: token.decimals
+          });
+
+        if (error) throw error;
+
+        setFavoriteTokens(prev => new Set([...prev, tokenAddress]));
+
+        logger.log('Token added to favorites:', token.symbol);
+      }
+    } catch (error) {
+      logger.error('Failed to toggle favorite:', error);
+    }
+  };
+
+  // Load favorites when chain or address changes
+  useEffect(() => {
+    if (address) {
+      loadFavorites();
+    }
+  }, [address, currentChain]);
 
   useEffect(() => {
     fetchData(true);
@@ -455,34 +537,65 @@ export default function WalletTab() {
             </motion.div>
 
             {/* ERC-20 Tokens */}
-            {tokens.map((token, index) => (
-              <motion.div
-                key={token.address}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
-                whileTap={{ scale: 0.98 }}
-                className="glass p-4 rounded-xl flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-slate-700 to-slate-600 rounded-full flex items-center justify-center text-xl">
-                    {token.logo || token.symbol[0]}
-                  </div>
-                  <div>
-                    <div className="font-semibold">{token.name}</div>
-                    <div className="text-sm text-slate-400">
-                      {parseFloat(token.balance || '0').toFixed(4)} {token.symbol}
+            {[...tokens]
+              .sort((a, b) => {
+                // Sort: favorites first, then by USD value
+                const aFav = favoriteTokens.has(a.address.toLowerCase());
+                const bFav = favoriteTokens.has(b.address.toLowerCase());
+                if (aFav && !bFav) return -1;
+                if (!aFav && bFav) return 1;
+                return parseFloat(b.balanceUSD || '0') - parseFloat(a.balanceUSD || '0');
+              })
+              .map((token, index) => {
+                const isFavorite = favoriteTokens.has(token.address.toLowerCase());
+                
+                return (
+                  <motion.div
+                    key={token.address}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="glass p-4 rounded-xl flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className="w-12 h-12 bg-gradient-to-br from-slate-700 to-slate-600 rounded-full flex items-center justify-center text-xl">
+                        {token.logo || token.symbol[0]}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">{token.name}</span>
+                          {isFavorite && (
+                            <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                          )}
+                        </div>
+                        <div className="text-sm text-slate-400">
+                          {parseFloat(token.balance || '0').toFixed(4)} {token.symbol}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="font-semibold">{formatUSDSync(parseFloat(token.balanceUSD || '0'))}</div>
-                  <div className={`text-sm ${(token.change24h || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {(token.change24h || 0) >= 0 ? '+' : ''}{(token.change24h || 0).toFixed(2)}%
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <div className="font-semibold">{formatUSDSync(parseFloat(token.balanceUSD || '0'))}</div>
+                        <div className={`text-sm ${(token.change24h || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {(token.change24h || 0) >= 0 ? '+' : ''}{(token.change24h || 0).toFixed(2)}%
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFavorite(token);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-gray-100 rounded-lg"
+                        title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                      >
+                        <Star className={`w-5 h-5 ${isFavorite ? 'text-yellow-500 fill-yellow-500' : 'text-gray-400'}`} />
+                      </button>
+                    </div>
+                  </motion.div>
+                );
+              })
+            }
 
             {tokens.length === 0 && (
               <div className="text-center py-8 text-slate-400">
