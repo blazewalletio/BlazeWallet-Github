@@ -10,7 +10,11 @@ import {
   CheckCircle2,
   XCircle,
   Copy,
-  Check
+  Check,
+  FileText,
+  Edit2,
+  Save,
+  X as XIcon
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { MultiChainService } from '@/lib/multi-chain-service';
@@ -18,6 +22,7 @@ import { CHAINS } from '@/lib/chains';
 import { transactionCache } from '@/lib/transaction-cache';
 import { apiQueue } from '@/lib/api-queue';
 import { logger } from '@/lib/logger';
+import { supabase } from '@/lib/supabase';
 
 interface Transaction {
   hash: string;
@@ -31,6 +36,7 @@ interface Transaction {
   type?: string;
   mint?: string;
   logoUrl?: string;
+  note?: string; // User's personal note
 }
 
 export default function TransactionHistory() {
@@ -40,6 +46,9 @@ export default function TransactionHistory() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedHash, setCopiedHash] = useState<string>('');
+  const [editingNote, setEditingNote] = useState<string | null>(null);
+  const [noteText, setNoteText] = useState<string>('');
+  const [savingNote, setSavingNote] = useState(false);
 
   useEffect(() => {
     loadTransactions();
@@ -157,6 +166,109 @@ export default function TransactionHistory() {
     navigator.clipboard.writeText(hash);
     setCopiedHash(hash);
     setTimeout(() => setCopiedHash(''), 2000);
+  };
+
+  // Load notes for all transactions
+  const loadNotes = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: notes, error } = await supabase
+        .from('transaction_notes')
+        .select('tx_hash, note')
+        .eq('user_id', user.id)
+        .eq('chain_key', currentChain);
+
+      if (error) throw error;
+
+      if (notes && notes.length > 0) {
+        // Map notes to transactions
+        setTransactions(prevTxs => 
+          prevTxs.map(tx => {
+            const note = notes.find(n => n.tx_hash.toLowerCase() === tx.hash.toLowerCase());
+            return note ? { ...tx, note: note.note } : tx;
+          })
+        );
+      }
+    } catch (error) {
+      logger.error('Failed to load transaction notes:', error);
+    }
+  };
+
+  // Load notes when transactions change
+  useEffect(() => {
+    if (transactions.length > 0) {
+      loadNotes();
+    }
+  }, [transactions.length, currentChain]);
+
+  const startEditingNote = (hash: string, currentNote?: string) => {
+    setEditingNote(hash);
+    setNoteText(currentNote || '');
+  };
+
+  const cancelEditingNote = () => {
+    setEditingNote(null);
+    setNoteText('');
+  };
+
+  const saveNote = async (hash: string) => {
+    if (!noteText.trim() && !transactions.find(tx => tx.hash === hash)?.note) {
+      // No note to save and no existing note
+      cancelEditingNote();
+      return;
+    }
+
+    setSavingNote(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      if (!noteText.trim()) {
+        // Delete note if empty
+        const { error } = await supabase
+          .from('transaction_notes')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('chain_key', currentChain)
+          .eq('tx_hash', hash);
+
+        if (error) throw error;
+
+        // Update local state
+        setTransactions(prevTxs =>
+          prevTxs.map(tx => tx.hash === hash ? { ...tx, note: undefined } : tx)
+        );
+      } else {
+        // Upsert note
+        const { error } = await supabase
+          .from('transaction_notes')
+          .upsert({
+            user_id: user.id,
+            chain_key: currentChain,
+            tx_hash: hash,
+            note: noteText.trim()
+          }, {
+            onConflict: 'user_id,chain_key,tx_hash'
+          });
+
+        if (error) throw error;
+
+        // Update local state
+        setTransactions(prevTxs =>
+          prevTxs.map(tx => tx.hash === hash ? { ...tx, note: noteText.trim() } : tx)
+        );
+      }
+
+      cancelEditingNote();
+      logger.log('Transaction note saved:', hash);
+    } catch (error) {
+      logger.error('Failed to save transaction note:', error);
+      alert('Failed to save note. Please try again.');
+    } finally {
+      setSavingNote(false);
+    }
   };
 
   const formatTime = (timestamp: number) => {
@@ -308,6 +420,66 @@ export default function TransactionHistory() {
                     <div className="text-xs text-gray-400 mt-1">
                       {formatTime(tx.timestamp)}
                     </div>
+
+                    {/* Transaction Note */}
+                    {editingNote === tx.hash ? (
+                      <div className="mt-3 space-y-2">
+                        <textarea
+                          value={noteText}
+                          onChange={(e) => setNoteText(e.target.value)}
+                          placeholder="Add a note (e.g., 'Payment for services', 'Gift to friend')..."
+                          className="w-full p-2 text-sm border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
+                          rows={2}
+                          autoFocus
+                          maxLength={500}
+                        />
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => saveNote(tx.hash)}
+                            disabled={savingNote}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            <Save className="w-3 h-3" />
+                            {savingNote ? 'Saving...' : 'Save'}
+                          </button>
+                          <button
+                            onClick={cancelEditingNote}
+                            disabled={savingNote}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            <XIcon className="w-3 h-3" />
+                            Cancel
+                          </button>
+                          {tx.note && (
+                            <span className="text-xs text-gray-400">
+                              {noteText.length}/500
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ) : tx.note ? (
+                      <div className="mt-2 p-2 bg-orange-50 border border-orange-100 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <FileText className="w-3.5 h-3.5 text-orange-600 flex-shrink-0 mt-0.5" />
+                          <p className="text-xs text-gray-700 flex-1">{tx.note}</p>
+                          <button
+                            onClick={() => startEditingNote(tx.hash, tx.note)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-orange-100 rounded"
+                            title="Edit note"
+                          >
+                            <Edit2 className="w-3 h-3 text-orange-600" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => startEditingNote(tx.hash)}
+                        className="mt-2 flex items-center gap-1.5 text-xs text-gray-400 hover:text-orange-500 transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        Add note
+                      </button>
+                    )}
                   </div>
 
                   {/* Amount & Link */}
