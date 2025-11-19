@@ -431,6 +431,59 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
     }
   };
   
+  const handleExportAddresses = () => {
+    try {
+      const account = getCurrentAccount();
+      if (!account) return;
+      
+      const { address, solanaAddress, bitcoinAddress, litecoinAddress, dogecoinAddress, bitcoincashAddress } = useWalletStore.getState();
+      
+      // Generate addresses for all 18 chains
+      const addresses: Record<string, string> = {};
+      Object.entries(CHAINS).forEach(([chainKey, chain]) => {
+        if (chainKey === 'solana') {
+          addresses['Solana'] = solanaAddress || 'N/A';
+        } else if (chainKey === 'bitcoin') {
+          addresses['Bitcoin'] = bitcoinAddress || 'N/A';
+        } else if (chainKey === 'litecoin') {
+          addresses['Litecoin'] = litecoinAddress || 'N/A';
+        } else if (chainKey === 'dogecoin') {
+          addresses['Dogecoin'] = dogecoinAddress || 'N/A';
+        } else if (chainKey === 'bitcoincash') {
+          addresses['Bitcoin Cash'] = bitcoincashAddress || 'N/A';
+        } else {
+          // All EVM chains use the same address
+          addresses[chain.name] = address || 'N/A';
+        }
+      });
+      
+      // Create formatted text
+      let text = '🔥 BLAZE WALLET - ALL CHAIN ADDRESSES\n';
+      text += '='.repeat(50) + '\n\n';
+      text += `Account: ${account.email || 'Seed Wallet'}\n`;
+      text += `Export Date: ${new Date().toLocaleString()}\n\n`;
+      text += '='.repeat(50) + '\n\n';
+      
+      Object.entries(addresses).forEach(([chainName, address]) => {
+        text += `${chainName}:\n${address}\n\n`;
+      });
+      
+      text += '='.repeat(50) + '\n';
+      text += '⚠️ KEEP THIS SAFE - NEVER SHARE WITH ANYONE\n';
+      text += '💡 Use these addresses to receive crypto on each chain\n';
+      
+      // Copy to clipboard
+      navigator.clipboard.writeText(text);
+      
+      alert('✅ All addresses copied to clipboard!');
+      
+      logger.log('All addresses exported to clipboard');
+    } catch (error) {
+      logger.error('Failed to export addresses:', error);
+      alert('Failed to export addresses. Please try again.');
+    }
+  };
+  
   const handleReloadData = async () => {
     // Reload all data after modal changes
     const { data: { user } } = await supabase.auth.getUser();
@@ -1207,8 +1260,19 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="grid grid-cols-2 gap-4 mb-6"
+            className="grid grid-cols-3 gap-4 mb-6"
           >
+            <button 
+              onClick={handleExportAddresses}
+              className="glass-card rounded-2xl p-6 text-center hover:bg-purple-50 hover:border-purple-200 border border-gray-100 transition-all group"
+            >
+              <div className="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
+                <Wallet className="w-6 h-6 text-purple-600" />
+              </div>
+              <div className="font-semibold text-gray-900 mb-1 text-sm">Export Addresses</div>
+              <div className="text-xs text-gray-600">All 18 chains</div>
+            </button>
+            
             <button 
               onClick={() => {
                 onClose();
@@ -1219,7 +1283,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
               <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
                 <Download className="w-6 h-6 text-blue-600" />
               </div>
-              <div className="font-semibold text-gray-900 mb-1">Export Wallet</div>
+              <div className="font-semibold text-gray-900 mb-1 text-sm">Export Wallet</div>
               <div className="text-xs text-gray-600">Backup seed phrase</div>
             </button>
 
@@ -1230,7 +1294,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
               <div className="w-14 h-14 bg-red-100 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
                 <LogOut className="w-6 h-6 text-red-600" />
               </div>
-              <div className="font-semibold text-red-600 mb-1">Lock Wallet</div>
+              <div className="font-semibold text-red-600 mb-1 text-sm">Lock Wallet</div>
               <div className="text-xs text-gray-600">Secure your wallet</div>
             </button>
           </motion.div>
