@@ -136,7 +136,7 @@ export default function NotificationSettingsModal({
           {/* Header */}
           <div className="border-b border-gray-100 px-6 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
                 <Bell className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -155,7 +155,7 @@ export default function NotificationSettingsModal({
           {/* Content */}
           <div className="p-6 space-y-4">
             {/* Master Toggle */}
-            <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-orange-200 rounded-xl">
+            <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="font-semibold text-gray-900">All Notifications</div>
@@ -164,7 +164,7 @@ export default function NotificationSettingsModal({
                 <button
                   onClick={() => handleToggle('all')}
                   className={`relative w-14 h-8 rounded-full transition-colors ${
-                    settings.all ? 'bg-orange-500' : 'bg-gray-300'
+                    settings.all ? 'bg-purple-500' : 'bg-gray-300'
                   }`}
                 >
                   <div
@@ -183,7 +183,7 @@ export default function NotificationSettingsModal({
                   key={type.key}
                   className={`p-4 rounded-xl border-2 transition-all ${
                     settings.all && type.enabled
-                      ? 'border-orange-200 bg-purple-50'
+                      ? 'border-purple-200 bg-purple-50'
                       : 'border-gray-200 bg-white'
                   }`}
                 >
@@ -196,7 +196,7 @@ export default function NotificationSettingsModal({
                       onClick={() => handleToggle(type.key)}
                       disabled={!settings.all}
                       className={`relative w-12 h-7 rounded-full transition-colors ${
-                        settings.all && type.enabled ? 'bg-orange-500' : 'bg-gray-300'
+                        settings.all && type.enabled ? 'bg-purple-500' : 'bg-gray-300'
                       } ${!settings.all ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <div
@@ -222,7 +222,7 @@ export default function NotificationSettingsModal({
             <button
               onClick={handleSave}
               disabled={isLoading}
-              className="flex-1 p-3 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 p-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? 'Saving...' : 'Save Preferences'}
             </button>

@@ -10,16 +10,16 @@ const config: Config = {
     extend: {
       colors: {
         primary: {
-          50: '#fff7ed',
-          100: '#ffedd5',
-          200: '#fed7aa',
-          300: '#fdba74',
-          400: '#fb923c',
-          500: '#f97316', // Orange
-          600: '#ea580c',
-          700: '#c2410c',
-          800: '#9a3412',
-          900: '#7c2d12',
+          50: '#f0f9ff',
+          100: '#e0f2fe',
+          200: '#bae6fd',
+          300: '#7dd3fc',
+          400: '#38bdf8',
+          500: '#0ea5e9',
+          600: '#0284c7',
+          700: '#0369a1',
+          800: '#075985',
+          900: '#0c4a6e',
         },
         accent: {
           50: '#fafafa',
@@ -36,8 +36,8 @@ const config: Config = {
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'gradient-primary': 'linear-gradient(135deg, #f97316 0%, #fbbf24 100%)', // Orange to Yellow
-        'gradient-card': 'linear-gradient(135deg, rgba(249, 115, 22, 0.03) 0%, rgba(251, 191, 36, 0.03) 100%)',
+        'gradient-primary': 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+        'gradient-card': 'linear-gradient(135deg, rgba(14, 165, 233, 0.03) 0%, rgba(2, 132, 199, 0.03) 100%)',
       },
       backdropBlur: {
         xs: '2px',

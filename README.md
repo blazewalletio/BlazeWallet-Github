@@ -162,7 +162,7 @@ PWA:             Native manifest
 
 ### Colors
 ```css
-Primary:   #f97316 → #fbbf24 (Orange to Yellow)
+Primary:   #8b5cf6 → #06b6d4 (Purple to Cyan)
 Success:   #10B981 (Emerald)
 Warning:   #F59E0B (Amber)
 Danger:    #F43F5E (Rose)
@@ -170,7 +170,7 @@ Danger:    #F43F5E (Rose)
 
 ### Logo
 - **Flame icon** 🔥
-- **Gradient** (orange → yellow)
+- **Gradient** (orange → red → yellow)
 - **Bold** and **energetic**
 
 ### Typography

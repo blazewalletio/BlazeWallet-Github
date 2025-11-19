@@ -77,7 +77,7 @@ export default function EmailVerificationModal({ isOpen, onClose }: EmailVerific
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
+                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
                   <Mail className="w-6 h-6 text-white" />
                 </div>
                 <h2 className="text-xl font-bold text-gray-900">Verify Your Email</h2>

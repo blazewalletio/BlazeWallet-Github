@@ -187,7 +187,7 @@ export default function GovernanceDashboard({ isOpen, onClose }: GovernanceDashb
         <div className="max-w-4xl mx-auto p-6">
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
               <p className="text-gray-600">Loading governance data...</p>
             </div>
           </div>
@@ -216,7 +216,7 @@ export default function GovernanceDashboard({ isOpen, onClose }: GovernanceDashb
           {/* Header */}
           <div className="mb-6">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
                 <Vote className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -280,9 +280,9 @@ export default function GovernanceDashboard({ isOpen, onClose }: GovernanceDashb
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="glass-card bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-orange-500/20"
+              className="glass-card bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20"
             >
-              <div className="flex items-center gap-2 text-orange-600 mb-2">
+              <div className="flex items-center gap-2 text-purple-600 mb-2">
                 <Vote className="w-5 h-5" />
                 <span className="text-sm font-semibold">Voting Power</span>
               </div>
@@ -356,7 +356,7 @@ export default function GovernanceDashboard({ isOpen, onClose }: GovernanceDashb
                 onClick={() => setActiveTab('vote')}
                 className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
                   activeTab === 'vote'
-                    ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-lg shadow-purple-500/30'
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}
               >
@@ -366,7 +366,7 @@ export default function GovernanceDashboard({ isOpen, onClose }: GovernanceDashb
                 onClick={() => setActiveTab('create')}
                 className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
                   activeTab === 'create'
-                    ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-lg shadow-purple-500/30'
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}
               >
@@ -525,7 +525,7 @@ export default function GovernanceDashboard({ isOpen, onClose }: GovernanceDashb
                     onChange={(e) => setNewProposal({ ...newProposal, description: e.target.value })}
                     placeholder="Describe your proposal in detail..."
                     rows={6}
-                    className="w-full px-4 py-3 bg-white rounded-xl border border-gray-200 focus:border-orange-500 focus:ring-2 focus:ring-purple-500/20 focus:outline-none resize-none transition-all"
+                    className="w-full px-4 py-3 bg-white rounded-xl border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 focus:outline-none resize-none transition-all"
                     disabled={!canCreateProposal}
                   />
                 </div>
@@ -535,7 +535,7 @@ export default function GovernanceDashboard({ isOpen, onClose }: GovernanceDashb
                   whileTap={{ scale: canCreateProposal && newProposal.description.trim() ? 0.98 : 1 }}
                   onClick={handleCreateProposal}
                   disabled={!canCreateProposal || !newProposal.description.trim()}
-                  className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-500/30"
+                  className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-semibold text-lg transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-500/30"
                 >
                   <Plus className="w-5 h-5" />
                   Create Proposal ({proposalThreshold} BLAZE)

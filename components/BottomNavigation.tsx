@@ -73,16 +73,12 @@ export default function BottomNavigation({ activeTab, onTabChange }: BottomNavig
                 onClick={() => onTabChange(tab.id)}
                 className={`relative flex flex-col items-center justify-center ${
                   isPWA ? 'py-3 px-4' : 'py-2 px-3'
-                } rounded-xl transition-all duration-200 min-w-0 flex-1 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${
+                } rounded-xl transition-all duration-200 min-w-0 flex-1 ${
                   isActive 
                     ? 'text-primary-600' 
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
                 whileTap={{ scale: 0.95 }}
-                aria-label={`Switch to ${tab.label} tab`}
-                aria-current={isActive ? 'page' : undefined}
-                role="tab"
-                aria-selected={isActive}
               >
                 <div className="relative">
                   <Icon 

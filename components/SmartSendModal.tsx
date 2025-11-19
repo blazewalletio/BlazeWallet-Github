@@ -171,13 +171,14 @@ export default function SmartSendModal({
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Smart Send</h2>
+              <h2 className="text-2xl font-bold text-gray-900">Smart Send</h2>
               <p className="text-sm text-gray-500">Save on gas fees</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+            aria-label="Close Smart Send modal"
+            className="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
           >
             <X className="w-5 h-5 text-gray-600" />
           </button>

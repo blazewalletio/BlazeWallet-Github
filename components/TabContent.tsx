@@ -228,7 +228,7 @@ export default function TabContent({
           className="glass-card p-6 rounded-2xl text-left hover:bg-gray-50 transition-colors group"
         >
           <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-            <Repeat className="w-6 h-6 text-orange-600" />
+            <Repeat className="w-6 h-6 text-purple-600" />
           </div>
           <div className="font-semibold text-gray-900 mb-1">Swap</div>
           <div className="text-sm text-gray-600">Tokens wisselen</div>
@@ -258,7 +258,7 @@ export default function TabContent({
       <div className="glass-card p-6 rounded-2xl">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
-            <Bot className="w-6 h-6 text-orange-600" />
+            <Bot className="w-6 h-6 text-purple-600" />
           </div>
           <div>
             <h2 className="text-lg font-bold text-gray-900">AI Tools</h2>
@@ -296,7 +296,7 @@ export default function TabContent({
           className="glass-card p-6 rounded-2xl text-left hover:bg-gray-50 transition-colors group cursor-pointer"
         >
           <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-            <PieChart className="w-6 h-6 text-orange-600" />
+            <PieChart className="w-6 h-6 text-purple-600" />
           </div>
           <div className="font-semibold text-gray-900 mb-1">Portfolio Advisor</div>
           <div className="text-sm text-gray-600">Gepersonaliseerde tips</div>
@@ -431,7 +431,7 @@ export default function TabContent({
           className="glass-card p-6 rounded-2xl text-left hover:bg-gray-50 transition-colors group"
         >
           <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-            <UsersIcon className="w-6 h-6 text-orange-600" />
+            <UsersIcon className="w-6 h-6 text-purple-600" />
           </div>
           <div className="font-semibold text-gray-900 mb-1">Referrals</div>
           <div className="text-sm text-gray-600">Earn rewards</div>

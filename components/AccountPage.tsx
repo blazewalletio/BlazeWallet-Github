@@ -744,7 +744,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
               transition={{ delay: 0.1 }}
               className="glass-card p-6"
             >
-              <div className="flex items-center gap-2 text-orange-600 mb-2">
+              <div className="flex items-center gap-2 text-purple-600 mb-2">
                 <Wallet className="w-5 h-5" />
                 <span className="text-sm font-semibold">Total Volume</span>
               </div>
@@ -939,7 +939,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             >
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                  <Smartphone className="w-5 h-5 text-orange-600" />
+                  <Smartphone className="w-5 h-5 text-purple-600" />
                 </div>
                 <div className="text-left">
                   <h3 className="text-lg font-bold text-gray-900">Trusted Devices</h3>
@@ -1097,7 +1097,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
               >
                 <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-orange-600" />
+                  <Shield className="w-5 h-5 text-purple-600" />
                 </div>
                 <div className="flex-1 text-left">
                   <div className="font-semibold text-gray-900">Export Wallet</div>
@@ -1170,7 +1170,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
               >
                 <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                  <Bell className="w-5 h-5 text-orange-600" />
+                  <Bell className="w-5 h-5 text-purple-600" />
                 </div>
                 <div className="flex-1 text-left">
                   <div className="font-semibold text-gray-900">Notifications</div>
@@ -1248,10 +1248,10 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
           >
             <button 
               onClick={handleExportAddresses}
-              className="glass-card rounded-2xl p-6 text-center hover:bg-purple-50 hover:border-orange-200 border border-gray-100 transition-all group"
+              className="glass-card rounded-2xl p-6 text-center hover:bg-purple-50 hover:border-purple-200 border border-gray-100 transition-all group"
             >
               <div className="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
-                <Wallet className="w-6 h-6 text-orange-600" />
+                <Wallet className="w-6 h-6 text-purple-600" />
               </div>
               <div className="font-semibold text-gray-900 mb-1 text-sm">Export Addresses</div>
               <div className="text-xs text-gray-600">All 18 chains</div>

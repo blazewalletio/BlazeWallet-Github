@@ -250,9 +250,9 @@ export default function CashbackTracker({ isOpen, onClose }: CashbackTrackerProp
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="glass-card bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-orange-500/20"
+                className="glass-card bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20"
               >
-                <div className="flex items-center gap-2 text-orange-600 mb-2">
+                <div className="flex items-center gap-2 text-purple-600 mb-2">
                   <TrendingUp className="w-5 h-5" />
                   <span className="text-sm font-semibold">Transactions</span>
                 </div>
