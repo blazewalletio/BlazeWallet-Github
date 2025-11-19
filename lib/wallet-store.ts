@@ -9,6 +9,7 @@ import { BiometricStore } from './biometric-store';
 import { secureLog } from './secure-log';
 import { SolanaService } from './solana-service';
 import { logger } from '@/lib/logger';
+import { secureStorage } from './secure-storage';
 
 export interface WalletState {
   wallet: ethers.HDNodeWallet | null;
@@ -198,14 +199,15 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     const encryptedWallet = encryptWallet(mnemonic, password);
     const passwordHash = hashPassword(password);
 
-    // ✅ SECURITY: Store ONLY encrypted data
+    // ✅ SECURITY: Store ONLY encrypted data in IndexedDB
     if (typeof window !== 'undefined') {
-      localStorage.setItem('encrypted_wallet', JSON.stringify(encryptedWallet));
-      localStorage.setItem('password_hash', passwordHash);
-      localStorage.setItem('has_password', 'true');
+      await secureStorage.setItem('encrypted_wallet', JSON.stringify(encryptedWallet));
+      await secureStorage.setItem('password_hash', passwordHash);
+      await secureStorage.setItem('has_password', 'true');
       
       // ✅ SECURITY: Clean up any old unencrypted storage (migration safety)
       localStorage.removeItem('wallet_mnemonic');
+      logger.log('✅ Wallet encrypted and stored in IndexedDB');
     }
 
     set({
@@ -223,14 +225,21 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         throw new Error('Not available op server');
       }
 
-      // Check if password is correct
-      const storedHash = localStorage.getItem('password_hash');
+      // ✅ SECURITY FIX: Migrate to IndexedDB if needed (one-time, automatic)
+      const needsMigration = await secureStorage.needsMigration();
+      if (needsMigration) {
+        logger.log('🔄 Migrating sensitive data to IndexedDB...');
+        await secureStorage.migrateFromLocalStorage();
+      }
+
+      // Check if password is correct (try IndexedDB first, fallback to localStorage)
+      const storedHash = await secureStorage.getItem('password_hash') || localStorage.getItem('password_hash');
       if (!storedHash || !verifyPassword(password, storedHash)) {
         throw new Error('Invalid password');
       }
 
-      // Decrypt wallet
-      const encryptedWalletData = localStorage.getItem('encrypted_wallet');
+      // Decrypt wallet (try IndexedDB first, fallback to localStorage)
+      const encryptedWalletData = await secureStorage.getItem('encrypted_wallet') || localStorage.getItem('encrypted_wallet');
       if (!encryptedWalletData) {
         throw new Error('Geen versleutelde wallet gevonden');
       }
@@ -394,12 +403,13 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         // Seed phrase wallet: use local encryption
         secureLog.sensitive('Unlocking seed phrase wallet with biometric password');
         
-        const encryptedWalletData = localStorage.getItem('encrypted_wallet');
+        // Try IndexedDB first, fallback to localStorage
+        const encryptedWalletData = await secureStorage.getItem('encrypted_wallet') || localStorage.getItem('encrypted_wallet');
         if (!encryptedWalletData) {
           throw new Error('No encrypted wallet found');
         }
 
-        const storedHash = localStorage.getItem('password_hash');
+        const storedHash = await secureStorage.getItem('password_hash') || localStorage.getItem('password_hash');
         if (!storedHash) {
           throw new Error('No password hash found');
         }

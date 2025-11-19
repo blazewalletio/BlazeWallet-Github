@@ -13,6 +13,7 @@
 import { WebAuthnService } from './webauthn-service';
 import { secureLog } from './secure-log';
 import { logger } from '@/lib/logger';
+import { secureStorage } from './secure-storage';
 
 export class BiometricStore {
   private static instance: BiometricStore;
