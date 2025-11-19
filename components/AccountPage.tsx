@@ -17,7 +17,6 @@ import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
 import TwoFactorModal from './TwoFactorModal';
 import ChangePasswordModal from './ChangePasswordModal';
-import ThemeSelectorModal from './ThemeSelectorModal';
 import CurrencyModal from './CurrencyModal';
 import NotificationSettingsModal from './NotificationSettingsModal';
 import AutoLockSettingsModal from './AutoLockSettingsModal';
@@ -109,7 +108,6 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
   // Modal states
   const [show2FAModal, setShow2FAModal] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
-  const [showThemeSelector, setShowThemeSelector] = useState(false);
   const [showCurrency, setShowCurrency] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAutoLock, setShowAutoLock] = useState(false);
@@ -1182,20 +1180,6 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 </div>
                 <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
               </button>
-
-              <button 
-                onClick={() => setShowThemeSelector(true)}
-                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors"
-              >
-                <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
-                  <Sliders className="w-5 h-5 text-yellow-600" />
-                </div>
-                <div className="flex-1 text-left">
-                  <div className="font-semibold text-gray-900">Theme</div>
-                  <p className="text-sm text-gray-600 capitalize">{userProfile?.theme || 'Auto'}</p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
-              </button>
             </div>
           </motion.div>
 
@@ -1318,13 +1302,6 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
       <ChangePasswordModal
         isOpen={showChangePassword}
         onClose={() => setShowChangePassword(false)}
-        onSuccess={handleReloadData}
-      />
-      
-      <ThemeSelectorModal
-        isOpen={showThemeSelector}
-        onClose={() => setShowThemeSelector(false)}
-        currentTheme={userProfile?.theme || 'auto'}
         onSuccess={handleReloadData}
       />
       
