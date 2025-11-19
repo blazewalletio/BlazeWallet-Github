@@ -146,7 +146,10 @@ export default function DeleteAccountModal({
             <div className="p-4 bg-red-50 border-2 border-red-200 rounded-xl flex items-start gap-3 mb-6">
               <AlertTriangle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
               <div className="text-sm text-red-700">
-                <div className="font-bold mb-1">⚠️ PERMANENT ACTION</div>
+                <div className="font-bold mb-1 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" />
+                  PERMANENT ACTION
+                </div>
                 <ul className="list-disc list-inside space-y-1">
                   <li>All your wallet data will be deleted</li>
                   <li>Transaction history will be lost</li>

@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Shield, Key, Trash2, 
-  Eye, EyeOff, Copy, Check, Bell, Moon, Settings, Fingerprint, CheckCircle, XCircle, Bug
+  Eye, EyeOff, Copy, Check, Bell, Moon, Settings, Fingerprint, CheckCircle, XCircle, Bug,
+  AlertTriangle, Lock
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import BiometricSetupModal from './BiometricSetupModal';
@@ -181,10 +182,13 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
               </h3>
               
               <div className="space-y-4">
-                {/* 🔒 SECURITY WARNING when showing mnemonic */}
+                {/* SECURITY WARNING when showing mnemonic */}
                 {!showMnemonic && (
                   <div className="bg-red-50 border border-red-300 rounded-xl p-4">
-                    <p className="text-red-900 text-sm font-semibold mb-1">⚠️ Security Warning</p>
+                    <p className="text-red-900 text-sm font-semibold mb-1 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4" />
+                      Security Warning
+                    </p>
                     <p className="text-red-800 text-xs">
                       Your recovery phrase is EXTREMELY sensitive. Only reveal it in a secure, private location. 
                       Make sure no one can see your screen and no cameras/screenshots are active.
@@ -219,10 +223,10 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
                   >
-                    {/* 🔒 CRITICAL WARNING while showing */}
+                    {/* CRITICAL WARNING while showing */}
                     <div className="bg-red-100 border-2 border-red-500 rounded-xl p-4 mb-4">
                       <div className="flex items-start gap-2">
-                        <span className="text-red-600 text-lg">🔒</span>
+                        <Lock className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                         <div>
                           <p className="text-red-900 font-bold text-sm mb-1">SENSITIVE DATA VISIBLE!</p>
                           <ul className="text-red-800 text-xs space-y-0.5">
