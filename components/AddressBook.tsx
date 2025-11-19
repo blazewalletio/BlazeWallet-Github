@@ -199,7 +199,7 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
                 </div>
               </div>
               <button
-                onClick={onClose}
+                onClick={onClose} aria-label="Close modal"
                 className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
               >
                 <X className="w-6 h-6 text-gray-600" />
@@ -213,7 +213,7 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
                 <div className="flex gap-3">
                   <div className="flex-1 relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
+                    <input aria-label="Search contacts..."
                       type="text"
                       placeholder="Search contacts..."
                       value={searchQuery}
@@ -227,7 +227,7 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
                     <button
                       onClick={() => setShowChainDropdown(!showChainDropdown)}
                       className="flex items-center gap-2 px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all min-w-[140px]"
-                    >
+                     aria-expanded={showChainDropdown}>
                       {selectedChainOption.logoUrl ? (
                         <img 
                           src={selectedChainOption.logoUrl} 

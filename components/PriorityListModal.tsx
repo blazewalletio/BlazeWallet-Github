@@ -413,14 +413,14 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
                               onClick={copyReferralCode}
                               className="p-2 bg-white hover:bg-green-100 rounded-lg border border-green-300 transition-colors"
                               title="Copy"
-                            >
+                             aria-label="Copy to clipboard">
                               <Copy className="w-5 h-5 text-green-600" />
                             </button>
                             <button
                               onClick={shareOnTwitter}
                               className="p-2 bg-white hover:bg-green-100 rounded-lg border border-green-300 transition-colors"
                               title="Share on Twitter"
-                            >
+                             aria-label="Share">
                               <Share2 className="w-5 h-5 text-green-600" />
                             </button>
                           </div>
@@ -493,7 +493,7 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
                         <Mail className="w-4 h-4" />
                         Email Address (Recommended)
                       </label>
-                      <input
+                      <input aria-label="Email address"
                         type="email"
                         value={email}
                         onChange={(e) => {
@@ -516,7 +516,7 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
                       <label className="block text-sm font-semibold text-gray-900 mb-2">
                         Referral Code (Optional)
                       </label>
-                      <input
+                      <input aria-label="Text input"
                         type="text"
                         value={referralCode}
                         onChange={(e) => {
@@ -555,7 +555,7 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
                           <label className="block text-sm font-semibold text-gray-900 mb-2">
                             Telegram Username (Optional)
                           </label>
-                          <input
+                          <input aria-label="Text input"
                             type="text"
                             value={telegram}
                             onChange={(e) => setTelegram(e.target.value)}
@@ -569,7 +569,7 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
                           <label className="block text-sm font-semibold text-gray-900 mb-2">
                             Twitter Handle (Optional)
                           </label>
-                          <input
+                          <input aria-label="Text input"
                             type="text"
                             value={twitter}
                             onChange={(e) => setTwitter(e.target.value)}

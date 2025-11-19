@@ -608,7 +608,7 @@ export default function PresaleDashboard() {
               <label className="text-sm font-semibold mb-2 block">
                 Contribution Amount (USD)
               </label>
-              <input
+              <input aria-label="Number input"
                 type="number"
                 value={contributionAmount}
                 onChange={(e) => setContributionAmount(e.target.value)}

@@ -510,7 +510,7 @@ export default function AddContactModal({
                     </div>
 
                     {/* Name Input */}
-                    <input
+                    <input aria-label="John Doe"
                       type="text"
                       placeholder="John Doe"
                       value={name}
@@ -550,7 +550,7 @@ export default function AddContactModal({
                       onClick={() => setShowChainDropdown(!showChainDropdown)}
                       disabled={isSaving}
                       className="w-full flex items-center gap-3 px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
+                     aria-expanded={showChainDropdown}>
                       {selectedChainOption.logoUrl ? (
                         <img 
                           src={selectedChainOption.logoUrl} 
@@ -621,7 +621,7 @@ export default function AddContactModal({
                     Address
                   </label>
                   <div className="relative">
-                    <input
+                    <input aria-label="Text input"
                       type="text"
                       placeholder={selectedChain === 'solana' ? 'Solana address...' : '0x...'}
                       value={address}
@@ -713,7 +713,7 @@ export default function AddContactModal({
                   )}
 
                   <div className="flex gap-2">
-                    <input
+                    <input aria-label="Custom tag..."
                       type="text"
                       placeholder="Custom tag..."
                       value={customTag}

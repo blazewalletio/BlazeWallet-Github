@@ -480,7 +480,7 @@ export default function StakingDashboard({ isOpen, onClose }: StakingDashboardPr
               <div>
                 <label className="text-sm text-gray-700 mb-2 block font-medium">Amount to Stake</label>
                 <div className="relative">
-                  <input
+                  <input aria-label="Number input"
                     type="number"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}

@@ -106,7 +106,7 @@ export default function AIConversationalAssistant({
           {/* Header */}
           <div className="flex-shrink-0 p-6 pb-4">
             <button
-              onClick={onClose}
+              onClick={onClose} aria-label="Close modal"
               className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors mb-4"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -209,7 +209,7 @@ export default function AIConversationalAssistant({
               {/* Input */}
               <div className="flex-shrink-0 p-4 border-t border-gray-200">
                 <div className="relative">
-                  <input
+                  <input aria-label="Text input"
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}

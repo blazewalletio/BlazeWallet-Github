@@ -207,7 +207,7 @@ export default function AdminDashboard() {
                 {!isAuthorized && (
                   <div className="max-w-md mx-auto space-y-4">
                     <h3 className="text-lg font-semibold text-gray-900">Admin Access</h3>
-                    <input
+                    <input aria-label="Email address"
                       type="email"
                       value={adminEmail}
                       onChange={(e) => setAdminEmail(e.target.value)}
@@ -296,7 +296,7 @@ export default function AdminDashboard() {
                     <div className="flex flex-wrap gap-3 items-center justify-between">
                       <div className="flex-1 min-w-[200px] relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input
+                        <input aria-label="Text input"
                           type="text"
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}

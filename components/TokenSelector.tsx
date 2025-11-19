@@ -287,7 +287,7 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
                       {isSolana && 'SPL Token Mint Address'}
                       {isEVM && 'ERC20 Contract Address'}
                     </label>
-                    <input
+                    <input aria-label="Text input"
                       type="text"
                       value={customAddress}
                       onChange={(e) => {

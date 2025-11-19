@@ -119,7 +119,7 @@ export default function GovernanceModal({ isOpen, onClose }: GovernanceModalProp
                     </p>
                   </div>
                   <button
-                    onClick={onClose}
+                    onClick={onClose} aria-label="Close modal"
                     className="text-theme-text-secondary hover:text-white transition-colors"
                   >
                     <X className="w-6 h-6" />
@@ -271,7 +271,7 @@ export default function GovernanceModal({ isOpen, onClose }: GovernanceModalProp
 
                     <div>
                       <label className="block text-sm font-semibold mb-2">Proposal Title</label>
-                      <input
+                      <input aria-label="Text input"
                         type="text"
                         value={newProposal.title}
                         onChange={(e) => setNewProposal({ ...newProposal, title: e.target.value })}

@@ -135,7 +135,7 @@ export default function LaunchpadModal({ isOpen, onClose }: LaunchpadModalProps)
                   </p>
                 </div>
                 <button
-                  onClick={onClose}
+                  onClick={onClose} aria-label="Close modal"
                   className="text-theme-text-secondary hover:text-white transition-colors"
                 >
                   <X className="w-6 h-6" />
@@ -281,7 +281,7 @@ export default function LaunchpadModal({ isOpen, onClose }: LaunchpadModalProps)
                         <div className="space-y-4">
                           <div>
                             <label className="block text-sm font-semibold mb-2">Investment Amount (USD)</label>
-                            <input
+                            <input aria-label="Number input"
                               type="number"
                               value={investAmount}
                               onChange={(e) => setInvestAmount(e.target.value)}

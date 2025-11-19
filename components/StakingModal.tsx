@@ -100,7 +100,7 @@ export default function StakingModal({ isOpen, onClose }: StakingModalProps) {
                   </p>
                 </div>
                 <button
-                  onClick={onClose}
+                  onClick={onClose} aria-label="Close modal"
                   className="text-theme-text-secondary hover:text-white transition-colors"
                 >
                   <X className="w-6 h-6" />
@@ -167,7 +167,7 @@ export default function StakingModal({ isOpen, onClose }: StakingModalProps) {
                     Amount to Stake
                   </label>
                   <div className="relative">
-                    <input
+                    <input aria-label="Number input"
                       type="number"
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}

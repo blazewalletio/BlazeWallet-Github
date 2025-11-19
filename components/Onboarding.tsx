@@ -788,7 +788,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   <label className="block text-sm font-semibold text-gray-900 mb-2">
                     Email address
                   </label>
-                  <input
+                  <input aria-label="Email address"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -1191,7 +1191,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       </span>
                       <span className="text-gray-500 text-sm">word</span>
                     </div>
-                  <input
+                  <input aria-label="Text input"
                     type="text"
                       value={verifyWords[wordIndex] || ''}
                       onChange={(e) => setVerifyWords(prev => ({ ...prev, [wordIndex]: e.target.value }))}

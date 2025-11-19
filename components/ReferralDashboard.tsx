@@ -268,7 +268,7 @@ export default function ReferralDashboard({ isOpen, onClose }: ReferralDashboard
             <div className="glass-card mb-6 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 border border-blue-500/20">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Referral Link</h3>
               <div className="flex gap-2 mb-4">
-                <input
+                <input aria-label="Text input"
                   type="text"
                   value={referralData.referralLink}
                   readOnly

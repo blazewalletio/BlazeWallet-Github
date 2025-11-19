@@ -508,7 +508,7 @@ export default function SmartScheduleModal({
                     Execute when gas price drops below:
                   </label>
                   <div className="relative">
-                    <input
+                    <input aria-label="Number input"
                       type="number"
                       value={gasThreshold}
                       onChange={(e) => setGasThreshold(e.target.value)}

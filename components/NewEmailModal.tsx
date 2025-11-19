@@ -108,7 +108,7 @@ export default function NewEmailModal({ isOpen, onClose, onSubmit, existingEmail
               <label className="block text-sm font-semibold text-gray-900 mb-2">
                 Email address
               </label>
-              <input
+              <input aria-label="Email address"
                 type="email"
                 value={email}
                 onChange={(e) => {

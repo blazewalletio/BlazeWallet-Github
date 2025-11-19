@@ -145,7 +145,7 @@ export default function NotificationSettingsModal({
               </div>
             </div>
             <button
-              onClick={onClose}
+              onClick={onClose} aria-label="Close modal"
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <X className="w-5 h-5 text-gray-500" />

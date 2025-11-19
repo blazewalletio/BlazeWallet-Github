@@ -203,7 +203,7 @@ export default function AIRiskScanner({ onClose, initialAddress = '' }: AIRiskSc
 
               {/* Input */}
               <div className="relative">
-                <input
+                <input aria-label="Text input"
                   type="text"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}

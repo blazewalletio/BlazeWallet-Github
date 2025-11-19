@@ -588,7 +588,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                   <button
                     onClick={() => setShowChainDropdown(!showChainDropdown)}
                     className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-medium text-gray-900 hover:border-orange-300 transition-colors focus:outline-none focus:border-orange-500 flex items-center justify-between"
-                  >
+                   aria-expanded={showChainDropdown}>
                     <div className="flex items-center gap-3">
                       {selectedChainConfig.logoUrl ? (
                         <img 
@@ -662,7 +662,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                     <button
                       onClick={() => setShowAssetDropdown(!showAssetDropdown)}
                       className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-medium text-gray-900 hover:border-orange-300 transition-colors focus:outline-none focus:border-orange-500 flex items-center justify-between"
-                    >
+                     aria-expanded={showAssetDropdown}>
                       {selectedAsset && (
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center overflow-hidden border border-gray-200">
@@ -757,7 +757,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                   To address
                 </label>
                 <div className="relative">
-                  <input
+                  <input aria-label="Text input"
                     type="text"
                     value={toAddress}
                     onChange={(e) => setToAddress(e.target.value)}
@@ -784,7 +784,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                   </span>
                 </div>
                 <div className="relative">
-                  <input
+                  <input aria-label="Number input"
                     type="number"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}

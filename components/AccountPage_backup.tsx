@@ -140,7 +140,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <div className="flex items-center gap-2 mb-1">
                   {isEditing ? (
                     <div className="flex items-center gap-2 flex-1">
-                      <input
+                      <input aria-label="Text input"
                         type="text"
                         value={displayName}
                         onChange={(e) => setDisplayName(e.target.value)}

@@ -743,7 +743,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-gray-600">
                           €
                         </span>
-                        <input
+                        <input aria-label="Number input"
                           type="number"
                           value={customAmount}
                           onChange={(e) => {
@@ -1392,7 +1392,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                           <div className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-gray-500">
                             €
                           </div>
-                          <input
+                          <input aria-label="Number input"
                             type="number"
                             value={customAmount}
                             onChange={(e) => {

@@ -105,7 +105,7 @@ export default function NFTMintModal({ isOpen, onClose }: NFTMintModalProps) {
                   </p>
                 </div>
                 <button
-                  onClick={onClose}
+                  onClick={onClose} aria-label="Close modal"
                   className="text-theme-text-secondary hover:text-white transition-colors"
                 >
                   <X className="w-6 h-6" />

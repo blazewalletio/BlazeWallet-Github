@@ -452,7 +452,7 @@ export default function AITransactionAssistant({
             </div>
 
             <div className="flex-1 relative">
-              <input
+              <input aria-label="Text input"
                 ref={inputRef}
                 type="text"
                 value={input}

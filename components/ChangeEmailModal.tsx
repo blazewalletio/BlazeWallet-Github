@@ -185,7 +185,7 @@ export default function ChangeEmailModal({
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Current Email
                   </label>
-                  <input
+                  <input aria-label="Email address"
                     type="email"
                     value={currentEmail}
                     disabled
@@ -197,7 +197,7 @@ export default function ChangeEmailModal({
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Password
                   </label>
-                  <input
+                  <input aria-label="Password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -228,7 +228,7 @@ export default function ChangeEmailModal({
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Current Email
                   </label>
-                  <input
+                  <input aria-label="Email address"
                     type="email"
                     value={currentEmail}
                     disabled
@@ -240,7 +240,7 @@ export default function ChangeEmailModal({
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     New Email Address
                   </label>
-                  <input
+                  <input aria-label="Email address"
                     type="email"
                     value={newEmail}
                     onChange={(e) => setNewEmail(e.target.value)}

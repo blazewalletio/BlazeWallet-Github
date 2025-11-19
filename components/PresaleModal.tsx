@@ -305,7 +305,7 @@ export default function PresaleModal({ isOpen, onClose }: PresaleModalProps) {
                   <p className="text-sm text-gray-600 mt-1">Join the early supporters - 2.4x gain at launch! ($0.008333 → $0.02)</p>
                 </div>
                 <button
-                  onClick={onClose}
+                  onClick={onClose} aria-label="Close modal"
                   className="text-gray-600 hover:text-gray-900 transition-colors"
                 >
                   <X className="w-6 h-6" />
@@ -418,7 +418,7 @@ export default function PresaleModal({ isOpen, onClose }: PresaleModalProps) {
                     <label className="block text-sm font-semibold text-gray-900 mb-2">
                       Contribution Amount (USD in BNB)
                     </label>
-                    <input
+                    <input aria-label="Number input"
                       type="number"
                       value={contributionAmount}
                       onChange={(e) => setContributionAmount(e.target.value)}

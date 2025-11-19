@@ -179,7 +179,7 @@ export default function LaunchpadDashboard({ isOpen, onClose }: LaunchpadDashboa
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-semibold text-gray-900 mb-2 block">Investment Amount (USD)</label>
-                  <input
+                  <input aria-label="Number input"
                     type="number"
                     value={investAmount}
                     onChange={(e) => setInvestAmount(e.target.value)}

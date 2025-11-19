@@ -152,7 +152,7 @@ export default function RecurringSendModal({
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={onClose} aria-label="Close modal"
             className="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
           >
             <X className="w-5 h-5 text-gray-600" />

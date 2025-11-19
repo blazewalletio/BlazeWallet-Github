@@ -347,7 +347,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           <div className="glass-card p-6">
             <div className="text-sm font-medium text-gray-600 mb-3">From</div>
             <div className="flex items-center gap-4">
-              <input
+              <input aria-label="Number input"
                 type="number"
                 value={fromAmount}
                 onChange={(e) => setFromAmount(e.target.value)}
@@ -394,7 +394,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           <div className="glass-card p-6">
             <div className="text-sm font-medium text-gray-600 mb-3">To</div>
             <div className="flex items-center gap-4">
-              <input
+              <input aria-label="0.0"
                 type="text"
                 value={toAmount}
                 readOnly

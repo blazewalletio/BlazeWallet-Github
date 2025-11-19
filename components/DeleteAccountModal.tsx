@@ -133,7 +133,7 @@ export default function DeleteAccountModal({
               </div>
             </div>
             <button
-              onClick={onClose}
+              onClick={onClose} aria-label="Close modal"
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <X className="w-5 h-5 text-gray-500" />
@@ -185,7 +185,7 @@ export default function DeleteAccountModal({
                 <div className="text-gray-700">
                   Please enter your password to continue:
                 </div>
-                <input
+                <input aria-label="Password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -209,7 +209,7 @@ export default function DeleteAccountModal({
                   This is your last chance. Type <span className="text-red-600">DELETE</span> to
                   permanently delete your account:
                 </div>
-                <input
+                <input aria-label="Text input"
                   type="text"
                   value={confirmText}
                   onChange={(e) => setConfirmText(e.target.value)}

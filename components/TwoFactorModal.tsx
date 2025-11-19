@@ -310,7 +310,7 @@ export default function TwoFactorModal({ isOpen, onClose, isEnabled, onSuccess }
 
                 <div className="space-y-3">
                   <h3 className="font-semibold text-gray-900">3. Enter verification code</h3>
-                  <input
+                  <input aria-label="Text input"
                     type="text"
                     value={verificationCode}
                     onChange={(e) => {
@@ -392,7 +392,7 @@ export default function TwoFactorModal({ isOpen, onClose, isEnabled, onSuccess }
 
                 <div className="space-y-3">
                   <h3 className="font-semibold text-gray-900">Enter verification code to confirm</h3>
-                  <input
+                  <input aria-label="Text input"
                     type="text"
                     value={verificationCode}
                     onChange={(e) => {

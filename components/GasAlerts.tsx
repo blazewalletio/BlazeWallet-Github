@@ -309,7 +309,7 @@ function AddAlertModal({ userId, defaultChain, onClose, onSuccess }: AddAlertMod
             <h2 className="text-xl font-bold text-gray-900">New Gas Alert</h2>
           </div>
           <button
-            onClick={onClose}
+            onClick={onClose} aria-label="Close modal"
             className="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
           >
             <X className="w-5 h-5 text-gray-600" />
