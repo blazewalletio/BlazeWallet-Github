@@ -88,13 +88,30 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     try {
       // Check if this is a new email login
       if (pendingNewEmail) {
+        // ✅ SECURITY: Check rate limiting first for email accounts
+        const lockStatus = rateLimitService.isLocked(pendingNewEmail);
+        if (lockStatus.isLocked) {
+          const minutes = Math.ceil(lockStatus.unlockInSeconds! / 60);
+          throw new Error(`Too many failed attempts. Please try again in ${minutes} minutes.`);
+        }
+
         // For new email wallets, decrypt using Supabase auth method
         const { signInWithEmail } = await import('@/lib/supabase-auth');
         const result = await signInWithEmail(pendingNewEmail, password);
         
         if (!result.success) {
-          throw new Error(result.error || 'Invalid password');
+          // ✅ SECURITY: Record failed attempt
+          const attemptResult = rateLimitService.recordFailedAttempt(pendingNewEmail);
+          
+          if (attemptResult.isLocked) {
+            throw new Error(`Too many failed attempts. Account locked for 15 minutes.`);
+          }
+          
+          throw new Error(result.error || `Invalid password. ${attemptResult.remainingAttempts} attempts remaining.`);
         }
+
+        // ✅ SECURITY: Clear failed attempts on success
+        rateLimitService.clearAttempts(pendingNewEmail);
 
         // Wallet is now decrypted and loaded
         if (result.mnemonic) {
@@ -118,13 +135,30 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       const email = localStorage.getItem('wallet_email');
 
       if (createdWithEmail && email) {
+        // ✅ SECURITY: Check rate limiting first for email accounts
+        const lockStatus = rateLimitService.isLocked(email);
+        if (lockStatus.isLocked) {
+          const minutes = Math.ceil(lockStatus.unlockInSeconds! / 60);
+          throw new Error(`Too many failed attempts. Please try again in ${minutes} minutes.`);
+        }
+
         // For email wallets, decrypt using Supabase auth method
         const { signInWithEmail } = await import('@/lib/supabase-auth');
         const result = await signInWithEmail(email, password);
         
         if (!result.success) {
-          throw new Error(result.error || 'Invalid password');
+          // ✅ SECURITY: Record failed attempt
+          const attemptResult = rateLimitService.recordFailedAttempt(email);
+          
+          if (attemptResult.isLocked) {
+            throw new Error(`Too many failed attempts. Account locked for 15 minutes.`);
+          }
+          
+          throw new Error(result.error || `Invalid password. ${attemptResult.remainingAttempts} attempts remaining.`);
         }
+
+        // ✅ SECURITY: Clear failed attempts on success
+        rateLimitService.clearAttempts(email);
 
         // Wallet is now decrypted and loaded
         if (result.mnemonic) {
