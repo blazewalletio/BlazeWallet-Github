@@ -154,8 +154,15 @@ export default function WalletTab() {
   // Load favorite tokens from Supabase
   const loadFavorites = async () => {
     try {
+      logger.log('🌟 [FAVORITE DEBUG] loadFavorites called for chain:', currentChain);
+
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        logger.log('🌟 [FAVORITE DEBUG] No user found, skipping favorites load');
+        return;
+      }
+
+      logger.log('🌟 [FAVORITE DEBUG] User authenticated:', user.id);
 
       const { data: favorites, error } = await supabase
         .from('favorite_tokens')
@@ -163,27 +170,55 @@ export default function WalletTab() {
         .eq('user_id', user.id)
         .eq('chain_key', currentChain);
 
-      if (error) throw error;
+      if (error) {
+        logger.error('🌟 [FAVORITE DEBUG] Error loading favorites:', error);
+        throw error;
+      }
+
+      logger.log('🌟 [FAVORITE DEBUG] Favorites loaded from DB:', favorites);
 
       if (favorites) {
-        setFavoriteTokens(new Set(favorites.map(f => f.token_address.toLowerCase())));
+        const favoriteSet = new Set(favorites.map(f => f.token_address.toLowerCase()));
+        setFavoriteTokens(favoriteSet);
+        logger.log('🌟 [FAVORITE DEBUG] Favorites set updated:', Array.from(favoriteSet));
+      } else {
+        logger.log('🌟 [FAVORITE DEBUG] No favorites found in DB');
       }
     } catch (error) {
-      logger.error('Failed to load favorite tokens:', error);
+      logger.error('🌟 [FAVORITE DEBUG] Failed to load favorite tokens:', error);
     }
   };
 
   // Toggle favorite status
   const toggleFavorite = async (tokenAddress: string, tokenSymbol: string, tokenName?: string) => {
     try {
+      logger.log('🌟 [FAVORITE DEBUG] toggleFavorite called:', {
+        tokenAddress,
+        tokenSymbol,
+        tokenName,
+        currentChain
+      });
+
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      if (!user) {
+        logger.error('🌟 [FAVORITE DEBUG] No user authenticated');
+        throw new Error('Not authenticated');
+      }
+
+      logger.log('🌟 [FAVORITE DEBUG] User authenticated:', user.id);
 
       const normalizedAddress = tokenAddress.toLowerCase();
       const isFavorite = favoriteTokens.has(normalizedAddress);
 
+      logger.log('🌟 [FAVORITE DEBUG] Current state:', {
+        normalizedAddress,
+        isFavorite,
+        allFavorites: Array.from(favoriteTokens)
+      });
+
       if (isFavorite) {
         // Remove from favorites
+        logger.log('🌟 [FAVORITE DEBUG] Removing from favorites...');
         const { error } = await supabase
           .from('favorite_tokens')
           .delete()
@@ -191,17 +226,22 @@ export default function WalletTab() {
           .eq('chain_key', currentChain)
           .eq('token_address', tokenAddress);
 
-        if (error) throw error;
+        if (error) {
+          logger.error('🌟 [FAVORITE DEBUG] Delete error:', error);
+          throw error;
+        }
 
         setFavoriteTokens(prev => {
           const newSet = new Set(prev);
           newSet.delete(normalizedAddress);
+          logger.log('🌟 [FAVORITE DEBUG] Updated favorites after delete:', Array.from(newSet));
           return newSet;
         });
 
-        logger.log('Token removed from favorites:', tokenSymbol);
+        logger.log('🌟 [FAVORITE DEBUG] Token removed from favorites:', tokenSymbol);
       } else {
         // Add to favorites
+        logger.log('🌟 [FAVORITE DEBUG] Adding to favorites...');
         const { error } = await supabase
           .from('favorite_tokens')
           .insert({
@@ -212,14 +252,21 @@ export default function WalletTab() {
             token_name: tokenName || tokenSymbol
           });
 
-        if (error) throw error;
+        if (error) {
+          logger.error('🌟 [FAVORITE DEBUG] Insert error:', error);
+          throw error;
+        }
 
-        setFavoriteTokens(prev => new Set(prev).add(normalizedAddress));
+        setFavoriteTokens(prev => {
+          const newSet = new Set(prev).add(normalizedAddress);
+          logger.log('🌟 [FAVORITE DEBUG] Updated favorites after add:', Array.from(newSet));
+          return newSet;
+        });
 
-        logger.log('Token added to favorites:', tokenSymbol);
+        logger.log('🌟 [FAVORITE DEBUG] Token added to favorites:', tokenSymbol);
       }
     } catch (error) {
-      logger.error('Failed to toggle favorite:', error);
+      logger.error('🌟 [FAVORITE DEBUG] Failed to toggle favorite:', error);
       alert('Failed to update favorite. Please try again.');
     }
   };
@@ -493,22 +540,34 @@ export default function WalletTab() {
             {/* Native Token */}
             <motion.div
               whileTap={{ scale: 0.98 }}
-              className="glass p-4 rounded-xl flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer group relative"
+              className="glass p-4 rounded-xl flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer group relative border-4 border-purple-500"
+              style={{ outline: '3px solid red' }}
             >
-              {/* Favorite Star Button */}
+              {/* DEBUG: Show favorites state */}
+              <div className="absolute -top-8 left-0 text-xs bg-yellow-300 text-black p-1 rounded z-50">
+                isFav: {favoriteTokens.has('native') ? 'YES' : 'NO'}
+              </div>
+
+              {/* Favorite Star Button - DEBUG VERSION */}
               <button
                 onClick={(e) => {
+                  console.log('🌟 STAR BUTTON CLICKED! (Native)', {
+                    tokenAddress: 'native',
+                    symbol: chain.nativeCurrency.symbol,
+                    name: chain.nativeCurrency.name
+                  });
                   e.stopPropagation();
                   toggleFavorite('native', chain.nativeCurrency.symbol, chain.nativeCurrency.name);
                 }}
-                className="absolute top-2 right-2 p-2 rounded-lg hover:bg-white/20 transition-all opacity-0 group-hover:opacity-100 z-10"
+                className="absolute top-2 right-2 p-2 rounded-lg bg-red-500 hover:bg-green-500 transition-all z-50 border-2 border-yellow-400"
                 title={favoriteTokens.has('native') ? 'Remove from favorites' : 'Add to favorites'}
+                style={{ opacity: 1 }}
               >
                 <Star 
-                  className={`w-4 h-4 transition-all ${
+                  className={`w-5 h-5 transition-all ${
                     favoriteTokens.has('native')
                       ? 'fill-yellow-400 text-yellow-400' 
-                      : 'text-gray-400 hover:text-yellow-400'
+                      : 'text-white hover:text-yellow-400'
                   }`}
                 />
               </button>
@@ -557,6 +616,13 @@ export default function WalletTab() {
             {tokens.map((token, index) => {
               const isFavorite = favoriteTokens.has(token.address.toLowerCase());
               
+              logger.log('🌟 [RENDER DEBUG] Token:', {
+                name: token.name,
+                address: token.address,
+                isFavorite,
+                allFavorites: Array.from(favoriteTokens)
+              });
+              
               return (
                 <motion.div
                   key={token.address}
@@ -564,22 +630,35 @@ export default function WalletTab() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.05 }}
                   whileTap={{ scale: 0.98 }}
-                  className="glass p-4 rounded-xl flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer group relative"
+                  className="glass p-4 rounded-xl flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer group relative border-4 border-blue-500"
+                  style={{ outline: '3px solid orange' }}
                 >
-                  {/* Favorite Star Button */}
+                  {/* DEBUG: Show token info */}
+                  <div className="absolute -top-8 left-0 text-xs bg-green-300 text-black p-1 rounded z-50">
+                    Token: {token.symbol} | isFav: {isFavorite ? 'YES' : 'NO'}
+                  </div>
+
+                  {/* Favorite Star Button - DEBUG VERSION */}
                   <button
                     onClick={(e) => {
+                      console.log('🌟 STAR BUTTON CLICKED! (Token)', {
+                        tokenAddress: token.address,
+                        symbol: token.symbol,
+                        name: token.name,
+                        isFavorite
+                      });
                       e.stopPropagation();
                       toggleFavorite(token.address, token.symbol, token.name);
                     }}
-                    className="absolute top-2 right-2 p-2 rounded-lg hover:bg-white/20 transition-all opacity-0 group-hover:opacity-100 z-10"
+                    className="absolute top-2 right-2 p-2 rounded-lg bg-red-500 hover:bg-green-500 transition-all z-50 border-2 border-yellow-400"
                     title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                    style={{ opacity: 1 }}
                   >
                     <Star 
-                      className={`w-4 h-4 transition-all ${
+                      className={`w-5 h-5 transition-all ${
                         isFavorite 
                           ? 'fill-yellow-400 text-yellow-400' 
-                          : 'text-gray-400 hover:text-yellow-400'
+                          : 'text-white hover:text-yellow-400'
                       }`}
                     />
                   </button>
