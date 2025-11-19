@@ -10,6 +10,7 @@ import { secureLog } from './secure-log';
 import { SolanaService } from './solana-service';
 import { logger } from '@/lib/logger';
 import { secureStorage } from './secure-storage';
+import { rateLimitService } from './rate-limit-service';
 
 export interface WalletState {
   wallet: ethers.HDNodeWallet | null;
@@ -225,6 +226,15 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         throw new Error('Not available op server');
       }
 
+      // ✅ SECURITY: Check rate limiting first
+      const userIdentifier = 'local_wallet'; // For seed phrase wallets
+      const lockStatus = rateLimitService.isLocked(userIdentifier);
+      
+      if (lockStatus.isLocked) {
+        const minutes = Math.ceil(lockStatus.unlockInSeconds! / 60);
+        throw new Error(`Too many failed attempts. Please try again in ${minutes} minutes.`);
+      }
+
       // ✅ SECURITY FIX: Migrate to IndexedDB if needed (one-time, automatic)
       const needsMigration = await secureStorage.needsMigration();
       if (needsMigration) {
@@ -235,8 +245,18 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       // Check if password is correct (try IndexedDB first, fallback to localStorage)
       const storedHash = await secureStorage.getItem('password_hash') || localStorage.getItem('password_hash');
       if (!storedHash || !verifyPassword(password, storedHash)) {
-        throw new Error('Invalid password');
+        // ✅ SECURITY: Record failed attempt
+        const result = rateLimitService.recordFailedAttempt(userIdentifier);
+        
+        if (result.isLocked) {
+          throw new Error(`Too many failed attempts. Account locked for 15 minutes.`);
+        }
+        
+        throw new Error(`Invalid password. ${result.remainingAttempts} attempts remaining.`);
       }
+
+      // ✅ SECURITY: Clear failed attempts on successful login
+      rateLimitService.clearAttempts(userIdentifier);
 
       // Decrypt wallet (try IndexedDB first, fallback to localStorage)
       const encryptedWalletData = await secureStorage.getItem('encrypted_wallet') || localStorage.getItem('encrypted_wallet');
