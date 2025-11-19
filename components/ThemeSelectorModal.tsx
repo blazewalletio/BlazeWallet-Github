@@ -32,7 +32,7 @@ export default function ThemeSelectorModal({ isOpen, onClose, currentTheme, onSu
       label: 'Dark',
       description: 'Easy on the eyes',
       icon: Moon,
-      gradient: 'from-indigo-500 to-purple-500'
+      gradient: 'from-orange-500 to-yellow-500'
     },
     {
       value: 'auto' as Theme,

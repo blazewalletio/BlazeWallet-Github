@@ -133,7 +133,7 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
                     <ShieldCheck className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
                     <p className="text-sm font-medium text-gray-900">Secure</p>
                   </div>
-                  <div className="text-center p-4 bg-purple-500/10 rounded-xl">
+                  <div className="text-center p-4 bg-orange-500/10 rounded-xl">
                     <CreditCard className="w-8 h-8 text-purple-500 mx-auto mb-2" />
                     <p className="text-sm font-medium text-gray-900">Easy</p>
                   </div>

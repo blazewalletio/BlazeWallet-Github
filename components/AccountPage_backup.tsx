@@ -226,7 +226,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
 
               <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors">
                 <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                  <Edit2 className="w-5 h-5 text-purple-600" />
+                  <Edit2 className="w-5 h-5 text-orange-600" />
                 </div>
                 <div className="flex-1 text-left">
                   <div className="font-semibold text-gray-900">Edit Profile</div>
@@ -332,7 +332,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
 
               <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors">
                 <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                  <Smartphone className="w-5 h-5 text-purple-600" />
+                  <Smartphone className="w-5 h-5 text-orange-600" />
                 </div>
                 <div className="flex-1 text-left">
                   <div className="font-semibold text-gray-900">Connected Devices</div>

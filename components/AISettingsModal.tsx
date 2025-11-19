@@ -196,7 +196,7 @@ export default function AISettingsModal({ onClose }: AISettingsModalProps) {
             </div>
 
             {/* Privacy Notice */}
-            <div className="glass-card p-6 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200">
+            <div className="glass-card p-6 bg-gradient-to-r from-purple-50 to-pink-50 border border-orange-200">
               <h4 className="text-sm font-semibold text-gray-900 mb-3">🔒 Privacy & Security</h4>
               <p className="text-sm text-gray-700 leading-relaxed">
                 Your API key is only stored locally in your browser. 

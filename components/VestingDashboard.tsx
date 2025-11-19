@@ -134,7 +134,7 @@ export default function VestingDashboard() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-xl p-6">
+        <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-orange-500/30 rounded-xl p-6">
           <div className="flex items-center gap-2 text-purple-400 mb-2">
             <Lock className="w-5 h-5" />
             <span className="text-sm font-semibold">Still Locked</span>

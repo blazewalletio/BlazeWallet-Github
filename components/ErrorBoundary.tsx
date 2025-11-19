@@ -109,7 +109,7 @@ export default class ErrorBoundary extends Component<Props, State> {
               {/* Reset Button */}
               <button
                 onClick={this.handleReset}
-                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
+                className="w-full bg-gradient-to-r from-orange-600 to-yellow-600 text-white py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
               >
                 <RefreshCw className="w-5 h-5" />
                 Herstart de app

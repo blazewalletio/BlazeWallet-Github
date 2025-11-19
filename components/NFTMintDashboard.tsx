@@ -74,7 +74,7 @@ export default function NFTMintDashboard({ isOpen, onClose }: NFTMintDashboardPr
 
   const getGradient = (name: string) => {
     const nameLower = name.toLowerCase();
-    if (nameLower.includes('neon')) return 'from-purple-500 to-pink-500';
+    if (nameLower.includes('neon')) return 'from-orange-500 to-yellow-500';
     if (nameLower.includes('galaxy')) return 'from-blue-500 to-cyan-500';
     if (nameLower.includes('diamond')) return 'from-orange-500 to-yellow-500';
     return 'from-green-500 to-emerald-500';
@@ -145,7 +145,7 @@ export default function NFTMintDashboard({ isOpen, onClose }: NFTMintDashboardPr
         <div className="max-w-4xl mx-auto p-6">
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
               <p className="text-gray-600">Loading NFT collections...</p>
             </div>
           </div>
@@ -174,7 +174,7 @@ export default function NFTMintDashboard({ isOpen, onClose }: NFTMintDashboardPr
           {/* Header */}
           <div className="mb-6">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
                 <Palette className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -239,9 +239,9 @@ export default function NFTMintDashboard({ isOpen, onClose }: NFTMintDashboardPr
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="glass-card bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20"
+                className="glass-card bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-orange-500/20"
               >
-                <div className="flex items-center gap-2 text-purple-600 mb-2">
+                <div className="flex items-center gap-2 text-orange-600 mb-2">
                   <Palette className="w-5 h-5" />
                   <span className="text-sm font-semibold">Your NFTs</span>
                 </div>
@@ -286,9 +286,9 @@ export default function NFTMintDashboard({ isOpen, onClose }: NFTMintDashboardPr
           )}
 
           {/* Info Notice */}
-          <div className="glass-card mb-6 bg-gradient-to-br from-purple-500/5 to-pink-500/5 border border-purple-500/20">
+          <div className="glass-card mb-6 bg-gradient-to-br from-purple-500/5 to-pink-500/5 border border-orange-500/20">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0">
                 <Palette className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -323,7 +323,7 @@ export default function NFTMintDashboard({ isOpen, onClose }: NFTMintDashboardPr
                     <Palette className="w-16 h-16 text-white relative z-10" />
                     <div className={`absolute top-3 right-3 px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 ${
                       rarity === 'Legendary' ? 'bg-gradient-to-r from-orange-500 to-yellow-500' :
-                      rarity === 'Epic' ? 'bg-gradient-to-r from-purple-500 to-pink-500' :
+                      rarity === 'Epic' ? 'bg-gradient-to-r from-orange-500 to-yellow-500' :
                       rarity === 'Rare' ? 'bg-gradient-to-r from-blue-500 to-cyan-500' :
                       'bg-gradient-to-r from-green-500 to-emerald-500'
                     } text-white shadow-lg`}>

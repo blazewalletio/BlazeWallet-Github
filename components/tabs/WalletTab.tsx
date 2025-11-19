@@ -343,7 +343,8 @@ export default function WalletTab() {
             whileTap={{ scale: 0.95 }}
             whileHover={{ scale: 1.05 }}
             onClick={() => setShowBuyModal(true)}
-            className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+            className="bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+            aria-label="Buy cryptocurrency"
           >
             <CreditCard className="w-8 h-8 mx-auto text-white mb-2" />
             <div className="text-sm font-bold text-white">Buy</div>
@@ -357,6 +358,7 @@ export default function WalletTab() {
             whileHover={{ scale: 1.05 }}
             onClick={() => setShowSendModal(true)}
             className="bg-gradient-to-br from-rose-500 to-orange-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+            aria-label="Send cryptocurrency"
           >
             <ArrowUpRight className="w-8 h-8 mx-auto text-white mb-2" />
             <div className="text-sm font-bold text-white">Send</div>
@@ -369,7 +371,8 @@ export default function WalletTab() {
             whileTap={{ scale: 0.95 }}
             whileHover={{ scale: 1.05 }}
             onClick={() => setShowReceiveModal(true)}
-            className="bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+            className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+            aria-label="Receive cryptocurrency"
           >
             <ArrowDownLeft className="w-8 h-8 mx-auto text-white mb-2" />
             <div className="text-sm font-bold text-white">Receive</div>
@@ -382,7 +385,8 @@ export default function WalletTab() {
             whileTap={{ scale: 0.95 }}
             whileHover={{ scale: 1.05 }}
             onClick={() => setShowSwapModal(true)}
-            className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+            className="bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+            aria-label="Swap tokens"
           >
             <Repeat className="w-8 h-8 mx-auto text-white mb-2" />
             <div className="text-sm font-bold text-white">Swap</div>

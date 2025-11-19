@@ -46,7 +46,7 @@ export default function StakingDashboard({ isOpen, onClose }: StakingDashboardPr
       apy: 15,
       lockDays: 180,
       icon: TrendingUp,
-      color: 'from-purple-500 to-pink-500',
+      color: 'from-orange-500 to-yellow-500',
       description: 'Higher rewards',
     },
     {
@@ -350,7 +350,7 @@ export default function StakingDashboard({ isOpen, onClose }: StakingDashboardPr
               animate={{ opacity: 1, y: 0 }}
               className="glass-card p-6"
             >
-              <div className="flex items-center gap-2 text-purple-600 mb-2">
+              <div className="flex items-center gap-2 text-orange-600 mb-2">
                 <Lock className="w-5 h-5" />
                 <span className="text-sm font-semibold">Your Staked</span>
               </div>

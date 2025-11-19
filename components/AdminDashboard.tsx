@@ -260,7 +260,7 @@ export default function AdminDashboard() {
                         <div className="text-sm text-gray-600">Early Birds</div>
                       </div>
 
-                      <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                      <div className="bg-purple-50 border border-orange-200 rounded-xl p-4">
                         <Gift className="w-6 h-6 text-purple-500 mb-2" />
                         <div className="text-3xl font-bold text-gray-900">{data.stats?.referral_count || 0}</div>
                         <div className="text-sm text-gray-600">Referrals</div>

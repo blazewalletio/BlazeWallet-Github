@@ -568,7 +568,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
               transition={{ delay: 0.1 }}
               className="glass-card p-6"
             >
-              <div className="flex items-center gap-2 text-purple-600 mb-2">
+              <div className="flex items-center gap-2 text-orange-600 mb-2">
                 <Wallet className="w-5 h-5" />
                 <span className="text-sm font-semibold">Total Volume</span>
               </div>
@@ -763,7 +763,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             >
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                  <Smartphone className="w-5 h-5 text-purple-600" />
+                  <Smartphone className="w-5 h-5 text-orange-600" />
                 </div>
                 <div className="text-left">
                   <h3 className="text-lg font-bold text-gray-900">Trusted Devices</h3>
@@ -909,7 +909,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
               >
                 <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-purple-600" />
+                  <Shield className="w-5 h-5 text-orange-600" />
                 </div>
                 <div className="flex-1 text-left">
                   <div className="font-semibold text-gray-900">Export Wallet</div>
@@ -973,7 +973,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
 
               <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100">
                 <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                  <Bell className="w-5 h-5 text-purple-600" />
+                  <Bell className="w-5 h-5 text-orange-600" />
                 </div>
                 <div className="flex-1 text-left">
                   <div className="font-semibold text-gray-900">Notifications</div>

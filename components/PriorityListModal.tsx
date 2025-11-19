@@ -316,14 +316,14 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
                 <div className={`glass-card p-6 border ${
                   getStatusColor() === 'green' ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200' :
                   getStatusColor() === 'blue' ? 'bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-200' :
-                  getStatusColor() === 'purple' ? 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200' :
+                  getStatusColor() === 'purple' ? 'bg-gradient-to-r from-purple-50 to-pink-50 border-orange-200' :
                   'bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200'
                 }`}>
                   <div className="flex items-center gap-3">
                     <Clock className={`w-5 h-5 ${
                       getStatusColor() === 'green' ? 'text-green-600' :
                       getStatusColor() === 'blue' ? 'text-blue-600' :
-                      getStatusColor() === 'purple' ? 'text-purple-600' :
+                      getStatusColor() === 'purple' ? 'text-orange-600' :
                       'text-orange-600'
                     }`} />
                     <div>

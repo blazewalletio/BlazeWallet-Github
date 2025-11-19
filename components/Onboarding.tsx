@@ -389,7 +389,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       <div className="w-full max-w-md lg:max-w-4xl mx-auto">
                         {/* Header - Direct op achtergrond */}
                         <div className="text-center mb-6 lg:mb-8">
-                          <div className="inline-flex items-center justify-center w-16 h-16 lg:w-20 lg:h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl mb-3 lg:mb-4 shadow-lg">
+                          <div className="inline-flex items-center justify-center w-16 h-16 lg:w-20 lg:h-20 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-2xl mb-3 lg:mb-4 shadow-lg">
                             <Brain className="w-8 h-8 lg:w-10 lg:h-10 text-white" />
                           </div>
                           <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">AI-Powered Tools</h2>
@@ -398,27 +398,27 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                         
                         {/* Features - Direct op achtergrond - GRID OP DESKTOP */}
                         <div className="space-y-3 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-4 px-2">
-                          <div className="flex items-start gap-3 p-4 lg:p-5 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200 shadow-sm hover:shadow-md transition-shadow">
-                            <div className="w-10 h-10 lg:w-12 lg:h-12 bg-purple-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                              <Shield className="w-5 h-5 lg:w-6 lg:h-6 text-purple-600" />
+                          <div className="flex items-start gap-3 p-4 lg:p-5 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-orange-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="w-10 h-10 lg:w-12 lg:h-12 bg-orange-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                              <Shield className="w-5 h-5 lg:w-6 lg:h-6 text-orange-600" />
                             </div>
                             <div>
                               <p className="font-semibold text-gray-900 text-sm lg:text-base mb-0.5 lg:mb-1">Risk Scanner</p>
                               <p className="text-xs lg:text-sm text-gray-600">Detect scams before you transact</p>
                             </div>
                           </div>
-                          <div className="flex items-start gap-3 p-4 lg:p-5 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200 shadow-sm hover:shadow-md transition-shadow">
-                            <div className="w-10 h-10 lg:w-12 lg:h-12 bg-purple-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                              <Sparkles className="w-5 h-5 lg:w-6 lg:h-6 text-purple-600" />
+                          <div className="flex items-start gap-3 p-4 lg:p-5 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-orange-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="w-10 h-10 lg:w-12 lg:h-12 bg-orange-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                              <Sparkles className="w-5 h-5 lg:w-6 lg:h-6 text-orange-600" />
                             </div>
                             <div>
                               <p className="font-semibold text-gray-900 text-sm lg:text-base mb-0.5 lg:mb-1">Portfolio Advisor</p>
                               <p className="text-xs lg:text-sm text-gray-600">Get personalized investment insights</p>
                             </div>
                           </div>
-                          <div className="flex items-start gap-3 p-4 lg:p-5 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200 shadow-sm hover:shadow-md transition-shadow">
-                            <div className="w-10 h-10 lg:w-12 lg:h-12 bg-purple-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                              <Zap className="w-5 h-5 lg:w-6 lg:h-6 text-purple-600" />
+                          <div className="flex items-start gap-3 p-4 lg:p-5 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-orange-200 shadow-sm hover:shadow-md transition-shadow">
+                            <div className="w-10 h-10 lg:w-12 lg:h-12 bg-orange-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                              <Zap className="w-5 h-5 lg:w-6 lg:h-6 text-orange-600" />
                             </div>
                             <div>
                               <p className="font-semibold text-gray-900 text-sm lg:text-base mb-0.5 lg:mb-1">Gas Optimizer</p>
@@ -614,7 +614,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 >
                   {isLoading ? (
                     <>
-                      <div className="w-12 h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <div className="w-12 h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0">
                         <div className="w-5 h-5 lg:w-6 lg:h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       </div>
                       <div className="text-left">
@@ -624,7 +624,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     </>
                   ) : (
                     <>
-                      <div className="w-12 h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <div className="w-12 h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0">
                         <Key className="w-6 h-6 lg:w-7 lg:h-7 text-white" />
                       </div>
                       <div className="text-left">

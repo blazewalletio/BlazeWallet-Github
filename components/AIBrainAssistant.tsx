@@ -38,7 +38,7 @@ export default function AIBrainAssistant({
       icon: PieChart,
       title: 'Portfolio Advisor',
       description: 'Personalized analysis',
-      gradient: 'from-purple-500 to-pink-500',
+      gradient: 'from-orange-500 to-yellow-500',
       tag: '📊 Smart',
     },
     {
@@ -54,7 +54,7 @@ export default function AIBrainAssistant({
       icon: MessageSquare,
       title: 'Crypto Expert',
       description: '24/7 AI support chat',
-      gradient: 'from-indigo-500 to-purple-500',
+      gradient: 'from-orange-500 to-yellow-500',
       tag: '💬 Always available',
     },
   ];
@@ -195,7 +195,7 @@ export default function AIBrainAssistant({
                   onOpenFeature('advisor');
                   onClose();
                 }}
-                className="p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-200 hover:border-purple-300 hover:shadow-md transition-all text-left"
+                className="p-4 rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-orange-200 hover:border-orange-300 hover:shadow-md transition-all text-left"
               >
                 <div className="text-2xl mb-2">📊</div>
                 <div className="text-sm font-medium text-gray-900">Check portfolio</div>

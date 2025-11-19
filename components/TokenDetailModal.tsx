@@ -391,7 +391,7 @@ export default function TokenDetailModal({
                       onSwap?.();
                       onClose();
                     }}
-                    className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white hover:brightness-110 transition-all shadow-lg"
+                    className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-br from-orange-500 to-yellow-500 text-white hover:brightness-110 transition-all shadow-lg"
                   >
                     <Repeat className="w-6 h-6" />
                     <span className="text-sm font-semibold">Swap</span>

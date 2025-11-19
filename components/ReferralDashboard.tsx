@@ -337,7 +337,7 @@ export default function ReferralDashboard({ isOpen, onClose }: ReferralDashboard
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                         transaction.transactionType === 'signup' ? 'bg-gradient-to-br from-green-500 to-emerald-500' :
                         transaction.transactionType === 'transaction_fee' ? 'bg-gradient-to-br from-blue-500 to-cyan-500' :
-                        'bg-gradient-to-br from-purple-500 to-pink-500'
+                        'bg-gradient-to-br from-orange-500 to-yellow-500'
                       }`}>
                         <Users className="w-5 h-5 text-white" />
                       </div>

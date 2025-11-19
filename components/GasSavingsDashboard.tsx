@@ -224,10 +224,10 @@ export default function GasSavingsDashboard({ userId }: GasSavingsDashboardProps
 
       {/* Leaderboard Position */}
       {stats.percentile > 0 && (
-        <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-200">
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6 border border-orange-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-purple-500 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-orange-500 flex items-center justify-center">
                 <Award className="w-6 h-6 text-white" />
               </div>
               <div>

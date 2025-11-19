@@ -71,7 +71,7 @@ export default function BlazeTab() {
       title: 'Governance',
       description: 'Vote on proposals',
       icon: Vote,
-      gradient: 'from-purple-500 to-pink-500',
+      gradient: 'from-orange-500 to-yellow-500',
       onClick: () => setActiveModal('governance'),
     },
     {

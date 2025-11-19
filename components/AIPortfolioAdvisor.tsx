@@ -314,7 +314,7 @@ export default function AIPortfolioAdvisor({
               </div>
 
               {/* Market Context */}
-              <div className="p-4 rounded-xl bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200">
+              <div className="p-4 rounded-xl bg-gradient-to-r from-purple-50 to-pink-50 border border-orange-200">
                 <div className="flex items-start gap-3">
                   <span className="text-2xl">{getMarketIcon()}</span>
                   <div className="flex-1">

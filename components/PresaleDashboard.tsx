@@ -437,7 +437,7 @@ export default function PresaleDashboard() {
         presaleStatus === 'active' ? 'bg-green-500/10 border border-green-500/20' :
         presaleStatus === 'ended' ? 'bg-orange-500/10 border border-orange-500/20' :
         presaleStatus === 'completed' ? 'bg-blue-500/10 border border-blue-500/20' :
-        presaleStatus === 'finalized' ? 'bg-purple-500/10 border border-purple-500/20' :
+        presaleStatus === 'finalized' ? 'bg-orange-500/10 border border-orange-500/20' :
         'bg-gray-500/10 border border-gray-500/20'
       }`}>
         <div className="flex items-center gap-3">
@@ -522,7 +522,7 @@ export default function PresaleDashboard() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-xl p-6"
+          className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-orange-500/30 rounded-xl p-6"
         >
           <div className="flex items-center gap-2 text-purple-400 mb-2">
             <Rocket className="w-5 h-5" />

@@ -575,7 +575,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   className="glass-card p-6 max-w-md w-full"
                 >
                   {/* Lightning Icon */}
-                  <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Zap className="w-8 h-8 text-white" />
                   </div>
 
@@ -593,7 +593,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   </p>
 
                   {/* Benefits */}
-                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-6">
+                  <div className="bg-purple-50 border border-orange-200 rounded-xl p-4 mb-6">
                     <div className="space-y-2 text-sm">
                       <div className="flex items-center gap-2 text-purple-900">
                         <Zap className="w-4 h-4 flex-shrink-0" />
@@ -627,7 +627,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     <motion.button
                       whileTap={{ scale: 0.98 }}
                       onClick={handleChainSwitch}
-                      className="flex-1 py-3 px-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
+                      className="flex-1 py-3 px-4 bg-gradient-to-r from-orange-500 to-yellow-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
                     >
                       Yes, switch to Bitcoin
                     </motion.button>
@@ -691,7 +691,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     className="w-full glass p-5 rounded-xl hover:bg-theme-bg-secondary transition-all duration-200 group"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                      <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
                         <Zap className="w-7 h-7 text-white" />
                       </div>
                       <div className="text-left flex-1">
@@ -812,9 +812,9 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                       </button>
                       <button
                         onClick={() => toast('Contacts feature coming soon!')}
-                        className="p-3 bg-white border-2 border-gray-200 hover:border-purple-300 rounded-xl text-center transition-all"
+                        className="p-3 bg-white border-2 border-gray-200 hover:border-orange-300 rounded-xl text-center transition-all"
                       >
-                        <User className="w-5 h-5 text-purple-600 mx-auto mb-1" />
+                        <User className="w-5 h-5 text-orange-600 mx-auto mb-1" />
                         <div className="text-xs font-semibold text-gray-900">Contacts</div>
                       </button>
                     </div>
@@ -1115,10 +1115,10 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   )}
 
                   {/* Benefits Card */}
-                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-5">
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-orange-200 rounded-xl p-5">
                     <div className="space-y-3 text-sm">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
                           <Zap className="w-4 h-4 text-white" />
                         </div>
                         <div>
@@ -1181,7 +1181,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                         setLightningAction('receive');
                         setMode('lightning-receive');
                       }}
-                      className="w-full p-6 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-xl text-white transition-all shadow-lg group relative overflow-hidden"
+                      className="w-full p-6 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-purple-600 hover:to-pink-600 rounded-xl text-white transition-all shadow-lg group relative overflow-hidden"
                     >
                       <div className="relative flex items-center justify-between">
                         <div className="flex items-center gap-4">
@@ -1353,7 +1353,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     <>
                       {/* Amount Input */}
                       <div className="text-center">
-                        <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4">
                           <ArrowDownLeft className="w-8 h-8 text-white" />
                         </div>
                         <h3 className="text-xl font-bold text-gray-900 mb-2">
@@ -1375,8 +1375,8 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                               }}
                               className={`py-3 rounded-lg font-semibold transition-all ${
                                 selectedAmount === preset
-                                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
-                                  : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-purple-300'
+                                  ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-lg'
+                                  : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-orange-300'
                               }`}
                             >
                               €{preset}
@@ -1489,7 +1489,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                           }
                         }}
                         disabled={!amount || amount <= 0}
-                        className="w-full py-4 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full py-4 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         Generate Invoice ⚡
                       </button>
@@ -1504,7 +1504,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   </div>
 
                       {/* QR Code */}
-                    <div className="bg-white border-2 border-purple-200 rounded-xl p-6">
+                    <div className="bg-white border-2 border-orange-200 rounded-xl p-6">
                       <div className="mb-4 text-sm text-gray-600 text-center">
                         Scan with Lightning wallet to pay
                       </div>
@@ -1515,7 +1515,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                       />
                         
                         {/* Invoice String */}
-                      <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                      <div className="mt-4 p-3 bg-purple-50 border border-orange-200 rounded-lg">
                           <div className="text-xs text-gray-600 mb-1 text-center font-semibold">
                             BOLT11 Invoice
                           </div>
@@ -1527,7 +1527,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                               navigator.clipboard.writeText(lightningInvoice);
                               toast('✅ Invoice copied to clipboard!');
                           }}
-                            className="w-full py-2 rounded-lg bg-white border border-purple-300 hover:bg-purple-50 text-purple-700 font-semibold text-sm transition-colors"
+                            className="w-full py-2 rounded-lg bg-white border border-orange-300 hover:bg-purple-50 text-purple-700 font-semibold text-sm transition-colors"
                         >
                           <Copy className="w-4 h-4 inline mr-2" />
                           Copy invoice
@@ -1536,9 +1536,9 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     </div>
 
                       {/* Status */}
-                  <div className="flex items-center justify-between bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4">
+                  <div className="flex items-center justify-between bg-gradient-to-r from-purple-50 to-pink-50 border border-orange-200 rounded-xl p-4">
                     <div className="flex items-center gap-2">
-                      <Zap className="w-5 h-5 text-purple-600" />
+                      <Zap className="w-5 h-5 text-orange-600" />
                           <div className="text-sm font-semibold text-gray-900">Awaiting payment...</div>
                     </div>
                       <div className="text-xs text-gray-600">⏱️ Expires in 14:52</div>

@@ -214,7 +214,7 @@ export default function AITransactionAssistant({
           {/* Header */}
           <div className="mb-6">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
                 <Sparkles className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -270,7 +270,7 @@ export default function AITransactionAssistant({
                     transition={{ delay: 0.1 }}
                     className="glass-card p-6"
                   >
-                    <div className="flex items-center gap-2 text-purple-600 mb-2">
+                    <div className="flex items-center gap-2 text-orange-600 mb-2">
                       <Info className="w-5 h-5" />
                       <span className="text-sm font-semibold">Proactive</span>
                     </div>
@@ -297,8 +297,8 @@ export default function AITransactionAssistant({
                         className="text-left px-4 py-3 rounded-xl bg-gray-50 hover:bg-gray-100 text-sm text-gray-700 border border-gray-200 transition-colors group"
                       >
                         <div className="flex items-start gap-2">
-                          <MessageCircle className="w-4 h-4 mt-0.5 text-gray-400 group-hover:text-purple-600 transition-colors flex-shrink-0" />
-                          <span className="flex-1 group-hover:text-purple-600 transition-colors font-medium">
+                          <MessageCircle className="w-4 h-4 mt-0.5 text-gray-400 group-hover:text-orange-600 transition-colors flex-shrink-0" />
+                          <span className="flex-1 group-hover:text-orange-600 transition-colors font-medium">
                             {example}
                           </span>
                         </div>
@@ -312,7 +312,7 @@ export default function AITransactionAssistant({
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
-                  className="glass-card p-6 bg-gradient-to-br from-purple-500/5 to-pink-500/5 border border-purple-500/20"
+                  className="glass-card p-6 bg-gradient-to-br from-purple-500/5 to-pink-500/5 border border-orange-500/20"
                 >
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">How AI Assistant Works</h3>
                   <p className="text-sm text-gray-600 leading-relaxed">
@@ -333,7 +333,7 @@ export default function AITransactionAssistant({
                 className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {message.type === 'user' ? (
-                  <div className="max-w-[80%] px-4 py-3 rounded-2xl rounded-tr-sm bg-gradient-to-r from-purple-500 to-pink-500 text-white break-words overflow-wrap-anywhere shadow-lg shadow-purple-500/20">
+                  <div className="max-w-[80%] px-4 py-3 rounded-2xl rounded-tr-sm bg-gradient-to-r from-orange-500 to-yellow-500 text-white break-words overflow-wrap-anywhere shadow-lg shadow-purple-500/20">
                     {message.content}
                   </div>
                 ) : (
@@ -392,7 +392,7 @@ export default function AITransactionAssistant({
                             whileTap={{ scale: 0.98 }}
                             onClick={handleExecute}
                             disabled={isExecuting}
-                            className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold transition-all shadow-lg shadow-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold transition-all shadow-lg shadow-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                           >
                             {isExecuting ? (
                               <>
@@ -465,7 +465,7 @@ export default function AITransactionAssistant({
               <button
                 onClick={handleSubmit}
                 disabled={loading || !input.trim()}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-all shadow-lg shadow-purple-500/20"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-purple-600 hover:to-pink-600 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-all shadow-lg shadow-purple-500/20"
               >
                 {loading ? (
                   <Loader2 className="w-4 h-4 text-white animate-spin" />

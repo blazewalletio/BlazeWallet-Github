@@ -143,7 +143,7 @@ export default function RecurringSendModal({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center">
               <Repeat className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -183,13 +183,13 @@ export default function RecurringSendModal({
                   onClick={() => setFrequency(freq)}
                   className={`p-4 rounded-xl border-2 transition-all ${
                     frequency === freq
-                      ? 'border-purple-500 bg-purple-50'
+                      ? 'border-orange-500 bg-purple-50'
                       : 'border-gray-200 bg-white hover:border-gray-300'
                   }`}
                 >
                   <div className="text-center">
                     <Repeat className={`w-5 h-5 mx-auto mb-2 ${
-                      frequency === freq ? 'text-purple-600' : 'text-gray-400'
+                      frequency === freq ? 'text-orange-600' : 'text-gray-400'
                     }`} />
                     <div className="font-semibold text-gray-900 capitalize">{freq}</div>
                   </div>
@@ -328,7 +328,7 @@ export default function RecurringSendModal({
               type="submit"
               onClick={handleSubmit}
               disabled={loading}
-              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-4 rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 text-white font-bold py-4 rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {loading ? (
                 <>

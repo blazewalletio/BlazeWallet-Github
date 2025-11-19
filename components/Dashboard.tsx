@@ -1348,7 +1348,7 @@ export default function Dashboard() {
               whileTap={{ scale: 0.95 }}
               whileHover={{ scale: 1.05 }}
               onClick={() => setShowSwapModal(true)}
-              className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+              className="bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
             >
               <Repeat className="w-8 h-8 mx-auto text-white mb-2" />
               <div className="text-sm font-bold text-white">Swap</div>
@@ -1578,7 +1578,7 @@ export default function Dashboard() {
                 </h3>
                 <button
                   onClick={() => setShowAISettings(true)}
-                  className="text-xs text-purple-500 hover:text-purple-600 flex items-center gap-1"
+                  className="text-xs text-purple-500 hover:text-orange-600 flex items-center gap-1"
                 >
                   <Settings className="w-3 h-3" />
                   Configureer
@@ -1655,7 +1655,7 @@ export default function Dashboard() {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setShowAIBrain(true)}
-                  className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20"
+                  className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-orange-500/20"
                 >
                   <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-lg flex items-center justify-center mb-3">
                     <Brain className="w-5 h-5 text-white" />
@@ -1717,7 +1717,7 @@ export default function Dashboard() {
                 onClick={() => setShowGovernance(true)}
                 className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left"
               >
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center mb-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-lg flex items-center justify-center mb-3">
                   <Vote className="w-5 h-5 text-white" />
                 </div>
                 <div className="font-semibold mb-1">Governance</div>
@@ -1768,7 +1768,7 @@ export default function Dashboard() {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setShowVesting(true)}
-                  className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left border-2 border-purple-500/30"
+                  className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left border-2 border-orange-500/30"
                 >
                   <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-lg flex items-center justify-center mb-3">
                     <Lock className="w-5 h-5 text-white" />
