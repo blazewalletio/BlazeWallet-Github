@@ -610,7 +610,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <button
                   onClick={handleCreateWallet}
                   disabled={isLoading}
-                  className="w-full p-4 lg:p-5 rounded-xl flex items-center gap-3 lg:gap-4 bg-white hover:bg-gray-50 text-gray-900 border-2 border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all active:scale-95 lg:hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full p-4 lg:p-5 rounded-xl flex items-center gap-3 lg:gap-4 bg-white hover:bg-gray-50 text-gray-900 border-2 border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all active:scale-95 lg:hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 >
                   {isLoading ? (
                     <>
@@ -745,7 +745,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               <div className="space-y-3 mb-6">
                 <button
                   disabled
-                  className="w-full py-3 px-4 bg-white border-2 border-gray-200 rounded-xl text-gray-400 font-semibold relative flex items-center gap-3"
+                  className="w-full py-3 px-4 bg-white border-2 border-gray-200 rounded-xl text-gray-400 font-semibold relative flex items-center gap-3 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 >
                   {/* Google Icon SVG */}
                   <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
@@ -762,7 +762,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
                 <button
                   disabled
-                  className="w-full py-3 px-4 bg-white border-2 border-gray-200 rounded-xl text-gray-400 font-semibold relative flex items-center gap-3"
+                  className="w-full py-3 px-4 bg-white border-2 border-gray-200 rounded-xl text-gray-400 font-semibold relative flex items-center gap-3 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 >
                   {/* Apple Icon SVG */}
                   <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
@@ -850,7 +850,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               <button
                   onClick={handleEmailAuth}
                   disabled={!email || !password || (emailAuthMode === 'signup' && !confirmPassword) || isLoading}
-                  className="w-full py-3 sm:py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed rounded-xl font-semibold text-white shadow-lg transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3 sm:py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed rounded-xl font-semibold text-white shadow-lg transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 >
                   {isLoading ? (
                     <>
@@ -971,7 +971,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               <button
                 onClick={handleImportWallet}
                 disabled={!importInput.trim() || isLoading}
-                className="w-full py-3 sm:py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 sm:py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 {isLoading ? (
                   <>
@@ -1234,7 +1234,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             </button>
                 <button
                   onClick={handleVerifyMnemonic}
-                  className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold rounded-xl shadow-lg transition-all"
+                  className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold rounded-xl shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 >
                   Verify and continue →
                 </button>

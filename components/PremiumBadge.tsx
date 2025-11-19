@@ -144,7 +144,7 @@ export function PremiumCard({ isPremium, onUpgrade }: { isPremium: boolean; onUp
 
       <button
         onClick={onUpgrade}
-        className="w-full py-3 bg-theme-gradient-primary hover:from-theme-primary hover:to-theme-primary rounded-xl font-semibold transition-all"
+        className="w-full py-3 bg-theme-gradient-primary hover:from-theme-primary hover:to-theme-primary rounded-xl font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
       >
         Stake to Unlock Premium
       </button>

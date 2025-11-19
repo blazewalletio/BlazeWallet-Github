@@ -658,7 +658,7 @@ export default function PresaleDashboard() {
             <button
               onClick={handleContribute}
               disabled={!contributionAmount || parseFloat(contributionAmount) <= 0 || isContributing || isLoading}
-              className="w-full py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all"
+              className="w-full py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
             >
               {isContributing ? (
                 <>

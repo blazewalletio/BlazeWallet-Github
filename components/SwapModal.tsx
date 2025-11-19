@@ -307,7 +307,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           {/* Back Button */}
           <button
             onClick={onClose}
-            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
+            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
           >
             ← Back
           </button>
@@ -399,7 +399,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                 value={toAmount}
                 readOnly
                 placeholder="0.0"
-                className="flex-1 bg-transparent text-3xl font-bold outline-none text-emerald-500 min-w-0"
+                className="flex-1 bg-transparent text-3xl font-bold outline-none text-emerald-500 min-w-0 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               />
               <select
                 value={toToken}

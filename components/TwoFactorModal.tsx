@@ -188,7 +188,7 @@ export default function TwoFactorModal({ isOpen, onClose, isEnabled, onSuccess }
             </div>
             <button
               onClick={handleClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
             >
               <X className="w-5 h-5 text-gray-500" />
             </button>
@@ -244,7 +244,7 @@ export default function TwoFactorModal({ isOpen, onClose, isEnabled, onSuccess }
                 <button
                   onClick={handleSetup}
                   disabled={isLoading}
-                  className="w-full p-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full p-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 >
                   {isLoading ? (
                     <>
@@ -297,7 +297,7 @@ export default function TwoFactorModal({ isOpen, onClose, isEnabled, onSuccess }
                     </code>
                     <button
                       onClick={handleCopySecret}
-                      className="p-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                      className="p-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                     >
                       {copiedSecret ? (
                         <Check className="w-5 h-5 text-green-600" />
@@ -344,7 +344,7 @@ export default function TwoFactorModal({ isOpen, onClose, isEnabled, onSuccess }
                   <button
                     onClick={handleVerify}
                     disabled={isLoading || verificationCode.length !== 6}
-                    className="flex-1 p-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="flex-1 p-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                   >
                     {isLoading ? (
                       <>
@@ -419,14 +419,14 @@ export default function TwoFactorModal({ isOpen, onClose, isEnabled, onSuccess }
                 <div className="flex gap-3">
                   <button
                     onClick={handleClose}
-                    className="flex-1 p-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-all"
+                    className="flex-1 p-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleDisable}
                     disabled={isLoading || verificationCode.length !== 6}
-                    className="flex-1 p-4 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="flex-1 p-4 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                   >
                     {isLoading ? (
                       <>

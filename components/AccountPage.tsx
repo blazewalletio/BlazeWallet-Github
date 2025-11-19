@@ -581,7 +581,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
           {/* Back Button */}
           <button
             onClick={onClose}
-            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
+            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
           >
             ← Back to Dashboard
           </button>
@@ -632,7 +632,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                   <input
                     type="file"
                     accept="image/*"
-                    className="hidden"
+                    className="hidden focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                     onChange={handleAvatarUpload}
                     disabled={isUploadingAvatar}
                   />
@@ -657,7 +657,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                       />
                       <button
                         onClick={handleSaveDisplayName}
-                        className="p-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors"
+                        className="p-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                       >
                         <Save className="w-4 h-4" />
                       </button>
@@ -705,7 +705,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                   </code>
                   <button
                     onClick={handleCopyAddress}
-                    className="p-1 hover:bg-gray-100 rounded transition-colors"
+                    className="p-1 hover:bg-gray-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                   >
                     {copiedAddress ? (
                       <Check className="w-3.5 h-3.5 text-green-600" />
@@ -1133,7 +1133,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             <div className="glass-card rounded-2xl overflow-hidden">
               <button 
                 onClick={handleToggleBalance}
-                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
                   {userProfile?.balance_visible ? (
@@ -1211,7 +1211,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
 
               <button 
                 onClick={handleExportCSV}
-                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                   <FileDown className="w-5 h-5 text-blue-600" />
@@ -1248,7 +1248,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
           >
             <button 
               onClick={handleExportAddresses}
-              className="glass-card rounded-2xl p-6 text-center hover:bg-purple-50 hover:border-purple-200 border border-gray-100 transition-all group"
+              className="glass-card rounded-2xl p-6 text-center hover:bg-purple-50 hover:border-purple-200 border border-gray-100 transition-all group focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
             >
               <div className="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
                 <Wallet className="w-6 h-6 text-purple-600" />
@@ -1273,7 +1273,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
 
             <button 
               onClick={handleLockWallet}
-              className="glass-card rounded-2xl p-6 text-center hover:bg-red-50 hover:border-red-200 border border-gray-100 transition-all group"
+              className="glass-card rounded-2xl p-6 text-center hover:bg-red-50 hover:border-red-200 border border-gray-100 transition-all group focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
             >
               <div className="w-14 h-14 bg-red-100 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
                 <LogOut className="w-6 h-6 text-red-600" />

@@ -348,7 +348,7 @@ export default function SmartSendModal({
           <div className="p-6 border-t border-gray-100 space-y-3">
             <button
               onClick={handleConfirm}
-              className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold py-4 rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold py-4 rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
             >
               {selectedOption === 'now' ? (
                 <>
@@ -365,7 +365,7 @@ export default function SmartSendModal({
 
             <button
               onClick={onClose}
-              className="w-full bg-gray-100 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-200 transition-colors"
+              className="w-full bg-gray-100 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
             >
               Cancel
             </button>

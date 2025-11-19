@@ -122,7 +122,7 @@ export default function FounderDeploy() {
           <button
             onClick={handleDeploy}
             disabled={parseFloat(balance) === 0}
-            className="w-full py-3 bg-gradient-primary rounded-xl font-semibold disabled:opacity-50 hover:opacity-90 transition-opacity"
+            className="w-full py-3 bg-gradient-primary rounded-xl font-semibold disabled:opacity-50 hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
           >
             <Rocket className="w-5 h-5 inline mr-2" />
             Get Deployment Command

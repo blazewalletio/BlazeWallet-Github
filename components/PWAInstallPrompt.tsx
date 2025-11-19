@@ -84,7 +84,7 @@ export default function PWAInstallPrompt() {
                 {/* Close button */}
                 <button
                   onClick={handleDismiss}
-                  className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"
+                  className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                   aria-label="Sluiten"
                 >
                   <X className="w-5 h-5" />
@@ -137,13 +137,13 @@ export default function PWAInstallPrompt() {
                     <div className="flex gap-3">
                       <button
                         onClick={handleInstall}
-                        className="flex-1 px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold rounded-xl transition-all transform hover:scale-105 active:scale-95 shadow-lg"
+                        className="flex-1 px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold rounded-xl transition-all transform hover:scale-105 active:scale-95 shadow-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                       >
                         Installeren
                       </button>
                       <button
                         onClick={handleDismiss}
-                        className="px-4 py-3 text-slate-400 hover:text-white transition-colors"
+                        className="px-4 py-3 text-slate-400 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                       >
                         Later
                       </button>

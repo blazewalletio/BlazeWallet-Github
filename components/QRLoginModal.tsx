@@ -208,7 +208,7 @@ export default function QRLoginModal({ isOpen, onSuccess, onCancel }: QRLoginMod
             {status === 'waiting' && (
               <button
                 onClick={handleRefresh}
-                className="flex-1 bg-slate-800 hover:bg-theme-bg-card border border-slate-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2"
+                className="flex-1 bg-slate-800 hover:bg-theme-bg-card border border-slate-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 <RefreshCw className="w-4 h-4" />
                 <span>Refresh</span>
@@ -218,7 +218,7 @@ export default function QRLoginModal({ isOpen, onSuccess, onCancel }: QRLoginMod
             {(status === 'expired' || status === 'error') && (
               <button
                 onClick={handleRefresh}
-                className="flex-1 bg-gradient-to-r from-theme-primary to-theme-primary hover:from-theme-primary hover:to-theme-primary text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2"
+                className="flex-1 bg-gradient-to-r from-theme-primary to-theme-primary hover:from-theme-primary hover:to-theme-primary text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center space-x-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 <RefreshCw className="w-4 h-4" />
                 <span>New QR Code</span>
@@ -228,7 +228,7 @@ export default function QRLoginModal({ isOpen, onSuccess, onCancel }: QRLoginMod
             {status !== 'approved' && (
               <button
                 onClick={handleCancel}
-                className="flex-1 bg-slate-800 hover:bg-theme-bg-card border border-slate-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200"
+                className="flex-1 bg-slate-800 hover:bg-theme-bg-card border border-slate-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 Annuleren
               </button>

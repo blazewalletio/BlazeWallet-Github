@@ -69,13 +69,13 @@ export default function EmailVerificationBanner({ onOpenModal }: EmailVerificati
             <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={onOpenModal}
-                className="px-4 py-2 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white text-sm font-semibold rounded-lg transition-all shadow-sm"
+                className="px-4 py-2 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white text-sm font-semibold rounded-lg transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 Verify
               </button>
               <button
                 onClick={handleDismiss}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 aria-label="Dismiss"
               >
                 <X className="w-5 h-5 text-gray-400" />

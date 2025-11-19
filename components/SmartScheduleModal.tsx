@@ -286,7 +286,7 @@ export default function SmartScheduleModal({
             <div className="pt-4 pb-2">
               <button
                 onClick={handleClose}
-                className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
+                className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 ← Back
               </button>
@@ -593,14 +593,14 @@ export default function SmartScheduleModal({
               <div className="flex gap-3">
                 <button
                   onClick={handleClose}
-                  className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-all"
+                  className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSchedule}
                   disabled={loading}
-                  className="flex-1 py-4 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                  className="flex-1 py-4 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 >
                   {loading ? (
                     <div className="flex items-center justify-center gap-2">

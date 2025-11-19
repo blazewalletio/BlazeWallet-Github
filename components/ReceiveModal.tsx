@@ -90,7 +90,7 @@ export default function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
           {/* Back Button */}
           <button
             onClick={onClose}
-            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
+            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
           >
             ← Back
           </button>
@@ -144,7 +144,7 @@ export default function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
               <div className="flex gap-3">
                 <button
                   onClick={copyAddress}
-                  className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                  className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 >
                   {copied ? (
                     <>
@@ -161,7 +161,7 @@ export default function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
                 
                 <button
                   onClick={shareAddress}
-                  className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
+                  className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 >
                   <Share2 className="w-5 h-5" />
                   Share

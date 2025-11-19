@@ -306,7 +306,7 @@ export default function PresaleModal({ isOpen, onClose }: PresaleModalProps) {
                 </div>
                 <button
                   onClick={onClose} aria-label="Close modal"
-                  className="text-gray-600 hover:text-gray-900 transition-colors"
+                  className="text-gray-600 hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -388,7 +388,7 @@ export default function PresaleModal({ isOpen, onClose }: PresaleModalProps) {
                       <button
                         onClick={handleClaimTokens}
                         disabled={isContributing}
-                        className="w-full mt-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2"
+                        className="w-full mt-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 rounded-xl font-semibold text-white transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                       >
                         {isContributing ? (
                           <>

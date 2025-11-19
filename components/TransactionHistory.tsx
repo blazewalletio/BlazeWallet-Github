@@ -445,7 +445,7 @@ export default function TransactionHistory() {
                           <button
                             onClick={cancelEditingNote}
                             disabled={savingNote}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs rounded-lg transition-colors disabled:opacity-50"
+                            className="flex items-center gap-1 px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs rounded-lg transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                           >
                             <XIcon className="w-3 h-3" />
                             Cancel

@@ -760,7 +760,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   <button
                     onClick={handleAmountNext}
                     disabled={!amount || amount <= 0}
-                    className="w-full py-4 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-semibold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-4 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-semibold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                   >
                     Next →
                   </button>
@@ -795,7 +795,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     <div className="grid grid-cols-3 gap-3">
                       <button
                         onClick={handlePasteAddress}
-                        className="p-3 bg-white border-2 border-gray-200 hover:border-blue-300 rounded-xl text-center transition-all"
+                        className="p-3 bg-white border-2 border-gray-200 hover:border-blue-300 rounded-xl text-center transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                       >
                         <Copy className="w-5 h-5 text-blue-600 mx-auto mb-1" />
                         <div className="text-xs font-semibold text-gray-900">Paste</div>
@@ -823,7 +823,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   <button
                     onClick={handleAddressNext}
                     disabled={!recipientAddress || recipientAddress.length < 26}
-                    className="w-full py-4 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-semibold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-4 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-semibold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                   >
                     Review payment →
                   </button>
@@ -872,7 +872,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                           <div className="text-sm text-gray-400 mb-4">{cameraError}</div>
                           <button
                             onClick={startCamera}
-                            className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold transition-colors"
+                            className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                           >
                             Try again
                           </button>
@@ -1710,7 +1710,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     </button>
                     <button
                       onClick={handleConfirmPayment}
-                      className="flex-1 py-4 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-semibold transition-all shadow-lg"
+                      className="flex-1 py-4 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-semibold transition-all shadow-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                     >
                       Confirm & send
                     </button>

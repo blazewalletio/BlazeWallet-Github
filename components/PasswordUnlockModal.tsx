@@ -369,7 +369,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
               <button
                 type="submit"
                 disabled={isLoading || !password}
-                className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center shadow-lg hover:shadow-xl"
+                className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 {isLoading ? (
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -384,7 +384,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
                   type="button"
                   onClick={handleBiometricAuth}
                   disabled={isLoading}
-                  className="w-full bg-white hover:bg-gray-50 disabled:bg-gray-50 disabled:cursor-not-allowed border-2 border-gray-200 text-gray-900 font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+                  className="w-full bg-white hover:bg-gray-50 disabled:bg-gray-50 disabled:cursor-not-allowed border-2 border-gray-200 text-gray-900 font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 >
                   <Fingerprint className="w-5 h-5" />
                   <span>Fingerprint / Face ID</span>
@@ -395,7 +395,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
             <div className="mt-6 text-center">
               <button
                 onClick={onFallback}
-                className="text-gray-600 hover:text-gray-900 text-sm underline transition-colors"
+                className="text-gray-600 hover:text-gray-900 text-sm underline transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 Recover with recovery phrase
               </button>

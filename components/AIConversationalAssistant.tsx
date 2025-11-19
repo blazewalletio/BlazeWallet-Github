@@ -107,7 +107,7 @@ export default function AIConversationalAssistant({
           <div className="flex-shrink-0 p-6 pb-4">
             <button
               onClick={onClose} aria-label="Close modal"
-              className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors mb-4"
+              className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors mb-4 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
             >
               <ArrowLeft className="w-5 h-5" />
               Back to Dashboard
@@ -123,7 +123,7 @@ export default function AIConversationalAssistant({
               </div>
               <button
                 onClick={handleClearConversation}
-                className="px-4 py-2 rounded-lg bg-white border border-gray-200 hover:border-gray-300 text-sm text-gray-700 font-medium transition-colors"
+                className="px-4 py-2 rounded-lg bg-white border border-gray-200 hover:border-gray-300 text-sm text-gray-700 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 Clear chat
               </button>

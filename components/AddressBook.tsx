@@ -200,7 +200,7 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
               </div>
               <button
                 onClick={onClose} aria-label="Close modal"
-                className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+                className="p-2 hover:bg-gray-100 rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 <X className="w-6 h-6 text-gray-600" />
               </button>

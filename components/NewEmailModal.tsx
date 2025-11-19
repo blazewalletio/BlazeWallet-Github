@@ -96,7 +96,7 @@ export default function NewEmailModal({ isOpen, onClose, onSubmit, existingEmail
             <button
               onClick={handleClose}
               disabled={isLoading}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
             >
               <X className="w-5 h-5 text-gray-600" />
             </button>
@@ -148,14 +148,14 @@ export default function NewEmailModal({ isOpen, onClose, onSubmit, existingEmail
                 type="button"
                 onClick={handleClose}
                 disabled={isLoading}
-                className="flex-1 bg-white hover:bg-gray-50 border-2 border-gray-200 text-gray-900 font-semibold py-3 px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 bg-white hover:bg-gray-50 border-2 border-gray-200 text-gray-900 font-semibold py-3 px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isLoading || !email.trim()}
-                className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 flex items-center justify-center shadow-lg hover:shadow-xl"
+                className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 flex items-center justify-center shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 {isLoading ? (
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

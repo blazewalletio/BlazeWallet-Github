@@ -84,7 +84,7 @@ export default function EmailVerificationModal({ isOpen, onClose }: EmailVerific
               </div>
               <button
                 onClick={onClose} aria-label="Close modal"
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 <X className="w-5 h-5 text-gray-400" />
               </button>
@@ -115,7 +115,7 @@ export default function EmailVerificationModal({ isOpen, onClose }: EmailVerific
               <button
                 onClick={handleResendEmail}
                 disabled={isResending}
-                className="w-full py-3 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2"
+                className="w-full py-3 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 {isResending ? (
                   <>
@@ -160,7 +160,7 @@ export default function EmailVerificationModal({ isOpen, onClose }: EmailVerific
               {/* Skip button */}
               <button
                 onClick={onClose}
-                className="w-full py-3 text-gray-600 hover:text-gray-900 text-sm font-semibold transition-colors"
+                className="w-full py-3 text-gray-600 hover:text-gray-900 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 Skip for now
               </button>

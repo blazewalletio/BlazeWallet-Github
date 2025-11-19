@@ -59,7 +59,7 @@ export default function AISettingsModal({ onClose }: AISettingsModalProps) {
           {/* Back Button */}
           <button
             onClick={onClose}
-            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
+            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
           >
             ← Back
           </button>
@@ -130,7 +130,7 @@ export default function AISettingsModal({ onClose }: AISettingsModalProps) {
                 {apiKey && (
                   <button
                     onClick={handleClear}
-                    className="px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-semibold transition-colors"
+                    className="px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                   >
                     Remove key
                   </button>
@@ -138,7 +138,7 @@ export default function AISettingsModal({ onClose }: AISettingsModalProps) {
                 <button
                   onClick={handleSave}
                   disabled={!apiKey.trim()}
-                  className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
+                  className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 >
                   {saved ? (
                     <>

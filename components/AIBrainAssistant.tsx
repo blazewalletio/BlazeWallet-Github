@@ -78,7 +78,7 @@ export default function AIBrainAssistant({
           {/* Back Button */}
           <button
             onClick={onClose} aria-label="Close modal"
-            className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
+            className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
           >
             <ArrowLeft className="w-5 h-5" />
             Back to Dashboard

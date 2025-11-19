@@ -218,7 +218,7 @@ export default function AdminDashboard() {
                     <button
                       onClick={loadAdminData}
                       disabled={isLoading || !adminEmail}
-                      className="w-full py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 rounded-xl font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className="w-full py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 rounded-xl font-semibold text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                     >
                       {isLoading ? (
                         <>
@@ -350,7 +350,7 @@ export default function AdminDashboard() {
 
                       <button
                         onClick={exportToCSV}
-                        className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold flex items-center gap-2 text-sm"
+                        className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold flex items-center gap-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                       >
                         <Download className="w-4 h-4" />
                         Export CSV

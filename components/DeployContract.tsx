@@ -100,7 +100,7 @@ export default function DeployContract() {
           <button
             onClick={deployToken}
             disabled={deploying || !wallet}
-            className="w-full py-4 bg-gradient-primary rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+            className="w-full py-4 bg-gradient-primary rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
           >
             {deploying ? (
               <>
@@ -133,7 +133,7 @@ export default function DeployContract() {
               <div className="flex gap-2 mt-4">
                 <button
                   onClick={copyAddress}
-                  className="flex-1 py-2 bg-theme-bg-card hover:bg-theme-bg-secondary rounded-lg flex items-center justify-center gap-2 transition-colors"
+                  className="flex-1 py-2 bg-theme-bg-card hover:bg-theme-bg-secondary rounded-lg flex items-center justify-center gap-2 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 >
                   {copied ? (
                     <>

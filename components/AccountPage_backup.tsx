@@ -100,7 +100,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
           {/* Back Button */}
           <button
             onClick={onClose}
-            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
+            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
           >
             ← Back to Dashboard
           </button>
@@ -149,7 +149,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                       />
                       <button
                         onClick={handleSaveDisplayName}
-                        className="p-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors"
+                        className="p-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                       >
                         <Save className="w-4 h-4" />
                       </button>
@@ -201,7 +201,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             className="mb-6"
           >
             <div className="glass-card rounded-2xl overflow-hidden">
-              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100">
+              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2">
                 <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                   <Mail className="w-5 h-5 text-blue-600" />
                 </div>
@@ -224,7 +224,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
               </button>
 
-              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors">
+              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2">
                 <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
                   <Edit2 className="w-5 h-5 text-orange-600" />
                 </div>
@@ -245,7 +245,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             className="mb-6"
           >
             <div className="glass-card rounded-2xl overflow-hidden">
-              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100">
+              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2">
                 <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
                   <Key className="w-5 h-5 text-orange-600" />
                 </div>
@@ -273,7 +273,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
               </button>
 
-              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors">
+              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2">
                 <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
                   <Lock className="w-5 h-5 text-indigo-600" />
                 </div>
@@ -296,7 +296,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             <div className="glass-card rounded-2xl overflow-hidden">
               <button 
                 onClick={handleToggleBalance}
-                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
                   <Eye className="w-5 h-5 text-gray-600" />
@@ -308,7 +308,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
               </button>
 
-              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100">
+              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2">
                 <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                   <Globe className="w-5 h-5 text-blue-600" />
                 </div>
@@ -319,7 +319,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
               </button>
 
-              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100">
+              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2">
                 <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
                   <Bell className="w-5 h-5 text-yellow-600" />
                 </div>
@@ -330,7 +330,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
               </button>
 
-              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors">
+              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2">
                 <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
                   <Smartphone className="w-5 h-5 text-orange-600" />
                 </div>
@@ -368,7 +368,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
               </button>
 
-              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100">
+              <button className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2">
                 <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                   <FileDown className="w-5 h-5 text-blue-600" />
                 </div>
@@ -379,7 +379,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
               </button>
 
-              <button className="w-full flex items-center gap-4 p-4 hover:bg-red-50 transition-colors">
+              <button className="w-full flex items-center gap-4 p-4 hover:bg-red-50 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2">
                 <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
                   <Trash2 className="w-5 h-5 text-red-600" />
                 </div>
@@ -415,7 +415,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
 
             <button 
               onClick={handleLockWallet}
-              className="glass-card rounded-2xl p-6 text-center hover:bg-red-50 hover:border-red-200 border border-gray-100 transition-all group"
+              className="glass-card rounded-2xl p-6 text-center hover:bg-red-50 hover:border-red-200 border border-gray-100 transition-all group focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
             >
               <div className="w-14 h-14 bg-red-100 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
                 <LogOut className="w-6 h-6 text-red-600" />

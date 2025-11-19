@@ -136,7 +136,7 @@ export default function LaunchpadModal({ isOpen, onClose }: LaunchpadModalProps)
                 </div>
                 <button
                   onClick={onClose} aria-label="Close modal"
-                  className="text-theme-text-secondary hover:text-white transition-colors"
+                  className="text-theme-text-secondary hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -310,7 +310,7 @@ export default function LaunchpadModal({ isOpen, onClose }: LaunchpadModalProps)
                           <button
                             onClick={handleInvest}
                             disabled={!investAmount || parseFloat(investAmount) < selectedProject.minAllocation}
-                            className="w-full py-4 bg-theme-gradient-primary hover:from-theme-primary hover:to-theme-primary rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                            className="w-full py-4 bg-theme-gradient-primary hover:from-theme-primary hover:to-theme-primary rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                           >
                             Invest ${investAmount || '0'}
                           </button>

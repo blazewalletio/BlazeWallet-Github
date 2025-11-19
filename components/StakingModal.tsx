@@ -101,7 +101,7 @@ export default function StakingModal({ isOpen, onClose }: StakingModalProps) {
                 </div>
                 <button
                   onClick={onClose} aria-label="Close modal"
-                  className="text-theme-text-secondary hover:text-white transition-colors"
+                  className="text-theme-text-secondary hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -268,14 +268,14 @@ export default function StakingModal({ isOpen, onClose }: StakingModalProps) {
                 <div className="flex gap-3">
                   <button
                     onClick={onClose}
-                    className="flex-1 py-4 bg-theme-bg-secondary hover:bg-theme-bg-card rounded-xl font-semibold transition-colors"
+                    className="flex-1 py-4 bg-theme-bg-secondary hover:bg-theme-bg-card rounded-xl font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleStake}
                     disabled={!amount || parseFloat(amount) === 0 || isStaking}
-                    className="flex-1 py-4 bg-gradient-to-r from-theme-primary to-theme-primary hover:from-theme-primary hover:to-theme-primary rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    className="flex-1 py-4 bg-gradient-to-r from-theme-primary to-theme-primary hover:from-theme-primary hover:to-theme-primary rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                   >
                     {isStaking ? (
                       <span className="flex items-center justify-center gap-2">

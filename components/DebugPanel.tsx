@@ -91,7 +91,7 @@ export default function DebugPanel({ externalOpen = false, onExternalClose }: { 
           </div>
           <button
             onClick={handleClose}
-            className="glass p-2 rounded-lg hover:bg-white/10"
+            className="glass p-2 rounded-lg hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
           >
             <X className="w-4 h-4" />
           </button>

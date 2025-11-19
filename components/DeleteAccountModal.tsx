@@ -134,7 +134,7 @@ export default function DeleteAccountModal({
             </div>
             <button
               onClick={onClose} aria-label="Close modal"
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
             >
               <X className="w-5 h-5 text-gray-500" />
             </button>
@@ -231,7 +231,7 @@ export default function DeleteAccountModal({
           <div className="border-t border-gray-100 px-6 py-4 flex gap-3">
             <button
               onClick={onClose}
-              className="flex-1 p-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-all"
+              className="flex-1 p-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
             >
               Cancel
             </button>
@@ -247,7 +247,7 @@ export default function DeleteAccountModal({
               <button
                 onClick={handlePasswordVerification}
                 disabled={isLoading || !password}
-                className="flex-1 p-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 p-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 {isLoading ? 'Verifying...' : 'Verify Password'}
               </button>
@@ -256,7 +256,7 @@ export default function DeleteAccountModal({
               <button
                 onClick={handleDeleteAccount}
                 disabled={isLoading || confirmText !== 'DELETE'}
-                className="flex-1 p-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 p-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 {isLoading ? 'Deleting...' : 'Delete Account Forever'}
               </button>

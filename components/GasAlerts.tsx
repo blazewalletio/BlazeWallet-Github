@@ -310,7 +310,7 @@ function AddAlertModal({ userId, defaultChain, onClose, onSuccess }: AddAlertMod
           </div>
           <button
             onClick={onClose} aria-label="Close modal"
-            className="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+            className="w-10 h-10 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
           >
             <X className="w-5 h-5 text-gray-600" />
           </button>
@@ -433,7 +433,7 @@ function AddAlertModal({ userId, defaultChain, onClose, onSuccess }: AddAlertMod
             <button
               type="submit"
               disabled={loading || !targetGasPrice}
-              className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold py-4 rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold py-4 rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
             >
               {loading ? (
                 <>
@@ -451,7 +451,7 @@ function AddAlertModal({ userId, defaultChain, onClose, onSuccess }: AddAlertMod
             <button
               type="button"
               onClick={onClose}
-              className="w-full bg-gray-100 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-200 transition-colors"
+              className="w-full bg-gray-100 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
             >
               Cancel
             </button>

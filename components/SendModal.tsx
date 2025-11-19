@@ -555,7 +555,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
             <div className="pt-4 pb-2">
               <button
                 onClick={handleClose}
-                className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
+                className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 ← Back
               </button>
@@ -796,7 +796,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                   <button
                     onClick={handleMaxAmount}
                     disabled={!selectedAsset}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-600 hover:text-orange-700 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-600 hover:text-orange-700 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                   >
                     MAX
                   </button>
@@ -988,7 +988,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                 <button
                   onClick={handleContinue}
                   disabled={!toAddress || !amount || !selectedAsset}
-                  className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl"
+                  className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 >
                   Send now
                   <ArrowRight className="w-5 h-5" />
@@ -1055,7 +1055,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                 </button>
                 <button
                   onClick={handleSend}
-                  className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl"
+                  className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 >
                   Send
                 </button>
@@ -1100,7 +1100,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
 
               <button
                 onClick={handleClose}
-                className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold text-lg transition-all shadow-lg hover:shadow-xl"
+                className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold text-lg transition-all shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 Close
               </button>

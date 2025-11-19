@@ -335,7 +335,7 @@ export default function AddContactModal({
               <button
                 onClick={onClose}
                 disabled={isSaving}
-                className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors disabled:opacity-50"
+                className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 ← Back
               </button>
@@ -422,7 +422,7 @@ export default function AddContactModal({
                         type="file"
                         accept="image/*"
                         onChange={handleImageUpload}
-                        className="hidden"
+                        className="hidden focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                         id="profile-image-upload"
                         disabled={isSaving}
                       />
@@ -726,7 +726,7 @@ export default function AddContactModal({
                       type="button"
                       onClick={addCustomTag}
                       disabled={!customTag.trim() || isSaving}
-                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 rounded-lg text-sm font-medium transition-all"
+                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 rounded-lg text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                     >
                       Add
                     </button>
@@ -755,14 +755,14 @@ export default function AddContactModal({
               <button
                 onClick={onClose}
                 disabled={isSaving}
-                className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-700 rounded-xl font-semibold transition-all"
+                className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-700 rounded-xl font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={isSaving || !name.trim() || !address.trim() || addressValidation === 'invalid' || addressValidation === 'validating'}
-                className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2"
+                className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 {isSaving ? (
                   <>

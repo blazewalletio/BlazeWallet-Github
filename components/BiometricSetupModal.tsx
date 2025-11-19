@@ -220,14 +220,14 @@ export default function BiometricSetupModal({ isOpen, onClose, onSuccess }: Biom
                     type="button"
                     onClick={handleClose}
                     disabled={isLoading}
-                    className="flex-1 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 text-gray-900 font-semibold py-3 px-6 rounded-xl transition-colors disabled:cursor-not-allowed"
+                    className="flex-1 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 text-gray-900 font-semibold py-3 px-6 rounded-xl transition-colors disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={isLoading || !password}
-                    className="flex-1 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 flex items-center justify-center"
+                    className="flex-1 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                   >
                     {isLoading ? (
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -263,14 +263,14 @@ export default function BiometricSetupModal({ isOpen, onClose, onSuccess }: Biom
                 <button
                   onClick={handleClose}
                   disabled={isLoading}
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 text-gray-900 font-semibold py-3 px-6 rounded-xl transition-colors disabled:cursor-not-allowed"
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 text-gray-900 font-semibold py-3 px-6 rounded-xl transition-colors disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleBiometricRegistration}
                   disabled={isLoading}
-                  className="flex-1 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-300 text-white font-semibold py-3 px-6 rounded-xl transition-colors disabled:cursor-not-allowed"
+                  className="flex-1 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-300 text-white font-semibold py-3 px-6 rounded-xl transition-colors disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 >
                   {isLoading ? 'Setting up...' : 'Try again'}
                 </button>

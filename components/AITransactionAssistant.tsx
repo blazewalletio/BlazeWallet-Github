@@ -193,7 +193,7 @@ export default function AITransactionAssistant({
           <div className="flex items-center justify-between mb-4">
             <button
               onClick={onClose}
-              className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
+              className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
             >
               ← Back to Dashboard
             </button>
@@ -202,7 +202,7 @@ export default function AITransactionAssistant({
             {conversation.length > 0 && (
               <button
                 onClick={handleClearConversation}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 transition-colors"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 title="Clear conversation history"
               >
                 <Trash2 className="w-4 h-4" />
@@ -439,7 +439,7 @@ export default function AITransactionAssistant({
             <div className="relative group">
               <button
                 disabled={true}
-                className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center bg-gray-300 cursor-not-allowed shadow-sm"
+                className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center bg-gray-300 cursor-not-allowed shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                 title="Voice input coming soon"
               >
                 <Mic className="w-5 h-5 text-gray-500" />
@@ -465,7 +465,7 @@ export default function AITransactionAssistant({
               <button
                 onClick={handleSubmit}
                 disabled={loading || !input.trim()}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-all shadow-lg shadow-purple-500/20"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 transition-all shadow-lg shadow-purple-500/20 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 {loading ? (
                   <Loader2 className="w-4 h-4 text-white animate-spin" />
