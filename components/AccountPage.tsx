@@ -130,7 +130,18 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
           
           if (user) {
             setUserEmail(user.email || '');
-            setIsEmailVerified(!!user.email_confirmed_at);
+            
+            // Check our custom email verification (not Supabase's email_confirmed_at)
+            // Supabase's email_confirmed_at is auto-set to prevent email sending
+            const { data: verificationData } = await supabase
+              .from('email_verification_tokens')
+              .select('verified_at')
+              .eq('user_id', user.id)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .single();
+            
+            setIsEmailVerified(!!verificationData?.verified_at);
             
             // Get created date
             if (user.created_at) {

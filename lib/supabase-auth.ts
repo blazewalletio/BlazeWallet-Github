@@ -137,9 +137,8 @@ export async function signUpWithEmail(
   password: string
 ): Promise<SignUpResult> {
   try {
-    // 1. Create Supabase user
-    // IMPORTANT: User will be auto-confirmed by database trigger (see migration 20251120000000)
-    // This prevents Supabase from trying to send confirmation emails
+    // 1. Create Supabase user with autoConfirm option
+    // Note: We'll immediately confirm the user via API to prevent email sending
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -154,6 +153,25 @@ export async function signUpWithEmail(
 
     if (!authData.user) {
       return { success: false, error: 'Failed to create user' };
+    }
+
+    // 1b. IMMEDIATELY confirm the user to prevent Supabase from sending emails
+    // This must happen BEFORE Supabase's email sending process kicks in
+    try {
+      const confirmResponse = await fetch('/api/auth/confirm-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: authData.user.id }),
+      });
+      
+      if (!confirmResponse.ok) {
+        logger.warn('Failed to auto-confirm user, but continuing with signup');
+      } else {
+        logger.log('✅ User auto-confirmed successfully');
+      }
+    } catch (confirmError) {
+      logger.warn('Error auto-confirming user:', confirmError);
+      // Continue anyway - worst case user gets a Supabase email too
     }
 
     // 2. Generate new wallet mnemonic
