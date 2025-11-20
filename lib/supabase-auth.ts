@@ -137,8 +137,10 @@ export async function signUpWithEmail(
   password: string
 ): Promise<SignUpResult> {
   try {
-    // 1. Create Supabase user with autoConfirm option
-    // Note: We'll immediately confirm the user via API to prevent email sending
+    console.log('🚀 [SIGNUP] Starting signup process for:', email);
+    console.log('🚀 [SIGNUP] Step 1: Calling Supabase auth.signUp()...');
+    
+    // 1. Create Supabase user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -147,16 +149,27 @@ export async function signUpWithEmail(
       }
     });
 
+    console.log('🚀 [SIGNUP] Step 1 completed. Auth error?', authError);
+    console.log('🚀 [SIGNUP] Step 1 completed. User created?', !!authData.user);
+    
     if (authError) {
+      console.error('❌ [SIGNUP] Auth error:', authError);
+      console.error('❌ [SIGNUP] Error message:', authError.message);
+      console.error('❌ [SIGNUP] Error status:', (authError as any).status);
+      console.error('❌ [SIGNUP] Full error object:', JSON.stringify(authError, null, 2));
       return { success: false, error: authError.message };
     }
 
     if (!authData.user) {
+      console.error('❌ [SIGNUP] No user returned from Supabase');
       return { success: false, error: 'Failed to create user' };
     }
 
-    // 1b. IMMEDIATELY confirm the user to prevent Supabase from sending emails
-    // This must happen BEFORE Supabase's email sending process kicks in
+    console.log('✅ [SIGNUP] User created successfully:', authData.user.id);
+    console.log('✅ [SIGNUP] User email:', authData.user.email);
+
+    // 1b. IMMEDIATELY confirm the user
+    console.log('🚀 [SIGNUP] Step 1b: Calling confirm-user API...');
     try {
       const confirmResponse = await fetch('/api/auth/confirm-user', {
         method: 'POST',
@@ -164,26 +177,36 @@ export async function signUpWithEmail(
         body: JSON.stringify({ userId: authData.user.id }),
       });
       
+      console.log('🚀 [SIGNUP] Confirm API response status:', confirmResponse.status);
+      
       if (!confirmResponse.ok) {
-        logger.warn('Failed to auto-confirm user, but continuing with signup');
+        const errorText = await confirmResponse.text();
+        console.warn('⚠️ [SIGNUP] Failed to auto-confirm user:', errorText);
       } else {
-        logger.log('✅ User auto-confirmed successfully');
+        const confirmResult = await confirmResponse.json();
+        console.log('✅ [SIGNUP] User auto-confirmed successfully:', confirmResult);
       }
     } catch (confirmError) {
-      logger.warn('Error auto-confirming user:', confirmError);
-      // Continue anyway - worst case user gets a Supabase email too
+      console.error('❌ [SIGNUP] Error auto-confirming user:', confirmError);
     }
 
+    console.log('🚀 [SIGNUP] Step 2: Generating wallet mnemonic...');
     // 2. Generate new wallet mnemonic
     const mnemonic = bip39.generateMnemonic();
+    console.log('✅ [SIGNUP] Mnemonic generated');
 
+    console.log('🚀 [SIGNUP] Step 3: Encrypting wallet...');
     // 3. Encrypt mnemonic with user's password
     const encryptedWallet = await encryptMnemonic(mnemonic, password);
+    console.log('✅ [SIGNUP] Wallet encrypted');
 
+    console.log('🚀 [SIGNUP] Step 4: Deriving wallet address...');
     // 4. Get wallet address for metadata/analytics (NOT used for unlock - only for display)
     const hdNode = ethers.HDNodeWallet.fromPhrase(mnemonic);
     const walletAddress = hdNode.address;
+    console.log('✅ [SIGNUP] Wallet address:', walletAddress);
 
+    console.log('🚀 [SIGNUP] Step 5: Uploading encrypted wallet to Supabase...');
     // 5. Upload encrypted wallet to Supabase
     // ⚠️ NOTE: wallet_address is stored for convenience/analytics only
     // ⚠️ On unlock, addresses are ALWAYS derived fresh from encrypted mnemonic
@@ -196,11 +219,15 @@ export async function signUpWithEmail(
       });
 
     if (walletError) {
+      console.error('❌ [SIGNUP] Failed to save encrypted wallet:', walletError);
       logger.error('Failed to save encrypted wallet:', walletError);
       // User is created but wallet save failed - still return success
       // User can always recover with mnemonic
+    } else {
+      console.log('✅ [SIGNUP] Encrypted wallet saved to Supabase');
     }
 
+    console.log('🚀 [SIGNUP] Step 6: Storing wallet flags locally...');
     // 6. Store wallet flags locally (NOT addresses - they're derived on unlock)
     if (typeof window !== 'undefined') {
       localStorage.setItem('wallet_email', email);
@@ -214,8 +241,10 @@ export async function signUpWithEmail(
       // ✅ SECURITY: Addresses are NEVER stored - they're derived from mnemonic on unlock
       // ✅ SECURITY: DO NOT store plaintext mnemonic in localStorage for email signups
       // It will be returned to user for backup, but not persisted locally
+      console.log('✅ [SIGNUP] Local storage updated');
     }
 
+    console.log('🚀 [SIGNUP] Step 7: Sending welcome email...');
     // 7. Send custom welcome + verification email via API route
     try {
       const response = await fetch('/api/send-welcome-email', {
