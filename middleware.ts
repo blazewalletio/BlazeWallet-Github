@@ -40,6 +40,7 @@ export async function middleware(request: NextRequest) {
     '/api/ai-assistant',
     '/api/ai-risk-scanner',
     '/api/gas-optimizer',
+    '/api/auth/signup', // Custom signup endpoint (bypasses Supabase email)
     '/api/send-welcome-email', // Email sending endpoint
     '/api/auth/verify-email', // Email verification endpoint
     '/api/2fa', // 2FA setup/verification

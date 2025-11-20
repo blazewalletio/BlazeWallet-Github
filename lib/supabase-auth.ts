@@ -137,15 +137,27 @@ export async function signUpWithEmail(
   password: string
 ): Promise<SignUpResult> {
   try {
-    // 1. Create Supabase user
-    // Note: Email confirmation must be disabled in Supabase Dashboard
-    // We handle verification via custom Resend emails
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    // 1. Create user via our custom API (bypasses Supabase's email confirmation)
+    const signupResponse = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const signupResult = await signupResponse.json();
+
+    if (!signupResult.success || !signupResult.user) {
+      return { success: false, error: signupResult.error || 'Failed to create account' };
+    }
+
+    const userId = signupResult.user.id;
+
+    // 2. Sign in the user (now they're confirmed, so this should work)
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
-      options: {
-        emailRedirectTo: `${typeof window !== 'undefined' ? window.location.origin : 'https://my.blazewallet.io'}/auth/verify`,
-      }
     });
 
     if (authError) {
@@ -153,7 +165,7 @@ export async function signUpWithEmail(
     }
 
     if (!authData.user) {
-      return { success: false, error: 'Failed to create user' };
+      return { success: false, error: 'Failed to sign in after signup' };
     }
 
     // 2. Generate new wallet mnemonic
