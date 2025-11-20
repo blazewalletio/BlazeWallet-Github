@@ -29,66 +29,49 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    logger.log('🚀 Creating user via SQL (bypassing broken admin.createUser):', email);
+    logger.log('🚀 Creating user via admin.createUser (WITH email_confirm: true):', email);
 
-    // Create user directly via SQL to include provider_id
-    const { data: userData, error: userError } = await supabaseAdmin.rpc('create_user_with_identity', {
-      user_email: email,
-      user_password: password,
+    // F*CK THE SQL WORKAROUND - just use admin.createUser with email_confirm: true
+    // This bypasses Supabase's email sending but still creates a valid user
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true, // ✅ This confirms the user WITHOUT sending an email
+      user_metadata: {
+        email_verified_custom: false, // We track our own verification separately
+      }
     });
 
-    if (userError) {
-      logger.error('Signup error:', userError);
-      
-      // Fallback: Try the old way
-      logger.log('Trying fallback method...');
-      const { data, error } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: {
-          email_verified_custom: false,
-        }
-      });
-
-      if (error) {
-        return NextResponse.json(
-          { success: false, error: error.message },
-          { status: 500 }
-        );
-      }
-
-      if (!data.user) {
-        return NextResponse.json(
-          { success: false, error: 'Failed to create user' },
-          { status: 500 }
-        );
-      }
-
-      logger.log('✅ User created via fallback:', email);
-
-      return NextResponse.json({
-        success: true,
-        user: {
-          id: data.user.id,
-          email: data.user.email,
-        }
-      });
+    if (error) {
+      logger.error('❌ admin.createUser error:', error);
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 500 }
+      );
     }
 
-    logger.log('✅ User created successfully via SQL:', email);
+    if (!data.user) {
+      logger.error('❌ No user returned from admin.createUser');
+      return NextResponse.json(
+        { success: false, error: 'Failed to create user' },
+        { status: 500 }
+      );
+    }
 
-    // Return user data
+    logger.log('✅ User created successfully:', email);
+    logger.log('✅ User ID:', data.user.id);
+    logger.log('✅ Email confirmed:', data.user.email_confirmed_at ? 'YES' : 'NO');
+
     return NextResponse.json({
       success: true,
       user: {
-        id: userData[0].user_id,
-        email: email,
+        id: data.user.id,
+        email: data.user.email,
       }
     });
 
   } catch (error: any) {
-    logger.error('Error in signup API:', error);
+    logger.error('❌ Error in signup API:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to create account' },
       { status: 500 }
