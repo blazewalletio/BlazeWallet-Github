@@ -138,57 +138,54 @@ export async function signUpWithEmail(
 ): Promise<SignUpResult> {
   try {
     console.log('🚀 [SIGNUP] Starting signup process for:', email);
-    console.log('🚀 [SIGNUP] Step 1: Calling Supabase auth.signUp()...');
+    console.log('🚀 [SIGNUP] Using CUSTOM signup API (bypassing Supabase auth.signUp)');
     
-    // 1. Create Supabase user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${typeof window !== 'undefined' ? window.location.origin : 'https://my.blazewallet.io'}/auth/verify`,
-      }
+    // 1. Create user via our custom API that uses admin.createUser
+    const signupResponse = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
     });
 
-    console.log('🚀 [SIGNUP] Step 1 completed. Auth error?', authError);
-    console.log('🚀 [SIGNUP] Step 1 completed. User created?', !!authData.user);
+    console.log('🚀 [SIGNUP] Custom API response status:', signupResponse.status);
     
+    if (!signupResponse.ok) {
+      const errorData = await signupResponse.json();
+      console.error('❌ [SIGNUP] Custom API error:', errorData);
+      return { success: false, error: errorData.error || 'Failed to create account' };
+    }
+
+    const signupResult = await signupResponse.json();
+    console.log('✅ [SIGNUP] User created via custom API:', signupResult.user?.id);
+
+    if (!signupResult.success || !signupResult.user) {
+      console.error('❌ [SIGNUP] No user returned from custom API');
+      return { success: false, error: 'Failed to create user' };
+    }
+
+    const userId = signupResult.user.id;
+    
+    // 2. Sign in the user (now they're confirmed, so this should work)
+    console.log('🚀 [SIGNUP] Step 2: Signing in user...');
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    console.log('🚀 [SIGNUP] Sign in complete. Error?', authError);
+    console.log('🚀 [SIGNUP] Sign in complete. Authenticated?', !!authData.user);
+
     if (authError) {
-      console.error('❌ [SIGNUP] Auth error:', authError);
-      console.error('❌ [SIGNUP] Error message:', authError.message);
-      console.error('❌ [SIGNUP] Error status:', (authError as any).status);
-      console.error('❌ [SIGNUP] Full error object:', JSON.stringify(authError, null, 2));
+      console.error('❌ [SIGNUP] Sign in error:', authError);
       return { success: false, error: authError.message };
     }
 
     if (!authData.user) {
-      console.error('❌ [SIGNUP] No user returned from Supabase');
-      return { success: false, error: 'Failed to create user' };
+      console.error('❌ [SIGNUP] Failed to sign in after signup');
+      return { success: false, error: 'Failed to sign in after signup' };
     }
 
-    console.log('✅ [SIGNUP] User created successfully:', authData.user.id);
-    console.log('✅ [SIGNUP] User email:', authData.user.email);
-
-    // 1b. IMMEDIATELY confirm the user
-    console.log('🚀 [SIGNUP] Step 1b: Calling confirm-user API...');
-    try {
-      const confirmResponse = await fetch('/api/auth/confirm-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: authData.user.id }),
-      });
-      
-      console.log('🚀 [SIGNUP] Confirm API response status:', confirmResponse.status);
-      
-      if (!confirmResponse.ok) {
-        const errorText = await confirmResponse.text();
-        console.warn('⚠️ [SIGNUP] Failed to auto-confirm user:', errorText);
-      } else {
-        const confirmResult = await confirmResponse.json();
-        console.log('✅ [SIGNUP] User auto-confirmed successfully:', confirmResult);
-      }
-    } catch (confirmError) {
-      console.error('❌ [SIGNUP] Error auto-confirming user:', confirmError);
-    }
+    console.log('✅ [SIGNUP] User signed in successfully');
 
     console.log('🚀 [SIGNUP] Step 2: Generating wallet mnemonic...');
     // 2. Generate new wallet mnemonic
