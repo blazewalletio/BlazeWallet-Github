@@ -69,24 +69,18 @@ export async function POST(request: NextRequest) {
     console.log('✅ [STEP 2] Supabase credentials present');
 
     console.log('');
-    console.log('👤 [STEP 3] Calling admin.createUser...');
+    console.log('👤 [STEP 3] Using custom create_user_with_identity function...');
     console.log('   Email:', email);
-    console.log('   Email confirm:', true);
-    console.log('   User metadata:', { email_verified_custom: false });
+    console.log('   This bypasses admin.createUser to fix provider_id constraint');
     
-    const createUserPayload = {
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: {
-        email_verified_custom: false,
-      }
-    };
-    
-    console.log('📤 [STEP 3] Sending request to Supabase...');
+    console.log('📤 [STEP 3] Calling database function...');
     const startTime = Date.now();
     
-    const { data, error } = await supabaseAdmin.auth.admin.createUser(createUserPayload);
+    // Use custom function that properly sets provider_id in auth.identities
+    const { data, error } = await supabaseAdmin.rpc('create_user_with_identity', {
+      user_email: email,
+      user_password: password
+    });
     
     const endTime = Date.now();
     const duration = endTime - startTime;
@@ -101,24 +95,10 @@ export async function POST(request: NextRequest) {
       console.log('Error object:', JSON.stringify(error, null, 2));
       console.log('Error message:', error.message);
       console.log('Error code:', error.code);
-      console.log('Error status:', error.status);
-      console.log('Error name:', error.name);
+      console.log('Error hint:', error.hint);
+      console.log('Error details:', error.details);
       console.log('Full error:', error);
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      
-      // Check for specific error types
-      if (error.message?.includes('trigger')) {
-        console.log('🔍 TRIGGER ERROR DETECTED!');
-        console.log('   This means a database trigger is failing');
-      }
-      if (error.message?.includes('policy')) {
-        console.log('🔍 RLS POLICY ERROR DETECTED!');
-        console.log('   This means Row Level Security is blocking the operation');
-      }
-      if (error.message?.includes('constraint')) {
-        console.log('🔍 CONSTRAINT ERROR DETECTED!');
-        console.log('   This means a database constraint is being violated');
-      }
       
       return NextResponse.json(
         { 
@@ -126,8 +106,8 @@ export async function POST(request: NextRequest) {
           error: error.message,
           details: {
             code: error.code,
-            status: error.status,
-            name: error.name
+            hint: error.hint,
+            details: error.details
           }
         },
         { status: 500 }
@@ -137,25 +117,24 @@ export async function POST(request: NextRequest) {
     console.log('');
     console.log('🎉 [STEP 4] Checking response data...');
     console.log('   Data present:', !!data);
-    console.log('   Data keys:', data ? Object.keys(data) : 'NO DATA');
+    console.log('   Data:', JSON.stringify(data, null, 2));
     
-    if (!data.user) {
-      console.log('❌ [STEP 4] NO USER IN RESPONSE!');
-      console.log('   Data:', JSON.stringify(data, null, 2));
+    if (!data || data.length === 0) {
+      console.log('❌ [STEP 4] NO USER DATA IN RESPONSE!');
       return NextResponse.json(
-        { success: false, error: 'No user returned from Supabase' },
+        { success: false, error: 'No user returned from database function' },
         { status: 500 }
       );
     }
 
+    const userData = Array.isArray(data) ? data[0] : data;
+
     console.log('');
     console.log('✅✅✅ [STEP 5] USER CREATED SUCCESSFULLY! ✅✅✅');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('👤 User ID:', data.user.id);
-    console.log('📧 Email:', data.user.email);
-    console.log('✉️  Email confirmed at:', data.user.email_confirmed_at);
-    console.log('📅 Created at:', data.user.created_at);
-    console.log('🔑 Has identities:', data.user.identities?.length || 0);
+    console.log('👤 User ID:', userData.user_id);
+    console.log('📧 Email:', userData.user_email_out);
+    console.log('✅ Created with proper identity (provider_id set correctly)');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     console.log('');
@@ -163,8 +142,8 @@ export async function POST(request: NextRequest) {
     const response = {
       success: true,
       user: {
-        id: data.user.id,
-        email: data.user.email,
+        id: userData.user_id,
+        email: userData.user_email_out,
       }
     };
     console.log('Response:', JSON.stringify(response, null, 2));
