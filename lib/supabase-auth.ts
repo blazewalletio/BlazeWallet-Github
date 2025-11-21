@@ -157,21 +157,6 @@ export async function signUpWithEmail(
       return { success: false, error: 'Failed to create user' };
     }
 
-    // 1.5. Sign in immediately after signup to establish session
-    // This is needed because with email_confirm: false, Supabase doesn't auto-login
-    logger.log('🔐 Signing in user after signup to establish session...');
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (signInError) {
-      logger.warn('⚠️ Auto sign-in after signup failed:', signInError.message);
-      // Don't fail - user can still log in manually
-    } else {
-      logger.log('✅ User session established');
-    }
-
     // 2. Generate new wallet mnemonic
     const mnemonic = bip39.generateMnemonic();
 

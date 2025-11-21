@@ -27,22 +27,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Mark user as unverified using raw SQL (Supabase API doesn't always work correctly)
+    // ✅ AUTO-VERIFY user immediately so they can login
+    // Email verification is only for "Verified" badge, not blocking login
     try {
-      const { error: sqlError } = await supabaseAdmin.rpc('mark_user_unverified', {
+      const { error: sqlError } = await supabaseAdmin.rpc('auto_verify_user', {
         user_id: userId
       });
       
       if (sqlError) {
-        logger.error('Failed to mark user as unverified via RPC:', sqlError);
+        logger.error('Failed to auto-verify user via RPC:', sqlError);
         // Try direct auth API as fallback
         await supabaseAdmin.auth.admin.updateUserById(userId, { 
-          email_confirm: false
+          email_confirm: true
         });
       }
+      
+      logger.log('✅ User auto-verified - can login immediately');
     } catch (err) {
-      logger.error('Error marking user as unverified:', err);
-      // Continue anyway
+      logger.error('Error auto-verifying user:', err);
+      // Continue anyway - user can still login
     }
 
     // Generate secure random token (32 bytes = 64 hex characters)
