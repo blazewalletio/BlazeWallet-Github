@@ -72,9 +72,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if already verified
-    if (user.email_confirmed_at) {
-      // Mark token as used anyway
+    // Check if already verified in our CUSTOM tracking table
+    const { data: verificationStatus } = await supabaseAdmin
+      .from('user_email_verification_status')
+      .select('is_verified')
+      .eq('user_id', tokenData.user_id)
+      .single();
+
+    if (verificationStatus?.is_verified) {
+      // Already verified, just mark token as used
       await supabaseAdmin
         .from('email_verification_tokens')
         .update({ used_at: new Date().toISOString() })
