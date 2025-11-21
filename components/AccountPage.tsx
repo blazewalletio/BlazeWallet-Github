@@ -126,10 +126,20 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
           setAccount(currentAccount);
           
           // Try to get Supabase user (email wallets only)
-          const { data: { user }, error: userError } = await supabase.auth.getUser();
+          // ✅ Wrap in try-catch because getUser() throws exception for seed wallets
+          let user = null;
+          try {
+            const { data: { user: supabaseUser }, error: userError } = await supabase.auth.getUser();
+            if (!userError && supabaseUser) {
+              user = supabaseUser;
+            }
+          } catch (authError: any) {
+            // ✅ AuthSessionMissingError is expected for seed wallets - not an error!
+            logger.log('📝 No Supabase session (seed wallet)');
+          }
           
-          // ✅ FIX: Don't throw error if no user (seed wallets don't have Supabase accounts)
-          if (!userError && user) {
+          // ✅ Load data if we have a Supabase user (email wallets)
+          if (user) {
             // Email wallet - load Supabase data
             setUserEmail(user.email || '');
             
