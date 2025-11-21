@@ -125,7 +125,34 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
         try {
           const currentAccount = getCurrentAccount();
           logger.log('📝 Current account:', currentAccount);
-          setAccount(currentAccount);
+          
+          // ✅ CRITICAL: If no account found, create a minimal one from wallet state
+          if (!currentAccount) {
+            logger.log('⚠️ getCurrentAccount returned null - checking wallet state...');
+            
+            // Check if wallet is actually loaded
+            const encryptedWallet = typeof window !== 'undefined' 
+              ? localStorage.getItem('encrypted_wallet')
+              : null;
+            
+            if (!encryptedWallet) {
+              logger.error('❌ No wallet found in localStorage - cannot show account page');
+              setIsLoading(false);
+              return;
+            }
+            
+            // Create minimal account object
+            logger.log('✅ Creating minimal account from wallet state');
+            setAccount({
+              id: 'temp-seed-wallet',
+              type: 'seed',
+              displayName: 'Seed Wallet',
+              lastUsed: new Date(),
+              isActive: true
+            });
+          } else {
+            setAccount(currentAccount);
+          }
           
           // Try to get Supabase user (email wallets only)
           // ✅ Wrap in try-catch because getUser() throws exception for seed wallets
