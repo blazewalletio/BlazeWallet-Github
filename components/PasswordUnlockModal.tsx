@@ -88,31 +88,13 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     try {
       // Check if this is a new email login
       if (pendingNewEmail) {
-        // ✅ SECURITY: Check rate limiting first for email accounts
-        const lockStatus = rateLimitService.isLocked(pendingNewEmail);
-        if (lockStatus.isLocked) {
-          const minutes = Math.ceil(lockStatus.unlockInSeconds! / 60);
-          throw new Error(`Too many failed attempts. Please try again in ${minutes} minutes.`);
-        }
-
         // For new email wallets, decrypt using Supabase auth method
         const { signInWithEmail } = await import('@/lib/supabase-auth');
         const result = await signInWithEmail(pendingNewEmail, password);
         
         if (!result.success) {
-          // ✅ SECURITY: Record failed attempt
-          const attemptResult = rateLimitService.recordFailedAttempt(pendingNewEmail);
-          
-          if (attemptResult.isLocked) {
-            throw new Error(`Too many failed attempts. Account locked for 15 minutes.`);
-          }
-          
-          // Always show attempt counter, ignore Supabase error message
-          throw new Error(`Invalid password. ${attemptResult.remainingAttempts} attempt${attemptResult.remainingAttempts === 1 ? '' : 's'} remaining.`);
+          throw new Error(result.error || 'Invalid password');
         }
-
-        // ✅ SECURITY: Clear failed attempts on success
-        rateLimitService.clearAttempts(pendingNewEmail);
 
         // Wallet is now decrypted and loaded
         if (result.mnemonic) {
@@ -136,31 +118,13 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       const email = localStorage.getItem('wallet_email');
 
       if (createdWithEmail && email) {
-        // ✅ SECURITY: Check rate limiting first for email accounts
-        const lockStatus = rateLimitService.isLocked(email);
-        if (lockStatus.isLocked) {
-          const minutes = Math.ceil(lockStatus.unlockInSeconds! / 60);
-          throw new Error(`Too many failed attempts. Please try again in ${minutes} minutes.`);
-        }
-
         // For email wallets, decrypt using Supabase auth method
         const { signInWithEmail } = await import('@/lib/supabase-auth');
         const result = await signInWithEmail(email, password);
         
         if (!result.success) {
-          // ✅ SECURITY: Record failed attempt
-          const attemptResult = rateLimitService.recordFailedAttempt(email);
-          
-          if (attemptResult.isLocked) {
-            throw new Error(`Too many failed attempts. Account locked for 15 minutes.`);
-          }
-          
-          // Always show attempt counter, ignore Supabase error message
-          throw new Error(`Invalid password. ${attemptResult.remainingAttempts} attempt${attemptResult.remainingAttempts === 1 ? '' : 's'} remaining.`);
+          throw new Error(result.error || 'Invalid password');
         }
-
-        // ✅ SECURITY: Clear failed attempts on success
-        rateLimitService.clearAttempts(email);
 
         // Wallet is now decrypted and loaded
         if (result.mnemonic) {
@@ -371,7 +335,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
               <button
                 type="submit"
                 disabled={isLoading || !password}
-                className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center shadow-lg hover:shadow-xl"
               >
                 {isLoading ? (
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -386,7 +350,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
                   type="button"
                   onClick={handleBiometricAuth}
                   disabled={isLoading}
-                  className="w-full bg-white hover:bg-gray-50 disabled:bg-gray-50 disabled:cursor-not-allowed border-2 border-gray-200 text-gray-900 font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                  className="w-full bg-white hover:bg-gray-50 disabled:bg-gray-50 disabled:cursor-not-allowed border-2 border-gray-200 text-gray-900 font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
                 >
                   <Fingerprint className="w-5 h-5" />
                   <span>Fingerprint / Face ID</span>
@@ -397,7 +361,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
             <div className="mt-6 text-center">
               <button
                 onClick={onFallback}
-                className="text-gray-600 hover:text-gray-900 text-sm underline transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                className="text-gray-600 hover:text-gray-900 text-sm underline transition-colors"
               >
                 Recover with recovery phrase
               </button>

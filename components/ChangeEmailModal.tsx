@@ -162,7 +162,7 @@ export default function ChangeEmailModal({
             </div>
             <button
               onClick={handleClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <X className="w-5 h-5 text-gray-500" />
             </button>
@@ -185,11 +185,11 @@ export default function ChangeEmailModal({
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Current Email
                   </label>
-                  <input aria-label="Email address"
+                  <input
                     type="email"
                     value={currentEmail}
                     disabled
-                    className="w-full p-3 border-2 border-gray-200 bg-gray-50 rounded-xl text-gray-600 cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full p-3 border-2 border-gray-200 bg-gray-50 rounded-xl text-gray-600 cursor-not-allowed"
                   />
                 </div>
 
@@ -197,7 +197,7 @@ export default function ChangeEmailModal({
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Password
                   </label>
-                  <input aria-label="Password"
+                  <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -228,11 +228,11 @@ export default function ChangeEmailModal({
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Current Email
                   </label>
-                  <input aria-label="Email address"
+                  <input
                     type="email"
                     value={currentEmail}
                     disabled
-                    className="w-full p-3 border-2 border-gray-200 bg-gray-50 rounded-xl text-gray-600 cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="w-full p-3 border-2 border-gray-200 bg-gray-50 rounded-xl text-gray-600 cursor-not-allowed"
                   />
                 </div>
 
@@ -240,7 +240,7 @@ export default function ChangeEmailModal({
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     New Email Address
                   </label>
-                  <input aria-label="Email address"
+                  <input
                     type="email"
                     value={newEmail}
                     onChange={(e) => setNewEmail(e.target.value)}
@@ -316,7 +316,7 @@ export default function ChangeEmailModal({
               <>
                 <button
                   onClick={handleClose}
-                  className="flex-1 p-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                  className="flex-1 p-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-all"
                 >
                   Cancel
                 </button>
@@ -324,7 +324,7 @@ export default function ChangeEmailModal({
                   <button
                     onClick={handlePasswordVerification}
                     disabled={isLoading || !password}
-                    className="flex-1 p-3 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                    className="flex-1 p-3 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isLoading ? (
                       <>
@@ -340,7 +340,7 @@ export default function ChangeEmailModal({
                   <button
                     onClick={handleEmailChange}
                     disabled={isLoading || !newEmail}
-                    className="flex-1 p-3 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                    className="flex-1 p-3 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {isLoading ? (
                       <>

@@ -276,7 +276,7 @@ export default function StakingDashboard({ isOpen, onClose }: StakingDashboardPr
           {/* Back Button */}
           <button
             onClick={onClose}
-            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
           >
             ← Back to Dashboard
           </button>
@@ -432,7 +432,7 @@ export default function StakingDashboard({ isOpen, onClose }: StakingDashboardPr
                 <button
                   onClick={handleUnstake}
                   disabled={!stakeInfo.canUnstake || isUnstaking}
-                  className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                  className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
                 >
                   {isUnstaking ? (
                     <>
@@ -447,7 +447,7 @@ export default function StakingDashboard({ isOpen, onClose }: StakingDashboardPr
                 <button
                   onClick={handleClaimRewards}
                   disabled={isClaiming || (stakingStats?.pendingRewardsFormatted || 0) === 0}
-                  className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                  className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
                 >
                   {isClaiming ? (
                     <>
@@ -480,7 +480,7 @@ export default function StakingDashboard({ isOpen, onClose }: StakingDashboardPr
               <div>
                 <label className="text-sm text-gray-700 mb-2 block font-medium">Amount to Stake</label>
                 <div className="relative">
-                  <input aria-label="Number input"
+                  <input
                     type="number"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
@@ -550,7 +550,7 @@ export default function StakingDashboard({ isOpen, onClose }: StakingDashboardPr
               <button
                 onClick={handleStake}
                 disabled={!amount || parseFloat(amount) <= 0 || isStaking}
-                className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
               >
                 {isStaking ? (
                   <>

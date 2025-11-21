@@ -130,18 +130,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
           
           if (user) {
             setUserEmail(user.email || '');
-            
-            // Check our custom email verification (not Supabase's email_confirmed_at)
-            // Supabase's email_confirmed_at is auto-set to prevent email sending
-            const { data: verificationData } = await supabase
-              .from('email_verification_tokens')
-              .select('verified_at')
-              .eq('user_id', user.id)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .single();
-            
-            setIsEmailVerified(!!verificationData?.verified_at);
+            setIsEmailVerified(!!user.email_confirmed_at);
             
             // Get created date
             if (user.created_at) {
@@ -592,7 +581,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
           {/* Back Button */}
           <button
             onClick={onClose}
-            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
           >
             ← Back to Dashboard
           </button>
@@ -643,7 +632,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                   <input
                     type="file"
                     accept="image/*"
-                    className="hidden focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    className="hidden"
                     onChange={handleAvatarUpload}
                     disabled={isUploadingAvatar}
                   />
@@ -659,7 +648,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <div className="flex items-center gap-2 mb-1">
                   {isEditing ? (
                     <div className="flex items-center gap-2 flex-1">
-                      <input aria-label="Text input"
+                      <input
                         type="text"
                         value={displayName}
                         onChange={(e) => setDisplayName(e.target.value)}
@@ -668,7 +657,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                       />
                       <button
                         onClick={handleSaveDisplayName}
-                        className="p-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                        className="p-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors"
                       >
                         <Save className="w-4 h-4" />
                       </button>
@@ -716,7 +705,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                   </code>
                   <button
                     onClick={handleCopyAddress}
-                    className="p-1 hover:bg-gray-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                    className="p-1 hover:bg-gray-100 rounded transition-colors"
                   >
                     {copiedAddress ? (
                       <Check className="w-3.5 h-3.5 text-green-600" />
@@ -1144,7 +1133,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             <div className="glass-card rounded-2xl overflow-hidden">
               <button 
                 onClick={handleToggleBalance}
-                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
               >
                 <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
                   {userProfile?.balance_visible ? (
@@ -1222,7 +1211,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
 
               <button 
                 onClick={handleExportCSV}
-                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
               >
                 <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                   <FileDown className="w-5 h-5 text-blue-600" />
@@ -1259,7 +1248,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
           >
             <button 
               onClick={handleExportAddresses}
-              className="glass-card rounded-2xl p-6 text-center hover:bg-purple-50 hover:border-purple-200 border border-gray-100 transition-all group focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+              className="glass-card rounded-2xl p-6 text-center hover:bg-purple-50 hover:border-purple-200 border border-gray-100 transition-all group"
             >
               <div className="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
                 <Wallet className="w-6 h-6 text-purple-600" />
@@ -1284,7 +1273,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
 
             <button 
               onClick={handleLockWallet}
-              className="glass-card rounded-2xl p-6 text-center hover:bg-red-50 hover:border-red-200 border border-gray-100 transition-all group focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+              className="glass-card rounded-2xl p-6 text-center hover:bg-red-50 hover:border-red-200 border border-gray-100 transition-all group"
             >
               <div className="w-14 h-14 bg-red-100 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
                 <LogOut className="w-6 h-6 text-red-600" />

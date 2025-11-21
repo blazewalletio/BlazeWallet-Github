@@ -188,7 +188,7 @@ export default function AIPortfolioAdvisor({
           {/* Back Button */}
           <button
             onClick={onClose}
-            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
           >
             ← Back to Dashboard
           </button>
@@ -225,7 +225,7 @@ export default function AIPortfolioAdvisor({
               <p className="text-sm text-red-700 mb-4">{error}</p>
               <button
                 onClick={fetchAnalysis}
-                className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors inline-flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors inline-flex items-center gap-2"
               >
                 <RefreshCw className="w-4 h-4" />
                 Try Again
@@ -495,14 +495,14 @@ export default function AIPortfolioAdvisor({
                 <button
                   onClick={fetchAnalysis}
                   disabled={loading}
-                  className="flex-1 px-4 py-3 rounded-lg bg-white border-2 border-orange-500 text-orange-600 hover:bg-orange-50 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                  className="flex-1 px-4 py-3 rounded-lg bg-white border-2 border-orange-500 text-orange-600 hover:bg-orange-50 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
                 >
                   <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                   Refresh Analysis
                 </button>
                 <button
                   onClick={onClose}
-                  className="flex-1 px-4 py-3 rounded-lg bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-medium transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                  className="flex-1 px-4 py-3 rounded-lg bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-medium transition-all"
                 >
                   Close
                 </button>

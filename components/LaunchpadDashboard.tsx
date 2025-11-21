@@ -179,7 +179,7 @@ export default function LaunchpadDashboard({ isOpen, onClose }: LaunchpadDashboa
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-semibold text-gray-900 mb-2 block">Investment Amount (USD)</label>
-                  <input aria-label="Number input"
+                  <input
                     type="number"
                     value={investAmount}
                     onChange={(e) => setInvestAmount(e.target.value)}
@@ -248,7 +248,7 @@ export default function LaunchpadDashboard({ isOpen, onClose }: LaunchpadDashboa
           {/* Back Button */}
           <button
             onClick={onClose}
-            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
           >
             ← Back to Dashboard
           </button>

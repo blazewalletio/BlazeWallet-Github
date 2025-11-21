@@ -143,7 +143,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
           {/* Back Button */}
           <button
             onClick={onClose}
-            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
           >
             ← Back
           </button>
@@ -315,14 +315,14 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
                         <button
                           onClick={handleEnableBiometric}
                           disabled={biometricLoading}
-                          className="flex-1 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 text-gray-900 py-3 rounded-xl font-semibold text-sm transition-colors disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                          className="flex-1 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 text-gray-900 py-3 rounded-xl font-semibold text-sm transition-colors disabled:cursor-not-allowed"
                         >
                           {biometricLoading ? 'Setting up...' : 'Re-setup'}
                         </button>
                         <button
                           onClick={handleDisableBiometric}
                           disabled={biometricLoading}
-                          className="flex-1 bg-red-100 hover:bg-red-200 disabled:bg-red-50 text-red-700 py-3 rounded-xl font-semibold text-sm transition-colors disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                          className="flex-1 bg-red-100 hover:bg-red-200 disabled:bg-red-50 text-red-700 py-3 rounded-xl font-semibold text-sm transition-colors disabled:cursor-not-allowed"
                         >
                           Disable
                         </button>
@@ -331,7 +331,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
                       <button
                         onClick={handleEnableBiometric}
                         disabled={biometricLoading}
-                        className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-300 text-white py-3 rounded-xl font-semibold text-sm transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                        className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-300 text-white py-3 rounded-xl font-semibold text-sm transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
                         <Fingerprint className="w-4 h-4" />
                         {biometricLoading ? 'Setting up...' : 'Enable Face ID / Touch ID'}
@@ -358,7 +358,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent" defaultChecked />
+                    <input type="checkbox" className="sr-only peer" defaultChecked />
                     <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
                   </label>
                 </div>
@@ -372,7 +372,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent" defaultChecked disabled />
+                    <input type="checkbox" className="sr-only peer" defaultChecked disabled />
                     <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
                   </label>
                 </div>
@@ -437,7 +437,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
                     </button>
                     <button
                       onClick={handleReset}
-                      className="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                      className="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-semibold text-sm transition-colors"
                     >
                       Yes, reset
                     </button>

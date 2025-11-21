@@ -140,7 +140,7 @@ export default function ReferralDashboard({ isOpen, onClose }: ReferralDashboard
           {/* Back Button */}
           <button
             onClick={onClose}
-            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
           >
             ← Back to Dashboard
           </button>
@@ -268,7 +268,7 @@ export default function ReferralDashboard({ isOpen, onClose }: ReferralDashboard
             <div className="glass-card mb-6 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 border border-blue-500/20">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Referral Link</h3>
               <div className="flex gap-2 mb-4">
-                <input aria-label="Text input"
+                <input
                   type="text"
                   value={referralData.referralLink}
                   readOnly

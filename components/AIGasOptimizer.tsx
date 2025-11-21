@@ -164,8 +164,8 @@ export default function AIGasOptimizer({ onClose, chain }: AIGasOptimizerProps) 
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <button
-            onClick={onClose} aria-label="Close modal"
-            className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+            onClick={onClose}
+            className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
             Back
@@ -174,9 +174,9 @@ export default function AIGasOptimizer({ onClose, chain }: AIGasOptimizerProps) 
           <button
             onClick={loadAnalysis}
             disabled={loading}
-            className="p-2 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+            className="p-2 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
             title="Refresh analysis"
-           aria-label="Refresh">
+          >
             <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
@@ -249,7 +249,7 @@ export default function AIGasOptimizer({ onClose, chain }: AIGasOptimizerProps) 
             <p className="text-sm text-red-700">{error}</p>
             <button
               onClick={loadAnalysis}
-              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
             >
               Try Again
             </button>

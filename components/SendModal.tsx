@@ -555,7 +555,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
             <div className="pt-4 pb-2">
               <button
                 onClick={handleClose}
-                className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
               >
                 ← Back
               </button>
@@ -588,7 +588,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                   <button
                     onClick={() => setShowChainDropdown(!showChainDropdown)}
                     className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-medium text-gray-900 hover:border-orange-300 transition-colors focus:outline-none focus:border-orange-500 flex items-center justify-between"
-                   aria-expanded={showChainDropdown}>
+                  >
                     <div className="flex items-center gap-3">
                       {selectedChainConfig.logoUrl ? (
                         <img 
@@ -662,7 +662,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                     <button
                       onClick={() => setShowAssetDropdown(!showAssetDropdown)}
                       className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-medium text-gray-900 hover:border-orange-300 transition-colors focus:outline-none focus:border-orange-500 flex items-center justify-between"
-                     aria-expanded={showAssetDropdown}>
+                    >
                       {selectedAsset && (
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center overflow-hidden border border-gray-200">
@@ -757,7 +757,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                   To address
                 </label>
                 <div className="relative">
-                  <input aria-label="Text input"
+                  <input
                     type="text"
                     value={toAddress}
                     onChange={(e) => setToAddress(e.target.value)}
@@ -784,7 +784,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                   </span>
                 </div>
                 <div className="relative">
-                  <input aria-label="Number input"
+                  <input
                     type="number"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
@@ -796,7 +796,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                   <button
                     onClick={handleMaxAmount}
                     disabled={!selectedAsset}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-600 hover:text-orange-700 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-600 hover:text-orange-700 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     MAX
                   </button>
@@ -988,7 +988,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                 <button
                   onClick={handleContinue}
                   disabled={!toAddress || !amount || !selectedAsset}
-                  className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                  className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl"
                 >
                   Send now
                   <ArrowRight className="w-5 h-5" />
@@ -1055,7 +1055,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                 </button>
                 <button
                   onClick={handleSend}
-                  className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                  className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl"
                 >
                   Send
                 </button>
@@ -1100,7 +1100,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
 
               <button
                 onClick={handleClose}
-                className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold text-lg transition-all shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold text-lg transition-all shadow-lg hover:shadow-xl"
               >
                 Close
               </button>

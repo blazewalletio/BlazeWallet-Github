@@ -27,15 +27,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Mark user as unverified using Supabase Auth API
+    // Mark user as unverified using raw SQL (Supabase API doesn't always work correctly)
     try {
-      await supabaseAdmin.auth.admin.updateUserById(userId, { 
-        email_confirm: false
+      const { error: sqlError } = await supabaseAdmin.rpc('mark_user_unverified', {
+        user_id: userId
       });
-      logger.log('✅ User marked as unverified');
+      
+      if (sqlError) {
+        logger.error('Failed to mark user as unverified via RPC:', sqlError);
+        // Try direct auth API as fallback
+        await supabaseAdmin.auth.admin.updateUserById(userId, { 
+          email_confirm: false
+        });
+      }
     } catch (err) {
       logger.error('Error marking user as unverified:', err);
-      // Continue anyway - user can still verify via email
+      // Continue anyway
     }
 
     // Generate secure random token (32 bytes = 64 hex characters)
