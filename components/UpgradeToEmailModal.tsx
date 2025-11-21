@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, Shield, Mail, Lock, AlertTriangle, CheckCircle, 
@@ -32,6 +32,7 @@ export default function UpgradeToEmailModal({
   const [error, setError] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [extractedMnemonic, setExtractedMnemonic] = useState<string>(''); // Store mnemonic after decryption
+  const [hasPassword, setHasPassword] = useState(false); // ✅ NEW: Track if wallet has password
 
   const handleClose = () => {
     if (step === 'processing') return; // Don't allow close during processing
@@ -42,8 +43,20 @@ export default function UpgradeToEmailModal({
     setCurrentPassword('');
     setError('');
     setAgreedToTerms(false);
+    setHasPassword(false);
     onClose();
   };
+
+  // ✅ Check if wallet has password on mount
+  useEffect(() => {
+    if (isOpen) {
+      const passwordSet = typeof window !== 'undefined' 
+        ? localStorage.getItem('has_password') === 'true'
+        : false;
+      setHasPassword(passwordSet);
+      logger.log('📝 Wallet has password:', passwordSet);
+    }
+  }, [isOpen]);
 
   const handleNext = () => {
     setError('');
@@ -52,8 +65,14 @@ export default function UpgradeToEmailModal({
       setStep('form');
     } else if (step === 'form') {
       // Validate form
-      if (!email || !password || !confirmPassword || !currentPassword) {
+      if (!email || !password || !confirmPassword) {
         setError('Please fill in all fields');
+        return;
+      }
+
+      // ✅ Only require current password if wallet has one
+      if (hasPassword && !currentPassword) {
+        setError('Please enter your current password');
         return;
       }
 
@@ -90,32 +109,50 @@ export default function UpgradeToEmailModal({
     try {
       logger.log('🔄 Starting wallet upgrade to email account...');
 
-      // 1. Decrypt wallet to get mnemonic using current password
-      const encryptedWalletString = typeof window !== 'undefined' 
-        ? localStorage.getItem('encrypted_wallet')
-        : null;
-
-      if (!encryptedWalletString) {
-        throw new Error('No wallet found to upgrade');
-      }
-
       let mnemonic: string;
-      
-      try {
-        // Parse encrypted wallet (stored as JSON string)
-        const encryptedWallet = JSON.parse(encryptedWalletString);
+
+      // ✅ If wallet has password: Decrypt to get mnemonic
+      if (hasPassword) {
+        logger.log('🔐 Wallet has password - decrypting...');
         
-        // Decrypt using crypto-utils
-        const { decryptWallet } = await import('@/lib/crypto-utils');
-        mnemonic = decryptWallet(encryptedWallet, currentPassword);
+        const encryptedWalletString = typeof window !== 'undefined' 
+          ? localStorage.getItem('encrypted_wallet')
+          : null;
+
+        if (!encryptedWalletString) {
+          throw new Error('No wallet found to upgrade');
+        }
+
+        try {
+          // Parse encrypted wallet (stored as JSON string)
+          const encryptedWallet = JSON.parse(encryptedWalletString);
+          
+          // Decrypt using crypto-utils
+          const { decryptWallet } = await import('@/lib/crypto-utils');
+          mnemonic = decryptWallet(encryptedWallet, currentPassword);
+          
+          logger.log('✅ Wallet decrypted successfully');
+          setExtractedMnemonic(mnemonic);
+        } catch (err: any) {
+          logger.error('❌ Failed to decrypt wallet:', err);
+          setError('Current password is incorrect');
+          setStep('form');
+          return;
+        }
+      } 
+      // ✅ If wallet has NO password: Get mnemonic from wallet store
+      else {
+        logger.log('📝 Wallet has no password - getting mnemonic from store...');
         
-        logger.log('✅ Wallet decrypted successfully');
-        setExtractedMnemonic(mnemonic); // Store for potential retry
-      } catch (err: any) {
-        logger.error('❌ Failed to decrypt wallet:', err);
-        setError('Current password is incorrect');
-        setStep('form');
-        return;
+        const { useWalletStore } = await import('@/lib/wallet-store');
+        const storeMnemonic = useWalletStore.getState().mnemonic;
+        
+        if (!storeMnemonic) {
+          throw new Error('Cannot access wallet mnemonic. Please unlock your wallet first.');
+        }
+        
+        mnemonic = storeMnemonic;
+        logger.log('✅ Mnemonic retrieved from store');
       }
 
       // 2. Call upgrade function with extracted mnemonic
@@ -276,30 +313,32 @@ export default function UpgradeToEmailModal({
                   </div>
                 )}
 
-                {/* Current Password */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">
-                    Current Wallet Password
-                  </label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type={showCurrentPassword ? 'text' : 'password'}
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      placeholder="Enter your current password"
-                      className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showCurrentPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                    </button>
+                {/* Current Password - Only show if wallet has password */}
+                {hasPassword && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                      Current Wallet Password
+                    </label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        type={showCurrentPassword ? 'text' : 'password'}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="Enter your current password"
+                        className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showCurrentPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Verify your identity before upgrading</p>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Verify your identity before upgrading</p>
-                </div>
+                )}
 
                 {/* Email */}
                 <div>
