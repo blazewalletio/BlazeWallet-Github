@@ -130,7 +130,15 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
           
           if (user) {
             setUserEmail(user.email || '');
-            setIsEmailVerified(!!user.email_confirmed_at);
+            
+            // ✅ Check our custom verification status table (not auth.users)
+            const { data: verificationStatus } = await supabase
+              .from('user_email_verification_status')
+              .select('is_verified')
+              .eq('user_id', user.id)
+              .single();
+            
+            setIsEmailVerified(verificationStatus?.is_verified || false);
             
             // Get created date
             if (user.created_at) {

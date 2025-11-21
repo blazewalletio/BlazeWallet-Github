@@ -87,19 +87,24 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Update user to mark as verified
-    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-      tokenData.user_id,
-      { email_confirm: true }
-    );
+    // ✅ Mark user as VERIFIED in our custom tracking table
+    const { error: verifyError } = await supabaseAdmin.rpc('mark_email_verified', {
+      p_user_id: tokenData.user_id
+    });
 
-    if (updateError) {
-      logger.error('❌ Failed to verify email:', updateError);
+    if (verifyError) {
+      logger.error('❌ Failed to mark email as verified:', verifyError);
       return NextResponse.json(
         { success: false, error: 'Failed to verify email' },
         { status: 500 }
       );
     }
+
+    // Also update security score
+    await supabaseAdmin
+      .from('user_security_scores')
+      .update({ email_verified: true, updated_at: new Date().toISOString() })
+      .eq('user_id', tokenData.user_id);
 
     // Mark token as used
     await supabaseAdmin

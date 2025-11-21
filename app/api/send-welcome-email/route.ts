@@ -27,24 +27,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ AUTO-VERIFY user immediately so they can login
-    // Email verification is only for "Verified" badge, not blocking login
+    // ✅ Track new user as UNVERIFIED (but they can still login)
+    // This allows us to show "Verified" badge only after email verification
     try {
-      const { error: sqlError } = await supabaseAdmin.rpc('auto_verify_user', {
-        user_id: userId
+      const { error: sqlError } = await supabaseAdmin.rpc('track_new_user_email', {
+        p_user_id: userId,
+        p_email: email
       });
       
       if (sqlError) {
-        logger.error('Failed to auto-verify user via RPC:', sqlError);
-        // Try direct auth API as fallback
-        await supabaseAdmin.auth.admin.updateUserById(userId, { 
-          email_confirm: true
-        });
+        logger.error('Failed to track user email via RPC:', sqlError);
+        // Continue anyway - not critical
       }
       
-      logger.log('✅ User auto-verified - can login immediately');
+      logger.log('✅ User tracked as unverified - can login but needs verification for badge');
     } catch (err) {
-      logger.error('Error auto-verifying user:', err);
+      logger.error('Error tracking user email:', err);
       // Continue anyway - user can still login
     }
 
