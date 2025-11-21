@@ -91,21 +91,23 @@ export default function UpgradeToEmailModal({
       logger.log('🔄 Starting wallet upgrade to email account...');
 
       // 1. Decrypt wallet to get mnemonic using current password
-      const { decryptWallet } = await import('@/lib/crypto-utils');
-      
-      const encryptedWallet = typeof window !== 'undefined' 
+      const encryptedWalletString = typeof window !== 'undefined' 
         ? localStorage.getItem('encrypted_wallet')
         : null;
 
-      if (!encryptedWallet) {
+      if (!encryptedWalletString) {
         throw new Error('No wallet found to upgrade');
       }
 
       let mnemonic: string;
       
       try {
-        const decrypted = await decryptWallet(encryptedWallet, currentPassword);
-        mnemonic = decrypted.mnemonic;
+        // Parse encrypted wallet (stored as JSON string)
+        const encryptedWallet = JSON.parse(encryptedWalletString);
+        
+        // Decrypt using crypto-utils
+        const { decryptWallet } = await import('@/lib/crypto-utils');
+        mnemonic = decryptWallet(encryptedWallet, currentPassword);
         
         logger.log('✅ Wallet decrypted successfully');
         setExtractedMnemonic(mnemonic); // Store for potential retry
