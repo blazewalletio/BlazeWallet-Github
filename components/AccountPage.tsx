@@ -80,7 +80,7 @@ interface TransactionStats {
 }
 
 export default function AccountPage({ isOpen, onClose, onOpenSettings }: AccountPageProps) {
-  const { currentChain, lockWallet } = useWalletStore();
+  const { currentChain, lockWallet, address } = useWalletStore(); // ✅ Get address from wallet store
   const [account, setAccount] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState('');
@@ -130,26 +130,39 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
           if (!currentAccount) {
             logger.log('⚠️ getCurrentAccount returned null - checking wallet state...');
             
-            // Check if wallet is actually loaded
-            const encryptedWallet = typeof window !== 'undefined' 
-              ? localStorage.getItem('encrypted_wallet')
-              : null;
-            
-            if (!encryptedWallet) {
-              logger.error('❌ No wallet found in localStorage - cannot show account page');
-              setIsLoading(false);
-              return;
+            // ✅ NEW: Check wallet store FIRST (for wallets unlocked in memory)
+            if (address) {
+              logger.log('✅ Wallet found in store (memory) - creating account from store');
+              setAccount({
+                id: `temp-wallet-${address.substring(0, 8)}`,
+                type: 'seed',
+                displayName: `Wallet ${address.substring(0, 8)}...${address.substring(address.length - 6)}`,
+                address: address,
+                lastUsed: new Date(),
+                isActive: true
+              });
+            } else {
+              // Fallback: Check localStorage
+              const encryptedWallet = typeof window !== 'undefined' 
+                ? localStorage.getItem('encrypted_wallet')
+                : null;
+              
+              if (!encryptedWallet) {
+                logger.error('❌ No wallet found in store or localStorage - cannot show account page');
+                setIsLoading(false);
+                return;
+              }
+              
+              // Create minimal account from localStorage
+              logger.log('✅ Creating minimal account from localStorage');
+              setAccount({
+                id: 'temp-seed-wallet',
+                type: 'seed',
+                displayName: 'Seed Wallet',
+                lastUsed: new Date(),
+                isActive: true
+              });
             }
-            
-            // Create minimal account object
-            logger.log('✅ Creating minimal account from wallet state');
-            setAccount({
-              id: 'temp-seed-wallet',
-              type: 'seed',
-              displayName: 'Seed Wallet',
-              lastUsed: new Date(),
-              isActive: true
-            });
           } else {
             setAccount(currentAccount);
           }
