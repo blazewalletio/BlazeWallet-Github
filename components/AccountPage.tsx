@@ -119,10 +119,12 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
   useEffect(() => {
     const loadAccountData = async () => {
       if (isOpen) {
+        logger.log('🔄 AccountPage opened - loading data...');
         setIsLoading(true);
         
         try {
           const currentAccount = getCurrentAccount();
+          logger.log('📝 Current account:', currentAccount);
           setAccount(currentAccount);
           
           // Try to get Supabase user (email wallets only)
@@ -132,10 +134,11 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             const { data: { user: supabaseUser }, error: userError } = await supabase.auth.getUser();
             if (!userError && supabaseUser) {
               user = supabaseUser;
+              logger.log('✅ Supabase user found (email wallet):', user.email);
             }
           } catch (authError: any) {
             // ✅ AuthSessionMissingError is expected for seed wallets - not an error!
-            logger.log('📝 No Supabase session (seed wallet)');
+            logger.log('📝 No Supabase session (seed wallet) - this is normal');
           }
           
           // ✅ Load data if we have a Supabase user (email wallets)
@@ -245,17 +248,21 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
           } else {
             // ✅ Seed wallet - set defaults (no Supabase data)
             logger.log('📝 Seed wallet detected - using defaults');
+            logger.log('📝 Account display name:', currentAccount?.displayName);
             setUserEmail(''); // No email
             setIsEmailVerified(false);
             setMemberSince('N/A');
             setDisplayName(currentAccount?.displayName || 'Seed Wallet User');
             // Security score, activity, devices, stats remain empty (default state)
           }
+          
+          logger.log('✅ AccountPage data loaded successfully');
         } catch (error) {
-          logger.error('Failed to load account data:', error);
+          logger.error('❌ Failed to load account data:', error);
           // ✅ Don't fail completely - show what we have
         } finally {
           setIsLoading(false);
+          logger.log('✅ AccountPage loading complete');
         }
       }
     };
@@ -575,9 +582,11 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
     }
   };
 
-  if (!isOpen || !account) return null;
+  // ✅ Show loading state even if account not loaded yet
+  if (!isOpen) return null;
 
-  if (isLoading) {
+  // ✅ Show loading during data fetch OR if account not loaded yet
+  if (isLoading || !account) {
     return (
       <motion.div
         initial={{ opacity: 0 }}
