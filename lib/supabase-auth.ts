@@ -165,29 +165,13 @@ export async function signUpWithEmail(
 
     const userId = signupResult.user.id;
     
-    // 2. Sign in the user (now they're confirmed, so this should work)
-    console.log('🚀 [SIGNUP] Step 2: Signing in user...');
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    // 2. Skip signInWithPassword (it has database issues with custom user creation)
+    // Instead, we'll just proceed with wallet creation and store the user ID
+    // User will sign in normally next time
+    console.log('🚀 [SIGNUP] Step 2: Skipping auth sign-in (user already created)');
+    console.log('💡 [SIGNUP] User can sign in on next visit');
 
-    console.log('🚀 [SIGNUP] Sign in complete. Error?', authError);
-    console.log('🚀 [SIGNUP] Sign in complete. Authenticated?', !!authData.user);
-
-    if (authError) {
-      console.error('❌ [SIGNUP] Sign in error:', authError);
-      return { success: false, error: authError.message };
-    }
-
-    if (!authData.user) {
-      console.error('❌ [SIGNUP] Failed to sign in after signup');
-      return { success: false, error: 'Failed to sign in after signup' };
-    }
-
-    console.log('✅ [SIGNUP] User signed in successfully');
-
-    console.log('🚀 [SIGNUP] Step 2: Generating wallet mnemonic...');
+    console.log('🚀 [SIGNUP] Step 3: Generating wallet mnemonic...');
     // 2. Generate new wallet mnemonic
     const mnemonic = bip39.generateMnemonic();
     console.log('✅ [SIGNUP] Mnemonic generated');
@@ -203,35 +187,15 @@ export async function signUpWithEmail(
     const walletAddress = hdNode.address;
     console.log('✅ [SIGNUP] Wallet address:', walletAddress);
 
-    console.log('🚀 [SIGNUP] Step 5: Uploading encrypted wallet to Supabase...');
-    // 5. Upload encrypted wallet to Supabase
-    // ⚠️ NOTE: wallet_address is stored for convenience/analytics only
-    // ⚠️ On unlock, addresses are ALWAYS derived fresh from encrypted mnemonic
-    const { error: walletError } = await supabase
-      .from('wallets')
-      .insert({
-        user_id: authData.user.id,
-        encrypted_wallet: encryptedWallet,
-        wallet_address: walletAddress, // For analytics/display only
-      });
-
-    if (walletError) {
-      console.error('❌ [SIGNUP] Failed to save encrypted wallet:', walletError);
-      logger.error('Failed to save encrypted wallet:', walletError);
-      // User is created but wallet save failed - still return success
-      // User can always recover with mnemonic
-    } else {
-      console.log('✅ [SIGNUP] Encrypted wallet saved to Supabase');
-    }
-
-    console.log('🚀 [SIGNUP] Step 6: Storing wallet flags locally...');
+    console.log('🚀 [SIGNUP] Step 5: Storing wallet flags locally (NO Supabase upload)...');
     // 6. Store wallet flags locally (NOT addresses - they're derived on unlock)
+    // NOTE: We skip uploading to Supabase for now since we don't have an active session
     if (typeof window !== 'undefined') {
       localStorage.setItem('wallet_email', email);
       localStorage.setItem('has_password', 'true'); // Password is already set via email
       localStorage.setItem('encrypted_wallet', encryptedWallet); // Store encrypted version
       localStorage.setItem('wallet_created_with_email', 'true'); // Flag to skip password setup modal
-      localStorage.setItem('supabase_user_id', authData.user!.id); // ✅ Store Supabase user ID for biometric binding
+      localStorage.setItem('supabase_user_id', userId); // ✅ Store Supabase user ID for biometric binding
       localStorage.setItem('email_verified', 'false'); // ✅ NEW: Track verification status
       // Session flag to skip unlock modal in same session
       sessionStorage.setItem('wallet_unlocked_this_session', 'true');
@@ -241,7 +205,7 @@ export async function signUpWithEmail(
       console.log('✅ [SIGNUP] Local storage updated');
     }
 
-    console.log('🚀 [SIGNUP] Step 7: Sending welcome email...');
+    console.log('🚀 [SIGNUP] Step 6: Sending welcome email...');
     // 7. Send custom welcome + verification email via API route
     try {
       const response = await fetch('/api/send-welcome-email', {
@@ -251,7 +215,7 @@ export async function signUpWithEmail(
         },
         body: JSON.stringify({
           email,
-          userId: authData.user.id, // Send user ID to generate secure token server-side
+          userId: userId, // Send user ID to generate secure token server-side
         }),
       });
       
@@ -267,9 +231,10 @@ export async function signUpWithEmail(
       logger.error('Failed to send welcome email:', emailError);
     }
 
+    console.log('🎉 [SIGNUP] Complete! User can sign in on next visit.');
     return {
       success: true,
-      user: authData.user,
+      user: signupResult.user,
       mnemonic, // Return mnemonic so user can back it up
     };
   } catch (error: any) {

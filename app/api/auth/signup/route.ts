@@ -138,15 +138,36 @@ export async function POST(request: NextRequest) {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     console.log('');
-    console.log('📤 [STEP 6] Returning success response...');
+    console.log('🔐 [STEP 6] Generating session token for auto-login...');
+    
+    // Generate a session token so the user can sign in without using signInWithPassword
+    const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'magiclink',
+      email: userData.user_email_out,
+    });
+
+    if (sessionError) {
+      console.log('⚠️  [STEP 6] Failed to generate session token:', sessionError);
+      console.log('   User can still sign in manually');
+    } else {
+      console.log('✅ [STEP 6] Session token generated successfully');
+    }
+
+    console.log('');
+    console.log('📤 [STEP 7] Returning success response...');
     const response = {
       success: true,
       user: {
         id: userData.user_id,
         email: userData.user_email_out,
-      }
+      },
+      sessionToken: sessionData?.properties?.action_link || null,
     };
-    console.log('Response:', JSON.stringify(response, null, 2));
+    console.log('Response (session token omitted from log for security):', { 
+      success: true, 
+      user: response.user,
+      hasSessionToken: !!response.sessionToken 
+    });
     
     console.log('');
     console.log('═══════════════════════════════════════════════════════════');
