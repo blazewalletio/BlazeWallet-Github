@@ -210,6 +210,52 @@ export function removeAccount(accountId: string): void {
 }
 
 /**
+ * Upgrade current seed wallet to email account
+ * Updates account type and metadata after successful Supabase signup
+ */
+export async function markAccountAsUpgraded(
+  email: string,
+  userId: string
+): Promise<void> {
+  if (typeof window === 'undefined') return;
+  
+  logger.log('🔄 Marking account as upgraded to email:', email);
+  
+  // Get current account
+  const currentAccount = getCurrentAccount();
+  
+  if (!currentAccount || currentAccount.type !== 'seed') {
+    logger.error('Cannot upgrade: Current account is not a seed wallet');
+    return;
+  }
+  
+  // Remove old seed wallet from recent accounts (will be replaced by email account)
+  removeAccount(currentAccount.id);
+  
+  // Update localStorage flags (already done in upgradeToEmailAccount, but ensure consistency)
+  localStorage.setItem('wallet_email', email);
+  localStorage.setItem('supabase_user_id', userId);
+  localStorage.setItem('wallet_created_with_email', 'true');
+  
+  logger.log('✅ Account upgraded: seed wallet → email account');
+  
+  // Save new email account to recent
+  saveCurrentAccountToRecent();
+}
+
+/**
+ * Get wallet identifier for the current account
+ * Used for biometric authentication binding
+ */
+export function getCurrentWalletIdentifier(): string | null {
+  const account = getCurrentAccount();
+  if (!account) return null;
+  
+  // Email wallets use Supabase user_id, seed wallets use wallet hash
+  return account.id;
+}
+
+/**
  * Clear all recent accounts (for testing/debugging)
  */
 export function clearRecentAccounts(): void {

@@ -428,3 +428,147 @@ export async function updateCloudWallet(
   }
 }
 
+/**
+ * Upgrade a seed phrase wallet to an email account
+ * Links existing wallet (with same seed phrase) to email for cloud backup
+ */
+export async function upgradeToEmailAccount(
+  email: string,
+  password: string,
+  existingMnemonic: string
+): Promise<SignUpResult> {
+  try {
+    logger.log('🔄 Starting wallet upgrade to email account...');
+
+    // 1. Validate that the mnemonic is valid BIP39
+    const cleanMnemonic = existingMnemonic.trim().toLowerCase();
+    if (!bip39.validateMnemonic(cleanMnemonic)) {
+      return { success: false, error: 'Invalid seed phrase' };
+    }
+
+    // 2. Create Supabase user (with email confirmation disabled - we handle it via Resend)
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${typeof window !== 'undefined' ? window.location.origin : 'https://my.blazewallet.io'}/auth/verify`,
+        data: {
+          email_confirm: false, // Disable Supabase's built-in email confirmation
+        }
+      }
+    });
+
+    if (authError) {
+      // Check if email already exists
+      if (authError.message.includes('already registered') || authError.message.includes('already exists')) {
+        return { success: false, error: 'This email is already in use. Please sign in instead.' };
+      }
+      return { success: false, error: authError.message };
+    }
+
+    if (!authData.user) {
+      return { success: false, error: 'Failed to create user' };
+    }
+
+    logger.log('✅ Supabase user created:', authData.user.id);
+
+    // 3. Encrypt existing mnemonic with NEW password
+    const encryptedWallet = await encryptMnemonic(cleanMnemonic, password);
+
+    // 4. Get wallet address for metadata/analytics (NOT used for unlock - only for display)
+    const hdNode = ethers.HDNodeWallet.fromPhrase(cleanMnemonic);
+    const walletAddress = hdNode.address;
+
+    logger.log('📦 Wallet address (for display only):', walletAddress);
+
+    // 5. Upload encrypted wallet to Supabase
+    const { error: walletError } = await supabase
+      .from('wallets')
+      .insert({
+        user_id: authData.user.id,
+        encrypted_wallet: encryptedWallet,
+        wallet_address: walletAddress, // For analytics/display only
+      });
+
+    if (walletError) {
+      logger.error('❌ Failed to save encrypted wallet:', walletError);
+      
+      // Rollback: Delete created user if wallet save fails
+      try {
+        await supabase.auth.admin.deleteUser(authData.user.id);
+        logger.log('🔄 Rolled back: User deleted after wallet save failure');
+      } catch (rollbackError) {
+        logger.error('Failed to rollback user creation:', rollbackError);
+      }
+      
+      return { success: false, error: 'Failed to save wallet. Please try again.' };
+    }
+
+    logger.log('✅ Encrypted wallet saved to cloud');
+
+    // 6. Update localStorage to reflect email account
+    if (typeof window !== 'undefined') {
+      // Save old localStorage state for potential rollback
+      const oldEncryptedWallet = localStorage.getItem('encrypted_wallet');
+      const oldHasPassword = localStorage.getItem('has_password');
+      
+      try {
+        // Update to email account flags
+        localStorage.setItem('wallet_email', email);
+        localStorage.setItem('has_password', 'true');
+        localStorage.setItem('encrypted_wallet', encryptedWallet);
+        localStorage.setItem('wallet_created_with_email', 'true'); // ✅ KEY: Mark as email wallet
+        localStorage.setItem('supabase_user_id', authData.user.id); // ✅ Store user ID for biometric binding
+        localStorage.setItem('email_verified', 'false'); // Start as unverified
+        
+        // Session flag to skip unlock modal in same session
+        sessionStorage.setItem('wallet_unlocked_this_session', 'true');
+        
+        logger.log('✅ localStorage updated to email account type');
+      } catch (storageError) {
+        logger.error('Failed to update localStorage:', storageError);
+        // Attempt rollback
+        if (oldEncryptedWallet) localStorage.setItem('encrypted_wallet', oldEncryptedWallet);
+        if (oldHasPassword) localStorage.setItem('has_password', oldHasPassword);
+      }
+    }
+
+    // 7. Send custom welcome + verification email via API route
+    try {
+      const response = await fetch('/api/send-welcome-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          userId: authData.user.id,
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        logger.log('✅ Welcome email sent to:', email);
+      } else {
+        logger.error('⚠️ Failed to send welcome email:', result.error);
+        // Don't fail upgrade if email fails
+      }
+    } catch (emailError) {
+      logger.error('⚠️ Failed to send welcome email:', emailError);
+      // Don't fail upgrade if email fails
+    }
+
+    logger.log('🎉 Wallet upgrade complete!');
+
+    return {
+      success: true,
+      user: authData.user,
+      mnemonic: cleanMnemonic, // Return mnemonic (same as before, for confirmation)
+    };
+  } catch (error: any) {
+    logger.error('❌ Upgrade error:', error);
+    return { success: false, error: error.message || 'Failed to upgrade wallet' };
+  }
+}
+

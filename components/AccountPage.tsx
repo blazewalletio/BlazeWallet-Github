@@ -22,6 +22,7 @@ import NotificationSettingsModal from './NotificationSettingsModal';
 import AutoLockSettingsModal from './AutoLockSettingsModal';
 import DeleteAccountModal from './DeleteAccountModal';
 import ChangeEmailModal from './ChangeEmailModal';
+import UpgradeToEmailModal from './UpgradeToEmailModal';
 
 interface AccountPageProps {
   isOpen: boolean;
@@ -113,6 +114,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
   const [showAutoLock, setShowAutoLock] = useState(false);
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [showChangeEmail, setShowChangeEmail] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   useEffect(() => {
     const loadAccountData = async () => {
@@ -1021,6 +1023,39 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             </AnimatePresence>
           </motion.div>
 
+          {/* UPGRADE BANNER - Show for seed wallets without email */}
+          {account?.type === 'seed' && !userEmail && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.32 }}
+              className="mb-6"
+            >
+              <div className="glass-card rounded-2xl p-6 bg-gradient-to-r from-orange-50 to-red-50 border-2 border-orange-200">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Shield className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">
+                      Upgrade to Email Account
+                    </h3>
+                    <p className="text-sm text-gray-700 mb-4">
+                      Get cloud backup, multi-device access, and advanced security features while keeping your existing wallet.
+                    </p>
+                    <button
+                      onClick={() => setShowUpgradeModal(true)}
+                      className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold rounded-xl transition-all shadow-lg shadow-orange-500/30 flex items-center gap-2"
+                    >
+                      <Shield className="w-4 h-4" />
+                      Upgrade Now
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {/* SECURITY Section */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -1030,6 +1065,28 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
           >
             <h3 className="text-lg font-bold text-gray-900 mb-3 px-1">Security</h3>
             <div className="glass-card rounded-2xl overflow-hidden">
+              {/* Upgrade Button for Seed Wallets (Alternative placement in menu) */}
+              {account?.type === 'seed' && !userEmail && (
+                <button 
+                  onClick={() => setShowUpgradeModal(true)}
+                  className="w-full flex items-center gap-4 p-4 hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 transition-all border-b border-gray-100 bg-gradient-to-r from-orange-50/30 to-red-50/30"
+                >
+                  <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
+                    <Shield className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-gray-900">Upgrade to Email Account</span>
+                      <span className="px-2 py-0.5 bg-orange-500 text-white text-xs font-bold rounded-full">
+                        Recommended
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600">Cloud backup & advanced features</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                </button>
+              )}
+              
               <button 
                 onClick={() => setShowChangeEmail(true)}
                 className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
@@ -1343,6 +1400,12 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
         isOpen={showChangeEmail}
         onClose={() => setShowChangeEmail(false)}
         currentEmail={userEmail}
+        onSuccess={handleReloadData}
+      />
+      
+      <UpgradeToEmailModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
         onSuccess={handleReloadData}
       />
     </AnimatePresence>
