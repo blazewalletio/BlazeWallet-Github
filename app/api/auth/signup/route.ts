@@ -17,63 +17,185 @@ const supabaseAdmin = createClient(
 /**
  * Custom signup endpoint that creates user with proper identity
  * Fixes: "provider_id" null constraint violation
+ * 
+ * 🔥 EXTREME LOGGING ENABLED FOR DEBUGGING
  */
 export async function POST(request: NextRequest) {
+  console.log('');
+  console.log('═══════════════════════════════════════════════════════════');
+  console.log('🔥 [SIGNUP API] REQUEST RECEIVED');
+  console.log('═══════════════════════════════════════════════════════════');
+  console.log('📅 Timestamp:', new Date().toISOString());
+  console.log('🌐 URL:', request.url);
+  console.log('🔧 Method:', request.method);
+  
   try {
-    const { email, password } = await request.json();
+    console.log('');
+    console.log('📦 [STEP 1] Parsing request body...');
+    const body = await request.json();
+    console.log('✅ [STEP 1] Body parsed successfully');
+    console.log('📧 Email from request:', body.email);
+    console.log('🔑 Password length:', body.password?.length || 0);
+    
+    const { email, password } = body;
 
     if (!email || !password) {
+      console.log('❌ [STEP 1] VALIDATION FAILED: Missing email or password');
+      console.log('   Email present:', !!email);
+      console.log('   Password present:', !!password);
       return NextResponse.json(
         { success: false, error: 'Email and password are required' },
         { status: 400 }
       );
     }
+    
+    console.log('✅ [STEP 1] Validation passed');
 
-    logger.log('🚀 Creating user via admin.createUser (WITH email_confirm: true):', email);
+    console.log('');
+    console.log('🔐 [STEP 2] Checking Supabase configuration...');
+    console.log('   SUPABASE_URL present:', !!process.env.NEXT_PUBLIC_SUPABASE_URL);
+    console.log('   SUPABASE_URL value:', process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + '...');
+    console.log('   SERVICE_ROLE_KEY present:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+    console.log('   SERVICE_ROLE_KEY length:', process.env.SUPABASE_SERVICE_ROLE_KEY?.length || 0);
+    
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.log('❌ [STEP 2] FATAL: Missing Supabase credentials!');
+      return NextResponse.json(
+        { success: false, error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+    
+    console.log('✅ [STEP 2] Supabase credentials present');
 
-    // F*CK THE SQL WORKAROUND - just use admin.createUser with email_confirm: true
-    // This bypasses Supabase's email sending but still creates a valid user
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+    console.log('');
+    console.log('👤 [STEP 3] Calling admin.createUser...');
+    console.log('   Email:', email);
+    console.log('   Email confirm:', true);
+    console.log('   User metadata:', { email_verified_custom: false });
+    
+    const createUserPayload = {
       email,
       password,
-      email_confirm: true, // ✅ This confirms the user WITHOUT sending an email
+      email_confirm: true,
       user_metadata: {
-        email_verified_custom: false, // We track our own verification separately
+        email_verified_custom: false,
       }
-    });
+    };
+    
+    console.log('📤 [STEP 3] Sending request to Supabase...');
+    const startTime = Date.now();
+    
+    const { data, error } = await supabaseAdmin.auth.admin.createUser(createUserPayload);
+    
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+    
+    console.log('📥 [STEP 3] Response received from Supabase');
+    console.log('⏱️  Duration:', duration, 'ms');
 
     if (error) {
-      logger.error('❌ admin.createUser error:', error);
+      console.log('');
+      console.log('❌❌❌ [STEP 3] SUPABASE ERROR DETECTED ❌❌❌');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('Error object:', JSON.stringify(error, null, 2));
+      console.log('Error message:', error.message);
+      console.log('Error code:', error.code);
+      console.log('Error status:', error.status);
+      console.log('Error name:', error.name);
+      console.log('Full error:', error);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      
+      // Check for specific error types
+      if (error.message?.includes('trigger')) {
+        console.log('🔍 TRIGGER ERROR DETECTED!');
+        console.log('   This means a database trigger is failing');
+      }
+      if (error.message?.includes('policy')) {
+        console.log('🔍 RLS POLICY ERROR DETECTED!');
+        console.log('   This means Row Level Security is blocking the operation');
+      }
+      if (error.message?.includes('constraint')) {
+        console.log('🔍 CONSTRAINT ERROR DETECTED!');
+        console.log('   This means a database constraint is being violated');
+      }
+      
       return NextResponse.json(
-        { success: false, error: error.message },
+        { 
+          success: false, 
+          error: error.message,
+          details: {
+            code: error.code,
+            status: error.status,
+            name: error.name
+          }
+        },
         { status: 500 }
       );
     }
 
+    console.log('');
+    console.log('🎉 [STEP 4] Checking response data...');
+    console.log('   Data present:', !!data);
+    console.log('   Data keys:', data ? Object.keys(data) : 'NO DATA');
+    
     if (!data.user) {
-      logger.error('❌ No user returned from admin.createUser');
+      console.log('❌ [STEP 4] NO USER IN RESPONSE!');
+      console.log('   Data:', JSON.stringify(data, null, 2));
       return NextResponse.json(
-        { success: false, error: 'Failed to create user' },
+        { success: false, error: 'No user returned from Supabase' },
         { status: 500 }
       );
     }
 
-    logger.log('✅ User created successfully:', email);
-    logger.log('✅ User ID:', data.user.id);
-    logger.log('✅ Email confirmed:', data.user.email_confirmed_at ? 'YES' : 'NO');
+    console.log('');
+    console.log('✅✅✅ [STEP 5] USER CREATED SUCCESSFULLY! ✅✅✅');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('👤 User ID:', data.user.id);
+    console.log('📧 Email:', data.user.email);
+    console.log('✉️  Email confirmed at:', data.user.email_confirmed_at);
+    console.log('📅 Created at:', data.user.created_at);
+    console.log('🔑 Has identities:', data.user.identities?.length || 0);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-    return NextResponse.json({
+    console.log('');
+    console.log('📤 [STEP 6] Returning success response...');
+    const response = {
       success: true,
       user: {
         id: data.user.id,
         email: data.user.email,
       }
-    });
+    };
+    console.log('Response:', JSON.stringify(response, null, 2));
+    
+    console.log('');
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log('✅ [SIGNUP API] COMPLETED SUCCESSFULLY');
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log('');
+
+    return NextResponse.json(response);
 
   } catch (error: any) {
-    logger.error('❌ Error in signup API:', error);
+    console.log('');
+    console.log('💥💥💥 [FATAL ERROR] UNHANDLED EXCEPTION 💥💥💥');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('Error type:', typeof error);
+    console.log('Error constructor:', error?.constructor?.name);
+    console.log('Error message:', error?.message);
+    console.log('Error stack:', error?.stack);
+    console.log('Full error object:', error);
+    console.log('Error stringified:', JSON.stringify(error, null, 2));
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('');
+    
     return NextResponse.json(
-      { success: false, error: 'Failed to create account' },
+      { 
+        success: false, 
+        error: 'Failed to create account',
+        details: error?.message || 'Unknown error'
+      },
       { status: 500 }
     );
   }
