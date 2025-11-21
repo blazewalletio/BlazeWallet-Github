@@ -125,12 +125,12 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
           const currentAccount = getCurrentAccount();
           setAccount(currentAccount);
           
-          // Get Supabase user
+          // Try to get Supabase user (email wallets only)
           const { data: { user }, error: userError } = await supabase.auth.getUser();
           
-          if (userError) throw userError;
-          
-          if (user) {
+          // ✅ FIX: Don't throw error if no user (seed wallets don't have Supabase accounts)
+          if (!userError && user) {
+            // Email wallet - load Supabase data
             setUserEmail(user.email || '');
             
             // ✅ Check our custom verification status table (not auth.users)
@@ -232,10 +232,18 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 .from('user_transaction_stats')
                 .insert({ user_id: user.id });
             }
-            
+          } else {
+            // ✅ Seed wallet - set defaults (no Supabase data)
+            logger.log('📝 Seed wallet detected - using defaults');
+            setUserEmail(''); // No email
+            setIsEmailVerified(false);
+            setMemberSince('N/A');
+            setDisplayName(currentAccount?.displayName || 'Seed Wallet User');
+            // Security score, activity, devices, stats remain empty (default state)
           }
         } catch (error) {
           logger.error('Failed to load account data:', error);
+          // ✅ Don't fail completely - show what we have
         } finally {
           setIsLoading(false);
         }
@@ -702,7 +710,9 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                   )}
                 </div>
                 
-                <p className="text-sm text-gray-700 mb-1 truncate">{userEmail}</p>
+                <p className="text-sm text-gray-700 mb-1 truncate">
+                  {userEmail || (account?.type === 'seed' ? 'Seed Wallet (No Email)' : 'No Email')}
+                </p>
                 <div className="flex items-center gap-2 text-xs text-gray-500">
                   <Calendar className="w-3.5 h-3.5" />
                   <span>Member since {memberSince}</span>
@@ -1087,31 +1097,34 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 </button>
               )}
               
-              <button 
-                onClick={() => setShowChangeEmail(true)}
-                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
-              >
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <Mail className="w-5 h-5 text-blue-600" />
-                </div>
-                <div className="flex-1 text-left">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-gray-900">Email</span>
-                    {isEmailVerified ? (
-                      <span className="flex items-center gap-1 text-green-600 text-xs">
-                        <CheckCircle className="w-3 h-3" />
-                        Verified
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-orange-600 text-xs">
-                        Pending verification
-                      </span>
-                    )}
+              {/* Email section - Only show for email wallets */}
+              {userEmail && (
+                <button 
+                  onClick={() => setShowChangeEmail(true)}
+                  className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
+                >
+                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <Mail className="w-5 h-5 text-blue-600" />
                   </div>
-                  <p className="text-sm text-gray-600 truncate">{userEmail}</p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
-              </button>
+                  <div className="flex-1 text-left">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-gray-900">Email</span>
+                      {isEmailVerified ? (
+                        <span className="flex items-center gap-1 text-green-600 text-xs">
+                          <CheckCircle className="w-3 h-3" />
+                          Verified
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-orange-600 text-xs">
+                          Pending verification
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600 truncate">{userEmail}</p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                </button>
+              )}
 
               <button 
                 onClick={() => setShow2FAModal(true)}
