@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabase';
 import { CHAINS } from '@/lib/chains';
 import BiometricSetupModal from './BiometricSetupModal';
 import PasswordVerificationModal from './PasswordVerificationModal';
+import CustomSelect from './CustomSelect';
 import { logger } from '@/lib/logger';
 
 interface SettingsModalProps {
@@ -535,22 +536,20 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
                       <div className="text-xs text-gray-600">Lock wallet after inactivity</div>
                     </div>
                   </div>
-                  <div className="relative">
-                    <select
-                      value={autoLockTimeout}
-                      onChange={(e) => handleChangeAutoLock(parseInt(e.target.value))}
-                      disabled={isLoadingSettings}
-                      className="w-full px-4 py-3 bg-white border-2 border-gray-200 hover:border-indigo-300 focus:border-indigo-500 rounded-xl text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:bg-gray-100 disabled:cursor-not-allowed transition-all cursor-pointer appearance-none pr-10"
-                    >
-                      <option value={0}>Never</option>
-                      <option value={1}>1 minute</option>
-                      <option value={5}>5 minutes</option>
-                      <option value={15}>15 minutes</option>
-                      <option value={30}>30 minutes</option>
-                      <option value={60}>1 hour</option>
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-                  </div>
+                  <CustomSelect
+                    value={autoLockTimeout}
+                    onChange={(val) => handleChangeAutoLock(val as number)}
+                    options={[
+                      { value: 0, label: 'Never' },
+                      { value: 1, label: '1 minute' },
+                      { value: 5, label: '5 minutes' },
+                      { value: 15, label: '15 minutes' },
+                      { value: 30, label: '30 minutes' },
+                      { value: 60, label: '1 hour' }
+                    ]}
+                    disabled={isLoadingSettings}
+                    accentColor="indigo"
+                  />
                 </div>
 
                 {/* Default Network */}
@@ -562,28 +561,22 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
                       <div className="text-xs text-gray-600">Chain shown when opening wallet</div>
                     </div>
                   </div>
-                  <div className="relative">
-                    <select
-                      value={defaultNetwork}
-                      onChange={(e) => handleChangeDefaultNetwork(e.target.value)}
-                      disabled={isLoadingSettings}
-                      className="w-full px-4 py-3 bg-white border-2 border-gray-200 hover:border-blue-300 focus:border-blue-500 rounded-xl text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-gray-100 disabled:cursor-not-allowed transition-all cursor-pointer appearance-none pr-10"
-                    >
-                      {Object.entries(CHAINS)
-                        .filter(([key]) => {
-                          const chain = CHAINS[key as keyof typeof CHAINS];
-                          // Show testnets only if enabled
-                          if (chain.isTestnet) return enableTestnets;
-                          return true;
-                        })
-                        .map(([key, chain]) => (
-                          <option key={key} value={key}>
-                            {chain.name}
-                          </option>
-                        ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
-                  </div>
+                  <CustomSelect
+                    value={defaultNetwork}
+                    onChange={(val) => handleChangeDefaultNetwork(val as string)}
+                    options={Object.entries(CHAINS)
+                      .filter(([key]) => {
+                        const chain = CHAINS[key as keyof typeof CHAINS];
+                        if (chain.isTestnet) return enableTestnets;
+                        return true;
+                      })
+                      .map(([key, chain]) => ({
+                        value: key,
+                        label: chain.name
+                      }))}
+                    disabled={isLoadingSettings}
+                    accentColor="blue"
+                  />
                 </div>
 
                 {/* Enable Testnets */}
