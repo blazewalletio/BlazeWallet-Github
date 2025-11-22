@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Shield, Key, Trash2, 
   Eye, EyeOff, Copy, Check, Bell, Settings, Fingerprint, CheckCircle, XCircle, Bug,
-  AlertTriangle, Lock, Clock, Globe, TestTube2
+  AlertTriangle, Lock, Clock, Globe, TestTube2, ChevronDown
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { supabase } from '@/lib/supabase';
@@ -535,19 +535,22 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
                       <div className="text-xs text-gray-600">Lock wallet after inactivity</div>
                     </div>
                   </div>
-                  <select
-                    value={autoLockTimeout}
-                    onChange={(e) => handleChangeAutoLock(parseInt(e.target.value))}
-                    disabled={isLoadingSettings}
-                    className="w-full px-4 py-2.5 bg-white border-2 border-gray-200 hover:border-indigo-300 focus:border-indigo-500 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:bg-gray-100 disabled:cursor-not-allowed transition-all cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3cpath%20fill%3D%22%236B7280%22%20d%3D%22M10.293%203.293L6%207.586%201.707%203.293A1%201%200%2000.293%204.707l5%205a1%201%200%20001.414%200l5-5a1%201%200%2010-1.414-1.414z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[center_right_1rem] bg-no-repeat pr-10"
-                  >
-                    <option value={0}>Never</option>
-                    <option value={1}>1 minute</option>
-                    <option value={5}>5 minutes</option>
-                    <option value={15}>15 minutes</option>
-                    <option value={30}>30 minutes</option>
-                    <option value={60}>1 hour</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={autoLockTimeout}
+                      onChange={(e) => handleChangeAutoLock(parseInt(e.target.value))}
+                      disabled={isLoadingSettings}
+                      className="w-full px-4 py-3 bg-white border-2 border-gray-200 hover:border-indigo-300 focus:border-indigo-500 rounded-xl text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:bg-gray-100 disabled:cursor-not-allowed transition-all cursor-pointer appearance-none pr-10"
+                    >
+                      <option value={0}>Never</option>
+                      <option value={1}>1 minute</option>
+                      <option value={5}>5 minutes</option>
+                      <option value={15}>15 minutes</option>
+                      <option value={30}>30 minutes</option>
+                      <option value={60}>1 hour</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                  </div>
                 </div>
 
                 {/* Default Network */}
@@ -559,25 +562,28 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
                       <div className="text-xs text-gray-600">Chain shown when opening wallet</div>
                     </div>
                   </div>
-                  <select
-                    value={defaultNetwork}
-                    onChange={(e) => handleChangeDefaultNetwork(e.target.value)}
-                    disabled={isLoadingSettings}
-                    className="w-full px-4 py-2.5 bg-white border-2 border-gray-200 hover:border-blue-300 focus:border-blue-500 rounded-xl text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-gray-100 disabled:cursor-not-allowed transition-all cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3cpath%20fill%3D%22%236B7280%22%20d%3D%22M10.293%203.293L6%207.586%201.707%203.293A1%201%200%2000.293%204.707l5%205a1%201%200%20001.414%200l5-5a1%201%200%2010-1.414-1.414z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[center_right_1rem] bg-no-repeat pr-10"
-                  >
-                    {Object.entries(CHAINS)
-                      .filter(([key]) => {
-                        const chain = CHAINS[key as keyof typeof CHAINS];
-                        // Show testnets only if enabled
-                        if (chain.isTestnet) return enableTestnets;
-                        return true;
-                      })
-                      .map(([key, chain]) => (
-                        <option key={key} value={key}>
-                          {chain.name}
-                        </option>
-                      ))}
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={defaultNetwork}
+                      onChange={(e) => handleChangeDefaultNetwork(e.target.value)}
+                      disabled={isLoadingSettings}
+                      className="w-full px-4 py-3 bg-white border-2 border-gray-200 hover:border-blue-300 focus:border-blue-500 rounded-xl text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-gray-100 disabled:cursor-not-allowed transition-all cursor-pointer appearance-none pr-10"
+                    >
+                      {Object.entries(CHAINS)
+                        .filter(([key]) => {
+                          const chain = CHAINS[key as keyof typeof CHAINS];
+                          // Show testnets only if enabled
+                          if (chain.isTestnet) return enableTestnets;
+                          return true;
+                        })
+                        .map(([key, chain]) => (
+                          <option key={key} value={key}>
+                            {chain.name}
+                          </option>
+                        ))}
+                    </select>
+                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+                  </div>
                 </div>
 
                 {/* Enable Testnets */}
