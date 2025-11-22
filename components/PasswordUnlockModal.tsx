@@ -7,6 +7,7 @@ import { useWalletStore } from '@/lib/wallet-store';
 import { getCurrentAccount, switchToEmailAccount, switchToSeedWallet, WalletAccount, saveCurrentAccountToRecent, getAccountsByType } from '@/lib/account-manager';
 import AccountSelectorDropdown from './AccountSelectorDropdown';
 import NewEmailModal from './NewEmailModal';
+import WalletRecoveryFlow from './WalletRecoveryFlow';
 import { logger } from '@/lib/logger';
 import { rateLimitService } from '@/lib/rate-limit-service';
 
@@ -27,6 +28,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   const [showNewEmailModal, setShowNewEmailModal] = useState(false);
   const [pendingNewEmail, setPendingNewEmail] = useState<string | null>(null);
   const [isSwitching, setIsSwitching] = useState(false); // ✅ NEW: Loading state for switching
+  const [showRecoveryFlow, setShowRecoveryFlow] = useState(false); // ✅ NEW: Recovery flow state
 
   // Load current account
   useEffect(() => {
@@ -360,7 +362,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
 
             <div className="mt-6 text-center">
               <button
-                onClick={onFallback}
+                onClick={() => setShowRecoveryFlow(true)}
                 className="text-gray-600 hover:text-gray-900 text-sm underline transition-colors"
               >
                 Recover with recovery phrase
@@ -383,6 +385,16 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
           onClose={() => setShowNewEmailModal(false)}
           onSubmit={handleAddNewEmail}
           existingEmails={getAccountsByType().emailAccounts.map(acc => acc.email || '')}
+        />
+
+        {/* Wallet Recovery Flow */}
+        <WalletRecoveryFlow
+          isOpen={showRecoveryFlow}
+          onClose={() => setShowRecoveryFlow(false)}
+          onSuccess={() => {
+            setShowRecoveryFlow(false);
+            onComplete(); // Close unlock modal and go to dashboard
+          }}
         />
       </motion.div>
     </AnimatePresence>
