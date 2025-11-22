@@ -5,9 +5,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Shield, Key, Trash2, 
   Eye, EyeOff, Copy, Check, Bell, Settings, Fingerprint, CheckCircle, XCircle, Bug,
-  AlertTriangle, Lock
+  AlertTriangle, Lock, Clock, Globe, TestTube2
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
+import { supabase } from '@/lib/supabase';
+import { CHAINS } from '@/lib/chains';
 import BiometricSetupModal from './BiometricSetupModal';
 import PasswordVerificationModal from './PasswordVerificationModal';
 import { logger } from '@/lib/logger';
@@ -33,22 +35,158 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
   
   // ✅ NEW: Notifications state
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  
+  // ✅ NEW: Network & Testnet settings
+  const [defaultNetwork, setDefaultNetwork] = useState('ethereum');
+  const [enableTestnets, setEnableTestnets] = useState(false);
+  const [autoLockTimeout, setAutoLockTimeout] = useState(5); // minutes
+  
+  // Supabase user ID (for syncing settings)
+  const [supabaseUserId, setSupabaseUserId] = useState<string | null>(null);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
 
-  // Load notifications preference on mount
+  // Load all settings from Supabase (or localStorage fallback)
   useEffect(() => {
-    if (typeof window !== 'undefined' && isOpen) {
-      const saved = localStorage.getItem('notifications_enabled');
-      setNotificationsEnabled(saved !== 'false'); // Default true
+    if (isOpen) {
+      loadAllSettings();
     }
   }, [isOpen]);
 
-  const handleToggleNotifications = () => {
+  const loadAllSettings = async () => {
+    setIsLoadingSettings(true);
+    
+    try {
+      // Try to get Supabase user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        setSupabaseUserId(user.id);
+        logger.log('✅ Loading settings from Supabase for user:', user.id);
+        
+        // Load from Supabase
+        const { data: profile, error } = await supabase
+          .from('user_profiles')
+          .select('notifications_enabled, default_network, enable_testnets, auto_lock_timeout')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (error) {
+          logger.error('Error loading settings from Supabase:', error);
+          // Fallback to localStorage
+          loadFromLocalStorage();
+        } else if (profile) {
+          // Apply Supabase settings
+          setNotificationsEnabled(profile.notifications_enabled ?? true);
+          setDefaultNetwork(profile.default_network || 'ethereum');
+          setEnableTestnets(profile.enable_testnets ?? false);
+          setAutoLockTimeout(profile.auto_lock_timeout ?? 5);
+          
+          logger.log('✅ Settings loaded from Supabase:', profile);
+        } else {
+          // No profile yet, use defaults
+          loadFromLocalStorage();
+        }
+      } else {
+        // No Supabase user (seed wallet), use localStorage
+        logger.log('📱 No Supabase user, loading from localStorage');
+        setSupabaseUserId(null);
+        loadFromLocalStorage();
+      }
+    } catch (error) {
+      logger.error('Error in loadAllSettings:', error);
+      loadFromLocalStorage();
+    } finally {
+      setIsLoadingSettings(false);
+    }
+  };
+
+  const loadFromLocalStorage = () => {
+    if (typeof window !== 'undefined') {
+      setNotificationsEnabled(localStorage.getItem('notifications_enabled') !== 'false');
+      setDefaultNetwork(localStorage.getItem('default_network') || 'ethereum');
+      setEnableTestnets(localStorage.getItem('enable_testnets') === 'true');
+      setAutoLockTimeout(parseInt(localStorage.getItem('auto_lock_timeout') || '5'));
+    }
+  };
+
+  const saveToSupabase = async (updates: any) => {
+    if (!supabaseUserId) {
+      logger.log('⚠️ No Supabase user, skipping cloud sync');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .update(updates)
+        .eq('user_id', supabaseUserId);
+
+      if (error) {
+        logger.error('Error saving to Supabase:', error);
+      } else {
+        logger.log('✅ Settings synced to Supabase:', updates);
+      }
+    } catch (error) {
+      logger.error('Error in saveToSupabase:', error);
+    }
+  };
+
+  const handleToggleNotifications = async () => {
     const newValue = !notificationsEnabled;
     setNotificationsEnabled(newValue);
+    
+    // Save to localStorage
     if (typeof window !== 'undefined') {
       localStorage.setItem('notifications_enabled', String(newValue));
-      logger.log(`✅ Notifications ${newValue ? 'enabled' : 'disabled'}`);
     }
+    
+    // Sync to Supabase
+    await saveToSupabase({ notifications_enabled: newValue });
+    
+    logger.log(`✅ Notifications ${newValue ? 'enabled' : 'disabled'}`);
+  };
+
+  const handleChangeDefaultNetwork = async (network: string) => {
+    setDefaultNetwork(network);
+    
+    // Save to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('default_network', network);
+    }
+    
+    // Sync to Supabase
+    await saveToSupabase({ default_network: network });
+    
+    logger.log(`✅ Default network changed to: ${network}`);
+  };
+
+  const handleToggleTestnets = async () => {
+    const newValue = !enableTestnets;
+    setEnableTestnets(newValue);
+    
+    // Save to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('enable_testnets', String(newValue));
+    }
+    
+    // Sync to Supabase
+    await saveToSupabase({ enable_testnets: newValue });
+    
+    logger.log(`✅ Testnets ${newValue ? 'enabled' : 'disabled'}`);
+  };
+
+  const handleChangeAutoLock = async (minutes: number) => {
+    setAutoLockTimeout(minutes);
+    
+    // Save to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('auto_lock_timeout', String(minutes));
+    }
+    
+    // Sync to Supabase
+    await saveToSupabase({ auto_lock_timeout: minutes });
+    
+    logger.log(`✅ Auto-lock timeout changed to: ${minutes} minutes`);
   };
 
   // Check biometric status on mount - WALLET-SPECIFIC
@@ -385,6 +523,81 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
                       onChange={handleToggleNotifications}
                     />
                     <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                  </label>
+                </div>
+
+                {/* Auto-Lock Timeout */}
+                <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Clock className="w-5 h-5 text-indigo-500" />
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm text-gray-900">Auto-Lock Timeout</div>
+                      <div className="text-xs text-gray-600">Lock wallet after inactivity</div>
+                    </div>
+                  </div>
+                  <select
+                    value={autoLockTimeout}
+                    onChange={(e) => handleChangeAutoLock(parseInt(e.target.value))}
+                    disabled={isLoadingSettings}
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    <option value={0}>Never</option>
+                    <option value={1}>1 minute</option>
+                    <option value={5}>5 minutes</option>
+                    <option value={15}>15 minutes</option>
+                    <option value={30}>30 minutes</option>
+                    <option value={60}>1 hour</option>
+                  </select>
+                </div>
+
+                {/* Default Network */}
+                <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Globe className="w-5 h-5 text-blue-500" />
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm text-gray-900">Default Network</div>
+                      <div className="text-xs text-gray-600">Chain shown when opening wallet</div>
+                    </div>
+                  </div>
+                  <select
+                    value={defaultNetwork}
+                    onChange={(e) => handleChangeDefaultNetwork(e.target.value)}
+                    disabled={isLoadingSettings}
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    {Object.entries(CHAINS)
+                      .filter(([key]) => {
+                        const chain = CHAINS[key as keyof typeof CHAINS];
+                        // Show testnets only if enabled
+                        if (chain.testnet) return enableTestnets;
+                        return true;
+                      })
+                      .map(([key, chain]) => (
+                        <option key={key} value={key}>
+                          {chain.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                {/* Enable Testnets */}
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex items-center gap-3">
+                    <TestTube2 className="w-5 h-5 text-purple-500" />
+                    <div>
+                      <div className="font-semibold text-sm text-gray-900">Enable Testnets</div>
+                      <div className="text-xs text-gray-600">Show testnet chains in network list</div>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer" 
+                      checked={enableTestnets}
+                      onChange={handleToggleTestnets}
+                      disabled={isLoadingSettings}
+                    />
+                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed"></div>
                   </label>
                 </div>
 
