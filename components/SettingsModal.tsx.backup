@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Shield, Key, Trash2, 
-  Eye, EyeOff, Copy, Check, Bell, Settings, Fingerprint, CheckCircle, XCircle, Bug,
+  Eye, EyeOff, Copy, Check, Bell, Moon, Settings, Fingerprint, CheckCircle, XCircle, Bug,
   AlertTriangle, Lock
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
@@ -30,26 +30,6 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
   const [biometricError, setBiometricError] = useState('');
   const [showBiometricSetup, setShowBiometricSetup] = useState(false);
   const [showPasswordVerification, setShowPasswordVerification] = useState(false);
-  
-  // ✅ NEW: Notifications state
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-
-  // Load notifications preference on mount
-  useEffect(() => {
-    if (typeof window !== 'undefined' && isOpen) {
-      const saved = localStorage.getItem('notifications_enabled');
-      setNotificationsEnabled(saved !== 'false'); // Default true
-    }
-  }, [isOpen]);
-
-  const handleToggleNotifications = () => {
-    const newValue = !notificationsEnabled;
-    setNotificationsEnabled(newValue);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('notifications_enabled', String(newValue));
-      logger.log(`✅ Notifications ${newValue ? 'enabled' : 'disabled'}`);
-    }
-  };
 
   // Check biometric status on mount - WALLET-SPECIFIC
   useEffect(() => {
@@ -378,17 +358,24 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      className="sr-only peer" 
-                      checked={notificationsEnabled}
-                      onChange={handleToggleNotifications}
-                    />
+                    <input type="checkbox" className="sr-only peer" defaultChecked />
                     <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
                   </label>
                 </div>
 
-                {/* Dark Mode REMOVED - wallet only has light mode */}
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 opacity-50">
+                  <div className="flex items-center gap-3">
+                    <Moon className="w-5 h-5 text-gray-500" />
+                    <div>
+                      <div className="font-semibold text-sm text-gray-900">Dark mode</div>
+                      <div className="text-xs text-gray-600">Always on</div>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" defaultChecked disabled />
+                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                  </label>
+                </div>
               </div>
             </div>
 

@@ -1214,7 +1214,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
 
               <button 
                 onClick={() => setShowChangePassword(true)}
-                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors"
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
               >
                 <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
                   <Key className="w-5 h-5 text-orange-600" />
@@ -1225,11 +1225,156 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 </div>
                 <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
               </button>
+
+              <button 
+                onClick={() => {
+                  onClose();
+                  if (onOpenSettings) onOpenSettings();
+                }}
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
+              >
+                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-purple-600" />
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="font-semibold text-gray-900">Export Wallet</div>
+                  <p className="text-sm text-gray-600">Backup your seed phrase</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+              </button>
+
+              <button 
+                onClick={() => setShowAutoLock(true)}
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors"
+              >
+                <div className="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center">
+                  <Lock className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="font-semibold text-gray-900">Auto-Lock</div>
+                  <p className="text-sm text-gray-600">Lock after 5 minutes</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+              </button>
             </div>
           </motion.div>
 
-          {/* PREFERENCES Section - REMOVED, now in Settings */}
-          {/* ADVANCED Section - REMOVED, now in Settings */}
+          {/* PREFERENCES Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="mb-6"
+          >
+            <h3 className="text-lg font-bold text-gray-900 mb-3 px-1">Preferences</h3>
+            <div className="glass-card rounded-2xl overflow-hidden">
+              <button 
+                onClick={handleToggleBalance}
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
+              >
+                <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
+                  {userProfile?.balance_visible ? (
+                    <Eye className="w-5 h-5 text-gray-600" />
+                  ) : (
+                    <EyeOff className="w-5 h-5 text-gray-600" />
+                  )}
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="font-semibold text-gray-900">Balance Visibility</div>
+                  <p className="text-sm text-gray-600">
+                    {userProfile?.balance_visible ? 'Balance shown' : 'Balance hidden'}
+                  </p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+              </button>
+
+              <button 
+                onClick={() => setShowCurrency(true)}
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
+              >
+                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                  <Globe className="w-5 h-5 text-green-600" />
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="font-semibold text-gray-900">Currency</div>
+                  <p className="text-sm text-gray-600">{userProfile?.preferred_currency || 'USD'}</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+              </button>
+
+              <button 
+                onClick={() => setShowNotifications(true)}
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
+              >
+                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                  <Bell className="w-5 h-5 text-purple-600" />
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="font-semibold text-gray-900">Notifications</div>
+                  <p className="text-sm text-gray-600">
+                    {userProfile?.notifications_enabled ? 'Enabled' : 'Disabled'}
+                  </p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+              </button>
+            </div>
+          </motion.div>
+
+          {/* ADVANCED Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45 }}
+            className="mb-6"
+          >
+            <h3 className="text-lg font-bold text-gray-900 mb-3 px-1">Advanced</h3>
+            <div className="glass-card rounded-2xl overflow-hidden">
+              <button 
+                onClick={() => {
+                  onClose();
+                  if (onOpenSettings) onOpenSettings();
+                }}
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
+              >
+                <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
+                  <Sliders className="w-5 h-5 text-gray-600" />
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="font-semibold text-gray-900">Advanced Settings</div>
+                  <p className="text-sm text-gray-600">Developer options, network settings</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+              </button>
+
+              <button 
+                onClick={handleExportCSV}
+                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
+              >
+                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                  <FileDown className="w-5 h-5 text-blue-600" />
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="font-semibold text-gray-900">Export Data</div>
+                  <p className="text-sm text-gray-600">Download transaction history (CSV)</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+              </button>
+
+              <button 
+                onClick={() => setShowDeleteAccount(true)}
+                className="w-full flex items-center gap-4 p-4 hover:bg-red-50 transition-colors"
+              >
+                <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-red-600" />
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="font-semibold text-red-600">Delete Account</div>
+                  <p className="text-sm text-gray-600">Permanently delete your account</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+              </button>
+            </div>
+          </motion.div>
 
           {/* Quick Actions */}
           <motion.div
