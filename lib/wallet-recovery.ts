@@ -20,13 +20,16 @@ export async function recoverWallet(
   try {
     logger.log('🔄 Starting wallet recovery process...');
 
-    // 1. Rate limiting check (max 5 attempts per hour)
-    const rateLimitKey = 'wallet_recovery';
-    if (!rateLimitService.checkRateLimit(rateLimitKey, 5, 3600)) {
+    // 1. Rate limiting check (max 5 attempts)
+    const rateLimitKey = 'wallet_recovery_global';
+    const lockStatus = rateLimitService.isLocked(rateLimitKey);
+    
+    if (lockStatus.isLocked) {
       logger.error('❌ Rate limit exceeded for wallet recovery');
+      const minutes = Math.ceil((lockStatus.unlockInSeconds || 0) / 60);
       return {
         success: false,
-        error: 'Too many recovery attempts. Please try again in an hour.'
+        error: `Too many recovery attempts. Please try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`
       };
     }
 
@@ -35,7 +38,7 @@ export async function recoverWallet(
     
     if (!bip39.validateMnemonic(cleanMnemonic)) {
       logger.error('❌ Invalid mnemonic provided');
-      rateLimitService.recordAttempt(rateLimitKey);
+      rateLimitService.recordFailedAttempt(rateLimitKey);
       return {
         success: false,
         error: 'Invalid recovery phrase. Please check your words and try again.'
@@ -51,7 +54,7 @@ export async function recoverWallet(
       logger.log('✅ Wallet derived from mnemonic:', wallet.address);
     } catch (error) {
       logger.error('❌ Failed to derive wallet:', error);
-      rateLimitService.recordAttempt(rateLimitKey);
+      rateLimitService.recordFailedAttempt(rateLimitKey);
       return {
         success: false,
         error: 'Failed to recover wallet from recovery phrase.'
@@ -98,6 +101,7 @@ export async function recoverWallet(
     logger.log('🎉 Wallet recovery completed successfully!');
 
     // Clear rate limit on success
+    const rateLimitKey = 'wallet_recovery_global';
     rateLimitService.clearAttempts(rateLimitKey);
 
     return {
@@ -108,8 +112,8 @@ export async function recoverWallet(
     logger.error('❌ Wallet recovery error:', error);
     
     // Record failed attempt
-    const rateLimitKey = 'wallet_recovery';
-    rateLimitService.recordAttempt(rateLimitKey);
+    const rateLimitKey = 'wallet_recovery_global';
+    rateLimitService.recordFailedAttempt(rateLimitKey);
     
     return {
       success: false,
@@ -122,16 +126,15 @@ export async function recoverWallet(
  * Check if recovery is currently rate limited
  */
 export function isRecoveryRateLimited(): boolean {
-  const rateLimitKey = 'wallet_recovery';
-  return !rateLimitService.checkRateLimit(rateLimitKey, 5, 3600);
+  const rateLimitKey = 'wallet_recovery_global';
+  return rateLimitService.isLocked(rateLimitKey).isLocked;
 }
 
 /**
  * Get remaining recovery attempts
  */
 export function getRemainingRecoveryAttempts(): number {
-  const rateLimitKey = 'wallet_recovery';
-  const attempts = rateLimitService.getAttemptCount(rateLimitKey, 3600);
-  return Math.max(0, 5 - attempts);
+  const rateLimitKey = 'wallet_recovery_global';
+  return rateLimitService.getRemainingAttempts(rateLimitKey);
 }
 
