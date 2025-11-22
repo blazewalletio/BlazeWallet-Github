@@ -569,7 +569,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
                       .filter(([key]) => {
                         const chain = CHAINS[key as keyof typeof CHAINS];
                         // Show testnets only if enabled
-                        if (chain.testnet) return enableTestnets;
+                        if (chain.isTestnet) return enableTestnets;
                         return true;
                       })
                       .map(([key, chain]) => (
