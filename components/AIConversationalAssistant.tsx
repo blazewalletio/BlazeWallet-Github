@@ -125,10 +125,10 @@ export default function AIConversationalAssistant({
 
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
-                  <MessageSquare className="w-6 h-6 text-orange-500" />
-                  Crypto Expert
-                </h2>
+          <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
+            <MessageSquare className="w-6 h-6 text-primary-500" />
+            Crypto Expert
+          </h2>
                 <p className="text-gray-600">24/7 AI support chat</p>
               </div>
               <button

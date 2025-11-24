@@ -99,10 +99,10 @@ export default function AIRiskScanner({ onClose, initialAddress = '' }: AIRiskSc
 
           {/* Header */}
           <div className="mb-6">
-            <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
-              <Shield className="w-6 h-6 text-orange-500" />
-              Scam Detector
-            </h2>
+          <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
+            <Shield className="w-6 h-6 text-primary-500" />
+            Scam Detector
+          </h2>
             <p className="text-gray-600">
               Scan addresses and contracts for security risks
             </p>

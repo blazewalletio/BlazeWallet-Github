@@ -223,10 +223,10 @@ export default function AITransactionAssistant({
 
           {/* Header */}
           <div className="mb-6">
-            <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
-              <Sparkles className="w-6 h-6 text-orange-500" />
-              AI Assistant
-            </h2>
+          <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
+            <Sparkles className="w-6 h-6 text-primary-500" />
+            AI Assistant
+          </h2>
             <p className="text-gray-600">
               Natural language transactions • Powered by GPT-4o-mini
             </p>
