@@ -37,8 +37,18 @@ export default function AITransactionAssistant({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-scroll to bottom of conversation
+  // ✅ FIX: Track if this is the first render to prevent initial scroll
+  const isFirstRender = useRef(true);
+
+  // Auto-scroll to bottom of conversation (only for NEW messages, not on mount)
   useEffect(() => {
+    // Skip scroll on first render (mount)
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    
+    // Scroll to bottom for new messages only
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversation]);
 
