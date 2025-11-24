@@ -57,13 +57,6 @@ export default function UpgradeToEmailModal({
       logger.log('📝 Wallet has password:', passwordSet);
     }
   }, [isOpen]);
-  
-  // ✅ FIX: Scroll to top on step change
-  useEffect(() => {
-    if (isOpen) {
-      window.scrollTo({ top: 0, behavior: 'instant' });
-    }
-  }, [step, isOpen]);
 
   const handleNext = () => {
     setError('');

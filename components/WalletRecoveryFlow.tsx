@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Shield, AlertTriangle, CheckCircle, Eye, EyeOff, 
@@ -26,13 +26,6 @@ export default function WalletRecoveryFlow({ isOpen, onClose, onSuccess }: Walle
   const [error, setError] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [mnemonicValid, setMnemonicValid] = useState<boolean | null>(null);
-
-  // ✅ FIX: Scroll to top on step change
-  useEffect(() => {
-    if (isOpen) {
-      window.scrollTo({ top: 0, behavior: 'instant' });
-    }
-  }, [step, isOpen]);
 
   const handleClose = () => {
     if (isProcessing) return; // Don't allow close during processing
