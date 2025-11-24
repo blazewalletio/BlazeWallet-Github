@@ -203,6 +203,11 @@ export default function Dashboard() {
   // Bottom navigation state
   const [activeTab, setActiveTab] = useState<TabType>('wallet');
   
+  // ✅ FIX: Scroll to top on mount (after login)
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, []);
+  
   // ✅ Load user preferences from Supabase (cross-device sync)
   useEffect(() => {
     const loadUserPreferences = async () => {

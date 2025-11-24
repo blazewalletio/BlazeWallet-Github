@@ -76,16 +76,19 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     return { score: 5, label: 'Very Strong', color: 'green' };
   };
   
-  // Scroll to field and focus
+  // Scroll to field and focus - FIXED: no jump
   const scrollToField = (ref: React.RefObject<HTMLInputElement>) => {
     if (ref.current) {
-      ref.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      });
+      // First focus (this triggers keyboard if needed)
+      ref.current.focus();
+      
+      // Then scroll smoothly after a tiny delay to prevent jump
       setTimeout(() => {
-        ref.current?.focus();
-      }, 300);
+        ref.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+      }, 50);
     }
   };
   
