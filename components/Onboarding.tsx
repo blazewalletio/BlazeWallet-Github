@@ -896,7 +896,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        className="absolute right-3 top-1/2 -translate-y-1/2"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center"
                       >
                         <CheckCircle className="w-5 h-5 text-green-500" />
                       </motion.div>
@@ -905,7 +905,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        className="absolute right-3 top-1/2 -translate-y-1/2"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center"
                       >
                         <XCircle className="w-5 h-5 text-red-500" />
                       </motion.div>
@@ -1033,7 +1033,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                         <motion.div
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
-                          className="absolute right-3 top-1/2 -translate-y-1/2"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center"
                         >
                           <CheckCircle className="w-5 h-5 text-green-500" />
                         </motion.div>
@@ -1042,7 +1042,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                         <motion.div
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
-                          className="absolute right-3 top-1/2 -translate-y-1/2"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center"
                         >
                           <XCircle className="w-5 h-5 text-red-500" />
                         </motion.div>

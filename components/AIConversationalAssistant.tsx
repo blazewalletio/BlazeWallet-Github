@@ -130,10 +130,10 @@ export default function AIConversationalAssistant({
             </div>
           </div>
 
-          {/* Chat Container */}
-          <div className="flex-1 px-6 pb-6 overflow-hidden flex flex-col">
+          {/* Chat Container - FIXED: Removed overflow-hidden to allow scrolling */}
+          <div className="flex-1 px-6 pb-6 flex flex-col">
             <div className="flex-1 bg-white border border-gray-200 rounded-2xl overflow-hidden flex flex-col">
-              {/* Messages */}
+              {/* Messages - Scrollable area */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 <AnimatePresence mode="popLayout">
                   {messages.map((message, i) => (
