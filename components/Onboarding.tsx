@@ -877,7 +877,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                         setError(''); // Clear error on change
                       }}
                       onKeyDown={(e) => {
-                        // ✅ Enter key → Focus password field
+                        // ✅ Enter key → Focus password field (don't submit yet!)
                         if (e.key === 'Enter' && email && emailValid) {
                           e.preventDefault();
                           scrollToField(passwordRef);
@@ -946,14 +946,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                         setError('');
                       }}
                       onKeyDown={(e) => {
-                        // ✅ Enter key → Focus confirm password (signup) or submit (login)
+                        // ✅ Enter key → Focus confirm password (signup) or let form submit naturally (login)
                         if (e.key === 'Enter' && password) {
-                          e.preventDefault();
                           if (emailAuthMode === 'signup' && confirmPasswordRef.current) {
+                            e.preventDefault();
                             scrollToField(confirmPasswordRef);
-                          } else if (emailAuthMode === 'login') {
-                            handleEmailAuth();
                           }
+                          // For login mode, let the form submit naturally (don't call handleEmailAuth directly!)
                         }
                       }}
                       placeholder="Enter secure password"
@@ -1033,11 +1032,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                           setError('');
                         }}
                         onKeyDown={(e) => {
-                          // ✅ Enter key → Submit form
-                          if (e.key === 'Enter' && confirmPassword) {
-                            e.preventDefault();
-                            handleEmailAuth();
-                          }
+                          // ✅ Enter key → Let form submit naturally (don't call handleEmailAuth directly!)
+                          // The form's onSubmit handler will take care of it
                         }}
                         placeholder="Confirm your password"
                         autoComplete="new-password"
