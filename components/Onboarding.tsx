@@ -58,6 +58,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
   const { createWallet, importWallet } = useWalletStore();
 
+  // ✅ FIX: Scroll to top on every step change
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [step]);
+
   // Check password strength
   const checkPasswordStrength = (pwd: string) => {
     if (pwd.length === 0) return { score: 0, label: '', color: 'gray' };
