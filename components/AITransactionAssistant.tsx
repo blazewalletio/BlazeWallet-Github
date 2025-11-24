@@ -224,9 +224,8 @@ export default function AITransactionAssistant({
           {/* Header */}
           <div className="mb-6">
             <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-white" />
-              </div>
+              {/* ✅ FIX: No background box, just icon with theme color */}
+              <Sparkles className="w-12 h-12 text-orange-500" />
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">AI Assistant</h2>
                 <p className="text-sm text-gray-600">
