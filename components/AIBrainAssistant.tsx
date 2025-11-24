@@ -87,7 +87,7 @@ export default function AIBrainAssistant({
           {/* Header */}
           <div>
             <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
-              <Brain className="w-6 h-6 text-primary-500" />
+              <Brain className="w-6 h-6 text-indigo-400" />
               AI Brain
             </h2>
             <p className="text-gray-600">

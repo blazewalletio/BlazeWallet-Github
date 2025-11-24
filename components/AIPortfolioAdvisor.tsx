@@ -196,7 +196,7 @@ export default function AIPortfolioAdvisor({
           {/* Header */}
           <div className="mb-6">
             <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
-              <PieChart className="w-6 h-6 text-primary-500" />
+              <PieChart className="w-6 h-6 text-purple-400" />
               AI Portfolio Advisor
             </h2>
             <p className="text-gray-600">

@@ -183,7 +183,7 @@ export default function AIGasOptimizer({ onClose, chain }: AIGasOptimizerProps) 
 
         <div className="mb-6">
           <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
-            <Zap className="w-6 h-6 text-primary-500" />
+            <Zap className="w-6 h-6 text-yellow-400" />
             Gas Optimizer
           </h2>
           <p className="text-gray-600">AI-powered gas optimization for {chain}</p>
