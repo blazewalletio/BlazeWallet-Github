@@ -786,7 +786,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-md lg:max-w-xl mx-auto px-4 pt-4"
+              className="w-full max-w-md lg:max-w-xl mx-auto px-4 pt-4 pb-8 min-h-screen overflow-y-auto"
             >
               {/* Back Button - UNIFORM POSITION */}
               <div className="mb-8">
@@ -876,6 +876,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                         setEmail(e.target.value);
                         setError(''); // Clear error on change
                       }}
+                      onKeyPress={(e) => {
+                        // ✅ Enter → Focus password field
+                        if (e.key === 'Enter' && email && emailValid) {
+                          e.preventDefault();
+                          passwordRef.current?.focus();
+                        }
+                      }}
                       placeholder="your@email.com"
                       autoFocus
                       autoComplete="email"
@@ -937,6 +944,16 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       onChange={(e) => {
                         setPassword(e.target.value);
                         setError('');
+                      }}
+                      onKeyPress={(e) => {
+                        // ✅ Enter → Focus confirm (signup) or submit (login)
+                        if (e.key === 'Enter' && password) {
+                          if (emailAuthMode === 'signup' && confirmPasswordRef.current) {
+                            e.preventDefault();
+                            confirmPasswordRef.current.focus();
+                          }
+                          // For login, let form submit naturally
+                        }
                       }}
                       placeholder="Enter secure password"
                       autoComplete={emailAuthMode === 'signup' ? 'new-password' : 'current-password'}

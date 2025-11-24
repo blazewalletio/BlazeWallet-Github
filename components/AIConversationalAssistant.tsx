@@ -100,9 +100,9 @@ export default function AIConversationalAssistant({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-gray-50 overflow-hidden flex flex-col"
+        className="fixed inset-0 z-50 bg-gray-50 flex flex-col"
       >
-        <div className="flex-1 flex flex-col max-w-6xl mx-auto w-full">
+        <div className="flex-1 flex flex-col max-w-6xl mx-auto w-full overflow-hidden">
           {/* Header */}
           <div className="flex-shrink-0 p-6 pb-4">
             <button
@@ -130,11 +130,11 @@ export default function AIConversationalAssistant({
             </div>
           </div>
 
-          {/* Chat Container - FIXED: Removed overflow-hidden to allow scrolling */}
-          <div className="flex-1 px-6 pb-6 flex flex-col">
+          {/* Chat Container */}
+          <div className="flex-1 px-6 pb-6 flex flex-col min-h-0">
             <div className="flex-1 bg-white border border-gray-200 rounded-2xl overflow-hidden flex flex-col">
               {/* Messages - Scrollable area */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="flex-1 overflow-y-auto overscroll-contain p-6 space-y-4">
                 <AnimatePresence mode="popLayout">
                   {messages.map((message, i) => (
                     <motion.div
