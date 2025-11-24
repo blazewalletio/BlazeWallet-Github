@@ -241,61 +241,49 @@ export default function AITransactionAssistant({
             {/* Welcome / Examples */}
             {conversation.length === 0 && (
               <>
-                {/* Info cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="glass-card p-6"
-                  >
-                    <div className="flex items-center gap-2 text-blue-600 mb-2">
-                      <Zap className="w-5 h-5" />
-                      <span className="text-sm font-semibold">Fast & Smart</span>
+                {/* ✅ IMPROVED: Compact info bar instead of 3 large cards */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-purple-500/10 border border-purple-200 rounded-xl p-4"
+                >
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center">
+                        <Sparkles className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">
+                          AI-Powered Transactions
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          Just type what you want to do in natural language
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-2xl font-bold text-gray-900">90%</div>
-                    <div className="text-sm text-gray-600 mt-1">
-                      Cached responses
+                    
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-1.5">
+                        <Zap className="w-4 h-4 text-blue-600" />
+                        <span className="text-xs font-medium text-gray-700">Fast</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <TrendingUp className="w-4 h-4 text-green-600" />
+                        <span className="text-xs font-medium text-gray-700">18 Chains</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <AlertTriangle className="w-4 h-4 text-purple-600" />
+                        <span className="text-xs font-medium text-gray-700">Proactive</span>
+                      </div>
                     </div>
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.05 }}
-                    className="glass-card p-6"
-                  >
-                    <div className="flex items-center gap-2 text-green-600 mb-2">
-                      <TrendingUp className="w-5 h-5" />
-                      <span className="text-sm font-semibold">18 Chains</span>
-                    </div>
-                    <div className="text-2xl font-bold text-gray-900">All</div>
-                    <div className="text-sm text-gray-600 mt-1">
-                      Addresses supported
-                    </div>
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="glass-card p-6"
-                  >
-                    <div className="flex items-center gap-2 text-purple-600 mb-2">
-                      <Info className="w-5 h-5" />
-                      <span className="text-sm font-semibold">Proactive</span>
-                    </div>
-                    <div className="text-2xl font-bold text-gray-900">AI</div>
-                    <div className="text-sm text-gray-600 mt-1">
-                      Warns about risks
-                    </div>
-                  </motion.div>
-                </div>
+                  </div>
+                </motion.div>
 
                 {/* Examples */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.15 }}
+                  transition={{ delay: 0.1 }}
                   className="glass-card p-6"
                 >
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Try these examples:</h3>
