@@ -39,8 +39,15 @@ export default function AIConversationalAssistant({
     "What are smart contracts?",
   ];
 
+  // ✅ FIX: Only scroll to bottom for NEW messages, not on mount
+  const prevMessagesLengthRef = useRef(messages.length);
+  
   useEffect(() => {
-    scrollToBottom();
+    // Only scroll if messages were added (not on initial mount)
+    if (messages.length > prevMessagesLengthRef.current) {
+      scrollToBottom();
+    }
+    prevMessagesLengthRef.current = messages.length;
   }, [messages]);
 
   const scrollToBottom = () => {
