@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, CheckCircle2, Copy, Check, Sparkles, Shield, Zap, Lock, AlertTriangle, Eye, EyeOff, ArrowRight, Mail, Key, Usb, FileText, Fingerprint, X, Brain, Flame, Vote, Rocket, Gift, CreditCard, Users, Palette } from 'lucide-react';
+import { Download, CheckCircle2, Copy, Check, Sparkles, Shield, Zap, Lock, AlertTriangle, Eye, EyeOff, ArrowRight, Mail, Key, Usb, FileText, Fingerprint, X, Brain, Flame, Vote, Rocket, Gift, CreditCard, Users, Palette, XCircle, Loader2 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { signUpWithEmail, signInWithEmail, signInWithGoogle, signInWithApple } from '@/lib/supabase-auth';
 import BlazeLogoImage from './BlazeLogoImage';
@@ -43,8 +43,55 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  
+  // Password strength state
+  const [passwordStrength, setPasswordStrength] = useState<{
+    score: number;
+    label: string;
+    color: string;
+  }>({ score: 0, label: '', color: 'gray' });
+  
+  // Refs for field navigation
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const confirmPasswordRef = useRef<HTMLInputElement>(null);
 
   const { createWallet, importWallet } = useWalletStore();
+
+  // Check password strength
+  const checkPasswordStrength = (pwd: string) => {
+    if (pwd.length === 0) return { score: 0, label: '', color: 'gray' };
+    if (pwd.length < 8) return { score: 1, label: 'Too short', color: 'red' };
+    
+    let score = 0;
+    if (pwd.length >= 8) score++;
+    if (pwd.length >= 12) score++;
+    if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) score++;
+    if (/\d/.test(pwd)) score++;
+    if (/[^a-zA-Z0-9]/.test(pwd)) score++;
+    
+    if (score <= 2) return { score: 2, label: 'Weak', color: 'red' };
+    if (score === 3) return { score: 3, label: 'Medium', color: 'yellow' };
+    if (score === 4) return { score: 4, label: 'Strong', color: 'green' };
+    return { score: 5, label: 'Very Strong', color: 'green' };
+  };
+  
+  // Scroll to field and focus
+  const scrollToField = (ref: React.RefObject<HTMLInputElement>) => {
+    if (ref.current) {
+      ref.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+      setTimeout(() => {
+        ref.current?.focus();
+      }, 300);
+    }
+  };
+  
+  // Check if passwords match
+  const passwordsMatch = password && confirmPassword && password === confirmPassword;
+  const showMatchIndicator = confirmPassword.length > 0;
 
   // Detect mobile device on mount
   useEffect(() => {
@@ -164,7 +211,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   };
 
   // Handle email authentication
-  const handleEmailAuth = async () => {
+  const handleEmailAuth = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    
     try {
       setError('');
       setIsLoading(true);
@@ -782,16 +831,26 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <div className="flex-1 h-px bg-gray-300"></div>
             </div>
 
-              {/* Form - NO CARD, DIRECT INPUTS */}
-            <div className="space-y-4">
+              {/* Form with proper structure */}
+            <form onSubmit={handleEmailAuth} className="space-y-4">
+                {/* Email Field */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-900 mb-2">
                     Email address
                   </label>
                   <input
+                    ref={emailRef}
                     type="email"
+                    inputMode="email"
+                    autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        scrollToField(passwordRef);
+                      }
+                    }}
                     placeholder="your@email.com"
                     autoFocus
                     disabled={isLoading}
@@ -799,15 +858,33 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   />
                 </div>
 
+                {/* Password Field */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-900 mb-2">
                     Password
                   </label>
                   <div className="relative">
                     <input
+                      ref={passwordRef}
                       type={showPassword ? 'text' : 'password'}
+                      autoComplete={emailAuthMode === 'signup' ? 'new-password' : 'current-password'}
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (emailAuthMode === 'signup') {
+                          setPasswordStrength(checkPasswordStrength(e.target.value));
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (emailAuthMode === 'login') {
+                            handleEmailAuth();
+                          } else {
+                            scrollToField(confirmPasswordRef);
+                          }
+                        }
+                      }}
                       placeholder="Enter secure password"
                       disabled={isLoading}
                       className="w-full px-4 py-2 sm:py-3 pr-12 bg-white border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none transition-colors text-gray-900 placeholder-gray-400 disabled:opacity-50"
@@ -821,50 +898,128 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
                   </div>
+                  
+                  {/* Password Strength Indicator (Signup only) */}
+                  {emailAuthMode === 'signup' && password && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-2"
+                    >
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-gray-600">Password strength</span>
+                        <span className={`font-semibold ${
+                          passwordStrength.color === 'red' ? 'text-red-600' : 
+                          passwordStrength.color === 'yellow' ? 'text-yellow-600' : 
+                          passwordStrength.color === 'green' ? 'text-green-600' : 
+                          'text-gray-600'
+                        }`}>
+                          {passwordStrength.label}
+                        </span>
+                      </div>
+                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${(passwordStrength.score / 5) * 100}%` }}
+                          transition={{ duration: 0.3 }}
+                          className={`h-full ${
+                            passwordStrength.color === 'red' ? 'bg-red-500' : 
+                            passwordStrength.color === 'yellow' ? 'bg-yellow-500' : 
+                            passwordStrength.color === 'green' ? 'bg-green-500' : 
+                            'bg-gray-400'
+                          } transition-colors`}
+                        />
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
 
+                {/* Confirm Password Field (Signup only) */}
                 {emailAuthMode === 'signup' && (
                   <div>
                     <label className="block text-sm font-semibold text-gray-900 mb-2">
                       Confirm password
                     </label>
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Confirm your password"
-                      disabled={isLoading}
-                      className="w-full px-4 py-2 sm:py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none transition-colors text-gray-900 placeholder-gray-400 disabled:opacity-50"
-                    />
+                    <div className="relative">
+                      <input
+                        ref={confirmPasswordRef}
+                        type={showPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleEmailAuth();
+                          }
+                        }}
+                        placeholder="Confirm your password"
+                        disabled={isLoading}
+                        className={`w-full px-4 py-2 sm:py-3 bg-white border-2 rounded-xl focus:border-orange-500 focus:outline-none transition-colors text-gray-900 placeholder-gray-400 disabled:opacity-50 ${
+                          showMatchIndicator ? (passwordsMatch ? 'border-green-500 pr-12' : 'border-red-500 pr-12') : 'border-gray-200'
+                        }`}
+                      />
+                      {showMatchIndicator && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          {passwordsMatch ? (
+                            <CheckCircle2 className="w-5 h-5 text-green-500" />
+                          ) : (
+                            <XCircle className="w-5 h-5 text-red-500" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {showMatchIndicator && !passwordsMatch && (
+                      <motion.p
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-xs text-red-600 mt-1"
+                      >
+                        Passwords do not match
+                      </motion.p>
+                    )}
                   </div>
                 )}
 
-                {/* Error - LAUNCHPAD STYLE */}
+                {/* Error Message */}
                 {error && (
-                  <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3">
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-red-500/10 border border-red-500/20 rounded-xl p-3"
+                  >
                     <p className="text-sm text-red-700">{error}</p>
-                  </div>
+                  </motion.div>
                 )}
 
-                {/* Action Buttons */}
+                {/* Submit Button */}
               <button
-                  onClick={handleEmailAuth}
+                  type="submit"
                   disabled={!email || !password || (emailAuthMode === 'signup' && !confirmPassword) || isLoading}
                   className="w-full py-3 sm:py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed rounded-xl font-semibold text-white shadow-lg transition-all flex items-center justify-center gap-2"
                 >
                   {isLoading ? (
                     <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>{emailAuthMode === 'signup' ? 'Creating...' : 'Logging in...'}</span>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>{emailAuthMode === 'signup' ? 'Creating wallet...' : 'Logging in...'}</span>
                     </>
                   ) : (
-                    <span>{emailAuthMode === 'signup' ? 'Create wallet' : 'Login'}</span>
+                    <>
+                      <Mail className="w-5 h-5" />
+                      <span>{emailAuthMode === 'signup' ? 'Create wallet' : 'Login'}</span>
+                    </>
                   )}
                 </button>
+              </form>
 
+                {/* Toggle Login/Signup */}
                 <button
                   onClick={() => {
                     setError('');
+                    setEmail('');
+                    setPassword('');
+                    setConfirmPassword('');
+                    setPasswordStrength({ score: 0, label: '', color: 'gray' });
                     setEmailAuthMode(emailAuthMode === 'signup' ? 'login' : 'signup');
                   }}
                   disabled={isLoading}
@@ -874,7 +1029,6 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     ? 'Already have an account? Login' 
                     : 'Need an account? Sign up'}
               </button>
-            </div>
 
               {/* Security Note - LAUNCHPAD INFO BOX STYLE */}
               {emailAuthMode === 'signup' && (
