@@ -1005,6 +1005,12 @@ export default function Dashboard() {
   useEffect(() => {
     fetchData(true); // Force refresh on mount
     const interval = setInterval(() => fetchData(false), 60000); // ✅ Update every 60 seconds (was 10s - too aggressive!)
+    
+    // ✅ Scroll to top on mount (especially after onboarding)
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+    
     return () => clearInterval(interval);
   }, [displayAddress, currentChain]); // ✅ Use displayAddress (changes when chain switches)
 

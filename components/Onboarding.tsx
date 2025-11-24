@@ -127,6 +127,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     }
   }, []);
 
+  // Scroll to top on step change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [step]);
+
   // Words to verify (3rd, 7th, and 11th word - indices 2, 6, 10)
   const wordsToVerify = [2, 6, 10];
 
@@ -351,9 +358,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto p-4 sm:p-6 relative">
       {/* Subtle background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-yellow-500/5" />
+      <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-yellow-500/5 pointer-events-none" />
       
       <div className="w-full max-w-5xl relative z-10">
       <AnimatePresence mode="wait">
