@@ -223,16 +223,13 @@ export default function AITransactionAssistant({
 
           {/* Header */}
           <div className="mb-6">
-            <div className="flex items-center gap-3 mb-2">
-              {/* ✅ FIX: No background box, just icon with theme color */}
-              <Sparkles className="w-12 h-12 text-orange-500" />
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">AI Assistant</h2>
-                <p className="text-sm text-gray-600">
-                  Natural language transactions • Powered by GPT-4o-mini
-                </p>
-              </div>
-            </div>
+            <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
+              <Sparkles className="w-6 h-6 text-orange-500" />
+              AI Assistant
+            </h2>
+            <p className="text-gray-600">
+              Natural language transactions • Powered by GPT-4o-mini
+            </p>
           </div>
 
           {/* Content */}
