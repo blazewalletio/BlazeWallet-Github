@@ -362,12 +362,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative flex items-start justify-center pt-12 sm:pt-16 lg:pt-20">
       {/* Subtle background gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-yellow-500/5 pointer-events-none" />
       
-      {/* 🎯 CONTENT WRAPPER - Perfectly centered in viewport */}
-      <div className="w-full max-w-5xl relative z-10 px-4 sm:px-6 py-8 sm:py-12">
+      {/* 🎯 CONTENT WRAPPER - Fixed vertical position to prevent shift during transitions */}
+      <div className="w-full max-w-5xl relative z-10 px-4 sm:px-6 pb-8 sm:pb-12">
         <AnimatePresence mode="wait">
           {/* CAROUSEL WELCOME SCREEN - SWIPEABLE SECTIONS */}
           {step === 'carousel' && (
@@ -376,7 +376,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               initial={{ opacity: 0, x: 100 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
-              transition={{ duration: 0.4, ease: "easeInOut" }}
+              transition={{ duration: 0.3 }}
               className="w-full max-w-lg lg:max-w-3xl mx-auto"
             >
               {/* Swipeable Content Container - FIXED HEIGHT WITH SCROLL */}
@@ -644,7 +644,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               initial={{ opacity: 0, x: 100 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
-              transition={{ duration: 0.4, ease: "easeInOut" }}
+              transition={{ duration: 0.3 }}
               className="w-full max-w-md lg:max-w-xl mx-auto"
             >
               {/* Back button - UNIFORM POSITION */}
@@ -742,7 +742,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               initial={{ opacity: 0, x: 100 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
-              transition={{ duration: 0.4, ease: "easeInOut" }}
+              transition={{ duration: 0.3 }}
               className="w-full max-w-md lg:max-w-xl mx-auto"
             >
               {/* Back button - UNIFORM POSITION */}
@@ -797,7 +797,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               initial={{ opacity: 0, x: 100 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
-              transition={{ duration: 0.4, ease: "easeInOut" }}
+              transition={{ duration: 0.3 }}
               className="w-full max-w-md lg:max-w-xl mx-auto"
             >
               {/* Back Button - UNIFORM POSITION */}
@@ -1164,7 +1164,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               initial={{ opacity: 0, x: 100 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
-              transition={{ duration: 0.4, ease: "easeInOut" }}
+              transition={{ duration: 0.3 }}
               className="w-full max-w-md lg:max-w-xl mx-auto"
             >
               {/* Back button - UNIFORM POSITION */}
@@ -1256,7 +1256,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               initial={{ opacity: 0, x: 100 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
-              transition={{ duration: 0.4, ease: "easeInOut" }}
+              transition={{ duration: 0.3 }}
               className="max-w-2xl mx-auto"
             >
               {/* 🔒 CRITICAL SECURITY WARNING - BLIJFT ZOALS HET IS */}
@@ -1430,7 +1430,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               initial={{ opacity: 0, x: 100 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
-              transition={{ duration: 0.4, ease: "easeInOut" }}
+              transition={{ duration: 0.3 }}
               className="max-w-md lg:max-w-xl mx-auto w-full"
             >
               {/* Header - geen card, direct */}
@@ -1513,7 +1513,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               initial={{ opacity: 0, x: 100 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
-              transition={{ duration: 0.4, ease: "easeInOut" }}
+              transition={{ duration: 0.3 }}
               className="w-full max-w-md lg:max-w-xl mx-auto"
             >
               <div className="w-full">
