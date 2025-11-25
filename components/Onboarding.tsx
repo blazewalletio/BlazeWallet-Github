@@ -379,16 +379,6 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               transition={{ duration: 0.3 }}
               className="w-full max-w-lg lg:max-w-2xl mx-auto"
             >
-              {/* Skip button - top right */}
-              <div className="absolute top-0 right-0 z-20">
-                <button
-                  onClick={() => setStep('create-options')}
-                  className="px-3 py-1.5 text-xs sm:text-sm text-gray-600 hover:text-gray-900 font-medium transition-colors rounded-lg hover:bg-gray-100"
-                >
-                  Skip intro
-                </button>
-              </div>
-
               {/* Swipeable Content Container - AUTO HEIGHT, NO SCROLL */}
               <div 
                 className="mb-6 lg:mb-8"
