@@ -376,7 +376,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               initial={{ opacity: 0, x: 100 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.4, ease: "easeInOut" }}
               className="w-full max-w-lg lg:max-w-3xl mx-auto"
             >
               {/* Swipeable Content Container - FIXED HEIGHT WITH SCROLL */}
@@ -644,7 +644,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               initial={{ opacity: 0, x: 100 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.4, ease: "easeInOut" }}
               className="w-full max-w-md lg:max-w-xl mx-auto"
             >
               {/* Back button - UNIFORM POSITION */}
@@ -742,7 +742,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               initial={{ opacity: 0, x: 100 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.4, ease: "easeInOut" }}
               className="w-full max-w-md lg:max-w-xl mx-auto"
             >
               {/* Back button - UNIFORM POSITION */}
@@ -797,7 +797,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               initial={{ opacity: 0, x: 100 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.4, ease: "easeInOut" }}
               className="w-full max-w-md lg:max-w-xl mx-auto"
             >
               {/* Back Button - UNIFORM POSITION */}
@@ -1164,7 +1164,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               initial={{ opacity: 0, x: 100 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.4, ease: "easeInOut" }}
               className="w-full max-w-md lg:max-w-xl mx-auto"
             >
               {/* Back button - UNIFORM POSITION */}
@@ -1256,7 +1256,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               initial={{ opacity: 0, x: 100 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.4, ease: "easeInOut" }}
               className="max-w-2xl mx-auto"
             >
               {/* 🔒 CRITICAL SECURITY WARNING - BLIJFT ZOALS HET IS */}
@@ -1430,7 +1430,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               initial={{ opacity: 0, x: 100 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.4, ease: "easeInOut" }}
               className="max-w-md lg:max-w-xl mx-auto w-full"
             >
               {/* Header - geen card, direct */}
@@ -1513,7 +1513,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               initial={{ opacity: 0, x: 100 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.4, ease: "easeInOut" }}
               className="w-full max-w-md lg:max-w-xl mx-auto"
             >
               <div className="w-full">
