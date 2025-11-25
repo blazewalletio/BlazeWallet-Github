@@ -1353,14 +1353,14 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     </button>
                   </div>
                   
-                  <div className={`grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5 transition-all duration-300 ${!showMnemonic ? 'blur-md select-none' : ''}`}>
+                  <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5 transition-all duration-300 ${!showMnemonic ? 'blur-md select-none' : ''}`}>
                     {words.map((word, index) => (
                   <div
                     key={index}
-                        className="bg-gradient-to-br from-orange-50 to-yellow-50 border border-orange-200 rounded-lg p-3 sm:p-4 flex items-center gap-2 sm:gap-3"
+                        className="bg-gradient-to-br from-orange-50 to-yellow-50 border border-orange-200 rounded-lg p-3 sm:p-4 flex items-center gap-2 sm:gap-3 min-w-0"
                   >
                         <span className="text-orange-500 font-bold text-xs sm:text-sm w-6 sm:w-8 flex-shrink-0">{index + 1}</span>
-                        <span className="font-mono text-xs sm:text-sm lg:text-base font-semibold text-gray-900 select-all break-all">{word}</span>
+                        <span className="font-mono text-xs sm:text-sm lg:text-base font-semibold text-gray-900 select-all whitespace-nowrap flex-shrink-0">{word}</span>
                   </div>
                 ))}
                   </div>
