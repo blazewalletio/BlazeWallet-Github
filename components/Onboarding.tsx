@@ -380,7 +380,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             >
               {/* Swipeable Content Container - FIXED HEIGHT WITH SCROLL */}
               <div 
-                className="overflow-y-auto overflow-x-hidden mb-6 lg:mb-8 h-[420px] lg:h-[500px] flex items-start justify-center"
+                className="overflow-y-auto overflow-x-hidden mb-6 lg:mb-8 h-[420px] lg:h-[500px] flex items-start"
                 onTouchStart={(e) => {
                   const touch = e.touches[0];
                   e.currentTarget.setAttribute('data-touch-start', touch.clientX.toString());
@@ -424,7 +424,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     className="h-full gpu-accelerated"
                   >
                     {carouselPage === 0 && (
-                      <div className="flex flex-col items-center justify-center w-full px-4">
+                      <div className="flex flex-col items-center justify-start w-full px-4 pt-8">
                         {/* Floating Crypto Icons - ECHTE LOGO'S (GEEN SCHADUW) */}
                         <div className="relative h-56 sm:h-64 lg:h-80 w-full max-w-sm lg:max-w-xl mb-8 lg:mb-10">
                           <FloatingIcon delay={0} className="top-4 left-4 lg:top-8 lg:left-8">
