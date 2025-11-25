@@ -920,24 +920,16 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       } rounded-xl focus:outline-none transition-colors text-gray-900 placeholder-gray-400 disabled:opacity-50`}
                     />
                     
-                    {/* ✅ Real-time validation icon */}
+                    {/* ✅ Real-time validation icon - PERFECTLY CENTERED */}
                     {emailValid === true && (
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center"
-                      >
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
                         <CheckCircle className="w-5 h-5 text-green-500" />
-                      </motion.div>
+                      </div>
                     )}
                     {emailValid === false && (
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center"
-                      >
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
                         <XCircle className="w-5 h-5 text-red-500" />
-                      </motion.div>
+                      </div>
                     )}
                   </div>
                   
@@ -986,7 +978,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       disabled={isLoading}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-50"
               >
                       {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
@@ -1067,24 +1059,16 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                         } rounded-xl focus:outline-none transition-colors text-gray-900 placeholder-gray-400 disabled:opacity-50`}
                       />
                       
-                      {/* ✅ Password match indicator */}
+                      {/* ✅ Password match indicator - PERFECTLY CENTERED */}
                       {passwordsMatch === true && (
-                        <motion.div
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center"
-                        >
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
                           <CheckCircle className="w-5 h-5 text-green-500" />
-                        </motion.div>
+                        </div>
                       )}
                       {passwordsMatch === false && (
-                        <motion.div
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center"
-                        >
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
                           <XCircle className="w-5 h-5 text-red-500" />
-                        </motion.div>
+                        </div>
                       )}
                     </div>
                     
