@@ -64,6 +64,7 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
   const [emailError, setEmailError] = useState('');
   const [referralError, setReferralError] = useState('');
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [targetTimestamp, setTargetTimestamp] = useState<number | null>(null);
 
   // Load priority list data
   const loadPriorityListData = async () => {
@@ -76,7 +77,17 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
       
       if (result.success) {
         setData(result.data);
-        setCountdown(result.data.timing.timeUntilRegistration);
+        // Calculate target timestamp from timing data
+        if (result.data.timing?.timeUntilRegistration) {
+          const timing = result.data.timing.timeUntilRegistration;
+          const targetDate = new Date(Date.now() + 
+            (timing.days * 24 * 60 * 60 * 1000) + 
+            (timing.hours * 60 * 60 * 1000) + 
+            (timing.minutes * 60 * 1000) + 
+            (timing.seconds * 1000)
+          );
+          setTargetTimestamp(targetDate.getTime());
+        }
       } else {
         setError(result.message);
       }
@@ -210,27 +221,36 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
   };
 
-  // Countdown timer
+  // Countdown timer - Calculate from target timestamp to prevent reset on clicks
   useEffect(() => {
-    if (!data) return;
+    if (!targetTimestamp) return;
 
+    const calculateTimeLeft = () => {
+      const now = Date.now();
+      const difference = targetTimestamp - now;
+
+      if (difference <= 0) {
+        return { days: 0, hours: 0, minutes: 0, seconds: 0 };
+      }
+
+      return {
+        days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+        hours: Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+        minutes: Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60)),
+        seconds: Math.floor((difference % (1000 * 60)) / 1000),
+      };
+    };
+
+    // Initial calculation
+    setCountdown(calculateTimeLeft());
+
+    // Update every second - timer won't reset on component re-renders
     const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev.seconds > 0) {
-          return { ...prev, seconds: prev.seconds - 1 };
-        } else if (prev.minutes > 0) {
-          return { ...prev, minutes: prev.minutes - 1, seconds: 59 };
-        } else if (prev.hours > 0) {
-          return { ...prev, hours: prev.hours - 1, minutes: 59, seconds: 59 };
-        } else if (prev.days > 0) {
-          return { ...prev, days: prev.days - 1, hours: 23, minutes: 59, seconds: 59 };
-        }
-        return prev;
-      });
+      setCountdown(calculateTimeLeft());
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [data]);
+  }, [targetTimestamp]); // Only restart if targetTimestamp changes
 
   // Load data when modal opens
   useEffect(() => {

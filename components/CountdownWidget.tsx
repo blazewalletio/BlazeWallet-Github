@@ -33,9 +33,12 @@ export default function CountdownWidget({
   const [isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
+    // Store target timestamp to prevent unnecessary re-renders
+    const targetTimestamp = targetDate.getTime();
+    
     const calculateTimeLeft = () => {
       const now = new Date();
-      const difference = targetDate.getTime() - now.getTime();
+      const difference = targetTimestamp - now.getTime();
 
       if (difference <= 0) {
         setIsComplete(true);
@@ -53,14 +56,16 @@ export default function CountdownWidget({
       };
     };
 
+    // Initial calculation
     setTimeLeft(calculateTimeLeft());
 
+    // Set up interval - only restart if targetTimestamp actually changes
     const timer = setInterval(() => {
       setTimeLeft(calculateTimeLeft());
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [targetDate, onComplete, isComplete]);
+  }, [targetDate.getTime(), onComplete, isComplete]); // Use getTime() to compare timestamps, not Date objects
 
   if (isComplete && variant === 'compact') {
     return null;
@@ -139,7 +144,7 @@ export default function CountdownWidget({
                 animate={{ scale: 1 }}
                 className="bg-white rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 flex-1 max-w-[70px] sm:max-w-[80px] shadow-sm"
               >
-                <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-orange-600 break-words">{timeLeft.days}</div>
+                <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-orange-600 whitespace-nowrap">{timeLeft.days}</div>
                 <div className="text-[10px] sm:text-xs text-gray-600 mt-1 uppercase tracking-wider">Days</div>
               </motion.div>
             )}
@@ -149,7 +154,7 @@ export default function CountdownWidget({
               transition={{ duration: 1, repeat: Infinity }}
               className="bg-white rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 flex-1 max-w-[70px] sm:max-w-[80px] shadow-sm"
             >
-              <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-orange-600 break-words">
+              <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-orange-600 whitespace-nowrap">
                 {String(timeLeft.hours).padStart(2, '0')}
               </div>
               <div className="text-[10px] sm:text-xs text-gray-600 mt-1 uppercase tracking-wider">Hours</div>
@@ -160,7 +165,7 @@ export default function CountdownWidget({
               transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
               className="bg-white rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 flex-1 max-w-[70px] sm:max-w-[80px] shadow-sm"
             >
-              <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-orange-600 break-words">
+              <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-orange-600 whitespace-nowrap">
                 {String(timeLeft.minutes).padStart(2, '0')}
               </div>
               <div className="text-[10px] sm:text-xs text-gray-600 mt-1 uppercase tracking-wider">Minutes</div>
@@ -171,7 +176,7 @@ export default function CountdownWidget({
               transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
               className="bg-white rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4 flex-1 max-w-[70px] sm:max-w-[80px] shadow-sm"
             >
-              <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-orange-600 break-words">
+              <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-orange-600 whitespace-nowrap">
                 {String(timeLeft.seconds).padStart(2, '0')}
               </div>
               <div className="text-[10px] sm:text-xs text-gray-600 mt-1 uppercase tracking-wider">Seconds</div>
