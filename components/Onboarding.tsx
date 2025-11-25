@@ -362,12 +362,14 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-4 sm:px-6 relative">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative">
       {/* Subtle background gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-yellow-500/5 pointer-events-none" />
       
-      <div className="w-full max-w-5xl relative z-10 mx-auto">
-      <AnimatePresence mode="wait">
+      {/* 🎯 PERFECT CENTERING WRAPPER - Works on ALL screens, mobile + desktop */}
+      <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 py-8 sm:py-12">
+        <div className="w-full max-w-5xl relative z-10">
+          <AnimatePresence mode="wait">
           {/* CAROUSEL WELCOME SCREEN - SWIPEABLE SECTIONS */}
           {step === 'carousel' && (
           <motion.div
@@ -376,11 +378,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-lg lg:max-w-3xl mx-auto px-4 flex flex-col h-full"
+              className="w-full max-w-lg lg:max-w-3xl mx-auto"
             >
               {/* Swipeable Content Container - FIXED HEIGHT WITH SCROLL */}
               <div 
-                className="overflow-y-auto overflow-x-hidden mb-6 lg:mb-8 h-[420px] lg:h-[500px] flex items-start"
+                className="overflow-y-auto overflow-x-hidden mb-6 lg:mb-8 max-h-[500px] lg:max-h-[600px] flex items-start"
                 onTouchStart={(e) => {
                   const touch = e.touches[0];
                   e.currentTarget.setAttribute('data-touch-start', touch.clientX.toString());
@@ -424,9 +426,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     className="h-full gpu-accelerated"
                   >
                     {carouselPage === 0 && (
-                      <div className="flex flex-col items-center justify-start w-full px-4 pt-8">
+                      <div className="flex flex-col items-center w-full px-4 py-4">
                         {/* Floating Crypto Icons - ECHTE LOGO'S (GEEN SCHADUW) */}
-                        <div className="relative h-56 sm:h-64 lg:h-80 w-full max-w-sm lg:max-w-xl mb-8 lg:mb-10">
+                        <div className="relative h-48 sm:h-56 lg:h-72 w-full max-w-sm lg:max-w-xl mb-6 lg:mb-8">
                           <FloatingIcon delay={0} className="top-4 left-4 lg:top-8 lg:left-8">
                             <img src={cryptoLogos[0].image} alt={cryptoLogos[0].name} className="w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20 object-contain" />
                           </FloatingIcon>
@@ -644,7 +646,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-md lg:max-w-xl mx-auto px-4 pt-4"
+              className="w-full max-w-md lg:max-w-xl mx-auto"
             >
               {/* Back button - UNIFORM POSITION */}
               <div className="mb-8 lg:mb-10">
@@ -742,7 +744,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-md lg:max-w-xl mx-auto px-4 pt-4 pb-32"
+              className="w-full max-w-md lg:max-w-xl mx-auto"
             >
               {/* Back button - UNIFORM POSITION */}
               <div className="mb-8 lg:mb-10">
@@ -797,7 +799,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-md lg:max-w-xl mx-auto px-4 pt-4 pb-32 min-h-screen overflow-y-auto"
+              className="w-full max-w-md lg:max-w-xl mx-auto"
             >
               {/* Back Button - UNIFORM POSITION */}
               <div className="mb-8">
@@ -1164,7 +1166,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-md lg:max-w-xl mx-auto px-4 pt-4 pb-32"
+              className="w-full max-w-md lg:max-w-xl mx-auto"
             >
               {/* Back button - UNIFORM POSITION */}
               <div className="mb-8">
@@ -1256,7 +1258,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="max-w-2xl mx-auto px-4 py-8 pb-32"
+              className="max-w-2xl mx-auto"
             >
               {/* 🔒 CRITICAL SECURITY WARNING - BLIJFT ZOALS HET IS */}
               <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-3xl p-1 mb-6 shadow-2xl">
@@ -1430,7 +1432,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="max-w-md lg:max-w-xl mx-auto w-full px-4 py-8 pb-32"
+              className="max-w-md lg:max-w-xl mx-auto w-full"
             >
               {/* Header - geen card, direct */}
             <div className="text-center mb-8">
@@ -1513,7 +1515,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-md lg:max-w-xl mx-auto px-4 flex items-center min-h-screen py-8"
+              className="w-full max-w-md lg:max-w-xl mx-auto"
             >
               <div className="w-full">
                 {/* Icon & Header - NO CARD */}
@@ -1662,6 +1664,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           </motion.div>
         )}
       </AnimatePresence>
+        </div>
       </div>
     </div>
   );
