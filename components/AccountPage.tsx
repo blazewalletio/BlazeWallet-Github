@@ -139,7 +139,6 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 id: `temp-wallet-${address.substring(0, 8)}`,
                 type: 'seed',
                 displayName: `Wallet ${address.substring(0, 8)}...${address.substring(address.length - 6)}`,
-                address: address,
                 lastUsed: new Date(),
                 isActive: true
               });
@@ -395,8 +394,9 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
   };
 
   const handleCopyAddress = () => {
-    // Try multiple sources for the address
-    const addressToCopy = account?.address || address || getCurrentAccount()?.address;
+    // Get address from wallet store (WalletAccount doesn't have address property)
+    const { getCurrentAddress } = useWalletStore.getState();
+    const addressToCopy = address || getCurrentAddress();
     
     if (!addressToCopy) {
       logger.error('No address found to copy');
@@ -795,7 +795,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 {/* Wallet Address with Actions */}
                 <div className="mt-2 flex items-center gap-2">
                   <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono text-gray-600">
-                    {(account?.address || address || getCurrentAccount()?.address)?.slice(0, 8)}...{(account?.address || address || getCurrentAccount()?.address)?.slice(-6)}
+                    {(address || useWalletStore.getState().getCurrentAddress())?.slice(0, 8)}...{(address || useWalletStore.getState().getCurrentAddress())?.slice(-6)}
                   </code>
                   
                   {/* Copy Button - Fixed to always work */}
@@ -837,7 +837,8 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                           >
                             <button
                               onClick={() => {
-                                const fullAddress = account?.address || address || getCurrentAccount()?.address;
+                                const { getCurrentAddress } = useWalletStore.getState();
+                                const fullAddress = address || getCurrentAddress();
                                 if (fullAddress) {
                                   navigator.clipboard.writeText(fullAddress).then(() => {
                                     setCopiedAddress(true);
@@ -858,9 +859,9 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                               Copy Full Address
                             </button>
                             
-                            {(account?.address || address || getCurrentAccount()?.address) && (
+                            {(address || useWalletStore.getState().getCurrentAddress()) && (
                               <a
-                                href={`${CHAINS[currentChain]?.explorerUrl}/address/${account?.address || address || getCurrentAccount()?.address}`}
+                                href={`${CHAINS[currentChain]?.explorerUrl}/address/${address || useWalletStore.getState().getCurrentAddress()}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={() => setShowProfileMenu(false)}
