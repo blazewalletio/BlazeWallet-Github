@@ -62,7 +62,7 @@ export default function RootLayout({
           <ErrorBoundary>
             <CSRFTokenInitializer />
             <PWAInstallPrompt />
-            <div className="h-screen overflow-hidden bg-gray-50">
+            <div className="h-[100dvh] overflow-hidden bg-gray-50">
               <main className="relative h-full overflow-y-auto">
                 {children}
               </main>

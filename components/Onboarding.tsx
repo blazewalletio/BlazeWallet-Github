@@ -130,7 +130,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   // Scroll to top on step change
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Scroll the MAIN container (layout scroll), not window
+      const mainElement = document.querySelector('main');
+      if (mainElement) {
+        mainElement.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     }
   }, [step]);
 
@@ -358,7 +362,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 overflow-y-auto px-4 sm:px-6 relative">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 px-4 sm:px-6 relative">
       {/* Subtle background gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-yellow-500/5 pointer-events-none" />
       

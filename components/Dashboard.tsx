@@ -1006,9 +1006,12 @@ export default function Dashboard() {
     fetchData(true); // Force refresh on mount
     const interval = setInterval(() => fetchData(false), 60000); // ✅ Update every 60 seconds (was 10s - too aggressive!)
     
-    // ✅ Scroll to top on mount (especially after onboarding)
+    // ✅ Scroll to top on mount (especially after onboarding) - scroll MAIN container
     if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'instant' });
+      const mainElement = document.querySelector('main');
+      if (mainElement) {
+        mainElement.scrollTo({ top: 0, behavior: 'instant' });
+      }
     }
     
     return () => clearInterval(interval);
