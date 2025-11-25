@@ -48,6 +48,7 @@ export default function PresaleDashboard() {
     isRegistrationOpen: false,
     isPriorityOnlyPhase: false,
     isPresaleOpenToAll: false,
+    isLoading: true, // Track loading state
     stats: null as any,
     timing: null as any,
   });
@@ -155,12 +156,16 @@ export default function PresaleDashboard() {
           isRegistrationOpen: result.data.isRegistrationOpen,
           isPriorityOnlyPhase: result.data.isPriorityOnlyPhase,
           isPresaleOpenToAll: result.data.isPresaleOpenToAll,
+          isLoading: false,
           stats: result.data.stats,
           timing: result.data.timing,
         });
+      } else {
+        setPriorityStatus(prev => ({ ...prev, isLoading: false }));
       }
     } catch (err) {
       logger.error('Error loading priority list status:', err);
+      setPriorityStatus(prev => ({ ...prev, isLoading: false }));
     }
   };
 
@@ -168,6 +173,12 @@ export default function PresaleDashboard() {
   const handleContribute = async () => {
     if (!wallet || !address) {
       setError('Please connect your wallet first');
+      return;
+    }
+
+    // Wait for priority status to load if still loading
+    if (priorityStatus.isLoading) {
+      setError('Loading priority list status... Please wait a moment.');
       return;
     }
 

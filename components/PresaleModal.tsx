@@ -51,6 +51,7 @@ export default function PresaleModal({ isOpen, onClose }: PresaleModalProps) {
     isRegistrationOpen: false,
     isPriorityOnlyPhase: false,
     isPresaleOpenToAll: false,
+    isLoading: true, // Track loading state
   });
 
   const progress = (presaleInfo.totalRaised / presaleInfo.hardCap) * 100;
@@ -79,7 +80,10 @@ export default function PresaleModal({ isOpen, onClose }: PresaleModalProps) {
 
   // Load priority list status
   const loadPriorityListStatus = async () => {
-    if (!address) return;
+    if (!address) {
+      setPriorityStatus(prev => ({ ...prev, isLoading: false }));
+      return;
+    }
     try {
       const response = await fetch(`/api/priority-list?wallet=${address}`);
       const result = await response.json();
@@ -90,10 +94,14 @@ export default function PresaleModal({ isOpen, onClose }: PresaleModalProps) {
           isRegistrationOpen: result.data.isRegistrationOpen,
           isPriorityOnlyPhase: result.data.isPriorityOnlyPhase,
           isPresaleOpenToAll: result.data.isPresaleOpenToAll,
+          isLoading: false,
         });
+      } else {
+        setPriorityStatus(prev => ({ ...prev, isLoading: false }));
       }
     } catch (err) {
       logger.error('Error loading priority list status:', err);
+      setPriorityStatus(prev => ({ ...prev, isLoading: false }));
     }
   };
 
@@ -233,6 +241,12 @@ export default function PresaleModal({ isOpen, onClose }: PresaleModalProps) {
 
   const handleContribute = async () => {
     if (!wallet || !contributionAmount) return;
+    
+    // Wait for priority status to load if still loading
+    if (priorityStatus.isLoading) {
+      setError('Loading priority list status... Please wait a moment.');
+      return;
+    }
     
     // ✅ PRIORITY LIST ENFORCEMENT: Check if user is in priority list during priority-only phase
     if (priorityStatus.isPriorityOnlyPhase && !priorityStatus.isInPriorityList) {
