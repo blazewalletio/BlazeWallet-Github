@@ -395,10 +395,23 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
   };
 
   const handleCopyAddress = () => {
-    if (!account?.address) return;
-    navigator.clipboard.writeText(account.address);
-    setCopiedAddress(true);
-    setTimeout(() => setCopiedAddress(false), 2000);
+    // Try multiple sources for the address
+    const addressToCopy = account?.address || address || getCurrentAccount()?.address;
+    
+    if (!addressToCopy) {
+      logger.error('No address found to copy');
+      alert('No address available to copy');
+      return;
+    }
+    
+    navigator.clipboard.writeText(addressToCopy).then(() => {
+      setCopiedAddress(true);
+      setTimeout(() => setCopiedAddress(false), 2000);
+      logger.log('Address copied to clipboard:', addressToCopy);
+    }).catch((error) => {
+      logger.error('Failed to copy address:', error);
+      alert('Failed to copy address. Please try again.');
+    });
   };
 
   const handleToggleBalance = async () => {
@@ -782,14 +795,14 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 {/* Wallet Address with Actions */}
                 <div className="mt-2 flex items-center gap-2">
                   <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono text-gray-600">
-                    {account.address?.slice(0, 8)}...{account.address?.slice(-6)}
+                    {(account?.address || address || getCurrentAccount()?.address)?.slice(0, 8)}...{(account?.address || address || getCurrentAccount()?.address)?.slice(-6)}
                   </code>
                   
-                  {/* Copy Button */}
+                  {/* Copy Button - Fixed to always work */}
                   <button
                     onClick={handleCopyAddress}
                     className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-                    title="Copy address"
+                    title="Copy address to clipboard"
                   >
                     {copiedAddress ? (
                       <Check className="w-3.5 h-3.5 text-green-600" />
@@ -798,7 +811,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                     )}
                   </button>
                   
-                  {/* Three Dots Menu */}
+                  {/* Three Vertical Dots Menu (More Options) */}
                   <div className="relative">
                     <button
                       onClick={() => setShowProfileMenu(!showProfileMenu)}
@@ -824,12 +837,19 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                           >
                             <button
                               onClick={() => {
-                                if (account?.address) {
-                                  const fullAddress = account.address;
-                                  navigator.clipboard.writeText(fullAddress);
-                                  setCopiedAddress(true);
-                                  setTimeout(() => setCopiedAddress(false), 2000);
-                                  setShowProfileMenu(false);
+                                const fullAddress = account?.address || address || getCurrentAccount()?.address;
+                                if (fullAddress) {
+                                  navigator.clipboard.writeText(fullAddress).then(() => {
+                                    setCopiedAddress(true);
+                                    setTimeout(() => setCopiedAddress(false), 2000);
+                                    setShowProfileMenu(false);
+                                    logger.log('Full address copied:', fullAddress);
+                                  }).catch((error) => {
+                                    logger.error('Failed to copy full address:', error);
+                                    alert('Failed to copy address. Please try again.');
+                                  });
+                                } else {
+                                  alert('No address available to copy');
                                 }
                               }}
                               className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
@@ -838,9 +858,9 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                               Copy Full Address
                             </button>
                             
-                            {account?.address && (
+                            {(account?.address || address || getCurrentAccount()?.address) && (
                               <a
-                                href={`${CHAINS[currentChain]?.explorerUrl}/address/${account.address}`}
+                                href={`${CHAINS[currentChain]?.explorerUrl}/address/${account?.address || address || getCurrentAccount()?.address}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={() => setShowProfileMenu(false)}
