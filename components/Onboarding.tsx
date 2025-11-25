@@ -362,12 +362,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative flex items-start justify-center pt-12 sm:pt-16 lg:pt-20">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative flex items-center justify-center py-8 sm:py-12 lg:py-16">
       {/* Subtle background gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-yellow-500/5 pointer-events-none" />
       
-      {/* 🎯 CONTENT WRAPPER - Fixed vertical position to prevent shift during transitions */}
-      <div className="w-full max-w-5xl relative z-10 px-4 sm:px-6 pb-8 sm:pb-12">
+      {/* 🎯 CONTENT WRAPPER - Perfect centering for all screen sizes */}
+      <div className="w-full max-w-md sm:max-w-lg lg:max-w-2xl xl:max-w-3xl relative z-10 px-4 sm:px-6 lg:px-8">
         <AnimatePresence mode="wait">
           {/* CAROUSEL WELCOME SCREEN - SWIPEABLE SECTIONS */}
           {step === 'carousel' && (
@@ -377,11 +377,21 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-lg lg:max-w-3xl mx-auto"
+              className="w-full max-w-lg lg:max-w-2xl mx-auto"
             >
-              {/* Swipeable Content Container - FIXED HEIGHT WITH SCROLL */}
+              {/* Skip button - top right */}
+              <div className="absolute top-0 right-0 z-20">
+                <button
+                  onClick={() => setStep('create-options')}
+                  className="px-3 py-1.5 text-xs sm:text-sm text-gray-600 hover:text-gray-900 font-medium transition-colors rounded-lg hover:bg-gray-100"
+                >
+                  Skip intro
+                </button>
+              </div>
+
+              {/* Swipeable Content Container - AUTO HEIGHT, NO SCROLL */}
               <div 
-                className="overflow-y-auto overflow-x-hidden mb-6 lg:mb-8 max-h-[500px] lg:max-h-[600px] flex items-start"
+                className="mb-6 lg:mb-8"
                 onTouchStart={(e) => {
                   const touch = e.touches[0];
                   e.currentTarget.setAttribute('data-touch-start', touch.clientX.toString());
@@ -422,32 +432,32 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="h-full gpu-accelerated"
+                    className="flex flex-col items-center justify-center min-h-[400px] sm:min-h-[450px] lg:min-h-[500px] gpu-accelerated"
                   >
                     {carouselPage === 0 && (
                       <div className="flex flex-col items-center w-full px-4 py-4">
-                        {/* Floating Crypto Icons - ECHTE LOGO'S (GEEN SCHADUW) */}
-                        <div className="relative h-48 sm:h-56 lg:h-72 w-full max-w-sm lg:max-w-xl mb-6 lg:mb-8">
-                          <FloatingIcon delay={0} className="top-4 left-4 lg:top-8 lg:left-8">
-                            <img src={cryptoLogos[0].image} alt={cryptoLogos[0].name} className="w-14 h-14 sm:w-16 sm:h-16 lg:w-20 lg:h-20 object-contain" />
+                        {/* Floating Crypto Icons - RESPONSIVE CONTAINER */}
+                        <div className="relative h-48 sm:h-56 lg:h-64 xl:h-72 w-full max-w-sm lg:max-w-md mx-auto mb-6 lg:mb-8">
+                          <FloatingIcon delay={0} className="top-0 left-0 sm:top-2 sm:left-2 lg:top-4 lg:left-4">
+                            <img src={cryptoLogos[0].image} alt={cryptoLogos[0].name} className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 xl:w-20 xl:h-20 object-contain" />
                           </FloatingIcon>
                           
-                          <FloatingIcon delay={0.5} className="top-8 right-6 lg:top-12 lg:right-12">
-                            <img src={cryptoLogos[1].image} alt={cryptoLogos[1].name} className="w-12 h-12 sm:w-14 sm:h-14 lg:w-18 lg:h-18 object-contain" />
+                          <FloatingIcon delay={0.5} className="top-0 right-0 sm:top-2 sm:right-2 lg:top-4 lg:right-4">
+                            <img src={cryptoLogos[1].image} alt={cryptoLogos[1].name} className="w-11 h-11 sm:w-13 sm:h-13 lg:w-15 lg:h-15 xl:w-18 xl:h-18 object-contain" />
                           </FloatingIcon>
                           
-                          <FloatingIcon delay={1} className="bottom-8 left-6 lg:bottom-12 lg:left-12">
-                            <img src={cryptoLogos[2].image} alt={cryptoLogos[2].name} className="w-16 h-16 sm:w-18 sm:h-18 lg:w-22 lg:h-22 object-contain" />
+                          <FloatingIcon delay={1} className="bottom-0 left-0 sm:bottom-2 sm:left-2 lg:bottom-4 lg:left-4">
+                            <img src={cryptoLogos[2].image} alt={cryptoLogos[2].name} className="w-14 h-14 sm:w-16 sm:h-16 lg:w-18 lg:h-18 xl:w-22 xl:h-22 object-contain" />
                           </FloatingIcon>
                           
-                          <FloatingIcon delay={1.5} className="bottom-12 right-4 lg:bottom-16 lg:right-8">
-                            <img src={cryptoLogos[3].image} alt={cryptoLogos[3].name} className="w-11 h-11 sm:w-12 sm:h-12 lg:w-16 lg:h-16 object-contain" />
+                          <FloatingIcon delay={1.5} className="bottom-0 right-0 sm:bottom-2 sm:right-2 lg:bottom-4 lg:right-4">
+                            <img src={cryptoLogos[3].image} alt={cryptoLogos[3].name} className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 xl:w-16 xl:h-16 object-contain" />
                           </FloatingIcon>
 
-                          {/* Center Logo - BLAZE LOGO (MET SCHADUW EN CIRKEL) */}
+                          {/* Center Logo - BLAZE LOGO (RESPONSIVE SIZING) */}
                           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
                             <div 
-                              className="w-28 h-28 sm:w-32 sm:h-32 lg:w-40 lg:h-40 bg-white rounded-full flex items-center justify-center shadow-2xl border-4 border-orange-500/20 gpu-accelerated p-4 lg:p-6"
+                              className="w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 xl:w-40 xl:h-40 bg-white rounded-full flex items-center justify-center shadow-2xl border-4 border-orange-500/20 gpu-accelerated p-3 sm:p-4 lg:p-5 xl:p-6"
                               style={{
                                 animation: 'pulse-subtle 3s ease-in-out infinite'
                               }}
@@ -457,12 +467,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                           </div>
                         </div>
 
-                        {/* Title - GROTER EN BETER */}
+                        {/* Title - RESPONSIVE TYPOGRAPHY */}
                         <div className="text-center px-4">
-                          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-3 lg:mb-4 leading-tight">
+                          <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-gray-900 mb-3 sm:mb-4 lg:mb-5 leading-tight">
                             Welcome to Blaze
                           </h1>
-                          <p className="text-gray-600 text-base sm:text-lg lg:text-xl font-medium">
+                          <p className="text-gray-600 text-sm sm:text-base lg:text-lg xl:text-xl font-medium">
                             Your secure gateway to Web3
                           </p>
                         </div>
@@ -618,18 +628,18 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 ))}
               </div>
 
-              {/* Action Buttons - ALWAYS VISIBLE */}
-              <div className="space-y-3 lg:space-y-4 pb-4">
+              {/* Action Buttons - CONSISTENT STYLING */}
+              <div className="space-y-3 sm:space-y-4 lg:space-y-5 pb-4">
                 <button
                   onClick={() => setStep('create-options')}
-                  className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-bold py-4 lg:py-5 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all active:scale-95 lg:hover:scale-[1.02] lg:text-lg"
+                  className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-bold py-4 sm:py-5 lg:py-6 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all active:scale-95 lg:hover:scale-[1.02] text-base sm:text-lg"
                 >
                   Create a new wallet
                 </button>
                 
                 <button
                   onClick={() => setStep('add-wallet')}
-                  className="w-full bg-white hover:bg-gray-50 text-gray-900 font-bold py-4 lg:py-5 px-6 rounded-xl border-2 border-gray-200 hover:border-gray-300 transition-all active:scale-95 lg:hover:scale-[1.02] lg:text-lg hover:shadow-lg"
+                  className="w-full bg-white hover:bg-gray-50 text-gray-900 font-bold py-4 sm:py-5 lg:py-6 px-6 rounded-xl border-2 border-gray-200 hover:border-gray-300 transition-all active:scale-95 lg:hover:scale-[1.02] text-base sm:text-lg hover:shadow-lg"
                 >
                   I already have a wallet
                 </button>
@@ -645,48 +655,48 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-md lg:max-w-xl mx-auto"
+              className="w-full max-w-md sm:max-w-lg lg:max-w-xl mx-auto"
             >
-              {/* Back button - UNIFORM POSITION */}
-              <div className="mb-8 lg:mb-10">
+              {/* Back button - CONSISTENT SPACING */}
+              <div className="mb-8 sm:mb-10 lg:mb-12">
                 <button
                   onClick={() => setStep('carousel')}
                   className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors lg:hover:-translate-x-1"
                 >
-                  <ArrowRight className="w-5 h-5 lg:w-6 lg:h-6 rotate-180" />
-                  <span className="lg:text-lg">Back</span>
+                  <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 rotate-180" />
+                  <span className="text-sm sm:text-base lg:text-lg">Back</span>
                 </button>
               </div>
 
-              {/* Header - centered, geen card */}
-              <div className="text-center mb-8 lg:mb-10">
-                <div className="w-20 h-20 lg:w-24 lg:h-24 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-2xl flex items-center justify-center mx-auto mb-4 lg:mb-5 shadow-lg">
-                  <Sparkles className="w-10 h-10 lg:w-12 lg:h-12 text-white" />
+              {/* Header - CONSISTENT SPACING */}
+              <div className="text-center mb-8 sm:mb-10 lg:mb-12">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-5 lg:mb-6 shadow-lg">
+                  <Sparkles className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 text-white" />
                 </div>
-                <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2 lg:mb-3">Create a wallet</h2>
-                <p className="text-gray-600 text-sm lg:text-base">Choose how you want to create your wallet</p>
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2 sm:mb-3 lg:mb-4">Create a wallet</h2>
+                <p className="text-gray-600 text-sm sm:text-base lg:text-lg">Choose how you want to create your wallet</p>
               </div>
 
-              {/* Options - direct, geen card */}
-              <div className="space-y-3 lg:space-y-4 mb-6 lg:mb-8">
+              {/* Options - CONSISTENT SPACING */}
+              <div className="space-y-3 sm:space-y-4 lg:space-y-5 mb-6 sm:mb-8 lg:mb-10">
                 <button
                   onClick={() => {
                     setEmailAuthMode('signup');
                     setStep('email-auth');
                   }}
                   disabled={isLoading}
-                  className="w-full p-4 lg:p-5 rounded-xl flex items-center justify-between bg-gradient-to-br from-orange-500 to-yellow-500 text-white shadow-lg hover:shadow-xl transition-all active:scale-95 lg:hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full p-4 sm:p-5 lg:p-6 rounded-xl flex items-center justify-between bg-gradient-to-br from-orange-500 to-yellow-500 text-white shadow-lg hover:shadow-xl transition-all active:scale-95 lg:hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <div className="flex items-center gap-3 lg:gap-4">
-                    <div className="w-12 h-12 lg:w-14 lg:h-14 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 backdrop-blur-sm">
-                      <Mail className="w-6 h-6 lg:w-7 lg:h-7 text-white" />
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 backdrop-blur-sm">
+                      <Mail className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white" />
                     </div>
                     <div className="text-left">
-                      <div className="text-base lg:text-lg font-bold">Continue with email</div>
-                      <div className="text-xs lg:text-sm text-white/90">Automatic cloud backup</div>
+                      <div className="text-base sm:text-lg lg:text-xl font-bold">Continue with email</div>
+                      <div className="text-xs sm:text-sm lg:text-base text-white/90">Automatic cloud backup</div>
                     </div>
                   </div>
-                  <div className="px-2 py-1 lg:px-3 lg:py-1.5 rounded-md bg-white/30 backdrop-blur-sm text-white text-[10px] lg:text-xs font-semibold">
+                  <div className="px-2 py-1 sm:px-3 sm:py-1.5 rounded-md bg-white/30 backdrop-blur-sm text-white text-[10px] sm:text-xs font-semibold whitespace-nowrap">
                     Recommended
                   </div>
                 </button>
@@ -694,26 +704,26 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <button
                   onClick={handleCreateWallet}
                   disabled={isLoading}
-                  className="w-full p-4 lg:p-5 rounded-xl flex items-center gap-3 lg:gap-4 bg-white hover:bg-gray-50 text-gray-900 border-2 border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all active:scale-95 lg:hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full p-4 sm:p-5 lg:p-6 rounded-xl flex items-center gap-3 sm:gap-4 bg-white hover:bg-gray-50 text-gray-900 border-2 border-gray-200 hover:border-gray-300 hover:shadow-lg transition-all active:scale-95 lg:hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? (
                     <>
-                      <div className="w-12 h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <div className="w-5 h-5 lg:w-6 lg:h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       </div>
                       <div className="text-left">
-                        <div className="text-base lg:text-lg font-bold">Creating wallet...</div>
-                        <div className="text-xs lg:text-sm text-gray-600">Please wait</div>
+                        <div className="text-base sm:text-lg lg:text-xl font-bold">Creating wallet...</div>
+                        <div className="text-xs sm:text-sm lg:text-base text-gray-600">Please wait</div>
                       </div>
                     </>
                   ) : (
                     <>
-                      <div className="w-12 h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <Key className="w-6 h-6 lg:w-7 lg:h-7 text-white" />
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <Key className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white" />
                       </div>
                       <div className="text-left">
-                        <div className="text-base lg:text-lg font-bold">Create with seed phrase</div>
-                        <div className="text-xs lg:text-sm text-gray-600">Manual backup required</div>
+                        <div className="text-base sm:text-lg lg:text-xl font-bold">Create with seed phrase</div>
+                        <div className="text-xs sm:text-sm lg:text-base text-gray-600">Manual backup required</div>
                       </div>
                     </>
                   )}
@@ -798,64 +808,64 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-md lg:max-w-xl mx-auto"
+              className="w-full max-w-md sm:max-w-lg lg:max-w-xl xl:max-w-2xl mx-auto"
             >
-              {/* Back Button - UNIFORM POSITION */}
-              <div className="mb-8">
+              {/* Back Button - CONSISTENT SPACING */}
+              <div className="mb-8 sm:mb-10 lg:mb-12">
                 <button
                   onClick={() => setStep(emailAuthMode === 'signup' ? 'create-options' : 'add-wallet')}
                   disabled={isLoading}
                   className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors disabled:opacity-50"
                 >
-                  <ArrowRight className="w-5 h-5 rotate-180" />
-                  Back
+                  <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 rotate-180" />
+                  <span className="text-sm sm:text-base lg:text-lg">Back</span>
                 </button>
               </div>
 
-              {/* Header - NO CARD */}
-              <div className="text-center mb-8">
-                <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <Mail className="w-10 h-10 text-white" />
+              {/* Header - CONSISTENT SPACING */}
+              <div className="text-center mb-8 sm:mb-10 lg:mb-12">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-5 lg:mb-6 shadow-lg">
+                  <Mail className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 text-white" />
                 </div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2 sm:mb-3 lg:mb-4">
                   {emailAuthMode === 'signup' ? 'Create with email' : 'Login with email'}
                 </h2>
-                <p className="text-gray-600 text-sm">
+                <p className="text-gray-600 text-sm sm:text-base lg:text-lg">
                   {emailAuthMode === 'signup' ? 'Set up your wallet with email authentication' : 'Access your existing wallet'}
                 </p>
               </div>
 
-              {/* Social Buttons - DIRECT, NO CARD */}
-              <div className="space-y-3 mb-6">
+              {/* Social Buttons - IMPROVED DISABLED STATE */}
+              <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
                 <button
                   disabled
-                  className="w-full py-3 px-4 bg-white border-2 border-gray-200 rounded-xl text-gray-400 font-semibold relative flex items-center gap-3"
+                  className="w-full py-3 sm:py-4 px-4 bg-white border-2 border-gray-200 rounded-xl text-gray-500 font-semibold relative flex items-center justify-center gap-3 opacity-60 cursor-not-allowed"
                 >
                   {/* Google Icon SVG */}
-                  <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
                     <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
                     <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                   </svg>
-                  <span className="flex-1 text-center mr-16">Continue with Google</span>
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-orange-500/10 border border-orange-500/30 rounded-md text-[10px] text-orange-600 font-semibold whitespace-nowrap">
+                  <span className="flex-1 text-center text-sm sm:text-base">Continue with Google</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-orange-500/10 border border-orange-500/30 rounded-md text-[10px] sm:text-xs text-orange-600 font-semibold whitespace-nowrap">
                     Coming soon
-                </span>
+                  </span>
                 </button>
 
                 <button
                   disabled
-                  className="w-full py-3 px-4 bg-white border-2 border-gray-200 rounded-xl text-gray-400 font-semibold relative flex items-center gap-3"
+                  className="w-full py-3 sm:py-4 px-4 bg-white border-2 border-gray-200 rounded-xl text-gray-500 font-semibold relative flex items-center justify-center gap-3 opacity-60 cursor-not-allowed"
                 >
                   {/* Apple Icon SVG */}
-                  <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
                   </svg>
-                  <span className="flex-1 text-center mr-16">Continue with Apple</span>
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-orange-500/10 border border-orange-500/30 rounded-md text-[10px] text-orange-600 font-semibold whitespace-nowrap">
+                  <span className="flex-1 text-center text-sm sm:text-base">Continue with Apple</span>
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 px-2 py-1 bg-orange-500/10 border border-orange-500/30 rounded-md text-[10px] sm:text-xs text-orange-600 font-semibold whitespace-nowrap">
                     Coming soon
-                </span>
+                  </span>
                 </button>
               </div>
 
@@ -872,7 +882,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 e.preventDefault();
                 handleEmailAuth();
               }}
-              className="space-y-4"
+              className="space-y-4 sm:space-y-5 lg:space-y-6"
             >
                 {/* EMAIL FIELD */}
                 <div>
@@ -1208,7 +1218,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   placeholder="Enter your 12-word recovery phrase (separated by spaces)..."
                   autoFocus
                   disabled={isLoading}
-                  className="w-full h-32 p-4 bg-white border-2 border-gray-200 text-gray-900 rounded-xl resize-none focus:outline-none focus:border-orange-500 transition-all text-base placeholder-gray-400 disabled:opacity-50"
+                  className="w-full min-h-[120px] sm:min-h-[140px] lg:min-h-[160px] p-4 sm:p-5 bg-white border-2 border-gray-200 text-gray-900 rounded-xl resize-y focus:outline-none focus:border-orange-500 transition-all text-base sm:text-lg placeholder-gray-400 disabled:opacity-50"
                 />
                 
                 {error && (
@@ -1343,14 +1353,14 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     </button>
                   </div>
                   
-                  <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4 transition-all duration-300 ${!showMnemonic ? 'blur-md select-none' : ''}`}>
+                  <div className={`grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-5 transition-all duration-300 ${!showMnemonic ? 'blur-md select-none' : ''}`}>
                     {words.map((word, index) => (
                   <div
                     key={index}
-                        className="bg-gradient-to-br from-orange-50 to-yellow-50 border border-orange-200 rounded-lg p-2 sm:p-3 flex items-center gap-2"
+                        className="bg-gradient-to-br from-orange-50 to-yellow-50 border border-orange-200 rounded-lg p-3 sm:p-4 flex items-center gap-2 sm:gap-3"
                   >
-                        <span className="text-orange-500 font-bold text-xs sm:text-sm w-5 sm:w-6">{index + 1}</span>
-                        <span className="font-mono text-xs sm:text-sm font-semibold text-gray-900 select-all">{word}</span>
+                        <span className="text-orange-500 font-bold text-xs sm:text-sm w-6 sm:w-8 flex-shrink-0">{index + 1}</span>
+                        <span className="font-mono text-xs sm:text-sm lg:text-base font-semibold text-gray-900 select-all break-all">{word}</span>
                   </div>
                 ))}
                   </div>
@@ -1442,18 +1452,18 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <p className="text-gray-600 text-sm">Enter these specific words to verify you saved them correctly</p>
             </div>
 
-              {/* Verify Inputs - direct, geen card */}
-              <div className="space-y-3 mb-6">
+              {/* Verify Inputs - IMPROVED LAYOUT */}
+              <div className="space-y-3 sm:space-y-4 lg:space-y-5 mb-6 sm:mb-8">
                 {wordsToVerify.map((wordIndex, idx) => (
                   <div 
                     key={wordIndex}
-                    className="flex items-center gap-3"
+                    className="flex items-center gap-4 sm:gap-5"
                   >
-                    <div className="flex items-center gap-2 w-20 flex-shrink-0">
-                      <span className="text-orange-500 font-bold text-base">
+                    <div className="flex items-center gap-2 w-24 sm:w-28 lg:w-32 flex-shrink-0">
+                      <span className="text-orange-500 font-bold text-base sm:text-lg">
                         {wordIndex + 1}.
                       </span>
-                      <span className="text-gray-500 text-sm">word</span>
+                      <span className="text-gray-500 text-sm sm:text-base">word</span>
                     </div>
                   <input
                     type="text"
@@ -1461,7 +1471,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       onChange={(e) => setVerifyWords(prev => ({ ...prev, [wordIndex]: e.target.value }))}
                       onPaste={(e) => e.preventDefault()}
                     autoComplete="off"
-                      className="flex-1 min-w-0 px-4 py-3 bg-white border-2 border-gray-200 rounded-xl text-base focus:outline-none focus:border-orange-500 transition-all placeholder-gray-400"
+                      className="flex-1 min-w-0 px-4 sm:px-5 py-3 sm:py-4 bg-white border-2 border-gray-200 rounded-xl text-base sm:text-lg focus:outline-none focus:border-orange-500 transition-all placeholder-gray-400"
                       placeholder="Enter word"
                       autoFocus={idx === 0}
                   />
