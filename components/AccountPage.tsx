@@ -8,7 +8,8 @@ import {
   Lock, Eye, Globe, Bell, Smartphone, Sliders, FileDown, Trash2,
   LogOut, CheckCircle, AlertCircle, Activity, TrendingUp, Zap,
   Upload, Camera, Monitor, AlertTriangle, Award, Target, BarChart3,
-  EyeOff, RefreshCw, Clock, MapPin, Chrome, Apple, Loader2
+  EyeOff, RefreshCw, Clock, MapPin, Chrome, Apple, Loader2,
+  MoreVertical, ExternalLink
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { CHAINS } from '@/lib/chains';
@@ -105,6 +106,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
   const [showActivityLog, setShowActivityLog] = useState(false);
   const [showDevices, setShowDevices] = useState(false);
   const [copiedAddress, setCopiedAddress] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   
   // Modal states
   const [show2FAModal, setShow2FAModal] = useState(false);
@@ -777,14 +779,17 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                   <span>Member since {memberSince}</span>
                 </div>
                 
-                {/* Wallet Address */}
+                {/* Wallet Address with Actions */}
                 <div className="mt-2 flex items-center gap-2">
                   <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono text-gray-600">
                     {account.address?.slice(0, 8)}...{account.address?.slice(-6)}
                   </code>
+                  
+                  {/* Copy Button */}
                   <button
                     onClick={handleCopyAddress}
-                    className="p-1 hover:bg-gray-100 rounded transition-colors"
+                    className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="Copy address"
                   >
                     {copiedAddress ? (
                       <Check className="w-3.5 h-3.5 text-green-600" />
@@ -792,6 +797,75 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                       <Copy className="w-3.5 h-3.5 text-gray-500" />
                     )}
                   </button>
+                  
+                  {/* Three Dots Menu */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowProfileMenu(!showProfileMenu)}
+                      className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                      title="More options"
+                    >
+                      <MoreVertical className="w-3.5 h-3.5 text-gray-500" />
+                    </button>
+                    
+                    {/* Dropdown Menu */}
+                    <AnimatePresence>
+                      {showProfileMenu && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={() => setShowProfileMenu(false)}
+                          />
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                            className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50"
+                          >
+                            <button
+                              onClick={() => {
+                                if (account?.address) {
+                                  const fullAddress = account.address;
+                                  navigator.clipboard.writeText(fullAddress);
+                                  setCopiedAddress(true);
+                                  setTimeout(() => setCopiedAddress(false), 2000);
+                                  setShowProfileMenu(false);
+                                }
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <Copy className="w-4 h-4" />
+                              Copy Full Address
+                            </button>
+                            
+                            {account?.address && (
+                              <a
+                                href={`${CHAINS[currentChain]?.explorerUrl}/address/${account.address}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={() => setShowProfileMenu(false)}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                                View on Explorer
+                              </a>
+                            )}
+                            
+                            <button
+                              onClick={() => {
+                                handleExportAddresses();
+                                setShowProfileMenu(false);
+                              }}
+                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <Download className="w-4 h-4" />
+                              Export All Addresses
+                            </button>
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
               </div>
             </div>
