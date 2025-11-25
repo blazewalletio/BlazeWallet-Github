@@ -362,14 +362,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative flex items-center justify-center">
       {/* Subtle background gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-yellow-500/5 pointer-events-none" />
       
-      {/* 🎯 PERFECT CENTERING WRAPPER - Works on ALL screens, mobile + desktop */}
-      <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 py-8 sm:py-12">
-        <div className="w-full max-w-5xl relative z-10">
-          <AnimatePresence mode="wait">
+      {/* 🎯 CONTENT WRAPPER - Perfectly centered in viewport */}
+      <div className="w-full max-w-5xl relative z-10 px-4 sm:px-6 py-8 sm:py-12">
+        <AnimatePresence mode="wait">
           {/* CAROUSEL WELCOME SCREEN - SWIPEABLE SECTIONS */}
           {step === 'carousel' && (
           <motion.div
@@ -1664,7 +1663,6 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           </motion.div>
         )}
       </AnimatePresence>
-        </div>
       </div>
     </div>
   );
