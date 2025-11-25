@@ -168,9 +168,17 @@ export class PresaleService {
       
       logger.log(`Contributing $${amountUSD} (${amountBNB.toFixed(4)} BNB)`);
       
-      // Check limits
+      // Check limits (frontend validation)
       if (amountUSD < PRESALE_CONSTANTS.minContribution) {
         throw new Error(`Minimum contribution is $${PRESALE_CONSTANTS.minContribution}`);
+      }
+      
+      // Additional check: Contract minimum is ~0.0167 BNB (~$10 at $600/BNB)
+      // Frontend enforces $100 minimum, but contract allows lower
+      // This ensures contract will accept the transaction
+      const contractMinBNB = 0.0167; // Contract minimum in BNB
+      if (amountBNB < contractMinBNB) {
+        throw new Error(`Amount too low. Minimum is $${PRESALE_CONSTANTS.minContribution} (${contractMinBNB.toFixed(4)} BNB minimum for contract)`);
       }
       
       // Send transaction
@@ -308,7 +316,8 @@ export class PresaleService {
       }
       
       const data = await response.json();
-      const bnbPrice = data.prices?.BNB || 600;
+      // API returns: { "BNB": { price: 600, change24h: 0.2 } }
+      const bnbPrice = data.BNB?.price || 600;
       
       logger.log('💰 Live BNB Price:', bnbPrice);
       return bnbPrice;

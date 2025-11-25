@@ -205,7 +205,7 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
   // Share on Twitter
   const shareOnTwitter = () => {
     if (!data?.userEntry?.referral_code) return;
-    const text = `I just joined the @BlazeWallet Priority List! 🔥\n\nGet 48-hour early access to the presale with my referral code: ${data.userEntry.referral_code}\n\nJoin now:`;
+    const text = `I just joined the @BlazeWallet Priority List! 🔥\n\nGet 1 week early access to the presale with my referral code: ${data.userEntry.referral_code}\n\nJoin now:`;
     const url = `https://my.blazewallet.io?ref=${data.userEntry.referral_code}`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
   };
@@ -305,7 +305,7 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">BLAZE Priority List</h2>
                 <p className="text-sm text-gray-600">
-                  Get 48-hour early access to the presale
+                  Get 1 week early access to the presale
                 </p>
               </div>
             </div>
@@ -330,7 +330,7 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
                       <h3 className="font-semibold text-gray-900">{getStatusMessage()}</h3>
                       {!data?.isPresaleOpenToAll && (
                         <p className="text-sm text-gray-600 mt-1">
-                          {data?.isRegistrationOpen ? 'Register now for 48-hour early access' : 
+                          {data?.isRegistrationOpen ? 'Register now for 1 week early access' : 
                            data?.isPriorityOnlyPhase ? 'Priority list members can contribute now' :
                            `Registration opens in ${formatCountdown()}`}
                         </p>
@@ -607,7 +607,7 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
                   <div className="space-y-3 text-sm text-gray-700">
                     <div className="flex items-start gap-2">
                       <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
-                      <span>48-hour early access to presale</span>
+                      <span>1 week early access to presale</span>
                     </div>
                     <div className="flex items-start gap-2">
                       <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
@@ -635,21 +635,21 @@ export default function PriorityListModal({ isOpen, onClose }: { isOpen: boolean
                     <div className="flex items-center gap-3">
                       <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
                       <div>
-                        <div className="font-semibold">October 23, 2025 (NOW)</div>
+                        <div className="font-semibold">December 15, 2025</div>
                         <div className="text-gray-600">Priority list registration opens</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                       <div>
-                        <div className="font-semibold">October 30, 2025</div>
-                        <div className="text-gray-600">Presale starts - Priority list only</div>
+                        <div className="font-semibold">January 2, 2026</div>
+                        <div className="text-gray-600">Presale starts - Priority list only (1 week)</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                       <div>
-                        <div className="font-semibold">November 1, 2025</div>
+                        <div className="font-semibold">January 9, 2026</div>
                         <div className="text-gray-600">Presale opens to everyone</div>
                       </div>
                     </div>

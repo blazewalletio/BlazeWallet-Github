@@ -45,6 +45,14 @@ export default function PresaleModal({ isOpen, onClose }: PresaleModalProps) {
     hasClaimed: false,
   });
 
+  // Priority list status
+  const [priorityStatus, setPriorityStatus] = useState({
+    isInPriorityList: false,
+    isRegistrationOpen: false,
+    isPriorityOnlyPhase: false,
+    isPresaleOpenToAll: false,
+  });
+
   const progress = (presaleInfo.totalRaised / presaleInfo.hardCap) * 100;
   const tokensYouGet = parseFloat(contributionAmount || '0') / presaleInfo.tokenPrice;
   
@@ -63,10 +71,31 @@ export default function PresaleModal({ isOpen, onClose }: PresaleModalProps) {
     if (isOpen && wallet && address) {
       logger.log('✅ Conditions met, calling loadPresaleData...');
       loadPresaleData();
+      loadPriorityListStatus();
     } else {
       logger.log('❌ Conditions not met, not calling loadPresaleData');
     }
   }, [isOpen, wallet, address]);
+
+  // Load priority list status
+  const loadPriorityListStatus = async () => {
+    if (!address) return;
+    try {
+      const response = await fetch(`/api/priority-list?wallet=${address}`);
+      const result = await response.json();
+      
+      if (result.success) {
+        setPriorityStatus({
+          isInPriorityList: !!result.data.userEntry,
+          isRegistrationOpen: result.data.isRegistrationOpen,
+          isPriorityOnlyPhase: result.data.isPriorityOnlyPhase,
+          isPresaleOpenToAll: result.data.isPresaleOpenToAll,
+        });
+      }
+    } catch (err) {
+      logger.error('Error loading priority list status:', err);
+    }
+  };
 
   const loadPresaleData = async () => {
     logger.log('🚀 loadPresaleData called!');
@@ -204,6 +233,12 @@ export default function PresaleModal({ isOpen, onClose }: PresaleModalProps) {
 
   const handleContribute = async () => {
     if (!wallet || !contributionAmount) return;
+    
+    // ✅ PRIORITY LIST ENFORCEMENT: Check if user is in priority list during priority-only phase
+    if (priorityStatus.isPriorityOnlyPhase && !priorityStatus.isInPriorityList) {
+      setError('Presale is currently only open to priority list members. Please register for the priority list first.');
+      return;
+    }
     
     const amount = parseFloat(contributionAmount);
     if (amount < presaleInfo.minContribution) {
@@ -479,8 +514,8 @@ export default function PresaleModal({ isOpen, onClose }: PresaleModalProps) {
                     </div>
                   )}
 
-                  {/* Show contribute button only if presale is active */}
-                  {isPresaleActive && (
+                  {/* Show contribute button only if presale is active AND (open to all OR user is in priority list) */}
+                  {isPresaleActive && (priorityStatus.isPresaleOpenToAll || (priorityStatus.isPriorityOnlyPhase && priorityStatus.isInPriorityList)) && (
                     <button
                       onClick={handleContribute}
                       disabled={isContributing || !contributionAmount || parseFloat(contributionAmount) < presaleInfo.minContribution}

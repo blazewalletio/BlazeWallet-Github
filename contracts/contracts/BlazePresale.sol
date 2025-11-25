@@ -25,6 +25,10 @@ contract BlazePresale is Ownable, ReentrancyGuard {
     // Presale Parameters (assuming BNB = $600)
     uint256 public constant HARD_CAP = 1666666666666666666666; // ~1666.67 BNB = $1M
     uint256 public constant SOFT_CAP = 333333333333333333333; // ~333.33 BNB = $200k
+    // TODO: UPDATE TO $100 MINIMUM BEFORE MAINNET DEPLOYMENT
+    // Current: 0.0167 BNB = ~$10 (for testing only)
+    // Should be: 0.1667 BNB = ~$100 (at $600/BNB)
+    // New value: 166666666666666666 (0.1667 BNB)
     uint256 public constant MIN_CONTRIBUTION = 16666666666666666; // ~0.0167 BNB = $10 (lowered for easier testing)
     uint256 public constant MAX_CONTRIBUTION = 16666666666666666666; // ~16.67 BNB = $10,000
     uint256 public constant TOKENS_FOR_SALE = 120_000_000 * 10**18; // 120M BLAZE

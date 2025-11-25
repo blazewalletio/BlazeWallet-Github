@@ -171,6 +171,13 @@ export default function PresaleDashboard() {
       return;
     }
 
+    // ✅ PRIORITY LIST ENFORCEMENT: Check if user is in priority list during priority-only phase
+    if (priorityStatus.isPriorityOnlyPhase && !priorityStatus.isInPriorityList) {
+      setError('Presale is currently only open to priority list members. Please register for the priority list first.');
+      setShowPriorityListModal(true); // Open priority list modal
+      return;
+    }
+
     if (!contributionAmount || parseFloat(contributionAmount) <= 0) {
       setError('Please enter a valid contribution amount');
       return;
@@ -278,7 +285,7 @@ export default function PresaleDashboard() {
                     </span>
                   </div>
                   <p className="text-sm sm:text-base text-gray-600 leading-relaxed">
-                    Register now for <span className="font-semibold text-green-600">48-hour early access</span> to the presale starting November 3, 2025
+                    Register now for <span className="font-semibold text-green-600">1 week early access</span> to the presale starting January 2, 2026
                   </p>
                   
                   {/* Stats row */}
@@ -322,7 +329,7 @@ export default function PresaleDashboard() {
               <div>
                 <h3 className="font-semibold text-blue-400">Priority List Members Only</h3>
                 <p className="text-sm text-blue-300">
-                  Presale is currently only open to priority list members. Opens to everyone November 5, 2025
+                  Presale is currently only open to priority list members. Opens to everyone January 9, 2026
                 </p>
               </div>
             </div>
@@ -374,7 +381,7 @@ export default function PresaleDashboard() {
                     </span>
                   </div>
                   <p className="text-sm sm:text-base text-gray-600 leading-relaxed">
-                    Registration opens <span className="font-semibold text-orange-600">October 23, 2025 at 11:00</span> - Get 48-hour early access!
+                    Registration opens <span className="font-semibold text-orange-600">December 15, 2025 at 11:00</span> - Get 1 week early access!
                   </p>
                   
                   {/* Benefits */}
@@ -425,7 +432,7 @@ export default function PresaleDashboard() {
         <CountdownWidget
           targetDate={new Date(Date.now() + (priorityStatus.timing.timeUntilPresale.days * 24 * 60 * 60 * 1000 + priorityStatus.timing.timeUntilPresale.hours * 60 * 60 * 1000 + priorityStatus.timing.timeUntilPresale.minutes * 60 * 1000))}
           title="Presale Starts In"
-          subtitle="Priority list members get 48-hour early access!"
+          subtitle="Priority list members get 1 week early access!"
           variant="full"
           showStats={true}
           totalRegistered={priorityStatus.stats?.total_registered || 0}
@@ -584,8 +591,8 @@ export default function PresaleDashboard() {
         </div>
       )}
 
-      {/* Contribution Form */}
-      {presaleStatus === 'active' && (
+      {/* Contribution Form - Only show if presale is active AND (open to all OR user is in priority list) */}
+      {presaleStatus === 'active' && (priorityStatus.isPresaleOpenToAll || (priorityStatus.isPriorityOnlyPhase && priorityStatus.isInPriorityList)) && (
         <div className="glass-card p-6">
           <h3 className="text-lg font-semibold mb-4">Contribute to Presale</h3>
           

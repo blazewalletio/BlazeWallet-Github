@@ -20,10 +20,10 @@ export interface RegisterResult {
   isEarlyBird?: boolean;
 }
 
-// Priority List Dates
-const REGISTRATION_START = new Date('2025-10-23T09:00:00Z');
-const PRESALE_START = new Date('2025-10-30T09:00:00Z');
-const EXCLUSIVITY_END = new Date('2025-11-01T09:00:00Z');
+// Priority List Dates - UPDATED TIMELINE
+const REGISTRATION_START = new Date('2025-12-15T09:00:00Z'); // December 15, 2025
+const PRESALE_START = new Date('2026-01-02T09:00:00Z'); // January 2, 2026 (Priority members only)
+const EXCLUSIVITY_END = new Date('2026-01-09T09:00:00Z'); // January 9, 2026 (Open to everyone)
 const EARLY_BIRD_LIMIT = 500; // First 500 get early bird bonus
 
 export class PriorityListService {
@@ -65,12 +65,12 @@ export class PriorityListService {
         if (now < REGISTRATION_START) {
           return {
             success: false,
-            message: `Priority list registration opens on October 23, 2025 at 11:00 CEST`,
+            message: `Priority list registration opens on December 15, 2025 at 11:00 CEST`,
           };
         } else {
           return {
             success: false,
-            message: `Priority list registration closed. Presale starts October 30, 2025.`,
+            message: `Priority list registration closed. Presale starts January 2, 2026.`,
           };
         }
       }

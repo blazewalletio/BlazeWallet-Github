@@ -110,7 +110,7 @@ export function generateUserConfirmationEmail(data: {
                   <td style="padding: 20px;">
                     <p style="margin: 0 0 12px 0; color: #92400e; font-size: 14px; font-weight: bold;">Your Priority List Benefits:</p>
                     <ul style="margin: 0; padding-left: 20px; color: #92400e; font-size: 14px; line-height: 1.8;">
-                      <li>48-hour exclusive early access to the presale</li>
+                      <li>1 week exclusive early access to the presale</li>
                       <li>Guaranteed allocation (first come, first served)</li>
                       <li>2.4x gain potential at launch ($0.008333 → $0.02)</li>
                       <li>Referral rewards program</li>
