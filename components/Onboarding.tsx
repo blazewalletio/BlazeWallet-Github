@@ -841,7 +841,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   <span className="flex-1 text-center text-sm sm:text-base pr-20 sm:pr-24">Continue with Google</span>
                   <span className="px-2 py-1 bg-orange-500/10 border border-orange-500/30 rounded-md text-[10px] sm:text-xs text-orange-600 font-semibold whitespace-nowrap flex-shrink-0">
                     Coming soon
-                  </span>
+                </span>
                 </button>
 
                 <button
@@ -855,7 +855,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   <span className="flex-1 text-center text-sm sm:text-base pr-20 sm:pr-24">Continue with Apple</span>
                   <span className="px-2 py-1 bg-orange-500/10 border border-orange-500/30 rounded-md text-[10px] sm:text-xs text-orange-600 font-semibold whitespace-nowrap flex-shrink-0">
                     Coming soon
-                  </span>
+                </span>
                 </button>
               </div>
 

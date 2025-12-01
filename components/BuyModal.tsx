@@ -1,12 +1,13 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { CreditCard, Banknote, ShieldCheck, Flame, ExternalLink } from 'lucide-react';
+import { CreditCard, Banknote, ShieldCheck, Flame, ExternalLink, Loader2, X } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { CHAINS } from '@/lib/chains';
-import { TransakService } from '@/lib/transak-service';
+import { OnramperService } from '@/lib/onramper-service';
 import { logger } from '@/lib/logger';
 
 interface BuyModalProps {
@@ -15,73 +16,91 @@ interface BuyModalProps {
 }
 
 export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
-  const { address, currentChain } = useWalletStore();
+  const { address, currentChain, solanaAddress, bitcoinAddress } = useWalletStore();
   const chain = CHAINS[currentChain];
-  const supportedAssets = TransakService.getSupportedAssets(chain.id);
+  const supportedAssets = OnramperService.getSupportedAssets(chain.id);
+  
+  const [widgetUrl, setWidgetUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
 
   // Block body scroll when overlay is open
   useBlockBodyScroll(isOpen);
 
-  const handleBuy = async (currencyCode?: string) => {
+  // Load widget URL when modal opens
+  useEffect(() => {
+    if (isOpen && address) {
+      // Load widget with default crypto for current chain
+      const defaultCrypto = OnramperService.getDefaultCrypto(chain.id);
+      loadWidget(defaultCrypto);
+    } else {
+      // Reset state when modal closes
+      setWidgetUrl(null);
+      setError(null);
+      setSelectedAsset(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, address, currentChain]);
+
+  const loadWidget = async (currencyCode?: string) => {
     if (!address) {
-      toast('Please connect your wallet first');
+      toast.error('Please connect your wallet first');
       return;
     }
 
-    // Validate wallet address format for the selected currency
-    if (currencyCode && !TransakService.validateWalletAddress(address, currencyCode)) {
-      toast.error(`⚠️ Invalid wallet address format for ${currencyCode}. Please ensure you're using the correct wallet for this cryptocurrency.`);
-      return;
-    }
-
-    // Create multi-chain wallet addresses for better compatibility
-    const walletAddresses = TransakService.createWalletAddresses(address, chain.id);
+    setIsLoading(true);
+    setError(null);
+    setSelectedAsset(currencyCode || null);
 
     try {
-      logger.log('🔥 BUY MODAL DEBUG: Starting Transak integration...');
+      logger.log('🔥 BUY MODAL: Starting Onramper integration...');
       logger.log('Wallet Address:', address);
-      logger.log('Wallet Addresses:', walletAddresses);
+      logger.log('Chain ID:', chain.id);
       logger.log('Currency Code:', currencyCode);
       
       // 🔒 SECURITY: Use server-side endpoint to hide API key
-      const response = await fetch('/api/transak/init', {
+      const response = await fetch('/api/onramper/init', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           walletAddress: address,
-          walletAddresses: walletAddresses,
-          currencyCode: currencyCode || 'ETH',
-          baseCurrencyCode: 'EUR',
+          defaultCryptoCurrency: currencyCode || OnramperService.getDefaultCrypto(chain.id),
+          defaultFiatCurrency: 'EUR',
           chainId: chain.id,
+          solanaAddress: solanaAddress || undefined,
+          bitcoinAddress: bitcoinAddress || undefined,
+          theme: 'light',
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to initialize Transak');
+        throw new Error(errorData.error || 'Failed to initialize Onramper');
       }
 
-      const { widgetUrl } = await response.json();
-      
-      // Open Transak in new window
-      window.open(widgetUrl, '_blank', 'width=500,height=700');
-
-      logger.log('✅ BUY MODAL SUCCESS: Transak widget opened');
-      // Close modal after opening Transak
-      setTimeout(() => onClose(), 500);
+      const { widgetUrl: url } = await response.json();
+      setWidgetUrl(url);
+      logger.log('✅ BUY MODAL SUCCESS: Onramper widget URL loaded');
     } catch (error) {
       logger.error('❌ BUY MODAL ERROR:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setError(errorMessage);
       
-      // Check if it's a business profile issue
-      if (errorMessage.includes('Invalid API key') || errorMessage.includes('T-INF-201')) {
-        toast.error(`Transak Error: Please complete your Business Profile in the Transak Dashboard first.\n\nGo to: dashboard.transak.com/developers\nComplete all 3 steps of "Complete Your Business Profile"`);
+      if (errorMessage.includes('not configured')) {
+        toast.error('Onramper is not configured. Please add ONRAMPER_API_KEY to environment variables.');
       } else {
-        toast.error(`Failed to open Transak: ${errorMessage}`);
+        toast.error(`Failed to load Onramper: ${errorMessage}`);
       }
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const handleAssetSelect = (currencyCode: string) => {
+    loadWidget(currencyCode);
   };
 
   if (!isOpen) return null;
@@ -118,112 +137,133 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
             </div>
           </div>
 
-          {/* Coming Soon Overlay */}
-          <div className="relative min-h-[600px]">
-            <div className="space-y-6 opacity-30 pointer-events-none">
-
-              {/* Features */}
-              <div className="glass-card p-6">
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center p-4 bg-orange-500/10 rounded-xl">
-                    <Flame className="w-8 h-8 text-orange-500 mx-auto mb-2" />
-                    <p className="text-sm font-medium text-gray-900">Instant</p>
-                  </div>
-                  <div className="text-center p-4 bg-emerald-500/10 rounded-xl">
-                    <ShieldCheck className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                    <p className="text-sm font-medium text-gray-900">Secure</p>
-                  </div>
-                  <div className="text-center p-4 bg-orange-500/10 rounded-xl">
-                    <CreditCard className="w-8 h-8 text-purple-500 mx-auto mb-2" />
-                    <p className="text-sm font-medium text-gray-900">Easy</p>
-                  </div>
-                </div>
+          {/* Content */}
+          {!address ? (
+            <div className="glass-card p-12 text-center">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CreditCard className="w-8 h-8 text-gray-400" />
               </div>
-
-              {/* Popular Assets */}
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Connect Your Wallet</h3>
+              <p className="text-gray-600 mb-6">Please connect your wallet to buy crypto</p>
+              <button
+                onClick={onClose}
+                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-yellow-600 transition-all"
+              >
+                Go Back
+              </button>
+            </div>
+          ) : error && !widgetUrl ? (
+            <div className="glass-card p-12 text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <X className="w-8 h-8 text-red-500" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Error Loading Widget</h3>
+              <p className="text-gray-600 mb-6">{error}</p>
+              <button
+                onClick={() => loadWidget()}
+                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-yellow-600 transition-all"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : isLoading ? (
+            <div className="glass-card p-12 text-center min-h-[600px] flex items-center justify-center">
+              <div>
+                <Loader2 className="w-12 h-12 text-orange-500 animate-spin mx-auto mb-4" />
+                <p className="text-gray-600">Loading Onramper widget...</p>
+              </div>
+            </div>
+          ) : widgetUrl ? (
+            <div className="space-y-6">
+              {/* Popular Assets Selector */}
               <div className="glass-card p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Popular crypto</h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {supportedAssets.slice(0, 6).map((currencyCode) => {
-                    const displayName = TransakService.getDisplayName(currencyCode);
+                    const displayName = OnramperService.getDisplayName(currencyCode);
+                    const isSelected = selectedAsset === currencyCode;
                     return (
-                      <div
+                      <button
                         key={currencyCode}
-                        className="p-4 bg-gray-50 rounded-xl text-left border border-gray-200"
+                        onClick={() => handleAssetSelect(currencyCode)}
+                        className={`p-4 rounded-xl text-left border-2 transition-all ${
+                          isSelected
+                            ? 'bg-gradient-to-br from-orange-500 to-yellow-500 border-orange-500 text-white'
+                            : 'bg-gray-50 border-gray-200 hover:border-orange-300'
+                        }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-full flex items-center justify-center text-lg font-bold text-white">
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ${
+                            isSelected ? 'bg-white/20 text-white' : 'bg-gradient-to-br from-orange-500 to-yellow-500 text-white'
+                          }`}>
                             {displayName.charAt(0)}
                           </div>
                           <div>
-                            <p className="font-semibold text-gray-900">{displayName}</p>
-                            <p className="text-xs text-gray-600">Buy now</p>
+                            <p className={`font-semibold ${isSelected ? 'text-white' : 'text-gray-900'}`}>
+                              {displayName}
+                            </p>
+                            <p className={`text-xs ${isSelected ? 'text-white/80' : 'text-gray-600'}`}>
+                              {isSelected ? 'Selected' : 'Buy now'}
+                            </p>
                           </div>
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Payment Methods */}
+              {/* Payment Methods Info */}
               <div className="glass-card p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment methods</h3>
                 <div className="flex flex-wrap gap-3">
-                  <div className="px-4 py-3 bg-gray-50 rounded-xl text-sm font-medium text-gray-900 border border-gray-200">
-                    <Banknote className="w-4 h-4 inline mr-2" />
-                    iDEAL
+                  {OnramperService.getSupportedPaymentMethods().map((method) => (
+                    <div
+                      key={method}
+                      className="px-4 py-3 bg-gray-50 rounded-xl text-sm font-medium text-gray-900 border border-gray-200"
+                    >
+                      {method === 'iDEAL' && <Banknote className="w-4 h-4 inline mr-2" />}
+                      {method === 'Credit Card' && <CreditCard className="w-4 h-4 inline mr-2" />}
+                      {method}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Onramper Widget iFrame */}
+              <div className="glass-card p-0 overflow-hidden">
+                <div className="bg-gradient-to-r from-orange-500 to-yellow-500 p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Flame className="w-5 h-5 text-white" />
+                    <span className="text-white font-semibold">Buy Crypto with Onramper</span>
                   </div>
-                  <div className="px-4 py-3 bg-gray-50 rounded-xl text-sm font-medium text-gray-900 border border-gray-200">
-                    <CreditCard className="w-4 h-4 inline mr-2" />
-                    Credit card
-                  </div>
-                  <div className="px-4 py-3 bg-gray-50 rounded-xl text-sm font-medium text-gray-900 border border-gray-200">
-                    Bank transfer
-                  </div>
+                  <button
+                    onClick={onClose}
+                    className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="relative" style={{ minHeight: '630px' }}>
+                  <iframe
+                    src={widgetUrl}
+                    title="Onramper Widget"
+                    className="w-full border-0"
+                    style={{ height: '630px', minHeight: '630px' }}
+                    allow="accelerometer; autoplay; camera; gyroscope; payment; microphone"
+                    allowFullScreen
+                  />
                 </div>
               </div>
             </div>
-
-            {/* Coming Soon Overlay Card */}
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.2 }}
-              className="absolute inset-0 flex items-center justify-center px-4 py-8"
-            >
-              <div className="bg-gradient-to-br from-orange-500/20 to-yellow-500/20 backdrop-blur-xl border-2 border-orange-500/30 rounded-2xl p-8 max-w-md w-full shadow-2xl">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Flame className="w-8 h-8 text-white" />
-                  </div>
-                  
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                    Coming Soon
-                  </h3>
-                  
-                  <p className="text-gray-700 mb-4 leading-relaxed">
-                    Buy crypto feature is currently in development. Stay tuned for instant purchases with iDEAL, credit card and more!
-                  </p>
-                  
-                  <div className="flex flex-col gap-2 text-sm text-gray-600">
-                    <div className="flex items-center justify-center gap-2">
-                      <Flame className="w-4 h-4 text-orange-500" />
-                      <span>Instant purchases</span>
-                    </div>
-                    <div className="flex items-center justify-center gap-2">
-                      <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                      <span>Secure & compliant</span>
-                    </div>
-                    <div className="flex items-center justify-center gap-2">
-                      <CreditCard className="w-4 h-4 text-purple-500" />
-                      <span>Multiple payment methods</span>
-                    </div>
-                  </div>
-                </div>
+          ) : (
+            <div className="glass-card p-12 text-center min-h-[600px] flex items-center justify-center">
+              <div>
+                <Flame className="w-12 h-12 text-orange-500 mx-auto mb-4" />
+                <p className="text-gray-600">Click on a crypto to start buying</p>
               </div>
-            </motion.div>
-          </div>
+            </div>
+          )}
         </div>
       </motion.div>
     </AnimatePresence>
