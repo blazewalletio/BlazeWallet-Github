@@ -26,6 +26,7 @@ import CashbackTracker from '../CashbackTracker';
 import VestingDashboard from '../VestingDashboard';
 import { useWalletStore } from '@/lib/wallet-store';
 import { logger } from '@/lib/logger';
+import { PRESALE_FEATURE_ENABLED } from '@/lib/feature-flags';
 
 export default function BlazeTab() {
   const { address } = useWalletStore();
@@ -41,7 +42,8 @@ export default function BlazeTab() {
   const [activeModal, setActiveModal] = useState<string | null>(null);
 
   const blazeFeatures = [
-    {
+    // Presale feature - conditionally included based on feature flag
+    ...(PRESALE_FEATURE_ENABLED ? [{
       id: 'presale',
       title: 'BLAZE Presale',
       description: 'Early access to tokens',
@@ -49,7 +51,7 @@ export default function BlazeTab() {
       gradient: 'from-orange-500 to-yellow-500',
       badge: 'Live',
       onClick: () => setActiveModal('presale'),
-    },
+    }] : []),
     {
       id: 'staking',
       title: 'Staking',
@@ -110,9 +112,12 @@ export default function BlazeTab() {
 
   const renderModal = () => {
     if (!activeModal || activeModal === 'staking' || activeModal === 'governance' || activeModal === 'cashback' || activeModal === 'launchpad' || activeModal === 'referrals' || activeModal === 'nft-mint') return null; // These have their own modals
+    
+    // Hide presale modal if feature flag is disabled
+    if (activeModal === 'presale' && !PRESALE_FEATURE_ENABLED) return null;
 
     const modalContent = {
-      presale: <PresaleDashboard />,
+      ...(PRESALE_FEATURE_ENABLED ? { presale: <PresaleDashboard /> } : {}),
       vesting: isFounder ? <VestingDashboard /> : null,
     };
 
@@ -172,13 +177,14 @@ export default function BlazeTab() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-        {/* Presale Card - Prominent */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-card card-hover relative overflow-hidden border-2 border-orange-200/50"
-          onClick={() => setActiveModal('presale')}
-        >
+        {/* Presale Card - Prominent (Hidden when feature flag is disabled) */}
+        {PRESALE_FEATURE_ENABLED && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card card-hover relative overflow-hidden border-2 border-orange-200/50"
+            onClick={() => setActiveModal('presale')}
+          >
           <div className="absolute inset-0 bg-gradient-to-r from-orange-500/10 to-yellow-500/10" />
           <div className="relative z-10 p-6">
             <div className="flex items-center justify-between">
@@ -218,10 +224,11 @@ export default function BlazeTab() {
             </div>
           </div>
         </motion.div>
+        )}
 
         {/* Features Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {blazeFeatures.slice(1).map((feature, index) => {
+          {blazeFeatures.map((feature, index) => {
             const Icon = feature.icon;
             
             return (
@@ -257,7 +264,7 @@ export default function BlazeTab() {
           {[
             { label: 'Total Staked', value: '$2.1M', change: '+12%' },
             { label: 'Active Users', value: '10.2K', change: '+8%' },
-            { label: 'Presale Raised', value: '$125K', change: '+25%' },
+            ...(PRESALE_FEATURE_ENABLED ? [{ label: 'Presale Raised', value: '$125K', change: '+25%' }] : []),
             { label: 'APY Average', value: '18.5%', change: 'Stable' },
           ].map((stat, index) => (
             <motion.div

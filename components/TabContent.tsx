@@ -24,6 +24,7 @@ import CashbackTracker from './CashbackTracker';
 import PresaleDashboard from './PresaleDashboard';
 import AddressBook from './AddressBook';
 import { logger } from '@/lib/logger';
+import { PRESALE_FEATURE_ENABLED } from '@/lib/feature-flags';
 
 interface TabContentProps {
   activeTab: TabType;
@@ -319,16 +320,17 @@ export default function TabContent({
   // Blaze Tab Content
   const BlazeTab = () => (
     <div className="space-y-4">
-      {/* BLAZE Presale Card */}
-      <motion.button
-        whileTap={{ scale: 0.95 }}
-        onClick={() => setShowPresale(true)}
-        className={`w-full glass-card p-6 rounded-2xl text-left transition-all group border-2 relative overflow-hidden ${
-          isPriorityListLive 
-            ? 'border-green-300 hover:bg-green-50' 
-            : 'border-orange-200 hover:bg-orange-50'
-        }`}
-      >
+      {/* BLAZE Presale Card (Hidden when feature flag is disabled) */}
+      {PRESALE_FEATURE_ENABLED && (
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setShowPresale(true)}
+          className={`w-full glass-card p-6 rounded-2xl text-left transition-all group border-2 relative overflow-hidden ${
+            isPriorityListLive 
+              ? 'border-green-300 hover:bg-green-50' 
+              : 'border-orange-200 hover:bg-orange-50'
+          }`}
+        >
         {/* Background gradient effect */}
         <div className={`absolute inset-0 transition-opacity ${
           isPriorityListLive 
@@ -386,6 +388,7 @@ export default function TabContent({
           <ChevronRight className="w-5 h-5 text-gray-400" />
         </div>
       </motion.button>
+      )}
 
       {/* Blaze Features Grid */}
       <div className="grid grid-cols-2 gap-4">
@@ -579,7 +582,7 @@ export default function TabContent({
       <ReferralDashboard isOpen={showReferrals} onClose={() => setShowReferrals(false)} />
       <NFTMintDashboard isOpen={showNFTMint} onClose={() => setShowNFTMint(false)} />
       
-      {showPresale && (
+      {PRESALE_FEATURE_ENABLED && showPresale && (
         <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
           <div className="p-4">
             <button 
