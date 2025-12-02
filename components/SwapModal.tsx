@@ -19,6 +19,7 @@ import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { CHAINS } from '@/lib/chains';
 import { LiFiService, LiFiQuote, LiFiToken } from '@/lib/lifi-service';
 import { JupiterService, JupiterQuote } from '@/lib/jupiter-service';
+import { getLiFiChainId } from '@/lib/lifi-chain-ids';
 import { MultiChainService } from '@/lib/multi-chain-service';
 import { PriceService } from '@/lib/price-service';
 import { ethers } from 'ethers';
@@ -319,19 +320,19 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     setIsJupiterQuote(false);
 
     try {
-      const fromChainId = fromChainConfig.id;
-      const toChainId = toChainConfig.id;
+      // ✅ CRITICAL FIX: Use Li.Fi chain IDs (Solana is string "1151111081099710", not 101)
+      const fromChainId = getLiFiChainId(fromChain);
+      const toChainId = getLiFiChainId(toChain);
       const fromAddress = getCurrentAddress() || wallet.address;
       
       // ✅ Li.Fi supports both cross-chain AND on-chain swaps (including Solana)
       // According to docs: https://docs.li.fi/widget/overview
       // "Cross-chain and on-chain swap and bridging UI toolkit"
       // Li.Fi uses Jupiter under the hood for Solana swaps
-      // We can use Li.Fi for all swaps, including Solana same-chain
+      // We use Li.Fi for all swaps, including Solana same-chain
       const isSolanaSameChain = fromChain === 'solana' && toChain === 'solana';
       
-      // For now, let's try Li.Fi first for Solana (it uses Jupiter internally)
-      // If it fails, we can fallback to direct Jupiter
+      // Use Li.Fi for all swaps (it handles Solana internally via Jupiter)
       if (false && isSolanaSameChain) {
         // Use Jupiter for Solana same-chain swaps
         logger.log('🪐 Using Jupiter for Solana same-chain swap');
@@ -412,8 +413,9 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           }
         }
 
+        // ✅ CRITICAL: Convert chain IDs to strings for URL (Li.Fi accepts both)
         const response = await fetch(
-          `/api/lifi/quote?fromChain=${fromChainId}&toChain=${toChainId}&fromToken=${fromToken}&toToken=${toToken}&fromAmount=${amountInWei}&fromAddress=${fromAddress}&slippage=0.03&order=RECOMMENDED`
+          `/api/lifi/quote?fromChain=${fromChainId.toString()}&toChain=${toChainId.toString()}&fromToken=${fromToken}&toToken=${toToken}&fromAmount=${amountInWei}&fromAddress=${fromAddress}&slippage=0.03&order=RECOMMENDED`
         );
 
         if (!response.ok) {

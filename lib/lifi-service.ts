@@ -1,4 +1,5 @@
 import { logger } from '@/lib/logger';
+import { getLiFiChainId, isSolanaChainId } from '@/lib/lifi-chain-ids';
 
 // Li.Fi Native Token Addresses
 // EVM chains use: 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
@@ -115,24 +116,33 @@ export interface LiFiStatus {
 export class LiFiService {
   /**
    * Get swap quote from Li.Fi
+   * 
+   * @param fromChain - Chain ID (can be number for EVM or string for Solana)
+   * @param toChain - Chain ID (can be number for EVM or string for Solana)
+   * @param fromToken - Token address or 'native' for native token
+   * @param toToken - Token address or 'native' for native token
+   * @param fromAmount - Amount in smallest unit (wei/lamports)
+   * @param fromAddress - Wallet address initiating the swap
+   * @param slippage - Slippage tolerance (0.03 = 3%)
+   * @param order - Route preference (RECOMMENDED, CHEAPEST, FASTEST)
+   * @param apiKey - Optional API key for higher rate limits
    */
   static async getQuote(
-    fromChain: number,
-    toChain: number,
+    fromChain: string | number,
+    toChain: string | number,
     fromToken: string,
     toToken: string,
     fromAmount: string,
-    fromAddress: string, // ✅ FIXED: According to Li.Fi docs, this should be 'fromAddress', not 'toAddress'
+    fromAddress: string,
     slippage: number = 0.03,
     order: 'RECOMMENDED' | 'CHEAPEST' | 'FASTEST' = 'RECOMMENDED',
     apiKey?: string
   ): Promise<LiFiQuote | null> {
     try {
       // Determine native token address based on chain
-      const getNativeTokenAddress = (chainId: number): string => {
-        // Solana chain ID is 101
-        // According to Li.Fi docs: native SOL uses System Program address
-        if (chainId === 101) {
+      const getNativeTokenAddress = (chainId: string | number): string => {
+        // Solana chain ID in Li.Fi is "1151111081099710" (string)
+        if (isSolanaChainId(chainId)) {
           return NATIVE_TOKEN_SOLANA; // System Program address (1111...1111)
         }
         // All EVM chains use the same native token address
@@ -147,15 +157,16 @@ export class LiFiService {
         ? getNativeTokenAddress(toChain)
         : toToken;
 
-      // ✅ According to Li.Fi documentation: https://docs.li.fi/api-reference/introduction
-      // The quote endpoint uses 'fromAddress' parameter (the wallet address initiating the swap)
+      // ✅ According to Li.Fi documentation: https://docs.li.fi/api-reference/get-a-quote-for-a-token-transfer-1
+      // Parameters can be chain ID (number) or chain key (string)
+      // For Solana, we must use the string chain ID: "1151111081099710"
       const params = new URLSearchParams({
-        fromChain: fromChain.toString(),
+        fromChain: fromChain.toString(), // Convert to string (handles both number and string)
         toChain: toChain.toString(),
         fromToken: fromTokenAddress,
         toToken: toTokenAddress,
         fromAmount: fromAmount,
-        fromAddress: fromAddress, // ✅ FIXED: Changed from 'toAddress' to 'fromAddress' per Li.Fi docs
+        fromAddress: fromAddress,
         slippage: slippage.toString(),
         order: order,
       });
@@ -392,8 +403,8 @@ export class LiFiService {
   /**
    * Get native token address for a chain
    */
-  static getNativeTokenAddress(chainId: number): string {
-    if (chainId === 101) {
+  static getNativeTokenAddress(chainId: string | number): string {
+    if (isSolanaChainId(chainId)) {
       return NATIVE_TOKEN_SOLANA; // System Program address for native SOL
     }
     return NATIVE_TOKEN_EVM; // EVM chains
@@ -402,8 +413,8 @@ export class LiFiService {
   /**
    * Check if address is native token
    */
-  static isNativeToken(address: string, chainId?: number): boolean {
-    if (chainId === 101) {
+  static isNativeToken(address: string, chainId?: string | number): boolean {
+    if (chainId && isSolanaChainId(chainId)) {
       // For Solana, check both System Program and wrapped SOL
       return address === NATIVE_TOKEN_SOLANA || 
              address === 'So11111111111111111111111111111111111111112';

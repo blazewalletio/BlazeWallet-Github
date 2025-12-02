@@ -7,13 +7,19 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const fromChain = parseInt(searchParams.get('fromChain') || '1');
-    const toChain = parseInt(searchParams.get('toChain') || '1');
+    // ✅ CRITICAL: Chain IDs can be numbers (EVM) or strings (Solana)
+    // Solana chain ID in Li.Fi is "1151111081099710" (string), not 101
+    const fromChainParam = searchParams.get('fromChain') || '1';
+    const toChainParam = searchParams.get('toChain') || '1';
+    
+    // Convert to number if it's a numeric string, otherwise keep as string
+    const fromChain = /^\d+$/.test(fromChainParam) ? parseInt(fromChainParam) : fromChainParam;
+    const toChain = /^\d+$/.test(toChainParam) ? parseInt(toChainParam) : toChainParam;
+    
     const fromToken = searchParams.get('fromToken') || '';
     const toToken = searchParams.get('toToken') || '';
     const fromAmount = searchParams.get('fromAmount') || '0';
-    // ✅ FIXED: According to Li.Fi docs, the parameter is 'fromAddress' (wallet address initiating the swap)
-    const fromAddress = searchParams.get('fromAddress') || searchParams.get('toAddress') || ''; // Support both for backward compatibility
+    const fromAddress = searchParams.get('fromAddress') || searchParams.get('toAddress') || '';
     const slippage = parseFloat(searchParams.get('slippage') || '0.03');
     const order = (searchParams.get('order') || 'RECOMMENDED') as 'RECOMMENDED' | 'CHEAPEST' | 'FASTEST';
 
@@ -42,7 +48,7 @@ export async function GET(req: NextRequest) {
         fromToken,
         toToken,
         fromAmount,
-        fromAddress, // ✅ FIXED: Changed from 'toAddress' to 'fromAddress'
+        fromAddress,
         slippage,
         order,
         lifiApiKey
@@ -67,12 +73,17 @@ export async function GET(req: NextRequest) {
         fromToken,
         toToken,
       });
+      // Check if Solana is involved
+      const isSolanaInvolved = fromChain.toString() === '1151111081099710' || 
+                               toChain.toString() === '1151111081099710' ||
+                               fromChain === 101 || toChain === 101; // Also check numeric 101 for backward compatibility
+      
       return NextResponse.json(
         { 
           error: 'Failed to fetch quote from Li.Fi',
           details: error.message || 'Unknown error',
-          hint: fromChain === 101 || toChain === 101 
-            ? 'Solana swaps may have limited support. Try EVM chains (Ethereum, Polygon, etc.) first.'
+          hint: isSolanaInvolved
+            ? 'Solana swaps are supported via Li.Fi. Please check if the token pair is available.'
             : 'Please check if the token pair is supported by Li.Fi.'
         },
         { status: 500 }
