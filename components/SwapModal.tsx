@@ -18,6 +18,7 @@ import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { CHAINS } from '@/lib/chains';
 import { LiFiService, LiFiQuote, LiFiToken } from '@/lib/lifi-service';
+import { JupiterService, JupiterQuote } from '@/lib/jupiter-service';
 import { MultiChainService } from '@/lib/multi-chain-service';
 import { PriceService } from '@/lib/price-service';
 import { ethers } from 'ethers';
@@ -70,7 +71,8 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   const [toAmount, setToAmount] = useState('');
   
   // Quote states
-  const [quote, setQuote] = useState<LiFiQuote | null>(null);
+  const [quote, setQuote] = useState<LiFiQuote | JupiterQuote | null>(null);
+  const [isJupiterQuote, setIsJupiterQuote] = useState(false);
   const [isLoadingQuote, setIsLoadingQuote] = useState(false);
   
   // Execution states
@@ -314,94 +316,142 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     setIsLoadingQuote(true);
     setError('');
     setQuote(null);
+    setIsJupiterQuote(false);
 
     try {
       const fromChainId = fromChainConfig.id;
       const toChainId = toChainConfig.id;
-      // ✅ FIXED: According to Li.Fi docs, this should be 'fromAddress' (wallet initiating the swap)
       const fromAddress = getCurrentAddress() || wallet.address;
       
-      // Convert amount to smallest unit - handle Solana (9 decimals) vs EVM (18 decimals)
-      let amountInWei: string;
-      if (fromToken === 'native') {
-        // Solana uses 9 decimals, EVM uses 18
-        const decimals = fromChainConfig.nativeCurrency.decimals || 18;
-        if (fromChain === 'solana') {
-          // For Solana, use lamports (smallest unit)
-          amountInWei = (parseFloat(fromAmount) * Math.pow(10, decimals)).toString();
+      // ✅ Li.Fi supports both cross-chain AND on-chain swaps (including Solana)
+      // According to docs: https://docs.li.fi/widget/overview
+      // "Cross-chain and on-chain swap and bridging UI toolkit"
+      // Li.Fi uses Jupiter under the hood for Solana swaps
+      // We can use Li.Fi for all swaps, including Solana same-chain
+      const isSolanaSameChain = fromChain === 'solana' && toChain === 'solana';
+      
+      // For now, let's try Li.Fi first for Solana (it uses Jupiter internally)
+      // If it fails, we can fallback to direct Jupiter
+      if (false && isSolanaSameChain) {
+        // Use Jupiter for Solana same-chain swaps
+        logger.log('🪐 Using Jupiter for Solana same-chain swap');
+        
+        // Convert amount to lamports
+        let amountInLamports: string;
+        if (fromToken === 'native') {
+          const decimals = 9; // SOL has 9 decimals
+          amountInLamports = (parseFloat(fromAmount) * Math.pow(10, decimals)).toString();
         } else {
-          // For EVM, use parseEther
-          amountInWei = ethers.parseEther(fromAmount).toString();
+          const token = availableFromTokens.find(t => t.address.toLowerCase() === fromToken.toLowerCase());
+          const decimals = token?.decimals || 9;
+          amountInLamports = (parseFloat(fromAmount) * Math.pow(10, decimals)).toString();
+        }
+
+        // Normalize token addresses
+        const inputMint = fromToken === 'native' 
+          ? JupiterService.getNativeSOLAddress() 
+          : fromToken;
+        const outputMint = toToken === 'native'
+          ? JupiterService.getNativeSOLAddress()
+          : toToken;
+
+        const response = await fetch(
+          `/api/jupiter/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amountInLamports}&slippageBps=50`
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to fetch quote from Jupiter');
+        }
+
+        const data = await response.json();
+        if (data.success && data.quote) {
+          const jupiterQuote = data.quote as JupiterQuote;
+          setQuote(jupiterQuote);
+          setIsJupiterQuote(true);
+          
+          // Format output amount (Jupiter returns in smallest unit)
+          const outputMintAddress = toToken === 'native' 
+            ? JupiterService.getNativeSOLAddress() 
+            : toToken;
+          const toTokenInfo = availableFromTokens.find(t => 
+            t.address.toLowerCase() === outputMintAddress.toLowerCase()
+          ) || (toToken === 'native' ? { decimals: 9 } : { decimals: 9 });
+          const decimals = toTokenInfo.decimals || 9;
+          const formatted = (parseFloat(jupiterQuote.outAmount) / Math.pow(10, decimals)).toString();
+          setToAmount(formatted);
+          
+          logger.log('✅ Jupiter quote received:', {
+            inAmount: jupiterQuote.inAmount,
+            outAmount: jupiterQuote.outAmount,
+            priceImpact: jupiterQuote.priceImpactPct,
+          });
+        } else {
+          throw new Error('No quote available from Jupiter');
         }
       } else {
-        // For tokens, get decimals from availableFromTokens
-        const token = availableFromTokens.find(t => t.address.toLowerCase() === fromToken.toLowerCase());
-        const decimals = token?.decimals || 18;
-        if (fromChain === 'solana') {
-          // Solana tokens use lamports
-          amountInWei = (parseFloat(fromAmount) * Math.pow(10, decimals)).toString();
+        // Use Li.Fi for cross-chain swaps or EVM chains
+        logger.log('🌉 Using Li.Fi for cross-chain or EVM swap');
+        
+        // Convert amount to smallest unit - handle Solana (9 decimals) vs EVM (18 decimals)
+        let amountInWei: string;
+        if (fromToken === 'native') {
+          const decimals = fromChainConfig.nativeCurrency.decimals || 18;
+          if (fromChain === 'solana') {
+            amountInWei = (parseFloat(fromAmount) * Math.pow(10, decimals)).toString();
+          } else {
+            amountInWei = ethers.parseEther(fromAmount).toString();
+          }
         } else {
-          // EVM tokens use parseUnits
-          amountInWei = ethers.parseUnits(fromAmount, decimals).toString();
+          const token = availableFromTokens.find(t => t.address.toLowerCase() === fromToken.toLowerCase());
+          const decimals = token?.decimals || 18;
+          if (fromChain === 'solana') {
+            amountInWei = (parseFloat(fromAmount) * Math.pow(10, decimals)).toString();
+          } else {
+            amountInWei = ethers.parseUnits(fromAmount, decimals).toString();
+          }
         }
-      }
 
-      logger.log('📊 Fetching Li.Fi quote:', {
-        fromChain: fromChainId,
-        toChain: toChainId,
-        fromToken,
-        toToken,
-        fromAmount: amountInWei,
-      });
+        const response = await fetch(
+          `/api/lifi/quote?fromChain=${fromChainId}&toChain=${toChainId}&fromToken=${fromToken}&toToken=${toToken}&fromAmount=${amountInWei}&fromAddress=${fromAddress}&slippage=0.03&order=RECOMMENDED`
+        );
 
-      // Check if Solana is involved (Li.Fi may have limited Solana support)
-      if (fromChainId === 101 || toChainId === 101) {
-        logger.warn('⚠️ Solana swap detected - Li.Fi may have limited support');
-      }
-
-      const response = await fetch(
-        `/api/lifi/quote?fromChain=${fromChainId}&toChain=${toChainId}&fromToken=${fromToken}&toToken=${toToken}&fromAmount=${amountInWei}&fromAddress=${fromAddress}&slippage=0.03&order=RECOMMENDED`
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        const errorMessage = errorData.error || 'Failed to fetch quote';
-        const errorDetails = errorData.details || '';
-        const errorHint = errorData.hint || '';
-        
-        // Provide helpful error message
-        let fullErrorMessage = errorMessage;
-        if (errorDetails) {
-          fullErrorMessage += `: ${errorDetails}`;
+        if (!response.ok) {
+          const errorData = await response.json();
+          const errorMessage = errorData.error || 'Failed to fetch quote';
+          const errorDetails = errorData.details || '';
+          const errorHint = errorData.hint || '';
+          
+          let fullErrorMessage = errorMessage;
+          if (errorDetails) {
+            fullErrorMessage += `: ${errorDetails}`;
+          }
+          if (errorHint) {
+            fullErrorMessage += ` ${errorHint}`;
+          }
+          
+          throw new Error(fullErrorMessage);
         }
-        if (errorHint) {
-          fullErrorMessage += ` ${errorHint}`;
-        }
-        
-        // Special message for Solana
-        if ((fromChainId === 101 || toChainId === 101) && !errorHint) {
-          fullErrorMessage += ' Note: Solana swaps may have limited support. Try EVM chains (Ethereum, Polygon, etc.) for better compatibility.';
-        }
-        
-        throw new Error(fullErrorMessage);
-      }
 
-      const data = await response.json();
-      if (data.success && data.quote) {
-        setQuote(data.quote);
-        
-        // Format output amount
-        const toTokenDecimals = data.quote.action.toToken.decimals || 18;
-        const formatted = ethers.formatUnits(data.quote.estimate.toAmount, toTokenDecimals);
-        setToAmount(formatted);
-        
-        logger.log('✅ Quote received:', {
-          tool: data.quote.tool,
-          steps: data.quote.steps.length,
-          toAmount: formatted,
-        });
-      } else {
-        throw new Error('No quote available');
+        const data = await response.json();
+        if (data.success && data.quote) {
+          const lifiQuote = data.quote as LiFiQuote;
+          setQuote(lifiQuote);
+          setIsJupiterQuote(false);
+          
+          // Format output amount
+          const toTokenDecimals = lifiQuote.action.toToken.decimals || 18;
+          const formatted = ethers.formatUnits(lifiQuote.estimate.toAmount, toTokenDecimals);
+          setToAmount(formatted);
+          
+          logger.log('✅ Li.Fi quote received:', {
+            tool: lifiQuote.tool,
+            steps: lifiQuote.steps.length,
+            toAmount: formatted,
+          });
+        } else {
+          throw new Error('No quote available');
+        }
       }
     } catch (err: any) {
       logger.error('❌ Quote error:', err);
@@ -463,82 +513,88 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     setIsSwapping(true);
     setError('');
     setStep('executing');
-    setCurrentStepIndex(0);
-    setTotalSteps(quote.steps.length);
     setStepStatus('Preparing swap...');
 
     try {
-      // Execute each step sequentially
-      for (let i = 0; i < quote.steps.length; i++) {
-        setCurrentStepIndex(i + 1);
-        setStepStatus(`Executing step ${i + 1} of ${quote.steps.length}...`);
+      // ✅ CRITICAL: Handle Jupiter swaps (Solana same-chain) differently
+      if (isJupiterQuote) {
+        const jupiterQuote = quote as JupiterQuote;
+        const { solanaAddress } = useWalletStore.getState();
+        
+        if (!solanaAddress) {
+          throw new Error('Solana address not found');
+        }
 
-        // Get transaction data for this step
-        const response = await fetch('/api/lifi/execute', {
+        setStepStatus('Getting swap transaction from Jupiter...');
+        
+        // Get swap transaction from Jupiter
+        const response = await fetch('/api/jupiter/swap', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            route: quote,
-            stepIndex: i,
-            userAddress: wallet.address,
+            quote: jupiterQuote,
+            userPublicKey: solanaAddress,
+            wrapUnwrapSOL: true,
           }),
         });
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to get transaction data');
+          throw new Error(errorData.error || 'Failed to get swap transaction from Jupiter');
         }
 
         const data = await response.json();
-        if (!data.success || !data.transaction) {
-          throw new Error('Failed to get transaction data');
+        if (!data.success || !data.swapTransaction) {
+          throw new Error('Failed to get swap transaction from Jupiter');
         }
 
-        const { transactionRequest } = data.transaction;
+        const { swapTransaction: swapTxBase64, lastValidBlockHeight } = data.swapTransaction;
 
-        // Check if approval needed
-        if (quote.steps[i].estimate.approvalAddress) {
-          setStepStatus('Approving token...');
-          const tokenAddress = quote.steps[i].action.fromToken.address;
-          const amount = quote.steps[i].action.fromAmount;
-          await handleTokenApproval(
-            tokenAddress,
-            ethers.formatUnits(amount, quote.steps[i].action.fromToken.decimals),
-            quote.steps[i].estimate.approvalAddress
-          );
+        setStepStatus('Signing transaction...');
+        
+        // Import Solana libraries dynamically
+        const { Connection, Transaction, VersionedTransaction } = await import('@solana/web3.js');
+        const { SolanaService } = await import('@/lib/solana-service');
+        
+        // Deserialize transaction
+        const swapTransactionBuf = Buffer.from(swapTxBase64, 'base64');
+        let transaction: Transaction | VersionedTransaction;
+        
+        try {
+          // Try versioned transaction first (newer format)
+          transaction = VersionedTransaction.deserialize(swapTransactionBuf);
+        } catch {
+          // Fallback to legacy transaction
+          transaction = Transaction.from(swapTransactionBuf);
         }
 
-        // Execute transaction
-        const chainConfig = i === 0 ? fromChainConfig : toChainConfig;
-        const provider = new ethers.JsonRpcProvider(chainConfig.rpcUrl);
-        const signer = wallet.connect(provider);
+        // Get Solana connection
+        const solanaService = new SolanaService(fromChainConfig.rpcUrl);
+        const connection = solanaService['connection'];
 
-        setStepStatus('Sending transaction...');
-        const tx = await signer.sendTransaction({
-          to: transactionRequest.to,
-          data: transactionRequest.data,
-          value: transactionRequest.value || '0',
-          gasLimit: transactionRequest.gasLimit || '300000',
-          gasPrice: transactionRequest.gasPrice || undefined,
-        });
+        // Sign transaction with wallet
+        setStepStatus('Signing transaction with wallet...');
+        const signedTransaction = await wallet.signTransaction(transaction as any);
+        
+        setStepStatus('Sending transaction to Solana...');
+        const signature = await connection.sendRawTransaction(
+          signedTransaction.serialize(),
+          {
+            skipPreflight: false,
+            maxRetries: 3,
+          }
+        );
 
+        setTxHash(signature);
         setStepStatus('Waiting for confirmation...');
-        const receipt = await tx.wait();
-        setTxHash(tx.hash);
 
-        logger.log(`✅ Step ${i + 1} completed:`, tx.hash);
+        // Wait for confirmation
+        await connection.confirmTransaction(signature, 'confirmed');
+        
+        logger.log('✅ Jupiter swap completed:', signature);
 
-        // If cross-chain and last step, start status polling
-        if (fromChain !== toChain && i === quote.steps.length - 1) {
-          setStepStatus('Bridge transfer in progress...');
-          pollTransactionStatus(tx.hash, quote);
-        }
-      }
-
-      // If same-chain, we're done
-      if (fromChain === toChain) {
         setSuccess(true);
         setStep('success');
         setStepStatus('Swap completed!');
@@ -552,6 +608,97 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           setStep('input');
           onClose();
         }, 3000);
+      } else {
+        // Li.Fi swap (cross-chain or EVM)
+        const lifiQuote = quote as LiFiQuote;
+        setCurrentStepIndex(0);
+        setTotalSteps(lifiQuote.steps.length);
+
+        // Execute each step sequentially
+        for (let i = 0; i < lifiQuote.steps.length; i++) {
+          setCurrentStepIndex(i + 1);
+          setStepStatus(`Executing step ${i + 1} of ${lifiQuote.steps.length}...`);
+
+          // Get transaction data for this step
+          const response = await fetch('/api/lifi/execute', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              route: lifiQuote,
+              stepIndex: i,
+              userAddress: wallet.address,
+            }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to get transaction data');
+          }
+
+          const data = await response.json();
+          if (!data.success || !data.transaction) {
+            throw new Error('Failed to get transaction data');
+          }
+
+          const { transactionRequest } = data.transaction;
+
+          // Check if approval needed
+          if (lifiQuote.steps[i].estimate.approvalAddress) {
+            setStepStatus('Approving token...');
+            const tokenAddress = lifiQuote.steps[i].action.fromToken.address;
+            const amount = lifiQuote.steps[i].action.fromAmount;
+            await handleTokenApproval(
+              tokenAddress,
+              ethers.formatUnits(amount, lifiQuote.steps[i].action.fromToken.decimals),
+              lifiQuote.steps[i].estimate.approvalAddress
+            );
+          }
+
+          // Execute transaction
+          const chainConfig = i === 0 ? fromChainConfig : toChainConfig;
+          const provider = new ethers.JsonRpcProvider(chainConfig.rpcUrl);
+          const signer = wallet.connect(provider);
+
+          setStepStatus('Sending transaction...');
+          const tx = await signer.sendTransaction({
+            to: transactionRequest.to,
+            data: transactionRequest.data,
+            value: transactionRequest.value || '0',
+            gasLimit: transactionRequest.gasLimit || '300000',
+            gasPrice: transactionRequest.gasPrice || undefined,
+          });
+
+          setStepStatus('Waiting for confirmation...');
+          const receipt = await tx.wait();
+          setTxHash(tx.hash);
+
+          logger.log(`✅ Step ${i + 1} completed:`, tx.hash);
+
+          // If cross-chain and last step, start status polling
+          if (fromChain !== toChain && i === lifiQuote.steps.length - 1) {
+            setStepStatus('Bridge transfer in progress...');
+            pollTransactionStatus(tx.hash, lifiQuote);
+          }
+        }
+
+        // If same-chain, we're done
+        if (fromChain === toChain) {
+          setSuccess(true);
+          setStep('success');
+          setStepStatus('Swap completed!');
+          
+          // Reset after 3 seconds
+          setTimeout(() => {
+            setFromAmount('');
+            setToAmount('');
+            setQuote(null);
+            setSuccess(false);
+            setStep('input');
+            onClose();
+          }, 3000);
+        }
       }
 
     } catch (err: any) {

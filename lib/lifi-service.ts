@@ -2,9 +2,11 @@ import { logger } from '@/lib/logger';
 
 // Li.Fi Native Token Addresses
 // EVM chains use: 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
-// Solana uses: So11111111111111111111111111111111111111112 (Wrapped SOL)
+// Solana uses: 11111111111111111111111111111111 (System Program address for native SOL)
+// According to Li.Fi docs: https://docs.li.fi/introduction/lifi-architecture/solana-overview
+// "The native SOL is represented using the System Program address 11111111111111111111111111111111"
 const NATIVE_TOKEN_EVM = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
-const NATIVE_TOKEN_SOLANA = 'So11111111111111111111111111111111111111112'; // Wrapped SOL
+const NATIVE_TOKEN_SOLANA = '11111111111111111111111111111111'; // System Program address (native SOL)
 
 // Li.Fi Base URL
 const BASE_URL = 'https://li.quest/v1';
@@ -129,8 +131,9 @@ export class LiFiService {
       // Determine native token address based on chain
       const getNativeTokenAddress = (chainId: number): string => {
         // Solana chain ID is 101
+        // According to Li.Fi docs: native SOL uses System Program address
         if (chainId === 101) {
-          return NATIVE_TOKEN_SOLANA; // Wrapped SOL
+          return NATIVE_TOKEN_SOLANA; // System Program address (1111...1111)
         }
         // All EVM chains use the same native token address
         return NATIVE_TOKEN_EVM;
@@ -391,7 +394,7 @@ export class LiFiService {
    */
   static getNativeTokenAddress(chainId: number): string {
     if (chainId === 101) {
-      return NATIVE_TOKEN_SOLANA; // Solana
+      return NATIVE_TOKEN_SOLANA; // System Program address for native SOL
     }
     return NATIVE_TOKEN_EVM; // EVM chains
   }
@@ -401,7 +404,9 @@ export class LiFiService {
    */
   static isNativeToken(address: string, chainId?: number): boolean {
     if (chainId === 101) {
-      return address === NATIVE_TOKEN_SOLANA;
+      // For Solana, check both System Program and wrapped SOL
+      return address === NATIVE_TOKEN_SOLANA || 
+             address === 'So11111111111111111111111111111111111111112';
     }
     return address.toLowerCase() === NATIVE_TOKEN_EVM.toLowerCase();
   }
