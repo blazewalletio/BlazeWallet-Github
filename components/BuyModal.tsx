@@ -116,11 +116,19 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
   const loadSupportedData = async () => {
     try {
       const response = await fetch('/api/onramper/supported-data');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.paymentMethods) setPaymentMethods(data.paymentMethods);
-        if (data.fiatCurrencies) setFiatCurrencies(data.fiatCurrencies);
-        if (data.cryptoCurrencies) setSupportedCryptos(data.cryptoCurrencies);
+      const data = await response.json();
+      
+      // Always use the data from response (API returns fallback if no key)
+      if (data.paymentMethods) setPaymentMethods(data.paymentMethods);
+      if (data.fiatCurrencies) setFiatCurrencies(data.fiatCurrencies);
+      if (data.cryptoCurrencies) {
+        // Merge with chain-specific supported assets
+        const chainAssets = OnramperService.getSupportedAssets(chain.id);
+        const merged = [...new Set([...data.cryptoCurrencies, ...chainAssets])];
+        setSupportedCryptos(merged);
+      } else {
+        // Fallback to chain-specific assets
+        setSupportedCryptos(OnramperService.getSupportedAssets(chain.id));
       }
     } catch (error) {
       logger.error('Error loading supported data:', error);
@@ -130,6 +138,7 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
         { id: 'card', name: 'Credit Card', icon: 'card', processingTime: '2-5 min', fee: '€2.00' },
         { id: 'bank', name: 'Bank Transfer', icon: 'bank', processingTime: '1-3 days', fee: '€0.00' },
       ]);
+      setSupportedCryptos(OnramperService.getSupportedAssets(chain.id));
     }
   };
 
@@ -147,22 +156,33 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
         `/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${selectedFiat}&cryptoCurrency=${selectedCrypto}&paymentMethod=${selectedPaymentMethod || ''}`
       );
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch quote');
-      }
-
       const data = await response.json();
+      
+      // API always returns success with fallback data if no key
       if (data.success && data.quote) {
         setQuote(data.quote);
+        // Clear error if we got a quote (even if it's an estimate)
+        setError('');
       } else {
         // Fallback: Calculate estimate if API doesn't return quote
-        const estimatedRate = 3000; // Example rate (1 ETH = 3000 EUR)
-        const estimatedCrypto = (parseFloat(fiatAmount) / estimatedRate).toFixed(6);
+        const exchangeRates: Record<string, number> = {
+          'ETH': 3000,
+          'BTC': 45000,
+          'SOL': 150,
+          'USDT': 1,
+          'USDC': 1,
+          'MATIC': 0.8,
+          'BNB': 600,
+          'AVAX': 40,
+        };
+        
+        const rate = selectedCrypto ? (exchangeRates[selectedCrypto] || 3000) : 3000;
+        const estimatedCrypto = (parseFloat(fiatAmount) / rate).toFixed(6);
         const estimatedFee = (parseFloat(fiatAmount) * 0.01).toFixed(2);
         
         setQuote({
           cryptoAmount: estimatedCrypto,
-          exchangeRate: estimatedRate.toString(),
+          exchangeRate: rate.toString(),
           fee: estimatedFee,
           totalAmount: fiatAmount,
         });
@@ -170,13 +190,24 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
     } catch (err: any) {
       logger.error('Error fetching quote:', err);
       // Use fallback estimate
-      const estimatedRate = 3000;
-      const estimatedCrypto = (parseFloat(fiatAmount) / estimatedRate).toFixed(6);
+      const exchangeRates: Record<string, number> = {
+        'ETH': 3000,
+        'BTC': 45000,
+        'SOL': 150,
+        'USDT': 1,
+        'USDC': 1,
+        'MATIC': 0.8,
+        'BNB': 600,
+        'AVAX': 40,
+      };
+      
+      const rate = selectedCrypto ? (exchangeRates[selectedCrypto] || 3000) : 3000;
+      const estimatedCrypto = (parseFloat(fiatAmount) / rate).toFixed(6);
       const estimatedFee = (parseFloat(fiatAmount) * 0.01).toFixed(2);
       
       setQuote({
         cryptoAmount: estimatedCrypto,
-        exchangeRate: estimatedRate.toString(),
+        exchangeRate: rate.toString(),
         fee: estimatedFee,
         totalAmount: fiatAmount,
       });
@@ -246,7 +277,10 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create transaction');
+        if (errorData.requiresApiKey) {
+          throw new Error('Onramper API key is required to process transactions. Please add ONRAMPER_API_KEY to environment variables.');
+        }
+        throw new Error(errorData.error || errorData.message || 'Failed to create transaction');
       }
 
       const data = await response.json();

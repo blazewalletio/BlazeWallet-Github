@@ -25,7 +25,11 @@ export async function POST(req: NextRequest) {
     if (!onramperApiKey) {
       logger.error('ONRAMPER_API_KEY is not set in environment variables.');
       return NextResponse.json(
-        { error: 'Onramper not configured', message: 'Please add ONRAMPER_API_KEY to environment variables' },
+        { 
+          error: 'Onramper not configured', 
+          message: 'Please add ONRAMPER_API_KEY to environment variables. The buy feature requires an Onramper API key to process transactions.',
+          requiresApiKey: true
+        },
         { status: 503 }
       );
     }
