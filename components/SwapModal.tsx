@@ -562,7 +562,9 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         
         // Deserialize transaction
         const swapTransactionBuf = Buffer.from(swapTxBase64, 'base64');
-        let transaction: solanaWeb3.Transaction | solanaWeb3.VersionedTransaction;
+        // Use 'any' type for transaction since we're using dynamic imports
+        // The actual types are Transaction | VersionedTransaction from @solana/web3.js
+        let transaction: any;
         
         try {
           // Try versioned transaction first (newer format)
