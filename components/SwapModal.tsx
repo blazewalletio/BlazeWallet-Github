@@ -16,13 +16,14 @@ import {
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
-import { CHAINS, POPULAR_TOKENS } from '@/lib/chains';
-import { LiFiService, LiFiQuote } from '@/lib/lifi-service';
+import { CHAINS } from '@/lib/chains';
+import { LiFiService, LiFiQuote, LiFiToken } from '@/lib/lifi-service';
 import { MultiChainService } from '@/lib/multi-chain-service';
 import { PriceService } from '@/lib/price-service';
 import { ethers } from 'ethers';
 import { logger } from '@/lib/logger';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import TokenSearchModal from './TokenSearchModal';
 
 interface SwapModalProps {
   isOpen: boolean;
@@ -58,7 +59,6 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   const [fromToken, setFromToken] = useState<string>('native');
   const [toToken, setToToken] = useState<string>('');
   const [showFromTokenDropdown, setShowFromTokenDropdown] = useState(false);
-  const [showToTokenDropdown, setShowToTokenDropdown] = useState(false);
   
   // Available tokens (only tokens user owns)
   const [availableFromTokens, setAvailableFromTokens] = useState<AvailableToken[]>([]);
@@ -90,7 +90,10 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
 
   const fromChainConfig = CHAINS[fromChain];
   const toChainConfig = CHAINS[toChain];
-  const toChainTokens = POPULAR_TOKENS[toChain] || [];
+  
+  // Token search modal states
+  const [showToTokenSearch, setShowToTokenSearch] = useState(false);
+  const [selectedToToken, setSelectedToToken] = useState<LiFiToken | 'native' | null>(null);
 
   useBlockBodyScroll(isOpen);
 
@@ -208,6 +211,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       setToChain(currentChain);
       setFromToken('native');
       setToToken('');
+      setSelectedToToken(null);
       setFromAmount('');
       setToAmount('');
       setQuote(null);
@@ -221,11 +225,6 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       
       // Fetch available tokens for fromChain
       fetchFromTokens(currentChain);
-      
-      // Set default toToken
-      if (toChainTokens.length > 0) {
-        setToToken(toChainTokens[0].address);
-      }
     } else {
       // Cleanup polling on close
       if (pollingIntervalRef.current) {
@@ -233,7 +232,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         pollingIntervalRef.current = null;
       }
     }
-  }, [isOpen, currentChain, toChainTokens]);
+  }, [isOpen, currentChain]);
 
   // Fetch tokens when fromChain changes
   useEffect(() => {
@@ -243,6 +242,14 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       setFromToken('native');
     }
   }, [fromChain, isOpen]);
+
+  // Reset toToken when toChain changes
+  useEffect(() => {
+    if (isOpen && toChain) {
+      setToToken('');
+      setSelectedToToken(null);
+    }
+  }, [toChain, isOpen]);
 
   // AI Assistant pre-fill
   useEffect(() => {
@@ -268,14 +275,11 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         const tokenSymbol = prefillData.toToken.toUpperCase();
         if (tokenSymbol === toChainConfig?.nativeCurrency.symbol.toUpperCase()) {
           setToToken('native');
+          setSelectedToToken('native');
         } else {
-          // Use POPULAR_TOKENS for toToken (all available tokens)
-          const matchingToken = toChainTokens.find(
-            token => token.symbol.toUpperCase() === tokenSymbol
-          );
-          if (matchingToken) {
-            setToToken(matchingToken.address);
-          }
+          // Note: We can't match tokens here without fetching from Li.Fi
+          // The user will need to select manually or we fetch tokens first
+          logger.warn('⚠️ [SwapModal] Cannot pre-fill toToken without fetching tokens first');
         }
       }
       
@@ -288,7 +292,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         }
       }
     }
-  }, [isOpen, prefillData, fromChainConfig, toChainConfig, availableFromTokens, toChainTokens, fromToken]);
+  }, [isOpen, prefillData, fromChainConfig, toChainConfig, availableFromTokens, fromToken]);
 
   // Fetch quote when inputs change (debounced)
   useEffect(() => {
@@ -615,32 +619,42 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   };
 
   const getTokenSymbol = (address: string, chain: string, isFromToken: boolean = false): string => {
-    if (address === 'native') return CHAINS[chain].nativeCurrency.symbol;
+    if (address === 'native' || address === LiFiService.getNativeTokenAddress(CHAINS[chain]?.id || 1)) {
+      return CHAINS[chain]?.nativeCurrency.symbol || 'Token';
+    }
     
     if (isFromToken) {
       // For fromToken, use availableFromTokens (tokens user owns)
       const token = availableFromTokens.find(t => t.address.toLowerCase() === address.toLowerCase());
       return token?.symbol || 'Token';
     } else {
-      // For toToken, use POPULAR_TOKENS (all available tokens)
-      const tokens = POPULAR_TOKENS[chain] || [];
-      const token = tokens.find(t => t.address.toLowerCase() === address.toLowerCase());
-      return token?.symbol || 'Token';
+      // For toToken, use selectedToToken
+      if (selectedToToken && selectedToToken !== 'native') {
+        if (selectedToToken.address.toLowerCase() === address.toLowerCase()) {
+          return selectedToToken.symbol;
+        }
+      }
+      return 'Token';
     }
   };
 
   const getTokenName = (address: string, chain: string, isFromToken: boolean = false): string => {
-    if (address === 'native') return CHAINS[chain].nativeCurrency.name;
+    if (address === 'native' || address === LiFiService.getNativeTokenAddress(CHAINS[chain]?.id || 1)) {
+      return CHAINS[chain]?.nativeCurrency.name || 'Token';
+    }
     
     if (isFromToken) {
       // For fromToken, use availableFromTokens
       const token = availableFromTokens.find(t => t.address.toLowerCase() === address.toLowerCase());
       return token?.name || 'Token';
     } else {
-      // For toToken, use POPULAR_TOKENS
-      const tokens = POPULAR_TOKENS[chain] || [];
-      const token = tokens.find(t => t.address.toLowerCase() === address.toLowerCase());
-      return token?.name || 'Token';
+      // For toToken, use selectedToToken
+      if (selectedToToken && selectedToToken !== 'native') {
+        if (selectedToToken.address.toLowerCase() === address.toLowerCase()) {
+          return selectedToToken.name;
+        }
+      }
+      return 'Token';
     }
   };
 
@@ -669,6 +683,17 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
            !!toToken &&
            !isLoadingQuote &&
            !isSwapping;
+  };
+
+  // Handle token selection from TokenSearchModal
+  const handleToTokenSelect = (token: LiFiToken | 'native') => {
+    setSelectedToToken(token);
+    if (token === 'native') {
+      setToToken('native');
+    } else {
+      setToToken(token.address);
+    }
+    setShowToTokenSearch(false);
   };
 
   if (!isOpen) return null;
@@ -821,7 +846,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                           <button
                             onClick={() => {
                               setShowFromTokenDropdown(!showFromTokenDropdown);
-                              setShowToTokenDropdown(false);
+                              setShowToTokenSearch(false);
                             }}
                             className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-medium text-gray-900 hover:border-orange-300 transition-colors focus:outline-none focus:border-orange-500 flex items-center justify-between"
                           >
@@ -964,11 +989,8 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                                     setToChain(key);
                                     setShowToChainDropdown(false);
                                     // Reset token when chain changes
-                                    if (toChainTokens.length > 0) {
-                                      setToToken(toChainTokens[0].address);
-                                    } else {
-                                      setToToken('');
-                                    }
+                                    setToToken('');
+                                    setSelectedToToken(null);
                                   }}
                                   className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors ${
                                     toChain === key ? 'bg-orange-50' : ''
@@ -1001,64 +1023,63 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                       <label className="text-sm font-medium text-gray-900 mb-2 block">
                         To token
                       </label>
-                      <div className="relative">
-                        <button
-                          onClick={() => {
-                            setShowToTokenDropdown(!showToTokenDropdown);
-                            setShowFromTokenDropdown(false);
-                          }}
-                          className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-medium text-gray-900 hover:border-orange-300 transition-colors focus:outline-none focus:border-orange-500 flex items-center justify-between"
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="font-semibold">
-                              {toToken ? getTokenSymbol(toToken, toChain) : 'Select token'}
-                            </span>
-                          </div>
-                          <ChevronDown className="w-5 h-5 text-gray-400" />
-                        </button>
-                        
-                        {showToTokenDropdown && (
-                          <motion.div
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="absolute z-10 w-full mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-80 overflow-y-auto"
-                          >
-                            <button
-                              onClick={() => {
-                                setToToken('native');
-                                setShowToTokenDropdown(false);
-                              }}
-                              className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors ${
-                                toToken === 'native' ? 'bg-orange-50' : ''
-                              }`}
-                            >
-                              <span className="font-medium text-gray-900">
-                                {toChainConfig.nativeCurrency.symbol}
-                              </span>
-                              {toToken === 'native' && (
-                                <Check className="w-5 h-5 text-orange-500" />
+                      <button
+                        onClick={() => {
+                          setShowToTokenSearch(true);
+                          setShowFromTokenDropdown(false);
+                        }}
+                        className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-medium text-gray-900 hover:border-orange-300 transition-colors focus:outline-none focus:border-orange-500 flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-3">
+                          {selectedToToken === 'native' ? (
+                            <>
+                              {toChainConfig.logoUrl ? (
+                                <img 
+                                  src={toChainConfig.logoUrl} 
+                                  alt={toChainConfig.nativeCurrency.symbol}
+                                  className="w-8 h-8 rounded-full"
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center">
+                                  <span className="text-white font-bold text-xs">
+                                    {toChainConfig.nativeCurrency.symbol[0]}
+                                  </span>
+                                </div>
                               )}
-                            </button>
-                            {toChainTokens.map(token => (
-                              <button
-                                key={token.address}
-                                onClick={() => {
-                                  setToToken(token.address);
-                                  setShowToTokenDropdown(false);
-                                }}
-                                className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors ${
-                                  toToken === token.address ? 'bg-orange-50' : ''
-                                }`}
-                              >
-                                <span className="font-medium text-gray-900">{token.symbol}</span>
-                                {toToken === token.address && (
-                                  <Check className="w-5 h-5 text-orange-500" />
-                                )}
-                              </button>
-                            ))}
-                          </motion.div>
-                        )}
-                      </div>
+                              <div className="text-left">
+                                <div className="font-semibold">{toChainConfig.nativeCurrency.symbol}</div>
+                                <div className="text-xs text-gray-500">{toChainConfig.nativeCurrency.name}</div>
+                              </div>
+                            </>
+                          ) : selectedToToken ? (
+                            <>
+                              {selectedToToken.logoURI ? (
+                                <img 
+                                  src={selectedToToken.logoURI} 
+                                  alt={selectedToToken.symbol}
+                                  className="w-8 h-8 rounded-full"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center">
+                                  <span className="text-white font-bold text-xs">
+                                    {selectedToToken.symbol[0]}
+                                  </span>
+                                </div>
+                              )}
+                              <div className="text-left">
+                                <div className="font-semibold">{selectedToToken.symbol}</div>
+                                <div className="text-xs text-gray-500 truncate max-w-[200px]">{selectedToToken.name}</div>
+                              </div>
+                            </>
+                          ) : (
+                            <span className="font-semibold text-gray-500">Select token</span>
+                          )}
+                        </div>
+                        <ChevronDown className="w-5 h-5 text-gray-400" />
+                      </button>
                     </div>
 
                     {/* To Amount (Read-only) */}
@@ -1259,6 +1280,16 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           </div>
         </div>
       </motion.div>
+
+      {/* Token Search Modal */}
+      <TokenSearchModal
+        isOpen={showToTokenSearch}
+        onClose={() => setShowToTokenSearch(false)}
+        chainKey={toChain}
+        selectedToken={toToken}
+        onSelectToken={handleToTokenSelect}
+        excludeTokens={fromToken && fromToken !== 'native' ? [fromToken] : []}
+      />
     </AnimatePresence>
   );
 }
