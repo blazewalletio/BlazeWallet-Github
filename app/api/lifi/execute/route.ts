@@ -40,9 +40,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, transaction });
 
   } catch (error: any) {
-    logger.error('Li.Fi execute error:', error);
+    logger.error('❌ Li.Fi execute error in API route:', {
+      error: error.message,
+      stack: error.stack,
+    });
     return NextResponse.json(
-      { error: 'Failed to execute', details: error.message },
+      { 
+        error: 'Failed to execute Li.Fi transaction',
+        details: error.message || 'Unknown error',
+      },
       { status: 500 }
     );
   }
