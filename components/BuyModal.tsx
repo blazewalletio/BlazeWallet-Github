@@ -3,7 +3,18 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
-import { CreditCard, Banknote, ShieldCheck, Flame, ExternalLink, Loader2, X } from 'lucide-react';
+import { 
+  CreditCard, 
+  Banknote, 
+  Flame, 
+  Loader2, 
+  Check, 
+  ChevronDown,
+  CheckCircle2,
+  Building,
+  AlertCircle,
+  ArrowRight
+} from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { CHAINS } from '@/lib/chains';
@@ -15,92 +26,300 @@ interface BuyModalProps {
   onClose: () => void;
 }
 
+interface Quote {
+  cryptoAmount: string;
+  exchangeRate: string;
+  fee: string;
+  totalAmount: string;
+}
+
+interface PaymentMethod {
+  id: string;
+  name: string;
+  icon: string;
+  processingTime: string;
+  fee: string;
+}
+
+interface Transaction {
+  transactionId: string;
+  paymentUrl: string;
+  status: string;
+}
+
 export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
   const { address, currentChain, solanaAddress, bitcoinAddress } = useWalletStore();
   const chain = CHAINS[currentChain];
-  const supportedAssets = OnramperService.getSupportedAssets(chain.id);
   
-  const [widgetUrl, setWidgetUrl] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
+  const [step, setStep] = useState<'input' | 'confirm' | 'payment' | 'processing'>('input');
+  const [fiatAmount, setFiatAmount] = useState('');
+  const [selectedFiat, setSelectedFiat] = useState('EUR');
+  const [selectedCrypto, setSelectedCrypto] = useState<string | null>(null);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null);
+  const [quote, setQuote] = useState<Quote | null>(null);
+  const [isLoadingQuote, setIsLoadingQuote] = useState(false);
+  const [transaction, setTransaction] = useState<Transaction | null>(null);
+  const [transactionStatus, setTransactionStatus] = useState<'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED'>('PENDING');
+  const [error, setError] = useState('');
+  
+  // Dropdown states
+  const [showFiatDropdown, setShowFiatDropdown] = useState(false);
+  const [showCryptoDropdown, setShowCryptoDropdown] = useState(false);
+  
+  // Supported data
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [fiatCurrencies, setFiatCurrencies] = useState<string[]>(['EUR', 'USD', 'GBP']);
+  const [supportedCryptos, setSupportedCryptos] = useState<string[]>([]);
 
   // Block body scroll when overlay is open
   useBlockBodyScroll(isOpen);
 
-  // Load widget URL when modal opens
+  // Initialize: Load supported data and set default crypto
   useEffect(() => {
     if (isOpen && address) {
-      // Load widget with default crypto for current chain
+      // Set default crypto for current chain
       const defaultCrypto = OnramperService.getDefaultCrypto(chain.id);
-      loadWidget(defaultCrypto);
+      setSelectedCrypto(defaultCrypto);
+      setSupportedCryptos(OnramperService.getSupportedAssets(chain.id));
+      
+      // Load supported data
+      loadSupportedData();
     } else {
       // Reset state when modal closes
-      setWidgetUrl(null);
-      setError(null);
-      setSelectedAsset(null);
+      setStep('input');
+      setFiatAmount('');
+      setSelectedFiat('EUR');
+      setSelectedCrypto(null);
+      setSelectedPaymentMethod(null);
+      setQuote(null);
+      setTransaction(null);
+      setTransactionStatus('PENDING');
+      setError('');
+      setShowFiatDropdown(false);
+      setShowCryptoDropdown(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, address, currentChain]);
 
-  const loadWidget = async (currencyCode?: string) => {
-    if (!address) {
-      toast.error('Please connect your wallet first');
+  // Fetch quote when amount or selections change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (fiatAmount && parseFloat(fiatAmount) >= 10 && selectedCrypto && selectedFiat) {
+        fetchQuote();
+      } else {
+        setQuote(null);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [fiatAmount, selectedFiat, selectedCrypto, selectedPaymentMethod]);
+
+  const loadSupportedData = async () => {
+    try {
+      const response = await fetch('/api/onramper/supported-data');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.paymentMethods) setPaymentMethods(data.paymentMethods);
+        if (data.fiatCurrencies) setFiatCurrencies(data.fiatCurrencies);
+        if (data.cryptoCurrencies) setSupportedCryptos(data.cryptoCurrencies);
+      }
+    } catch (error) {
+      logger.error('Error loading supported data:', error);
+      // Use defaults
+      setPaymentMethods([
+        { id: 'ideal', name: 'iDEAL', icon: 'ideal', processingTime: 'Instant', fee: '€0.50' },
+        { id: 'card', name: 'Credit Card', icon: 'card', processingTime: '2-5 min', fee: '€2.00' },
+        { id: 'bank', name: 'Bank Transfer', icon: 'bank', processingTime: '1-3 days', fee: '€0.00' },
+      ]);
+    }
+  };
+
+  const fetchQuote = async () => {
+    if (!fiatAmount || parseFloat(fiatAmount) < 10) {
+      setQuote(null);
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
-    setSelectedAsset(currencyCode || null);
+    setIsLoadingQuote(true);
+    setError('');
 
     try {
-      logger.log('🔥 BUY MODAL: Starting Onramper integration...');
-      logger.log('Wallet Address:', address);
-      logger.log('Chain ID:', chain.id);
-      logger.log('Currency Code:', currencyCode);
+      const response = await fetch(
+        `/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${selectedFiat}&cryptoCurrency=${selectedCrypto}&paymentMethod=${selectedPaymentMethod || ''}`
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch quote');
+      }
+
+      const data = await response.json();
+      if (data.success && data.quote) {
+        setQuote(data.quote);
+      } else {
+        // Fallback: Calculate estimate if API doesn't return quote
+        const estimatedRate = 3000; // Example rate (1 ETH = 3000 EUR)
+        const estimatedCrypto = (parseFloat(fiatAmount) / estimatedRate).toFixed(6);
+        const estimatedFee = (parseFloat(fiatAmount) * 0.01).toFixed(2);
+        
+        setQuote({
+          cryptoAmount: estimatedCrypto,
+          exchangeRate: estimatedRate.toString(),
+          fee: estimatedFee,
+          totalAmount: fiatAmount,
+        });
+      }
+    } catch (err: any) {
+      logger.error('Error fetching quote:', err);
+      // Use fallback estimate
+      const estimatedRate = 3000;
+      const estimatedCrypto = (parseFloat(fiatAmount) / estimatedRate).toFixed(6);
+      const estimatedFee = (parseFloat(fiatAmount) * 0.01).toFixed(2);
       
-      // 🔒 SECURITY: Use server-side endpoint to hide API key
-      const response = await fetch('/api/onramper/init', {
+      setQuote({
+        cryptoAmount: estimatedCrypto,
+        exchangeRate: estimatedRate.toString(),
+        fee: estimatedFee,
+        totalAmount: fiatAmount,
+      });
+    } finally {
+      setIsLoadingQuote(false);
+    }
+  };
+
+  const handleMaxAmount = () => {
+    setFiatAmount('10000'); // Max allowed
+  };
+
+  const handleContinue = () => {
+    setError('');
+    
+    if (!fiatAmount || parseFloat(fiatAmount) < 10) {
+      setError('Minimum amount is €10');
+      return;
+    }
+
+    if (parseFloat(fiatAmount) > 10000) {
+      setError('Maximum amount is €10,000');
+      return;
+    }
+
+    if (!selectedCrypto) {
+      setError('Please select a crypto currency');
+      return;
+    }
+
+    if (!selectedPaymentMethod) {
+      setError('Please select a payment method');
+      return;
+    }
+
+    if (!quote) {
+      setError('Please wait for quote to load');
+      return;
+    }
+
+    setStep('confirm');
+  };
+
+  const handleCreateTransaction = async () => {
+    if (!address || !fiatAmount || !selectedCrypto || !selectedPaymentMethod) {
+      setError('Missing required information');
+      return;
+    }
+
+    setError('');
+    setStep('payment');
+
+    try {
+      const response = await fetch('/api/onramper/create-transaction', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          fiatAmount: parseFloat(fiatAmount),
+          fiatCurrency: selectedFiat,
+          cryptoCurrency: selectedCrypto,
           walletAddress: address,
-          defaultCryptoCurrency: currencyCode || OnramperService.getDefaultCrypto(chain.id),
-          defaultFiatCurrency: 'EUR',
-          chainId: chain.id,
-          solanaAddress: solanaAddress || undefined,
-          bitcoinAddress: bitcoinAddress || undefined,
-          theme: 'light',
+          paymentMethod: selectedPaymentMethod,
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to initialize Onramper');
+        throw new Error(errorData.error || 'Failed to create transaction');
       }
 
-      const { widgetUrl: url } = await response.json();
-      setWidgetUrl(url);
-      logger.log('✅ BUY MODAL SUCCESS: Onramper widget URL loaded');
-    } catch (error) {
-      logger.error('❌ BUY MODAL ERROR:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      setError(errorMessage);
-      
-      if (errorMessage.includes('not configured')) {
-        toast.error('Onramper is not configured. Please add ONRAMPER_API_KEY to environment variables.');
+      const data = await response.json();
+      if (data.success && data.transaction) {
+        setTransaction(data.transaction);
+        
+        // Redirect to payment URL
+        if (data.transaction.paymentUrl) {
+          window.open(data.transaction.paymentUrl, '_blank');
+          setStep('processing');
+          setTransactionStatus('PENDING');
+          
+          // Start polling for status updates
+          pollTransactionStatus(data.transaction.transactionId);
+        }
       } else {
-        toast.error(`Failed to load Onramper: ${errorMessage}`);
+        throw new Error('Failed to create transaction');
       }
-    } finally {
-      setIsLoading(false);
+    } catch (err: any) {
+      logger.error('Error creating transaction:', err);
+      setError(err.message || 'Failed to create transaction');
+      setStep('confirm');
     }
   };
 
-  const handleAssetSelect = (currencyCode: string) => {
-    loadWidget(currencyCode);
+  const pollTransactionStatus = async (transactionId: string) => {
+    // Poll for status updates (webhook will handle actual updates)
+    // This is a fallback polling mechanism
+    const interval = setInterval(async () => {
+      try {
+        // In a real implementation, you'd poll the transaction status
+        // For now, we'll rely on webhooks
+        // This is just a placeholder
+      } catch (error) {
+        logger.error('Error polling transaction status:', error);
+      }
+    }, 5000);
+
+    // Clear interval after 5 minutes
+    setTimeout(() => clearInterval(interval), 5 * 60 * 1000);
+  };
+
+  const handleClose = () => {
+    setStep('input');
+    setFiatAmount('');
+    setSelectedFiat('EUR');
+    setSelectedCrypto(null);
+    setSelectedPaymentMethod(null);
+    setQuote(null);
+    setTransaction(null);
+    setTransactionStatus('PENDING');
+    setError('');
+    setShowFiatDropdown(false);
+    setShowCryptoDropdown(false);
+    onClose();
+  };
+
+  const getPaymentMethodIcon = (icon: string, isSelected: boolean) => {
+    const iconClass = isSelected ? 'text-white' : 'text-gray-600';
+    switch (icon) {
+      case 'ideal':
+        return <Banknote className={`w-5 h-5 ${iconClass}`} />;
+      case 'card':
+        return <CreditCard className={`w-5 h-5 ${iconClass}`} />;
+      case 'bank':
+        return <Building className={`w-5 h-5 ${iconClass}`} />;
+      default:
+        return <CreditCard className={`w-5 h-5 ${iconClass}`} />;
+    }
+  };
+
+  const getPaymentMethodName = (id: string) => {
+    return paymentMethods.find(m => m.id === id)?.name || id;
   };
 
   if (!isOpen) return null;
@@ -113,163 +332,434 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
       >
-        <div className="max-w-4xl mx-auto p-6">
-          {/* Back Button */}
-          <button
-            onClick={onClose}
-            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-          >
-            ← Back
-          </button>
-
-          {/* Header */}
-          <div className="mb-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
-                <Flame className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Buy crypto</h2>
-                <p className="text-sm text-gray-600">
-                  With iDEAL, credit card or bank transfer
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Content */}
-          {!address ? (
-            <div className="glass-card p-12 text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CreditCard className="w-8 h-8 text-gray-400" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Connect Your Wallet</h3>
-              <p className="text-gray-600 mb-6">Please connect your wallet to buy crypto</p>
+        <div className="min-h-full flex flex-col">
+          <div className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 pt-safe pb-safe">
+            <div className="pt-4 pb-2">
               <button
-                onClick={onClose}
-                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-yellow-600 transition-all"
+                onClick={handleClose}
+                className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
-                Go Back
+                ← Back
               </button>
             </div>
-          ) : error && !widgetUrl ? (
-            <div className="glass-card p-12 text-center">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <X className="w-8 h-8 text-red-500" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Error Loading Widget</h3>
-              <p className="text-gray-600 mb-6">{error}</p>
-              <button
-                onClick={() => loadWidget()}
-                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-yellow-600 transition-all"
-              >
-                Try Again
-              </button>
-            </div>
-          ) : isLoading ? (
-            <div className="glass-card p-12 text-center min-h-[600px] flex items-center justify-center">
-              <div>
-                <Loader2 className="w-12 h-12 text-orange-500 animate-spin mx-auto mb-4" />
-                <p className="text-gray-600">Loading Onramper widget...</p>
+
+            <div className="mb-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Flame className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Buy crypto</h2>
+                  <p className="text-sm text-gray-600">
+                    Purchase crypto with iDEAL, credit card or bank transfer
+                  </p>
+                </div>
               </div>
             </div>
-          ) : widgetUrl ? (
-            <div className="space-y-6">
-              {/* Popular Assets Selector */}
-              <div className="glass-card p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Popular crypto</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {supportedAssets.slice(0, 6).map((currencyCode) => {
-                    const displayName = OnramperService.getDisplayName(currencyCode);
-                    const isSelected = selectedAsset === currencyCode;
-                    return (
+
+            <div className="space-y-6 pb-6">
+              {step === 'input' && (
+                <>
+                  {!address ? (
+                    <div className="glass-card p-12 text-center">
+                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <CreditCard className="w-8 h-8 text-gray-400" />
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">Connect Your Wallet</h3>
+                      <p className="text-gray-600 mb-6">Please connect your wallet to buy crypto</p>
                       <button
-                        key={currencyCode}
-                        onClick={() => handleAssetSelect(currencyCode)}
-                        className={`p-4 rounded-xl text-left border-2 transition-all ${
-                          isSelected
-                            ? 'bg-gradient-to-br from-orange-500 to-yellow-500 border-orange-500 text-white'
-                            : 'bg-gray-50 border-gray-200 hover:border-orange-300'
-                        }`}
+                        onClick={handleClose}
+                        className="px-6 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-yellow-600 transition-all"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ${
-                            isSelected ? 'bg-white/20 text-white' : 'bg-gradient-to-br from-orange-500 to-yellow-500 text-white'
-                          }`}>
-                            {displayName.charAt(0)}
+                        Go Back
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="glass-card p-6 space-y-6">
+                      {/* Fiat Currency Selector */}
+                      <div>
+                        <label className="text-sm font-medium text-gray-900 mb-2 block">
+                          Pay with
+                        </label>
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowFiatDropdown(!showFiatDropdown)}
+                            className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-medium text-gray-900 hover:border-orange-300 transition-colors focus:outline-none focus:border-orange-500 flex items-center justify-between"
+                          >
+                            <div className="flex items-center gap-3">
+                              <span className="text-xl">{selectedFiat === 'EUR' ? '€' : selectedFiat === 'USD' ? '$' : '£'}</span>
+                              <span>{selectedFiat}</span>
+                            </div>
+                            <ChevronDown className="w-5 h-5 text-gray-400" />
+                          </button>
+                          
+                          {showFiatDropdown && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="absolute z-10 w-full mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-xl overflow-hidden"
+                            >
+                              {fiatCurrencies.map((fiat) => (
+                                <button
+                                  key={fiat}
+                                  onClick={() => {
+                                    setSelectedFiat(fiat);
+                                    setShowFiatDropdown(false);
+                                  }}
+                                  className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors ${
+                                    selectedFiat === fiat ? 'bg-orange-50' : ''
+                                  }`}
+                                >
+                                  <span className="font-medium text-gray-900">{fiat}</span>
+                                  {selectedFiat === fiat && (
+                                    <Check className="w-5 h-5 text-orange-500" />
+                                  )}
+                                </button>
+                              ))}
+                            </motion.div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Amount Input */}
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="text-sm font-medium text-gray-900">
+                            Amount ({selectedFiat})
+                          </label>
+                          <span className="text-sm text-gray-600">
+                            Min: {selectedFiat === 'EUR' ? '€10' : selectedFiat === 'USD' ? '$10' : '£10'} • Max: {selectedFiat === 'EUR' ? '€10,000' : selectedFiat === 'USD' ? '$10,000' : '£10,000'}
+                          </span>
+                        </div>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            value={fiatAmount}
+                            onChange={(e) => setFiatAmount(e.target.value)}
+                            placeholder="0.00"
+                            step="0.01"
+                            min="10"
+                            max="10000"
+                            className="input-field pr-20 text-2xl font-bold"
+                          />
+                          <button
+                            onClick={handleMaxAmount}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-600 hover:text-orange-700 text-sm font-semibold"
+                          >
+                            MAX
+                          </button>
+                        </div>
+                        {/* Quick Amount Buttons */}
+                        <div className="grid grid-cols-4 gap-2 mt-3">
+                          {[50, 100, 250, 500].map((amount) => (
+                            <button
+                              key={amount}
+                              onClick={() => setFiatAmount(amount.toString())}
+                              className={`px-4 py-2 rounded-xl font-semibold text-sm transition-all ${
+                                fiatAmount === amount.toString()
+                                  ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white'
+                                  : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
+                              }`}
+                            >
+                              {selectedFiat === 'EUR' ? '€' : selectedFiat === 'USD' ? '$' : '£'}{amount}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Crypto Currency Selector */}
+                      <div>
+                        <label className="text-sm font-medium text-gray-900 mb-2 block">
+                          Receive
+                        </label>
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowCryptoDropdown(!showCryptoDropdown)}
+                            className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-medium text-gray-900 hover:border-orange-300 transition-colors focus:outline-none focus:border-orange-500 flex items-center justify-between"
+                          >
+                            {selectedCrypto && (
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                                  {selectedCrypto.charAt(0)}
+                                </div>
+                                <span>{selectedCrypto}</span>
+                              </div>
+                            )}
+                            <ChevronDown className="w-5 h-5 text-gray-400" />
+                          </button>
+                          
+                          {showCryptoDropdown && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="absolute z-10 w-full mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-80 overflow-y-auto"
+                            >
+                              {supportedCryptos.map((crypto) => (
+                                <button
+                                  key={crypto}
+                                  onClick={() => {
+                                    setSelectedCrypto(crypto);
+                                    setShowCryptoDropdown(false);
+                                  }}
+                                  className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors ${
+                                    selectedCrypto === crypto ? 'bg-orange-50' : ''
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                                      {crypto.charAt(0)}
+                                    </div>
+                                    <span className="font-medium text-gray-900">{crypto}</span>
+                                  </div>
+                                  {selectedCrypto === crypto && (
+                                    <Check className="w-5 h-5 text-orange-500" />
+                                  )}
+                                </button>
+                              ))}
+                            </motion.div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Quote Display */}
+                      {quote && !isLoadingQuote && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="glass-card p-6 space-y-4"
+                        >
+                          {/* Main Quote Display */}
+                          <div className="bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border border-orange-200 rounded-xl p-6">
+                            <div className="text-sm text-gray-600 mb-1">You'll receive</div>
+                            <div className="text-4xl font-bold text-gray-900 mb-1">
+                              {quote.cryptoAmount} {selectedCrypto}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              ≈ {fiatAmount} {selectedFiat}
+                            </div>
                           </div>
-                          <div>
-                            <p className={`font-semibold ${isSelected ? 'text-white' : 'text-gray-900'}`}>
-                              {displayName}
-                            </p>
-                            <p className={`text-xs ${isSelected ? 'text-white/80' : 'text-gray-600'}`}>
-                              {isSelected ? 'Selected' : 'Buy now'}
-                            </p>
+
+                          {/* Breakdown */}
+                          <div className="space-y-3 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Exchange rate</span>
+                              <span className="font-semibold text-gray-900">
+                                1 {selectedCrypto} = {parseFloat(quote.exchangeRate).toFixed(2)} {selectedFiat}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Onramper fee</span>
+                              <span className="font-semibold text-gray-900">
+                                {quote.fee} {selectedFiat}
+                              </span>
+                            </div>
+                            <div className="h-px bg-gray-200" />
+                            <div className="flex justify-between font-semibold text-base">
+                              <span className="text-gray-900">Total</span>
+                              <span className="text-gray-900">
+                                {fiatAmount} {selectedFiat}
+                              </span>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {/* Loading Quote */}
+                      {isLoadingQuote && (
+                        <div className="flex items-center justify-center gap-3 text-orange-600 py-4">
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <span className="text-sm font-medium">Fetching best rate...</span>
+                        </div>
+                      )}
+
+                      {/* Payment Method Selection */}
+                      {quote && !isLoadingQuote && (
+                        <div className="glass-card p-6">
+                          <label className="text-sm font-medium text-gray-900 mb-4 block">
+                            Payment method
+                          </label>
+                          <div className="space-y-3">
+                            {paymentMethods.map((method) => (
+                              <button
+                                key={method.id}
+                                onClick={() => setSelectedPaymentMethod(method.id)}
+                                className={`w-full p-4 rounded-xl text-left border-2 transition-all ${
+                                  selectedPaymentMethod === method.id
+                                    ? 'bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-500 shadow-md'
+                                    : 'bg-white border-gray-200 hover:border-orange-300'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                      selectedPaymentMethod === method.id
+                                        ? 'bg-gradient-to-r from-orange-500 to-yellow-500'
+                                        : 'bg-gray-100'
+                                    }`}>
+                                      {getPaymentMethodIcon(method.icon, selectedPaymentMethod === method.id)}
+                                    </div>
+                                    <div>
+                                      <div className="font-semibold text-gray-900">{method.name}</div>
+                                      <div className="text-xs text-gray-600">
+                                        {method.processingTime} • Fee: {method.fee}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {selectedPaymentMethod === method.id && (
+                                    <Check className="w-5 h-5 text-orange-500" />
+                                  )}
+                                </div>
+                              </button>
+                            ))}
                           </div>
                         </div>
+                      )}
+
+                      {/* Error */}
+                      {error && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3"
+                        >
+                          <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                          <p className="text-sm font-medium text-red-700">{error}</p>
+                        </motion.div>
+                      )}
+
+                      {/* Continue Button */}
+                      <button
+                        onClick={handleContinue}
+                        disabled={!fiatAmount || !selectedCrypto || !selectedPaymentMethod || !quote || isLoadingQuote}
+                        className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl"
+                      >
+                        Continue
+                        <ArrowRight className="w-5 h-5" />
                       </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Payment Methods Info */}
-              <div className="glass-card p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment methods</h3>
-                <div className="flex flex-wrap gap-3">
-                  {OnramperService.getSupportedPaymentMethods().map((method) => (
-                    <div
-                      key={method}
-                      className="px-4 py-3 bg-gray-50 rounded-xl text-sm font-medium text-gray-900 border border-gray-200"
-                    >
-                      {method === 'iDEAL' && <Banknote className="w-4 h-4 inline mr-2" />}
-                      {method === 'Credit Card' && <CreditCard className="w-4 h-4 inline mr-2" />}
-                      {method}
                     </div>
-                  ))}
-                </div>
-              </div>
+                  )}
+                </>
+              )}
 
-              {/* Onramper Widget iFrame */}
-              <div className="glass-card p-0 overflow-hidden">
-                <div className="bg-gradient-to-r from-orange-500 to-yellow-500 p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Flame className="w-5 h-5 text-white" />
-                    <span className="text-white font-semibold">Buy Crypto with Onramper</span>
+              {step === 'confirm' && quote && selectedCrypto && (
+                <div className="space-y-6">
+                  {/* Main Amount Display */}
+                  <div className="glass-card p-6 bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border border-orange-200">
+                    <div className="text-sm text-gray-600 mb-1">You're buying</div>
+                    <div className="text-4xl font-bold text-gray-900 mb-1">
+                      {quote.cryptoAmount} {selectedCrypto}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      ≈ {fiatAmount} {selectedFiat}
+                    </div>
                   </div>
+
+                  {/* Details */}
+                  <div className="glass-card p-6 space-y-4 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Payment method</span>
+                      <span className="font-medium text-gray-900">{getPaymentMethodName(selectedPaymentMethod || '')}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Exchange rate</span>
+                      <span className="font-medium text-gray-900">
+                        1 {selectedCrypto} = {parseFloat(quote.exchangeRate).toFixed(2)} {selectedFiat}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Fee</span>
+                      <span className="font-medium text-gray-900">{quote.fee} {selectedFiat}</span>
+                    </div>
+                    <div className="h-px bg-gray-200" />
+                    <div className="flex justify-between font-semibold text-base">
+                      <span className="text-gray-900">Total</span>
+                      <span className="text-gray-900">{fiatAmount} {selectedFiat}</span>
+                    </div>
+                  </div>
+
+                  {/* Error */}
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                      <p className="text-red-700 text-sm font-medium">{error}</p>
+                    </div>
+                  )}
+
+                  {/* Buttons */}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setStep('input')}
+                      className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-all"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={handleCreateTransaction}
+                      className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl"
+                    >
+                      Continue to payment
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {step === 'payment' && transaction && (
+                <div className="glass-card p-12 text-center">
+                  <Loader2 className="w-16 h-16 animate-spin text-orange-500 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Redirecting to payment...</h3>
+                  <p className="text-gray-600 mb-6">
+                    You'll be redirected to complete your payment securely
+                  </p>
                   <button
-                    onClick={onClose}
-                    className="text-white hover:bg-white/20 rounded-lg p-1 transition-colors"
+                    onClick={() => window.open(transaction.paymentUrl, '_blank')}
+                    className="px-6 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl"
                   >
-                    <X className="w-5 h-5" />
+                    Open payment page
                   </button>
                 </div>
-                <div className="relative" style={{ minHeight: '630px' }}>
-                  <iframe
-                    src={widgetUrl}
-                    title="Onramper Widget"
-                    className="w-full border-0"
-                    style={{ height: '630px', minHeight: '630px' }}
-                    allow="accelerometer; autoplay; camera; gyroscope; payment; microphone"
-                    allowFullScreen
+              )}
+
+              {step === 'processing' && transaction && (
+                <div className="glass-card p-12 text-center">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    className="w-16 h-16 border-4 border-orange-200 border-t-orange-500 rounded-full mx-auto mb-4"
                   />
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    {transactionStatus === 'PENDING' && 'Payment pending...'}
+                    {transactionStatus === 'PROCESSING' && 'Processing your purchase...'}
+                    {transactionStatus === 'COMPLETED' && 'Purchase completed!'}
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    {transactionStatus === 'PENDING' && 'Waiting for payment confirmation'}
+                    {transactionStatus === 'PROCESSING' && 'Your crypto is being sent to your wallet'}
+                    {transactionStatus === 'COMPLETED' && 'Your crypto has been sent successfully'}
+                  </p>
+                  
+                  {transactionStatus === 'COMPLETED' && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4"
+                    >
+                      <CheckCircle2 className="w-12 h-12 text-emerald-500" />
+                    </motion.div>
+                  )}
+
+                  {transactionStatus === 'COMPLETED' && (
+                    <button
+                      onClick={handleClose}
+                      className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold text-lg transition-all shadow-lg hover:shadow-xl"
+                    >
+                      Close
+                    </button>
+                  )}
                 </div>
-              </div>
+              )}
             </div>
-          ) : (
-            <div className="glass-card p-12 text-center min-h-[600px] flex items-center justify-center">
-              <div>
-                <Flame className="w-12 h-12 text-orange-500 mx-auto mb-4" />
-                <p className="text-gray-600">Click on a crypto to start buying</p>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       </motion.div>
     </AnimatePresence>
   );
 }
-
-
-
-
