@@ -42,11 +42,21 @@ export async function GET(req: NextRequest) {
     });
 
     try {
+      // ✅ CRITICAL: LiFiService.getQuote() handles 'native' conversion internally
+      // But we also log what we're sending for debugging
+      logger.log('📊 Calling LiFiService.getQuote with:', {
+        fromChain,
+        toChain,
+        fromToken: fromToken === 'native' ? 'native (will be converted)' : fromToken.substring(0, 20) + '...',
+        toToken: toToken === 'native' ? 'native (will be converted)' : toToken.substring(0, 20) + '...',
+        fromAmount,
+      });
+      
       const quote = await LiFiService.getQuote(
         fromChain,
         toChain,
-        fromToken,
-        toToken,
+        fromToken, // Can be 'native' - LiFiService will convert it
+        toToken,   // Can be 'native' - LiFiService will convert it
         fromAmount,
         fromAddress,
         slippage,
