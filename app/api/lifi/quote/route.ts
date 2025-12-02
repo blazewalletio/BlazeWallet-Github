@@ -77,10 +77,6 @@ export async function GET(req: NextRequest) {
         { status: 500 }
       );
     }
-
-    logger.log('✅ Li.Fi quote received via API route');
-    return NextResponse.json({ success: true, quote });
-
   } catch (error: any) {
     logger.error('Li.Fi quote error:', error);
     return NextResponse.json(
