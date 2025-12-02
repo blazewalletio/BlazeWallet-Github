@@ -120,7 +120,7 @@ export class LiFiService {
     fromToken: string,
     toToken: string,
     fromAmount: string,
-    toAddress: string,
+    fromAddress: string, // ✅ FIXED: According to Li.Fi docs, this should be 'fromAddress', not 'toAddress'
     slippage: number = 0.03,
     order: 'RECOMMENDED' | 'CHEAPEST' | 'FASTEST' = 'RECOMMENDED',
     apiKey?: string
@@ -144,13 +144,15 @@ export class LiFiService {
         ? getNativeTokenAddress(toChain)
         : toToken;
 
+      // ✅ According to Li.Fi documentation: https://docs.li.fi/api-reference/introduction
+      // The quote endpoint uses 'fromAddress' parameter (the wallet address initiating the swap)
       const params = new URLSearchParams({
         fromChain: fromChain.toString(),
         toChain: toChain.toString(),
         fromToken: fromTokenAddress,
         toToken: toTokenAddress,
         fromAmount: fromAmount,
-        toAddress: toAddress,
+        fromAddress: fromAddress, // ✅ FIXED: Changed from 'toAddress' to 'fromAddress' per Li.Fi docs
         slippage: slippage.toString(),
         order: order,
       });
@@ -180,16 +182,20 @@ export class LiFiService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        let errorData;
+        let errorData: any;
         try {
           errorData = JSON.parse(errorText);
         } catch {
           errorData = { message: errorText };
         }
+        
+        // ✅ According to Li.Fi docs: Errors consist of HTTP error code, LI.Fi error code, and error message
         logger.error('❌ Li.Fi quote API error:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData,
+          httpStatus: response.status,
+          httpStatusText: response.statusText,
+          lifiErrorCode: errorData.code || errorData.errorCode || 'UNKNOWN',
+          errorMessage: errorData.message || errorText,
+          errorDetails: errorData,
           url,
         });
         return null;
@@ -241,8 +247,19 @@ export class LiFiService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        logger.error('❌ Li.Fi stepTransaction API error:', response.status, errorData);
+        let errorData: any;
+        try {
+          errorData = await response.json();
+        } catch {
+          errorData = { message: await response.text() };
+        }
+        logger.error('❌ Li.Fi stepTransaction API error:', {
+          httpStatus: response.status,
+          httpStatusText: response.statusText,
+          lifiErrorCode: errorData.code || errorData.errorCode || 'UNKNOWN',
+          errorMessage: errorData.message || 'Unknown error',
+          errorDetails: errorData,
+        });
         return null;
       }
 
@@ -286,6 +303,19 @@ export class LiFiService {
       });
 
       if (!response.ok) {
+        let errorData: any;
+        try {
+          errorData = await response.json();
+        } catch {
+          errorData = { message: await response.text() };
+        }
+        logger.error('❌ Li.Fi status API error:', {
+          httpStatus: response.status,
+          httpStatusText: response.statusText,
+          lifiErrorCode: errorData.code || errorData.errorCode || 'UNKNOWN',
+          errorMessage: errorData.message || 'Unknown error',
+          errorDetails: errorData,
+        });
         return null;
       }
 
@@ -310,7 +340,13 @@ export class LiFiService {
       }
 
       const response = await fetch(`${BASE_URL}/chains`, { headers });
-      if (!response.ok) return [];
+      if (!response.ok) {
+        logger.error('❌ Li.Fi chains API error:', {
+          httpStatus: response.status,
+          httpStatusText: response.statusText,
+        });
+        return [];
+      }
       return await response.json();
     } catch (error) {
       logger.error('❌ Error fetching chains:', error);
@@ -336,7 +372,13 @@ export class LiFiService {
       }
 
       const response = await fetch(`${BASE_URL}/tokens?${params.toString()}`, { headers });
-      if (!response.ok) return {};
+      if (!response.ok) {
+        logger.error('❌ Li.Fi tokens API error:', {
+          httpStatus: response.status,
+          httpStatusText: response.statusText,
+        });
+        return {};
+      }
       return await response.json();
     } catch (error) {
       logger.error('❌ Error fetching tokens:', error);

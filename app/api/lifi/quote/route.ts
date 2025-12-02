@@ -12,11 +12,12 @@ export async function GET(req: NextRequest) {
     const fromToken = searchParams.get('fromToken') || '';
     const toToken = searchParams.get('toToken') || '';
     const fromAmount = searchParams.get('fromAmount') || '0';
-    const toAddress = searchParams.get('toAddress') || '';
+    // ✅ FIXED: According to Li.Fi docs, the parameter is 'fromAddress' (wallet address initiating the swap)
+    const fromAddress = searchParams.get('fromAddress') || searchParams.get('toAddress') || ''; // Support both for backward compatibility
     const slippage = parseFloat(searchParams.get('slippage') || '0.03');
     const order = (searchParams.get('order') || 'RECOMMENDED') as 'RECOMMENDED' | 'CHEAPEST' | 'FASTEST';
 
-    if (!fromToken || !toToken || !fromAmount || !toAddress) {
+    if (!fromToken || !toToken || !fromAmount || !fromAddress) {
       return NextResponse.json(
         { error: 'Missing required parameters' },
         { status: 400 }
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
       fromToken: fromToken.length > 10 ? fromToken.substring(0, 10) + '...' : fromToken,
       toToken: toToken.length > 10 ? toToken.substring(0, 10) + '...' : toToken,
       fromAmount,
-      toAddress: toAddress.substring(0, 10) + '...',
+      fromAddress: fromAddress.substring(0, 10) + '...',
     });
 
     try {
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest) {
         fromToken,
         toToken,
         fromAmount,
-        toAddress,
+        fromAddress, // ✅ FIXED: Changed from 'toAddress' to 'fromAddress'
         slippage,
         order,
         lifiApiKey

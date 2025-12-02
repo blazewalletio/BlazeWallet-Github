@@ -318,7 +318,8 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     try {
       const fromChainId = fromChainConfig.id;
       const toChainId = toChainConfig.id;
-      const toAddress = getCurrentAddress() || wallet.address;
+      // ✅ FIXED: According to Li.Fi docs, this should be 'fromAddress' (wallet initiating the swap)
+      const fromAddress = getCurrentAddress() || wallet.address;
       
       // Convert amount to smallest unit - handle Solana (9 decimals) vs EVM (18 decimals)
       let amountInWei: string;
@@ -359,7 +360,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       }
 
       const response = await fetch(
-        `/api/lifi/quote?fromChain=${fromChainId}&toChain=${toChainId}&fromToken=${fromToken}&toToken=${toToken}&fromAmount=${amountInWei}&toAddress=${toAddress}&slippage=0.03&order=RECOMMENDED`
+        `/api/lifi/quote?fromChain=${fromChainId}&toChain=${toChainId}&fromToken=${fromToken}&toToken=${toToken}&fromAmount=${amountInWei}&fromAddress=${fromAddress}&slippage=0.03&order=RECOMMENDED`
       );
 
       if (!response.ok) {
