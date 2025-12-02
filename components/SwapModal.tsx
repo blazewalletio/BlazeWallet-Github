@@ -1,19 +1,30 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowDown, Flame, AlertCircle, Loader2, RefreshCw, CheckCircle, Repeat, TrendingUp, Zap, ShieldCheck } from 'lucide-react';
+import { 
+  ArrowDown, 
+  Flame, 
+  AlertCircle, 
+  Loader2, 
+  CheckCircle2, 
+  RefreshCw, 
+  ChevronDown,
+  Check,
+  ArrowRight,
+  AlertTriangle
+} from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { CHAINS, POPULAR_TOKENS } from '@/lib/chains';
-import { SwapService } from '@/lib/swap-service';
+import { LiFiService, LiFiQuote } from '@/lib/lifi-service';
 import { ethers } from 'ethers';
 import { logger } from '@/lib/logger';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface SwapModalProps {
   isOpen: boolean;
   onClose: () => void;
-  // AI Assistant pre-fill data
   prefillData?: {
     fromToken?: string;
     toToken?: string;
@@ -21,97 +32,130 @@ interface SwapModalProps {
   };
 }
 
-type SwapProvider = '1inch' | 'price-estimate';
-
 export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalProps) {
-  const { address, currentChain, balance, wallet } = useWalletStore();
+  const { wallet, currentChain, balance, getCurrentAddress, getChainTokens } = useWalletStore();
+  const { formatUSDSync } = useCurrency();
+  
+  // Chain states
+  const [fromChain, setFromChain] = useState(currentChain);
+  const [toChain, setToChain] = useState(currentChain);
+  const [showFromChainDropdown, setShowFromChainDropdown] = useState(false);
+  const [showToChainDropdown, setShowToChainDropdown] = useState(false);
+  
+  // Token states
   const [fromToken, setFromToken] = useState<string>('native');
   const [toToken, setToToken] = useState<string>('');
+  const [showFromTokenDropdown, setShowFromTokenDropdown] = useState(false);
+  const [showToTokenDropdown, setShowToTokenDropdown] = useState(false);
+  
+  // Amount states
   const [fromAmount, setFromAmount] = useState('');
   const [toAmount, setToAmount] = useState('');
+  
+  // Quote states
+  const [quote, setQuote] = useState<LiFiQuote | null>(null);
   const [isLoadingQuote, setIsLoadingQuote] = useState(false);
+  
+  // Execution states
+  const [step, setStep] = useState<'input' | 'confirm' | 'executing' | 'success'>('input');
   const [isSwapping, setIsSwapping] = useState(false);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [totalSteps, setTotalSteps] = useState(0);
+  const [stepStatus, setStepStatus] = useState('');
+  const [txHash, setTxHash] = useState('');
+  
+  // Error states
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [quote, setQuote] = useState<any>(null);
-  const [swapProvider, setSwapProvider] = useState<SwapProvider>('price-estimate');
+  
+  // Polling ref
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const chain = CHAINS[currentChain];
-  const popularTokens = POPULAR_TOKENS[currentChain] || [];
+  const fromChainConfig = CHAINS[fromChain];
+  const toChainConfig = CHAINS[toChain];
+  const fromChainTokens = POPULAR_TOKENS[fromChain] || [];
+  const toChainTokens = POPULAR_TOKENS[toChain] || [];
 
-  // Block body scroll when overlay is open
   useBlockBodyScroll(isOpen);
 
-  // Set default toToken when modal opens
+  // Initialize when modal opens
   useEffect(() => {
-    if (isOpen && !toToken && popularTokens.length > 0) {
-      setToToken(popularTokens[0].address);
+    if (isOpen) {
+      setFromChain(currentChain);
+      setToChain(currentChain);
+      setFromToken('native');
+      setToToken('');
+      setFromAmount('');
+      setToAmount('');
+      setQuote(null);
+      setError('');
+      setSuccess(false);
+      setStep('input');
+      setCurrentStepIndex(0);
+      setTotalSteps(0);
+      setStepStatus('');
+      setTxHash('');
+      
+      // Set default toToken
+      if (toChainTokens.length > 0) {
+        setToToken(toChainTokens[0].address);
+      }
+    } else {
+      // Cleanup polling on close
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
     }
-  }, [isOpen, popularTokens]);
+  }, [isOpen, currentChain, toChainTokens]);
 
-  // ✅ AI Assistant Pre-fill Effect
+  // AI Assistant pre-fill
   useEffect(() => {
     if (isOpen && prefillData) {
       logger.log('🤖 [SwapModal] Applying AI pre-fill data:', prefillData);
       
-      // Pre-fill fromToken
       if (prefillData.fromToken) {
         const tokenSymbol = prefillData.fromToken.toUpperCase();
-        
-        // Check if it's native token
-        if (tokenSymbol === chain?.nativeCurrency.symbol.toUpperCase()) {
+        if (tokenSymbol === fromChainConfig?.nativeCurrency.symbol.toUpperCase()) {
           setFromToken('native');
-          logger.log('🤖 [SwapModal] Set from token: native');
         } else {
-          // Find matching token in popular tokens
-          const matchingToken = popularTokens.find(
+          const matchingToken = fromChainTokens.find(
             token => token.symbol.toUpperCase() === tokenSymbol
           );
           if (matchingToken) {
             setFromToken(matchingToken.address);
-            logger.log('🤖 [SwapModal] Set from token:', matchingToken.symbol);
           }
         }
       }
       
-      // Pre-fill toToken
       if (prefillData.toToken) {
         const tokenSymbol = prefillData.toToken.toUpperCase();
-        
-        // Check if it's native token
-        if (tokenSymbol === chain?.nativeCurrency.symbol.toUpperCase()) {
+        if (tokenSymbol === toChainConfig?.nativeCurrency.symbol.toUpperCase()) {
           setToToken('native');
-          logger.log('🤖 [SwapModal] Set to token: native');
         } else {
-          // Find matching token in popular tokens
-          const matchingToken = popularTokens.find(
+          const matchingToken = toChainTokens.find(
             token => token.symbol.toUpperCase() === tokenSymbol
           );
           if (matchingToken) {
             setToToken(matchingToken.address);
-            logger.log('🤖 [SwapModal] Set to token:', matchingToken.symbol);
           }
         }
       }
       
-      // Pre-fill amount (handle 'max'/'all' keywords)
       if (prefillData.amount) {
         if (prefillData.amount === 'max' || prefillData.amount === 'all') {
-          // Use full balance
           setFromAmount(balance || '0');
-          logger.log('🤖 [SwapModal] Set max amount:', balance);
         } else {
           setFromAmount(prefillData.amount);
-          logger.log('🤖 [SwapModal] Set amount:', prefillData.amount);
         }
       }
     }
-  }, [isOpen, prefillData, popularTokens, chain, balance]);
+  }, [isOpen, prefillData, fromChainConfig, toChainConfig, fromChainTokens, toChainTokens, balance]);
 
-  // Get quote when amount changes (with debounce)
+  // Fetch quote when inputs change (debounced)
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (fromAmount && parseFloat(fromAmount) > 0 && fromToken && toToken) {
+      if (fromAmount && parseFloat(fromAmount) > 0 && fromToken && toToken && wallet) {
         fetchQuote();
       } else {
         setToAmount('');
@@ -120,66 +164,117 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [fromAmount, fromToken, toToken]);
+  }, [fromAmount, fromToken, toToken, fromChain, toChain]);
 
   const fetchQuote = async () => {
-    if (!fromAmount || !fromToken || !toToken) return;
+    if (!fromAmount || !fromToken || !toToken || !wallet) return;
 
     setIsLoadingQuote(true);
     setError('');
     setQuote(null);
 
     try {
-      const amountInWei = ethers.parseEther(fromAmount).toString();
-      const fromAddress = fromToken === 'native' 
-        ? '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
-        : fromToken;
+      const fromChainId = fromChainConfig.id;
+      const toChainId = toChainConfig.id;
+      const toAddress = getCurrentAddress() || wallet.address;
+      
+      // Convert amount to wei (assuming 18 decimals for native, will handle tokens later)
+      let amountInWei: string;
+      if (fromToken === 'native') {
+        amountInWei = ethers.parseEther(fromAmount).toString();
+      } else {
+        // For tokens, we need to get decimals
+        const token = fromChainTokens.find(t => t.address.toLowerCase() === fromToken.toLowerCase());
+        const decimals = token?.decimals || 18;
+        amountInWei = ethers.parseUnits(fromAmount, decimals).toString();
+      }
 
-      // Get quote from server (1inch or price estimate)
-      const swapService = new SwapService(chain.id);
-      const quoteData = await swapService.getQuote(
-        fromAddress,
+      logger.log('📊 Fetching Li.Fi quote:', {
+        fromChain: fromChainId,
+        toChain: toChainId,
+        fromToken,
         toToken,
-        amountInWei
+        fromAmount: amountInWei,
+      });
+
+      const response = await fetch(
+        `/api/lifi/quote?fromChain=${fromChainId}&toChain=${toChainId}&fromToken=${fromToken}&toToken=${toToken}&fromAmount=${amountInWei}&toAddress=${toAddress}&slippage=0.03&order=RECOMMENDED`
       );
 
-      // API can return either 'toAmount' or 'toTokenAmount' depending on source
-      const outputAmount = (quoteData as any)?.toTokenAmount || (quoteData as any)?.toAmount;
-      const sourceProvider = (quoteData as any)?.source;
-      
-      logger.log('Quote received:', {
-        outputAmount,
-        source: sourceProvider,
-        protocols: (quoteData as any)?.protocols
-      });
-      
-      if (quoteData && outputAmount && outputAmount !== '0') {
-        logger.log('✅ Quote success!');
-        setQuote(quoteData);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch quote');
+      }
+
+      const data = await response.json();
+      if (data.success && data.quote) {
+        setQuote(data.quote);
         
-        // Format output amount based on token decimals
-        const decimals = toToken === '0xdAC17F958D2ee523a2206206994597C13D831ec7' ? 6 : 18;
-        const formatted = ethers.formatUnits(outputAmount, decimals);
+        // Format output amount
+        const toTokenDecimals = data.quote.action.toToken.decimals || 18;
+        const formatted = ethers.formatUnits(data.quote.estimate.toAmount, toTokenDecimals);
         setToAmount(formatted);
         
-        setSwapProvider(sourceProvider === '1inch' ? '1inch' : 'price-estimate');
-      } else {
-        logger.error('Quote check failed:', {
-          hasQuoteData: !!quoteData,
-          outputAmount,
-          sourceProvider
+        logger.log('✅ Quote received:', {
+          tool: data.quote.tool,
+          steps: data.quote.steps.length,
+          toAmount: formatted,
         });
-        setError('No quote available for this token pair');
+      } else {
+        throw new Error('No quote available');
       }
     } catch (err: any) {
-      logger.error('Quote error:', err);
+      logger.error('❌ Quote error:', err);
       setError(err.message || 'Error fetching quote');
+      setQuote(null);
+      setToAmount('');
     } finally {
       setIsLoadingQuote(false);
     }
   };
 
-  const handleSwap = async () => {
+  const handleTokenApproval = async (
+    tokenAddress: string,
+    amount: string,
+    spenderAddress: string
+  ): Promise<void> => {
+    if (!wallet) throw new Error('Wallet not connected');
+
+    const provider = new ethers.JsonRpcProvider(fromChainConfig.rpcUrl);
+    const signer = wallet.connect(provider);
+
+    // ERC20 ABI for approve
+    const erc20ABI = [
+      'function approve(address spender, uint256 amount) returns (bool)',
+      'function allowance(address owner, address spender) view returns (uint256)',
+      'function decimals() view returns (uint8)',
+    ];
+
+    const tokenContract = new ethers.Contract(tokenAddress, erc20ABI, signer);
+
+    // Check current allowance
+    const currentAllowance = await tokenContract.allowance(
+      wallet.address,
+      spenderAddress
+    );
+
+    // Get token decimals
+    const decimals = await tokenContract.decimals();
+    const amountWei = ethers.parseUnits(amount, decimals);
+
+    // If allowance is insufficient, approve
+    if (currentAllowance < amountWei) {
+      logger.log('🔐 Approving token...');
+      setStepStatus('Approving token...');
+      const approveTx = await tokenContract.approve(spenderAddress, amountWei);
+      await approveTx.wait();
+      logger.log('✅ Token approved');
+    } else {
+      logger.log('✅ Token already approved');
+    }
+  };
+
+  const executeSwap = async () => {
     if (!wallet || !quote || !fromAmount) {
       setError('Wallet, quote or amount missing');
       return;
@@ -187,108 +282,193 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
 
     setIsSwapping(true);
     setError('');
+    setStep('executing');
+    setCurrentStepIndex(0);
+    setTotalSteps(quote.steps.length);
+    setStepStatus('Preparing swap...');
 
     try {
-      const amountInWei = ethers.parseEther(fromAmount).toString();
-      const fromAddress = fromToken === 'native' 
-        ? '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
-        : fromToken;
+      // Execute each step sequentially
+      for (let i = 0; i < quote.steps.length; i++) {
+        setCurrentStepIndex(i + 1);
+        setStepStatus(`Executing step ${i + 1} of ${quote.steps.length}...`);
 
-      let txHash: string;
-
-      // Execute swap via 1inch
-      if (swapProvider === '1inch') {
-        logger.log('Executing 1inch swap...');
-        const swapService = new SwapService(chain.id);
-        
-        const txData = await swapService.getSwapTransaction(
-          fromAddress,
-          toToken,
-          amountInWei,
-          wallet.address,
-          1 // 1% slippage
-        );
-
-        if (!txData || !txData.tx) {
-          throw new Error('Could not get swap transaction from 1inch');
-        }
-
-        // Send transaction
-        const provider = new ethers.JsonRpcProvider(chain.rpcUrl);
-        const signer = wallet.connect(provider);
-
-        const tx = await signer.sendTransaction({
-          to: txData.tx.to,
-          data: txData.tx.data,
-          value: txData.tx.value || '0',
-          gasLimit: txData.tx.gas || '300000',
+        // Get transaction data for this step
+        const response = await fetch('/api/lifi/execute', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            route: quote,
+            stepIndex: i,
+            userAddress: wallet.address,
+          }),
         });
 
-        await tx.wait();
-        txHash = tx.hash;
-      } else {
-        throw new Error('Direct swapping not possible. Add 1inch API key (see ONEINCH_API_SETUP.md) or use external DEX.');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to get transaction data');
+        }
+
+        const data = await response.json();
+        if (!data.success || !data.transaction) {
+          throw new Error('Failed to get transaction data');
+        }
+
+        const { transactionRequest } = data.transaction;
+
+        // Check if approval needed
+        if (quote.steps[i].estimate.approvalAddress) {
+          setStepStatus('Approving token...');
+          const tokenAddress = quote.steps[i].action.fromToken.address;
+          const amount = quote.steps[i].action.fromAmount;
+          await handleTokenApproval(
+            tokenAddress,
+            ethers.formatUnits(amount, quote.steps[i].action.fromToken.decimals),
+            quote.steps[i].estimate.approvalAddress
+          );
+        }
+
+        // Execute transaction
+        const chainConfig = i === 0 ? fromChainConfig : toChainConfig;
+        const provider = new ethers.JsonRpcProvider(chainConfig.rpcUrl);
+        const signer = wallet.connect(provider);
+
+        setStepStatus('Sending transaction...');
+        const tx = await signer.sendTransaction({
+          to: transactionRequest.to,
+          data: transactionRequest.data,
+          value: transactionRequest.value || '0',
+          gasLimit: transactionRequest.gasLimit || '300000',
+          gasPrice: transactionRequest.gasPrice || undefined,
+        });
+
+        setStepStatus('Waiting for confirmation...');
+        const receipt = await tx.wait();
+        setTxHash(tx.hash);
+
+        logger.log(`✅ Step ${i + 1} completed:`, tx.hash);
+
+        // If cross-chain and last step, start status polling
+        if (fromChain !== toChain && i === quote.steps.length - 1) {
+          setStepStatus('Bridge transfer in progress...');
+          pollTransactionStatus(tx.hash, quote);
+        }
       }
 
-      logger.log('✅ Swap successful:', txHash);
-      setSuccess(true);
-      
-      // Reset form after 2 seconds
-      setTimeout(() => {
-        setFromAmount('');
-        setToAmount('');
-        setQuote(null);
-        setSuccess(false);
-        onClose();
-      }, 2000);
+      // If same-chain, we're done
+      if (fromChain === toChain) {
+        setSuccess(true);
+        setStep('success');
+        setStepStatus('Swap completed!');
+        
+        // Reset after 3 seconds
+        setTimeout(() => {
+          setFromAmount('');
+          setToAmount('');
+          setQuote(null);
+          setSuccess(false);
+          setStep('input');
+          onClose();
+        }, 3000);
+      }
 
     } catch (err: any) {
-      logger.error('Swap error:', err);
+      logger.error('❌ Swap execution error:', err);
       setError(err.message || 'Swap failed');
+      setStep('input');
     } finally {
       setIsSwapping(false);
     }
   };
 
-  const getTokenSymbol = (address: string): string => {
-    if (address === 'native') return chain.nativeCurrency.symbol;
-    const token = popularTokens.find(t => t.address.toLowerCase() === address.toLowerCase());
+  const pollTransactionStatus = (txHash: string, route: LiFiQuote) => {
+    // Poll every 5 seconds
+    pollingIntervalRef.current = setInterval(async () => {
+      try {
+        const response = await fetch(
+          `/api/lifi/status?txHash=${txHash}&bridge=${route.tool}&fromChain=${route.action.fromChainId}&toChain=${route.action.toChainId}`
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.status) {
+            const status = data.status.status;
+            
+            if (status === 'DONE') {
+              if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null;
+              }
+              setSuccess(true);
+              setStep('success');
+              setStepStatus('Swap completed!');
+              
+              setTimeout(() => {
+                setFromAmount('');
+                setToAmount('');
+                setQuote(null);
+                setSuccess(false);
+                setStep('input');
+                onClose();
+              }, 3000);
+            } else if (status === 'FAILED') {
+              if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null;
+              }
+              setError('Swap failed during bridge transfer');
+              setStep('input');
+            } else {
+              setStepStatus(`Status: ${status.toLowerCase()}...`);
+            }
+          }
+        }
+      } catch (error) {
+        logger.error('Error polling status:', error);
+      }
+    }, 5000);
+
+    // Clear after 10 minutes
+    setTimeout(() => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    }, 10 * 60 * 1000);
+  };
+
+  const getTokenSymbol = (address: string, chain: string): string => {
+    if (address === 'native') return CHAINS[chain].nativeCurrency.symbol;
+    const tokens = POPULAR_TOKENS[chain] || [];
+    const token = tokens.find(t => t.address.toLowerCase() === address.toLowerCase());
     return token?.symbol || 'Token';
   };
 
-  const getExchangeRate = (): string => {
-    if (!quote || !fromAmount || parseFloat(fromAmount) === 0 || !toAmount || parseFloat(toAmount) === 0) return '0.0';
-    const rate = parseFloat(toAmount) / parseFloat(fromAmount);
-    return rate.toFixed(6);
+  const getTokenName = (address: string, chain: string): string => {
+    if (address === 'native') return CHAINS[chain].nativeCurrency.name;
+    const tokens = POPULAR_TOKENS[chain] || [];
+    const token = tokens.find(t => t.address.toLowerCase() === address.toLowerCase());
+    return token?.name || 'Token';
   };
 
-  const getProviderLabel = (): string => {
-    switch (swapProvider) {
-      case '1inch':
-        return '1inch';
-      case 'price-estimate':
-        return 'Price estimate';
-      default:
-        return 'Unknown';
-    }
-  };
-
-  const getProviderColor = (): string => {
-    switch (swapProvider) {
-      case '1inch':
-        return 'text-orange-500';
-      case 'price-estimate':
-        return 'text-gray-600';
-      default:
-        return 'text-gray-600';
+  const handleMaxAmount = () => {
+    if (fromToken === 'native') {
+      const max = Math.max(0, parseFloat(balance || '0') - 0.001);
+      setFromAmount(max.toFixed(6));
+    } else {
+      // For tokens, we'd need to get balance from chainTokens
+      // For now, just use a placeholder
+      setFromAmount('0');
     }
   };
 
   const canSwap = (): boolean => {
-    return quote && 
-           fromAmount && 
+    return !!quote && 
+           !!fromAmount && 
            parseFloat(fromAmount) > 0 && 
-           swapProvider === '1inch' &&
+           !!toToken &&
            !isLoadingQuote &&
            !isSwapping;
   };
@@ -303,245 +483,582 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
       >
-        <div className="max-w-4xl mx-auto p-6">
-          {/* Back Button */}
-          <button
-            onClick={onClose}
-            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-          >
-            ← Back
-          </button>
-
-          {/* Header */}
-          <div className="mb-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
-                <Flame className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Swap</h2>
-                <p className="text-sm text-gray-600">
-                  Exchange tokens at the best rates
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Coming Soon Overlay */}
-          <div className="relative max-w-2xl mx-auto">
-            <div className="space-y-6 opacity-30 pointer-events-none">
-
-          {/* Success Message */}
-          {success && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="glass-card p-4 bg-emerald-50 border border-emerald-200 flex items-center gap-3"
-            >
-              <CheckCircle className="w-6 h-6 text-emerald-500" />
-              <p className="text-sm font-medium text-emerald-700">Swap successful!</p>
-            </motion.div>
-          )}
-
-          {/* From Token */}
-          <div className="glass-card p-6">
-            <div className="text-sm font-medium text-gray-600 mb-3">From</div>
-            <div className="flex items-center gap-4">
-              <input aria-label="Number input"
-                type="number"
-                value={fromAmount}
-                onChange={(e) => setFromAmount(e.target.value)}
-                placeholder="0.0"
-                className="flex-1 bg-transparent text-3xl font-bold outline-none min-w-0 text-gray-900"
-                disabled={isSwapping}
-              />
-              <select
-                value={fromToken}
-                onChange={(e) => setFromToken(e.target.value)}
-                className="bg-gray-100 px-4 py-3 rounded-xl font-semibold outline-none flex-shrink-0 border border-gray-200 hover:bg-white hover:border-orange-300 transition-all text-gray-900"
-                disabled={isSwapping}
+        <div className="min-h-full flex flex-col">
+          <div className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 pt-safe pb-safe">
+            <div className="pt-4 pb-2">
+              <button
+                onClick={onClose}
+                className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
               >
-                <option value="native">{chain.nativeCurrency.symbol}</option>
-                {popularTokens.map(token => (
-                  <option key={token.address} value={token.address}>
-                    {token.symbol}
-                  </option>
-                ))}
-              </select>
+                ← Back
+              </button>
             </div>
-            <div className="text-sm text-gray-500 mt-3">
-              Balance: {balance} {chain.nativeCurrency.symbol}
-            </div>
-          </div>
 
-          {/* Swap Arrow */}
-          <div className="flex justify-center -my-3 relative z-10">
-            <button
-              onClick={() => {
-                // Swap tokens
-                const temp = fromToken;
-                setFromToken(toToken === '' ? 'native' : toToken);
-                setToToken(temp === 'native' ? (popularTokens[0]?.address || '') : temp);
-              }}
-              className="p-4 glass-card hover:bg-white hover:shadow-md rounded-full transition-all border border-gray-200"
-              disabled={isSwapping}
-            >
-              <ArrowDown className="w-6 h-6 text-orange-500" />
-            </button>
-          </div>
-
-          {/* To Token */}
-          <div className="glass-card p-6">
-            <div className="text-sm font-medium text-gray-600 mb-3">To</div>
-            <div className="flex items-center gap-4">
-              <input aria-label="0.0"
-                type="text"
-                value={toAmount}
-                readOnly
-                placeholder="0.0"
-                className="flex-1 bg-transparent text-3xl font-bold outline-none text-emerald-500 min-w-0 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              />
-              <select
-                value={toToken}
-                onChange={(e) => setToToken(e.target.value)}
-                className="bg-gray-100 px-4 py-3 rounded-xl font-semibold outline-none flex-shrink-0 border border-gray-200 hover:bg-white hover:border-orange-300 transition-all text-gray-900"
-                disabled={isSwapping}
-              >
-                <option value="">Select token</option>
-                {popularTokens.map(token => (
-                  <option key={token.address} value={token.address}>
-                    {token.symbol}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Exchange Rate Info */}
-          {quote && !error && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="glass-card p-6 space-y-3 text-sm"
-            >
-              <div className="flex justify-between">
-                <span className="text-gray-600">Exchange rate</span>
-                <span className="font-semibold text-gray-900">
-                  1 {getTokenSymbol(fromToken)} = {getExchangeRate()} {getTokenSymbol(toToken)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Estimated gas</span>
-                <span className="font-semibold text-gray-900">{(parseInt(quote.estimatedGas || '180000') / 1000).toFixed(0)}k</span>
-              </div>
-              <div className="h-px bg-gray-200"></div>
-              <div className="flex justify-between">
-                <span className="text-gray-600 flex items-center gap-1">
-                  <Flame className="w-4 h-4" />
-                  Powered by
-                </span>
-                <span className={`font-semibold ${getProviderColor()}`}>
-                  {getProviderLabel()}
-                </span>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Loading State */}
-          {isLoadingQuote && (
-            <div className="flex items-center justify-center gap-3 text-orange-600 py-4">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span className="text-sm font-medium">Fetching best rate...</span>
-            </div>
-          )}
-
-          {/* Error */}
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3"
-            >
-              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-              <p className="text-sm font-medium text-red-700">{error}</p>
-            </motion.div>
-          )}
-
-          {/* Info */}
-          <div className={`glass-card p-4 ${swapProvider === '1inch' ? 'bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200' : 'bg-amber-50 border-amber-200'} border`}>
-            <p className={`text-sm ${swapProvider === '1inch' ? 'text-orange-700' : 'text-amber-700'}`}>
-              <Flame className="w-4 h-4 inline mr-2" />
-              {swapProvider === '1inch' ? 
-                '1inch finds the best rates by comparing 100+ DEXes' : 
-                'Add 1inch API key for real swaps (see ONEINCH_API_SETUP.md)'
-              }
-            </p>
-          </div>
-
-          {/* Swap Button */}
-          <motion.button
-            whileTap={{ scale: canSwap() ? 0.98 : 1 }}
-            onClick={handleSwap}
-            disabled={!canSwap()}
-            className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl"
-          >
-            {isSwapping ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Swapping...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="w-5 h-5" />
-                {canSwap() ? 'Swap now' : 'Not available'}
-              </>
-            )}
-          </motion.button>
-
-          {/* Additional Info */}
-          <p className="text-xs text-gray-500 text-center">
-            Always verify the details before swapping. Slippage tolerance: 1%
-          </p>
-          </div>
-
-            {/* Coming Soon Overlay Card */}
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.2 }}
-              className="absolute inset-0 flex items-center justify-center px-4"
-            >
-              <div className="bg-gradient-to-br from-orange-500/20 to-yellow-500/20 backdrop-blur-xl border-2 border-orange-500/30 rounded-2xl p-8 max-w-md w-full shadow-2xl">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Repeat className="w-8 h-8 text-white" />
-                  </div>
-                  
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                    Coming Soon
-                  </h3>
-                  
-                  <p className="text-gray-700 mb-4 leading-relaxed">
-                    Swap feature is currently in development. Soon you'll be able to exchange tokens at the best rates across all chains!
+            <div className="mb-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Flame className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Swap</h2>
+                  <p className="text-sm text-gray-600">
+                    Exchange tokens at the best rates
                   </p>
-                  
-                  <div className="flex flex-col gap-2 text-sm text-gray-600">
-                    <div className="flex items-center justify-center gap-2">
-                      <TrendingUp className="w-4 h-4 text-green-500" />
-                      <span>Best rates guaranteed</span>
-                    </div>
-                    <div className="flex items-center justify-center gap-2">
-                      <Zap className="w-4 h-4 text-yellow-500" />
-                      <span>Lightning fast swaps</span>
-                    </div>
-                    <div className="flex items-center justify-center gap-2">
-                      <ShieldCheck className="w-4 h-4 text-blue-500" />
-                      <span>Multi-chain support</span>
-                    </div>
-                  </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
+
+            <div className="space-y-6 pb-6">
+              {/* Error Message */}
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3"
+                >
+                  <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm font-medium text-red-700">{error}</p>
+                </motion.div>
+              )}
+
+              {/* Success Message */}
+              {success && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="glass-card p-4 bg-emerald-50 border border-emerald-200 flex items-center gap-3"
+                >
+                  <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+                  <p className="text-sm font-medium text-emerald-700">Swap successful!</p>
+                </motion.div>
+              )}
+
+              {/* Input Step */}
+              {step === 'input' && (
+                <>
+                  <div className="glass-card p-6 space-y-6">
+                    {/* From Chain */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-900 mb-2 block">
+                        From network
+                      </label>
+                      <div className="relative">
+                        <button
+                          onClick={() => {
+                            setShowFromChainDropdown(!showFromChainDropdown);
+                            setShowToChainDropdown(false);
+                          }}
+                          className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-medium text-gray-900 hover:border-orange-300 transition-colors focus:outline-none focus:border-orange-500 flex items-center justify-between"
+                        >
+                          <div className="flex items-center gap-3">
+                            {fromChainConfig.logoUrl ? (
+                              <img 
+                                src={fromChainConfig.logoUrl} 
+                                alt={fromChainConfig.name}
+                                className="w-6 h-6 rounded-full"
+                              />
+                            ) : (
+                              <span className="text-xl">{fromChainConfig.icon}</span>
+                            )}
+                            <span>{fromChainConfig.name}</span>
+                          </div>
+                          <ChevronDown className="w-5 h-5 text-gray-400" />
+                        </button>
+                        
+                        {showFromChainDropdown && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="absolute z-10 w-full mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-80 overflow-y-auto"
+                          >
+                            {Object.entries(CHAINS)
+                              .filter(([key, chain]) => !chain.isTestnet)
+                              .map(([key, chain]) => (
+                                <button
+                                  key={key}
+                                  onClick={() => {
+                                    setFromChain(key);
+                                    setShowFromChainDropdown(false);
+                                    // Reset tokens when chain changes
+                                    setFromToken('native');
+                                  }}
+                                  className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors ${
+                                    fromChain === key ? 'bg-orange-50' : ''
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    {chain.logoUrl ? (
+                                      <img 
+                                        src={chain.logoUrl} 
+                                        alt={chain.name}
+                                        className="w-6 h-6 rounded-full"
+                                      />
+                                    ) : (
+                                      <span className="text-xl">{chain.icon}</span>
+                                    )}
+                                    <span className="font-medium text-gray-900">{chain.name}</span>
+                                  </div>
+                                  {fromChain === key && (
+                                    <Check className="w-5 h-5 text-orange-500" />
+                                  )}
+                                </button>
+                              ))}
+                          </motion.div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* From Token */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-900 mb-2 block">
+                        From token
+                      </label>
+                      <div className="relative">
+                        <button
+                          onClick={() => {
+                            setShowFromTokenDropdown(!showFromTokenDropdown);
+                            setShowToTokenDropdown(false);
+                          }}
+                          className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-medium text-gray-900 hover:border-orange-300 transition-colors focus:outline-none focus:border-orange-500 flex items-center justify-between"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold">
+                              {getTokenSymbol(fromToken, fromChain)}
+                            </span>
+                          </div>
+                          <ChevronDown className="w-5 h-5 text-gray-400" />
+                        </button>
+                        
+                        {showFromTokenDropdown && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="absolute z-10 w-full mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-80 overflow-y-auto"
+                          >
+                            <button
+                              onClick={() => {
+                                setFromToken('native');
+                                setShowFromTokenDropdown(false);
+                              }}
+                              className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors ${
+                                fromToken === 'native' ? 'bg-orange-50' : ''
+                              }`}
+                            >
+                              <span className="font-medium text-gray-900">
+                                {fromChainConfig.nativeCurrency.symbol}
+                              </span>
+                              {fromToken === 'native' && (
+                                <Check className="w-5 h-5 text-orange-500" />
+                              )}
+                            </button>
+                            {fromChainTokens.map(token => (
+                              <button
+                                key={token.address}
+                                onClick={() => {
+                                  setFromToken(token.address);
+                                  setShowFromTokenDropdown(false);
+                                }}
+                                className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors ${
+                                  fromToken === token.address ? 'bg-orange-50' : ''
+                                }`}
+                              >
+                                <span className="font-medium text-gray-900">{token.symbol}</span>
+                                {fromToken === token.address && (
+                                  <Check className="w-5 h-5 text-orange-500" />
+                                )}
+                              </button>
+                            ))}
+                          </motion.div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* From Amount */}
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="text-sm font-medium text-gray-900">
+                          Amount
+                        </label>
+                        <span className="text-sm text-gray-600">
+                          Balance: {balance} {fromChainConfig.nativeCurrency.symbol}
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          value={fromAmount}
+                          onChange={(e) => setFromAmount(e.target.value)}
+                          placeholder="0.0"
+                          step="0.000001"
+                          className="input-field pr-20"
+                          disabled={isSwapping}
+                        />
+                        <button
+                          onClick={handleMaxAmount}
+                          disabled={isSwapping}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-600 hover:text-orange-700 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          MAX
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Swap Arrow */}
+                  <div className="flex justify-center -my-3 relative z-10">
+                    <button
+                      onClick={() => {
+                        // Swap chains and tokens
+                        const tempChain = fromChain;
+                        const tempToken = fromToken;
+                        setFromChain(toChain);
+                        setToChain(tempChain);
+                        setFromToken(toToken || 'native');
+                        setToToken(tempToken === 'native' ? '' : tempToken);
+                      }}
+                      className="p-4 glass-card hover:bg-white hover:shadow-md rounded-full transition-all border border-gray-200"
+                      disabled={isSwapping}
+                    >
+                      <ArrowDown className="w-6 h-6 text-orange-500" />
+                    </button>
+                  </div>
+
+                  <div className="glass-card p-6 space-y-6">
+                    {/* To Chain */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-900 mb-2 block">
+                        To network
+                      </label>
+                      <div className="relative">
+                        <button
+                          onClick={() => {
+                            setShowToChainDropdown(!showToChainDropdown);
+                            setShowFromChainDropdown(false);
+                          }}
+                          className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-medium text-gray-900 hover:border-orange-300 transition-colors focus:outline-none focus:border-orange-500 flex items-center justify-between"
+                        >
+                          <div className="flex items-center gap-3">
+                            {toChainConfig.logoUrl ? (
+                              <img 
+                                src={toChainConfig.logoUrl} 
+                                alt={toChainConfig.name}
+                                className="w-6 h-6 rounded-full"
+                              />
+                            ) : (
+                              <span className="text-xl">{toChainConfig.icon}</span>
+                            )}
+                            <span>{toChainConfig.name}</span>
+                          </div>
+                          <ChevronDown className="w-5 h-5 text-gray-400" />
+                        </button>
+                        
+                        {showToChainDropdown && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="absolute z-10 w-full mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-80 overflow-y-auto"
+                          >
+                            {Object.entries(CHAINS)
+                              .filter(([key, chain]) => !chain.isTestnet)
+                              .map(([key, chain]) => (
+                                <button
+                                  key={key}
+                                  onClick={() => {
+                                    setToChain(key);
+                                    setShowToChainDropdown(false);
+                                    // Reset token when chain changes
+                                    if (toChainTokens.length > 0) {
+                                      setToToken(toChainTokens[0].address);
+                                    } else {
+                                      setToToken('');
+                                    }
+                                  }}
+                                  className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors ${
+                                    toChain === key ? 'bg-orange-50' : ''
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    {chain.logoUrl ? (
+                                      <img 
+                                        src={chain.logoUrl} 
+                                        alt={chain.name}
+                                        className="w-6 h-6 rounded-full"
+                                      />
+                                    ) : (
+                                      <span className="text-xl">{chain.icon}</span>
+                                    )}
+                                    <span className="font-medium text-gray-900">{chain.name}</span>
+                                  </div>
+                                  {toChain === key && (
+                                    <Check className="w-5 h-5 text-orange-500" />
+                                  )}
+                                </button>
+                              ))}
+                          </motion.div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* To Token */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-900 mb-2 block">
+                        To token
+                      </label>
+                      <div className="relative">
+                        <button
+                          onClick={() => {
+                            setShowToTokenDropdown(!showToTokenDropdown);
+                            setShowFromTokenDropdown(false);
+                          }}
+                          className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-medium text-gray-900 hover:border-orange-300 transition-colors focus:outline-none focus:border-orange-500 flex items-center justify-between"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold">
+                              {toToken ? getTokenSymbol(toToken, toChain) : 'Select token'}
+                            </span>
+                          </div>
+                          <ChevronDown className="w-5 h-5 text-gray-400" />
+                        </button>
+                        
+                        {showToTokenDropdown && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="absolute z-10 w-full mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-80 overflow-y-auto"
+                          >
+                            <button
+                              onClick={() => {
+                                setToToken('native');
+                                setShowToTokenDropdown(false);
+                              }}
+                              className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors ${
+                                toToken === 'native' ? 'bg-orange-50' : ''
+                              }`}
+                            >
+                              <span className="font-medium text-gray-900">
+                                {toChainConfig.nativeCurrency.symbol}
+                              </span>
+                              {toToken === 'native' && (
+                                <Check className="w-5 h-5 text-orange-500" />
+                              )}
+                            </button>
+                            {toChainTokens.map(token => (
+                              <button
+                                key={token.address}
+                                onClick={() => {
+                                  setToToken(token.address);
+                                  setShowToTokenDropdown(false);
+                                }}
+                                className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors ${
+                                  toToken === token.address ? 'bg-orange-50' : ''
+                                }`}
+                              >
+                                <span className="font-medium text-gray-900">{token.symbol}</span>
+                                {toToken === token.address && (
+                                  <Check className="w-5 h-5 text-orange-500" />
+                                )}
+                              </button>
+                            ))}
+                          </motion.div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* To Amount (Read-only) */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-900 mb-2 block">
+                        You'll receive
+                      </label>
+                      <input
+                        type="text"
+                        value={toAmount || '0.0'}
+                        readOnly
+                        placeholder="0.0"
+                        className="input-field text-emerald-500 font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Quote Card */}
+                  {quote && !error && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="glass-card p-6 bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border border-orange-200"
+                    >
+                      <div className="text-sm text-gray-600 mb-1">You'll receive</div>
+                      <div className="text-4xl font-bold text-gray-900 mb-1">
+                        {parseFloat(toAmount || '0').toFixed(6)} {getTokenSymbol(toToken, toChain)}
+                      </div>
+                      <div className="text-sm text-gray-600 mb-4">
+                        ≈ {formatUSDSync(parseFloat(quote.estimate.toAmount) * parseFloat(quote.action.toToken.priceUSD || '0'))} USD
+                      </div>
+                      
+                      {/* Cross-chain indicator */}
+                      {fromChain !== toChain && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                          <div className="flex items-center gap-2 text-blue-700 mb-2">
+                            <ArrowRight className="w-5 h-5" />
+                            <span className="font-semibold">Cross-chain swap</span>
+                          </div>
+                          <div className="text-sm text-blue-600">
+                            Estimated time: {quote.estimate.executionDuration}s
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Fees Breakdown */}
+                      <div className="space-y-2 text-sm">
+                        {quote.estimate.feeCosts.map((fee, i) => (
+                          <div key={i} className="flex justify-between">
+                            <span className="text-gray-600">{fee.name}</span>
+                            <span className="font-semibold text-gray-900">
+                              {parseFloat(fee.amount).toFixed(6)} {fee.token.symbol} ({fee.amountUSD} USD)
+                            </span>
+                          </div>
+                        ))}
+                        
+                        {quote.estimate.gasCosts.map((gas, i) => (
+                          <div key={i} className="flex justify-between">
+                            <span className="text-gray-600">Gas ({gas.type})</span>
+                            <span className="font-semibold text-gray-900">
+                              {parseFloat(gas.amount).toFixed(6)} {gas.token.symbol} ({gas.amountUSD} USD)
+                            </span>
+                          </div>
+                        ))}
+                        
+                        <div className="h-px bg-gray-200 my-2" />
+                        <div className="flex justify-between font-semibold text-base">
+                          <span className="text-gray-900">Route</span>
+                          <span className="text-gray-900">
+                            {quote.tool} {quote.steps.length > 1 && `(${quote.steps.length} steps)`}
+                          </span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* Loading State */}
+                  {isLoadingQuote && (
+                    <div className="flex items-center justify-center gap-3 text-orange-600 py-4">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span className="text-sm font-medium">Fetching best rate...</span>
+                    </div>
+                  )}
+
+                  {/* Swap Button */}
+                  <motion.button
+                    whileTap={{ scale: canSwap() ? 0.98 : 1 }}
+                    onClick={() => setStep('confirm')}
+                    disabled={!canSwap()}
+                    className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl text-white"
+                  >
+                    {isLoadingQuote ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-5 h-5" />
+                        {canSwap() ? 'Review swap' : 'Enter amount'}
+                      </>
+                    )}
+                  </motion.button>
+                </>
+              )}
+
+              {/* Confirm Step */}
+              {step === 'confirm' && quote && (
+                <>
+                  <div className="glass-card p-6 bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border border-orange-200">
+                    <div className="text-sm text-gray-600 mb-1">You're swapping</div>
+                    <div className="text-3xl font-bold text-gray-900 mb-1">
+                      {parseFloat(fromAmount).toFixed(6)} {getTokenSymbol(fromToken, fromChain)}
+                    </div>
+                    <div className="text-sm text-gray-600 mb-4">
+                      for {parseFloat(toAmount || '0').toFixed(6)} {getTokenSymbol(toToken, toChain)}
+                    </div>
+                  </div>
+
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={executeSwap}
+                    disabled={isSwapping}
+                    className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl text-white"
+                  >
+                    {isSwapping ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Flame className="w-5 h-5" />
+                        Confirm swap
+                      </>
+                    )}
+                  </motion.button>
+                </>
+              )}
+
+              {/* Executing Step */}
+              {step === 'executing' && (
+                <div className="glass-card p-12 text-center">
+                  <Loader2 className="w-16 h-16 animate-spin text-orange-500 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    {totalSteps > 0 && `Step ${currentStepIndex} of ${totalSteps}`}
+                  </h3>
+                  <p className="text-gray-600 mb-4">{stepStatus}</p>
+                  
+                  {/* Progress Bar */}
+                  {totalSteps > 0 && (
+                    <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+                      <motion.div
+                        className="bg-gradient-to-r from-orange-500 to-yellow-500 h-2 rounded-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(currentStepIndex / totalSteps) * 100}%` }}
+                        transition={{ duration: 0.3 }}
+                      />
+                    </div>
+                  )}
+                  
+                  {txHash && (
+                    <p className="text-sm text-gray-500 mt-4">
+                      Transaction: <span className="font-mono">{txHash.substring(0, 10)}...{txHash.substring(txHash.length - 8)}</span>
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Success Step */}
+              {step === 'success' && (
+                <div className="glass-card p-12 text-center">
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                    className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4"
+                  >
+                    <CheckCircle2 className="w-12 h-12 text-emerald-500" />
+                  </motion.div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">Swap Successful!</h3>
+                  <p className="text-gray-600 mb-6">
+                    You have successfully swapped {parseFloat(fromAmount).toFixed(6)} {getTokenSymbol(fromToken, fromChain)} for {parseFloat(toAmount || '0').toFixed(6)} {getTokenSymbol(toToken, toChain)}
+                  </p>
+                  {txHash && (
+                    <a
+                      href={`${toChainConfig.explorerUrl}/tx/${txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-orange-600 hover:text-orange-700 underline"
+                    >
+                      View on explorer
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </motion.div>
