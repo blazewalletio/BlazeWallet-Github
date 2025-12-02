@@ -557,19 +557,19 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         setStepStatus('Signing transaction...');
         
         // Import Solana libraries dynamically
-        const { Connection, Transaction, VersionedTransaction } = await import('@solana/web3.js');
+        const solanaWeb3 = await import('@solana/web3.js');
         const { SolanaService } = await import('@/lib/solana-service');
         
         // Deserialize transaction
         const swapTransactionBuf = Buffer.from(swapTxBase64, 'base64');
-        let transaction: Transaction | VersionedTransaction;
+        let transaction: solanaWeb3.Transaction | solanaWeb3.VersionedTransaction;
         
         try {
           // Try versioned transaction first (newer format)
-          transaction = VersionedTransaction.deserialize(swapTransactionBuf);
+          transaction = solanaWeb3.VersionedTransaction.deserialize(swapTransactionBuf);
         } catch {
           // Fallback to legacy transaction
-          transaction = Transaction.from(swapTransactionBuf);
+          transaction = solanaWeb3.Transaction.from(swapTransactionBuf);
         }
 
         // Get Solana connection
