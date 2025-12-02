@@ -65,8 +65,19 @@ export default function TokenSearchModal({
       }
 
       const data = await response.json();
-      if (!data.success || !data.tokens || !data.tokens[chainId.toString()]) {
-        logger.warn('⚠️ [TokenSearchModal] No tokens returned from API, using fallback');
+      
+      // Handle API errors gracefully
+      if (!data.success) {
+        logger.warn('⚠️ [TokenSearchModal] API returned error:', data.error);
+        setError(data.error || 'Failed to load tokens');
+        setPopularTokens([]);
+        setTokens([]);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!data.tokens || !data.tokens[chainId.toString()]) {
+        logger.warn('⚠️ [TokenSearchModal] No tokens returned from API for chain', chainId);
         // Fallback: return empty array, user can still select native token
         setPopularTokens([]);
         setTokens([]);
@@ -76,6 +87,8 @@ export default function TokenSearchModal({
 
       const allTokens: Record<string, LiFiToken[]> = data.tokens;
       const chainTokens: LiFiToken[] = allTokens[chainId.toString()] || [];
+      
+      logger.log(`✅ [TokenSearchModal] Loaded ${chainTokens.length} tokens from Li.Fi API`);
       
       // Filter out excluded tokens
       const filteredTokens = chainTokens.filter(
@@ -111,7 +124,7 @@ export default function TokenSearchModal({
     }
   };
 
-  // Filter tokens based on search query
+  // Filter tokens based on search query (including native token check)
   const filteredTokens = useMemo(() => {
     if (!searchQuery.trim()) {
       return tokens;
@@ -124,6 +137,9 @@ export default function TokenSearchModal({
       token.address.toLowerCase().includes(query)
     );
   }, [tokens, searchQuery]);
+
+  // Always show native token (it's always available for swaps)
+  const shouldShowNative = true;
 
   const handleSelectNative = () => {
     onSelectToken('native');
@@ -220,8 +236,8 @@ export default function TokenSearchModal({
             {!isLoading && !error && (
               <div className="glass-card overflow-hidden">
                 <div className="max-h-[60vh] overflow-y-auto">
-                  {/* Native Token Option */}
-                  {chainConfig && (
+                  {/* Native Token Option - Always show if no search, or if search matches */}
+                  {chainConfig && shouldShowNative && (
                     <button
                       onClick={handleSelectNative}
                       className={`w-full px-4 py-4 flex items-center justify-between hover:bg-orange-50 transition-colors border-b border-gray-100 ${
@@ -315,13 +331,13 @@ export default function TokenSearchModal({
                     <>
                       <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
                         <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                          {filteredTokens.length} {filteredTokens.length === 1 ? 'token' : 'tokens'} found
+                          {filteredTokens.length + 1} {(filteredTokens.length + 1) === 1 ? 'token' : 'tokens'} found
                         </span>
                       </div>
                       {filteredTokens.length === 0 ? (
-                        <div className="px-4 py-12 text-center">
-                          <p className="text-gray-500">No tokens found</p>
-                          <p className="text-sm text-gray-400 mt-1">
+                        <div className="px-4 py-4 text-center border-b border-gray-100">
+                          <p className="text-sm text-gray-500">No other tokens found</p>
+                          <p className="text-xs text-gray-400 mt-1">
                             Try a different search term
                           </p>
                         </div>
