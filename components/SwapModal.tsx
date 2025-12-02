@@ -415,12 +415,21 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
 
         // ✅ CRITICAL: Convert 'native' to actual token address BEFORE API call
         // Li.Fi requires actual addresses, not 'native' string
+        if (!fromToken || !toToken) {
+          throw new Error('From token and to token are required');
+        }
+        
         const fromTokenAddress = fromToken === 'native' 
           ? LiFiService.getNativeTokenAddress(fromChainId)
           : fromToken;
         const toTokenAddress = toToken === 'native' || !toToken
           ? LiFiService.getNativeTokenAddress(toChainId)
           : toToken;
+        
+        // Validate addresses are not undefined
+        if (!fromTokenAddress || !toTokenAddress) {
+          throw new Error('Failed to convert token addresses. Please try again.');
+        }
         
         // ✅ CRITICAL: Convert chain IDs to strings for URL (Li.Fi accepts both)
         const response = await fetch(

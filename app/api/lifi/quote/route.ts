@@ -35,10 +35,10 @@ export async function GET(req: NextRequest) {
     logger.log('📊 Fetching Li.Fi quote via API route:', {
       fromChain,
       toChain,
-      fromToken: fromToken.length > 10 ? fromToken.substring(0, 10) + '...' : fromToken,
-      toToken: toToken.length > 10 ? toToken.substring(0, 10) + '...' : toToken,
+      fromToken: fromToken && fromToken.length > 10 ? fromToken.substring(0, 10) + '...' : fromToken || 'undefined',
+      toToken: toToken && toToken.length > 10 ? toToken.substring(0, 10) + '...' : toToken || 'undefined',
       fromAmount,
-      fromAddress: fromAddress.substring(0, 10) + '...',
+      fromAddress: fromAddress ? fromAddress.substring(0, 10) + '...' : 'undefined',
     });
 
     try {
