@@ -28,25 +28,52 @@ export async function GET(req: NextRequest) {
     logger.log('📊 Fetching Li.Fi quote via API route:', {
       fromChain,
       toChain,
-      fromToken: fromToken.substring(0, 10) + '...',
-      toToken: toToken.substring(0, 10) + '...',
+      fromToken: fromToken.length > 10 ? fromToken.substring(0, 10) + '...' : fromToken,
+      toToken: toToken.length > 10 ? toToken.substring(0, 10) + '...' : toToken,
+      fromAmount,
+      toAddress: toAddress.substring(0, 10) + '...',
     });
 
-    const quote = await LiFiService.getQuote(
-      fromChain,
-      toChain,
-      fromToken,
-      toToken,
-      fromAmount,
-      toAddress,
-      slippage,
-      order,
-      lifiApiKey
-    );
+    try {
+      const quote = await LiFiService.getQuote(
+        fromChain,
+        toChain,
+        fromToken,
+        toToken,
+        fromAmount,
+        toAddress,
+        slippage,
+        order,
+        lifiApiKey
+      );
 
-    if (!quote) {
+      if (!quote) {
+        logger.error('❌ Li.Fi returned null quote');
+        return NextResponse.json(
+          { error: 'Failed to fetch quote from Li.Fi. Please check if the token pair is supported.' },
+          { status: 500 }
+        );
+      }
+
+      logger.log('✅ Li.Fi quote received via API route');
+      return NextResponse.json({ success: true, quote });
+    } catch (error: any) {
+      logger.error('❌ Li.Fi quote error in API route:', {
+        error: error.message,
+        stack: error.stack,
+        fromChain,
+        toChain,
+        fromToken,
+        toToken,
+      });
       return NextResponse.json(
-        { error: 'Failed to fetch quote from Li.Fi' },
+        { 
+          error: 'Failed to fetch quote from Li.Fi',
+          details: error.message || 'Unknown error',
+          hint: fromChain === 101 || toChain === 101 
+            ? 'Solana swaps may have limited support. Try EVM chains (Ethereum, Polygon, etc.) first.'
+            : 'Please check if the token pair is supported by Li.Fi.'
+        },
         { status: 500 }
       );
     }

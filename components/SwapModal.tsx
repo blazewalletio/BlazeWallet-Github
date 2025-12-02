@@ -18,6 +18,8 @@ import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { CHAINS, POPULAR_TOKENS } from '@/lib/chains';
 import { LiFiService, LiFiQuote } from '@/lib/lifi-service';
+import { MultiChainService } from '@/lib/multi-chain-service';
+import { PriceService } from '@/lib/price-service';
 import { ethers } from 'ethers';
 import { logger } from '@/lib/logger';
 import { useCurrency } from '@/contexts/CurrencyContext';
@@ -30,6 +32,16 @@ interface SwapModalProps {
     toToken?: string;
     amount?: string;
   };
+}
+
+interface AvailableToken {
+  address: string;
+  symbol: string;
+  name: string;
+  balance: string;
+  decimals: number;
+  logo?: string;
+  isNative: boolean;
 }
 
 export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalProps) {
@@ -47,6 +59,11 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   const [toToken, setToToken] = useState<string>('');
   const [showFromTokenDropdown, setShowFromTokenDropdown] = useState(false);
   const [showToTokenDropdown, setShowToTokenDropdown] = useState(false);
+  
+  // Available tokens (only tokens user owns)
+  const [availableFromTokens, setAvailableFromTokens] = useState<AvailableToken[]>([]);
+  const [isLoadingFromTokens, setIsLoadingFromTokens] = useState(false);
+  const [fromChainBalance, setFromChainBalance] = useState('0');
   
   // Amount states
   const [fromAmount, setFromAmount] = useState('');
@@ -73,10 +90,116 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
 
   const fromChainConfig = CHAINS[fromChain];
   const toChainConfig = CHAINS[toChain];
-  const fromChainTokens = POPULAR_TOKENS[fromChain] || [];
   const toChainTokens = POPULAR_TOKENS[toChain] || [];
 
   useBlockBodyScroll(isOpen);
+
+  // Fetch available tokens for fromChain (only tokens user owns)
+  const fetchFromTokens = async (chain: string) => {
+    setIsLoadingFromTokens(true);
+    try {
+      const chainConfig = CHAINS[chain];
+      const chainService = MultiChainService.getInstance(chain);
+      const priceService = new PriceService();
+      
+      // Get address for the chain
+      let displayAddress: string;
+      if (chain === 'solana') {
+        const { solanaAddress } = useWalletStore.getState();
+        displayAddress = solanaAddress || '';
+      } else if (chain === 'bitcoin' || chain === 'litecoin' || chain === 'dogecoin' || chain === 'bitcoincash') {
+        // Bitcoin forks don't support token swaps via Li.Fi
+        setIsLoadingFromTokens(false);
+        return;
+      } else {
+        // EVM chains
+        const { address } = useWalletStore.getState();
+        displayAddress = address || '';
+      }
+
+      if (!displayAddress) {
+        logger.error('❌ No wallet address available for', chain);
+        setIsLoadingFromTokens(false);
+        return;
+      }
+
+      // Fetch native balance
+      const nativeBalance = await chainService.getBalance(displayAddress);
+      setFromChainBalance(nativeBalance);
+      
+      const nativeSymbol = chainConfig.nativeCurrency.symbol;
+      const prices = await priceService.getMultiplePrices([nativeSymbol]);
+      const nativePrice = prices[nativeSymbol] || 0;
+      
+      const tokens: AvailableToken[] = [
+        {
+          address: 'native',
+          symbol: nativeSymbol,
+          name: chainConfig.nativeCurrency.name,
+          balance: nativeBalance,
+          decimals: chainConfig.nativeCurrency.decimals,
+          logo: chainConfig.logoUrl,
+          isNative: true,
+        }
+      ];
+
+      // Fetch tokens for Solana
+      if (chain === 'solana') {
+        const solanaService = chainService as any;
+        if (solanaService.getSPLTokenBalances) {
+          const splTokens = await solanaService.getSPLTokenBalances(displayAddress);
+          const splSymbols = splTokens.map((t: any) => t.symbol);
+          const splPrices = await priceService.getMultiplePrices(splSymbols);
+          
+          splTokens.forEach((token: any) => {
+            const balance = parseFloat(token.balance || '0');
+            if (balance > 0) {
+              tokens.push({
+                address: token.address,
+                symbol: token.symbol,
+                name: token.name,
+                balance: token.balance,
+                decimals: token.decimals,
+                logo: token.logo,
+                isNative: false,
+              });
+            }
+          });
+        }
+      } 
+      // Fetch ERC20 tokens for EVM chains from wallet store
+      else {
+        const chainTokens = getChainTokens(chain);
+        logger.log(`🪙 [SwapModal] Found ${chainTokens.length} cached tokens for ${chain}`);
+        
+        for (const token of chainTokens) {
+          // Skip native currency (already added)
+          if (!token.address) continue;
+          
+          const balance = parseFloat(token.balance || '0');
+          if (balance > 0) {
+            tokens.push({
+              address: token.address,
+              symbol: token.symbol,
+              name: token.name,
+              balance: token.balance || '0',
+              decimals: token.decimals,
+              logo: token.logo,
+              isNative: false,
+            });
+          }
+        }
+      }
+
+      setAvailableFromTokens(tokens);
+      logger.log(`✅ Loaded ${tokens.length} available tokens for ${chain}:`, tokens);
+    } catch (error) {
+      logger.error('❌ Failed to fetch from tokens:', error);
+      setAvailableFromTokens([]);
+    } finally {
+      setIsLoadingFromTokens(false);
+    }
+  };
 
   // Initialize when modal opens
   useEffect(() => {
@@ -96,6 +219,9 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       setStepStatus('');
       setTxHash('');
       
+      // Fetch available tokens for fromChain
+      fetchFromTokens(currentChain);
+      
       // Set default toToken
       if (toChainTokens.length > 0) {
         setToToken(toChainTokens[0].address);
@@ -109,9 +235,18 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     }
   }, [isOpen, currentChain, toChainTokens]);
 
+  // Fetch tokens when fromChain changes
+  useEffect(() => {
+    if (isOpen && fromChain) {
+      fetchFromTokens(fromChain);
+      // Reset fromToken when chain changes
+      setFromToken('native');
+    }
+  }, [fromChain, isOpen]);
+
   // AI Assistant pre-fill
   useEffect(() => {
-    if (isOpen && prefillData) {
+    if (isOpen && prefillData && availableFromTokens.length > 0) {
       logger.log('🤖 [SwapModal] Applying AI pre-fill data:', prefillData);
       
       if (prefillData.fromToken) {
@@ -119,7 +254,8 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         if (tokenSymbol === fromChainConfig?.nativeCurrency.symbol.toUpperCase()) {
           setFromToken('native');
         } else {
-          const matchingToken = fromChainTokens.find(
+          // Use availableFromTokens (tokens user owns)
+          const matchingToken = availableFromTokens.find(
             token => token.symbol.toUpperCase() === tokenSymbol
           );
           if (matchingToken) {
@@ -133,6 +269,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         if (tokenSymbol === toChainConfig?.nativeCurrency.symbol.toUpperCase()) {
           setToToken('native');
         } else {
+          // Use POPULAR_TOKENS for toToken (all available tokens)
           const matchingToken = toChainTokens.find(
             token => token.symbol.toUpperCase() === tokenSymbol
           );
@@ -144,13 +281,14 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       
       if (prefillData.amount) {
         if (prefillData.amount === 'max' || prefillData.amount === 'all') {
-          setFromAmount(balance || '0');
+          const balance = getTokenBalance(fromToken);
+          setFromAmount(balance);
         } else {
           setFromAmount(prefillData.amount);
         }
       }
     }
-  }, [isOpen, prefillData, fromChainConfig, toChainConfig, fromChainTokens, toChainTokens, balance]);
+  }, [isOpen, prefillData, fromChainConfig, toChainConfig, availableFromTokens, toChainTokens, fromToken]);
 
   // Fetch quote when inputs change (debounced)
   useEffect(() => {
@@ -178,15 +316,29 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       const toChainId = toChainConfig.id;
       const toAddress = getCurrentAddress() || wallet.address;
       
-      // Convert amount to wei (assuming 18 decimals for native, will handle tokens later)
+      // Convert amount to smallest unit - handle Solana (9 decimals) vs EVM (18 decimals)
       let amountInWei: string;
       if (fromToken === 'native') {
-        amountInWei = ethers.parseEther(fromAmount).toString();
+        // Solana uses 9 decimals, EVM uses 18
+        const decimals = fromChainConfig.nativeCurrency.decimals || 18;
+        if (fromChain === 'solana') {
+          // For Solana, use lamports (smallest unit)
+          amountInWei = (parseFloat(fromAmount) * Math.pow(10, decimals)).toString();
+        } else {
+          // For EVM, use parseEther
+          amountInWei = ethers.parseEther(fromAmount).toString();
+        }
       } else {
-        // For tokens, we need to get decimals
-        const token = fromChainTokens.find(t => t.address.toLowerCase() === fromToken.toLowerCase());
+        // For tokens, get decimals from availableFromTokens
+        const token = availableFromTokens.find(t => t.address.toLowerCase() === fromToken.toLowerCase());
         const decimals = token?.decimals || 18;
-        amountInWei = ethers.parseUnits(fromAmount, decimals).toString();
+        if (fromChain === 'solana') {
+          // Solana tokens use lamports
+          amountInWei = (parseFloat(fromAmount) * Math.pow(10, decimals)).toString();
+        } else {
+          // EVM tokens use parseUnits
+          amountInWei = ethers.parseUnits(fromAmount, decimals).toString();
+        }
       }
 
       logger.log('📊 Fetching Li.Fi quote:', {
@@ -197,13 +349,36 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         fromAmount: amountInWei,
       });
 
+      // Check if Solana is involved (Li.Fi may have limited Solana support)
+      if (fromChainId === 101 || toChainId === 101) {
+        logger.warn('⚠️ Solana swap detected - Li.Fi may have limited support');
+      }
+
       const response = await fetch(
         `/api/lifi/quote?fromChain=${fromChainId}&toChain=${toChainId}&fromToken=${fromToken}&toToken=${toToken}&fromAmount=${amountInWei}&toAddress=${toAddress}&slippage=0.03&order=RECOMMENDED`
       );
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch quote');
+        const errorMessage = errorData.error || 'Failed to fetch quote';
+        const errorDetails = errorData.details || '';
+        const errorHint = errorData.hint || '';
+        
+        // Provide helpful error message
+        let fullErrorMessage = errorMessage;
+        if (errorDetails) {
+          fullErrorMessage += `: ${errorDetails}`;
+        }
+        if (errorHint) {
+          fullErrorMessage += ` ${errorHint}`;
+        }
+        
+        // Special message for Solana
+        if ((fromChainId === 101 || toChainId === 101) && !errorHint) {
+          fullErrorMessage += ' Note: Solana swaps may have limited support. Try EVM chains (Ethereum, Polygon, etc.) for better compatibility.';
+        }
+        
+        throw new Error(fullErrorMessage);
       }
 
       const data = await response.json();
@@ -439,28 +614,51 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     }, 10 * 60 * 1000);
   };
 
-  const getTokenSymbol = (address: string, chain: string): string => {
+  const getTokenSymbol = (address: string, chain: string, isFromToken: boolean = false): string => {
     if (address === 'native') return CHAINS[chain].nativeCurrency.symbol;
-    const tokens = POPULAR_TOKENS[chain] || [];
-    const token = tokens.find(t => t.address.toLowerCase() === address.toLowerCase());
-    return token?.symbol || 'Token';
+    
+    if (isFromToken) {
+      // For fromToken, use availableFromTokens (tokens user owns)
+      const token = availableFromTokens.find(t => t.address.toLowerCase() === address.toLowerCase());
+      return token?.symbol || 'Token';
+    } else {
+      // For toToken, use POPULAR_TOKENS (all available tokens)
+      const tokens = POPULAR_TOKENS[chain] || [];
+      const token = tokens.find(t => t.address.toLowerCase() === address.toLowerCase());
+      return token?.symbol || 'Token';
+    }
   };
 
-  const getTokenName = (address: string, chain: string): string => {
+  const getTokenName = (address: string, chain: string, isFromToken: boolean = false): string => {
     if (address === 'native') return CHAINS[chain].nativeCurrency.name;
-    const tokens = POPULAR_TOKENS[chain] || [];
-    const token = tokens.find(t => t.address.toLowerCase() === address.toLowerCase());
-    return token?.name || 'Token';
+    
+    if (isFromToken) {
+      // For fromToken, use availableFromTokens
+      const token = availableFromTokens.find(t => t.address.toLowerCase() === address.toLowerCase());
+      return token?.name || 'Token';
+    } else {
+      // For toToken, use POPULAR_TOKENS
+      const tokens = POPULAR_TOKENS[chain] || [];
+      const token = tokens.find(t => t.address.toLowerCase() === address.toLowerCase());
+      return token?.name || 'Token';
+    }
+  };
+
+  const getTokenBalance = (address: string): string => {
+    if (address === 'native') return fromChainBalance;
+    const token = availableFromTokens.find(t => t.address.toLowerCase() === address.toLowerCase());
+    return token?.balance || '0';
   };
 
   const handleMaxAmount = () => {
+    const balance = getTokenBalance(fromToken);
     if (fromToken === 'native') {
+      // Reserve a small amount for gas
       const max = Math.max(0, parseFloat(balance || '0') - 0.001);
       setFromAmount(max.toFixed(6));
     } else {
-      // For tokens, we'd need to get balance from chainTokens
-      // For now, just use a placeholder
-      setFromAmount('0');
+      // For tokens, use full balance
+      setFromAmount(balance);
     }
   };
 
@@ -613,64 +811,63 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                       <label className="text-sm font-medium text-gray-900 mb-2 block">
                         From token
                       </label>
-                      <div className="relative">
-                        <button
-                          onClick={() => {
-                            setShowFromTokenDropdown(!showFromTokenDropdown);
-                            setShowToTokenDropdown(false);
-                          }}
-                          className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-medium text-gray-900 hover:border-orange-300 transition-colors focus:outline-none focus:border-orange-500 flex items-center justify-between"
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="font-semibold">
-                              {getTokenSymbol(fromToken, fromChain)}
-                            </span>
-                          </div>
-                          <ChevronDown className="w-5 h-5 text-gray-400" />
-                        </button>
-                        
-                        {showFromTokenDropdown && (
-                          <motion.div
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="absolute z-10 w-full mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-80 overflow-y-auto"
+                      {isLoadingFromTokens ? (
+                        <div className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl flex items-center justify-center">
+                          <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
+                          <span className="ml-2 text-gray-600">Loading tokens...</span>
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          <button
+                            onClick={() => {
+                              setShowFromTokenDropdown(!showFromTokenDropdown);
+                              setShowToTokenDropdown(false);
+                            }}
+                            className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl font-medium text-gray-900 hover:border-orange-300 transition-colors focus:outline-none focus:border-orange-500 flex items-center justify-between"
                           >
-                            <button
-                              onClick={() => {
-                                setFromToken('native');
-                                setShowFromTokenDropdown(false);
-                              }}
-                              className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors ${
-                                fromToken === 'native' ? 'bg-orange-50' : ''
-                              }`}
-                            >
-                              <span className="font-medium text-gray-900">
-                                {fromChainConfig.nativeCurrency.symbol}
+                            <div className="flex items-center gap-3">
+                              <span className="font-semibold">
+                                {getTokenSymbol(fromToken, fromChain, true)}
                               </span>
-                              {fromToken === 'native' && (
-                                <Check className="w-5 h-5 text-orange-500" />
-                              )}
-                            </button>
-                            {fromChainTokens.map(token => (
-                              <button
-                                key={token.address}
-                                onClick={() => {
-                                  setFromToken(token.address);
-                                  setShowFromTokenDropdown(false);
-                                }}
-                                className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors ${
-                                  fromToken === token.address ? 'bg-orange-50' : ''
-                                }`}
-                              >
-                                <span className="font-medium text-gray-900">{token.symbol}</span>
-                                {fromToken === token.address && (
-                                  <Check className="w-5 h-5 text-orange-500" />
-                                )}
-                              </button>
-                            ))}
-                          </motion.div>
-                        )}
-                      </div>
+                              <span className="text-sm text-gray-500">
+                                {parseFloat(getTokenBalance(fromToken)).toFixed(6)}
+                              </span>
+                            </div>
+                            <ChevronDown className="w-5 h-5 text-gray-400" />
+                          </button>
+                          
+                          {showFromTokenDropdown && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="absolute z-10 w-full mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-80 overflow-y-auto"
+                            >
+                              {availableFromTokens.map(token => (
+                                <button
+                                  key={token.address}
+                                  onClick={() => {
+                                    setFromToken(token.address);
+                                    setShowFromTokenDropdown(false);
+                                  }}
+                                  className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors ${
+                                    fromToken === token.address ? 'bg-orange-50' : ''
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                                    <span className="font-medium text-gray-900">{token.symbol}</span>
+                                    <span className="text-sm text-gray-500 truncate">
+                                      {parseFloat(token.balance).toFixed(6)}
+                                    </span>
+                                  </div>
+                                  {fromToken === token.address && (
+                                    <Check className="w-5 h-5 text-orange-500 flex-shrink-0" />
+                                  )}
+                                </button>
+                              ))}
+                            </motion.div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* From Amount */}
@@ -680,7 +877,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                           Amount
                         </label>
                         <span className="text-sm text-gray-600">
-                          Balance: {balance} {fromChainConfig.nativeCurrency.symbol}
+                          Balance: {parseFloat(getTokenBalance(fromToken)).toFixed(6)} {getTokenSymbol(fromToken, fromChain, true)}
                         </span>
                       </div>
                       <div className="relative">
@@ -695,7 +892,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                         />
                         <button
                           onClick={handleMaxAmount}
-                          disabled={isSwapping}
+                          disabled={isSwapping || parseFloat(getTokenBalance(fromToken)) === 0}
                           className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-600 hover:text-orange-700 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           MAX

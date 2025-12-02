@@ -1,7 +1,10 @@
 import { logger } from '@/lib/logger';
 
-// Li.Fi Native Token Address
-const NATIVE_TOKEN = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
+// Li.Fi Native Token Addresses
+// EVM chains use: 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
+// Solana uses: So11111111111111111111111111111111111111112 (Wrapped SOL)
+const NATIVE_TOKEN_EVM = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
+const NATIVE_TOKEN_SOLANA = 'So11111111111111111111111111111111111111112'; // Wrapped SOL
 
 // Li.Fi Base URL
 const BASE_URL = 'https://li.quest/v1';
@@ -123,12 +126,22 @@ export class LiFiService {
     apiKey?: string
   ): Promise<LiFiQuote | null> {
     try {
+      // Determine native token address based on chain
+      const getNativeTokenAddress = (chainId: number): string => {
+        // Solana chain ID is 101
+        if (chainId === 101) {
+          return NATIVE_TOKEN_SOLANA; // Wrapped SOL
+        }
+        // All EVM chains use the same native token address
+        return NATIVE_TOKEN_EVM;
+      };
+
       // Convert native token to Li.Fi format
       const fromTokenAddress = fromToken === 'native' || !fromToken 
-        ? NATIVE_TOKEN 
+        ? getNativeTokenAddress(fromChain)
         : fromToken;
       const toTokenAddress = toToken === 'native' || !toToken 
-        ? NATIVE_TOKEN 
+        ? getNativeTokenAddress(toChain)
         : toToken;
 
       const params = new URLSearchParams({
@@ -153,18 +166,32 @@ export class LiFiService {
       logger.log('📊 Fetching Li.Fi quote:', {
         fromChain,
         toChain,
-        fromToken: fromTokenAddress.substring(0, 10) + '...',
-        toToken: toTokenAddress.substring(0, 10) + '...',
+        fromToken: fromTokenAddress.length > 10 ? fromTokenAddress.substring(0, 10) + '...' : fromTokenAddress,
+        toToken: toTokenAddress.length > 10 ? toTokenAddress.substring(0, 10) + '...' : toTokenAddress,
         fromAmount,
       });
 
-      const response = await fetch(`${BASE_URL}/quote?${params.toString()}`, {
+      const url = `${BASE_URL}/quote?${params.toString()}`;
+      logger.log('🔗 Li.Fi API URL:', url);
+
+      const response = await fetch(url, {
         headers,
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        logger.error('❌ Li.Fi quote API error:', response.status, errorData);
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { message: errorText };
+        }
+        logger.error('❌ Li.Fi quote API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData,
+          url,
+        });
         return null;
       }
 
@@ -318,17 +345,23 @@ export class LiFiService {
   }
 
   /**
-   * Get native token address
+   * Get native token address for a chain
    */
-  static getNativeTokenAddress(): string {
-    return NATIVE_TOKEN;
+  static getNativeTokenAddress(chainId: number): string {
+    if (chainId === 101) {
+      return NATIVE_TOKEN_SOLANA; // Solana
+    }
+    return NATIVE_TOKEN_EVM; // EVM chains
   }
 
   /**
    * Check if address is native token
    */
-  static isNativeToken(address: string): boolean {
-    return address.toLowerCase() === NATIVE_TOKEN.toLowerCase();
+  static isNativeToken(address: string, chainId?: number): boolean {
+    if (chainId === 101) {
+      return address === NATIVE_TOKEN_SOLANA;
+    }
+    return address.toLowerCase() === NATIVE_TOKEN_EVM.toLowerCase();
   }
 }
 
