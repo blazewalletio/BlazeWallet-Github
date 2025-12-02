@@ -76,19 +76,52 @@ export default function TokenSearchModal({
         return;
       }
 
-      if (!data.tokens || !data.tokens[chainId.toString()]) {
-        logger.warn('⚠️ [TokenSearchModal] No tokens returned from API for chain', chainId);
-        // Fallback: return empty array, user can still select native token
-        setPopularTokens([]);
-        setTokens([]);
-        setIsLoading(false);
-        return;
-      }
-
-      const allTokens: Record<string, LiFiToken[]> = data.tokens;
-      const chainTokens: LiFiToken[] = allTokens[chainId.toString()] || [];
+      let chainTokens: LiFiToken[] = [];
       
-      logger.log(`✅ [TokenSearchModal] Loaded ${chainTokens.length} tokens from Li.Fi API`);
+      if (data.tokens && data.tokens[chainId.toString()]) {
+        const allTokens: Record<string, LiFiToken[]> = data.tokens;
+        chainTokens = allTokens[chainId.toString()] || [];
+        logger.log(`✅ [TokenSearchModal] Loaded ${chainTokens.length} tokens from Li.Fi API`);
+      } else {
+        // Fallback for Solana: Use Jupiter tokens
+        if (chainKey === 'solana') {
+          logger.log('🪐 [TokenSearchModal] Li.Fi returned no tokens for Solana, trying Jupiter fallback...');
+          try {
+            const jupiterResponse = await fetch('/api/jupiter-tokens');
+            if (jupiterResponse.ok) {
+              const jupiterTokens: any[] = await jupiterResponse.json();
+              logger.log(`🪐 [TokenSearchModal] Got ${jupiterTokens.length} tokens from Jupiter`);
+              
+              // Convert Jupiter tokens to LiFiToken format
+              chainTokens = jupiterTokens
+                .filter(t => t.address && t.symbol) // Only valid tokens
+                .map(t => ({
+                  address: t.address,
+                  symbol: t.symbol,
+                  name: t.name || t.symbol,
+                  decimals: t.decimals || 9,
+                  chainId: chainId,
+                  logoURI: t.logoURI || '',
+                  priceUSD: '0',
+                }))
+                .slice(0, 1000); // Limit to first 1000 tokens for performance
+              
+              logger.log(`✅ [TokenSearchModal] Converted ${chainTokens.length} Jupiter tokens`);
+            }
+          } catch (jupiterError) {
+            logger.error('❌ [TokenSearchModal] Jupiter fallback failed:', jupiterError);
+          }
+        }
+        
+        if (chainTokens.length === 0) {
+          logger.warn('⚠️ [TokenSearchModal] No tokens available for chain', chainId);
+          // User can still select native token
+          setPopularTokens([]);
+          setTokens([]);
+          setIsLoading(false);
+          return;
+        }
+      }
       
       // Filter out excluded tokens
       const filteredTokens = chainTokens.filter(
