@@ -48,7 +48,7 @@ interface AvailableToken {
 }
 
 export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalProps) {
-  const { wallet, currentChain, balance, getCurrentAddress, getChainTokens } = useWalletStore();
+  const { wallet, currentChain, balance, getCurrentAddress, getChainTokens, mnemonic } = useWalletStore();
   const { formatUSDSync } = useCurrency();
   
   // Chain states
@@ -578,13 +578,32 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         const solanaService = new SolanaService(fromChainConfig.rpcUrl);
         const connection = solanaService['connection'];
 
-        // Sign transaction with wallet
+        // Sign transaction with Solana keypair (not ethers wallet!)
         setStepStatus('Signing transaction with wallet...');
-        const signedTransaction = await wallet.signTransaction(transaction as any);
+        if (!mnemonic) {
+          throw new Error('Mnemonic required for Solana transaction signing');
+        }
+        
+        // Derive Solana keypair from mnemonic
+        const { derivePath } = await import('ed25519-hd-key');
+        const bip39 = await import('bip39');
+        const seed = bip39.mnemonicToSeedSync(mnemonic);
+        const derivedSeed = derivePath("m/44'/501'/0'/0'", seed.toString('hex')).key;
+        const { Keypair } = solanaWeb3;
+        const keypair = Keypair.fromSeed(derivedSeed);
+        
+        // Sign the transaction
+        if ('sign' in transaction) {
+          // VersionedTransaction
+          transaction.sign([keypair]);
+        } else {
+          // Legacy Transaction
+          transaction.sign(keypair);
+        }
         
         setStepStatus('Sending transaction to Solana...');
         const signature = await connection.sendRawTransaction(
-          signedTransaction.serialize(),
+          transaction.serialize(),
           {
             skipPreflight: false,
             maxRetries: 3,
@@ -1261,50 +1280,76 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                         {parseFloat(toAmount || '0').toFixed(6)} {getTokenSymbol(toToken, toChain)}
                       </div>
                       <div className="text-sm text-gray-600 mb-4">
-                        ≈ {formatUSDSync(parseFloat(quote.estimate.toAmount) * parseFloat(quote.action.toToken.priceUSD || '0'))} USD
+                        {isJupiterQuote && quote ? (
+                          // Jupiter quote - calculate USD from outAmount
+                          `≈ ${formatUSDSync(parseFloat((quote as JupiterQuote).outAmount) / Math.pow(10, 9) * 150)} USD` // Approximate SOL price
+                        ) : quote && 'estimate' in quote ? (
+                          // Li.Fi quote
+                          `≈ ${formatUSDSync(parseFloat(quote.estimate.toAmount) * parseFloat(quote.action.toToken.priceUSD || '0'))} USD`
+                        ) : (
+                          'Calculating...'
+                        )}
                       </div>
                       
-                      {/* Cross-chain indicator */}
-                      {fromChain !== toChain && (
+                      {/* Cross-chain indicator - Only for Li.Fi quotes */}
+                      {fromChain !== toChain && !isJupiterQuote && quote && 'estimate' in quote && (
                         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
                           <div className="flex items-center gap-2 text-blue-700 mb-2">
                             <ArrowRight className="w-5 h-5" />
                             <span className="font-semibold">Cross-chain swap</span>
                           </div>
                           <div className="text-sm text-blue-600">
-                            Estimated time: {quote.estimate.executionDuration}s
+                            Estimated time: {(quote as LiFiQuote).estimate.executionDuration}s
                           </div>
                         </div>
                       )}
                       
-                      {/* Fees Breakdown */}
-                      <div className="space-y-2 text-sm">
-                        {quote.estimate.feeCosts.map((fee, i) => (
-                          <div key={i} className="flex justify-between">
-                            <span className="text-gray-600">{fee.name}</span>
-                            <span className="font-semibold text-gray-900">
-                              {parseFloat(fee.amount).toFixed(6)} {fee.token.symbol} ({fee.amountUSD} USD)
+                      {/* Fees Breakdown - Only for Li.Fi quotes */}
+                      {!isJupiterQuote && quote && 'estimate' in quote && (
+                        <div className="space-y-2 text-sm">
+                          {(quote as LiFiQuote).estimate.feeCosts.map((fee, i) => (
+                            <div key={i} className="flex justify-between">
+                              <span className="text-gray-600">{fee.name}</span>
+                              <span className="font-semibold text-gray-900">
+                                {parseFloat(fee.amount).toFixed(6)} {fee.token.symbol} ({fee.amountUSD} USD)
+                              </span>
+                            </div>
+                          ))}
+                          
+                          {(quote as LiFiQuote).estimate.gasCosts.map((gas, i) => (
+                            <div key={i} className="flex justify-between">
+                              <span className="text-gray-600">Gas ({gas.type})</span>
+                              <span className="font-semibold text-gray-900">
+                                {parseFloat(gas.amount).toFixed(6)} {gas.token.symbol} ({gas.amountUSD} USD)
+                              </span>
+                            </div>
+                          ))}
+                          
+                          <div className="h-px bg-gray-200 my-2" />
+                          <div className="flex justify-between font-semibold text-base">
+                            <span className="text-gray-900">Route</span>
+                            <span className="text-gray-900">
+                              {(quote as LiFiQuote).tool} {(quote as LiFiQuote).steps.length > 1 && `(${(quote as LiFiQuote).steps.length} steps)`}
                             </span>
                           </div>
-                        ))}
-                        
-                        {quote.estimate.gasCosts.map((gas, i) => (
-                          <div key={i} className="flex justify-between">
-                            <span className="text-gray-600">Gas ({gas.type})</span>
-                            <span className="font-semibold text-gray-900">
-                              {parseFloat(gas.amount).toFixed(6)} {gas.token.symbol} ({gas.amountUSD} USD)
-                            </span>
-                          </div>
-                        ))}
-                        
-                        <div className="h-px bg-gray-200 my-2" />
-                        <div className="flex justify-between font-semibold text-base">
-                          <span className="text-gray-900">Route</span>
-                          <span className="text-gray-900">
-                            {quote.tool} {quote.steps.length > 1 && `(${quote.steps.length} steps)`}
-                          </span>
                         </div>
-                      </div>
+                      )}
+                      
+                      {/* Jupiter-specific info */}
+                      {isJupiterQuote && quote && (
+                        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-4">
+                          <div className="flex items-center gap-2 text-purple-700 mb-2">
+                            <Flame className="w-5 h-5" />
+                            <span className="font-semibold">Powered by Jupiter</span>
+                          </div>
+                          <div className="text-sm text-purple-600">
+                            Price Impact: {(parseFloat((quote as JupiterQuote).priceImpactPct?.toString() || '0') * 100).toFixed(2)}%
+                          </div>
+                          <div className="text-sm text-purple-600">
+                            Slippage: {(parseFloat((quote as JupiterQuote).slippageBps?.toString() || '0') / 100).toFixed(2)}%
+                          </div>
+                        </div>
+                      )}
                     </motion.div>
                   )}
 
