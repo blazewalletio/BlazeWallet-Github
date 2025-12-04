@@ -229,6 +229,8 @@ export class OnramperService {
   }
 
   // Get quote from Onramper API
+  // Docs: https://docs.onramper.com/reference/get_quotes-fiat-crypto
+  // Endpoint: GET https://api.onramper.com/quotes/{fiat}/{crypto}
   static async getQuote(
     fiatAmount: number,
     fiatCurrency: string,
@@ -242,29 +244,51 @@ export class OnramperService {
     totalAmount: string;
   } | null> {
     try {
-      // Note: Onramper quote API endpoint
-      // This is a placeholder - actual implementation depends on Onramper API docs
-      const response = await fetch(
-        `https://api.onramper.com/quote?fiatAmount=${fiatAmount}&fiatCurrency=${fiatCurrency}&cryptoCurrency=${cryptoCurrency}&paymentMethod=${paymentMethod || ''}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${apiKey || ''}`,
-            'Accept': 'application/json',
-          },
-        }
-      );
+      if (!apiKey) {
+        logger.error('Onramper API key is required for quotes');
+        return null;
+      }
+
+      // Onramper API format: /quotes/{fiat}/{crypto}?amount={amount}
+      const fiatLower = fiatCurrency.toLowerCase();
+      const cryptoLower = cryptoCurrency.toLowerCase();
+      const url = `https://api.onramper.com/quotes/${fiatLower}/${cryptoLower}?amount=${fiatAmount}${paymentMethod ? `&paymentMethod=${paymentMethod}` : ''}`;
+      
+      logger.log('📊 Fetching Onramper quote:', { url: url.replace(apiKey, '***'), fiatAmount, fiatCurrency, cryptoCurrency });
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': apiKey, // Onramper uses API key directly, not Bearer token
+          'Accept': 'application/json',
+        },
+      });
 
       if (!response.ok) {
-        logger.error('Onramper quote API error:', response.status);
+        const errorText = await response.text();
+        logger.error('Onramper quote API error:', response.status, errorText);
         return null;
       }
 
       const data = await response.json();
+      
+      // Onramper returns an array of quotes from different providers
+      // We'll use the first/best quote
+      if (Array.isArray(data) && data.length > 0) {
+        const bestQuote = data[0]; // Or implement logic to select best quote
+        return {
+          cryptoAmount: bestQuote.cryptoAmount?.toString() || '0',
+          exchangeRate: bestQuote.exchangeRate?.toString() || '0',
+          fee: bestQuote.fee?.toString() || '0',
+          totalAmount: bestQuote.totalAmount?.toString() || fiatAmount.toString(),
+        };
+      }
+      
+      // Fallback if response format is different
       return {
-        cryptoAmount: data.cryptoAmount || '0',
-        exchangeRate: data.exchangeRate || '0',
-        fee: data.fee || '0',
-        totalAmount: data.totalAmount || fiatAmount.toString(),
+        cryptoAmount: data.cryptoAmount?.toString() || '0',
+        exchangeRate: data.exchangeRate?.toString() || '0',
+        fee: data.fee?.toString() || '0',
+        totalAmount: data.totalAmount?.toString() || fiatAmount.toString(),
       };
     } catch (error) {
       logger.error('Error fetching Onramper quote:', error);
@@ -273,23 +297,37 @@ export class OnramperService {
   }
 
   // Get supported data (payment methods, fiat currencies, crypto currencies)
+  // Docs: https://docs.onramper.com/reference/get_supported
+  // Endpoint: GET https://api.onramper.com/supported
   static async getSupportedData(apiKey?: string): Promise<{
     paymentMethods: Array<{ id: string; name: string; icon: string; processingTime: string; fee: string }>;
     fiatCurrencies: string[];
     cryptoCurrencies: string[];
   } | null> {
     try {
-      // Note: Onramper supported data API endpoint
-      // This is a placeholder - actual implementation depends on Onramper API docs
-      const response = await fetch('https://api.onramper.com/supported-data', {
+      if (!apiKey) {
+        logger.warn('Onramper API key not provided - returning fallback data');
+        return {
+          paymentMethods: [
+            { id: 'ideal', name: 'iDEAL', icon: 'ideal', processingTime: 'Instant', fee: '€0.50' },
+            { id: 'card', name: 'Credit Card', icon: 'card', processingTime: '2-5 min', fee: '€2.00' },
+            { id: 'bank', name: 'Bank Transfer', icon: 'bank', processingTime: '1-3 days', fee: '€0.00' },
+          ],
+          fiatCurrencies: ['EUR', 'USD', 'GBP'],
+          cryptoCurrencies: ['ETH', 'USDT', 'USDC', 'BTC', 'SOL'],
+        };
+      }
+
+      const response = await fetch('https://api.onramper.com/supported', {
         headers: {
-          'Authorization': `Bearer ${apiKey || ''}`,
+          'Authorization': apiKey, // Onramper uses API key directly, not Bearer token
           'Accept': 'application/json',
         },
       });
 
       if (!response.ok) {
-        logger.error('Onramper supported data API error:', response.status);
+        const errorText = await response.text();
+        logger.error('Onramper supported data API error:', response.status, errorText);
         // Return default data if API fails
         return {
           paymentMethods: [
@@ -303,7 +341,17 @@ export class OnramperService {
       }
 
       const data = await response.json();
-      return data;
+      
+      // Transform Onramper response to our format
+      return {
+        paymentMethods: data.paymentMethods || [
+          { id: 'ideal', name: 'iDEAL', icon: 'ideal', processingTime: 'Instant', fee: '€0.50' },
+          { id: 'card', name: 'Credit Card', icon: 'card', processingTime: '2-5 min', fee: '€2.00' },
+          { id: 'bank', name: 'Bank Transfer', icon: 'bank', processingTime: '1-3 days', fee: '€0.00' },
+        ],
+        fiatCurrencies: data.fiatCurrencies || ['EUR', 'USD', 'GBP'],
+        cryptoCurrencies: data.cryptoCurrencies || ['ETH', 'USDT', 'USDC', 'BTC', 'SOL'],
+      };
     } catch (error) {
       logger.error('Error fetching Onramper supported data:', error);
       // Return default data on error
@@ -320,6 +368,8 @@ export class OnramperService {
   }
 
   // Create transaction via Onramper API
+  // Docs: https://docs.onramper.com/reference/post_checkout-intent
+  // Endpoint: POST https://api.onramper.com/checkout/intent
   static async createTransaction(
     fiatAmount: number,
     fiatCurrency: string,
@@ -333,34 +383,50 @@ export class OnramperService {
     status: string;
   } | null> {
     try {
-      // Note: Onramper create transaction API endpoint
-      // This is a placeholder - actual implementation depends on Onramper API docs
-      const response = await fetch('https://api.onramper.com/transaction', {
+      if (!apiKey) {
+        logger.error('Onramper API key is required to create transactions');
+        return null;
+      }
+
+      // Onramper checkout intent format
+      const requestBody = {
+        sourceCurrency: fiatCurrency.toLowerCase(),
+        destinationCurrency: cryptoCurrency.toLowerCase(),
+        sourceAmount: fiatAmount,
+        destinationWalletAddress: walletAddress,
+        paymentMethod: paymentMethod,
+      };
+
+      logger.log('📊 Creating Onramper transaction:', {
+        ...requestBody,
+        destinationWalletAddress: walletAddress.substring(0, 10) + '...',
+      });
+
+      const response = await fetch('https://api.onramper.com/checkout/intent', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${apiKey || ''}`,
+          'Authorization': apiKey, // Onramper uses API key directly, not Bearer token
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: JSON.stringify({
-          fiatAmount,
-          fiatCurrency,
-          cryptoCurrency,
-          walletAddress,
-          paymentMethod,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
-        logger.error('Onramper create transaction API error:', response.status);
+        const errorText = await response.text();
+        logger.error('Onramper create transaction API error:', response.status, errorText);
         return null;
       }
 
       const data = await response.json();
+      
+      // Extract transaction info from Onramper response
+      const transactionInfo = data.transactionInformation || data;
+      
       return {
-        transactionId: data.transactionId || '',
-        paymentUrl: data.paymentUrl || '',
-        status: data.status || 'PENDING',
+        transactionId: transactionInfo.transactionId || transactionInfo.id || '',
+        paymentUrl: transactionInfo.redirectUrl || transactionInfo.paymentUrl || transactionInfo.url || '',
+        status: transactionInfo.status || 'PENDING',
       };
     } catch (error) {
       logger.error('Error creating Onramper transaction:', error);
