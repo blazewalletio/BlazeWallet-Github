@@ -143,30 +143,7 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
     }
   };
 
-  // Fallback quote calculation
-  const useFallbackQuote = () => {
-    const exchangeRates: Record<string, number> = {
-      'ETH': 3000,
-      'BTC': 45000,
-      'SOL': 150,
-      'USDT': 1,
-      'USDC': 1,
-      'MATIC': 0.8,
-      'BNB': 600,
-      'AVAX': 40,
-    };
-    
-    const rate = selectedCrypto ? (exchangeRates[selectedCrypto] || 3000) : 3000;
-    const estimatedCrypto = (parseFloat(fiatAmount) / rate).toFixed(6);
-    const estimatedFee = (parseFloat(fiatAmount) * 0.01).toFixed(2);
-    
-    setQuote({
-      cryptoAmount: estimatedCrypto,
-      exchangeRate: rate.toString(),
-      fee: estimatedFee,
-      totalAmount: fiatAmount,
-    });
-  };
+  // NO FALLBACK - We MUST use real Onramper rates only
 
   const fetchQuote = async () => {
     if (!fiatAmount || parseFloat(fiatAmount) < 10) {
@@ -182,28 +159,43 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
         `/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${selectedFiat}&cryptoCurrency=${selectedCrypto}&paymentMethod=${selectedPaymentMethod || ''}`
       );
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        const errorMessage = errorData.error || errorData.message || `Failed to fetch quote (${response.status})`;
+        logger.error('❌ Quote API error:', errorMessage);
+        setError(errorMessage);
+        setQuote(null);
+        return;
+      }
+
       const data = await response.json();
       
-      // API always returns success with fallback data if no key
+      // CRITICAL: Only accept real Onramper quotes, no fallbacks
       if (data.success && data.quote) {
         // Validate quote has valid crypto amount
         const cryptoAmount = parseFloat(data.quote.cryptoAmount || '0');
         if (cryptoAmount > 0) {
           setQuote(data.quote);
           setError('');
+          logger.log('✅ Real Onramper quote received:', data.quote);
         } else {
-          // Quote returned but cryptoAmount is 0 - use fallback
-          logger.warn('⚠️ Quote returned but cryptoAmount is 0, using fallback estimate');
-          useFallbackQuote();
+          // Quote returned but cryptoAmount is 0 - this is an error
+          const errorMsg = 'Invalid quote received from Onramper (cryptoAmount is 0)';
+          logger.error('❌', errorMsg);
+          setError(errorMsg);
+          setQuote(null);
         }
       } else {
-        // Fallback: Calculate estimate if API doesn't return quote
-        useFallbackQuote();
+        // No quote in response - error
+        const errorMsg = data.error || data.message || 'Failed to get quote from Onramper';
+        logger.error('❌ No quote in response:', errorMsg);
+        setError(errorMsg);
+        setQuote(null);
       }
     } catch (err: any) {
-      logger.error('Error fetching quote:', err);
-      // Use fallback estimate
-      useFallbackQuote();
+      logger.error('❌ Error fetching quote:', err);
+      setError(err.message || 'Failed to fetch quote. Please try again.');
+      setQuote(null);
     } finally {
       setIsLoadingQuote(false);
     }

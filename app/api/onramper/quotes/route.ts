@@ -21,36 +21,17 @@ export async function GET(req: NextRequest) {
 
     const onramperApiKey = process.env.ONRAMPER_API_KEY;
     
-    // If no API key, return fallback estimate so UI still works
+    // CRITICAL: No API key = error, we MUST use real Onramper rates
     if (!onramperApiKey) {
-      logger.warn('⚠️ ONRAMPER_API_KEY not set - returning fallback quote estimate');
-      
-      // Get realistic exchange rates per crypto
-      const exchangeRates: Record<string, number> = {
-        'ETH': 3000,
-        'BTC': 45000,
-        'SOL': 150,
-        'USDT': 1,
-        'USDC': 1,
-        'MATIC': 0.8,
-        'BNB': 600,
-        'AVAX': 40,
-      };
-      
-      const rate = exchangeRates[cryptoCurrency] || 3000;
-      const estimatedCrypto = (fiatAmount / rate).toFixed(6);
-      const estimatedFee = (fiatAmount * 0.01).toFixed(2);
-      
-      return NextResponse.json({
-        success: true,
-        quote: {
-          cryptoAmount: estimatedCrypto,
-          exchangeRate: rate.toString(),
-          fee: estimatedFee,
-          totalAmount: fiatAmount.toString(),
+      logger.error('❌ ONRAMPER_API_KEY not set - cannot fetch real quotes');
+      return NextResponse.json(
+        { 
+          error: 'Onramper not configured',
+          message: 'ONRAMPER_API_KEY is required to fetch real-time quotes. Please configure the API key.',
+          requiresApiKey: true
         },
-        isEstimate: true, // Flag to indicate this is an estimate
-      });
+        { status: 503 }
+      );
     }
 
     logger.log('📊 Fetching Onramper quote:', {
@@ -75,34 +56,15 @@ export async function GET(req: NextRequest) {
     }
 
     if (!quote) {
-      // Return fallback estimate if API fails
-      logger.warn('⚠️ Onramper API failed - returning fallback quote estimate');
-      
-      const exchangeRates: Record<string, number> = {
-        'ETH': 3000,
-        'BTC': 45000,
-        'SOL': 150,
-        'USDT': 1,
-        'USDC': 1,
-        'MATIC': 0.8,
-        'BNB': 600,
-        'AVAX': 40,
-      };
-      
-      const rate = exchangeRates[cryptoCurrency] || 3000;
-      const estimatedCrypto = (fiatAmount / rate).toFixed(6);
-      const estimatedFee = (fiatAmount * 0.01).toFixed(2);
-      
-      return NextResponse.json({
-        success: true,
-        quote: {
-          cryptoAmount: estimatedCrypto,
-          exchangeRate: rate.toString(),
-          fee: estimatedFee,
-          totalAmount: fiatAmount.toString(),
+      // CRITICAL: No fallback - we MUST use real Onramper rates
+      logger.error('❌ Onramper API failed - cannot return quote without real rates');
+      return NextResponse.json(
+        { 
+          error: 'Failed to fetch quote from Onramper',
+          message: 'Unable to get real-time quote. Please try again or contact support.',
         },
-        isEstimate: true,
-      });
+        { status: 500 }
+      );
     }
 
     logger.log('✅ Onramper quote received:', quote);

@@ -522,41 +522,39 @@ export class OnramperService {
       logger.log('📊 Onramper transaction response (full):', JSON.stringify(data, null, 2));
       
       // Extract transaction info from Onramper response
-      // Response format can be:
-      // 1. { transactionInformation: { redirectUrl, transactionId, status, ... } }
-      // 2. { redirectUrl, transactionId, status, ... } (direct)
-      // 3. { data: { redirectUrl, transactionId, status, ... } }
-      const transactionInfo = data.transactionInformation || data.data || data;
+      // Response format (from docs):
+      // {
+      //   "message": { ... },
+      //   "transactionInformation": {
+      //     "transactionId": "01H9KBT5C21JY0BAX4VTW9EP3V",
+      //     "url": "https://buy.moonpay.com?...",
+      //     "type": "iframe",
+      //     "params": { ... }
+      //   }
+      // }
+      const transactionInfo = data.transactionInformation;
       
-      // Try multiple possible field names for each value
-      const transactionId = transactionInfo.transactionId || 
-                            transactionInfo.id || 
-                            transactionInfo.transaction_id ||
-                            transactionInfo.transactionId ||
-                            '';
-      const paymentUrl = transactionInfo.redirectUrl || 
-                        transactionInfo.paymentUrl || 
-                        transactionInfo.url || 
-                        transactionInfo.redirect_url ||
-                        transactionInfo.redirectUrl ||
-                        transactionInfo.checkoutUrl ||
-                        transactionInfo.checkout_url ||
-                        '';
-      const status = transactionInfo.status || 
-                    transactionInfo.state ||
-                    'PENDING';
+      if (!transactionInfo) {
+        logger.error('❌ No transactionInformation in Onramper response. Full response:', JSON.stringify(data, null, 2));
+        return null;
+      }
+      
+      // Extract values according to Onramper API documentation
+      const transactionId = transactionInfo.transactionId || '';
+      const paymentUrl = transactionInfo.url || ''; // CRITICAL: It's "url", not "redirectUrl"!
+      const status = 'PENDING'; // Transactions start as PENDING
       
       logger.log('📊 Extracted transaction info:', { 
         transactionId, 
         paymentUrl: paymentUrl ? paymentUrl.substring(0, 50) + '...' : 'MISSING', 
         status,
-        hasTransactionInfo: !!data.transactionInformation,
-        hasData: !!data.data,
-        keys: Object.keys(data),
+        hasUrl: !!transactionInfo.url,
+        hasTransactionId: !!transactionInfo.transactionId,
+        type: transactionInfo.type,
       });
       
       if (!paymentUrl) {
-        logger.error('❌ No payment URL in Onramper response. Full response:', JSON.stringify(data, null, 2));
+        logger.error('❌ No payment URL (url field) in transactionInformation. Full response:', JSON.stringify(data, null, 2));
         return null;
       }
       
