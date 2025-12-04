@@ -509,7 +509,8 @@ export class OnramperService {
   // Get supported data (payment methods, fiat currencies, crypto currencies)
   // Docs: https://docs.onramper.com/reference/get_supported
   // Endpoint: GET https://api.onramper.com/supported
-  static async getSupportedData(apiKey?: string): Promise<{
+  // Also uses: GET https://api.onramper.com/supported/payment-types for payment methods
+  static async getSupportedData(apiKey?: string, country: string = 'NL'): Promise<{
     paymentMethods: Array<{ id: string; name: string; icon: string; processingTime: string; fee: string }>;
     fiatCurrencies: string[];
     cryptoCurrencies: string[];
@@ -528,17 +529,18 @@ export class OnramperService {
         };
       }
 
-      // Try multiple authentication methods (same as getQuote)
-      let response = await fetch('https://api.onramper.com/supported', {
+      // CRITICAL: Fetch payment types from the correct endpoint
+      // Docs: https://docs.onramper.com/reference/get_supported-payment-types
+      let paymentTypesResponse = await fetch(`https://api.onramper.com/supported/payment-types?type=buy&country=${country}`, {
         headers: {
           'Authorization': `Bearer ${apiKey}`, // Try Bearer first
           'Accept': 'application/json',
         },
       });
 
-      if (!response.ok && (response.status === 401 || response.status === 403)) {
-        logger.log('🔄 Supported data: Bearer failed, trying direct API key...');
-        response = await fetch('https://api.onramper.com/supported', {
+      if (!paymentTypesResponse.ok && (paymentTypesResponse.status === 401 || paymentTypesResponse.status === 403)) {
+        logger.log('🔄 Payment types: Bearer failed, trying direct API key...');
+        paymentTypesResponse = await fetch(`https://api.onramper.com/supported/payment-types?type=buy&country=${country}`, {
           headers: {
             'Authorization': apiKey, // Direct API key
             'Accept': 'application/json',
@@ -546,36 +548,111 @@ export class OnramperService {
         });
       }
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        logger.error('Onramper supported data API error:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorText.substring(0, 500),
+      // Fetch general supported data
+      let supportedResponse = await fetch('https://api.onramper.com/supported', {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`, // Try Bearer first
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!supportedResponse.ok && (supportedResponse.status === 401 || supportedResponse.status === 403)) {
+        logger.log('🔄 Supported data: Bearer failed, trying direct API key...');
+        supportedResponse = await fetch('https://api.onramper.com/supported', {
+          headers: {
+            'Authorization': apiKey, // Direct API key
+            'Accept': 'application/json',
+          },
         });
-        // Return default data if API fails
-        return {
-          paymentMethods: [
-            { id: 'ideal', name: 'iDEAL', icon: 'ideal', processingTime: 'Instant', fee: '€0.50' },
-            { id: 'card', name: 'Credit Card', icon: 'card', processingTime: '2-5 min', fee: '€2.00' },
-            { id: 'bank', name: 'Bank Transfer', icon: 'bank', processingTime: '1-3 days', fee: '€0.00' },
-          ],
-          fiatCurrencies: ['EUR', 'USD', 'GBP'],
-          cryptoCurrencies: ['ETH', 'USDT', 'USDC', 'BTC', 'SOL'],
-        };
       }
 
-      const data = await response.json();
+      // Parse payment types
+      let paymentMethods: Array<{ id: string; name: string; icon: string; processingTime: string; fee: string }> = [];
+      if (paymentTypesResponse.ok) {
+        try {
+          const paymentTypesData = await paymentTypesResponse.json();
+          logger.log('📊 Onramper payment types response:', JSON.stringify(paymentTypesData, null, 2).substring(0, 1000));
+          
+          // Onramper returns payment types in various formats
+          // Try to extract from different possible response structures
+          if (Array.isArray(paymentTypesData)) {
+            paymentMethods = paymentTypesData.map((pm: any) => ({
+              id: pm.id || pm.code || pm.paymentMethod || pm.name?.toLowerCase() || 'unknown',
+              name: pm.name || pm.label || pm.displayName || pm.id || 'Unknown',
+              icon: pm.icon || pm.id || 'card',
+              processingTime: pm.processingTime || pm.processing_time || pm.time || 'Unknown',
+              fee: pm.fee || pm.feeAmount || '€0.00',
+            }));
+          } else if (paymentTypesData.paymentTypes || paymentTypesData.payment_methods || paymentTypesData.methods) {
+            const methods = paymentTypesData.paymentTypes || paymentTypesData.payment_methods || paymentTypesData.methods;
+            if (Array.isArray(methods)) {
+              paymentMethods = methods.map((pm: any) => ({
+                id: pm.id || pm.code || pm.paymentMethod || pm.name?.toLowerCase() || 'unknown',
+                name: pm.name || pm.label || pm.displayName || pm.id || 'Unknown',
+                icon: pm.icon || pm.id || 'card',
+                processingTime: pm.processingTime || pm.processing_time || pm.time || 'Unknown',
+                fee: pm.fee || pm.feeAmount || '€0.00',
+              }));
+            }
+          } else if (typeof paymentTypesData === 'object') {
+            // If it's an object with payment method keys
+            paymentMethods = Object.entries(paymentTypesData).map(([key, value]: [string, any]) => ({
+              id: key,
+              name: value.name || value.label || key,
+              icon: value.icon || key,
+              processingTime: value.processingTime || value.processing_time || 'Unknown',
+              fee: value.fee || value.feeAmount || '€0.00',
+            }));
+          }
+        } catch (parseError) {
+          logger.error('Error parsing payment types response:', parseError);
+        }
+      }
+
+      // Parse general supported data
+      let fiatCurrencies: string[] = ['EUR', 'USD', 'GBP'];
+      let cryptoCurrencies: string[] = ['ETH', 'USDT', 'USDC', 'BTC', 'SOL'];
       
-      // Transform Onramper response to our format
-      return {
-        paymentMethods: data.paymentMethods || [
+      if (supportedResponse.ok) {
+        try {
+          const supportedData = await supportedResponse.json();
+          logger.log('📊 Onramper supported data response:', JSON.stringify(supportedData, null, 2).substring(0, 1000));
+          
+          // Extract fiat currencies
+          if (supportedData.fiatCurrencies || supportedData.fiat_currencies || supportedData.fiats) {
+            fiatCurrencies = supportedData.fiatCurrencies || supportedData.fiat_currencies || supportedData.fiats;
+          }
+          
+          // Extract crypto currencies
+          if (supportedData.cryptoCurrencies || supportedData.crypto_currencies || supportedData.cryptos) {
+            cryptoCurrencies = supportedData.cryptoCurrencies || supportedData.crypto_currencies || supportedData.cryptos;
+          }
+        } catch (parseError) {
+          logger.error('Error parsing supported data response:', parseError);
+        }
+      }
+
+      // If no payment methods found, use fallback
+      if (paymentMethods.length === 0) {
+        logger.warn('⚠️ No payment methods found from Onramper API, using fallback');
+        paymentMethods = [
           { id: 'ideal', name: 'iDEAL', icon: 'ideal', processingTime: 'Instant', fee: '€0.50' },
           { id: 'card', name: 'Credit Card', icon: 'card', processingTime: '2-5 min', fee: '€2.00' },
           { id: 'bank', name: 'Bank Transfer', icon: 'bank', processingTime: '1-3 days', fee: '€0.00' },
-        ],
-        fiatCurrencies: data.fiatCurrencies || ['EUR', 'USD', 'GBP'],
-        cryptoCurrencies: data.cryptoCurrencies || ['ETH', 'USDT', 'USDC', 'BTC', 'SOL'],
+        ];
+      }
+
+      logger.log('✅ Parsed Onramper supported data:', {
+        paymentMethodsCount: paymentMethods.length,
+        fiatCurrenciesCount: fiatCurrencies.length,
+        cryptoCurrenciesCount: cryptoCurrencies.length,
+        paymentMethods: paymentMethods.map(pm => pm.id),
+      });
+
+      return {
+        paymentMethods,
+        fiatCurrencies,
+        cryptoCurrencies,
       };
     } catch (error) {
       logger.error('Error fetching Onramper supported data:', error);
@@ -595,45 +672,6 @@ export class OnramperService {
   // Create transaction via Onramper API
   // Docs: https://docs.onramper.com/reference/post_checkout-intent
   // Endpoint: POST https://api.onramper.com/checkout/intent
-  // NEW: Generate widget URL instead of using checkout/intent API
-  // Onramper's checkout/intent endpoint has issues, so we'll use widget URL approach
-  static generateTransactionUrl(
-    fiatAmount: number,
-    fiatCurrency: string,
-    cryptoCurrency: string,
-    walletAddress: string,
-    apiKey: string,
-    isSandbox: boolean = false
-  ): string {
-    const baseUrl = isSandbox ? this.SANDBOX_URL : this.WIDGET_URL;
-    const params = new URLSearchParams();
-
-    // Required: API key
-    params.append('apiKey', apiKey);
-
-    // Required: Mode
-    params.append('mode', 'buy');
-
-    // Wallet address
-    params.append('wallets', walletAddress);
-
-    // Default crypto currency (uppercase for Onramper)
-    params.append('defaultCryptoCurrency', cryptoCurrency.toUpperCase());
-
-    // Default fiat currency (uppercase for Onramper)
-    params.append('defaultFiatCurrency', fiatCurrency.toUpperCase());
-
-    // Default amount
-    params.append('defaultAmount', fiatAmount.toString());
-
-    const url = `${baseUrl}?${params.toString()}`;
-    logger.log('✅ Onramper transaction URL generated:', url.replace(apiKey, '***API_KEY***'));
-    
-    return url;
-  }
-
-  // DEPRECATED: Use generateTransactionUrl instead
-  // The checkout/intent API endpoint has issues, so we'll use widget URL approach
   static async createTransaction(
     fiatAmount: number,
     fiatCurrency: string,
@@ -652,24 +690,172 @@ export class OnramperService {
         return null;
       }
 
-      // NEW APPROACH: Use widget URL instead of checkout/intent API
-      // The checkout/intent endpoint has persistent issues with "Cannot read properties of undefined"
-      // So we'll generate a widget URL and return it as the paymentUrl
-      const widgetUrl = this.generateTransactionUrl(
-        fiatAmount,
-        fiatCurrency,
-        cryptoCurrency,
-        walletAddress,
-        apiKey,
-        false // isSandbox - use environment variable if needed
-      );
+      // Onramper checkout intent format
+      // Docs: https://docs.onramper.com/reference/post_checkout-intent
+      // CRITICAL: sourceAmount must be a number (not string) according to Onramper docs
+      // Validate that fiatAmount is a valid positive number
+      if (typeof fiatAmount !== 'number' || isNaN(fiatAmount) || fiatAmount <= 0) {
+        logger.error('❌ Invalid sourceAmount for Onramper transaction:', {
+          fiatAmount,
+          type: typeof fiatAmount,
+          isNaN: isNaN(fiatAmount),
+        });
+        return null;
+      }
 
-      // Return a transaction object with the widget URL
-      // The transactionId is generated client-side or can be tracked via webhooks
+      // Build request body according to Onramper API documentation
+      // Docs: https://docs.onramper.com/reference/post_checkout-intent
+      // CRITICAL: Try different request formats to find what Onramper expects
+      
+      // Format 1: Basic format (what we've been trying)
+      let requestBody: any = {
+        sourceCurrency: fiatCurrency.toLowerCase(),
+        destinationCurrency: cryptoCurrency.toLowerCase(),
+        sourceAmount: fiatAmount, // Must be a number (already validated)
+        destinationWalletAddress: walletAddress,
+      };
+
+      // Try adding network parameter for Solana
+      if (cryptoCurrency.toUpperCase() === 'SOL') {
+        requestBody.network = 'solana';
+      } else if (cryptoCurrency.toUpperCase() === 'BTC') {
+        requestBody.network = 'bitcoin';
+      } else if (cryptoCurrency.toUpperCase() === 'ETH') {
+        requestBody.network = 'ethereum';
+      }
+      
+      // CRITICAL: Onramper might expect destinationCurrency in uppercase for certain chains
+      // Try uppercase for Solana
+      if (cryptoCurrency.toUpperCase() === 'SOL') {
+        requestBody.destinationCurrency = 'SOL'; // Try uppercase instead of lowercase
+      }
+
+      logger.log('📊 Creating Onramper transaction:', {
+        ...requestBody,
+        destinationWalletAddress: walletAddress.substring(0, 10) + '...',
+        note: 'paymentMethod not included - Onramper handles payment selection in widget',
+        originalPaymentMethod: paymentMethod, // Logged for reference but not sent
+      });
+
+      // Try multiple authentication methods (same as getQuote)
+      let response = await fetch('https://api.onramper.com/checkout/intent', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`, // Try Bearer first
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok && (response.status === 401 || response.status === 403)) {
+        logger.log('🔄 Create transaction: Bearer failed, trying direct API key...');
+        response = await fetch('https://api.onramper.com/checkout/intent', {
+          method: 'POST',
+          headers: {
+            'Authorization': apiKey, // Direct API key
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+      }
+
+      if (!response.ok) {
+        let errorText = '';
+        let errorJson: any = null;
+        try {
+          errorText = await response.text();
+          try {
+            errorJson = JSON.parse(errorText);
+          } catch {
+            // Not JSON, use as text
+          }
+        } catch (e) {
+          errorText = 'Failed to read error response';
+        }
+        
+        // CRITICAL: Log full request details for debugging
+        logger.error('❌ Onramper create transaction API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText.substring(0, 2000), // Increased limit
+          errorJson: errorJson,
+          fullRequestBody: JSON.stringify(requestBody, null, 2), // Full request body
+          requestBodySummary: {
+            sourceCurrency: requestBody.sourceCurrency,
+            destinationCurrency: requestBody.destinationCurrency,
+            sourceAmount: requestBody.sourceAmount,
+            sourceAmountType: typeof requestBody.sourceAmount,
+            hasNetwork: !!requestBody.network,
+            network: requestBody.network,
+            destinationWalletAddress: walletAddress.substring(0, 20) + '...',
+            walletAddressLength: walletAddress.length,
+            walletAddressFormat: walletAddress.startsWith('0x') ? 'EVM' : (walletAddress.startsWith('H') || walletAddress.startsWith('1')) ? 'Solana' : 'Unknown',
+          },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': apiKey ? `${apiKey.substring(0, 10)}...` : 'MISSING',
+          },
+        });
+        return null;
+      }
+
+      const data = await response.json();
+      
+      logger.log('📊 Onramper transaction response (full):', JSON.stringify(data, null, 2));
+      
+      // Extract transaction info from Onramper response
+      // Response format (from docs):
+      // {
+      //   "message": { ... },
+      //   "transactionInformation": {
+      //     "transactionId": "01H9KBT5C21JY0BAX4VTW9EP3V",
+      //     "url": "https://buy.moonpay.com?...",
+      //     "type": "iframe",
+      //     "params": { ... }
+      //   }
+      // }
+      const transactionInfo = data.transactionInformation;
+      
+      if (!transactionInfo) {
+        logger.error('❌ No transactionInformation in Onramper response. Full response:', JSON.stringify(data, null, 2));
+        return null;
+      }
+      
+      // Extract values according to Onramper API documentation
+      const transactionId = transactionInfo.transactionId || '';
+      const paymentUrl = transactionInfo.url || ''; // CRITICAL: It's "url", not "redirectUrl"!
+      const status = 'PENDING'; // Transactions start as PENDING
+      
+      logger.log('📊 Extracted transaction info:', { 
+        transactionId, 
+        paymentUrl: paymentUrl ? paymentUrl.substring(0, 50) + '...' : 'MISSING', 
+        status,
+        hasUrl: !!transactionInfo.url,
+        hasTransactionId: !!transactionInfo.transactionId,
+        type: transactionInfo.type,
+      });
+      
+      if (!paymentUrl) {
+        logger.error('❌ No payment URL (url field) in transactionInformation. Full response:', JSON.stringify(data, null, 2));
+        return null;
+      }
+      
+      if (!transactionId) {
+        logger.warn('⚠️ No transaction ID in Onramper response, but payment URL exists');
+      }
+      
+      logger.log('✅ Onramper transaction created successfully:', { 
+        transactionId: transactionId || 'N/A', 
+        paymentUrl: paymentUrl.substring(0, 50) + '...', 
+        status 
+      });
+      
       return {
-        transactionId: `widget_${Date.now()}`, // Temporary ID for tracking
-        paymentUrl: widgetUrl,
-        status: 'PENDING',
+        transactionId: transactionId || 'pending',
+        paymentUrl,
+        status,
       };
     } catch (error) {
       logger.error('Error creating Onramper transaction:', error);

@@ -405,8 +405,8 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
     }
     
     navigator.clipboard.writeText(addressToCopy).then(() => {
-      setCopiedAddress(true);
-      setTimeout(() => setCopiedAddress(false), 2000);
+    setCopiedAddress(true);
+    setTimeout(() => setCopiedAddress(false), 2000);
       logger.log('Address copied to clipboard:', addressToCopy);
     }).catch((error) => {
       logger.error('Failed to copy address:', error);

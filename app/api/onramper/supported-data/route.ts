@@ -7,6 +7,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   try {
     const onramperApiKey = process.env.ONRAMPER_API_KEY;
+    const { searchParams } = new URL(req.url);
+    const country = searchParams.get('country') || 'NL'; // Default to Netherlands
     
     // If no API key, return fallback data so UI still works
     if (!onramperApiKey) {
@@ -23,10 +25,10 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    logger.log('📊 Fetching Onramper supported data...');
+    logger.log('📊 Fetching Onramper supported data...', { country });
 
-    // Get supported data from Onramper
-    const supportedData = await OnramperService.getSupportedData(onramperApiKey);
+    // Get supported data from Onramper (with country parameter for payment types)
+    const supportedData = await OnramperService.getSupportedData(onramperApiKey, country);
 
     if (!supportedData) {
       // Return fallback data if API fails

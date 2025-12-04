@@ -179,12 +179,12 @@ export default function BlazeTab() {
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
         {/* Presale Card - Prominent (Hidden when feature flag is disabled) */}
         {PRESALE_FEATURE_ENABLED && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass-card card-hover relative overflow-hidden border-2 border-orange-200/50"
-            onClick={() => setActiveModal('presale')}
-          >
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card card-hover relative overflow-hidden border-2 border-orange-200/50"
+          onClick={() => setActiveModal('presale')}
+        >
           <div className="absolute inset-0 bg-gradient-to-r from-orange-500/10 to-yellow-500/10" />
           <div className="relative z-10 p-6">
             <div className="flex items-center justify-between">

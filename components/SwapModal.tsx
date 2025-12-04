@@ -93,7 +93,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
 
   const fromChainConfig = CHAINS[fromChain];
   const toChainConfig = CHAINS[toChain];
-  
+
   // Token search modal states
   const [showToTokenSearch, setShowToTokenSearch] = useState(false);
   const [selectedToToken, setSelectedToToken] = useState<LiFiToken | 'native' | null>(null);
@@ -283,8 +283,8 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           // Note: We can't match tokens here without fetching from Li.Fi
           // The user will need to select manually or we fetch tokens first
           logger.warn('⚠️ [SwapModal] Cannot pre-fill toToken without fetching tokens first');
+          }
         }
-      }
       
       if (prefillData.amount) {
         if (prefillData.amount === 'max' || prefillData.amount === 'all') {
@@ -351,7 +351,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         // Normalize token addresses
         const inputMint = fromToken === 'native' 
           ? JupiterService.getNativeSOLAddress() 
-          : fromToken;
+        : fromToken;
         const outputMint = toToken === 'native'
           ? JupiterService.getNativeSOLAddress()
           : toToken;
@@ -458,12 +458,12 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           const lifiQuote = data.quote as LiFiQuote;
           setQuote(lifiQuote);
           setIsJupiterQuote(false);
-          
+        
           // Format output amount
           const toTokenDecimals = lifiQuote.action.toToken.decimals || 18;
           const formatted = ethers.formatUnits(lifiQuote.estimate.toAmount, toTokenDecimals);
-          setToAmount(formatted);
-          
+        setToAmount(formatted);
+        
           logger.log('✅ Li.Fi quote received:', {
             tool: lifiQuote.tool,
             steps: lifiQuote.steps.length,
@@ -573,7 +573,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         const { swapTransaction: swapTxBase64, lastValidBlockHeight } = data.swapTransaction;
 
         setStepStatus('Signing transaction...');
-        
+
         // Import Solana libraries dynamically
         const solanaWeb3 = await import('@solana/web3.js');
         const { SolanaService } = await import('@/lib/solana-service');
@@ -695,15 +695,15 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
               ethers.formatUnits(amount, lifiQuote.steps[i].action.fromToken.decimals),
               lifiQuote.steps[i].estimate.approvalAddress
             );
-          }
+        }
 
           // Execute transaction
           const chainConfig = i === 0 ? fromChainConfig : toChainConfig;
           const provider = new ethers.JsonRpcProvider(chainConfig.rpcUrl);
-          const signer = wallet.connect(provider);
+        const signer = wallet.connect(provider);
 
           setStepStatus('Sending transaction...');
-          const tx = await signer.sendTransaction({
+        const tx = await signer.sendTransaction({
             to: transactionRequest.to,
             data: transactionRequest.data,
             value: transactionRequest.value || '0',
@@ -726,18 +726,18 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
 
         // If same-chain, we're done
         if (fromChain === toChain) {
-          setSuccess(true);
+      setSuccess(true);
           setStep('success');
           setStepStatus('Swap completed!');
-          
+      
           // Reset after 3 seconds
-          setTimeout(() => {
-            setFromAmount('');
-            setToAmount('');
-            setQuote(null);
-            setSuccess(false);
+      setTimeout(() => {
+        setFromAmount('');
+        setToAmount('');
+        setQuote(null);
+        setSuccess(false);
             setStep('input');
-            onClose();
+        onClose();
           }, 3000);
         }
       }
@@ -815,7 +815,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     if (isFromToken) {
       // For fromToken, use availableFromTokens (tokens user owns)
       const token = availableFromTokens.find(t => t.address.toLowerCase() === address.toLowerCase());
-      return token?.symbol || 'Token';
+    return token?.symbol || 'Token';
     } else {
       // For toToken, use selectedToToken
       if (selectedToToken && selectedToToken !== 'native') {
@@ -898,27 +898,27 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         <div className="min-h-full flex flex-col">
           <div className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 pt-safe pb-safe">
             <div className="pt-4 pb-2">
-              <button
-                onClick={onClose}
+          <button
+            onClick={onClose}
                 className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
-              >
-                ← Back
-              </button>
+          >
+            ← Back
+          </button>
             </div>
 
-            <div className="mb-6">
-              <div className="flex items-center gap-3 mb-2">
+          <div className="mb-6">
+            <div className="flex items-center gap-3 mb-2">
                 <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Flame className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Swap</h2>
-                  <p className="text-sm text-gray-600">
-                    Exchange tokens at the best rates
-                  </p>
-                </div>
+                <Flame className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Swap</h2>
+                <p className="text-sm text-gray-600">
+                  Exchange tokens at the best rates
+                </p>
               </div>
             </div>
+          </div>
 
             <div className="space-y-6 pb-6">
               {/* Error Message */}
@@ -933,17 +933,17 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                 </motion.div>
               )}
 
-              {/* Success Message */}
-              {success && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="glass-card p-4 bg-emerald-50 border border-emerald-200 flex items-center gap-3"
-                >
+          {/* Success Message */}
+          {success && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="glass-card p-4 bg-emerald-50 border border-emerald-200 flex items-center gap-3"
+            >
                   <CheckCircle2 className="w-6 h-6 text-emerald-500" />
-                  <p className="text-sm font-medium text-emerald-700">Swap successful!</p>
-                </motion.div>
-              )}
+              <p className="text-sm font-medium text-emerald-700">Swap successful!</p>
+            </motion.div>
+          )}
 
               {/* Input Step */}
               {step === 'input' && (
@@ -1020,7 +1020,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                       </div>
                     </div>
 
-                    {/* From Token */}
+          {/* From Token */}
                     <div>
                       <label className="text-sm font-medium text-gray-900 mb-2 block">
                         From token
@@ -1096,14 +1096,14 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                       </div>
                       <div className="relative">
                         <input
-                          type="number"
-                          value={fromAmount}
-                          onChange={(e) => setFromAmount(e.target.value)}
-                          placeholder="0.0"
+                type="number"
+                value={fromAmount}
+                onChange={(e) => setFromAmount(e.target.value)}
+                placeholder="0.0"
                           step="0.000001"
                           className="input-field pr-20"
-                          disabled={isSwapping}
-                        />
+                disabled={isSwapping}
+              />
                         <button
                           onClick={handleMaxAmount}
                           disabled={isSwapping || parseFloat(getTokenBalance(fromToken)) === 0}
@@ -1111,14 +1111,14 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                         >
                           MAX
                         </button>
-                      </div>
-                    </div>
-                  </div>
+            </div>
+            </div>
+          </div>
 
-                  {/* Swap Arrow */}
-                  <div className="flex justify-center -my-3 relative z-10">
-                    <button
-                      onClick={() => {
+          {/* Swap Arrow */}
+          <div className="flex justify-center -my-3 relative z-10">
+            <button
+              onClick={() => {
                         // Swap chains and tokens
                         const tempChain = fromChain;
                         const tempToken = fromToken;
@@ -1126,12 +1126,12 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                         setToChain(tempChain);
                         setFromToken(toToken || 'native');
                         setToToken(tempToken === 'native' ? '' : tempToken);
-                      }}
-                      className="p-4 glass-card hover:bg-white hover:shadow-md rounded-full transition-all border border-gray-200"
-                      disabled={isSwapping}
-                    >
-                      <ArrowDown className="w-6 h-6 text-orange-500" />
-                    </button>
+              }}
+              className="p-4 glass-card hover:bg-white hover:shadow-md rounded-full transition-all border border-gray-200"
+              disabled={isSwapping}
+            >
+              <ArrowDown className="w-6 h-6 text-orange-500" />
+            </button>
                   </div>
 
                   <div className="glass-card p-6 space-y-6">
@@ -1205,9 +1205,9 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                           </motion.div>
                         )}
                       </div>
-                    </div>
+          </div>
 
-                    {/* To Token */}
+          {/* To Token */}
                     <div>
                       <label className="text-sm font-medium text-gray-900 mb-2 block">
                         To token
@@ -1277,20 +1277,20 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                         You'll receive
                       </label>
                       <input
-                        type="text"
+                type="text"
                         value={toAmount || '0.0'}
-                        readOnly
-                        placeholder="0.0"
+                readOnly
+                placeholder="0.0"
                         className="input-field text-emerald-500 font-bold"
                       />
-                    </div>
-                  </div>
+            </div>
+          </div>
 
                   {/* Quote Card */}
-                  {quote && !error && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
+          {quote && !error && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
                       className="glass-card p-6 bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border border-orange-200"
                     >
                       <div className="text-sm text-gray-600 mb-1">You'll receive</div>
@@ -1328,10 +1328,10 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                           {(quote as LiFiQuote).estimate.feeCosts.map((fee, i) => (
                             <div key={i} className="flex justify-between">
                               <span className="text-gray-600">{fee.name}</span>
-                              <span className="font-semibold text-gray-900">
+                <span className="font-semibold text-gray-900">
                                 {parseFloat(fee.amount).toFixed(6)} {fee.token.symbol} ({fee.amountUSD} USD)
-                              </span>
-                            </div>
+                </span>
+              </div>
                           ))}
                           
                           {(quote as LiFiQuote).estimate.gasCosts.map((gas, i) => (
@@ -1340,7 +1340,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                               <span className="font-semibold text-gray-900">
                                 {parseFloat(gas.amount).toFixed(6)} {gas.token.symbol} ({gas.amountUSD} USD)
                               </span>
-                            </div>
+              </div>
                           ))}
                           
                           <div className="h-px bg-gray-200 my-2" />
@@ -1348,8 +1348,8 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                             <span className="text-gray-900">Route</span>
                             <span className="text-gray-900">
                               {(quote as LiFiQuote).tool} {(quote as LiFiQuote).steps.length > 1 && `(${(quote as LiFiQuote).steps.length} steps)`}
-                            </span>
-                          </div>
+                </span>
+              </div>
                         </div>
                       )}
                       
@@ -1368,36 +1368,36 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                           </div>
                         </div>
                       )}
-                    </motion.div>
-                  )}
+            </motion.div>
+          )}
 
-                  {/* Loading State */}
-                  {isLoadingQuote && (
-                    <div className="flex items-center justify-center gap-3 text-orange-600 py-4">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span className="text-sm font-medium">Fetching best rate...</span>
-                    </div>
-                  )}
+          {/* Loading State */}
+          {isLoadingQuote && (
+            <div className="flex items-center justify-center gap-3 text-orange-600 py-4">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="text-sm font-medium">Fetching best rate...</span>
+            </div>
+          )}
 
-                  {/* Swap Button */}
-                  <motion.button
-                    whileTap={{ scale: canSwap() ? 0.98 : 1 }}
+          {/* Swap Button */}
+          <motion.button
+            whileTap={{ scale: canSwap() ? 0.98 : 1 }}
                     onClick={() => setStep('confirm')}
-                    disabled={!canSwap()}
+            disabled={!canSwap()}
                     className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl text-white"
-                  >
+          >
                     {isLoadingQuote ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
                         Loading...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="w-5 h-5" />
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-5 h-5" />
                         {canSwap() ? 'Review swap' : 'Enter amount'}
-                      </>
-                    )}
-                  </motion.button>
+              </>
+            )}
+          </motion.button>
                 </>
               )}
 
@@ -1412,7 +1412,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                     <div className="text-sm text-gray-600 mb-4">
                       for {parseFloat(toAmount || '0').toFixed(6)} {getTokenSymbol(toToken, toChain)}
                     </div>
-                  </div>
+          </div>
 
                   <motion.button
                     whileTap={{ scale: 0.98 }}
@@ -1489,12 +1489,12 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                       View on explorer
                     </a>
                   )}
-                </div>
+                    </div>
               )}
-            </div>
-          </div>
-        </div>
-      </motion.div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
 
       {/* Token Search Modal */}
       <TokenSearchModal

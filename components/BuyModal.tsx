@@ -368,24 +368,24 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
         <div className="min-h-full flex flex-col">
           <div className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 pt-safe pb-safe">
             <div className="pt-4 pb-2">
-              <button
+          <button
                 onClick={handleClose}
                 className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-              >
-                ← Back
-              </button>
+          >
+            ← Back
+          </button>
             </div>
 
-            <div className="mb-6">
-              <div className="flex items-center gap-3 mb-2">
+          <div className="mb-6">
+            <div className="flex items-center gap-3 mb-2">
                 <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Flame className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Buy crypto</h2>
-                  <p className="text-sm text-gray-600">
+                <Flame className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Buy crypto</h2>
+                <p className="text-sm text-gray-600">
                     Purchase crypto with iDEAL, credit card or bank transfer
-                  </p>
+                </p>
                 </div>
               </div>
             </div>
@@ -451,8 +451,8 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
                               ))}
                             </motion.div>
                           )}
-                        </div>
-                      </div>
+            </div>
+          </div>
 
                       {/* Amount Input */}
                       <div>
@@ -463,7 +463,7 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
                           <span className="text-sm text-gray-600">
                             Min: {selectedFiat === 'EUR' ? '€10' : selectedFiat === 'USD' ? '$10' : '£10'} • Max: {selectedFiat === 'EUR' ? '€10,000' : selectedFiat === 'USD' ? '$10,000' : '£10,000'}
                           </span>
-                        </div>
+                  </div>
                         <div className="relative">
                           <input
                             type="number"
@@ -481,7 +481,7 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
                           >
                             MAX
                           </button>
-                        </div>
+                  </div>
                         {/* Quick Amount Buttons */}
                         <div className="grid grid-cols-4 gap-2 mt-3">
                           {[50, 100, 250, 500].map((amount) => (
@@ -497,8 +497,8 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
                               {selectedFiat === 'EUR' ? '€' : selectedFiat === 'USD' ? '$' : '£'}{amount}
                             </button>
                           ))}
-                        </div>
-                      </div>
+                  </div>
+                </div>
 
                       {/* Crypto Currency Selector */}
                       <div>
@@ -516,7 +516,7 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
                                   {selectedCrypto.charAt(0)}
                                 </div>
                                 <span>{selectedCrypto}</span>
-                              </div>
+              </div>
                             )}
                             <ChevronDown className="w-5 h-5 text-gray-400" />
                           </button>
@@ -537,13 +537,13 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
                                   className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors ${
                                     selectedCrypto === crypto ? 'bg-orange-50' : ''
                                   }`}
-                                >
-                                  <div className="flex items-center gap-3">
+                      >
+                        <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
                                       {crypto.charAt(0)}
-                                    </div>
+                          </div>
                                     <span className="font-medium text-gray-900">{crypto}</span>
-                                  </div>
+                          </div>
                                   {selectedCrypto === crypto && (
                                     <Check className="w-5 h-5 text-orange-500" />
                                   )}
@@ -569,8 +569,8 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
                             </div>
                             <div className="text-sm text-gray-600">
                               ≈ {fiatAmount} {selectedFiat}
-                            </div>
-                          </div>
+                </div>
+              </div>
 
                           {/* Breakdown */}
                           <div className="space-y-3 text-sm">
@@ -607,7 +607,7 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
 
                       {/* Payment Method Selection */}
                       {quote && !isLoadingQuote && (
-                        <div className="glass-card p-6">
+              <div className="glass-card p-6">
                           <label className="text-sm font-medium text-gray-900 mb-4 block">
                             Payment method
                           </label>
@@ -630,13 +630,13 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
                                         : 'bg-gray-100'
                                     }`}>
                                       {getPaymentMethodIcon(method.icon, selectedPaymentMethod === method.id)}
-                                    </div>
+                  </div>
                                     <div>
                                       <div className="font-semibold text-gray-900">{method.name}</div>
                                       <div className="text-xs text-gray-600">
                                         {method.processingTime} • Fee: {method.fee}
-                                      </div>
-                                    </div>
+                  </div>
+                </div>
                                   </div>
                                   {selectedPaymentMethod === method.id && (
                                     <Check className="w-5 h-5 text-orange-500" />
@@ -644,13 +644,13 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
                                 </div>
                               </button>
                             ))}
-                          </div>
-                        </div>
+              </div>
+            </div>
                       )}
 
                       {/* Error */}
                       {error && (
-                        <motion.div
+            <motion.div
                           initial={{ opacity: 0, y: -10 }}
                           animate={{ opacity: 1, y: 0 }}
                           className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3"
@@ -686,7 +686,7 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
                       ≈ {fiatAmount} {selectedFiat}
                     </div>
                   </div>
-
+                  
                   {/* Details */}
                   <div className="glass-card p-6 space-y-4 text-sm">
                     <div className="flex justify-between">
@@ -748,7 +748,7 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
                   >
                     Open payment page
                   </button>
-                </div>
+              </div>
               )}
 
               {step === 'processing' && transaction && (
@@ -776,7 +776,7 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
                       className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4"
                     >
                       <CheckCircle2 className="w-12 h-12 text-emerald-500" />
-                    </motion.div>
+            </motion.div>
                   )}
 
                   {transactionStatus === 'COMPLETED' && (

@@ -322,15 +322,15 @@ export default function TabContent({
     <div className="space-y-4">
       {/* BLAZE Presale Card (Hidden when feature flag is disabled) */}
       {PRESALE_FEATURE_ENABLED && (
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setShowPresale(true)}
-          className={`w-full glass-card p-6 rounded-2xl text-left transition-all group border-2 relative overflow-hidden ${
-            isPriorityListLive 
-              ? 'border-green-300 hover:bg-green-50' 
-              : 'border-orange-200 hover:bg-orange-50'
-          }`}
-        >
+      <motion.button
+        whileTap={{ scale: 0.95 }}
+        onClick={() => setShowPresale(true)}
+        className={`w-full glass-card p-6 rounded-2xl text-left transition-all group border-2 relative overflow-hidden ${
+          isPriorityListLive 
+            ? 'border-green-300 hover:bg-green-50' 
+            : 'border-orange-200 hover:bg-orange-50'
+        }`}
+      >
         {/* Background gradient effect */}
         <div className={`absolute inset-0 transition-opacity ${
           isPriorityListLive 

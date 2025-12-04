@@ -1237,16 +1237,16 @@ export default function Dashboard() {
 
           {/* Presale Card - Mobile Only (Hidden when feature flag is disabled) */}
           {PRESALE_FEATURE_ENABLED && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`md:hidden glass-card card-hover relative overflow-hidden border-2 transition-all ${
-                isPriorityListLive 
-                  ? 'border-green-300' 
-                  : 'border-orange-200'
-              }`}
-              onClick={() => setShowPresale(true)}
-            >
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`md:hidden glass-card card-hover relative overflow-hidden border-2 transition-all ${
+              isPriorityListLive 
+                ? 'border-green-300' 
+                : 'border-orange-200'
+            }`}
+            onClick={() => setShowPresale(true)}
+          >
             <div className={`absolute inset-0 ${
               isPriorityListLive
                 ? 'bg-gradient-to-r from-green-500/10 to-emerald-500/10'
@@ -1864,15 +1864,15 @@ export default function Dashboard() {
               <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                 {/* Presale button - Hidden on mobile, shown as card below (Hidden when feature flag is disabled) */}
                 {PRESALE_FEATURE_ENABLED && (
-                  <motion.button
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setShowPresale(true)}
-                    className="hidden md:flex px-4 py-2.5 sm:py-3 rounded-xl items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all"
-                    title="Join Presale"
-                  >
-                    <Rocket className="w-4 h-4 sm:w-5 sm:h-5" />
-                    <span className="text-sm font-semibold whitespace-nowrap">Presale Blaze Token</span>
-                  </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowPresale(true)}
+                  className="hidden md:flex px-4 py-2.5 sm:py-3 rounded-xl items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 shadow-lg hover:shadow-xl transition-all"
+                  title="Join Presale"
+                >
+                  <Rocket className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="text-sm font-semibold whitespace-nowrap">Presale Blaze Token</span>
+                </motion.button>
                 )}
                 <motion.button
                   whileTap={{ scale: 0.95 }}
