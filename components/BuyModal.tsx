@@ -271,6 +271,14 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
     setStep('payment');
 
     try {
+      console.log('📤 Creating Onramper transaction...', {
+        fiatAmount: parseFloat(fiatAmount),
+        fiatCurrency: selectedFiat,
+        cryptoCurrency: selectedCrypto,
+        walletAddress: walletAddress.substring(0, 10) + '...',
+        paymentMethod: selectedPaymentMethod,
+      });
+      
       const response = await apiPost('/api/onramper/create-transaction', {
         fiatAmount: parseFloat(fiatAmount),
         fiatCurrency: selectedFiat,
@@ -289,6 +297,8 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
 
       const data = await response.json();
       if (data.success && data.transaction) {
+        console.log('🔥 ONRAMPER TRANSACTION CREATED:', data.transaction);
+        console.log('🔗 WIDGET URL:', data.transaction.paymentUrl);
         setTransaction(data.transaction);
         
         // Show iframe with payment URL (blijft binnen Blaze Wallet!)
