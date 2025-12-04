@@ -43,18 +43,38 @@ export async function POST(req: NextRequest) {
     });
 
     // Create transaction via Onramper
-    const transaction = await OnramperService.createTransaction(
-      parseFloat(fiatAmount),
-      fiatCurrency,
-      cryptoCurrency,
-      walletAddress,
-      paymentMethod,
-      onramperApiKey
-    );
+    let transaction = null;
+    try {
+      transaction = await OnramperService.createTransaction(
+        parseFloat(fiatAmount),
+        fiatCurrency,
+        cryptoCurrency,
+        walletAddress,
+        paymentMethod,
+        onramperApiKey
+      );
+    } catch (transactionError: any) {
+      logger.error('❌ Onramper createTransaction error:', {
+        error: transactionError.message,
+        stack: transactionError.stack,
+        fiatAmount,
+        fiatCurrency,
+        cryptoCurrency,
+        paymentMethod,
+      });
+      return NextResponse.json(
+        { 
+          error: 'Failed to create transaction with Onramper',
+          details: transactionError.message 
+        },
+        { status: 500 }
+      );
+    }
 
     if (!transaction) {
+      logger.error('❌ Onramper createTransaction returned null');
       return NextResponse.json(
-        { error: 'Failed to create transaction with Onramper' },
+        { error: 'Failed to create transaction with Onramper - no transaction returned' },
         { status: 500 }
       );
     }

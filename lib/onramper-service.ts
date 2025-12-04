@@ -271,51 +271,118 @@ export class OnramperService {
 
       const data = await response.json();
       
-      logger.log('📊 Onramper quote response:', JSON.stringify(data).substring(0, 500));
+      logger.log('📊 Onramper quote response (full):', JSON.stringify(data, null, 2));
       
       // Onramper returns an array of quotes from different providers
-      // Each quote has: amount, cryptoAmount, exchangeRate, fee, etc.
+      // Each quote object structure can vary, but typically includes:
+      // - destinationAmount (crypto amount)
+      // - sourceAmount (fiat amount)
+      // - exchangeRate
+      // - fee or totalFee
+      // - provider info
       if (Array.isArray(data) && data.length > 0) {
+        logger.log(`📊 Found ${data.length} quotes from Onramper`);
+        
         // Find the best quote (lowest fee or best rate)
         const bestQuote = data.reduce((best, current) => {
           // Prefer quotes with lower fees or better rates
-          const bestFee = parseFloat(best.fee || '0');
-          const currentFee = parseFloat(current.fee || '0');
+          const bestFee = parseFloat(best.fee || best.totalFee || '0');
+          const currentFee = parseFloat(current.fee || current.totalFee || '0');
           return currentFee < bestFee ? current : best;
         });
         
-        // Extract values from Onramper response format
-        const cryptoAmount = bestQuote.cryptoAmount || bestQuote.destinationAmount || '0';
-        const exchangeRate = bestQuote.exchangeRate || (parseFloat(cryptoAmount) > 0 ? (fiatAmount / parseFloat(cryptoAmount)).toString() : '0');
-        const fee = bestQuote.fee || bestQuote.totalFee || '0';
-        const totalAmount = bestQuote.totalAmount || bestQuote.sourceAmount || fiatAmount.toString();
+        logger.log('📊 Best quote selected:', JSON.stringify(bestQuote, null, 2));
         
-        logger.log('✅ Parsed Onramper quote:', { cryptoAmount, exchangeRate, fee, totalAmount });
+        // Extract values from Onramper response format
+        // Try multiple possible field names
+        const cryptoAmount = bestQuote.destinationAmount || 
+                            bestQuote.cryptoAmount || 
+                            bestQuote.amount || 
+                            bestQuote.destination_amount ||
+                            '0';
+        const sourceAmount = bestQuote.sourceAmount || 
+                            bestQuote.source_amount || 
+                            bestQuote.fiatAmount ||
+                            fiatAmount.toString();
+        const fee = bestQuote.fee || 
+                   bestQuote.totalFee || 
+                   bestQuote.total_fee ||
+                   '0';
+        
+        // Calculate exchange rate if not provided
+        const cryptoAmountNum = parseFloat(cryptoAmount.toString());
+        const sourceAmountNum = parseFloat(sourceAmount.toString());
+        let exchangeRate = bestQuote.exchangeRate || bestQuote.exchange_rate;
+        
+        if (!exchangeRate && cryptoAmountNum > 0 && sourceAmountNum > 0) {
+          exchangeRate = (sourceAmountNum / cryptoAmountNum).toString();
+        } else if (!exchangeRate) {
+          exchangeRate = '0';
+        }
+        
+        logger.log('✅ Parsed Onramper quote:', { 
+          cryptoAmount: cryptoAmount.toString(), 
+          exchangeRate: exchangeRate.toString(), 
+          fee: fee.toString(), 
+          totalAmount: sourceAmount.toString() 
+        });
+        
+        // Validate that we have valid data
+        if (parseFloat(cryptoAmount.toString()) <= 0) {
+          logger.error('❌ Invalid crypto amount in quote:', cryptoAmount);
+          return null;
+        }
         
         return {
           cryptoAmount: cryptoAmount.toString(),
           exchangeRate: exchangeRate.toString(),
           fee: fee.toString(),
-          totalAmount: totalAmount.toString(),
+          totalAmount: sourceAmount.toString(),
         };
       }
       
       // Check if response is a single object (not array)
       if (data && typeof data === 'object' && !Array.isArray(data)) {
-        const cryptoAmount = data.cryptoAmount || data.destinationAmount || '0';
-        const exchangeRate = data.exchangeRate || (parseFloat(cryptoAmount) > 0 ? (fiatAmount / parseFloat(cryptoAmount)).toString() : '0');
-        const fee = data.fee || data.totalFee || '0';
-        const totalAmount = data.totalAmount || data.sourceAmount || fiatAmount.toString();
+        logger.log('📊 Single quote object received');
+        
+        const cryptoAmount = data.destinationAmount || 
+                            data.cryptoAmount || 
+                            data.amount || 
+                            data.destination_amount ||
+                            '0';
+        const sourceAmount = data.sourceAmount || 
+                            data.source_amount || 
+                            data.fiatAmount ||
+                            fiatAmount.toString();
+        const fee = data.fee || 
+                   data.totalFee || 
+                   data.total_fee ||
+                   '0';
+        
+        const cryptoAmountNum = parseFloat(cryptoAmount.toString());
+        const sourceAmountNum = parseFloat(sourceAmount.toString());
+        let exchangeRate = data.exchangeRate || data.exchange_rate;
+        
+        if (!exchangeRate && cryptoAmountNum > 0 && sourceAmountNum > 0) {
+          exchangeRate = (sourceAmountNum / cryptoAmountNum).toString();
+        } else if (!exchangeRate) {
+          exchangeRate = '0';
+        }
+        
+        if (parseFloat(cryptoAmount.toString()) <= 0) {
+          logger.error('❌ Invalid crypto amount in quote:', cryptoAmount);
+          return null;
+        }
         
         return {
           cryptoAmount: cryptoAmount.toString(),
           exchangeRate: exchangeRate.toString(),
           fee: fee.toString(),
-          totalAmount: totalAmount.toString(),
+          totalAmount: sourceAmount.toString(),
         };
       }
       
-      logger.error('❌ Unexpected Onramper quote response format:', data);
+      logger.error('❌ Unexpected Onramper quote response format:', JSON.stringify(data, null, 2));
       return null;
     } catch (error) {
       logger.error('Error fetching Onramper quote:', error);
@@ -452,25 +519,59 @@ export class OnramperService {
 
       const data = await response.json();
       
-      logger.log('📊 Onramper transaction response:', JSON.stringify(data).substring(0, 500));
+      logger.log('📊 Onramper transaction response (full):', JSON.stringify(data, null, 2));
       
       // Extract transaction info from Onramper response
-      // Response format: { transactionInformation: { redirectUrl, transactionId, status, ... } }
-      const transactionInfo = data.transactionInformation || data;
+      // Response format can be:
+      // 1. { transactionInformation: { redirectUrl, transactionId, status, ... } }
+      // 2. { redirectUrl, transactionId, status, ... } (direct)
+      // 3. { data: { redirectUrl, transactionId, status, ... } }
+      const transactionInfo = data.transactionInformation || data.data || data;
       
-      const transactionId = transactionInfo.transactionId || transactionInfo.id || transactionInfo.transaction_id || '';
-      const paymentUrl = transactionInfo.redirectUrl || transactionInfo.paymentUrl || transactionInfo.url || transactionInfo.redirect_url || '';
-      const status = transactionInfo.status || 'PENDING';
+      // Try multiple possible field names for each value
+      const transactionId = transactionInfo.transactionId || 
+                            transactionInfo.id || 
+                            transactionInfo.transaction_id ||
+                            transactionInfo.transactionId ||
+                            '';
+      const paymentUrl = transactionInfo.redirectUrl || 
+                        transactionInfo.paymentUrl || 
+                        transactionInfo.url || 
+                        transactionInfo.redirect_url ||
+                        transactionInfo.redirectUrl ||
+                        transactionInfo.checkoutUrl ||
+                        transactionInfo.checkout_url ||
+                        '';
+      const status = transactionInfo.status || 
+                    transactionInfo.state ||
+                    'PENDING';
+      
+      logger.log('📊 Extracted transaction info:', { 
+        transactionId, 
+        paymentUrl: paymentUrl ? paymentUrl.substring(0, 50) + '...' : 'MISSING', 
+        status,
+        hasTransactionInfo: !!data.transactionInformation,
+        hasData: !!data.data,
+        keys: Object.keys(data),
+      });
       
       if (!paymentUrl) {
-        logger.error('❌ No payment URL in Onramper response:', data);
+        logger.error('❌ No payment URL in Onramper response. Full response:', JSON.stringify(data, null, 2));
         return null;
       }
       
-      logger.log('✅ Onramper transaction created:', { transactionId, paymentUrl: paymentUrl.substring(0, 50) + '...', status });
+      if (!transactionId) {
+        logger.warn('⚠️ No transaction ID in Onramper response, but payment URL exists');
+      }
+      
+      logger.log('✅ Onramper transaction created successfully:', { 
+        transactionId: transactionId || 'N/A', 
+        paymentUrl: paymentUrl.substring(0, 50) + '...', 
+        status 
+      });
       
       return {
-        transactionId,
+        transactionId: transactionId || 'pending',
         paymentUrl,
         status,
       };
