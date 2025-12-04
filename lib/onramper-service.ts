@@ -595,6 +595,45 @@ export class OnramperService {
   // Create transaction via Onramper API
   // Docs: https://docs.onramper.com/reference/post_checkout-intent
   // Endpoint: POST https://api.onramper.com/checkout/intent
+  // NEW: Generate widget URL instead of using checkout/intent API
+  // Onramper's checkout/intent endpoint has issues, so we'll use widget URL approach
+  static generateTransactionUrl(
+    fiatAmount: number,
+    fiatCurrency: string,
+    cryptoCurrency: string,
+    walletAddress: string,
+    apiKey: string,
+    isSandbox: boolean = false
+  ): string {
+    const baseUrl = isSandbox ? this.SANDBOX_URL : this.WIDGET_URL;
+    const params = new URLSearchParams();
+
+    // Required: API key
+    params.append('apiKey', apiKey);
+
+    // Required: Mode
+    params.append('mode', 'buy');
+
+    // Wallet address
+    params.append('wallets', walletAddress);
+
+    // Default crypto currency (uppercase for Onramper)
+    params.append('defaultCryptoCurrency', cryptoCurrency.toUpperCase());
+
+    // Default fiat currency (uppercase for Onramper)
+    params.append('defaultFiatCurrency', fiatCurrency.toUpperCase());
+
+    // Default amount
+    params.append('defaultAmount', fiatAmount.toString());
+
+    const url = `${baseUrl}?${params.toString()}`;
+    logger.log('✅ Onramper transaction URL generated:', url.replace(apiKey, '***API_KEY***'));
+    
+    return url;
+  }
+
+  // DEPRECATED: Use generateTransactionUrl instead
+  // The checkout/intent API endpoint has issues, so we'll use widget URL approach
   static async createTransaction(
     fiatAmount: number,
     fiatCurrency: string,
@@ -610,6 +649,40 @@ export class OnramperService {
     try {
       if (!apiKey) {
         logger.error('Onramper API key is required to create transactions');
+        return null;
+      }
+
+      // NEW APPROACH: Use widget URL instead of checkout/intent API
+      // The checkout/intent endpoint has persistent issues with "Cannot read properties of undefined"
+      // So we'll generate a widget URL and return it as the paymentUrl
+      const widgetUrl = this.generateTransactionUrl(
+        fiatAmount,
+        fiatCurrency,
+        cryptoCurrency,
+        walletAddress,
+        apiKey,
+        false // isSandbox - use environment variable if needed
+      );
+
+      // Return a transaction object with the widget URL
+      // The transactionId is generated client-side or can be tracked via webhooks
+      return {
+        transactionId: `widget_${Date.now()}`, // Temporary ID for tracking
+        paymentUrl: widgetUrl,
+        status: 'PENDING',
+      };
+
+      /* OLD APPROACH - DISABLED DUE TO API ISSUES
+      // Onramper checkout intent format
+      // Docs: https://docs.onramper.com/reference/post_checkout-intent
+      // CRITICAL: sourceAmount must be a number (not string) according to Onramper docs
+      // Validate that fiatAmount is a valid positive number
+      if (typeof fiatAmount !== 'number' || isNaN(fiatAmount) || fiatAmount <= 0) {
+        logger.error('❌ Invalid sourceAmount for Onramper transaction:', {
+          fiatAmount,
+          type: typeof fiatAmount,
+          isNaN: isNaN(fiatAmount),
+        });
         return null;
       }
 
