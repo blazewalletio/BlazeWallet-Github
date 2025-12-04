@@ -761,12 +761,13 @@ export class OnramperService {
       }
 
       // Build Onramper Widget URL with transaction parameters
-      // This is the standard way to integrate Onramper for custom UI
+      // Docs: https://docs.onramper.com/docs/customization
       const widgetParams = new URLSearchParams({
         apiKey: apiKey,
-        defaultCrypto: cryptoCurrency.toUpperCase(),
-        defaultFiat: fiatCurrency.toUpperCase(),
-        defaultAmount: fiatAmount.toString(),
+        // CRITICAL: Use correct parameter names from Onramper docs
+        onlyCryptos: cryptoCurrency.toUpperCase(), // Changed from defaultCrypto
+        onlyFiats: fiatCurrency.toUpperCase(), // Changed from defaultFiat
+        amount: fiatAmount.toString(), // Changed from defaultAmount
         wallets: `${cryptoCurrency.toUpperCase()}:${walletAddress}`,
         // Optional: specify payment method if selected
         ...(paymentMethod && paymentMethod !== 'undefined' && { onlyPaymentMethods: paymentMethod }),
