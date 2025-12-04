@@ -705,9 +705,9 @@ export class OnramperService {
 
       // Build request body according to Onramper API documentation
       // Docs: https://docs.onramper.com/reference/post_checkout-intent
-      // CRITICAL: Try different request formats to find what Onramper expects
+      // CRITICAL: Based on Onramper docs, the request should be minimal and clean
       
-      // Format 1: Basic format (what we've been trying)
+      // Standard format - Onramper expects lowercase currencies
       let requestBody: any = {
         sourceCurrency: fiatCurrency.toLowerCase(),
         destinationCurrency: cryptoCurrency.toLowerCase(),
@@ -715,20 +715,9 @@ export class OnramperService {
         destinationWalletAddress: walletAddress,
       };
 
-      // Try adding network parameter for Solana
-      if (cryptoCurrency.toUpperCase() === 'SOL') {
-        requestBody.network = 'solana';
-      } else if (cryptoCurrency.toUpperCase() === 'BTC') {
-        requestBody.network = 'bitcoin';
-      } else if (cryptoCurrency.toUpperCase() === 'ETH') {
-        requestBody.network = 'ethereum';
-      }
-      
-      // CRITICAL: Onramper might expect destinationCurrency in uppercase for certain chains
-      // Try uppercase for Solana
-      if (cryptoCurrency.toUpperCase() === 'SOL') {
-        requestBody.destinationCurrency = 'SOL'; // Try uppercase instead of lowercase
-      }
+      // CRITICAL FIX: Remove network parameter - Onramper infers network from destinationCurrency
+      // Adding network might cause the "Cannot read properties of undefined" error
+      // Onramper automatically detects the network based on the currency and wallet address format
 
       logger.log('📊 Creating Onramper transaction:', {
         ...requestBody,
