@@ -628,16 +628,23 @@ export class OnramperService {
 
       // Build request body according to Onramper API documentation
       // Docs: https://docs.onramper.com/reference/post_checkout-intent
-      // NOTE: According to Onramper docs, paymentMethod might not be required in checkout/intent
-      // The payment method selection happens in the widget/UI, not in the API call
+      // CRITICAL: Onramper might require network parameter for certain chains
       const requestBody: any = {
         sourceCurrency: fiatCurrency.toLowerCase(),
         destinationCurrency: cryptoCurrency.toLowerCase(),
         sourceAmount: fiatAmount, // Must be a number (already validated)
         destinationWalletAddress: walletAddress,
-        // NOTE: paymentMethod is NOT included - Onramper handles this in their widget
-        // Including it might cause the "Cannot read properties of undefined" error
       };
+
+      // Add network parameter for Solana (might be required)
+      if (cryptoCurrency.toUpperCase() === 'SOL') {
+        requestBody.network = 'solana';
+      } else if (cryptoCurrency.toUpperCase() === 'BTC') {
+        requestBody.network = 'bitcoin';
+      } else if (cryptoCurrency.toUpperCase() === 'ETH') {
+        requestBody.network = 'ethereum';
+      }
+      // For other EVM tokens, network is usually inferred from destinationCurrency
 
       logger.log('📊 Creating Onramper transaction:', {
         ...requestBody,
