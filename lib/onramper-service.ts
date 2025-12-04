@@ -769,17 +769,18 @@ export class OnramperService {
         defaultAmount: fiatAmount.toString(),
         wallets: `${cryptoCurrency.toUpperCase()}:${walletAddress}`,
         // Optional: specify payment method if selected
-        ...(paymentMethod && { onlyPaymentMethods: paymentMethod }),
+        ...(paymentMethod && paymentMethod !== 'undefined' && { onlyPaymentMethods: paymentMethod }),
       });
 
       const widgetUrl = `https://widget.onramper.com?${widgetParams.toString()}`;
 
-      logger.log('✅ Generated Onramper widget URL (params hidden for security):', {
+      logger.log('✅ Generated Onramper widget URL:', {
         crypto: cryptoCurrency,
         fiat: fiatCurrency,
         amount: fiatAmount,
         wallet: walletAddress.substring(0, 10) + '...',
         hasPaymentMethod: !!paymentMethod,
+        fullUrl: widgetUrl, // TEMPORARILY LOG FULL URL FOR DEBUGGING
       });
 
       // Return widget URL as the payment URL
