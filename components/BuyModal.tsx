@@ -240,8 +240,25 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
   };
 
   const handleCreateTransaction = async () => {
-    if (!address || !fiatAmount || !selectedCrypto || !selectedPaymentMethod) {
+    if (!fiatAmount || !selectedCrypto || !selectedPaymentMethod) {
       setError('Missing required information');
+      return;
+    }
+
+    // CRITICAL: Get correct wallet address for selected crypto
+    // Solana needs solanaAddress, Bitcoin needs bitcoinAddress, EVM uses address
+    let walletAddress: string | null = null;
+    if (selectedCrypto === 'SOL') {
+      walletAddress = solanaAddress || null;
+    } else if (selectedCrypto === 'BTC') {
+      walletAddress = bitcoinAddress || null;
+    } else {
+      // All EVM chains (ETH, USDT, USDC, MATIC, BNB, etc.) use the same address
+      walletAddress = address || null;
+    }
+
+    if (!walletAddress) {
+      setError(`No wallet address available for ${selectedCrypto}. Please ensure your wallet is properly set up.`);
       return;
     }
 
@@ -253,7 +270,7 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
         fiatAmount: parseFloat(fiatAmount),
         fiatCurrency: selectedFiat,
         cryptoCurrency: selectedCrypto,
-        walletAddress: address,
+        walletAddress: walletAddress,
         paymentMethod: selectedPaymentMethod,
       });
 
