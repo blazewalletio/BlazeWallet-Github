@@ -20,6 +20,7 @@ import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { CHAINS } from '@/lib/chains';
 import { OnramperService } from '@/lib/onramper-service';
 import { logger } from '@/lib/logger';
+import { apiPost } from '@/lib/api-client';
 
 interface BuyModalProps {
   isOpen: boolean;
@@ -261,18 +262,12 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
     setStep('payment');
 
     try {
-      const response = await fetch('/api/onramper/create-transaction', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fiatAmount: parseFloat(fiatAmount),
-          fiatCurrency: selectedFiat,
-          cryptoCurrency: selectedCrypto,
-          walletAddress: address,
-          paymentMethod: selectedPaymentMethod,
-        }),
+      const response = await apiPost('/api/onramper/create-transaction', {
+        fiatAmount: parseFloat(fiatAmount),
+        fiatCurrency: selectedFiat,
+        cryptoCurrency: selectedCrypto,
+        walletAddress: address,
+        paymentMethod: selectedPaymentMethod,
       });
 
       if (!response.ok) {

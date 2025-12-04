@@ -61,13 +61,18 @@ export async function GET(req: NextRequest) {
     });
 
     // Get quote from Onramper
-    const quote = await OnramperService.getQuote(
-      fiatAmount,
-      fiatCurrency,
-      cryptoCurrency,
-      paymentMethod,
-      onramperApiKey
-    );
+    let quote = null;
+    try {
+      quote = await OnramperService.getQuote(
+        fiatAmount,
+        fiatCurrency,
+        cryptoCurrency,
+        paymentMethod,
+        onramperApiKey
+      );
+    } catch (quoteError: any) {
+      logger.error('❌ Onramper quote API call failed:', quoteError);
+    }
 
     if (!quote) {
       // Return fallback estimate if API fails
