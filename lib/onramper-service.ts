@@ -252,64 +252,99 @@ export class OnramperService {
       // Onramper API format: /quotes/{fiat}/{crypto}?amount={amount}
       const fiatLower = fiatCurrency.toLowerCase();
       const cryptoLower = cryptoCurrency.toLowerCase();
-      const url = `https://api.onramper.com/quotes/${fiatLower}/${cryptoLower}?amount=${fiatAmount}${paymentMethod ? `&paymentMethod=${paymentMethod}` : ''}`;
+      const baseUrl = `https://api.onramper.com/quotes/${fiatLower}/${cryptoLower}`;
       
-      logger.log('📊 Fetching Onramper quote:', { url: url.replace(apiKey, '***'), fiatAmount, fiatCurrency, cryptoCurrency });
+      // Build query parameters
+      const params = new URLSearchParams();
+      params.append('amount', fiatAmount.toString());
+      if (paymentMethod) {
+        params.append('paymentMethod', paymentMethod);
+      }
+      
+      logger.log('📊 Fetching Onramper quote:', { 
+        fiatAmount, 
+        fiatCurrency, 
+        cryptoCurrency,
+        paymentMethod,
+        apiKeyPrefix: apiKey.substring(0, 10) + '...'
+      });
 
-      // Try both formats: direct API key and Bearer token
-      // Onramper docs are unclear, so we'll try Bearer first (most common)
-      const response = await fetch(url, {
+      // Try multiple authentication methods
+      // Method 1: Authorization header with Bearer token
+      let url = `${baseUrl}?${params.toString()}`;
+      let response = await fetch(url, {
         headers: {
-          'Authorization': `Bearer ${apiKey}`, // Try Bearer format first
+          'Authorization': `Bearer ${apiKey}`,
           'Accept': 'application/json',
         },
       });
 
+      if (!response.ok && (response.status === 401 || response.status === 403)) {
+        logger.log('🔄 Method 1 failed (Bearer token), trying Method 2...');
+        
+        // Method 2: Authorization header with direct API key
+        response = await fetch(url, {
+          headers: {
+            'Authorization': apiKey,
+            'Accept': 'application/json',
+          },
+        });
+      }
+
+      if (!response.ok && (response.status === 401 || response.status === 403)) {
+        logger.log('🔄 Method 2 failed (direct API key), trying Method 3...');
+        
+        // Method 3: API key as query parameter (no Authorization header)
+        params.append('apiKey', apiKey);
+        url = `${baseUrl}?${params.toString()}`;
+        response = await fetch(url, {
+          headers: {
+            'Accept': 'application/json',
+          },
+        });
+      }
+
+      if (!response.ok && (response.status === 401 || response.status === 403)) {
+        logger.log('🔄 Method 3 failed (query param), trying Method 4...');
+        
+        // Method 4: API key as query parameter + Bearer Authorization header
+        response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Accept': 'application/json',
+          },
+        });
+      }
+
       if (!response.ok) {
         const errorText = await response.text();
-        logger.error('❌ Onramper quote API error:', {
+        logger.error('❌ Onramper quote API error (all methods failed):', {
           status: response.status,
           statusText: response.statusText,
-          error: errorText,
-          url: url.replace(apiKey, '***'),
+          error: errorText.substring(0, 500),
+          url: url.replace(apiKey, '***API_KEY***'),
         });
-        
-        // If Bearer fails with 401/403, try direct API key
-        if (response.status === 401 || response.status === 403) {
-          logger.log('🔄 Retrying with direct API key (no Bearer)...');
-          const retryResponse = await fetch(url, {
-            headers: {
-              'Authorization': apiKey, // Direct API key
-              'Accept': 'application/json',
-            },
-          });
-          
-          if (!retryResponse.ok) {
-            const retryErrorText = await retryResponse.text();
-            logger.error('❌ Onramper quote API error (retry):', {
-              status: retryResponse.status,
-              statusText: retryResponse.statusText,
-              error: retryErrorText,
-            });
-            return null;
-          }
-          
-          // Success with direct API key - parse response
-          const retryData = await retryResponse.json();
-          logger.log('✅ Onramper quote response (direct API key):', JSON.stringify(retryData, null, 2).substring(0, 500));
-          return OnramperService.parseQuoteResponse(retryData, fiatAmount);
-        }
-        
         return null;
       }
 
       const data = await response.json();
       
-      logger.log('📊 Onramper quote response (full):', JSON.stringify(data, null, 2));
+      logger.log('✅ Onramper quote response received:', {
+        hasData: !!data,
+        isArray: Array.isArray(data),
+        dataLength: Array.isArray(data) ? data.length : 'N/A',
+        dataPreview: JSON.stringify(data, null, 2).substring(0, 500)
+      });
       
       return OnramperService.parseQuoteResponse(data, fiatAmount);
-    } catch (error) {
-      logger.error('Error fetching Onramper quote:', error);
+    } catch (error: any) {
+      logger.error('❌ Error fetching Onramper quote:', {
+        error: error.message,
+        stack: error.stack,
+        fiatAmount,
+        fiatCurrency,
+        cryptoCurrency,
+      });
       return null;
     }
   }
@@ -372,12 +407,20 @@ export class OnramperService {
           cryptoAmount: cryptoAmount.toString(), 
           exchangeRate: exchangeRate.toString(), 
           fee: fee.toString(), 
-          totalAmount: sourceAmount.toString() 
+          totalAmount: sourceAmount.toString(),
+          bestQuoteKeys: Object.keys(bestQuote),
+          bestQuotePreview: JSON.stringify(bestQuote, null, 2).substring(0, 300)
         });
         
         // Validate that we have valid data
-        if (parseFloat(cryptoAmount.toString()) <= 0) {
-          logger.error('❌ Invalid crypto amount in quote:', cryptoAmount);
+        const cryptoAmountNum = parseFloat(cryptoAmount.toString());
+        if (cryptoAmountNum <= 0) {
+          logger.error('❌ Invalid crypto amount in quote (0 or negative):', {
+            cryptoAmount,
+            cryptoAmountNum,
+            bestQuote: JSON.stringify(bestQuote, null, 2),
+            allQuotes: JSON.stringify(data, null, 2).substring(0, 1000)
+          });
           return null;
         }
         
@@ -417,8 +460,13 @@ export class OnramperService {
           exchangeRate = '0';
         }
         
-        if (parseFloat(cryptoAmount.toString()) <= 0) {
-          logger.error('❌ Invalid crypto amount in quote:', cryptoAmount);
+        const cryptoAmountNum = parseFloat(cryptoAmount.toString());
+        if (cryptoAmountNum <= 0) {
+          logger.error('❌ Invalid crypto amount in quote (single object, 0 or negative):', {
+            cryptoAmount,
+            cryptoAmountNum,
+            data: JSON.stringify(data, null, 2).substring(0, 500)
+          });
           return null;
         }
         
@@ -430,7 +478,11 @@ export class OnramperService {
         };
       }
       
-      logger.error('❌ Unexpected Onramper quote response format:', JSON.stringify(data, null, 2));
+      logger.error('❌ Unexpected Onramper quote response format:', {
+        dataType: typeof data,
+        isArray: Array.isArray(data),
+        data: JSON.stringify(data, null, 2).substring(0, 1000)
+      });
       return null;
   }
 
