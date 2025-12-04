@@ -520,9 +520,12 @@ export class OnramperService {
         logger.warn('Onramper API key not provided - returning fallback data');
         return {
           paymentMethods: [
+            { id: 'creditcard', name: 'Credit/Debit Card', icon: 'card', processingTime: 'Instant', fee: '€2.00' },
+            { id: 'applepay', name: 'Apple Pay', icon: 'applepay', processingTime: 'Instant', fee: '€1.50' },
+            { id: 'googlepay', name: 'Google Pay', icon: 'googlepay', processingTime: 'Instant', fee: '€1.50' },
             { id: 'ideal', name: 'iDEAL', icon: 'ideal', processingTime: 'Instant', fee: '€0.50' },
-            { id: 'card', name: 'Credit Card', icon: 'card', processingTime: '2-5 min', fee: '€2.00' },
-            { id: 'bank', name: 'Bank Transfer', icon: 'bank', processingTime: '1-3 days', fee: '€0.00' },
+            { id: 'bancontact', name: 'Bancontact', icon: 'bancontact', processingTime: 'Instant', fee: '€0.50' },
+            { id: 'sepa', name: 'SEPA Bank Transfer', icon: 'bank', processingTime: '1-3 days', fee: '€0.00' },
           ],
           fiatCurrencies: ['EUR', 'USD', 'GBP'],
           cryptoCurrencies: ['ETH', 'USDT', 'USDC', 'BTC', 'SOL'],
@@ -571,42 +574,94 @@ export class OnramperService {
       if (paymentTypesResponse.ok) {
         try {
           const paymentTypesData = await paymentTypesResponse.json();
-          logger.log('📊 Onramper payment types response:', JSON.stringify(paymentTypesData, null, 2).substring(0, 1000));
+          logger.log('📊 Onramper payment types response:', JSON.stringify(paymentTypesData, null, 2).substring(0, 1500));
           
           // Onramper returns payment types in various formats
           // Try to extract from different possible response structures
           if (Array.isArray(paymentTypesData)) {
-            paymentMethods = paymentTypesData.map((pm: any) => ({
-              id: pm.id || pm.code || pm.paymentMethod || pm.name?.toLowerCase() || 'unknown',
-              name: pm.name || pm.label || pm.displayName || pm.id || 'Unknown',
-              icon: pm.icon || pm.id || 'card',
-              processingTime: pm.processingTime || pm.processing_time || pm.time || 'Unknown',
-              fee: pm.fee || pm.feeAmount || '€0.00',
-            }));
-          } else if (paymentTypesData.paymentTypes || paymentTypesData.payment_methods || paymentTypesData.methods) {
-            const methods = paymentTypesData.paymentTypes || paymentTypesData.payment_methods || paymentTypesData.methods;
-            if (Array.isArray(methods)) {
-              paymentMethods = methods.map((pm: any) => ({
+            paymentMethods = paymentTypesData
+              .filter((pm: any) => {
+                // Filter out invalid/weird payment methods
+                const id = pm.id || pm.code || pm.paymentMethod || pm.name?.toLowerCase() || '';
+                const name = pm.name || pm.label || pm.displayName || '';
+                
+                // Skip if ID or name is suspicious (like "message", "error", etc.)
+                if (!id || !name || id === 'message' || name === 'message' || name === 'Unknown') {
+                  logger.warn('⚠️ Skipping invalid payment method:', pm);
+                  return false;
+                }
+                
+                return true;
+              })
+              .map((pm: any) => ({
                 id: pm.id || pm.code || pm.paymentMethod || pm.name?.toLowerCase() || 'unknown',
                 name: pm.name || pm.label || pm.displayName || pm.id || 'Unknown',
                 icon: pm.icon || pm.id || 'card',
-                processingTime: pm.processingTime || pm.processing_time || pm.time || 'Unknown',
+                processingTime: pm.processingTime || pm.processing_time || pm.time || 'Instant',
                 fee: pm.fee || pm.feeAmount || '€0.00',
               }));
+          } else if (paymentTypesData.paymentTypes || paymentTypesData.payment_methods || paymentTypesData.methods) {
+            const methods = paymentTypesData.paymentTypes || paymentTypesData.payment_methods || paymentTypesData.methods;
+            if (Array.isArray(methods)) {
+              paymentMethods = methods
+                .filter((pm: any) => {
+                  const id = pm.id || pm.code || pm.paymentMethod || pm.name?.toLowerCase() || '';
+                  const name = pm.name || pm.label || pm.displayName || '';
+                  if (!id || !name || id === 'message' || name === 'message' || name === 'Unknown') {
+                    logger.warn('⚠️ Skipping invalid payment method:', pm);
+                    return false;
+                  }
+                  return true;
+                })
+                .map((pm: any) => ({
+                  id: pm.id || pm.code || pm.paymentMethod || pm.name?.toLowerCase() || 'unknown',
+                  name: pm.name || pm.label || pm.displayName || pm.id || 'Unknown',
+                  icon: pm.icon || pm.id || 'card',
+                  processingTime: pm.processingTime || pm.processing_time || pm.time || 'Instant',
+                  fee: pm.fee || pm.feeAmount || '€0.00',
+                }));
             }
           } else if (typeof paymentTypesData === 'object') {
             // If it's an object with payment method keys
-            paymentMethods = Object.entries(paymentTypesData).map(([key, value]: [string, any]) => ({
-              id: key,
-              name: value.name || value.label || key,
-              icon: value.icon || key,
-              processingTime: value.processingTime || value.processing_time || 'Unknown',
-              fee: value.fee || value.feeAmount || '€0.00',
-            }));
+            paymentMethods = Object.entries(paymentTypesData)
+              .filter(([key, value]: [string, any]) => {
+                if (!key || key === 'message' || key === 'error' || !value) {
+                  logger.warn('⚠️ Skipping invalid payment method:', { key, value });
+                  return false;
+                }
+                return true;
+              })
+              .map(([key, value]: [string, any]) => ({
+                id: key,
+                name: value.name || value.label || key,
+                icon: value.icon || key,
+                processingTime: value.processingTime || value.processing_time || 'Instant',
+                fee: value.fee || value.feeAmount || '€0.00',
+              }));
           }
+          
+          logger.log(`✅ Parsed ${paymentMethods.length} valid payment methods from Onramper`);
         } catch (parseError) {
           logger.error('Error parsing payment types response:', parseError);
         }
+      } else {
+        logger.error('❌ Onramper payment types API failed:', {
+          status: paymentTypesResponse.status,
+          statusText: paymentTypesResponse.statusText,
+        });
+      }
+      
+      // If no valid payment methods were parsed, use sensible defaults
+      if (paymentMethods.length === 0) {
+        logger.warn('⚠️ No valid payment methods from Onramper API - using defaults');
+        paymentMethods = [
+          { id: 'creditcard', name: 'Credit/Debit Card', icon: 'card', processingTime: 'Instant', fee: '€2.00' },
+          { id: 'applepay', name: 'Apple Pay', icon: 'applepay', processingTime: 'Instant', fee: '€1.50' },
+          { id: 'googlepay', name: 'Google Pay', icon: 'googlepay', processingTime: 'Instant', fee: '€1.50' },
+          { id: 'ideal', name: 'iDEAL', icon: 'ideal', processingTime: 'Instant', fee: '€0.50' },
+          { id: 'bancontact', name: 'Bancontact', icon: 'bancontact', processingTime: 'Instant', fee: '€0.50' },
+          { id: 'sepa', name: 'SEPA Bank Transfer', icon: 'bank', processingTime: '1-3 days', fee: '€0.00' },
+        ];
       }
 
       // Parse general supported data
