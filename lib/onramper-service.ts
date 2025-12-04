@@ -626,17 +626,24 @@ export class OnramperService {
         return null;
       }
 
-      const requestBody = {
+      // Build request body according to Onramper API documentation
+      // Docs: https://docs.onramper.com/reference/post_checkout-intent
+      // NOTE: According to Onramper docs, paymentMethod might not be required in checkout/intent
+      // The payment method selection happens in the widget/UI, not in the API call
+      const requestBody: any = {
         sourceCurrency: fiatCurrency.toLowerCase(),
         destinationCurrency: cryptoCurrency.toLowerCase(),
         sourceAmount: fiatAmount, // Must be a number (already validated)
         destinationWalletAddress: walletAddress,
-        paymentMethod: paymentMethod,
+        // NOTE: paymentMethod is NOT included - Onramper handles this in their widget
+        // Including it might cause the "Cannot read properties of undefined" error
       };
 
       logger.log('📊 Creating Onramper transaction:', {
         ...requestBody,
         destinationWalletAddress: walletAddress.substring(0, 10) + '...',
+        note: 'paymentMethod not included - Onramper handles payment selection in widget',
+        originalPaymentMethod: paymentMethod, // Logged for reference but not sent
       });
 
       // Try multiple authentication methods (same as getQuote)
@@ -664,14 +671,31 @@ export class OnramperService {
       }
 
       if (!response.ok) {
-        const errorText = await response.text();
+        let errorText = '';
+        let errorJson: any = null;
+        try {
+          errorText = await response.text();
+          try {
+            errorJson = JSON.parse(errorText);
+          } catch {
+            // Not JSON, use as text
+          }
+        } catch (e) {
+          errorText = 'Failed to read error response';
+        }
+        
         logger.error('❌ Onramper create transaction API error:', {
           status: response.status,
           statusText: response.statusText,
-          error: errorText.substring(0, 500),
+          error: errorText.substring(0, 1000),
+          errorJson: errorJson,
           requestBody: {
             ...requestBody,
             destinationWalletAddress: walletAddress.substring(0, 10) + '...',
+          },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': apiKey ? `${apiKey.substring(0, 10)}...` : 'MISSING',
           },
         });
         return null;
