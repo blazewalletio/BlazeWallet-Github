@@ -707,51 +707,36 @@ export class OnramperService {
       // Docs: https://docs.onramper.com/reference/post_checkout-intent
       // CRITICAL: Based on Onramper docs, the request should be minimal and clean
       
-      // Standard format - Onramper expects lowercase currencies
-      // CRITICAL: Try sourceAmount as string - Onramper might expect string format
-      // The error "Cannot read properties of undefined (reading 'toString')" suggests
-      // Onramper is trying to call toString() on an undefined value
+      // Build request body according to Onramper API documentation
+      // Docs: https://docs.onramper.com/reference/post_checkout-intent
+      // According to Integration Steps: https://docs.onramper.com/docs/integration-steps-1
+      // Authorization header should be: 'Authorization': `YOUR_API_KEY` (direct, no Bearer)
+      // Request body should include: sourceCurrency, destinationCurrency, sourceAmount, destinationWalletAddress
+      
       let requestBody: any = {
         sourceCurrency: fiatCurrency.toLowerCase(),
         destinationCurrency: cryptoCurrency.toLowerCase(),
-        sourceAmount: fiatAmount.toString(), // CRITICAL: Try as string instead of number
+        sourceAmount: fiatAmount, // Keep as number - JSON.stringify will handle it correctly
         destinationWalletAddress: walletAddress,
       };
-
-      // CRITICAL FIX: Remove network parameter - Onramper infers network from destinationCurrency
-      // Adding network might cause the "Cannot read properties of undefined" error
-      // Onramper automatically detects the network based on the currency and wallet address format
 
       logger.log('📊 Creating Onramper transaction:', {
         ...requestBody,
         destinationWalletAddress: walletAddress.substring(0, 10) + '...',
-        note: 'paymentMethod not included - Onramper handles payment selection in widget',
-        originalPaymentMethod: paymentMethod, // Logged for reference but not sent
+        note: 'Following Onramper API documentation exactly',
       });
 
-      // Try multiple authentication methods (same as getQuote)
+      // According to Onramper docs: https://docs.onramper.com/docs/integration-steps-1
+      // Authorization header format: 'Authorization': `YOUR_API_KEY` (direct API key, no Bearer)
       let response = await fetch('https://api.onramper.com/checkout/intent', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${apiKey}`, // Try Bearer first
+          'Authorization': apiKey, // Direct API key as per documentation
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
         body: JSON.stringify(requestBody),
       });
-
-      if (!response.ok && (response.status === 401 || response.status === 403)) {
-        logger.log('🔄 Create transaction: Bearer failed, trying direct API key...');
-        response = await fetch('https://api.onramper.com/checkout/intent', {
-          method: 'POST',
-          headers: {
-            'Authorization': apiKey, // Direct API key
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-          body: JSON.stringify(requestBody),
-        });
-      }
 
       if (!response.ok) {
         let errorText = '';
