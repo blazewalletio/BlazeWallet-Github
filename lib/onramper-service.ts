@@ -412,8 +412,7 @@ export class OnramperService {
           bestQuotePreview: JSON.stringify(bestQuote, null, 2).substring(0, 300)
         });
         
-        // Validate that we have valid data
-        const cryptoAmountNum = parseFloat(cryptoAmount.toString());
+        // Validate that we have valid data (cryptoAmountNum already defined above)
         if (cryptoAmountNum <= 0) {
           logger.error('❌ Invalid crypto amount in quote (0 or negative):', {
             cryptoAmount,
@@ -460,7 +459,7 @@ export class OnramperService {
           exchangeRate = '0';
         }
         
-        const cryptoAmountNum = parseFloat(cryptoAmount.toString());
+        // Validate that we have valid data (cryptoAmountNum already defined above)
         if (cryptoAmountNum <= 0) {
           logger.error('❌ Invalid crypto amount in quote (single object, 0 or negative):', {
             cryptoAmount,
