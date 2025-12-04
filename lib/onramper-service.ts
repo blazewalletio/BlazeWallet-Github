@@ -708,10 +708,13 @@ export class OnramperService {
       // CRITICAL: Based on Onramper docs, the request should be minimal and clean
       
       // Standard format - Onramper expects lowercase currencies
+      // CRITICAL: Try sourceAmount as string - Onramper might expect string format
+      // The error "Cannot read properties of undefined (reading 'toString')" suggests
+      // Onramper is trying to call toString() on an undefined value
       let requestBody: any = {
         sourceCurrency: fiatCurrency.toLowerCase(),
         destinationCurrency: cryptoCurrency.toLowerCase(),
-        sourceAmount: fiatAmount, // Must be a number (already validated)
+        sourceAmount: fiatAmount.toString(), // CRITICAL: Try as string instead of number
         destinationWalletAddress: walletAddress,
       };
 
