@@ -628,15 +628,17 @@ export class OnramperService {
 
       // Build request body according to Onramper API documentation
       // Docs: https://docs.onramper.com/reference/post_checkout-intent
-      // CRITICAL: Onramper might require network parameter for certain chains
-      const requestBody: any = {
+      // CRITICAL: Try different request formats to find what Onramper expects
+      
+      // Format 1: Basic format (what we've been trying)
+      let requestBody: any = {
         sourceCurrency: fiatCurrency.toLowerCase(),
         destinationCurrency: cryptoCurrency.toLowerCase(),
         sourceAmount: fiatAmount, // Must be a number (already validated)
         destinationWalletAddress: walletAddress,
       };
 
-      // Add network parameter for Solana (might be required)
+      // Try adding network parameter for Solana
       if (cryptoCurrency.toUpperCase() === 'SOL') {
         requestBody.network = 'solana';
       } else if (cryptoCurrency.toUpperCase() === 'BTC') {
@@ -644,7 +646,12 @@ export class OnramperService {
       } else if (cryptoCurrency.toUpperCase() === 'ETH') {
         requestBody.network = 'ethereum';
       }
-      // For other EVM tokens, network is usually inferred from destinationCurrency
+      
+      // CRITICAL: Onramper might expect destinationCurrency in uppercase for certain chains
+      // Try uppercase for Solana
+      if (cryptoCurrency.toUpperCase() === 'SOL') {
+        requestBody.destinationCurrency = 'SOL'; // Try uppercase instead of lowercase
+      }
 
       logger.log('📊 Creating Onramper transaction:', {
         ...requestBody,
