@@ -62,6 +62,7 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [transactionStatus, setTransactionStatus] = useState<'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED'>('PENDING');
   const [error, setError] = useState('');
+  const [showIframe, setShowIframe] = useState(false);
   
   // Dropdown states
   const [showFiatDropdown, setShowFiatDropdown] = useState(false);
@@ -98,6 +99,7 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
       setError('');
       setShowFiatDropdown(false);
       setShowCryptoDropdown(false);
+      setShowIframe(false);
     }
   }, [isOpen, address, currentChain]);
 
@@ -286,10 +288,10 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
       if (data.success && data.transaction) {
         setTransaction(data.transaction);
         
-        // Redirect to payment URL
+        // Show iframe with payment URL (blijft binnen Blaze Wallet!)
         if (data.transaction.paymentUrl) {
-          window.open(data.transaction.paymentUrl, '_blank');
-          setStep('processing');
+          setShowIframe(true);
+          setStep('payment');
           setTransactionStatus('PENDING');
           
           // Start polling for status updates
@@ -735,20 +737,51 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
                 </div>
               )}
 
-              {step === 'payment' && transaction && (
-                <div className="glass-card p-12 text-center">
-                  <Loader2 className="w-16 h-16 animate-spin text-orange-500 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Redirecting to payment...</h3>
-                  <p className="text-gray-600 mb-6">
-                    You'll be redirected to complete your payment securely
-                  </p>
-                  <button
-                    onClick={() => window.open(transaction.paymentUrl, '_blank')}
-                    className="px-6 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl"
-                  >
-                    Open payment page
-                  </button>
-              </div>
+              {step === 'payment' && transaction && showIframe && (
+                <div className="space-y-4">
+                  {/* Iframe Header */}
+                  <div className="glass-card p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-r from-orange-500 to-yellow-500 flex items-center justify-center">
+                        <CreditCard className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">Complete your payment</h3>
+                        <p className="text-sm text-gray-600">Secure payment powered by Onramper</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowIframe(false);
+                        setStep('input');
+                        setTransaction(null);
+                      }}
+                      className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+
+                  {/* Onramper Widget iframe - Full height, naadloos geïntegreerd */}
+                  <div className="glass-card overflow-hidden" style={{ height: '600px' }}>
+                    <iframe
+                      src={transaction.paymentUrl}
+                      className="w-full h-full border-0"
+                      allow="payment; camera; microphone; geolocation"
+                      sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
+                      title="Onramper Payment Widget"
+                    />
+                  </div>
+
+                  {/* Info Banner */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-blue-700">
+                      <p className="font-medium mb-1">Complete the payment in the widget above</p>
+                      <p className="text-blue-600">Your crypto will be sent to your wallet once the payment is confirmed.</p>
+                    </div>
+                  </div>
+                </div>
               )}
 
               {step === 'processing' && transaction && (

@@ -669,10 +669,18 @@ export class OnramperService {
     }
   }
 
-  // Create transaction via Onramper API
-  // Docs: https://docs.onramper.com/reference/post_checkout-intent
-  // Endpoint: POST https://api.onramper.com/checkout/intent
-  // CRITICAL: We might need to get a quote first and use its data
+  // Create transaction via Onramper - Widget URL Approach
+  // CRITICAL INSIGHT: The /checkout/intent API endpoint has NO documented body parameters
+  // This endpoint is meant for widget integration, not direct API calls
+  // 
+  // SOLUTION: Use Onramper Widget URL (standard integration method)
+  // Benefits:
+  // - No API errors
+  // - Users get Onramper's optimized payment UI
+  // - All payment methods work correctly
+  // - We get webhook updates for transaction status
+  //
+  // Docs: https://docs.onramper.com/docs/integration-steps
   static async createTransaction(
     fiatAmount: number,
     fiatCurrency: string,
@@ -691,156 +699,45 @@ export class OnramperService {
         return null;
       }
 
-      // Validate that fiatAmount is a valid positive number
+      // Validate input
       if (typeof fiatAmount !== 'number' || isNaN(fiatAmount) || fiatAmount <= 0) {
-        logger.error('❌ Invalid sourceAmount for Onramper transaction:', {
-          fiatAmount,
-          type: typeof fiatAmount,
-          isNaN: isNaN(fiatAmount),
-        });
+        logger.error('❌ Invalid fiatAmount:', fiatAmount);
         return null;
       }
 
-      // CRITICAL FIX: First get a quote, then use the quote data in the transaction
-      // This might be what Onramper expects - a 2-step process
-      logger.log('🔍 Step 1: Getting quote from Onramper before creating transaction...');
-      const quote = await this.getQuote(fiatAmount, fiatCurrency, cryptoCurrency, undefined, apiKey);
-      
-      if (!quote) {
-        logger.error('❌ Failed to get quote from Onramper - cannot create transaction without quote');
-        return null;
-      }
-
-      logger.log('✅ Quote received:', {
-        cryptoAmount: quote.cryptoAmount,
-        exchangeRate: quote.exchangeRate,
+      // Build Onramper Widget URL with transaction parameters
+      // This is the standard way to integrate Onramper for custom UI
+      const widgetParams = new URLSearchParams({
+        apiKey: apiKey,
+        defaultCrypto: cryptoCurrency.toUpperCase(),
+        defaultFiat: fiatCurrency.toUpperCase(),
+        defaultAmount: fiatAmount.toString(),
+        wallets: `${cryptoCurrency.toUpperCase()}:${walletAddress}`,
+        // Optional: specify payment method if selected
+        ...(paymentMethod && { onlyPaymentMethods: paymentMethod }),
       });
 
-      // Build request body with quote information
-      // Maybe Onramper needs the quote data to validate the transaction?
-      let requestBody: any = {
-        sourceCurrency: fiatCurrency.toLowerCase(),
-        destinationCurrency: cryptoCurrency.toLowerCase(),
-        sourceAmount: fiatAmount,
-        destinationWalletAddress: walletAddress,
-        // Try including quote data
-        expectedCryptoAmount: parseFloat(quote.cryptoAmount),
-        exchangeRate: parseFloat(quote.exchangeRate),
-      };
+      const widgetUrl = `https://widget.onramper.com?${widgetParams.toString()}`;
 
-      logger.log('📊 Step 2: Creating Onramper transaction with quote data:', {
-        ...requestBody,
-        destinationWalletAddress: walletAddress.substring(0, 10) + '...',
+      logger.log('✅ Generated Onramper widget URL (params hidden for security):', {
+        crypto: cryptoCurrency,
+        fiat: fiatCurrency,
+        amount: fiatAmount,
+        wallet: walletAddress.substring(0, 10) + '...',
+        hasPaymentMethod: !!paymentMethod,
       });
 
-      let response = await fetch('https://api.onramper.com/checkout/intent', {
-        method: 'POST',
-        headers: {
-          'Authorization': apiKey,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        let errorText = '';
-        let errorJson: any = null;
-        try {
-          errorText = await response.text();
-          try {
-            errorJson = JSON.parse(errorText);
-          } catch {
-            // Not JSON, use as text
-          }
-        } catch (e) {
-          errorText = 'Failed to read error response';
-        }
-        
-        // CRITICAL: Log full request details for debugging
-        logger.error('❌ Onramper create transaction API error:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorText.substring(0, 2000), // Increased limit
-          errorJson: errorJson,
-          fullRequestBody: JSON.stringify(requestBody, null, 2), // Full request body
-          requestBodySummary: {
-            sourceCurrency: requestBody.sourceCurrency,
-            destinationCurrency: requestBody.destinationCurrency,
-            sourceAmount: requestBody.sourceAmount,
-            sourceAmountType: typeof requestBody.sourceAmount,
-            hasNetwork: !!requestBody.network,
-            network: requestBody.network,
-            destinationWalletAddress: walletAddress.substring(0, 20) + '...',
-            walletAddressLength: walletAddress.length,
-            walletAddressFormat: walletAddress.startsWith('0x') ? 'EVM' : (walletAddress.startsWith('H') || walletAddress.startsWith('1')) ? 'Solana' : 'Unknown',
-          },
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': apiKey ? `${apiKey.substring(0, 10)}...` : 'MISSING',
-          },
-        });
-        return null;
-      }
-
-      const data = await response.json();
-      
-      logger.log('📊 Onramper transaction response (full):', JSON.stringify(data, null, 2));
-      
-      // Extract transaction info from Onramper response
-      // Response format (from docs):
-      // {
-      //   "message": { ... },
-      //   "transactionInformation": {
-      //     "transactionId": "01H9KBT5C21JY0BAX4VTW9EP3V",
-      //     "url": "https://buy.moonpay.com?...",
-      //     "type": "iframe",
-      //     "params": { ... }
-      //   }
-      // }
-      const transactionInfo = data.transactionInformation;
-      
-      if (!transactionInfo) {
-        logger.error('❌ No transactionInformation in Onramper response. Full response:', JSON.stringify(data, null, 2));
-        return null;
-      }
-      
-      // Extract values according to Onramper API documentation
-      const transactionId = transactionInfo.transactionId || '';
-      const paymentUrl = transactionInfo.url || ''; // CRITICAL: It's "url", not "redirectUrl"!
-      const status = 'PENDING'; // Transactions start as PENDING
-      
-      logger.log('📊 Extracted transaction info:', { 
-        transactionId, 
-        paymentUrl: paymentUrl ? paymentUrl.substring(0, 50) + '...' : 'MISSING', 
-        status,
-        hasUrl: !!transactionInfo.url,
-        hasTransactionId: !!transactionInfo.transactionId,
-        type: transactionInfo.type,
-      });
-      
-      if (!paymentUrl) {
-        logger.error('❌ No payment URL (url field) in transactionInformation. Full response:', JSON.stringify(data, null, 2));
-        return null;
-      }
-      
-      if (!transactionId) {
-        logger.warn('⚠️ No transaction ID in Onramper response, but payment URL exists');
-      }
-      
-      logger.log('✅ Onramper transaction created successfully:', { 
-        transactionId: transactionId || 'N/A', 
-        paymentUrl: paymentUrl.substring(0, 50) + '...', 
-        status 
-      });
-      
+      // Return widget URL as the payment URL
+      // The frontend will open this in a new window
+      // Webhook will provide real transaction updates
       return {
-        transactionId: transactionId || 'pending',
-        paymentUrl,
-        status,
+        transactionId: `onramper-${Date.now()}`, // Temporary ID, real ID comes from webhook
+        paymentUrl: widgetUrl,
+        status: 'PENDING',
       };
-    } catch (error) {
-      logger.error('Error creating Onramper transaction:', error);
+
+    } catch (error: any) {
+      logger.error('❌ Onramper createTransaction error:', error);
       return null;
     }
   }
