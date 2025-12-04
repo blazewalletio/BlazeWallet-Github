@@ -616,18 +616,20 @@ export class OnramperService {
       // Onramper checkout intent format
       // Docs: https://docs.onramper.com/reference/post_checkout-intent
       // CRITICAL: sourceAmount must be a number (not string) according to Onramper docs
-      // But ensure it's a valid number
-      const sourceAmountNum = typeof fiatAmount === 'number' ? fiatAmount : parseFloat(fiatAmount.toString());
-      
-      if (isNaN(sourceAmountNum) || sourceAmountNum <= 0) {
-        logger.error('❌ Invalid sourceAmount for Onramper transaction:', fiatAmount);
+      // Validate that fiatAmount is a valid positive number
+      if (typeof fiatAmount !== 'number' || isNaN(fiatAmount) || fiatAmount <= 0) {
+        logger.error('❌ Invalid sourceAmount for Onramper transaction:', {
+          fiatAmount,
+          type: typeof fiatAmount,
+          isNaN: isNaN(fiatAmount),
+        });
         return null;
       }
 
       const requestBody = {
         sourceCurrency: fiatCurrency.toLowerCase(),
         destinationCurrency: cryptoCurrency.toLowerCase(),
-        sourceAmount: sourceAmountNum, // Must be a number
+        sourceAmount: fiatAmount, // Must be a number (already validated)
         destinationWalletAddress: walletAddress,
         paymentMethod: paymentMethod,
       };
