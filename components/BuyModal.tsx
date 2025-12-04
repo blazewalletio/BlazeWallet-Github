@@ -143,6 +143,31 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
     }
   };
 
+  // Fallback quote calculation
+  const useFallbackQuote = () => {
+    const exchangeRates: Record<string, number> = {
+      'ETH': 3000,
+      'BTC': 45000,
+      'SOL': 150,
+      'USDT': 1,
+      'USDC': 1,
+      'MATIC': 0.8,
+      'BNB': 600,
+      'AVAX': 40,
+    };
+    
+    const rate = selectedCrypto ? (exchangeRates[selectedCrypto] || 3000) : 3000;
+    const estimatedCrypto = (parseFloat(fiatAmount) / rate).toFixed(6);
+    const estimatedFee = (parseFloat(fiatAmount) * 0.01).toFixed(2);
+    
+    setQuote({
+      cryptoAmount: estimatedCrypto,
+      exchangeRate: rate.toString(),
+      fee: estimatedFee,
+      totalAmount: fiatAmount,
+    });
+  };
+
   const fetchQuote = async () => {
     if (!fiatAmount || parseFloat(fiatAmount) < 10) {
       setQuote(null);
@@ -161,57 +186,24 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
       
       // API always returns success with fallback data if no key
       if (data.success && data.quote) {
-        setQuote(data.quote);
-        // Clear error if we got a quote (even if it's an estimate)
-        setError('');
+        // Validate quote has valid crypto amount
+        const cryptoAmount = parseFloat(data.quote.cryptoAmount || '0');
+        if (cryptoAmount > 0) {
+          setQuote(data.quote);
+          setError('');
+        } else {
+          // Quote returned but cryptoAmount is 0 - use fallback
+          logger.warn('⚠️ Quote returned but cryptoAmount is 0, using fallback estimate');
+          useFallbackQuote();
+        }
       } else {
         // Fallback: Calculate estimate if API doesn't return quote
-        const exchangeRates: Record<string, number> = {
-          'ETH': 3000,
-          'BTC': 45000,
-          'SOL': 150,
-          'USDT': 1,
-          'USDC': 1,
-          'MATIC': 0.8,
-          'BNB': 600,
-          'AVAX': 40,
-        };
-        
-        const rate = selectedCrypto ? (exchangeRates[selectedCrypto] || 3000) : 3000;
-        const estimatedCrypto = (parseFloat(fiatAmount) / rate).toFixed(6);
-        const estimatedFee = (parseFloat(fiatAmount) * 0.01).toFixed(2);
-        
-        setQuote({
-          cryptoAmount: estimatedCrypto,
-          exchangeRate: rate.toString(),
-          fee: estimatedFee,
-          totalAmount: fiatAmount,
-        });
+        useFallbackQuote();
       }
     } catch (err: any) {
       logger.error('Error fetching quote:', err);
       // Use fallback estimate
-      const exchangeRates: Record<string, number> = {
-        'ETH': 3000,
-        'BTC': 45000,
-        'SOL': 150,
-        'USDT': 1,
-        'USDC': 1,
-        'MATIC': 0.8,
-        'BNB': 600,
-        'AVAX': 40,
-      };
-      
-      const rate = selectedCrypto ? (exchangeRates[selectedCrypto] || 3000) : 3000;
-      const estimatedCrypto = (parseFloat(fiatAmount) / rate).toFixed(6);
-      const estimatedFee = (parseFloat(fiatAmount) * 0.01).toFixed(2);
-      
-      setQuote({
-        cryptoAmount: estimatedCrypto,
-        exchangeRate: rate.toString(),
-        fee: estimatedFee,
-        totalAmount: fiatAmount,
-      });
+      useFallbackQuote();
     } finally {
       setIsLoadingQuote(false);
     }
