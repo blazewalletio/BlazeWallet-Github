@@ -21,7 +21,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const onramperApiKey = process.env.ONRAMPER_API_KEY;
+    // CRITICAL: Trim API key to remove any whitespace/newlines  
+    const onramperApiKey = process.env.ONRAMPER_API_KEY?.trim();
     if (!onramperApiKey) {
       logger.error('ONRAMPER_API_KEY is not set in environment variables.');
       return NextResponse.json(

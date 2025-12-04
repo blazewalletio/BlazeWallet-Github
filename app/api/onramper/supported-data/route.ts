@@ -6,7 +6,8 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
-    const onramperApiKey = process.env.ONRAMPER_API_KEY;
+    // CRITICAL: Trim API key to remove any whitespace/newlines
+    const onramperApiKey = process.env.ONRAMPER_API_KEY?.trim();
     const { searchParams } = new URL(req.url);
     const country = searchParams.get('country') || 'NL'; // Default to Netherlands
     

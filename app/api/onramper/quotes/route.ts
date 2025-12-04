@@ -21,7 +21,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const onramperApiKey = process.env.ONRAMPER_API_KEY;
+    // CRITICAL: Trim API key to remove any whitespace/newlines
+    const onramperApiKey = process.env.ONRAMPER_API_KEY?.trim();
     
     // CRITICAL: No API key = error, we MUST use real Onramper rates
     if (!onramperApiKey) {
