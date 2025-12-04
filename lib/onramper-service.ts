@@ -691,14 +691,23 @@ export class OnramperService {
           errorText = 'Failed to read error response';
         }
         
+        // CRITICAL: Log full request details for debugging
         logger.error('❌ Onramper create transaction API error:', {
           status: response.status,
           statusText: response.statusText,
-          error: errorText.substring(0, 1000),
+          error: errorText.substring(0, 2000), // Increased limit
           errorJson: errorJson,
-          requestBody: {
-            ...requestBody,
-            destinationWalletAddress: walletAddress.substring(0, 10) + '...',
+          fullRequestBody: JSON.stringify(requestBody, null, 2), // Full request body
+          requestBodySummary: {
+            sourceCurrency: requestBody.sourceCurrency,
+            destinationCurrency: requestBody.destinationCurrency,
+            sourceAmount: requestBody.sourceAmount,
+            sourceAmountType: typeof requestBody.sourceAmount,
+            hasNetwork: !!requestBody.network,
+            network: requestBody.network,
+            destinationWalletAddress: walletAddress.substring(0, 20) + '...',
+            walletAddressLength: walletAddress.length,
+            walletAddressFormat: walletAddress.startsWith('0x') ? 'EVM' : (walletAddress.startsWith('H') || walletAddress.startsWith('1')) ? 'Solana' : 'Unknown',
           },
           headers: {
             'Content-Type': 'application/json',
