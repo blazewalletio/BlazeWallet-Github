@@ -255,17 +255,18 @@ export class OnramperService {
       const baseUrl = `https://api.onramper.com/quotes/${fiatLower}/${cryptoLower}`;
       
       // Build query parameters
+      // CRITICAL: Don't include paymentMethod in quote request
+      // Onramper returns different structure with paymentMethod that doesn't include payout/rate
+      // Payment method is only used when creating the transaction, not for getting quotes
       const params = new URLSearchParams();
       params.append('amount', fiatAmount.toString());
-      if (paymentMethod) {
-        params.append('paymentMethod', paymentMethod);
-      }
+      // NOTE: paymentMethod is NOT included here - it causes Onramper to return metadata-only response
       
       logger.log('📊 Fetching Onramper quote:', { 
         fiatAmount, 
         fiatCurrency, 
         cryptoCurrency,
-        paymentMethod,
+        note: 'paymentMethod not included in quote request (only used for transaction creation)',
         apiKeyPrefix: apiKey.substring(0, 10) + '...'
       });
 
@@ -374,6 +375,25 @@ export class OnramperService {
         fee: string;
         totalAmount: string;
       } | null => {
+        // Check if this is a metadata-only response (no actual quote data)
+        // This happens when paymentMethod is included in the request
+        const hasPayout = quote.payout !== undefined && quote.payout !== null;
+        const hasRate = quote.rate !== undefined && quote.rate !== null;
+        const hasErrors = quote.errors !== undefined;
+        
+        if (!hasPayout && !hasRate && (hasErrors || quote.availablePaymentMethods)) {
+          logger.error('❌ Onramper returned metadata-only response (no quote data):', {
+            hasPayout,
+            hasRate,
+            hasErrors,
+            hasPaymentMethods: !!quote.availablePaymentMethods,
+            quoteKeys: Object.keys(quote),
+            errors: quote.errors,
+            message: 'This usually happens when paymentMethod is included in quote request. Quote should be fetched without paymentMethod.'
+          });
+          return null;
+        }
+        
         // CRITICAL: Onramper uses "payout" for crypto amount, not "destinationAmount"
         const cryptoAmount = quote.payout || 
                             quote.destinationAmount || 
@@ -418,6 +438,8 @@ export class OnramperService {
           logger.error('❌ Invalid crypto amount in quote:', {
             cryptoAmount,
             cryptoAmountNum,
+            hasPayout,
+            hasRate,
             quoteKeys: Object.keys(quote),
             quotePreview: JSON.stringify(quote, null, 2).substring(0, 500)
           });
@@ -506,16 +528,31 @@ export class OnramperService {
         };
       }
 
-      const response = await fetch('https://api.onramper.com/supported', {
+      // Try multiple authentication methods (same as getQuote)
+      let response = await fetch('https://api.onramper.com/supported', {
         headers: {
-          'Authorization': apiKey, // Onramper uses API key directly, not Bearer token
+          'Authorization': `Bearer ${apiKey}`, // Try Bearer first
           'Accept': 'application/json',
         },
       });
 
+      if (!response.ok && (response.status === 401 || response.status === 403)) {
+        logger.log('🔄 Supported data: Bearer failed, trying direct API key...');
+        response = await fetch('https://api.onramper.com/supported', {
+          headers: {
+            'Authorization': apiKey, // Direct API key
+            'Accept': 'application/json',
+          },
+        });
+      }
+
       if (!response.ok) {
         const errorText = await response.text();
-        logger.error('Onramper supported data API error:', response.status, errorText);
+        logger.error('Onramper supported data API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText.substring(0, 500),
+        });
         // Return default data if API fails
         return {
           paymentMethods: [
@@ -591,22 +628,40 @@ export class OnramperService {
         destinationWalletAddress: walletAddress.substring(0, 10) + '...',
       });
 
-      const response = await fetch('https://api.onramper.com/checkout/intent', {
+      // Try multiple authentication methods (same as getQuote)
+      let response = await fetch('https://api.onramper.com/checkout/intent', {
         method: 'POST',
         headers: {
-          'Authorization': apiKey, // Onramper uses API key directly, not Bearer token
+          'Authorization': `Bearer ${apiKey}`, // Try Bearer first
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
         body: JSON.stringify(requestBody),
       });
 
+      if (!response.ok && (response.status === 401 || response.status === 403)) {
+        logger.log('🔄 Create transaction: Bearer failed, trying direct API key...');
+        response = await fetch('https://api.onramper.com/checkout/intent', {
+          method: 'POST',
+          headers: {
+            'Authorization': apiKey, // Direct API key
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+      }
+
       if (!response.ok) {
         const errorText = await response.text();
         logger.error('❌ Onramper create transaction API error:', {
           status: response.status,
           statusText: response.statusText,
-          error: errorText,
+          error: errorText.substring(0, 500),
+          requestBody: {
+            ...requestBody,
+            destinationWalletAddress: walletAddress.substring(0, 10) + '...',
+          },
         });
         return null;
       }

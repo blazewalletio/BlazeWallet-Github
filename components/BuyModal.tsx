@@ -155,8 +155,11 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
     setError('');
 
     try {
+      // CRITICAL: Don't include paymentMethod in quote request
+      // Onramper returns different structure with paymentMethod that doesn't include payout/rate
+      // Payment method is only used when creating the transaction, not for getting quotes
       const response = await fetch(
-        `/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${selectedFiat}&cryptoCurrency=${selectedCrypto}&paymentMethod=${selectedPaymentMethod || ''}`
+        `/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${selectedFiat}&cryptoCurrency=${selectedCrypto}`
       );
 
       if (!response.ok) {

@@ -10,7 +10,9 @@ export async function GET(req: NextRequest) {
     const fiatAmount = parseFloat(searchParams.get('fiatAmount') || '0');
     const fiatCurrency = searchParams.get('fiatCurrency') || 'EUR';
     const cryptoCurrency = searchParams.get('cryptoCurrency') || 'ETH';
-    const paymentMethod = searchParams.get('paymentMethod') || '';
+    // NOTE: paymentMethod is NOT used for quote requests
+    // Onramper returns different structure with paymentMethod that doesn't include payout/rate
+    // Payment method is only used when creating the transaction, not for getting quotes
 
     if (!fiatAmount || fiatAmount <= 0) {
       return NextResponse.json(
@@ -38,10 +40,10 @@ export async function GET(req: NextRequest) {
       fiatAmount,
       fiatCurrency,
       cryptoCurrency,
-      paymentMethod,
+      note: 'paymentMethod not included (only used for transaction creation)',
     });
 
-    // Get quote from Onramper
+    // Get quote from Onramper (without paymentMethod)
     let quote = null;
     let quoteError: any = null;
     try {
@@ -49,7 +51,7 @@ export async function GET(req: NextRequest) {
         fiatAmount,
         fiatCurrency,
         cryptoCurrency,
-        paymentMethod,
+        undefined, // paymentMethod not used for quotes
         onramperApiKey
       );
     } catch (err: any) {
@@ -60,7 +62,6 @@ export async function GET(req: NextRequest) {
         fiatAmount,
         fiatCurrency,
         cryptoCurrency,
-        paymentMethod,
         hasApiKey: !!onramperApiKey,
         apiKeyPrefix: onramperApiKey ? onramperApiKey.substring(0, 10) + '...' : 'MISSING',
       });
