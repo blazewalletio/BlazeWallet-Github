@@ -256,16 +256,50 @@ export class OnramperService {
       
       logger.log('📊 Fetching Onramper quote:', { url: url.replace(apiKey, '***'), fiatAmount, fiatCurrency, cryptoCurrency });
 
+      // Try both formats: direct API key and Bearer token
+      // Onramper docs are unclear, so we'll try Bearer first (most common)
       const response = await fetch(url, {
         headers: {
-          'Authorization': apiKey, // Onramper uses API key directly, not Bearer token
+          'Authorization': `Bearer ${apiKey}`, // Try Bearer format first
           'Accept': 'application/json',
         },
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        logger.error('Onramper quote API error:', response.status, errorText);
+        logger.error('❌ Onramper quote API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText,
+          url: url.replace(apiKey, '***'),
+        });
+        
+        // If Bearer fails with 401/403, try direct API key
+        if (response.status === 401 || response.status === 403) {
+          logger.log('🔄 Retrying with direct API key (no Bearer)...');
+          const retryResponse = await fetch(url, {
+            headers: {
+              'Authorization': apiKey, // Direct API key
+              'Accept': 'application/json',
+            },
+          });
+          
+          if (!retryResponse.ok) {
+            const retryErrorText = await retryResponse.text();
+            logger.error('❌ Onramper quote API error (retry):', {
+              status: retryResponse.status,
+              statusText: retryResponse.statusText,
+              error: retryErrorText,
+            });
+            return null;
+          }
+          
+          // Success with direct API key - parse response
+          const retryData = await retryResponse.json();
+          logger.log('✅ Onramper quote response (direct API key):', JSON.stringify(retryData, null, 2).substring(0, 500));
+          return OnramperService.parseQuoteResponse(retryData, fiatAmount);
+        }
+        
         return null;
       }
 
@@ -273,6 +307,20 @@ export class OnramperService {
       
       logger.log('📊 Onramper quote response (full):', JSON.stringify(data, null, 2));
       
+      return OnramperService.parseQuoteResponse(data, fiatAmount);
+    } catch (error) {
+      logger.error('Error fetching Onramper quote:', error);
+      return null;
+    }
+  }
+
+  // Helper method to parse quote response
+  private static parseQuoteResponse(data: any, fiatAmount: number): {
+    cryptoAmount: string;
+    exchangeRate: string;
+    fee: string;
+    totalAmount: string;
+  } | null {
       // Onramper returns an array of quotes from different providers
       // Each quote object structure can vary, but typically includes:
       // - destinationAmount (crypto amount)
@@ -384,10 +432,6 @@ export class OnramperService {
       
       logger.error('❌ Unexpected Onramper quote response format:', JSON.stringify(data, null, 2));
       return null;
-    } catch (error) {
-      logger.error('Error fetching Onramper quote:', error);
-      return null;
-    }
   }
 
   // Get supported data (payment methods, fiat currencies, crypto currencies)

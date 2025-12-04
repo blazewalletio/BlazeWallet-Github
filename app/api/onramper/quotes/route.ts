@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
 
     // Get quote from Onramper
     let quote = null;
+    let quoteError: any = null;
     try {
       quote = await OnramperService.getQuote(
         fiatAmount,
@@ -51,17 +52,33 @@ export async function GET(req: NextRequest) {
         paymentMethod,
         onramperApiKey
       );
-    } catch (quoteError: any) {
-      logger.error('❌ Onramper quote API call failed:', quoteError);
+    } catch (err: any) {
+      quoteError = err;
+      logger.error('❌ Onramper quote API call failed:', {
+        error: err.message,
+        stack: err.stack,
+        fiatAmount,
+        fiatCurrency,
+        cryptoCurrency,
+        paymentMethod,
+        hasApiKey: !!onramperApiKey,
+        apiKeyPrefix: onramperApiKey ? onramperApiKey.substring(0, 10) + '...' : 'MISSING',
+      });
     }
 
     if (!quote) {
       // CRITICAL: No fallback - we MUST use real Onramper rates
-      logger.error('❌ Onramper API failed - cannot return quote without real rates');
+      logger.error('❌ Onramper API failed - cannot return quote without real rates', {
+        quoteError: quoteError?.message,
+        fiatAmount,
+        fiatCurrency,
+        cryptoCurrency,
+      });
       return NextResponse.json(
         { 
           error: 'Failed to fetch quote from Onramper',
-          message: 'Unable to get real-time quote. Please try again or contact support.',
+          message: quoteError?.message || 'Unable to get real-time quote. Please try again or contact support.',
+          details: quoteError?.message,
         },
         { status: 500 }
       );
