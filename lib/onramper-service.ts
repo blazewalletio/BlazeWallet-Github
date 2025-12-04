@@ -350,75 +350,76 @@ export class OnramperService {
   }
 
   // Helper method to parse quote response
+  // Onramper API response structure:
+  // {
+  //   "payout": 0.799,              // Crypto amount user receives
+  //   "rate": 125.15644555694618,  // Exchange rate
+  //   "networkFee": 0.32,          // Network fee
+  //   "transactionFee": 0.1,       // Transaction fee
+  //   "availablePaymentMethods": [...],
+  //   "ramp": "moonpay",
+  //   "paymentMethod": "creditcard",
+  //   ...
+  // }
   private static parseQuoteResponse(data: any, fiatAmount: number): {
     cryptoAmount: string;
     exchangeRate: string;
     fee: string;
     totalAmount: string;
   } | null {
-      // Onramper returns an array of quotes from different providers
-      // Each quote object structure can vary, but typically includes:
-      // - destinationAmount (crypto amount)
-      // - sourceAmount (fiat amount)
-      // - exchangeRate
-      // - fee or totalFee
-      // - provider info
-      if (Array.isArray(data) && data.length > 0) {
-        logger.log(`📊 Found ${data.length} quotes from Onramper`);
-        
-        // Find the best quote (lowest fee or best rate)
-        const bestQuote = data.reduce((best, current) => {
-          // Prefer quotes with lower fees or better rates
-          const bestFee = parseFloat(best.fee || best.totalFee || '0');
-          const currentFee = parseFloat(current.fee || current.totalFee || '0');
-          return currentFee < bestFee ? current : best;
-        });
-        
-        logger.log('📊 Best quote selected:', JSON.stringify(bestQuote, null, 2));
-        
-        // Extract values from Onramper response format
-        // Try multiple possible field names
-        const cryptoAmount = bestQuote.destinationAmount || 
-                            bestQuote.cryptoAmount || 
-                            bestQuote.amount || 
-                            bestQuote.destination_amount ||
+      // Helper function to extract quote data from a single quote object
+      const extractQuoteData = (quote: any): {
+        cryptoAmount: string;
+        exchangeRate: string;
+        fee: string;
+        totalAmount: string;
+      } | null => {
+        // CRITICAL: Onramper uses "payout" for crypto amount, not "destinationAmount"
+        const cryptoAmount = quote.payout || 
+                            quote.destinationAmount || 
+                            quote.cryptoAmount || 
+                            quote.amount || 
+                            quote.destination_amount ||
                             '0';
-        const sourceAmount = bestQuote.sourceAmount || 
-                            bestQuote.source_amount || 
-                            bestQuote.fiatAmount ||
+        
+        // Source amount is the fiat amount user pays
+        const sourceAmount = quote.sourceAmount || 
+                            quote.source_amount || 
+                            quote.fiatAmount ||
                             fiatAmount.toString();
-        const fee = bestQuote.fee || 
-                   bestQuote.totalFee || 
-                   bestQuote.total_fee ||
-                   '0';
+        
+        // CRITICAL: Onramper uses "rate" for exchange rate
+        let exchangeRate = quote.rate || 
+                          quote.exchangeRate || 
+                          quote.exchange_rate;
+        
+        // CRITICAL: Onramper uses "networkFee" + "transactionFee" for total fee
+        const networkFee = parseFloat(quote.networkFee || '0');
+        const transactionFee = parseFloat(quote.transactionFee || '0');
+        const totalFee = networkFee + transactionFee;
+        const fee = quote.fee || 
+                   quote.totalFee || 
+                   quote.total_fee ||
+                   totalFee.toString();
         
         // Calculate exchange rate if not provided
         const cryptoAmountNum = parseFloat(cryptoAmount.toString());
         const sourceAmountNum = parseFloat(sourceAmount.toString());
-        let exchangeRate = bestQuote.exchangeRate || bestQuote.exchange_rate;
         
         if (!exchangeRate && cryptoAmountNum > 0 && sourceAmountNum > 0) {
+          // Exchange rate = fiat amount / crypto amount
           exchangeRate = (sourceAmountNum / cryptoAmountNum).toString();
         } else if (!exchangeRate) {
           exchangeRate = '0';
         }
         
-        logger.log('✅ Parsed Onramper quote:', { 
-          cryptoAmount: cryptoAmount.toString(), 
-          exchangeRate: exchangeRate.toString(), 
-          fee: fee.toString(), 
-          totalAmount: sourceAmount.toString(),
-          bestQuoteKeys: Object.keys(bestQuote),
-          bestQuotePreview: JSON.stringify(bestQuote, null, 2).substring(0, 300)
-        });
-        
-        // Validate that we have valid data (cryptoAmountNum already defined above)
+        // Validate crypto amount
         if (cryptoAmountNum <= 0) {
-          logger.error('❌ Invalid crypto amount in quote (0 or negative):', {
+          logger.error('❌ Invalid crypto amount in quote:', {
             cryptoAmount,
             cryptoAmountNum,
-            bestQuote: JSON.stringify(bestQuote, null, 2),
-            allQuotes: JSON.stringify(data, null, 2).substring(0, 1000)
+            quoteKeys: Object.keys(quote),
+            quotePreview: JSON.stringify(quote, null, 2).substring(0, 500)
           });
           return null;
         }
@@ -429,52 +430,50 @@ export class OnramperService {
           fee: fee.toString(),
           totalAmount: sourceAmount.toString(),
         };
+      };
+      
+      // Onramper returns an array of quotes from different providers
+      if (Array.isArray(data) && data.length > 0) {
+        logger.log(`📊 Found ${data.length} quotes from Onramper`);
+        
+        // Find the best quote (lowest total fee or best payout)
+        const bestQuote = data.reduce((best, current) => {
+          const bestPayout = parseFloat(best.payout || best.destinationAmount || '0');
+          const currentPayout = parseFloat(current.payout || current.destinationAmount || '0');
+          const bestTotalFee = parseFloat(best.networkFee || '0') + parseFloat(best.transactionFee || '0');
+          const currentTotalFee = parseFloat(current.networkFee || '0') + parseFloat(current.transactionFee || '0');
+          
+          // Prefer quote with higher payout (more crypto for same fiat) or lower fees
+          if (currentPayout > bestPayout) return current;
+          if (currentPayout === bestPayout && currentTotalFee < bestTotalFee) return current;
+          return best;
+        });
+        
+        logger.log('📊 Best quote selected:', {
+          payout: bestQuote.payout,
+          rate: bestQuote.rate,
+          networkFee: bestQuote.networkFee,
+          transactionFee: bestQuote.transactionFee,
+          ramp: bestQuote.ramp,
+          paymentMethod: bestQuote.paymentMethod
+        });
+        
+        const extracted = extractQuoteData(bestQuote);
+        if (extracted) {
+          logger.log('✅ Parsed Onramper quote (array):', extracted);
+        }
+        return extracted;
       }
       
       // Check if response is a single object (not array)
       if (data && typeof data === 'object' && !Array.isArray(data)) {
         logger.log('📊 Single quote object received');
         
-        const cryptoAmount = data.destinationAmount || 
-                            data.cryptoAmount || 
-                            data.amount || 
-                            data.destination_amount ||
-                            '0';
-        const sourceAmount = data.sourceAmount || 
-                            data.source_amount || 
-                            data.fiatAmount ||
-                            fiatAmount.toString();
-        const fee = data.fee || 
-                   data.totalFee || 
-                   data.total_fee ||
-                   '0';
-        
-        const cryptoAmountNum = parseFloat(cryptoAmount.toString());
-        const sourceAmountNum = parseFloat(sourceAmount.toString());
-        let exchangeRate = data.exchangeRate || data.exchange_rate;
-        
-        if (!exchangeRate && cryptoAmountNum > 0 && sourceAmountNum > 0) {
-          exchangeRate = (sourceAmountNum / cryptoAmountNum).toString();
-        } else if (!exchangeRate) {
-          exchangeRate = '0';
+        const extracted = extractQuoteData(data);
+        if (extracted) {
+          logger.log('✅ Parsed Onramper quote (single object):', extracted);
         }
-        
-        // Validate that we have valid data (cryptoAmountNum already defined above)
-        if (cryptoAmountNum <= 0) {
-          logger.error('❌ Invalid crypto amount in quote (single object, 0 or negative):', {
-            cryptoAmount,
-            cryptoAmountNum,
-            data: JSON.stringify(data, null, 2).substring(0, 500)
-          });
-          return null;
-        }
-        
-        return {
-          cryptoAmount: cryptoAmount.toString(),
-          exchangeRate: exchangeRate.toString(),
-          fee: fee.toString(),
-          totalAmount: sourceAmount.toString(),
-        };
+        return extracted;
       }
       
       logger.error('❌ Unexpected Onramper quote response format:', {
