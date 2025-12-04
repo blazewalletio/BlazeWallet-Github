@@ -672,6 +672,7 @@ export class OnramperService {
   // Create transaction via Onramper API
   // Docs: https://docs.onramper.com/reference/post_checkout-intent
   // Endpoint: POST https://api.onramper.com/checkout/intent
+  // CRITICAL: We might need to get a quote first and use its data
   static async createTransaction(
     fiatAmount: number,
     fiatCurrency: string,
@@ -690,9 +691,6 @@ export class OnramperService {
         return null;
       }
 
-      // Onramper checkout intent format
-      // Docs: https://docs.onramper.com/reference/post_checkout-intent
-      // CRITICAL: sourceAmount must be a number (not string) according to Onramper docs
       // Validate that fiatAmount is a valid positive number
       if (typeof fiatAmount !== 'number' || isNaN(fiatAmount) || fiatAmount <= 0) {
         logger.error('❌ Invalid sourceAmount for Onramper transaction:', {
@@ -703,35 +701,42 @@ export class OnramperService {
         return null;
       }
 
-      // Build request body according to Onramper API documentation
-      // Docs: https://docs.onramper.com/reference/post_checkout-intent
-      // CRITICAL: Based on Onramper docs, the request should be minimal and clean
+      // CRITICAL FIX: First get a quote, then use the quote data in the transaction
+      // This might be what Onramper expects - a 2-step process
+      logger.log('🔍 Step 1: Getting quote from Onramper before creating transaction...');
+      const quote = await this.getQuote(fiatAmount, fiatCurrency, cryptoCurrency, undefined, apiKey);
       
-      // Build request body according to Onramper API documentation
-      // Docs: https://docs.onramper.com/reference/post_checkout-intent
-      // According to Integration Steps: https://docs.onramper.com/docs/integration-steps-1
-      // Authorization header should be: 'Authorization': `YOUR_API_KEY` (direct, no Bearer)
-      // Request body should include: sourceCurrency, destinationCurrency, sourceAmount, destinationWalletAddress
-      
+      if (!quote) {
+        logger.error('❌ Failed to get quote from Onramper - cannot create transaction without quote');
+        return null;
+      }
+
+      logger.log('✅ Quote received:', {
+        cryptoAmount: quote.cryptoAmount,
+        exchangeRate: quote.exchangeRate,
+      });
+
+      // Build request body with quote information
+      // Maybe Onramper needs the quote data to validate the transaction?
       let requestBody: any = {
         sourceCurrency: fiatCurrency.toLowerCase(),
         destinationCurrency: cryptoCurrency.toLowerCase(),
-        sourceAmount: fiatAmount, // Keep as number - JSON.stringify will handle it correctly
+        sourceAmount: fiatAmount,
         destinationWalletAddress: walletAddress,
+        // Try including quote data
+        expectedCryptoAmount: parseFloat(quote.cryptoAmount),
+        exchangeRate: parseFloat(quote.exchangeRate),
       };
 
-      logger.log('📊 Creating Onramper transaction:', {
+      logger.log('📊 Step 2: Creating Onramper transaction with quote data:', {
         ...requestBody,
         destinationWalletAddress: walletAddress.substring(0, 10) + '...',
-        note: 'Following Onramper API documentation exactly',
       });
 
-      // According to Onramper docs: https://docs.onramper.com/docs/integration-steps-1
-      // Authorization header format: 'Authorization': `YOUR_API_KEY` (direct API key, no Bearer)
       let response = await fetch('https://api.onramper.com/checkout/intent', {
         method: 'POST',
         headers: {
-          'Authorization': apiKey, // Direct API key as per documentation
+          'Authorization': apiKey,
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
