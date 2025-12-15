@@ -76,11 +76,34 @@ export async function POST(req: NextRequest) {
     }
 
     if (!transaction) {
-      logger.error('❌ Onramper createTransaction returned null - check server logs for Onramper API error details');
+      // Check if secret key is missing
+      const hasSecretKey = !!process.env.ONRAMPER_SECRET_KEY?.trim();
+      
+      logger.error('❌ Onramper createTransaction returned null', {
+        hasSecretKey,
+        hasApiKey: !!onramperApiKey,
+        fiatAmount,
+        fiatCurrency,
+        cryptoCurrency,
+        paymentMethod,
+      });
+      
+      if (!hasSecretKey) {
+        return NextResponse.json(
+          { 
+            error: 'Onramper secret key missing',
+            message: 'ONRAMPER_SECRET_KEY is required for URL signing. Please add it to Vercel environment variables. Contact Onramper support to obtain your secret key.',
+            requiresSecretKey: true,
+            contactEmail: 'support@onramper.com',
+          },
+          { status: 503 }
+        );
+      }
+      
       return NextResponse.json(
         { 
           error: 'Failed to create transaction with Onramper - no transaction returned',
-          message: 'The Onramper API did not return a transaction. Please check the server logs for detailed error information from Onramper.',
+          message: 'The Onramper service did not return a transaction. Please check the server logs for detailed error information.',
         },
         { status: 500 }
       );

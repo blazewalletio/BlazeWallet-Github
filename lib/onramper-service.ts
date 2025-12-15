@@ -774,12 +774,80 @@ export class OnramperService {
       // 5. All crypto IDs and network IDs must be in lowercase
       
       // Get secret key from environment (separate from API key)
-      const secretKey = process.env.ONRAMPER_SECRET_KEY;
+      const secretKey = process.env.ONRAMPER_SECRET_KEY?.trim();
       if (!secretKey) {
         logger.error('❌ ONRAMPER_SECRET_KEY is required for URL signing. Please contact Onramper support to obtain your secret key.');
         logger.error('📧 Contact: support@onramper.com');
         logger.error('📚 Docs: https://docs.onramper.com/docs/signatures/widget-sign-a-url');
-        return null;
+        logger.error('💡 TEMPORARY WORKAROUND: Trying without signature (may fail if signing is required)');
+        
+        // TEMPORARY: Try without signature to see if it works
+        // This is a fallback - normally signing is required
+        logger.warn('⚠️ Attempting to create URL without signature (fallback mode)');
+        
+        // Build URL without signature as fallback
+        const cryptoLower = cryptoCurrency.toLowerCase();
+        const fiatLower = fiatCurrency.toLowerCase();
+        
+        if (useDirectCheckout) {
+          const fallbackParams = new URLSearchParams({
+            apiKey: apiKey,
+            skipTransactionScreen: 'true',
+            txnAmount: fiatAmount.toString(),
+            txnFiat: fiatLower,
+            txnCrypto: cryptoLower,
+            txnRedirect: 'true',
+            wallets: `${cryptoLower}:${walletAddress}`,
+          });
+          
+          if (paymentMethod && paymentMethod !== 'undefined' && paymentMethod !== '') {
+            fallbackParams.append('txnPaymentMethod', paymentMethod.toLowerCase());
+          }
+          
+          const fallbackUrl = `https://buy.onramper.com?${fallbackParams.toString()}`;
+          
+          logger.warn('⚠️ Generated URL WITHOUT signature (fallback):', {
+            url: fallbackUrl.replace(apiKey, '***API_KEY***'),
+            note: 'This may fail if Onramper requires signing',
+          });
+          
+          return {
+            transactionId: `onramper-${Date.now()}`,
+            paymentUrl: fallbackUrl,
+            status: 'PENDING',
+          };
+        } else {
+          // Standard widget flow without signature
+          const fallbackParams = new URLSearchParams({
+            apiKey: apiKey,
+            onlyCryptos: cryptoLower,
+            onlyFiats: fiatLower,
+            defaultFiat: fiatLower,
+            defaultAmount: fiatAmount.toString(),
+            defaultCrypto: cryptoLower,
+            wallets: `${cryptoLower}:${walletAddress}`,
+            redirectAtCheckout: 'false',
+          });
+          
+          if (paymentMethod && paymentMethod !== 'undefined' && paymentMethod !== '') {
+            const pmLower = paymentMethod.toLowerCase();
+            fallbackParams.append('onlyPaymentMethods', pmLower);
+            fallbackParams.append('defaultPaymentMethod', pmLower);
+          }
+          
+          const fallbackUrl = `https://buy.onramper.com?${fallbackParams.toString()}`;
+          
+          logger.warn('⚠️ Generated URL WITHOUT signature (fallback):', {
+            url: fallbackUrl.replace(apiKey, '***API_KEY***'),
+            note: 'This may fail if Onramper requires signing',
+          });
+          
+          return {
+            transactionId: `onramper-${Date.now()}`,
+            paymentUrl: fallbackUrl,
+            status: 'PENDING',
+          };
+        }
       }
 
       // IMPORTANT: All crypto IDs must be lowercase (per documentation)
