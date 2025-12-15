@@ -762,26 +762,25 @@ export class OnramperService {
 
       // Build Onramper Widget URL with transaction parameters
       // Docs: https://docs.onramper.com/docs/customization
+      // SIMPLIFIED: Only essential parameters to debug
       const widgetParams = new URLSearchParams({
         apiKey: apiKey,
-        // CRITICAL: Use correct parameter names from Onramper docs
-        onlyCryptos: cryptoCurrency.toUpperCase(), // Changed from defaultCrypto
-        onlyFiats: fiatCurrency.toUpperCase(), // Changed from defaultFiat
-        amount: fiatAmount.toString(), // Changed from defaultAmount
+        onlyCryptos: cryptoCurrency.toUpperCase(),
+        onlyFiats: fiatCurrency.toUpperCase(),
+        amount: fiatAmount.toString(),
         wallets: `${cryptoCurrency.toUpperCase()}:${walletAddress}`,
-        // Optional: specify payment method if selected
-        ...(paymentMethod && paymentMethod !== 'undefined' && { onlyPaymentMethods: paymentMethod }),
+        // REMOVED: onlyPaymentMethods - might be causing redirect
+        // ...(paymentMethod && paymentMethod !== 'undefined' && { onlyPaymentMethods: paymentMethod }),
       });
 
       const widgetUrl = `https://widget.onramper.com?${widgetParams.toString()}`;
 
-      logger.log('✅ Generated Onramper widget URL:', {
+      logger.log('✅ Generated SIMPLIFIED Onramper widget URL (without onlyPaymentMethods):', {
         crypto: cryptoCurrency,
         fiat: fiatCurrency,
         amount: fiatAmount,
         wallet: walletAddress.substring(0, 10) + '...',
-        hasPaymentMethod: !!paymentMethod,
-        fullUrl: widgetUrl, // TEMPORARILY LOG FULL URL FOR DEBUGGING
+        fullUrl: widgetUrl,
       });
 
       // Return widget URL as the payment URL
