@@ -8,6 +8,7 @@ import { useWalletStore } from '@/lib/wallet-store';
 import { CHAINS } from '@/lib/chains';
 import { OnramperService } from '@/lib/onramper-service';
 import { logger } from '@/lib/logger';
+import { apiPost } from '@/lib/api-client';
 import toast from 'react-hot-toast';
 
 interface BuyModalProps {
@@ -154,19 +155,13 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
       setError(null);
       setStep('processing');
 
-      // Create transaction
-      const response = await fetch('/api/onramper/create-transaction', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fiatAmount: parseFloat(fiatAmount),
-          fiatCurrency,
-          cryptoCurrency,
-          walletAddress,
-          paymentMethod: selectedPaymentMethod,
-        }),
+      // Create transaction (using apiPost for automatic CSRF token handling)
+      const response = await apiPost('/api/onramper/create-transaction', {
+        fiatAmount: parseFloat(fiatAmount),
+        fiatCurrency,
+        cryptoCurrency,
+        walletAddress,
+        paymentMethod: selectedPaymentMethod,
       });
 
       const data = await response.json();
