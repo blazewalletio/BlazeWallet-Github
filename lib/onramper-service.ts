@@ -727,17 +727,23 @@ export class OnramperService {
     }
   }
 
-  // Create transaction via Onramper - Widget URL Approach
-  // Onramper widget URL is the standard integration method
-  // Docs: https://docs.onramper.com/docs/customization
-  // The widget URL opens in a popup and handles the entire payment flow
+  // Create transaction via Onramper
+  // Supports two flows:
+  // 1. Standard Widget Flow - Full Onramper experience
+  // 2. Direct Checkout Flow - Skip transaction screen, go directly to provider
+  // 
+  // Docs: 
+  // - Standard: https://docs.onramper.com/docs/customize-the-experience
+  // - Direct: https://docs.onramper.com/docs/choose-integration-method (Direct checkout section)
+  // - Signing: https://docs.onramper.com/docs/signatures/widget-sign-a-url
   static async createTransaction(
     fiatAmount: number,
     fiatCurrency: string,
     cryptoCurrency: string,
     walletAddress: string,
     paymentMethod: string,
-    apiKey?: string
+    apiKey?: string,
+    useDirectCheckout: boolean = true // Use direct checkout by default for better UX
   ): Promise<{
     transactionId: string;
     paymentUrl: string;
@@ -758,54 +764,198 @@ export class OnramperService {
       // Build Onramper Widget URL with transaction parameters
       // Docs: https://docs.onramper.com/docs/customization
       // IMPORTANT: URL signing is required since April 2025
-      // Docs: https://knowledge.onramper.com/url-signing
-      const widgetParams = new URLSearchParams({
-        apiKey: apiKey,
-        onlyCryptos: cryptoCurrency.toUpperCase(),
-        onlyFiats: fiatCurrency.toUpperCase(),
-        amount: fiatAmount.toString(),
-        wallets: `${cryptoCurrency.toUpperCase()}:${walletAddress}`,
-      });
-
-      // Add payment method if provided and valid
-      // Payment method format should match Onramper's expected format
-      if (paymentMethod && paymentMethod !== 'undefined' && paymentMethod !== '') {
-        // Convert payment method to Onramper format (e.g., "ideal" -> "ideal")
-        const onramperPaymentMethod = paymentMethod.toLowerCase();
-        widgetParams.append('onlyPaymentMethods', onramperPaymentMethod);
+      // Docs: https://docs.onramper.com/docs/signatures/widget-sign-a-url
+      // 
+      // KEY POINTS FROM DOCUMENTATION:
+      // 1. Use a SEPARATE secret key (NOT the API key) for signing
+      // 2. Only sign "sensitive parameters" (wallets, networkIds/cryptoIds, walletAddress/tags)
+      // 3. Sort parameters alphabetically before signing
+      // 4. Use unencoded values for signing (don't URL encode before signing)
+      // 5. All crypto IDs and network IDs must be in lowercase
+      
+      // Get secret key from environment (separate from API key)
+      const secretKey = process.env.ONRAMPER_SECRET_KEY;
+      if (!secretKey) {
+        logger.error('❌ ONRAMPER_SECRET_KEY is required for URL signing. Please contact Onramper support to obtain your secret key.');
+        logger.error('📧 Contact: support@onramper.com');
+        logger.error('📚 Docs: https://docs.onramper.com/docs/signatures/widget-sign-a-url');
+        return null;
       }
 
-      // Generate signature for URL (required since April 2025)
-      // Signature is HMAC SHA256 of the query string, using API key as secret
-      const queryString = widgetParams.toString();
-      const signature = crypto
-        .createHmac('sha256', apiKey)
-        .update(queryString)
-        .digest('hex');
-      
-      // Add signature to URL parameters
-      widgetParams.append('signature', signature);
+      // IMPORTANT: All crypto IDs must be lowercase (per documentation)
+      const cryptoLower = cryptoCurrency.toLowerCase();
+      const fiatLower = fiatCurrency.toLowerCase();
+      const pmLower = paymentMethod && paymentMethod !== 'undefined' && paymentMethod !== '' 
+        ? paymentMethod.toLowerCase() 
+        : null;
 
-      // Use buy.onramper.com - this is the correct widget URL
-      const widgetUrl = `https://buy.onramper.com?${widgetParams.toString()}`;
+      // Choose flow based on useDirectCheckout parameter
+      if (useDirectCheckout) {
+        // DIRECT CHECKOUT FLOW
+        // Docs: https://docs.onramper.com/docs/choose-integration-method
+        // Skips Onramper's transaction screen, goes directly to provider checkout
+        // 
+        // Parameters for Direct Checkout:
+        // - skipTransactionScreen=true (required)
+        // - txnAmount (required) - fiat amount
+        // - txnFiat (required) - fiat currency ID
+        // - txnCrypto (required) - crypto currency ID
+        // - txnPaymentMethod (optional) - payment method ID
+        // - txnOnramp (optional) - provider ID (if not specified, uses Onramper Ranking Engine)
+        // - txnRedirect (optional) - direct redirect to provider widget
+        // - wallets (required for good UX) - wallet address (requires URL signing)
+        
+        logger.log('🚀 Using Direct Checkout Flow (skipTransactionScreen=true)');
+        
+        const directCheckoutParams = new URLSearchParams({
+          apiKey: apiKey,
+          skipTransactionScreen: 'true',
+          txnAmount: fiatAmount.toString(),
+          txnFiat: fiatLower,
+          txnCrypto: cryptoLower,
+          txnRedirect: 'true', // Direct redirect to provider widget
+          wallets: `${cryptoLower}:${walletAddress}`, // Required for good UX (user doesn't need to enter wallet)
+        });
 
-      logger.log('✅ Generated Onramper widget URL:', {
-        crypto: cryptoCurrency,
-        fiat: fiatCurrency,
-        amount: fiatAmount,
-        paymentMethod: paymentMethod || 'none',
-        wallet: walletAddress.substring(0, 10) + '...',
-        fullUrl: widgetUrl.replace(apiKey, '***API_KEY***'),
-      });
+        // Add optional parameters
+        if (pmLower) {
+          directCheckoutParams.append('txnPaymentMethod', pmLower);
+        }
+        // Note: txnOnramp is optional - if not provided, Onramper uses Ranking Engine
 
-      // Return widget URL as the payment URL
-      // The frontend will open this in a new window/popup
-      // Webhook will provide real transaction updates
-      return {
-        transactionId: `onramper-${Date.now()}`, // Temporary ID, real ID comes from webhook
-        paymentUrl: widgetUrl,
-        status: 'PENDING',
-      };
+        // URL signing is REQUIRED when using wallets parameter
+        // Sensitive parameters for direct checkout:
+        // - wallets (wallet address - sensitive)
+        // - txnCrypto (crypto ID - sensitive)
+        // - txnAmount (amount - sensitive)
+        // - txnPaymentMethod (if provided)
+        const sensitiveParams: { [key: string]: string } = {
+          txnAmount: fiatAmount.toString(),
+          txnCrypto: cryptoLower,
+          wallets: `${cryptoLower}:${walletAddress}`,
+        };
+        
+        if (pmLower) {
+          sensitiveParams.txnPaymentMethod = pmLower;
+        }
+
+        // Sort keys alphabetically (required by Onramper)
+        const sortedKeys = Object.keys(sensitiveParams).sort();
+        const signContent = sortedKeys
+          .map(key => `${key}=${sensitiveParams[key]}`)
+          .join('&');
+
+        // Generate HMAC-SHA256 signature with secret key
+        const signature = crypto
+          .createHmac('sha256', secretKey)
+          .update(signContent)
+          .digest('hex');
+        
+        directCheckoutParams.append('signature', signature);
+
+        const widgetUrl = `https://buy.onramper.com?${directCheckoutParams.toString()}`;
+
+        logger.log('✅ Generated Onramper Direct Checkout URL:', {
+          flow: 'Direct Checkout',
+          crypto: cryptoCurrency,
+          fiat: fiatCurrency,
+          amount: fiatAmount,
+          paymentMethod: paymentMethod || 'none',
+          wallet: walletAddress.substring(0, 10) + '...',
+          fullUrl: widgetUrl.replace(apiKey, '***API_KEY***'),
+        });
+
+        return {
+          transactionId: `onramper-${Date.now()}`,
+          paymentUrl: widgetUrl,
+          status: 'PENDING',
+        };
+      } else {
+        // STANDARD WIDGET FLOW
+        // Full Onramper experience with transaction screen
+        // Docs: https://docs.onramper.com/docs/customize-the-experience
+        
+        logger.log('🎨 Using Standard Widget Flow');
+        
+        const widgetParams = new URLSearchParams({
+          apiKey: apiKey,
+          onlyCryptos: cryptoLower, // lowercase per docs
+          onlyFiats: fiatLower,
+          defaultFiat: fiatLower, // Use defaultFiat instead of just onlyFiats
+          defaultAmount: fiatAmount.toString(), // Use defaultAmount (not amount)
+          defaultCrypto: cryptoLower, // Pre-select the crypto
+          wallets: `${cryptoLower}:${walletAddress}`, // lowercase crypto ID per docs
+          redirectAtCheckout: 'false', // false = opens in new tab (better for popup)
+        });
+
+        // Add payment method if provided
+        if (pmLower) {
+          widgetParams.append('onlyPaymentMethods', pmLower);
+          widgetParams.append('defaultPaymentMethod', pmLower); // Also set as default
+        }
+
+        // Sensitive parameters to sign according to Onramper documentation
+        // Docs: https://docs.onramper.com/docs/signatures/widget-sign-a-url
+        // Sensitive params: wallets, networkIds/cryptoIds, walletAddress/tags
+        // 
+        // Based on documentation, we sign:
+        // - wallets (contains wallet address - sensitive)
+        // - onlyCryptos (crypto ID - sensitive)
+        // - defaultCrypto (crypto ID - sensitive)
+        // - defaultAmount (transaction amount - sensitive)
+        // - onlyPaymentMethods (if provided)
+        // - defaultPaymentMethod (if provided)
+        //
+        // Note: defaultFiat and onlyFiats are NOT mentioned as sensitive in signing docs
+        const sensitiveParams: { [key: string]: string } = {
+          defaultAmount: fiatAmount.toString(), // Use defaultAmount (not amount)
+          defaultCrypto: cryptoLower, // Crypto ID - sensitive
+          onlyCryptos: cryptoLower, // Crypto ID - sensitive
+          wallets: `${cryptoLower}:${walletAddress}`, // Wallet address - sensitive
+        };
+        
+        if (pmLower) {
+          sensitiveParams.defaultPaymentMethod = pmLower;
+          sensitiveParams.onlyPaymentMethods = pmLower;
+        }
+
+        // Sort keys alphabetically (required by Onramper)
+        const sortedKeys = Object.keys(sensitiveParams).sort();
+        const signContent = sortedKeys
+          .map(key => `${key}=${sensitiveParams[key]}`)
+          .join('&');
+
+        // Generate HMAC-SHA256 signature with secret key
+        const signature = crypto
+          .createHmac('sha256', secretKey)
+          .update(signContent)
+          .digest('hex');
+        
+        // Add signature to URL parameters
+        widgetParams.append('signature', signature);
+
+        // Use buy.onramper.com - this is the correct widget URL
+        const widgetUrl = `https://buy.onramper.com?${widgetParams.toString()}`;
+
+        logger.log('✅ Generated Onramper Standard Widget URL:', {
+          flow: 'Standard Widget',
+          crypto: cryptoCurrency,
+          fiat: fiatCurrency,
+          amount: fiatAmount,
+          paymentMethod: paymentMethod || 'none',
+          wallet: walletAddress.substring(0, 10) + '...',
+          fullUrl: widgetUrl.replace(apiKey, '***API_KEY***'),
+        });
+
+        // Return widget URL as the payment URL
+        // The frontend will open this in a new window/popup
+        // Webhook will provide real transaction updates
+        return {
+          transactionId: `onramper-${Date.now()}`, // Temporary ID, real ID comes from webhook
+          paymentUrl: widgetUrl,
+          status: 'PENDING',
+        };
+      }
 
     } catch (error: any) {
       logger.error('❌ Onramper createTransaction error:', {

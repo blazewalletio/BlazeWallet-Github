@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Onramper WITHOUT Signature</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-box {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 20px 0;
+        }
+        .url {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 12px;
+            margin: 15px 0;
+        }
+        .test-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 10px 10px 0;
+        }
+        .test-btn:hover {
+            background: #45a049;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Onramper Widget ZONDER Signature</h1>
+    
+    <div class="warning">
+        <strong>⚠️ Test:</strong> Deze URL heeft GEEN signature parameter. 
+        Als deze werkt, betekent het dat URL signing misschien niet nodig is voor jouw account!
+    </div>
+
+    <div class="test-box">
+        <h2>Production API Key (Zonder Signature)</h2>
+        <div class="url">
+            https://buy.onramper.com?apiKey=pk_prod_01KBJCSS9G727A14XA544DSS7D&onlyCryptos=ETH&onlyFiats=EUR&amount=100&wallets=ETH:0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb
+        </div>
+        <button class="test-btn" onclick="testUrl('https://buy.onramper.com?apiKey=pk_prod_01KBJCSS9G727A14XA544DSS7D&onlyCryptos=ETH&onlyFiats=EUR&amount=100&wallets=ETH:0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb')">
+            Test in Popup
+        </button>
+        <button class="test-btn" onclick="window.open('https://buy.onramper.com?apiKey=pk_prod_01KBJCSS9G727A14XA544DSS7D&onlyCryptos=ETH&onlyFiats=EUR&amount=100&wallets=ETH:0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb', '_blank')">
+            Open in New Tab
+        </button>
+    </div>
+
+    <div class="test-box">
+        <h2>Test API Key (Zonder Signature)</h2>
+        <div class="url">
+            https://buy.onramper.com?apiKey=pk_test_01KB8TGF1BVYEE2DWE36P9CJ8H&onlyCryptos=ETH&onlyFiats=EUR&amount=100&wallets=ETH:0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb
+        </div>
+        <button class="test-btn" onclick="testUrl('https://buy.onramper.com?apiKey=pk_test_01KB8TGF1BVYEE2DWE36P9CJ8H&onlyCryptos=ETH&onlyFiats=EUR&amount=100&wallets=ETH:0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb')">
+            Test in Popup
+        </button>
+        <button class="test-btn" onclick="window.open('https://buy.onramper.com?apiKey=pk_test_01KB8TGF1BVYEE2DWE36P9CJ8H&onlyCryptos=ETH&onlyFiats=EUR&amount=100&wallets=ETH:0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb', '_blank')">
+            Open in New Tab
+        </button>
+    </div>
+
+    <div class="test-box">
+        <h2>Minimale URL (Alleen API Key)</h2>
+        <div class="url">
+            https://buy.onramper.com?apiKey=pk_prod_01KBJCSS9G727A14XA544DSS7D
+        </div>
+        <button class="test-btn" onclick="testUrl('https://buy.onramper.com?apiKey=pk_prod_01KBJCSS9G727A14XA544DSS7D')">
+            Test in Popup
+        </button>
+        <button class="test-btn" onclick="window.open('https://buy.onramper.com?apiKey=pk_prod_01KBJCSS9G727A14XA544DSS7D', '_blank')">
+            Open in New Tab
+        </button>
+    </div>
+
+    <script>
+        function testUrl(url) {
+            const popup = window.open(url, 'onramper-test', 'width=600,height=800,left=400,top=100');
+            if (!popup) {
+                alert('Popup blocked! Please allow popups for this site.');
+            }
+        }
+    </script>
+</body>
+</html>
+

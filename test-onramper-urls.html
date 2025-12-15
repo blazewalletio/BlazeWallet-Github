@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Onramper URL Signing Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .method {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .method h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .url {
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 4px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+        .test-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px 5px 5px 0;
+        }
+        .test-btn:hover {
+            background: #45a049;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin-left: 10px;
+            font-size: 12px;
+        }
+        .status.pending {
+            background: #ffc107;
+            color: #000;
+        }
+        .status.success {
+            background: #4CAF50;
+            color: white;
+        }
+        .status.failed {
+            background: #f44336;
+            color: white;
+        }
+        .instructions {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Onramper URL Signing Test</h1>
+    
+    <div class="instructions">
+        <h3>📝 Instructions:</h3>
+        <ol>
+            <li>Click "Test in Popup" for each method below</li>
+            <li>Check if the Onramper widget loads without "Signature validation failed" error</li>
+            <li>Mark the working method as "✅ Works"</li>
+            <li>Update the implementation with the working method</li>
+        </ol>
+    </div>
+
+    <div class="method">
+        <h3>Method 1: Sign all params (current implementation) <span class="status pending" id="status-1">Not tested</span></h3>
+        <div class="url" id="url-1">https://buy.onramper.com?apiKey=pk_prod_01KBJCSS9G727A14XA544DSS7D&onlyCryptos=ETH&onlyFiats=EUR&amount=100&wallets=ETH%3A0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb&signature=039f7a196960f2b74b27ad4c19966fbc0bef4f9293e227e5d80b0f65eb4ba3cc</div>
+        <button class="test-btn" onclick="testUrl(1, 'https://buy.onramper.com?apiKey=pk_prod_01KBJCSS9G727A14XA544DSS7D&onlyCryptos=ETH&onlyFiats=EUR&amount=100&wallets=ETH%3A0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb&signature=039f7a196960f2b74b27ad4c19966fbc0bef4f9293e227e5d80b0f65eb4ba3cc')">Test in Popup</button>
+        <button class="test-btn" onclick="markStatus(1, 'success')">✅ Works</button>
+        <button class="test-btn" onclick="markStatus(1, 'failed')">❌ Failed</button>
+    </div>
+
+    <div class="method">
+        <h3>Method 2: Sign without apiKey <span class="status pending" id="status-2">Not tested</span></h3>
+        <div class="url" id="url-2">https://buy.onramper.com?onlyCryptos=ETH&onlyFiats=EUR&amount=100&wallets=ETH%3A0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb&apiKey=pk_prod_01KBJCSS9G727A14XA544DSS7D&signature=01851c1daf46358a1c0e0469cb1af070c24bcdb45ad939a7ad6d16cd997cda9c</div>
+        <button class="test-btn" onclick="testUrl(2, 'https://buy.onramper.com?onlyCryptos=ETH&onlyFiats=EUR&amount=100&wallets=ETH%3A0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb&apiKey=pk_prod_01KBJCSS9G727A14XA544DSS7D&signature=01851c1daf46358a1c0e0469cb1af070c24bcdb45ad939a7ad6d16cd997cda9c')">Test in Popup</button>
+        <button class="test-btn" onclick="markStatus(2, 'success')">✅ Works</button>
+        <button class="test-btn" onclick="markStatus(2, 'failed')">❌ Failed</button>
+    </div>
+
+    <div class="method">
+        <h3>Method 3: Sign sorted params <span class="status pending" id="status-3">Not tested</span></h3>
+        <div class="url" id="url-3">https://buy.onramper.com?amount=100&apiKey=pk_prod_01KBJCSS9G727A14XA544DSS7D&onlyCryptos=ETH&onlyFiats=EUR&wallets=ETH%3A0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb&signature=824aeb881da833db941bb50e2a82f597ad88d5edcf132bf8ad16e82ebb2de267</div>
+        <button class="test-btn" onclick="testUrl(3, 'https://buy.onramper.com?amount=100&apiKey=pk_prod_01KBJCSS9G727A14XA544DSS7D&onlyCryptos=ETH&onlyFiats=EUR&wallets=ETH%3A0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb&signature=824aeb881da833db941bb50e2a82f597ad88d5edcf132bf8ad16e82ebb2de267')">Test in Popup</button>
+        <button class="test-btn" onclick="markStatus(3, 'success')">✅ Works</button>
+        <button class="test-btn" onclick="markStatus(3, 'failed')">❌ Failed</button>
+    </div>
+
+    <div class="method">
+        <h3>Method 5: Sign URL path + query <span class="status pending" id="status-5">Not tested</span></h3>
+        <div class="url" id="url-5">https://buy.onramper.com?apiKey=pk_prod_01KBJCSS9G727A14XA544DSS7D&onlyCryptos=ETH&onlyFiats=EUR&amount=100&wallets=ETH%3A0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb&signature=e839c37bb9fc238630e428545b0c2e4bfa30393e672c73922ccfce81ecfa6817</div>
+        <button class="test-btn" onclick="testUrl(5, 'https://buy.onramper.com?apiKey=pk_prod_01KBJCSS9G727A14XA544DSS7D&onlyCryptos=ETH&onlyFiats=EUR&amount=100&wallets=ETH%3A0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb&signature=e839c37bb9fc238630e428545b0c2e4bfa30393e672c73922ccfce81ecfa6817')">Test in Popup</button>
+        <button class="test-btn" onclick="markStatus(5, 'success')">✅ Works</button>
+        <button class="test-btn" onclick="markStatus(5, 'failed')">❌ Failed</button>
+    </div>
+
+    <div class="method">
+        <h3>Method 6: Sign sorted without apiKey, apiKey last <span class="status pending" id="status-6">Not tested</span></h3>
+        <div class="url" id="url-6">https://buy.onramper.com?amount=100&onlyCryptos=ETH&onlyFiats=EUR&wallets=ETH%3A0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb&apiKey=pk_prod_01KBJCSS9G727A14XA544DSS7D&signature=8b701ed1d306809f9273218b4df2f4bd0cfed044e6b50856720c3b016c18ef8f</div>
+        <button class="test-btn" onclick="testUrl(6, 'https://buy.onramper.com?amount=100&onlyCryptos=ETH&onlyFiats=EUR&wallets=ETH%3A0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb&apiKey=pk_prod_01KBJCSS9G727A14XA544DSS7D&signature=8b701ed1d306809f9273218b4df2f4bd0cfed044e6b50856720c3b016c18ef8f')">Test in Popup</button>
+        <button class="test-btn" onclick="markStatus(6, 'success')">✅ Works</button>
+        <button class="test-btn" onclick="markStatus(6, 'failed')">❌ Failed</button>
+    </div>
+
+    <script>
+        function testUrl(methodNum, url) {
+            const popup = window.open(url, 'onramper-test-' + methodNum, 'width=600,height=800,left=400,top=100');
+            if (!popup) {
+                alert('Popup blocked! Please allow popups for this site.');
+            }
+        }
+
+        function markStatus(methodNum, status) {
+            const statusEl = document.getElementById('status-' + methodNum);
+            statusEl.className = 'status ' + status;
+            if (status === 'success') {
+                statusEl.textContent = '✅ Works';
+            } else if (status === 'failed') {
+                statusEl.textContent = '❌ Failed';
+            }
+        }
+    </script>
+</body>
+</html>
+

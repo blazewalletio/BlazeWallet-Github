@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
       cryptoCurrency,
       walletAddress,
       paymentMethod,
+      useDirectCheckout = true, // Default to direct checkout for better UX
     } = await req.json();
 
     if (!fiatAmount || !fiatCurrency || !cryptoCurrency || !walletAddress || !paymentMethod) {
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest) {
       cryptoCurrency,
       walletAddress: walletAddress.substring(0, 10) + '...',
       paymentMethod,
+      useDirectCheckout,
     });
 
     // Create transaction via Onramper
@@ -52,7 +54,8 @@ export async function POST(req: NextRequest) {
         cryptoCurrency,
         walletAddress,
         paymentMethod,
-        onramperApiKey
+        onramperApiKey,
+        useDirectCheckout // Pass useDirectCheckout parameter
       );
     } catch (transactionError: any) {
       logger.error('❌ Onramper createTransaction error:', {
