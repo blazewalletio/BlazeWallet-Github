@@ -1,8 +1,11 @@
 // Onramper integration for fiat on-ramp
 // Docs: https://docs.onramper.com/docs/integration-steps
 // Widget integration - Simple and powerful fiat-to-crypto solution
+// IMPORTANT: URL signing is required since April 2025
+// Docs: https://knowledge.onramper.com/url-signing
 
 import { logger } from '@/lib/logger';
+import crypto from 'crypto';
 
 export interface OnramperConfig {
   walletAddress: string;
@@ -754,6 +757,8 @@ export class OnramperService {
 
       // Build Onramper Widget URL with transaction parameters
       // Docs: https://docs.onramper.com/docs/customization
+      // IMPORTANT: URL signing is required since April 2025
+      // Docs: https://knowledge.onramper.com/url-signing
       const widgetParams = new URLSearchParams({
         apiKey: apiKey,
         onlyCryptos: cryptoCurrency.toUpperCase(),
@@ -769,6 +774,17 @@ export class OnramperService {
         const onramperPaymentMethod = paymentMethod.toLowerCase();
         widgetParams.append('onlyPaymentMethods', onramperPaymentMethod);
       }
+
+      // Generate signature for URL (required since April 2025)
+      // Signature is HMAC SHA256 of the query string, using API key as secret
+      const queryString = widgetParams.toString();
+      const signature = crypto
+        .createHmac('sha256', apiKey)
+        .update(queryString)
+        .digest('hex');
+      
+      // Add signature to URL parameters
+      widgetParams.append('signature', signature);
 
       // Use buy.onramper.com - this is the correct widget URL
       const widgetUrl = `https://buy.onramper.com?${widgetParams.toString()}`;
