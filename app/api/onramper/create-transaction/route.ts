@@ -73,9 +73,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (!transaction) {
-      logger.error('❌ Onramper createTransaction returned null');
+      logger.error('❌ Onramper createTransaction returned null - check server logs for Onramper API error details');
       return NextResponse.json(
-        { error: 'Failed to create transaction with Onramper - no transaction returned' },
+        { 
+          error: 'Failed to create transaction with Onramper - no transaction returned',
+          message: 'The Onramper API did not return a transaction. Please check the server logs for detailed error information from Onramper.',
+        },
         { status: 500 }
       );
     }

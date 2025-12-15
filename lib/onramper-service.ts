@@ -724,9 +724,10 @@ export class OnramperService {
     }
   }
 
-  // Create transaction via Onramper - Using /checkout/intent API
-  // This API returns a signed payment URL that can be opened in a popup
-  // Docs: https://docs.onramper.com/reference/post_checkout-intent
+  // Create transaction via Onramper - Widget URL Approach
+  // Onramper widget URL is the standard integration method
+  // Docs: https://docs.onramper.com/docs/customization
+  // The widget URL opens in a popup and handles the entire payment flow
   static async createTransaction(
     fiatAmount: number,
     fiatCurrency: string,
@@ -751,92 +752,42 @@ export class OnramperService {
         return null;
       }
 
-      // Use /checkout/intent API to get signed payment URL
-      // This is the correct way to create transactions with Onramper
-      const endpoint = 'https://api.onramper.com/checkout/intent';
-      
-      // Request body according to Onramper API docs
-      const requestBody = {
-        sourceCurrency: fiatCurrency.toLowerCase(),
-        destinationCurrency: cryptoCurrency.toLowerCase(),
-        sourceAmount: fiatAmount,
-        destinationWalletAddress: walletAddress,
-        paymentMethod: paymentMethod.toLowerCase(), // e.g., "ideal", "creditcard"
-      };
-
-      logger.log('📊 Creating Onramper transaction via /checkout/intent:', {
-        ...requestBody,
-        walletAddress: walletAddress.substring(0, 10) + '...',
+      // Build Onramper Widget URL with transaction parameters
+      // Docs: https://docs.onramper.com/docs/customization
+      const widgetParams = new URLSearchParams({
+        apiKey: apiKey,
+        onlyCryptos: cryptoCurrency.toUpperCase(),
+        onlyFiats: fiatCurrency.toUpperCase(),
+        amount: fiatAmount.toString(),
+        wallets: `${cryptoCurrency.toUpperCase()}:${walletAddress}`,
       });
 
-      // Try multiple authentication methods
-      let response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
+      // Add payment method if provided and valid
+      // Payment method format should match Onramper's expected format
+      if (paymentMethod && paymentMethod !== 'undefined' && paymentMethod !== '') {
+        // Convert payment method to Onramper format (e.g., "ideal" -> "ideal")
+        const onramperPaymentMethod = paymentMethod.toLowerCase();
+        widgetParams.append('onlyPaymentMethods', onramperPaymentMethod);
+      }
+
+      // Use buy.onramper.com - this is the correct widget URL
+      const widgetUrl = `https://buy.onramper.com?${widgetParams.toString()}`;
+
+      logger.log('✅ Generated Onramper widget URL:', {
+        crypto: cryptoCurrency,
+        fiat: fiatCurrency,
+        amount: fiatAmount,
+        paymentMethod: paymentMethod || 'none',
+        wallet: walletAddress.substring(0, 10) + '...',
+        fullUrl: widgetUrl.replace(apiKey, '***API_KEY***'),
       });
 
-      if (!response.ok && (response.status === 401 || response.status === 403)) {
-        logger.log('🔄 Method 1 failed (Bearer token), trying Method 2...');
-        
-        // Method 2: Direct API key in Authorization header
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': apiKey,
-            'Accept': 'application/json',
-          },
-          body: JSON.stringify(requestBody),
-        });
-      }
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        logger.error('❌ Onramper /checkout/intent API error:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorText.substring(0, 500),
-        });
-        return null;
-      }
-
-      const data = await response.json();
-      
-      logger.log('✅ Onramper /checkout/intent response received:', {
-        hasData: !!data,
-        hasTransactionInfo: !!data.transactionInformation,
-        dataPreview: JSON.stringify(data, null, 2).substring(0, 500),
-      });
-
-      // Extract transaction information from response
-      if (!data.transactionInformation) {
-        logger.error('❌ Onramper response missing transactionInformation:', data);
-        return null;
-      }
-
-      const transactionInfo = data.transactionInformation;
-      const transactionId = transactionInfo.transactionId || `onramper-${Date.now()}`;
-      const paymentUrl = transactionInfo.url;
-
-      if (!paymentUrl) {
-        logger.error('❌ Onramper response missing payment URL:', transactionInfo);
-        return null;
-      }
-
-      logger.log('✅ Onramper transaction created successfully:', {
-        transactionId,
-        paymentUrl: paymentUrl.substring(0, 100) + '...',
-        status: 'PENDING',
-      });
-
+      // Return widget URL as the payment URL
+      // The frontend will open this in a new window/popup
+      // Webhook will provide real transaction updates
       return {
-        transactionId,
-        paymentUrl,
+        transactionId: `onramper-${Date.now()}`, // Temporary ID, real ID comes from webhook
+        paymentUrl: widgetUrl,
         status: 'PENDING',
       };
 
