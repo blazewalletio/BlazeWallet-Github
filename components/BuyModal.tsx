@@ -201,9 +201,10 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
             }
           }, 1000);
         } else {
-          // Popup blocked - fallback to iframe
-          setError('Popup blocked. Please allow popups for this site.');
+          // Popup blocked - show instructions
+          setError('Popup blocked. Please allow popups for this site and try again, or use "Open in New Tab" option.');
           setStep('widget');
+          toast.error('Popup blocked. Please allow popups or use "Open in New Tab".', { duration: 5000 });
         }
       } else {
         throw new Error(data.error || 'Failed to create transaction');
@@ -430,19 +431,67 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
             )}
 
             {step === 'widget' && widgetUrl && (
-              <div className="h-full flex flex-col">
-                <div className="p-4 bg-gray-50 border-b border-gray-200">
-                  <p className="text-sm text-gray-600 text-center">
-                    Complete your payment in the popup window. If the popup was blocked, the payment form is shown below.
+              <div className="p-12 text-center">
+                <div className="mb-6">
+                  <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CreditCard className="w-8 h-8 text-orange-600" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Payment Window</h3>
+                  <p className="text-gray-600 mb-4">
+                    Complete your payment in the popup window that should have opened.
+                  </p>
+                  <p className="text-sm text-gray-500 mb-6">
+                    If the popup was blocked, please allow popups for this site and try again, or click the button below to open in a new tab.
                   </p>
                 </div>
-                <iframe
-                  ref={iframeRef}
-                  src={widgetUrl}
-                  className="w-full flex-1 border-0"
-                  title="Onramper Payment"
-                  allow="payment"
-                />
+                <div className="space-y-3">
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      // Try popup again
+                      const width = 600;
+                      const height = 800;
+                      const left = (window.screen.width - width) / 2;
+                      const top = (window.screen.height - height) / 2;
+                      
+                      const popup = window.open(
+                        widgetUrl,
+                        'onramper-payment',
+                        `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+                      );
+
+                      if (popup) {
+                        popupRef.current = popup;
+                        toast.success('Payment window opened!');
+                      } else {
+                        toast.error('Popup blocked. Please allow popups or use "Open in New Tab" below.');
+                      }
+                    }}
+                    className="w-full py-3 bg-gradient-to-r from-orange-500 to-yellow-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-yellow-600 transition-all"
+                  >
+                    Open Payment Window Again
+                  </motion.button>
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      // Open in new tab as fallback
+                      window.open(widgetUrl, '_blank');
+                      toast.success('Opened in new tab. Complete your payment there.');
+                    }}
+                    className="w-full py-3 bg-gray-100 text-gray-700 font-semibold rounded-xl hover:bg-gray-200 transition-all"
+                  >
+                    Open in New Tab
+                  </motion.button>
+                  <button
+                    onClick={() => {
+                      setStep('select');
+                      setError(null);
+                    }}
+                    className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                  >
+                    ← Back to Selection
+                  </button>
+                </div>
               </div>
             )}
 

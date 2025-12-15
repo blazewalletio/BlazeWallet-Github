@@ -773,7 +773,8 @@ export class OnramperService {
         // ...(paymentMethod && paymentMethod !== 'undefined' && { onlyPaymentMethods: paymentMethod }),
       });
 
-      const widgetUrl = `https://widget.onramper.com?${widgetParams.toString()}`;
+      // Use buy.onramper.com (not widget.onramper.com) - this is the correct widget URL
+      const widgetUrl = `https://buy.onramper.com?${widgetParams.toString()}`;
 
       logger.log('✅ Generated SIMPLIFIED Onramper widget URL (without onlyPaymentMethods):', {
         crypto: cryptoCurrency,
