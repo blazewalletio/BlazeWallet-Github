@@ -259,6 +259,20 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           throw new Error(`Chain ${stepChainKey} not supported`);
         }
 
+        // ✅ CRITICAL: Solana requires different handling
+        // LI.FI returns quotes for Solana, but transaction execution requires Solana web3.js, not ethers.js
+        // For Solana same-chain swaps, we should use Jupiter instead
+        const isSolanaStep = stepChainKey === 'solana' || stepChainId === 101 || stepChainId === '1151111081099710';
+        
+        if (isSolanaStep) {
+          const isSameChain = fromChain === 'solana' && toChain === 'solana';
+          if (isSameChain) {
+            throw new Error('For Solana same-chain swaps, please use a different swap method. LI.FI transaction execution for Solana is not yet implemented. Consider using Jupiter for Solana swaps.');
+          } else {
+            throw new Error('Cross-chain swaps involving Solana via LI.FI are not yet fully supported. Solana transaction execution requires special handling.');
+          }
+        }
+
         const provider = new ethers.JsonRpcProvider(chainConfig.rpcUrl);
         
         // Connect wallet to provider
