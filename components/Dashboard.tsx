@@ -34,6 +34,7 @@ import PremiumBadge, { PremiumCard } from './PremiumBadge';
 import { getPortfolioHistory } from '@/lib/portfolio-history';
 import BottomNavigation, { TabType } from './BottomNavigation';
 import { PRESALE_FEATURE_ENABLED } from '@/lib/feature-flags';
+import TokenPreloader from './TokenPreloader';
 
 // ✅ PERFORMANCE FIX: Lazy load modals (reduces initial bundle size by ~200KB)
 const SendModal = dynamic(() => import('./SendModal'), { ssr: false });
@@ -1849,6 +1850,9 @@ export default function Dashboard() {
 
   return (
     <>
+      {/* 🚀 Token Preloader - Loads tokens in background for instant swap */}
+      <TokenPreloader />
+      
       <div className="min-h-screen pb-24">
         {/* Header with Network Selector */}
         <div className="sticky top-0 z-30 backdrop-blur-xl bg-white/95 border-b border-gray-200 shadow-sm">

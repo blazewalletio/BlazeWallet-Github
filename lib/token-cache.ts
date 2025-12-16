@@ -155,8 +155,9 @@ class TokenCache {
 
   /**
    * Search tokens in cache (client-side, instant!)
+   * Searches through ALL cached tokens - no limits on search scope
    */
-  async searchTokens(chainId: number, query: string, limit: number = 100): Promise<CachedToken[]> {
+  async searchTokens(chainId: number, query: string, limit: number = 200): Promise<CachedToken[]> {
     await this.init();
 
     if (!this.db || !query || query.length < 2) {
@@ -166,41 +167,49 @@ class TokenCache {
     const allTokens = await this.getTokens(chainId);
     const queryLower = query.toLowerCase().trim();
 
-      // Smart search: symbol first, then name, then address
-      const results = allTokens
-        .filter(token => {
-          const symbol = (token.symbol || '').toLowerCase();
-          const name = (token.name || '').toLowerCase();
-          const address = (token.address || '').toLowerCase();
-          
-          return symbol.includes(queryLower) || 
-                 name.includes(queryLower) || 
-                 address.includes(queryLower);
-        })
-        .sort((a, b) => {
-          // Prioritize exact symbol matches
-          const aExact = a.symbol.toLowerCase() === queryLower;
-          const bExact = b.symbol.toLowerCase() === queryLower;
-          if (aExact && !bExact) return -1;
-          if (!aExact && bExact) return 1;
-          
-          // Then prioritize symbol starts with
-          const aSymbolMatch = a.symbol.toLowerCase().startsWith(queryLower);
-          const bSymbolMatch = b.symbol.toLowerCase().startsWith(queryLower);
-          if (aSymbolMatch && !bSymbolMatch) return -1;
-          if (!aSymbolMatch && bSymbolMatch) return 1;
-          
-          // Then prioritize name starts with
-          const aNameMatch = a.name.toLowerCase().startsWith(queryLower);
-          const bNameMatch = b.name.toLowerCase().startsWith(queryLower);
-          if (aNameMatch && !bNameMatch) return -1;
-          if (!aNameMatch && bNameMatch) return 1;
-          
-          return 0;
-        })
-        .slice(0, limit);
+    logger.log(`🔍 [TokenCache] Searching through ${allTokens.length} tokens for "${query}"...`);
 
-    logger.log(`🔍 [TokenCache] Found ${results.length} tokens matching "${query}"`);
+    // Smart search: symbol first, then name, then address
+    // Searches through ALL tokens - no limit on search scope
+    const results = allTokens
+      .filter(token => {
+        const symbol = (token.symbol || '').toLowerCase();
+        const name = (token.name || '').toLowerCase();
+        const address = (token.address || '').toLowerCase();
+        
+        return symbol.includes(queryLower) || 
+               name.includes(queryLower) || 
+               address.includes(queryLower);
+      })
+      .sort((a, b) => {
+        // Prioritize exact symbol matches (TRUMP = TRUMP)
+        const aExact = a.symbol.toLowerCase() === queryLower;
+        const bExact = b.symbol.toLowerCase() === queryLower;
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+        
+        // Then prioritize symbol starts with (TRUMP > TRUMPET)
+        const aSymbolMatch = a.symbol.toLowerCase().startsWith(queryLower);
+        const bSymbolMatch = b.symbol.toLowerCase().startsWith(queryLower);
+        if (aSymbolMatch && !bSymbolMatch) return -1;
+        if (!aSymbolMatch && bSymbolMatch) return 1;
+        
+        // Then prioritize name starts with
+        const aNameMatch = a.name.toLowerCase().startsWith(queryLower);
+        const bNameMatch = b.name.toLowerCase().startsWith(queryLower);
+        if (aNameMatch && !bNameMatch) return -1;
+        if (!aNameMatch && bNameMatch) return 1;
+        
+        // Then prioritize shorter symbols (TRUMP before TRUMPET)
+        if (aSymbolMatch && bSymbolMatch) {
+          return a.symbol.length - b.symbol.length;
+        }
+        
+        return 0;
+      })
+      .slice(0, limit); // Only limit displayed results, not search scope
+
+    logger.log(`✅ [TokenCache] Found ${results.length} tokens matching "${query}" (searched ${allTokens.length} total tokens)`);
     return results;
   }
 

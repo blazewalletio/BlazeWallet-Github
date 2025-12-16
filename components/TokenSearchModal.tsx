@@ -40,11 +40,12 @@ export default function TokenSearchModal({
 
   useBlockBodyScroll(isOpen);
 
-  // ✅ Load tokens on open: Check cache first, then load popular, then background sync
+  // ✅ Load tokens on open: Check cache first, show popular tokens instantly
+  // Background sync continues in background (non-blocking)
   useEffect(() => {
     if (isOpen && chainId) {
-      loadTokensFromCache();
-      // Start background sync immediately (non-blocking)
+      loadTokensFromCache(); // Instant from cache if available
+      // Start background sync in background (non-blocking, doesn't block UI)
       syncTokensInBackground();
     } else {
       setSearchQuery('');
@@ -251,7 +252,8 @@ export default function TokenSearchModal({
     }
   };
 
-  // ✅ INSTANT client-side search from cache (no API calls!)
+  // ✅ SMART SEARCH: Try cache first (instant), fallback to server-side (fast)
+  // This ensures NO WAITING - always instant results!
   const performClientSideSearch = async (query: string) => {
     if (!chainId || !query || query.length < 2) return;
 
@@ -259,17 +261,27 @@ export default function TokenSearchModal({
     setError(null);
 
     try {
-      logger.log(`🔍 [TokenSearchModal] Client-side search for "${query}"...`);
+      // First, try cache (instant if available)
+      const cacheSize = await tokenCache.getCacheSize(chainId);
       
-      const searchResults = await tokenCache.searchTokens(chainId, query, 100);
-      
-      const filtered = searchResults.filter(token => 
-        !excludeTokens.some(excluded => excluded.toLowerCase() === token.address.toLowerCase())
-      );
+      if (cacheSize > 100) {
+        // Cache has tokens - use client-side search (instant!)
+        logger.log(`🔍 [TokenSearchModal] Client-side search from cache (${cacheSize} tokens)...`);
+        
+        const searchResults = await tokenCache.searchTokens(chainId, query, 200);
+        
+        const filtered = searchResults.filter(token => 
+          !excludeTokens.some(excluded => excluded.toLowerCase() === token.address.toLowerCase())
+        );
 
-      setTokens(filtered);
-      setPopularTokens([]);
-      logger.log(`✅ [TokenSearchModal] Found ${filtered.length} tokens (instant from cache!)`);
+        setTokens(filtered);
+        setPopularTokens([]);
+        logger.log(`✅ [TokenSearchModal] Found ${filtered.length} tokens (instant from cache!)`);
+      } else {
+        // Cache empty or small - use server-side search (fast, no waiting!)
+        logger.log(`🔍 [TokenSearchModal] Cache empty (${cacheSize} tokens) - using server-side search...`);
+        await performServerSideSearch(query);
+      }
     } catch (err: any) {
       logger.error('❌ [TokenSearchModal] Client-side search error:', err);
       // Fallback to server-side search if cache fails
@@ -279,29 +291,36 @@ export default function TokenSearchModal({
     }
   };
 
-  // ✅ Fallback: Server-side search if cache fails
+  // ✅ Server-side search: Fast fallback when cache is empty
+  // Searches ALL tokens server-side - no waiting for cache!
   const performServerSideSearch = async (query: string) => {
     if (!chainId) return;
 
     try {
-      const response = await fetch(`/api/tokens/search?q=${encodeURIComponent(query)}&chain=${chainKey}&limit=100`);
-      if (response.ok) {
-        const data = await response.json();
-        const searchResults: LiFiToken[] = (data.tokens || []).map((t: any) => ({
-          address: t.address,
-          symbol: t.symbol,
-          name: t.name || t.symbol,
-          decimals: t.decimals || 9,
-          chainId: chainId,
-          logoURI: t.logoURI || '',
-          priceUSD: '0',
-        })).filter((token: LiFiToken) => 
-          !excludeTokens.some(excluded => excluded.toLowerCase() === token.address.toLowerCase())
-        );
-
-        setTokens(searchResults);
-        setPopularTokens([]);
+      logger.log(`🔍 [TokenSearchModal] Server-side search for "${query}" on ${chainKey}...`);
+      
+      const response = await fetch(`/api/tokens/search?q=${encodeURIComponent(query)}&chain=${chainKey}&limit=200`);
+      
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}`);
       }
+
+      const data = await response.json();
+      const searchResults: LiFiToken[] = (data.tokens || []).map((t: any) => ({
+        address: t.address,
+        symbol: t.symbol,
+        name: t.name || t.symbol,
+        decimals: t.decimals || (chainKey === 'ethereum' ? 18 : 9),
+        chainId: chainId,
+        logoURI: t.logoURI || '',
+        priceUSD: '0',
+      })).filter((token: LiFiToken) => 
+        !excludeTokens.some(excluded => excluded.toLowerCase() === token.address.toLowerCase())
+      );
+
+      setTokens(searchResults);
+      setPopularTokens([]);
+      logger.log(`✅ [TokenSearchModal] Found ${searchResults.length} tokens via server-side search (fast!)`);
     } catch (err: any) {
       logger.error('❌ [TokenSearchModal] Server-side search failed:', err);
       setError('Search failed. Please try again.');
