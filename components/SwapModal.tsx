@@ -331,8 +331,11 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
 
             // Try to deserialize as VersionedTransaction (newer format, preferred)
             let solanaTransaction: Transaction | VersionedTransaction;
+            let isVersioned = false;
+            
             try {
               solanaTransaction = VersionedTransaction.deserialize(transactionBuffer);
+              isVersioned = true;
               logger.log('✅ Deserialized as VersionedTransaction');
             } catch {
               // Fallback to legacy Transaction format
@@ -343,6 +346,25 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                 logger.error('❌ Failed to deserialize Solana transaction:', error);
                 throw new Error(`Failed to deserialize Solana transaction: ${error.message || 'Unknown error'}`);
               }
+            }
+
+            // ✅ CRITICAL: Get fresh blockhash before sending
+            // Solana blockhashes expire quickly (~1 minute), so we need a fresh one
+            logger.log('🔄 Fetching fresh blockhash...');
+            const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+            logger.log(`✅ Got fresh blockhash: ${blockhash.substring(0, 16)}...`);
+
+            // ✅ Update blockhash for legacy Transaction
+            if (!isVersioned && solanaTransaction instanceof Transaction) {
+              solanaTransaction.recentBlockhash = blockhash;
+              solanaTransaction.lastValidBlockHeight = lastValidBlockHeight;
+              logger.log('✅ Updated legacy Transaction with fresh blockhash');
+            } else if (isVersioned && solanaTransaction instanceof VersionedTransaction) {
+              // ⚠️ VersionedTransaction blockhash is embedded in the compiled message
+              // We cannot easily update it without rebuilding the entire transaction
+              // The transaction from LI.FI should have a recent blockhash, but if it's expired,
+              // we'll get an error and handle it below
+              logger.log('⚠️ VersionedTransaction - blockhash update requires full rebuild (will retry if needed)');
             }
 
             // Sign the transaction with our keypair
@@ -356,26 +378,65 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
 
             logger.log('📤 Sending Solana transaction...');
             
-            // Send transaction
-            // ✅ VersionedTransaction is already signed, just send it
-            // ✅ Legacy Transaction needs keypair array for signing
-            let signature: string;
-            if (solanaTransaction instanceof VersionedTransaction) {
-              // VersionedTransaction is already signed, just send
-              signature = await connection.sendTransaction(solanaTransaction, {
-                skipPreflight: false,
-                maxRetries: 3,
-              });
-              logger.log('✅ VersionedTransaction sent');
-            } else {
-              // Legacy Transaction - send with signers
-              signature = await connection.sendTransaction(solanaTransaction, [keypair], {
-                skipPreflight: false,
-                maxRetries: 3,
-              });
-              logger.log('✅ Legacy Transaction sent');
+            // Send transaction with retry logic for expired blockhash
+            let signature: string | null = null;
+            let sendAttempts = 0;
+            const maxSendAttempts = 2;
+            
+            while (sendAttempts < maxSendAttempts) {
+              try {
+                if (solanaTransaction instanceof VersionedTransaction) {
+                  // VersionedTransaction is already signed, just send
+                  signature = await connection.sendTransaction(solanaTransaction, {
+                    skipPreflight: false,
+                    maxRetries: 3,
+                  });
+                  logger.log('✅ VersionedTransaction sent');
+                  break;
+                } else {
+                  // Legacy Transaction - send with signers
+                  signature = await connection.sendTransaction(solanaTransaction, [keypair], {
+                    skipPreflight: false,
+                    maxRetries: 3,
+                  });
+                  logger.log('✅ Legacy Transaction sent');
+                  break;
+                }
+              } catch (error: any) {
+                sendAttempts++;
+                const errorMessage = error.message || error.toString();
+                
+                // Check if error is due to expired blockhash
+                if (errorMessage.includes('Blockhash not found') || errorMessage.includes('blockhash')) {
+                  if (sendAttempts < maxSendAttempts) {
+                    logger.log(`⚠️ Blockhash expired, fetching new one (attempt ${sendAttempts}/${maxSendAttempts})...`);
+                    const { blockhash: newBlockhash, lastValidBlockHeight: newLastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+                    
+                    if (solanaTransaction instanceof Transaction) {
+                      solanaTransaction.recentBlockhash = newBlockhash;
+                      solanaTransaction.lastValidBlockHeight = newLastValidBlockHeight;
+                      logger.log('✅ Updated Transaction with fresh blockhash, retrying...');
+                      // Re-sign with new blockhash
+                      solanaTransaction.sign(keypair);
+                    } else {
+                      // For VersionedTransaction, we cannot easily update blockhash
+                      // Throw error asking user to retry
+                      throw new Error('Transaction blockhash expired. Please try the swap again - a fresh transaction will be generated.');
+                    }
+                  } else {
+                    throw error;
+                  }
+                } else {
+                  // Other errors, throw immediately
+                  throw error;
+                }
+              }
             }
 
+            if (!signature) {
+              throw new Error('Failed to send Solana transaction after retries');
+            }
+            
             logger.log(`⏳ Waiting for Solana confirmation: ${signature}...`);
             
             // ✅ Use polling instead of WebSocket to avoid CSP issues
