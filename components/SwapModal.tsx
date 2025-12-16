@@ -15,12 +15,14 @@ import {
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { CHAINS } from '@/lib/chains';
-import { getLiFiChainId } from '@/lib/lifi-chain-ids';
+import { getLiFiChainId, isSolanaChainId } from '@/lib/lifi-chain-ids';
 import { LiFiService, LiFiToken, LiFiQuote } from '@/lib/lifi-service';
 import { logger } from '@/lib/logger';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { apiPost } from '@/lib/api-client';
 import { ethers } from 'ethers';
+import { Connection, Transaction, VersionedTransaction } from '@solana/web3.js';
+import { SolanaService } from '@/lib/solana-service';
 import TokenSearchModal from './TokenSearchModal';
 
 interface SwapModalProps {
@@ -247,86 +249,212 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           logger.log('✅ Step already has transactionRequest, using directly');
         }
 
+        // Store transaction hash for status polling (used for both EVM and Solana)
+        let stepTxHash: string | null = null;
+
         // Get provider for the chain
         // For cross-chain, use the chain of the current step
         const stepChainId = step.action?.fromChainId;
-        const stepChainKey = Object.keys(CHAINS).find(
-          key => CHAINS[key].id === stepChainId
-        ) || fromChain;
+        
+        // ✅ CRITICAL: Map LI.FI chain IDs to our chain keys
+        // Solana: LI.FI uses "1151111081099710" (string), our CHAINS uses 101 (number)
+        let stepChainKey: string | undefined;
+        
+        // ✅ Use helper function for Solana detection
+        if (isSolanaChainId(stepChainId)) {
+          stepChainKey = 'solana';
+        } else {
+          // For EVM chains, find by numeric ID
+          const numericChainId = typeof stepChainId === 'number' 
+            ? stepChainId 
+            : parseInt(stepChainId.toString());
+          
+          stepChainKey = Object.keys(CHAINS).find(
+            key => CHAINS[key].id === numericChainId || CHAINS[key].id === stepChainId
+          );
+        }
+        
+        // Fallback to fromChain if not found
+        if (!stepChainKey) {
+          logger.warn(`⚠️ Chain ID ${stepChainId} not found in CHAINS, using fromChain: ${fromChain}`);
+          stepChainKey = fromChain;
+        }
         
         const chainConfig = CHAINS[stepChainKey];
         if (!chainConfig) {
-          throw new Error(`Chain ${stepChainKey} not supported`);
+          throw new Error(`Chain ${stepChainKey} (ID: ${stepChainId}) not supported. Available chains: ${Object.keys(CHAINS).join(', ')}`);
         }
+        
+        logger.log(`🔗 Executing step on chain: ${stepChainKey} (ID: ${stepChainId})`);
 
         // ✅ CRITICAL: Solana requires different handling
         // LI.FI returns quotes for Solana, but transaction execution requires Solana web3.js, not ethers.js
-        // For Solana same-chain swaps, we should use Jupiter instead
-        const isSolanaStep = stepChainKey === 'solana' || stepChainId === 101 || stepChainId === '1151111081099710';
+        const isSolanaStep = stepChainKey === 'solana' || isSolanaChainId(stepChainId);
         
         if (isSolanaStep) {
-          const isSameChain = fromChain === 'solana' && toChain === 'solana';
-          if (isSameChain) {
-            throw new Error('For Solana same-chain swaps, please use a different swap method. LI.FI transaction execution for Solana is not yet implemented. Consider using Jupiter for Solana swaps.');
-          } else {
-            throw new Error('Cross-chain swaps involving Solana via LI.FI are not yet fully supported. Solana transaction execution requires special handling.');
+          // ✅ Execute Solana transaction using @solana/web3.js
+          if (!mnemonic) {
+            throw new Error('Mnemonic required for Solana transaction execution');
           }
-        }
 
-        const provider = new ethers.JsonRpcProvider(chainConfig.rpcUrl);
-        
-        // Connect wallet to provider
-        const connectedWallet = wallet.connect(provider);
-
-        // Check if approval is needed
-        const approvalAddress = step.estimate?.approvalAddress;
-        if (approvalAddress && approvalAddress !== '0x0000000000000000000000000000000000000000') {
-          logger.log('🔐 Approval needed, checking current allowance...');
+          logger.log('🪐 Executing Solana transaction via LI.FI...');
           
-          // Check current allowance
-          const tokenAddress = step.action?.fromToken?.address;
-          if (tokenAddress && tokenAddress !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE') {
-            const erc20ABI = [
-              'function allowance(address owner, address spender) view returns (uint256)',
-              'function approve(address spender, uint256 amount) returns (bool)',
-            ];
-            const tokenContract = new ethers.Contract(tokenAddress, erc20ABI, connectedWallet);
-            
-            const currentAllowance = await tokenContract.allowance(walletAddress, approvalAddress);
-            const requiredAmount = BigInt(step.action?.fromAmount || '0');
+          // Create Solana connection
+          const solanaService = new SolanaService(chainConfig.rpcUrl);
+          const connection = new Connection(chainConfig.rpcUrl, 'confirmed');
+          
+          // Derive Solana keypair from mnemonic
+          const keypair = solanaService.deriveKeypairFromMnemonic(mnemonic, 0);
+          
+          // ✅ LI.FI returns base64-encoded Solana transaction in transactionRequest.data
+          // Deserialize and sign the transaction
+          if (!txRequest.data) {
+            throw new Error('No transaction data in Solana transactionRequest');
+          }
 
-            if (currentAllowance < requiredAmount) {
-              logger.log('🔐 Approving token...');
-              const approveTx = await tokenContract.approve(approvalAddress, requiredAmount);
-              await approveTx.wait();
-              logger.log('✅ Token approved');
+          try {
+            // ✅ LI.FI returns Solana transaction in transactionRequest.data
+            // It could be base64-encoded or hex-encoded
+            let transactionBuffer: Buffer;
+            
+            try {
+              // Try base64 first (most common for Solana)
+              transactionBuffer = Buffer.from(txRequest.data, 'base64');
+            } catch {
+              // Fallback to hex if base64 fails
+              try {
+                transactionBuffer = Buffer.from(txRequest.data.replace('0x', ''), 'hex');
+              } catch {
+                throw new Error('Invalid transaction data format. Expected base64 or hex.');
+              }
+            }
+
+            // Try to deserialize as VersionedTransaction (newer format, preferred)
+            let solanaTransaction: Transaction | VersionedTransaction;
+            try {
+              solanaTransaction = VersionedTransaction.deserialize(transactionBuffer);
+              logger.log('✅ Deserialized as VersionedTransaction');
+            } catch {
+              // Fallback to legacy Transaction format
+              try {
+                solanaTransaction = Transaction.from(transactionBuffer);
+                logger.log('✅ Deserialized as legacy Transaction');
+              } catch (error: any) {
+                logger.error('❌ Failed to deserialize Solana transaction:', error);
+                throw new Error(`Failed to deserialize Solana transaction: ${error.message || 'Unknown error'}`);
+              }
+            }
+
+            // Sign the transaction with our keypair
+            if (solanaTransaction instanceof VersionedTransaction) {
+              solanaTransaction.sign([keypair]);
+              logger.log('✅ Signed VersionedTransaction');
+            } else {
+              solanaTransaction.sign(keypair);
+              logger.log('✅ Signed legacy Transaction');
+            }
+
+            logger.log('📤 Sending Solana transaction...');
+            
+            // Send transaction
+            // ✅ VersionedTransaction is already signed, just send it
+            // ✅ Legacy Transaction needs keypair array for signing
+            let signature: string;
+            if (solanaTransaction instanceof VersionedTransaction) {
+              // VersionedTransaction is already signed, just send
+              signature = await connection.sendTransaction(solanaTransaction, {
+                skipPreflight: false,
+                maxRetries: 3,
+              });
+              logger.log('✅ VersionedTransaction sent');
+            } else {
+              // Legacy Transaction - send with signers
+              signature = await connection.sendTransaction(solanaTransaction, [keypair], {
+                skipPreflight: false,
+                maxRetries: 3,
+              });
+              logger.log('✅ Legacy Transaction sent');
+            }
+
+            logger.log(`⏳ Waiting for Solana confirmation: ${signature}...`);
+            
+            // Wait for confirmation with timeout
+            const confirmation = await Promise.race([
+              connection.confirmTransaction(signature, 'confirmed'),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Transaction confirmation timeout')), 60000)
+              ),
+            ]) as any;
+            
+            if (confirmation?.value?.err) {
+              throw new Error(`Solana transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+            }
+
+            logger.log('✅ Solana transaction confirmed');
+            stepTxHash = signature;
+            setTxHash(signature);
+          } catch (error: any) {
+            logger.error('❌ Solana transaction error:', error);
+            throw new Error(`Solana transaction failed: ${error.message || 'Unknown error'}`);
+          }
+        } else {
+          // ✅ EVM chains: Use ethers.js
+          const provider = new ethers.JsonRpcProvider(chainConfig.rpcUrl);
+          
+          // Connect wallet to provider
+          const connectedWallet = wallet.connect(provider);
+
+          // Check if approval is needed
+          const approvalAddress = step.estimate?.approvalAddress;
+          if (approvalAddress && approvalAddress !== '0x0000000000000000000000000000000000000000') {
+            logger.log('🔐 Approval needed, checking current allowance...');
+            
+            // Check current allowance
+            const tokenAddress = step.action?.fromToken?.address;
+            if (tokenAddress && tokenAddress !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE') {
+              const erc20ABI = [
+                'function allowance(address owner, address spender) view returns (uint256)',
+                'function approve(address spender, uint256 amount) returns (bool)',
+              ];
+              const tokenContract = new ethers.Contract(tokenAddress, erc20ABI, connectedWallet);
+              
+              const currentAllowance = await tokenContract.allowance(walletAddress, approvalAddress);
+              const requiredAmount = BigInt(step.action?.fromAmount || '0');
+
+              if (currentAllowance < requiredAmount) {
+                logger.log('🔐 Approving token...');
+                const approveTx = await tokenContract.approve(approvalAddress, requiredAmount);
+                await approveTx.wait();
+                logger.log('✅ Token approved');
+              }
             }
           }
+
+          // Execute transaction
+          logger.log('📤 Sending EVM transaction...');
+          const tx = await connectedWallet.sendTransaction({
+            to: txRequest.to,
+            data: txRequest.data,
+            value: txRequest.value || '0',
+            gasLimit: txRequest.gasLimit || undefined,
+            gasPrice: txRequest.gasPrice ? BigInt(txRequest.gasPrice) : undefined,
+          });
+
+          logger.log('⏳ Waiting for confirmation...');
+          const receipt = await tx.wait();
+          
+          if (!receipt) {
+            throw new Error('Transaction receipt is null');
+          }
+
+          stepTxHash = receipt.hash;
+          setTxHash(receipt.hash);
         }
-
-        // Execute transaction
-        logger.log('📤 Sending transaction...');
-        const tx = await connectedWallet.sendTransaction({
-          to: txRequest.to,
-          data: txRequest.data,
-          value: txRequest.value || '0',
-          gasLimit: txRequest.gasLimit || undefined,
-          gasPrice: txRequest.gasPrice ? BigInt(txRequest.gasPrice) : undefined,
-        });
-
-        logger.log('⏳ Waiting for confirmation...');
-        const receipt = await tx.wait();
-        
-        if (!receipt) {
-          throw new Error('Transaction receipt is null');
-        }
-
-        setTxHash(receipt.hash);
 
         // If this is the last step and it's cross-chain, start status polling
-        if (i === steps.length - 1 && isCrossChain) {
+        if (i === steps.length - 1 && isCrossChain && stepTxHash) {
           // Start polling for cross-chain status
-          pollTransactionStatus(receipt.hash, step.tool || 'unknown');
+          pollTransactionStatus(stepTxHash, step.tool || 'unknown');
         }
       }
 

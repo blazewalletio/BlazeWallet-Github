@@ -67,13 +67,15 @@ export interface LiFiQuote {
   tool: string;
   integrator?: string;
   // ✅ transactionRequest is present when from /v1/quote
+  // For EVM chains: standard ethers.js TransactionRequest
+  // For Solana: data contains base64-encoded Solana transaction
   transactionRequest?: {
-    data: string;
-    to: string;
-    value?: string;
-    gasPrice?: string;
-    gasLimit?: string;
-    from?: string;
+    data: string; // For EVM: hex data, For Solana: base64-encoded transaction
+    to?: string; // EVM only
+    value?: string; // EVM only
+    gasPrice?: string; // EVM only
+    gasLimit?: string; // EVM only
+    from?: string; // EVM only
   };
   // ✅ steps array is present when from /v1/advanced/routes
   steps?: Array<{
@@ -102,13 +104,15 @@ export interface LiFiQuote {
     tool: string;
     integrator?: string;
     // ✅ transactionRequest may be present if step was populated
+    // For EVM chains: standard ethers.js TransactionRequest
+    // For Solana: data contains base64-encoded Solana transaction
     transactionRequest?: {
-      data: string;
-      to: string;
-      value?: string;
-      gasPrice?: string;
-      gasLimit?: string;
-      from?: string;
+      data: string; // For EVM: hex data, For Solana: base64-encoded transaction
+      to?: string; // EVM only
+      value?: string; // EVM only
+      gasPrice?: string; // EVM only
+      gasLimit?: string; // EVM only
+      from?: string; // EVM only
     };
   }>;
 }
