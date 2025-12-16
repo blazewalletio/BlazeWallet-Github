@@ -323,7 +323,7 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
                         </option>
                       ))}
                   </select>
-                </div>
+            </div>
 
                 {/* Quote Display */}
                 {loading && (

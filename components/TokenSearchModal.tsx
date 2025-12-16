@@ -7,7 +7,6 @@ import { CHAINS } from '@/lib/chains';
 import { LiFiService, LiFiToken } from '@/lib/lifi-service';
 import { logger } from '@/lib/logger';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
-import { tokenCache } from '@/lib/token-cache';
 
 interface TokenSearchModalProps {
   isOpen: boolean;
@@ -32,282 +31,202 @@ export default function TokenSearchModal({
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [popularTokens, setPopularTokens] = useState<LiFiToken[]>([]);
-  const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
-  const [cacheSize, setCacheSize] = useState(0);
 
   const chainConfig = CHAINS[chainKey];
   const chainId = chainConfig?.id;
 
   useBlockBodyScroll(isOpen);
 
-  // ✅ Load tokens on open: Check cache first, show popular tokens instantly
-  // Background sync continues in background (non-blocking)
+  // Fetch initial tokens when modal opens (only if no search query)
   useEffect(() => {
     if (isOpen && chainId) {
-      loadTokensFromCache(); // Instant from cache if available
-      // Start background sync in background (non-blocking, doesn't block UI)
-      syncTokensInBackground();
+      if (!searchQuery.trim()) {
+        // Only fetch initial tokens if no search query
+        fetchTokens();
+      }
     } else {
       setSearchQuery('');
       setTokens([]);
       setError(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, chainId]);
 
-  // ✅ INSTANT client-side search from cache (no API calls!)
+  // Search tokens via API when user types (debounced)
   useEffect(() => {
     if (!isOpen || !chainId) return;
 
     const timeoutId = setTimeout(async () => {
       if (searchQuery.trim().length >= 2) {
-        await performClientSideSearch(searchQuery);
+        // Search via API when query is 2+ characters
+        await searchTokens(searchQuery.trim());
       } else if (searchQuery.trim().length === 0) {
-        // Reset to cached tokens when search is cleared
-        await loadTokensFromCache();
+        // Reset to initial tokens when search is cleared
+        await fetchTokens();
       }
-    }, 150); // Faster debounce for client-side search
+    }, 300); // 300ms debounce
 
     return () => clearTimeout(timeoutId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, isOpen, chainId]);
 
-  // ✅ Load tokens from IndexedDB cache (instant!)
-  const loadTokensFromCache = async () => {
+  const fetchTokens = async () => {
     if (!chainId) return;
 
     setIsLoading(true);
     setError(null);
 
     try {
-      logger.log(`💾 [TokenSearchModal] Loading tokens from cache for chain ${chainId}...`);
+      logger.log(`🔍 [TokenSearchModal] Fetching tokens for chain ${chainId} (${chainKey})...`);
+
+      // Fetch tokens via API route (server-side)
+      const response = await fetch(`/api/lifi/tokens?chainIds=${chainId}`);
       
-      const cachedTokens = await tokenCache.getTokens(chainId);
-      const cacheSize = await tokenCache.getCacheSize(chainId);
-      setCacheSize(cacheSize);
-
-      if (cachedTokens.length > 0) {
-        // Filter excluded tokens
-        const filtered = cachedTokens.filter(token => 
-          !excludeTokens.some(excluded => excluded.toLowerCase() === token.address.toLowerCase())
-        );
-
-        // Sort: popular first
-        const popularSymbols = ['USDC', 'USDT', 'SOL', 'WETH', 'WBTC', 'DAI', 'RAY', 'BONK', 'JUP', 'WIF', 'TRUMP', 'MATIC', 'BNB', 'AVAX'];
-        const popular = filtered.filter(t => 
-          popularSymbols.includes(t.symbol.toUpperCase())
-        ).sort((a, b) => {
-          const aIndex = popularSymbols.indexOf(a.symbol.toUpperCase());
-          const bIndex = popularSymbols.indexOf(b.symbol.toUpperCase());
-          return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
-        });
-
-        const others = filtered.filter(t => 
-          !popularSymbols.includes(t.symbol.toUpperCase())
-        ).sort((a, b) => a.symbol.localeCompare(b.symbol));
-
-        setPopularTokens(popular);
-        setTokens([...popular, ...others]);
-        logger.log(`✅ [TokenSearchModal] Loaded ${filtered.length} tokens from cache (instant!)`);
-      } else {
-        // Cache empty, load popular tokens as fallback
-        await loadPopularTokensFallback();
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch tokens from API');
       }
+
+      const data = await response.json();
+      
+      // Handle API errors gracefully
+      if (!data.success) {
+        logger.warn('⚠️ [TokenSearchModal] API returned error:', data.error);
+        setError(data.error || 'Failed to load tokens');
+        setPopularTokens([]);
+        setTokens([]);
+        setIsLoading(false);
+        return;
+      }
+
+      let chainTokens: LiFiToken[] = [];
+      
+      if (data.tokens && data.tokens[chainId.toString()]) {
+        const allTokens: Record<string, LiFiToken[]> = data.tokens;
+        chainTokens = allTokens[chainId.toString()] || [];
+        logger.log(`✅ [TokenSearchModal] Loaded ${chainTokens.length} tokens from Li.Fi API`);
+      } else {
+        // Fallback for Solana: Use Jupiter tokens
+        if (chainKey === 'solana') {
+          logger.log('🪐 [TokenSearchModal] Li.Fi returned no tokens for Solana, trying Jupiter fallback...');
+          try {
+            const jupiterResponse = await fetch('/api/jupiter-tokens');
+            if (jupiterResponse.ok) {
+              const jupiterTokens: any[] = await jupiterResponse.json();
+              logger.log(`🪐 [TokenSearchModal] Got ${jupiterTokens.length} tokens from Jupiter`);
+              
+              // Convert Jupiter tokens to LiFiToken format
+              chainTokens = jupiterTokens
+                .filter(t => t.address && t.symbol) // Only valid tokens
+                .map(t => ({
+                  address: t.address,
+                  symbol: t.symbol,
+                  name: t.name || t.symbol,
+                  decimals: t.decimals || 9,
+                  chainId: chainId,
+                  logoURI: t.logoURI || '',
+                  priceUSD: '0',
+                }))
+                .slice(0, 1000); // Limit to first 1000 tokens for performance
+              
+              logger.log(`✅ [TokenSearchModal] Converted ${chainTokens.length} Jupiter tokens`);
+            }
+          } catch (jupiterError) {
+            logger.error('❌ [TokenSearchModal] Jupiter fallback failed:', jupiterError);
+          }
+        }
+        
+        // Fallback for Ethereum: Use CoinGecko tokens
+        if (chainKey === 'ethereum' && chainTokens.length === 0) {
+          logger.log('🔷 [TokenSearchModal] Li.Fi returned no tokens for Ethereum, trying CoinGecko fallback...');
+          try {
+            const ethereumResponse = await fetch('/api/ethereum-tokens');
+            if (ethereumResponse.ok) {
+              const ethereumTokens: any[] = await ethereumResponse.json();
+              logger.log(`🔷 [TokenSearchModal] Got ${ethereumTokens.length} tokens from CoinGecko`);
+              
+              // Convert Ethereum tokens to LiFiToken format
+              chainTokens = ethereumTokens
+                .filter(t => t.address && t.symbol) // Only valid tokens
+                .map(t => ({
+                  address: t.address.toLowerCase(), // Ensure lowercase for EVM
+                  symbol: t.symbol,
+                  name: t.name || t.symbol,
+                  decimals: t.decimals || 18,
+                  chainId: chainId,
+                  logoURI: t.logoURI || '',
+                  priceUSD: '0',
+                }))
+                .slice(0, 1000); // Limit to first 1000 tokens for performance
+              
+              logger.log(`✅ [TokenSearchModal] Converted ${chainTokens.length} Ethereum tokens`);
+            }
+          } catch (ethereumError) {
+            logger.error('❌ [TokenSearchModal] Ethereum fallback failed:', ethereumError);
+          }
+        }
+        
+        if (chainTokens.length === 0) {
+          logger.warn('⚠️ [TokenSearchModal] No tokens available for chain', chainId);
+          // User can still select native token
+          setPopularTokens([]);
+          setTokens([]);
+          setIsLoading(false);
+          return;
+        }
+      }
+      
+      // Filter out excluded tokens
+      const filteredTokens = chainTokens.filter(
+        token => !excludeTokens.some(excluded => 
+          excluded.toLowerCase() === token.address.toLowerCase()
+        )
+      );
+
+      // Sort: popular tokens first (USDC, USDT, native equivalent), then alphabetically
+      const popularSymbols = ['USDC', 'USDT', 'WETH', 'WBTC', 'DAI', 'MATIC', 'BNB', 'AVAX'];
+      const popular = filteredTokens.filter(t => 
+        popularSymbols.includes(t.symbol.toUpperCase())
+      ).sort((a, b) => {
+        const aIndex = popularSymbols.indexOf(a.symbol.toUpperCase());
+        const bIndex = popularSymbols.indexOf(b.symbol.toUpperCase());
+        return aIndex - bIndex;
+      });
+      
+      const others = filteredTokens.filter(t => 
+        !popularSymbols.includes(t.symbol.toUpperCase())
+      ).sort((a, b) => a.symbol.localeCompare(b.symbol));
+
+      setPopularTokens(popular);
+      setTokens([...popular, ...others]);
+
+      logger.log(`✅ [TokenSearchModal] Loaded ${filteredTokens.length} tokens for ${chainKey}`);
     } catch (err: any) {
-      logger.error('❌ [TokenSearchModal] Cache load error:', err);
-      await loadPopularTokensFallback();
+      logger.error('❌ [TokenSearchModal] Failed to fetch tokens:', err);
+      setError(err.message || 'Failed to load tokens. Please try again.');
+      setTokens([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // ✅ Fallback: Load popular tokens when cache is empty
-  const loadPopularTokensFallback = async () => {
-    if (!chainId) return;
-
-    try {
-      logger.log(`⚡ [TokenSearchModal] Loading popular tokens (fallback)...`);
-
-      if (chainKey === 'solana') {
-        const jupiterResponse = await fetch('/api/jupiter-tokens');
-        if (jupiterResponse.ok) {
-          const jupiterTokens: any[] = await jupiterResponse.json();
-          const popularSymbols = ['USDC', 'USDT', 'SOL', 'RAY', 'BONK', 'JUP', 'WIF', 'JTO', 'PYTH', 'ORCA', 'TRUMP', 'MNGO'];
-          const popular = jupiterTokens
-            .filter(t => t.address && t.symbol && popularSymbols.includes(t.symbol.toUpperCase()))
-            .slice(0, 50)
-            .map(t => ({
-              address: t.address,
-              symbol: t.symbol,
-              name: t.name || t.symbol,
-              decimals: t.decimals || 9,
-              chainId: chainId,
-              logoURI: t.logoURI || '',
-              priceUSD: '0',
-            }));
-
-          const filtered = popular.filter(token => 
-            !excludeTokens.some(excluded => excluded.toLowerCase() === token.address.toLowerCase())
-          );
-
-          setPopularTokens(filtered);
-          setTokens(filtered);
-        }
-      } else if (chainKey === 'ethereum') {
-        const ethereumResponse = await fetch('/api/ethereum-tokens');
-        if (ethereumResponse.ok) {
-          const ethereumTokens: any[] = await ethereumResponse.json();
-          const popularSymbols = ['USDT', 'USDC', 'WBTC', 'LINK', 'DAI', 'UNI', 'WETH'];
-          const popular = ethereumTokens
-            .filter(t => t.address && t.symbol && popularSymbols.includes(t.symbol.toUpperCase()))
-            .slice(0, 50)
-            .map(t => ({
-              address: t.address.toLowerCase(),
-              symbol: t.symbol,
-              name: t.name || t.symbol,
-              decimals: t.decimals || 18,
-              chainId: chainId,
-              logoURI: t.logoURI || '',
-              priceUSD: '0',
-            }));
-
-          const filtered = popular.filter(token => 
-            !excludeTokens.some(excluded => excluded.toLowerCase() === token.address.toLowerCase())
-          );
-
-          setPopularTokens(filtered);
-          setTokens(filtered);
-        }
-      }
-    } catch (error) {
-      logger.error('❌ [TokenSearchModal] Fallback load failed:', error);
-    }
-  };
-
-  // ✅ Background sync: Load ALL tokens in background and cache them
-  const syncTokensInBackground = async () => {
-    if (!chainId || isBackgroundLoading) return;
-
-    setIsBackgroundLoading(true);
-
-    try {
-      logger.log(`🔄 [TokenSearchModal] Starting background token sync for ${chainKey}...`);
-
-      let allTokens: any[] = [];
-
-      if (chainKey === 'solana') {
-        const jupiterResponse = await fetch('/api/jupiter-tokens');
-        if (jupiterResponse.ok) {
-          allTokens = await jupiterResponse.json();
-          logger.log(`🪐 [TokenSearchModal] Fetched ${allTokens.length} tokens from Jupiter`);
-        }
-      } else if (chainKey === 'ethereum') {
-        const ethereumResponse = await fetch('/api/ethereum-tokens');
-        if (ethereumResponse.ok) {
-          allTokens = await ethereumResponse.json();
-          logger.log(`🔷 [TokenSearchModal] Fetched ${allTokens.length} tokens from CoinGecko`);
-        }
-      } else {
-        // Other chains: Try Li.Fi
-        const response = await fetch(`/api/lifi/tokens?chainIds=${chainId}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.tokens && data.tokens[chainId.toString()]) {
-            allTokens = data.tokens[chainId.toString()] || [];
-          }
-        }
-      }
-
-      if (allTokens.length > 0) {
-        // Convert to LiFiToken format
-        const convertedTokens = allTokens
-          .filter(t => t.address && t.symbol)
-          .map(t => ({
-            address: chainKey === 'ethereum' ? t.address.toLowerCase() : t.address,
-            symbol: t.symbol,
-            name: t.name || t.symbol,
-            decimals: t.decimals || (chainKey === 'ethereum' ? 18 : 9),
-            chainId: chainId,
-            logoURI: t.logoURI || '',
-            priceUSD: '0',
-          }));
-
-        // Store in cache
-        await tokenCache.storeTokens(chainId, convertedTokens);
-        logger.log(`✅ [TokenSearchModal] Cached ${convertedTokens.length} tokens in background`);
-
-        // Update cache size
-        const newCacheSize = await tokenCache.getCacheSize(chainId);
-        setCacheSize(newCacheSize);
-
-        // If no search query, refresh tokens from cache
-        if (!searchQuery.trim()) {
-          await loadTokensFromCache();
-        }
-      }
-    } catch (err: any) {
-      logger.error('❌ [TokenSearchModal] Background sync failed:', err);
-    } finally {
-      setIsBackgroundLoading(false);
-    }
-  };
-
-  // ✅ SMART SEARCH: Try cache first (instant), fallback to server-side (fast)
-  // This ensures NO WAITING - always instant results!
-  const performClientSideSearch = async (query: string) => {
+  // Search tokens via API
+  const searchTokens = async (query: string) => {
     if (!chainId || !query || query.length < 2) return;
 
     setIsSearching(true);
     setError(null);
 
     try {
-      // First, try cache (instant if available)
-      const cacheSize = await tokenCache.getCacheSize(chainId);
-      
-      if (cacheSize > 100) {
-        // Cache has tokens - use client-side search (instant!)
-        logger.log(`🔍 [TokenSearchModal] Client-side search from cache (${cacheSize} tokens)...`);
-        
-        const searchResults = await tokenCache.searchTokens(chainId, query, 200);
-        
-        const filtered = searchResults.filter(token => 
-          !excludeTokens.some(excluded => excluded.toLowerCase() === token.address.toLowerCase())
-        );
+      logger.log(`🔍 [TokenSearchModal] Searching for "${query}" on ${chainKey}...`);
 
-        setTokens(filtered);
-        setPopularTokens([]);
-        logger.log(`✅ [TokenSearchModal] Found ${filtered.length} tokens (instant from cache!)`);
-      } else {
-        // Cache empty or small - use server-side search (fast, no waiting!)
-        logger.log(`🔍 [TokenSearchModal] Cache empty (${cacheSize} tokens) - using server-side search...`);
-        await performServerSideSearch(query);
-      }
-    } catch (err: any) {
-      logger.error('❌ [TokenSearchModal] Client-side search error:', err);
-      // Fallback to server-side search if cache fails
-      await performServerSideSearch(query);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  // ✅ Server-side search: Fast fallback when cache is empty
-  // Searches ALL tokens server-side - no waiting for cache!
-  const performServerSideSearch = async (query: string) => {
-    if (!chainId) return;
-
-    try {
-      logger.log(`🔍 [TokenSearchModal] Server-side search for "${query}" on ${chainKey}...`);
-      
       const response = await fetch(`/api/tokens/search?q=${encodeURIComponent(query)}&chain=${chainKey}&limit=200`);
       
       if (!response.ok) {
-        throw new Error(`Server returned ${response.status}`);
+        throw new Error(`Search failed: ${response.status}`);
       }
 
       const data = await response.json();
       const searchResults: LiFiToken[] = (data.tokens || []).map((t: any) => ({
-        address: t.address,
+        address: chainKey === 'ethereum' ? t.address.toLowerCase() : t.address,
         symbol: t.symbol,
         name: t.name || t.symbol,
         decimals: t.decimals || (chainKey === 'ethereum' ? 18 : 9),
@@ -319,19 +238,23 @@ export default function TokenSearchModal({
       );
 
       setTokens(searchResults);
-      setPopularTokens([]);
-      logger.log(`✅ [TokenSearchModal] Found ${searchResults.length} tokens via server-side search (fast!)`);
+      setPopularTokens([]); // Clear popular tokens when searching
+      logger.log(`✅ [TokenSearchModal] Found ${searchResults.length} tokens matching "${query}"`);
     } catch (err: any) {
-      logger.error('❌ [TokenSearchModal] Server-side search failed:', err);
+      logger.error('❌ [TokenSearchModal] Search failed:', err);
       setError('Search failed. Please try again.');
+      setTokens([]);
+    } finally {
+      setIsSearching(false);
     }
   };
 
-  // Filter tokens based on search query (including native token check)
-  // ✅ No client-side filtering needed - server-side search handles it
-  // When searching, tokens already contain only search results
-  // When not searching, tokens contain popular tokens
-  const filteredTokens = tokens;
+  // Filter tokens (search is done via API, so tokens already contain results)
+  const filteredTokens = useMemo(() => {
+    // When searching, tokens already contain search results from API
+    // When not searching, show all loaded tokens
+    return tokens;
+  }, [tokens]);
 
   // Always show native token (it's always available for swaps)
   const shouldShowNative = true;
@@ -410,7 +333,7 @@ export default function TokenSearchModal({
                 <div className="flex-1">
                   <p className="text-sm font-medium text-red-700">{error}</p>
                   <button
-                    onClick={loadTokensFromCache}
+                    onClick={fetchTokens}
                     className="mt-2 text-sm text-red-600 hover:text-red-700 underline"
                   >
                     Try again
@@ -420,7 +343,7 @@ export default function TokenSearchModal({
             )}
 
             {/* Loading State */}
-            {isLoading && (
+            {(isLoading || isSearching) && (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
                 <span className="ml-3 text-gray-600">Loading tokens...</span>

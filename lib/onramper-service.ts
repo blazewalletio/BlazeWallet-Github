@@ -945,8 +945,8 @@ export class OnramperService {
         
         logger.log('🎨 Using Standard Widget Flow');
         
-        const widgetParams = new URLSearchParams({
-          apiKey: apiKey,
+      const widgetParams = new URLSearchParams({
+        apiKey: apiKey,
           onlyCryptos: cryptoLower, // lowercase per docs
           onlyFiats: fiatLower,
           defaultFiat: fiatLower, // Use defaultFiat instead of just onlyFiats
@@ -1007,22 +1007,22 @@ export class OnramperService {
 
         logger.log('✅ Generated Onramper Standard Widget URL:', {
           flow: 'Standard Widget',
-          crypto: cryptoCurrency,
-          fiat: fiatCurrency,
-          amount: fiatAmount,
+        crypto: cryptoCurrency,
+        fiat: fiatCurrency,
+        amount: fiatAmount,
           paymentMethod: paymentMethod || 'none',
-          wallet: walletAddress.substring(0, 10) + '...',
+        wallet: walletAddress.substring(0, 10) + '...',
           fullUrl: widgetUrl.replace(apiKey, '***API_KEY***'),
-        });
+      });
 
-        // Return widget URL as the payment URL
+      // Return widget URL as the payment URL
         // The frontend will open this in a new window/popup
-        // Webhook will provide real transaction updates
-        return {
-          transactionId: `onramper-${Date.now()}`, // Temporary ID, real ID comes from webhook
-          paymentUrl: widgetUrl,
-          status: 'PENDING',
-        };
+      // Webhook will provide real transaction updates
+      return {
+        transactionId: `onramper-${Date.now()}`, // Temporary ID, real ID comes from webhook
+        paymentUrl: widgetUrl,
+        status: 'PENDING',
+      };
       }
 
     } catch (error: any) {
