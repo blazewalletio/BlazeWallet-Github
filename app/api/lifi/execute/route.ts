@@ -25,20 +25,22 @@ export async function POST(req: NextRequest) {
 
     // ✅ According to LI.FI docs: POST /v1/advanced/stepTransaction
     // Requires full Step object (not route + stepIndex)
-    const transaction = await LiFiService.getStepTransaction(
+    // Returns Step object with transactionRequest populated
+    const populatedStep = await LiFiService.getStepTransaction(
       step,
       lifiApiKey
     );
 
-    if (!transaction) {
+    if (!populatedStep) {
       return NextResponse.json(
         { error: 'Failed to get transaction data' },
         { status: 500 }
       );
     }
 
-    logger.log('✅ Transaction data received via API route');
-    return NextResponse.json({ success: true, transaction });
+    logger.log('✅ Step transaction data received via API route');
+    // Return the populated Step object (which has transactionRequest)
+    return NextResponse.json({ success: true, transaction: populatedStep });
 
   } catch (error: any) {
     logger.error('❌ Li.Fi execute error in API route:', {

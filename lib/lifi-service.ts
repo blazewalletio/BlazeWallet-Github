@@ -23,8 +23,13 @@ export interface LiFiToken {
   priceUSD: string;
 }
 
+// ✅ According to LI.FI docs: /v1/quote returns a Step object with transactionRequest
+// This interface represents both:
+// 1. A Step from /v1/quote (has transactionRequest)
+// 2. A Route from /v1/advanced/routes (has steps array, steps may not have transactionRequest yet)
 export interface LiFiQuote {
   id: string;
+  type?: string; // 'swap', 'cross', 'lifi', 'protocol'
   action: {
     fromToken: LiFiToken;
     toToken: LiFiToken;
@@ -60,8 +65,18 @@ export interface LiFiQuote {
     executionDuration: number;
   };
   tool: string;
-  integrator: string;
-  steps: Array<{
+  integrator?: string;
+  // ✅ transactionRequest is present when from /v1/quote
+  transactionRequest?: {
+    data: string;
+    to: string;
+    value?: string;
+    gasPrice?: string;
+    gasLimit?: string;
+    from?: string;
+  };
+  // ✅ steps array is present when from /v1/advanced/routes
+  steps?: Array<{
     id: string;
     type: string;
     action: {
@@ -85,7 +100,16 @@ export interface LiFiQuote {
       executionDuration: number;
     };
     tool: string;
-    integrator: string;
+    integrator?: string;
+    // ✅ transactionRequest may be present if step was populated
+    transactionRequest?: {
+      data: string;
+      to: string;
+      value?: string;
+      gasPrice?: string;
+      gasLimit?: string;
+      from?: string;
+    };
   }>;
 }
 
@@ -239,13 +263,15 @@ export class LiFiService {
    * According to LI.FI docs: https://docs.li.fi/api-reference/populate-a-step-with-transaction-data
    * Uses POST /v1/advanced/stepTransaction endpoint
    * 
+   * ✅ Returns a Step object with transactionRequest populated (not a separate transaction object)
+   * 
    * @param step - Full Step object from quote (not route)
    * @param apiKey - Optional API key for higher rate limits
    */
   static async getStepTransaction(
     step: any, // Full Step object from quote
     apiKey?: string
-  ): Promise<LiFiTransaction | null> {
+  ): Promise<LiFiQuote | null> {
     try {
       const headers: HeadersInit = {
         'Accept': 'application/json',
@@ -260,6 +286,7 @@ export class LiFiService {
 
       // ✅ According to LI.FI docs: POST /v1/advanced/stepTransaction
       // Requires full Step object (not route + stepIndex)
+      // Returns the Step object with transactionRequest populated
       const response = await fetch(`${BASE_URL}/advanced/stepTransaction`, {
         method: 'POST',
         headers,
@@ -284,8 +311,8 @@ export class LiFiService {
       }
 
       const data = await response.json();
-      logger.log('✅ Transaction data received');
-      return data;
+      logger.log('✅ Step transaction data received (Step object with transactionRequest)');
+      return data; // Returns Step object with transactionRequest populated
     } catch (error) {
       logger.error('❌ Error fetching step transaction:', error);
       return null;

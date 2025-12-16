@@ -204,7 +204,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     setExecutionStep(0);
 
     try {
-      // ✅ According to LI.FI docs: /v1/quote returns a Step object
+      // ✅ According to LI.FI docs: /v1/quote returns a Step object with transactionRequest already populated
       // If quote has steps array, it's a multi-step swap (from /v1/advanced/routes)
       // Otherwise, it's a single Step from /v1/quote
       const steps = (quote as any).steps || [quote];
@@ -216,25 +216,35 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         
         const step = steps[i];
         
-        // Get transaction data for this step
-        // ✅ According to LI.FI docs: POST /v1/advanced/stepTransaction requires full Step object
-        const executeResponse = await apiPost('/api/lifi/execute', { step });
+        // ✅ Check if step already has transactionRequest (from /v1/quote)
+        // If not, call /v1/advanced/stepTransaction to populate it (for /v1/advanced/routes)
+        let txRequest = step.transactionRequest;
         
-        if (!executeResponse.ok) {
-          const errorData = await executeResponse.json().catch(() => ({}));
-          throw new Error(errorData.error || errorData.details || 'Failed to get transaction data');
-        }
-
-        const executeData = await executeResponse.json();
-        if (!executeData.success || !executeData.transaction) {
-          throw new Error('Failed to get transaction data');
-        }
-
-        const transactionData = executeData.transaction;
-        const txRequest = transactionData.transactionRequest;
-
         if (!txRequest) {
-          throw new Error('No transaction request in response');
+          // Step doesn't have transactionRequest, need to populate it
+          logger.log('📝 Step missing transactionRequest, calling stepTransaction...');
+          
+          const executeResponse = await apiPost('/api/lifi/execute', { step });
+          
+          if (!executeResponse.ok) {
+            const errorData = await executeResponse.json().catch(() => ({}));
+            throw new Error(errorData.error || errorData.details || 'Failed to get transaction data');
+          }
+
+          const executeData = await executeResponse.json();
+          if (!executeData.success || !executeData.transaction) {
+            throw new Error('Failed to get transaction data');
+          }
+
+          // ✅ executeData.transaction is a Step object with transactionRequest populated
+          const populatedStep = executeData.transaction;
+          txRequest = populatedStep.transactionRequest;
+
+          if (!txRequest) {
+            throw new Error('No transaction request in response');
+          }
+        } else {
+          logger.log('✅ Step already has transactionRequest, using directly');
         }
 
         // Get provider for the chain
