@@ -113,6 +113,36 @@ export default function TokenSearchModal({
           }
         }
         
+        // Fallback for Ethereum: Use CoinGecko tokens
+        if (chainKey === 'ethereum' && chainTokens.length === 0) {
+          logger.log('🔷 [TokenSearchModal] Li.Fi returned no tokens for Ethereum, trying CoinGecko fallback...');
+          try {
+            const ethereumResponse = await fetch('/api/ethereum-tokens');
+            if (ethereumResponse.ok) {
+              const ethereumTokens: any[] = await ethereumResponse.json();
+              logger.log(`🔷 [TokenSearchModal] Got ${ethereumTokens.length} tokens from CoinGecko`);
+              
+              // Convert Ethereum tokens to LiFiToken format
+              chainTokens = ethereumTokens
+                .filter(t => t.address && t.symbol) // Only valid tokens
+                .map(t => ({
+                  address: t.address.toLowerCase(), // Ensure lowercase for EVM
+                  symbol: t.symbol,
+                  name: t.name || t.symbol,
+                  decimals: t.decimals || 18,
+                  chainId: chainId,
+                  logoURI: t.logoURI || '',
+                  priceUSD: '0',
+                }))
+                .slice(0, 1000); // Limit to first 1000 tokens for performance
+              
+              logger.log(`✅ [TokenSearchModal] Converted ${chainTokens.length} Ethereum tokens`);
+            }
+          } catch (ethereumError) {
+            logger.error('❌ [TokenSearchModal] Ethereum fallback failed:', ethereumError);
+          }
+        }
+        
         if (chainTokens.length === 0) {
           logger.warn('⚠️ [TokenSearchModal] No tokens available for chain', chainId);
           // User can still select native token
