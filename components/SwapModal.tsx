@@ -63,6 +63,8 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   const [slippage, setSlippage] = useState<number>(0.5); // 0.5% default
   const [showFromTokenModal, setShowFromTokenModal] = useState(false);
   const [showToTokenModal, setShowToTokenModal] = useState(false);
+  const [showFromChainDropdown, setShowFromChainDropdown] = useState(false);
+  const [showToChainDropdown, setShowToChainDropdown] = useState(false);
 
   // Quote & Transaction State
   const [quote, setQuote] = useState<LiFiQuote | null>(null);
@@ -109,8 +111,28 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       setTotalSteps(0);
       setFromChain(currentChain);
       setToChain(currentChain);
+      setShowFromChainDropdown(false);
+      setShowToChainDropdown(false);
     }
   }, [isOpen, currentChain]);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.chain-dropdown-container')) {
+        setShowFromChainDropdown(false);
+        setShowToChainDropdown(false);
+      }
+    };
+
+    if (showFromChainDropdown || showToChainDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showFromChainDropdown, showToChainDropdown]);
 
   // Fetch quote when inputs change
   useEffect(() => {
@@ -725,27 +747,67 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                     <label className="text-sm font-semibold text-gray-700">From</label>
                     <div className="flex gap-3">
                       {/* Chain Selector */}
-                      <button
-                        onClick={() => {
-                          // Simple chain selector - can be enhanced
-                          const chains = Object.keys(CHAINS).filter(c => 
-                            !CHAINS[c].isTestnet && 
-                            ['ethereum', 'polygon', 'arbitrum', 'base', 'bsc', 'optimism', 'avalanche', 'solana'].includes(c)
-                          );
-                          const currentIndex = chains.indexOf(fromChain);
-                          const nextIndex = (currentIndex + 1) % chains.length;
-                          const newChain = chains[nextIndex];
-                          setFromChain(newChain);
-                          // Reset token when chain changes
-                          setFromToken(null);
-                        }}
-                        className="px-4 py-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors flex items-center gap-2 min-w-[120px]"
-                      >
-                        <span className="text-sm font-semibold text-gray-900">
-                          {CHAINS[fromChain]?.shortName || fromChain}
-                        </span>
-                        <ChevronDown className="w-4 h-4 text-gray-500" />
-                      </button>
+                      <div className="relative chain-dropdown-container">
+                        <button
+                          onClick={() => {
+                            setShowFromChainDropdown(!showFromChainDropdown);
+                            setShowToChainDropdown(false); // Close other dropdown
+                          }}
+                          className="px-4 py-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors flex items-center gap-2 min-w-[120px]"
+                        >
+                          <span className="text-sm font-semibold text-gray-900">
+                            {CHAINS[fromChain]?.shortName || fromChain}
+                          </span>
+                          <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${showFromChainDropdown ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        {showFromChainDropdown && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="absolute z-20 w-full mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-xl overflow-hidden"
+                          >
+                            {Object.keys(CHAINS)
+                              .filter(c => 
+                                !CHAINS[c].isTestnet && 
+                                ['ethereum', 'polygon', 'arbitrum', 'base', 'bsc', 'optimism', 'avalanche', 'solana'].includes(c)
+                              )
+                              .map((chainKey) => {
+                                const chain = CHAINS[chainKey];
+                                return (
+                                  <button
+                                    key={chainKey}
+                                    onClick={() => {
+                                      setFromChain(chainKey);
+                                      setShowFromChainDropdown(false);
+                                      // Reset token when chain changes
+                                      setFromToken(null);
+                                    }}
+                                    className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors ${
+                                      fromChain === chainKey ? 'bg-orange-50' : ''
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      {chain.logoUrl ? (
+                                        <img 
+                                          src={chain.logoUrl} 
+                                          alt={chain.name}
+                                          className="w-6 h-6 rounded-full"
+                                        />
+                                      ) : (
+                                        <span className="text-xl">{chain.icon}</span>
+                                      )}
+                                      <span className="font-medium text-gray-900">{chain.name}</span>
+                                    </div>
+                                    {fromChain === chainKey && (
+                                      <Check className="w-5 h-5 text-orange-500" />
+                                    )}
+                                  </button>
+                                );
+                              })}
+                          </motion.div>
+                        )}
+                      </div>
 
                       {/* Token Selector */}
                       <button
@@ -809,26 +871,67 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                     <label className="text-sm font-semibold text-gray-700">To</label>
                     <div className="flex gap-3">
                       {/* Chain Selector */}
-                      <button
-                        onClick={() => {
-                          const chains = Object.keys(CHAINS).filter(c => 
-                            !CHAINS[c].isTestnet && 
-                            ['ethereum', 'polygon', 'arbitrum', 'base', 'bsc', 'optimism', 'avalanche', 'solana'].includes(c)
-                          );
-                          const currentIndex = chains.indexOf(toChain);
-                          const nextIndex = (currentIndex + 1) % chains.length;
-                          const newChain = chains[nextIndex];
-                          setToChain(newChain);
-                          // Reset token when chain changes
-                          setToToken(null);
-                        }}
-                        className="px-4 py-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors flex items-center gap-2 min-w-[120px]"
-                      >
-                        <span className="text-sm font-semibold text-gray-900">
-                          {CHAINS[toChain]?.shortName || toChain}
-                        </span>
-                        <ChevronDown className="w-4 h-4 text-gray-500" />
-                      </button>
+                      <div className="relative chain-dropdown-container">
+                        <button
+                          onClick={() => {
+                            setShowToChainDropdown(!showToChainDropdown);
+                            setShowFromChainDropdown(false); // Close other dropdown
+                          }}
+                          className="px-4 py-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors flex items-center gap-2 min-w-[120px]"
+                        >
+                          <span className="text-sm font-semibold text-gray-900">
+                            {CHAINS[toChain]?.shortName || toChain}
+                          </span>
+                          <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${showToChainDropdown ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        {showToChainDropdown && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="absolute z-20 w-full mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-xl overflow-hidden"
+                          >
+                            {Object.keys(CHAINS)
+                              .filter(c => 
+                                !CHAINS[c].isTestnet && 
+                                ['ethereum', 'polygon', 'arbitrum', 'base', 'bsc', 'optimism', 'avalanche', 'solana'].includes(c)
+                              )
+                              .map((chainKey) => {
+                                const chain = CHAINS[chainKey];
+                                return (
+                                  <button
+                                    key={chainKey}
+                                    onClick={() => {
+                                      setToChain(chainKey);
+                                      setShowToChainDropdown(false);
+                                      // Reset token when chain changes
+                                      setToToken(null);
+                                    }}
+                                    className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors ${
+                                      toChain === chainKey ? 'bg-orange-50' : ''
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      {chain.logoUrl ? (
+                                        <img 
+                                          src={chain.logoUrl} 
+                                          alt={chain.name}
+                                          className="w-6 h-6 rounded-full"
+                                        />
+                                      ) : (
+                                        <span className="text-xl">{chain.icon}</span>
+                                      )}
+                                      <span className="font-medium text-gray-900">{chain.name}</span>
+                                    </div>
+                                    {toChain === chainKey && (
+                                      <Check className="w-5 h-5 text-orange-500" />
+                                    )}
+                                  </button>
+                                );
+                              })}
+                          </motion.div>
+                        )}
+                      </div>
 
                       {/* Token Selector */}
                       <button
