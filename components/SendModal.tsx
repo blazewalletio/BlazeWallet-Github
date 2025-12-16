@@ -980,18 +980,18 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                 <button
                   onClick={() => setShowSmartSchedule(true)}
                   disabled={!toAddress || !amount || !selectedAsset}
-                  className="flex-1 py-4 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl"
+                  className="flex-1 py-4 px-4 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl min-w-0"
                 >
-                  <Zap className="w-5 h-5" />
-                  Smart schedule
+                  <Zap className="w-5 h-5 flex-shrink-0" />
+                  <span className="truncate">Smart schedule</span>
                 </button>
                 <button
                   onClick={handleContinue}
                   disabled={!toAddress || !amount || !selectedAsset}
-                  className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl"
+                  className="flex-1 py-4 px-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl min-w-0"
                 >
-                  Send now
-                  <ArrowRight className="w-5 h-5" />
+                  <span className="truncate">Send now</span>
+                  <ArrowRight className="w-5 h-5 flex-shrink-0" />
                 </button>
               </div>
             </div>
