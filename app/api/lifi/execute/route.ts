@@ -6,11 +6,11 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const { route, stepIndex, userAddress } = await req.json();
+    const { step } = await req.json();
 
-    if (!route || stepIndex === undefined || !userAddress) {
+    if (!step) {
       return NextResponse.json(
-        { error: 'Missing required parameters' },
+        { error: 'Missing required parameter: step' },
         { status: 400 }
       );
     }
@@ -18,14 +18,15 @@ export async function POST(req: NextRequest) {
     const lifiApiKey = process.env.LIFI_API_KEY;
 
     logger.log('📝 Executing Li.Fi step via API route:', {
-      stepIndex,
-      userAddress: userAddress.substring(0, 10) + '...',
+      stepId: step.id,
+      tool: step.tool,
+      type: step.type,
     });
 
+    // ✅ According to LI.FI docs: POST /v1/advanced/stepTransaction
+    // Requires full Step object (not route + stepIndex)
     const transaction = await LiFiService.getStepTransaction(
-      route,
-      stepIndex,
-      userAddress,
+      step,
       lifiApiKey
     );
 

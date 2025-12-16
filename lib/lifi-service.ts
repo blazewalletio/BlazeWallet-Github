@@ -231,11 +231,15 @@ export class LiFiService {
 
   /**
    * Get transaction data for a step
+   * 
+   * According to LI.FI docs: https://docs.li.fi/api-reference/populate-a-step-with-transaction-data
+   * Uses POST /v1/advanced/stepTransaction endpoint
+   * 
+   * @param step - Full Step object from quote (not route)
+   * @param apiKey - Optional API key for higher rate limits
    */
   static async getStepTransaction(
-    route: LiFiQuote,
-    stepIndex: number,
-    userAddress: string,
+    step: any, // Full Step object from quote
     apiKey?: string
   ): Promise<LiFiTransaction | null> {
     try {
@@ -248,16 +252,14 @@ export class LiFiService {
         headers['x-lifi-api-key'] = apiKey;
       }
 
-      logger.log(`📝 Getting transaction data for step ${stepIndex}...`);
+      logger.log(`📝 Getting transaction data for step ${step.id}...`);
 
-      const response = await fetch(`${BASE_URL}/stepTransaction`, {
+      // ✅ According to LI.FI docs: POST /v1/advanced/stepTransaction
+      // Requires full Step object (not route + stepIndex)
+      const response = await fetch(`${BASE_URL}/advanced/stepTransaction`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          route,
-          stepIndex,
-          userAddress,
-        }),
+        body: JSON.stringify(step), // Send full step object
       });
 
       if (!response.ok) {
