@@ -38,6 +38,8 @@ export interface LiFiQuote {
     fromAmount: string;
     toAmount: string;
     toAmountMin: string;
+    toAmountUSD?: string; // Optional USD amount
+    fromAmountUSD?: string; // Optional USD amount
     approvalAddress: string;
     feeCosts: Array<{
       name: string;
