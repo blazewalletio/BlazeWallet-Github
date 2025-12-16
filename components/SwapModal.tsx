@@ -929,7 +929,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                     <p className="text-sm text-gray-600">
                       {isCrossChain 
                         ? `Step ${executionStep} of ${totalSteps}: Bridging to ${toChain}...`
-                        : 'Confirm the transaction in your wallet'
+                        : 'Executing swap transaction...'
                       }
                     </p>
                     {totalSteps > 1 && (
