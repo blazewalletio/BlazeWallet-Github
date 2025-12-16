@@ -93,6 +93,7 @@ export default function TokenSearchModal({
               logger.log(`🪐 [TokenSearchModal] Got ${jupiterTokens.length} tokens from Jupiter`);
               
               // Convert Jupiter tokens to LiFiToken format
+              // ✅ NO LIMIT: Show ALL tokens for complete coverage (search will filter)
               chainTokens = jupiterTokens
                 .filter(t => t.address && t.symbol) // Only valid tokens
                 .map(t => ({
@@ -103,8 +104,7 @@ export default function TokenSearchModal({
                   chainId: chainId,
                   logoURI: t.logoURI || '',
                   priceUSD: '0',
-                }))
-                .slice(0, 1000); // Limit to first 1000 tokens for performance
+                }));
               
               logger.log(`✅ [TokenSearchModal] Converted ${chainTokens.length} Jupiter tokens`);
             }
@@ -123,6 +123,7 @@ export default function TokenSearchModal({
               logger.log(`🔷 [TokenSearchModal] Got ${ethereumTokens.length} tokens from CoinGecko`);
               
               // Convert Ethereum tokens to LiFiToken format
+              // ✅ NO LIMIT: Show ALL tokens for complete coverage (search will filter)
               chainTokens = ethereumTokens
                 .filter(t => t.address && t.symbol) // Only valid tokens
                 .map(t => ({
@@ -133,8 +134,7 @@ export default function TokenSearchModal({
                   chainId: chainId,
                   logoURI: t.logoURI || '',
                   priceUSD: '0',
-                }))
-                .slice(0, 1000); // Limit to first 1000 tokens for performance
+                }));
               
               logger.log(`✅ [TokenSearchModal] Converted ${chainTokens.length} Ethereum tokens`);
             }
