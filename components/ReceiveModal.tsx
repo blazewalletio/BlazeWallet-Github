@@ -55,7 +55,7 @@ export default function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      logger.error('Failed to copy displayAddress:', error);
+      logger.error('Failed to copy wallet address:', error);
     }
   };
 
@@ -104,7 +104,7 @@ export default function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Receive crypto</h2>
                 <p className="text-sm text-gray-600">
-                  Share your wallet displayAddress or QR code
+                  Share your wallet address or QR code
                 </p>
               </div>
             </div>
@@ -134,7 +134,7 @@ export default function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
 
             {/* Address Section */}
             <div className="glass-card p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Your wallet displayAddress</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Your wallet address</h3>
               <div className="bg-gray-50 p-4 rounded-xl mb-4 border border-gray-200">
                 <div className="font-mono text-sm break-all text-gray-900">
                   {displayAddress}
@@ -154,7 +154,7 @@ export default function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
                   ) : (
                     <>
                       <Copy className="w-5 h-5" />
-                      Copy displayAddress
+                      Copy wallet address
                     </>
                   )}
                 </button>
