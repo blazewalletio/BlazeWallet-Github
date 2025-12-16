@@ -1321,10 +1321,10 @@ export default function Dashboard() {
               whileTap={{ scale: 0.95 }}
               whileHover={{ scale: 1.05 }}
               onClick={() => setShowBuyModal(true)}
-              className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+              className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl aspect-square flex flex-col items-center justify-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
             >
-              <CreditCard className="w-8 h-8 mx-auto text-white mb-2" />
-              <div className="text-sm font-bold text-white">Buy</div>
+              <CreditCard className="w-8 h-8 text-white mb-2" />
+              <div className="text-sm font-bold text-white text-center">Buy</div>
             </motion.button>
 
             <motion.button
@@ -1334,10 +1334,10 @@ export default function Dashboard() {
               whileTap={{ scale: 0.95 }}
               whileHover={{ scale: 1.05 }}
               onClick={() => setShowSendModal(true)}
-              className="bg-gradient-to-br from-rose-500 to-orange-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+              className="bg-gradient-to-br from-rose-500 to-orange-500 rounded-xl aspect-square flex flex-col items-center justify-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
             >
-              <ArrowUpRight className="w-8 h-8 mx-auto text-white mb-2" />
-              <div className="text-sm font-bold text-white">Send</div>
+              <ArrowUpRight className="w-8 h-8 text-white mb-2" />
+              <div className="text-sm font-bold text-white text-center">Send</div>
             </motion.button>
 
             <motion.button
@@ -1347,10 +1347,10 @@ export default function Dashboard() {
               whileTap={{ scale: 0.95 }}
               whileHover={{ scale: 1.05 }}
               onClick={() => setShowReceiveModal(true)}
-              className="bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+              className="bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl aspect-square flex flex-col items-center justify-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
             >
-              <ArrowDownLeft className="w-8 h-8 mx-auto text-white mb-2" />
-              <div className="text-sm font-bold text-white">Receive</div>
+              <ArrowDownLeft className="w-8 h-8 text-white mb-2" />
+              <div className="text-sm font-bold text-white text-center">Receive</div>
             </motion.button>
 
             <motion.button
@@ -1360,10 +1360,10 @@ export default function Dashboard() {
               whileTap={{ scale: 0.95 }}
               whileHover={{ scale: 1.05 }}
               onClick={() => setShowSwapModal(true)}
-              className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl p-5 text-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+              className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl aspect-square flex flex-col items-center justify-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
             >
-              <Repeat className="w-8 h-8 mx-auto text-white mb-2" />
-              <div className="text-sm font-bold text-white">Swap</div>
+              <Repeat className="w-8 h-8 text-white mb-2" />
+              <div className="text-sm font-bold text-white text-center">Swap</div>
             </motion.button>
           </div>
 
