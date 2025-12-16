@@ -682,58 +682,42 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   const fromTokenDisplay = getTokenDisplay(fromToken, fromChain);
   const toTokenDisplay = getTokenDisplay(toToken, toChain);
 
-  if (!isOpen) return null;
-
   return (
     <AnimatePresence>
       {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-            onClick={step === 'input' ? onClose : undefined}
-          />
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
+      >
+        <div className="min-h-full flex flex-col">
+          <div className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 pt-safe pb-safe">
+            <div className="pt-4 pb-2">
+              <button
+                onClick={onClose}
+                className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors"
+              >
+                ← Back
+              </button>
+            </div>
 
-          {/* Full Screen Overlay - Both Mobile and Desktop */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.98 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 flex flex-col bg-gradient-to-br from-orange-50 to-white overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex-1 overflow-y-auto">
-              <div className="max-w-4xl mx-auto p-6 pb-24">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
-                      <ArrowUpDown className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-bold text-gray-900">Swap</h2>
-                      <p className="text-sm text-gray-600">
-                        {isCrossChain ? 'Cross-chain swap with automatic bridging' : 'Swap tokens instantly'}
-                      </p>
-                    </div>
-                  </div>
-                  {step === 'input' && (
-                    <button
-                      onClick={onClose}
-                      className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-                    >
-                      <X className="w-6 h-6 text-gray-600" />
-                    </button>
-                  )}
+            <div className="mb-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <ArrowUpDown className="w-6 h-6 text-white" />
                 </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Swap</h2>
+                  <p className="text-sm text-gray-600">
+                    {isCrossChain ? 'Cross-chain swap with automatic bridging' : 'Swap tokens instantly'}
+                  </p>
+                </div>
+              </div>
+            </div>
 
-                {/* Main Content Card */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                  <div className="p-6">
+            <div className="space-y-6 pb-6">
+              <div className="glass-card p-6 space-y-6">
               {step === 'input' && (
                 <div className="space-y-6">
                   {/* From Token */}
@@ -1133,12 +1117,11 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                   </div>
                 </div>
               )}
-                  </div>
-                </div>
               </div>
             </div>
-          </motion.div>
-        </>
+          </div>
+        </div>
+      </motion.div>
       )}
 
       {/* Token Selection Modals */}
