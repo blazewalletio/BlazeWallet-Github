@@ -351,7 +351,7 @@ export default function TokenSearchModal({
             )}
 
             {/* Token List */}
-            {!isLoading && !error && (
+            {!isLoading && !isSearching && !error && (
               <div className="glass-card overflow-hidden">
                 <div className="max-h-[60vh] overflow-y-auto">
                   {/* Native Token Option - Always show if no search, or if search matches */}
