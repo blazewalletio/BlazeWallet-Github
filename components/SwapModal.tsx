@@ -21,7 +21,7 @@ import { logger } from '@/lib/logger';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { apiPost } from '@/lib/api-client';
 import { ethers } from 'ethers';
-import { Connection, Transaction, VersionedTransaction } from '@solana/web3.js';
+import { Connection, Transaction, VersionedTransaction, MessageV0 } from '@solana/web3.js';
 import { SolanaService } from '@/lib/solana-service';
 import TokenSearchModal from './TokenSearchModal';
 
@@ -418,10 +418,28 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                       logger.log('✅ Updated Transaction with fresh blockhash, retrying...');
                       // Re-sign with new blockhash
                       solanaTransaction.sign(keypair);
-                    } else {
-                      // For VersionedTransaction, we cannot easily update blockhash
-                      // Throw error asking user to retry
-                      throw new Error('Transaction blockhash expired. Please try the swap again - a fresh transaction will be generated.');
+                    } else if (solanaTransaction instanceof VersionedTransaction) {
+                      // ✅ For VersionedTransaction, rebuild with fresh blockhash
+                      logger.log('🔄 Rebuilding VersionedTransaction with fresh blockhash...');
+                      
+                      // Extract message from original transaction
+                      const originalMessage = solanaTransaction.message;
+                      
+                      // Rebuild MessageV0 with fresh blockhash
+                      const newMessage = new MessageV0({
+                        header: originalMessage.header,
+                        staticAccountKeys: originalMessage.staticAccountKeys,
+                        recentBlockhash: newBlockhash,
+                        compiledInstructions: originalMessage.compiledInstructions,
+                        addressTableLookups: originalMessage.addressTableLookups || [],
+                      });
+                      
+                      // Create new VersionedTransaction with fresh blockhash
+                      solanaTransaction = new VersionedTransaction(newMessage);
+                      
+                      // Re-sign the transaction
+                      solanaTransaction.sign([keypair]);
+                      logger.log('✅ Rebuilt and re-signed VersionedTransaction with fresh blockhash');
                     }
                   } else {
                     throw error;
