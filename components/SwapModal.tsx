@@ -686,40 +686,54 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
 
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm overflow-y-auto"
-        onClick={(e) => {
-          if (e.target === e.currentTarget && step === 'input') {
-            onClose();
-          }
-        }}
-      >
-        <div className="min-h-full flex items-center justify-center p-4">
+      {isOpen && (
+        <>
+          {/* Backdrop */}
           <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.95, opacity: 0 }}
-            className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+            onClick={step === 'input' ? onClose : undefined}
+          />
+
+          {/* Full Screen Overlay - Both Mobile and Desktop */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex flex-col bg-gradient-to-br from-orange-50 to-white overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-100">
-              <h2 className="text-2xl font-bold text-gray-900">Swap</h2>
-              {step === 'input' && (
-                <button
-                  onClick={onClose}
-                  className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-                >
-                  <X className="w-5 h-5 text-gray-600" />
-                </button>
-              )}
-            </div>
+            <div className="flex-1 overflow-y-auto">
+              <div className="max-w-4xl mx-auto p-6 pb-24">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
+                      <ArrowUpDown className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">Swap</h2>
+                      <p className="text-sm text-gray-600">
+                        {isCrossChain ? 'Cross-chain swap with automatic bridging' : 'Swap tokens instantly'}
+                      </p>
+                    </div>
+                  </div>
+                  {step === 'input' && (
+                    <button
+                      onClick={onClose}
+                      className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+                    >
+                      <X className="w-6 h-6 text-gray-600" />
+                    </button>
+                  )}
+                </div>
 
-            {/* Content */}
-            <div className="p-6">
+                {/* Main Content Card */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="p-6">
               {step === 'input' && (
                 <div className="space-y-6">
                   {/* From Token */}
@@ -1119,35 +1133,38 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                   </div>
                 </div>
               )}
+                  </div>
+                </div>
+              </div>
             </div>
           </motion.div>
-        </div>
+        </>
+      )}
 
-        {/* Token Selection Modals */}
-        <TokenSearchModal
-          isOpen={showFromTokenModal}
-          onClose={() => setShowFromTokenModal(false)}
-          chainKey={fromChain}
-          selectedToken={fromToken === 'native' ? 'native' : fromToken?.address}
-          onSelectToken={(token) => {
-            setFromToken(token);
-            setShowFromTokenModal(false);
-          }}
-          excludeTokens={toToken === 'native' ? [] : toToken ? [toToken.address] : []}
-        />
+      {/* Token Selection Modals */}
+      <TokenSearchModal
+        isOpen={showFromTokenModal}
+        onClose={() => setShowFromTokenModal(false)}
+        chainKey={fromChain}
+        selectedToken={fromToken === 'native' ? 'native' : fromToken?.address}
+        onSelectToken={(token) => {
+          setFromToken(token);
+          setShowFromTokenModal(false);
+        }}
+        excludeTokens={toToken === 'native' ? [] : toToken ? [toToken.address] : []}
+      />
 
-        <TokenSearchModal
-          isOpen={showToTokenModal}
-          onClose={() => setShowToTokenModal(false)}
-          chainKey={toChain}
-          selectedToken={toToken === 'native' ? 'native' : toToken?.address}
-          onSelectToken={(token) => {
-            setToToken(token);
-            setShowToTokenModal(false);
-          }}
-          excludeTokens={fromToken === 'native' ? [] : fromToken ? [fromToken.address] : []}
-        />
-      </motion.div>
+      <TokenSearchModal
+        isOpen={showToTokenModal}
+        onClose={() => setShowToTokenModal(false)}
+        chainKey={toChain}
+        selectedToken={toToken === 'native' ? 'native' : toToken?.address}
+        onSelectToken={(token) => {
+          setToToken(token);
+          setShowToTokenModal(false);
+        }}
+        excludeTokens={fromToken === 'native' ? [] : fromToken ? [fromToken.address] : []}
+      />
     </AnimatePresence>
   );
 }
