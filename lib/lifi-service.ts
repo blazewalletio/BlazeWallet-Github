@@ -168,7 +168,8 @@ export class LiFiService {
     fromAddress: string,
     slippage: number = 0.03,
     order: 'RECOMMENDED' | 'CHEAPEST' | 'FASTEST' = 'RECOMMENDED',
-    apiKey?: string
+    apiKey?: string,
+    toAddress?: string // ✅ Optional: destination address for cross-chain swaps
   ): Promise<LiFiQuote | null> {
     try {
       // Determine native token address based on chain
@@ -192,6 +193,8 @@ export class LiFiService {
       // ✅ According to Li.Fi documentation: https://docs.li.fi/api-reference/get-a-quote-for-a-token-transfer-1
       // Parameters can be chain ID (number) or chain key (string)
       // For Solana, we must use the string chain ID: "1151111081099710"
+      // ✅ CRITICAL: For cross-chain swaps, toAddress is recommended (destination address on target chain)
+      // LI.FI will automatically bridge and swap when fromChain !== toChain
       const params = new URLSearchParams({
         fromChain: fromChain.toString(), // Convert to string (handles both number and string)
         toChain: toChain.toString(),
@@ -202,6 +205,17 @@ export class LiFiService {
         slippage: slippage.toString(),
         order: order,
       });
+      
+      // ✅ Add toAddress if provided (for cross-chain swaps)
+      // This is the destination address on the target chain
+      // If not provided, LI.FI will use fromAddress, but explicit toAddress is better for cross-chain
+      if (toAddress && toAddress !== fromAddress) {
+        params.append('toAddress', toAddress);
+        logger.log('🌉 Cross-chain swap: using explicit toAddress:', {
+          fromAddress: fromAddress.substring(0, 10) + '...',
+          toAddress: toAddress.substring(0, 10) + '...',
+        });
+      }
 
       const headers: HeadersInit = {
         'Accept': 'application/json',
@@ -211,12 +225,16 @@ export class LiFiService {
         headers['x-lifi-api-key'] = apiKey;
       }
 
-      logger.log('📊 Fetching Li.Fi quote:', {
+      const isCrossChain = fromChain.toString() !== toChain.toString();
+      logger.log(`📊 Fetching Li.Fi quote${isCrossChain ? ' (CROSS-CHAIN)' : ' (SAME-CHAIN)'}:`, {
         fromChain,
         toChain,
         fromToken: fromTokenAddress.length > 10 ? fromTokenAddress.substring(0, 10) + '...' : fromTokenAddress,
         toToken: toTokenAddress.length > 10 ? toTokenAddress.substring(0, 10) + '...' : toTokenAddress,
         fromAmount,
+        fromAddress: fromAddress ? fromAddress.substring(0, 10) + '...' : 'missing',
+        toAddress: toAddress ? toAddress.substring(0, 10) + '...' : 'not provided',
+        isCrossChain,
       });
 
       const url = `${BASE_URL}/quote?${params.toString()}`;
@@ -236,6 +254,7 @@ export class LiFiService {
         }
         
         // ✅ According to Li.Fi docs: Errors consist of HTTP error code, LI.Fi error code, and error message
+        const isCrossChain = fromChain.toString() !== toChain.toString();
         const errorInfo = {
           httpStatus: response.status,
           httpStatusText: response.statusText,
@@ -247,9 +266,21 @@ export class LiFiService {
           toChain,
           fromToken: fromTokenAddress,
           toToken: toTokenAddress,
+          fromAddress: fromAddress ? fromAddress.substring(0, 10) + '...' : 'missing',
+          toAddress: toAddress ? toAddress.substring(0, 10) + '...' : 'not provided',
+          isCrossChain,
         };
         
-        logger.error('❌ Li.Fi quote API error:', errorInfo);
+        logger.error(`❌ Li.Fi quote API error${isCrossChain ? ' (CROSS-CHAIN)' : ''}:`, errorInfo);
+        
+        // ✅ Provide helpful error messages for common cross-chain issues
+        if (isCrossChain && response.status === 400) {
+          logger.warn('⚠️ Cross-chain swap failed - possible issues:', {
+            hint: 'Check if both chains are supported by LI.FI',
+            hint2: 'Verify token addresses are correct for their respective chains',
+            hint3: 'Ensure toAddress is provided for cross-chain swaps',
+          });
+        }
         
         // Store error info for debugging (will be logged server-side)
         (errorData as any).__lifiErrorInfo = errorInfo;

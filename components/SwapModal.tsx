@@ -43,6 +43,15 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   // Wallet state
   const { wallet, currentChain, getCurrentAddress, mnemonic } = useWalletStore();
   const walletAddress = getCurrentAddress();
+  const { solanaAddress, address: evmAddress } = useWalletStore();
+  
+  // ✅ Helper to get the correct address for a chain
+  const getAddressForChain = (chainKey: string): string | null => {
+    if (chainKey === 'solana') {
+      return solanaAddress || walletAddress;
+    }
+    return evmAddress || walletAddress;
+  };
 
   // UI State
   const [step, setStep] = useState<SwapStep>('input');
@@ -156,6 +165,24 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         amount: amountInSmallestUnit,
       });
 
+      // ✅ For cross-chain swaps, determine the correct source and destination addresses
+      // Source address: address on fromChain
+      // Destination address: address on toChain
+      const isCrossChainSwap = fromChainId !== toChainId;
+      const sourceAddress = getAddressForChain(fromChain) || walletAddress;
+      const destinationAddress = isCrossChainSwap 
+        ? (getAddressForChain(toChain) || walletAddress)
+        : sourceAddress;
+      
+      if (isCrossChainSwap) {
+        logger.log('🌉 Cross-chain swap detected:', {
+          fromChain: fromChainId,
+          toChain: toChainId,
+          sourceAddress: sourceAddress?.substring(0, 10) + '...',
+          destinationAddress: destinationAddress?.substring(0, 10) + '...',
+        });
+      }
+
       const response = await fetch(
         `/api/lifi/quote?` +
         `fromChain=${fromChainId}&` +
@@ -163,7 +190,8 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         `fromToken=${fromTokenAddress}&` +
         `toToken=${toTokenAddress}&` +
         `fromAmount=${amountInSmallestUnit}&` +
-        `fromAddress=${walletAddress}&` +
+        `fromAddress=${sourceAddress}&` +
+        `toAddress=${destinationAddress}&` +
         `slippage=${slippage / 100}&` +
         `order=RECOMMENDED`
       );

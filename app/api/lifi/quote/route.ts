@@ -25,16 +25,27 @@ export async function GET(req: NextRequest) {
     const fromToken = searchParams.get('fromToken') || '';
     const toToken = searchParams.get('toToken') || '';
     const fromAmount = searchParams.get('fromAmount') || '0';
-    const fromAddress = searchParams.get('fromAddress') || searchParams.get('toAddress') || '';
+    const fromAddress = searchParams.get('fromAddress') || '';
+    const toAddress = searchParams.get('toAddress') || fromAddress; // ✅ For cross-chain, use toAddress if provided
     const slippage = parseFloat(searchParams.get('slippage') || '0.03');
     const order = (searchParams.get('order') || 'RECOMMENDED') as 'RECOMMENDED' | 'CHEAPEST' | 'FASTEST';
 
     if (!fromToken || !toToken || !fromAmount || !fromAddress) {
       return NextResponse.json(
-        { error: 'Missing required parameters' },
+        { error: 'Missing required parameters: fromToken, toToken, fromAmount, fromAddress' },
         { status: 400 }
       );
     }
+    
+    // ✅ For cross-chain swaps, toAddress is recommended (destination address on target chain)
+    // If not provided, LI.FI will use fromAddress, but explicit toAddress is better
+    logger.log('📊 Quote request details:', {
+      fromChain,
+      toChain,
+      isCrossChain: fromChain !== toChain,
+      fromAddress: fromAddress ? fromAddress.substring(0, 10) + '...' : 'missing',
+      toAddress: toAddress ? toAddress.substring(0, 10) + '...' : 'using fromAddress',
+    });
 
     const lifiApiKey = process.env.LIFI_API_KEY;
 
@@ -67,7 +78,8 @@ export async function GET(req: NextRequest) {
         fromAddress,
         slippage,
         order,
-        lifiApiKey
+        lifiApiKey,
+        toAddress // ✅ Pass toAddress for cross-chain swaps
       );
 
       if (!quote) {
