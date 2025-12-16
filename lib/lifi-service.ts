@@ -232,14 +232,24 @@ export class LiFiService {
         }
         
         // ✅ According to Li.Fi docs: Errors consist of HTTP error code, LI.Fi error code, and error message
-        logger.error('❌ Li.Fi quote API error:', {
+        const errorInfo = {
           httpStatus: response.status,
           httpStatusText: response.statusText,
           lifiErrorCode: errorData.code || errorData.errorCode || 'UNKNOWN',
           errorMessage: errorData.message || errorText,
           errorDetails: errorData,
           url,
-        });
+          fromChain,
+          toChain,
+          fromToken: fromTokenAddress,
+          toToken: toTokenAddress,
+        };
+        
+        logger.error('❌ Li.Fi quote API error:', errorInfo);
+        
+        // Store error info for debugging (will be logged server-side)
+        (errorData as any).__lifiErrorInfo = errorInfo;
+        
         return null;
       }
 

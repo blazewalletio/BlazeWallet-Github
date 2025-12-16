@@ -12,9 +12,15 @@ export async function GET(req: NextRequest) {
     const fromChainParam = searchParams.get('fromChain') || '1';
     const toChainParam = searchParams.get('toChain') || '1';
     
-    // Convert to number if it's a numeric string, otherwise keep as string
-    const fromChain = /^\d+$/.test(fromChainParam) ? parseInt(fromChainParam) : fromChainParam;
-    const toChain = /^\d+$/.test(toChainParam) ? parseInt(toChainParam) : toChainParam;
+    // ✅ CRITICAL: Solana chain ID must remain as string "1151111081099710"
+    // For EVM chains, convert to number. For Solana, keep as string.
+    const SOLANA_CHAIN_ID = '1151111081099710';
+    const fromChain = fromChainParam === SOLANA_CHAIN_ID 
+      ? SOLANA_CHAIN_ID 
+      : (/^\d+$/.test(fromChainParam) ? parseInt(fromChainParam) : fromChainParam);
+    const toChain = toChainParam === SOLANA_CHAIN_ID 
+      ? SOLANA_CHAIN_ID 
+      : (/^\d+$/.test(toChainParam) ? parseInt(toChainParam) : toChainParam);
     
     const fromToken = searchParams.get('fromToken') || '';
     const toToken = searchParams.get('toToken') || '';
@@ -65,9 +71,18 @@ export async function GET(req: NextRequest) {
       );
 
       if (!quote) {
-        logger.error('❌ Li.Fi returned null quote');
+        logger.error('❌ Li.Fi returned null quote', {
+          fromChain,
+          toChain,
+          fromToken: fromToken === 'native' ? 'native' : fromToken.substring(0, 20),
+          toToken: toToken.substring(0, 20),
+          fromAmount,
+        });
         return NextResponse.json(
-          { error: 'Failed to fetch quote from Li.Fi. Please check if the token pair is supported.' },
+          { 
+            error: 'Failed to fetch quote from Li.Fi. Please check if the token pair is supported.',
+            details: 'The LI.FI API returned null. Check server logs for more details.'
+          },
           { status: 500 }
         );
       }
