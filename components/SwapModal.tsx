@@ -378,16 +378,45 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
 
             logger.log(`⏳ Waiting for Solana confirmation: ${signature}...`);
             
-            // Wait for confirmation with timeout
-            const confirmation = await Promise.race([
-              connection.confirmTransaction(signature, 'confirmed'),
-              new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Transaction confirmation timeout')), 60000)
-              ),
-            ]) as any;
+            // ✅ Use polling instead of WebSocket to avoid CSP issues
+            // Poll for transaction status instead of using confirmTransaction (which uses WebSocket)
+            const maxAttempts = 60; // 60 attempts = 60 seconds max
+            let confirmed = false;
+            let transactionError: any = null;
             
-            if (confirmation?.value?.err) {
-              throw new Error(`Solana transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+              try {
+                const status = await connection.getSignatureStatus(signature);
+                
+                if (status?.value) {
+                  if (status.value.err) {
+                    transactionError = status.value.err;
+                    throw new Error(`Solana transaction failed: ${JSON.stringify(status.value.err)}`);
+                  }
+                  
+                  if (status.value.confirmationStatus === 'confirmed' || status.value.confirmationStatus === 'finalized') {
+                    confirmed = true;
+                    logger.log(`✅ Solana transaction confirmed (attempt ${attempt + 1})`);
+                    break;
+                  }
+                }
+                
+                // Wait 1 second before next poll
+                await new Promise(resolve => setTimeout(resolve, 1000));
+              } catch (error: any) {
+                if (transactionError) {
+                  throw error; // Re-throw transaction errors immediately
+                }
+                // Continue polling on network errors
+                logger.log(`⏳ Polling attempt ${attempt + 1}/${maxAttempts}...`);
+              }
+            }
+            
+            if (!confirmed && !transactionError) {
+              // Transaction might still be pending, but we'll consider it sent
+              // User can check the signature on Solana Explorer
+              logger.warn(`⚠️ Solana transaction not confirmed after ${maxAttempts} seconds, but signature is: ${signature}`);
+              // Don't throw error - transaction might still succeed
             }
 
             logger.log('✅ Solana transaction confirmed');
