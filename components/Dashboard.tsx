@@ -568,7 +568,28 @@ export default function Dashboard() {
       logger.log(`[${timestamp}] 💰 Prices received:`, pricesMap);
       
       // Extract native price
-      const nativePrice = pricesMap[chain.nativeCurrency.symbol] || 0;
+      let nativePrice = pricesMap[chain.nativeCurrency.symbol] || 0;
+      
+      // ✅ FALLBACK: If price is 0, try to use cached price or fetch again
+      if (nativePrice === 0) {
+        logger.warn(`⚠️ [Dashboard] Native price is 0 for ${chain.nativeCurrency.symbol}, trying fallback...`);
+        const cachedState = getCurrentChainState();
+        if (cachedState.nativePriceUSD > 0) {
+          logger.log(`✅ [Dashboard] Using cached price: $${cachedState.nativePriceUSD}`);
+          nativePrice = cachedState.nativePriceUSD;
+        } else {
+          // Try fetching price directly as fallback
+          try {
+            const fallbackPrice = await priceService.getPrice(chain.nativeCurrency.symbol);
+            if (fallbackPrice > 0) {
+              logger.log(`✅ [Dashboard] Fallback price fetch successful: $${fallbackPrice}`);
+              nativePrice = fallbackPrice;
+            }
+          } catch (error) {
+            logger.error(`❌ [Dashboard] Fallback price fetch failed:`, error);
+          }
+        }
+      }
       
       // ✅ Update chain-specific state instead of global state
       updateCurrentChainState({
@@ -1455,7 +1476,10 @@ export default function Dashboard() {
             </div>
             <div className="text-right">
               <div className="font-semibold">
-                {formatUSDSync(parseFloat(balance) * currentState.nativePriceUSD)}
+                {currentState.nativePriceUSD > 0 
+                  ? formatUSDSync(parseFloat(balance) * currentState.nativePriceUSD)
+                  : formatUSDSync(0)
+                }
               </div>
               <div className={`text-sm ${isPositiveChange ? 'text-emerald-400' : 'text-rose-400'}`}>
                 {isPositiveChange ? '+' : ''}{change24h.toFixed(2)}%
