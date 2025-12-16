@@ -293,6 +293,10 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         logger.log('⏳ Waiting for confirmation...');
         const receipt = await tx.wait();
         
+        if (!receipt) {
+          throw new Error('Transaction receipt is null');
+        }
+
         setTxHash(receipt.hash);
 
         // If this is the last step and it's cross-chain, start status polling
