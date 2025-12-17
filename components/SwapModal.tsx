@@ -41,7 +41,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   useBlockBodyScroll(isOpen);
 
   // Wallet state
-  const { wallet, currentChain, getCurrentAddress, mnemonic, getChainTokens } = useWalletStore();
+  const { wallet, currentChain, getCurrentAddress, mnemonic, getChainTokens, tokens } = useWalletStore();
   const walletAddress = getCurrentAddress();
   const { solanaAddress, address: evmAddress } = useWalletStore();
   
@@ -1251,15 +1251,39 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           setShowFromTokenModal(false);
         }}
         excludeTokens={toToken === 'native' ? [] : toToken ? [toToken.address] : []}
-        walletTokens={[
+        walletTokens={(() => {
           // ✅ Always include native token (SOL, ETH, etc.) - user always has native balance
-          { address: 'native', balance: '1' },
-          // Include all other tokens with their balances
-          ...getChainTokens(fromChain).map(t => ({ 
-            address: t.address, 
-            balance: t.balance 
-          }))
-        ]}
+          const walletTokensList: Array<{ address: string; balance: string }> = [
+            { address: 'native', balance: '1' }
+          ];
+          
+          // Get tokens from chain-specific storage
+          const chainTokens = getChainTokens(fromChain);
+          
+          // If chainTokens is empty, fallback to tokens array (for backward compatibility)
+          const tokensToUse = chainTokens.length > 0 
+            ? chainTokens 
+            : (fromChain === currentChain ? tokens : []);
+          
+          // Add all tokens with their balances
+          tokensToUse.forEach(t => {
+            if (t.address && t.balance && parseFloat(t.balance || '0') > 0) {
+              walletTokensList.push({
+                address: t.address,
+                balance: t.balance || '0'
+              });
+            }
+          });
+          
+          logger.log(`🔍 [SwapModal] Wallet tokens for ${fromChain}:`, {
+            chainTokensCount: chainTokens.length,
+            tokensCount: tokens.length,
+            finalCount: walletTokensList.length,
+            tokens: walletTokensList.map(t => ({ address: t.address.substring(0, 20) + '...', balance: t.balance }))
+          });
+          
+          return walletTokensList;
+        })()}
         onlyShowTokensWithBalance={true} // ✅ Only show tokens where user has balance (for "from" token)
       />
 

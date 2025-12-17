@@ -126,9 +126,13 @@ export default function TokenSearchModal({
         
         // ✅ If onlyShowTokensWithBalance is true, only show tokens where user has balance > 0
         if (onlyShowTokensWithBalance && walletTokens.length > 0) {
-          const walletToken = walletTokens.find(
-            wt => wt.address.toLowerCase() === token.address.toLowerCase()
-          );
+          // For Solana, addresses are case-sensitive, so we need exact match OR case-insensitive match
+          const walletToken = walletTokens.find(wt => {
+            // Exact match first (for Solana)
+            if (wt.address === token.address) return true;
+            // Case-insensitive match (for EVM chains)
+            return wt.address.toLowerCase() === token.address.toLowerCase();
+          });
           // Include if token has balance > 0
           if (!walletToken || parseFloat(walletToken.balance || '0') <= 0) {
             return false;
@@ -225,9 +229,13 @@ export default function TokenSearchModal({
         
         // ✅ If onlyShowTokensWithBalance is true, only show tokens where user has balance > 0
         if (onlyShowTokensWithBalance && walletTokens.length > 0) {
-          const walletToken = walletTokens.find(
-            wt => wt.address.toLowerCase() === token.address.toLowerCase()
-          );
+          // For Solana, addresses are case-sensitive, so we need exact match OR case-insensitive match
+          const walletToken = walletTokens.find(wt => {
+            // Exact match first (for Solana)
+            if (wt.address === token.address) return true;
+            // Case-insensitive match (for EVM chains)
+            return wt.address.toLowerCase() === token.address.toLowerCase();
+          });
           // Include if token has balance > 0
           if (!walletToken || parseFloat(walletToken.balance || '0') <= 0) {
             return false;
