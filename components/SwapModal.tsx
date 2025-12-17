@@ -60,7 +60,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   const [fromToken, setFromToken] = useState<LiFiToken | 'native' | null>(null);
   const [toToken, setToToken] = useState<LiFiToken | 'native' | null>(null);
   const [amount, setAmount] = useState<string>('');
-  const [slippage, setSlippage] = useState<number>(0.5); // 0.5% default
+  const [slippage, setSlippage] = useState<number>(1.0); // 1.0% default (increased for better success rate)
   const [showFromTokenModal, setShowFromTokenModal] = useState(false);
   const [showToTokenModal, setShowToTokenModal] = useState(false);
   const [showFromChainDropdown, setShowFromChainDropdown] = useState(false);
@@ -553,6 +553,19 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
             setTxHash(signature);
           } catch (error: any) {
             logger.error('❌ Solana transaction error:', error);
+            
+            // ✅ Better error handling for slippage errors
+            const errorMessage = error.message || error.toString() || '';
+            if (errorMessage.includes('MinReturnNotReached') || 
+                errorMessage.includes('0x177a') || 
+                errorMessage.includes('6010') ||
+                errorMessage.includes('min return not reached')) {
+              throw new Error(
+                `Slippage tolerance exceeded. The price moved too much between quote and execution. ` +
+                `Try increasing slippage tolerance (current: ${slippage}%) or try again in a moment.`
+              );
+            }
+            
             throw new Error(`Solana transaction failed: ${error.message || 'Unknown error'}`);
           }
         } else {
