@@ -544,15 +544,19 @@ END;
 $$;
 
 -- 3.5: Update account features functions
+-- Drop existing function first (return type might be different)
+DROP FUNCTION IF EXISTS public.get_user_wallet(UUID);
+
+-- Recreate with original return type and search_path fix
 CREATE OR REPLACE FUNCTION public.get_user_wallet(p_user_id UUID)
 RETURNS TABLE (
   id UUID,
-  user_id UUID,
   encrypted_wallet TEXT,
   wallet_address TEXT,
   wallet_name TEXT,
-  created_at TIMESTAMPTZ,
-  updated_at TIMESTAMPTZ
+  created_at TIMESTAMP WITH TIME ZONE,
+  updated_at TIMESTAMP WITH TIME ZONE,
+  last_synced_at TIMESTAMP WITH TIME ZONE
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -562,12 +566,12 @@ BEGIN
   RETURN QUERY
   SELECT 
     w.id,
-    w.user_id,
     w.encrypted_wallet,
     w.wallet_address,
     w.wallet_name,
     w.created_at,
-    w.updated_at
+    w.updated_at,
+    w.last_synced_at
   FROM public.wallets w
   WHERE w.user_id = p_user_id;
 END;
