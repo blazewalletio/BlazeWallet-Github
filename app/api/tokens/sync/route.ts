@@ -196,11 +196,15 @@ export async function POST(request: NextRequest) {
 
     for (const chainKey of evmChains) {
       try {
+        logger.log(`🔷 [Sync] Starting ${chainKey} sync...`);
         results[chainKey] = await syncEVMChainTokens(chainKey);
-        // Small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        logger.log(`✅ [Sync] ${chainKey} sync complete: ${results[chainKey]} tokens`);
+        // Small delay to avoid rate limiting (CoinGecko free tier: 10-50 calls/min)
+        await new Promise(resolve => setTimeout(resolve, 2000)); // 2s delay
       } catch (error: any) {
+        logger.error(`❌ [Sync] ${chainKey} sync failed:`, error);
         errors[chainKey] = error.message;
+        // Continue with next chain even if one fails
       }
     }
 
