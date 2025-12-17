@@ -7,6 +7,7 @@ import { CHAINS } from '@/lib/chains';
 import { LiFiService, LiFiToken } from '@/lib/lifi-service';
 import { logger } from '@/lib/logger';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
+import { supabase } from '@/lib/supabase';
 
 interface TokenSearchModalProps {
   isOpen: boolean;
@@ -75,105 +76,43 @@ export default function TokenSearchModal({
     setError(null);
 
     try {
-      logger.log(`🔍 [TokenSearchModal] Fetching tokens for chain ${chainId} (${chainKey})...`);
+      logger.log(`🔍 [TokenSearchModal] Fetching popular tokens from Supabase for ${chainKey}...`);
 
-      // Fetch tokens via API route (server-side)
-      const response = await fetch(`/api/lifi/tokens?chainIds=${chainId}`);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to fetch tokens from API');
+      // ✅ NEW: Fetch popular tokens directly from Supabase (instant, no waiting!)
+      const { data: popularData, error: popularError } = await supabase
+        .rpc('get_popular_tokens', {
+          p_chain_key: chainKey,
+          p_limit: 20,
+        });
+
+      if (popularError) {
+        logger.warn('⚠️ [TokenSearchModal] Failed to fetch popular tokens:', popularError);
       }
 
-      const data = await response.json();
-      
-      // Handle API errors gracefully
-      if (!data.success) {
-        logger.warn('⚠️ [TokenSearchModal] API returned error:', data.error);
-        setError(data.error || 'Failed to load tokens');
-        setPopularTokens([]);
-        setTokens([]);
-        setIsLoading(false);
-        return;
+      // Also fetch all tokens (limited to 1000 for initial load)
+      const { data: allTokensData, error: allTokensError } = await supabase
+        .from('token_registry')
+        .select('*')
+        .eq('chain_key', chainKey)
+        .order('is_popular', { ascending: false })
+        .order('symbol', { ascending: true })
+        .limit(1000);
+
+      if (allTokensError) {
+        logger.warn('⚠️ [TokenSearchModal] Failed to fetch all tokens:', allTokensError);
       }
 
-      let chainTokens: LiFiToken[] = [];
-      
-      if (data.tokens && data.tokens[chainId.toString()]) {
-        const allTokens: Record<string, LiFiToken[]> = data.tokens;
-        chainTokens = allTokens[chainId.toString()] || [];
-        logger.log(`✅ [TokenSearchModal] Loaded ${chainTokens.length} tokens from Li.Fi API`);
-      } else {
-        // Fallback for Solana: Use Jupiter tokens
-        if (chainKey === 'solana') {
-          logger.log('🪐 [TokenSearchModal] Li.Fi returned no tokens for Solana, trying Jupiter fallback...');
-          try {
-            const jupiterResponse = await fetch('/api/jupiter-tokens');
-            if (jupiterResponse.ok) {
-              const jupiterTokens: any[] = await jupiterResponse.json();
-              logger.log(`🪐 [TokenSearchModal] Got ${jupiterTokens.length} tokens from Jupiter`);
-              
-              // Convert Jupiter tokens to LiFiToken format
-              chainTokens = jupiterTokens
-                .filter(t => t.address && t.symbol) // Only valid tokens
-                .map(t => ({
-                  address: t.address,
-                  symbol: t.symbol,
-                  name: t.name || t.symbol,
-                  decimals: t.decimals || 9,
-                  chainId: chainId,
-                  logoURI: t.logoURI || '',
-                  priceUSD: '0',
-                }))
-                .slice(0, 1000); // Limit to first 1000 tokens for performance
-              
-              logger.log(`✅ [TokenSearchModal] Converted ${chainTokens.length} Jupiter tokens`);
-            }
-          } catch (jupiterError) {
-            logger.error('❌ [TokenSearchModal] Jupiter fallback failed:', jupiterError);
-          }
-        }
-        
-        // Fallback for Ethereum: Use CoinGecko tokens
-        if (chainKey === 'ethereum' && chainTokens.length === 0) {
-          logger.log('🔷 [TokenSearchModal] Li.Fi returned no tokens for Ethereum, trying CoinGecko fallback...');
-          try {
-            const ethereumResponse = await fetch('/api/ethereum-tokens');
-            if (ethereumResponse.ok) {
-              const ethereumTokens: any[] = await ethereumResponse.json();
-              logger.log(`🔷 [TokenSearchModal] Got ${ethereumTokens.length} tokens from CoinGecko`);
-              
-              // Convert Ethereum tokens to LiFiToken format
-              chainTokens = ethereumTokens
-                .filter(t => t.address && t.symbol) // Only valid tokens
-                .map(t => ({
-                  address: t.address.toLowerCase(), // Ensure lowercase for EVM
-                  symbol: t.symbol,
-                  name: t.name || t.symbol,
-                  decimals: t.decimals || 18,
-                  chainId: chainId,
-                  logoURI: t.logoURI || '',
-                  priceUSD: '0',
-                }))
-                .slice(0, 1000); // Limit to first 1000 tokens for performance
-              
-              logger.log(`✅ [TokenSearchModal] Converted ${chainTokens.length} Ethereum tokens`);
-            }
-          } catch (ethereumError) {
-            logger.error('❌ [TokenSearchModal] Ethereum fallback failed:', ethereumError);
-          }
-        }
-        
-        if (chainTokens.length === 0) {
-          logger.warn('⚠️ [TokenSearchModal] No tokens available for chain', chainId);
-          // User can still select native token
-          setPopularTokens([]);
-          setTokens([]);
-          setIsLoading(false);
-          return;
-        }
-      }
-      
+      // Convert Supabase tokens to LiFiToken format
+      const chainTokens: LiFiToken[] = (allTokensData || []).map((t: any) => ({
+        address: chainKey === 'ethereum' || chainKey !== 'solana' ? t.address.toLowerCase() : t.address,
+        symbol: t.symbol,
+        name: t.name || t.symbol,
+        decimals: t.decimals || (chainKey === 'ethereum' ? 18 : 9),
+        chainId: chainId,
+        logoURI: t.logo_uri || '',
+        priceUSD: t.price_usd?.toString() || '0',
+      }));
+
       // Filter out excluded tokens
       const filteredTokens = chainTokens.filter(
         token => !excludeTokens.some(excluded => 
@@ -181,24 +120,28 @@ export default function TokenSearchModal({
         )
       );
 
-      // Sort: popular tokens first (USDC, USDT, native equivalent), then alphabetically
-      const popularSymbols = ['USDC', 'USDT', 'WETH', 'WBTC', 'DAI', 'MATIC', 'BNB', 'AVAX'];
+      // Popular tokens (from RPC function or filter)
       const popular = filteredTokens.filter(t => 
-        popularSymbols.includes(t.symbol.toUpperCase())
+        (popularData || []).some((p: any) => p.address.toLowerCase() === t.address.toLowerCase()) ||
+        ['USDC', 'USDT', 'WETH', 'WBTC', 'DAI', 'MATIC', 'BNB', 'AVAX'].includes(t.symbol.toUpperCase())
       ).sort((a, b) => {
+        const popularSymbols = ['USDC', 'USDT', 'WETH', 'WBTC', 'DAI', 'MATIC', 'BNB', 'AVAX'];
         const aIndex = popularSymbols.indexOf(a.symbol.toUpperCase());
         const bIndex = popularSymbols.indexOf(b.symbol.toUpperCase());
-        return aIndex - bIndex;
+        if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+        if (aIndex !== -1) return -1;
+        if (bIndex !== -1) return 1;
+        return a.symbol.localeCompare(b.symbol);
       });
       
       const others = filteredTokens.filter(t => 
-        !popularSymbols.includes(t.symbol.toUpperCase())
+        !popular.some(p => p.address.toLowerCase() === t.address.toLowerCase())
       ).sort((a, b) => a.symbol.localeCompare(b.symbol));
 
       setPopularTokens(popular);
       setTokens([...popular, ...others]);
 
-      logger.log(`✅ [TokenSearchModal] Loaded ${filteredTokens.length} tokens for ${chainKey}`);
+      logger.log(`✅ [TokenSearchModal] Loaded ${filteredTokens.length} tokens from Supabase for ${chainKey}`);
     } catch (err: any) {
       logger.error('❌ [TokenSearchModal] Failed to fetch tokens:', err);
       setError(err.message || 'Failed to load tokens. Please try again.');
@@ -208,7 +151,7 @@ export default function TokenSearchModal({
     }
   };
 
-  // Search tokens via API
+  // ✅ NEW: Search tokens directly from Supabase (instant full-text search!)
   const searchTokens = async (query: string) => {
     if (!chainId || !query || query.length < 2) return;
 
@@ -216,30 +159,36 @@ export default function TokenSearchModal({
     setError(null);
 
     try {
-      logger.log(`🔍 [TokenSearchModal] Searching for "${query}" on ${chainKey}...`);
+      logger.log(`🔍 [TokenSearchModal] Searching Supabase for "${query}" on ${chainKey}...`);
 
-      const response = await fetch(`/api/tokens/search?q=${encodeURIComponent(query)}&chain=${chainKey}&limit=200`);
-      
-      if (!response.ok) {
-        throw new Error(`Search failed: ${response.status}`);
+      // Use Supabase RPC function for full-text search (instant!)
+      const { data, error } = await supabase
+        .rpc('search_tokens', {
+          p_chain_key: chainKey,
+          p_query: query,
+          p_limit: 200,
+        });
+
+      if (error) {
+        throw error;
       }
 
-      const data = await response.json();
-      const searchResults: LiFiToken[] = (data.tokens || []).map((t: any) => ({
-        address: chainKey === 'ethereum' ? t.address.toLowerCase() : t.address,
+      // Convert Supabase tokens to LiFiToken format
+      const searchResults: LiFiToken[] = (data || []).map((t: any) => ({
+        address: chainKey === 'ethereum' || chainKey !== 'solana' ? t.address.toLowerCase() : t.address,
         symbol: t.symbol,
         name: t.name || t.symbol,
         decimals: t.decimals || (chainKey === 'ethereum' ? 18 : 9),
         chainId: chainId,
-        logoURI: t.logoURI || '',
-        priceUSD: '0',
+        logoURI: t.logo_uri || '',
+        priceUSD: t.price_usd?.toString() || '0',
       })).filter((token: LiFiToken) => 
         !excludeTokens.some(excluded => excluded.toLowerCase() === token.address.toLowerCase())
       );
 
       setTokens(searchResults);
       setPopularTokens([]); // Clear popular tokens when searching
-      logger.log(`✅ [TokenSearchModal] Found ${searchResults.length} tokens matching "${query}"`);
+      logger.log(`✅ [TokenSearchModal] Found ${searchResults.length} tokens matching "${query}" (instant Supabase search!)`);
     } catch (err: any) {
       logger.error('❌ [TokenSearchModal] Search failed:', err);
       setError('Search failed. Please try again.');
