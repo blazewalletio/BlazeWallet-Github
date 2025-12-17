@@ -288,6 +288,10 @@ BEGIN
 END;
 $$;
 
+-- Drop existing function first (return type changed)
+DROP FUNCTION IF EXISTS public.get_gas_stats_24h(TEXT);
+
+-- Recreate with updated return type and search_path fix
 CREATE OR REPLACE FUNCTION public.get_gas_stats_24h(p_chain TEXT)
 RETURNS TABLE (
   chain TEXT,
@@ -326,29 +330,47 @@ BEGIN
 END;
 $$;
 
+-- Drop existing function first (return type might be different)
+DROP FUNCTION IF EXISTS public.get_user_total_savings(TEXT);
+
+-- Recreate with search_path fix
+-- Note: This function may have different return type in different migrations
+-- Keeping original return type (TABLE) if it exists, otherwise use DECIMAL
 CREATE OR REPLACE FUNCTION public.get_user_total_savings(p_user_id TEXT)
-RETURNS DECIMAL
+RETURNS TABLE (
+  total_gas_saved DECIMAL,
+  total_usd_saved DECIMAL,
+  transaction_count BIGINT
+)
 LANGUAGE plpgsql
+SECURITY DEFINER
 SET search_path = ''
 AS $$
-DECLARE
-  v_total DECIMAL;
 BEGIN
-  SELECT COALESCE(SUM(actual_savings_usd), 0) INTO v_total
-  FROM public.transaction_savings
-  WHERE user_id = p_user_id;
-  
-  RETURN v_total;
+  RETURN QUERY
+  SELECT 
+    COALESCE(SUM(us.gas_saved), 0) as total_gas_saved,
+    COALESCE(SUM(us.usd_saved), 0) as total_usd_saved,
+    COUNT(*) as transaction_count
+  FROM public.user_savings us
+  WHERE us.user_id = p_user_id;
 END;
 $$;
 
+-- Drop existing function first (return type changed)
+DROP FUNCTION IF EXISTS public.check_gas_alerts(TEXT, DECIMAL);
+
+-- Recreate with updated return type and search_path fix
 CREATE OR REPLACE FUNCTION public.check_gas_alerts(p_chain TEXT, p_current_gas DECIMAL)
 RETURNS TABLE (
   alert_id UUID,
   user_id TEXT,
-  target_gas DECIMAL
+  target_gas DECIMAL,
+  notify_email BOOLEAN,
+  notify_push BOOLEAN
 )
 LANGUAGE plpgsql
+SECURITY DEFINER
 SET search_path = ''
 AS $$
 BEGIN
@@ -356,11 +378,13 @@ BEGIN
   SELECT 
     ga.id,
     ga.user_id,
-    ga.target_gas
+    ga.target_gas,
+    ga.notify_email,
+    ga.notify_push
   FROM public.gas_alerts ga
   WHERE ga.chain = p_chain
     AND ga.is_active = true
-    AND p_current_gas <= ga.target_gas
+    AND ga.target_gas >= p_current_gas
     AND (ga.last_triggered_at IS NULL OR ga.last_triggered_at < NOW() - INTERVAL '1 hour');
 END;
 $$;
