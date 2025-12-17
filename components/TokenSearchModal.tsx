@@ -80,6 +80,116 @@ export default function TokenSearchModal({
     setError(null);
 
     try {
+      // ✅ If onlyShowTokensWithBalance is true, use wallet tokens directly!
+      // This ensures ALL tokens with balance are shown, even if they're not in Supabase
+      if (onlyShowTokensWithBalance && walletTokens.length > 0) {
+        logger.log(`🔍 [TokenSearchModal] Using wallet tokens directly (${walletTokens.length} tokens with balance)...`);
+        
+        // ✅ Check if native token should be included
+        const hasNativeToken = walletTokens.some(wt => wt.address === 'native');
+        const nativeTokenInfo = chainConfig?.nativeCurrency;
+        
+        // Fetch metadata for wallet tokens from Supabase
+        const walletTokenAddresses = walletTokens
+          .filter(wt => wt.address !== 'native' && parseFloat(wt.balance || '0') > 0)
+          .map(wt => wt.address);
+        
+        // ✅ Always fetch metadata, even if only native token exists
+        let tokenMetadata: any[] = [];
+        if (walletTokenAddresses.length > 0) {
+          // Fetch token metadata from Supabase for wallet tokens
+          const { data, error: metadataError } = await supabase
+            .from('token_registry')
+            .select('*')
+            .eq('chain_key', chainKey)
+            .in('address', walletTokenAddresses);
+          
+          if (metadataError) {
+            logger.warn('⚠️ [TokenSearchModal] Failed to fetch token metadata:', metadataError);
+          } else {
+            tokenMetadata = data || [];
+          }
+        }
+        
+        // Create a map of address -> metadata for quick lookup
+        const metadataMap = new Map(
+          tokenMetadata.map((t: any) => [
+            chainKey === 'solana' ? t.address : t.address.toLowerCase(),
+            t
+          ])
+        );
+        
+        // ✅ Start with native token if it exists
+        const walletTokensList: LiFiToken[] = [];
+        
+        if (hasNativeToken && nativeTokenInfo) {
+          // Fetch native token metadata from Supabase
+          const nativeAddress = LiFiService.getNativeTokenAddress(chainId);
+          const { data: nativeMetadata } = await supabase
+            .from('token_registry')
+            .select('*')
+            .eq('chain_key', chainKey)
+            .eq('address', nativeAddress)
+            .single();
+          
+          walletTokensList.push({
+            address: nativeAddress,
+            symbol: nativeTokenInfo.symbol,
+            name: nativeTokenInfo.name,
+            decimals: nativeTokenInfo.decimals,
+            chainId: chainId,
+            logoURI: nativeMetadata?.logo_uri || chainConfig?.logoUrl || '',
+            priceUSD: nativeMetadata?.price_usd?.toString() || '0',
+          });
+        }
+        
+        // Convert wallet tokens to LiFiToken format, using metadata if available
+        walletTokens
+          .filter(wt => wt.address !== 'native' && parseFloat(wt.balance || '0') > 0)
+          .forEach(wt => {
+            const metadata = metadataMap.get(chainKey === 'solana' ? wt.address : wt.address.toLowerCase());
+            
+            // Skip if already excluded
+            if (excludeTokens.some(excluded => excluded.toLowerCase() === wt.address.toLowerCase())) {
+              return;
+            }
+            
+            walletTokensList.push({
+              address: chainKey === 'solana' ? wt.address : wt.address.toLowerCase(),
+              symbol: metadata?.symbol || 'UNKNOWN',
+              name: metadata?.name || 'Unknown Token',
+              decimals: metadata?.decimals || (chainKey === 'ethereum' ? 18 : 9),
+              chainId: chainId,
+              logoURI: metadata?.logo_uri || '',
+              priceUSD: metadata?.price_usd?.toString() || '0',
+            });
+          });
+        
+        // Sort: popular tokens first, then alphabetical
+        const popularSymbols = ['USDC', 'USDT', 'WETH', 'WBTC', 'DAI', 'MATIC', 'BNB', 'AVAX', 'SOL', 'ETH'];
+        const popular = walletTokensList.filter(t => 
+          popularSymbols.includes(t.symbol.toUpperCase())
+        ).sort((a, b) => {
+          const aIndex = popularSymbols.indexOf(a.symbol.toUpperCase());
+          const bIndex = popularSymbols.indexOf(b.symbol.toUpperCase());
+          if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+          if (aIndex !== -1) return -1;
+          if (bIndex !== -1) return 1;
+          return a.symbol.localeCompare(b.symbol);
+        });
+        
+        const others = walletTokensList.filter(t => 
+          !popular.some(p => p.address.toLowerCase() === t.address.toLowerCase())
+        ).sort((a, b) => a.symbol.localeCompare(b.symbol));
+        
+        setPopularTokens(popular);
+        setTokens([...popular, ...others]);
+        
+        logger.log(`✅ [TokenSearchModal] Loaded ${walletTokensList.length} wallet tokens for ${chainKey} (native: ${hasNativeToken ? 'yes' : 'no'})`);
+        return;
+      }
+      
+      // ✅ Default: Fetch from Supabase (for "to" token selection or when no wallet tokens)
       logger.log(`🔍 [TokenSearchModal] Fetching popular tokens from Supabase for ${chainKey}...`);
 
       // ✅ NEW: Fetch popular tokens directly from Supabase (instant, no waiting!)
@@ -117,30 +227,10 @@ export default function TokenSearchModal({
         priceUSD: t.price_usd?.toString() || '0',
       }));
 
-      // Filter out excluded tokens and tokens without balance (if onlyShowTokensWithBalance is true)
-      const filteredTokens = chainTokens.filter(token => {
-        // Exclude tokens in excludeTokens list
-        if (excludeTokens.some(excluded => excluded.toLowerCase() === token.address.toLowerCase())) {
-          return false;
-        }
-        
-        // ✅ If onlyShowTokensWithBalance is true, only show tokens where user has balance > 0
-        if (onlyShowTokensWithBalance && walletTokens.length > 0) {
-          // For Solana, addresses are case-sensitive, so we need exact match OR case-insensitive match
-          const walletToken = walletTokens.find(wt => {
-            // Exact match first (for Solana)
-            if (wt.address === token.address) return true;
-            // Case-insensitive match (for EVM chains)
-            return wt.address.toLowerCase() === token.address.toLowerCase();
-          });
-          // Include if token has balance > 0
-          if (!walletToken || parseFloat(walletToken.balance || '0') <= 0) {
-            return false;
-          }
-        }
-        
-        return true;
-      });
+      // Filter out excluded tokens
+      const filteredTokens = chainTokens.filter(token => 
+        !excludeTokens.some(excluded => excluded.toLowerCase() === token.address.toLowerCase())
+      );
 
       // Popular tokens (from RPC function or filter)
       const popular = filteredTokens.filter(t => 
