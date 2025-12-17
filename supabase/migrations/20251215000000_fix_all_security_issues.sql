@@ -765,44 +765,6 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.calculate_security_score(p_user_id UUID)
-RETURNS INTEGER
-LANGUAGE plpgsql
-SET search_path = ''
-AS $$
-DECLARE
-  v_score INTEGER := 0;
-  v_has_email BOOLEAN;
-  v_has_2fa BOOLEAN;
-  v_has_recovery BOOLEAN;
-BEGIN
-  -- Check email verification
-  SELECT EXISTS (
-    SELECT 1 FROM public.user_profiles
-    WHERE user_id = p_user_id AND email_verified = true
-  ) INTO v_has_email;
-  
-  -- Check 2FA (if table exists)
-  SELECT EXISTS (
-    SELECT 1 FROM public.user_profiles
-    WHERE user_id = p_user_id AND biometric_enabled = true
-  ) INTO v_has_2fa;
-  
-  -- Check recovery phrase (if stored)
-  SELECT EXISTS (
-    SELECT 1 FROM public.wallets
-    WHERE user_id = p_user_id
-  ) INTO v_has_recovery;
-  
-  -- Calculate score
-  IF v_has_email THEN v_score := v_score + 30; END IF;
-  IF v_has_2fa THEN v_score := v_score + 40; END IF;
-  IF v_has_recovery THEN v_score := v_score + 30; END IF;
-  
-  RETURN v_score;
-END;
-$$;
-
 CREATE OR REPLACE FUNCTION public.generate_referral_code(wallet TEXT)
 RETURNS TEXT
 LANGUAGE plpgsql
