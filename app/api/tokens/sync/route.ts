@@ -28,7 +28,23 @@ const COINGECKO_PLATFORMS: Record<string, string> = {
 };
 
 // Popular tokens (marked as popular in database)
-const POPULAR_TOKENS = ['USDC', 'USDT', 'WETH', 'WBTC', 'DAI', 'MATIC', 'BNB', 'AVAX', 'FTM', 'CRO', 'TRUMP', 'BONK', 'WIF', 'JUP'];
+// ⭐ EXPANDED: Top 100+ popular tokens to ensure ALL are synced
+const POPULAR_TOKENS = [
+  // Stablecoins & Major
+  'USDC', 'USDT', 'DAI', 'USDD', 'TUSD', 'FRAX', 'LUSD', 'BUSD',
+  // Major chains
+  'WETH', 'WBTC', 'MATIC', 'BNB', 'AVAX', 'FTM', 'CRO', 'LINK', 'UNI', 'AAVE',
+  // Solana ecosystem (top tokens)
+  'SOL', 'TRUMP', 'BONK', 'WIF', 'JUP', 'RAY', 'ORCA', 'MNGO', 'SAMO', 'COPE',
+  'STEP', 'MEDIA', 'ATLAS', 'POLIS', 'FIDA', 'FRONT', 'COPE', 'ROPE', 'ALEPH',
+  'TULIP', 'SLRS', 'PORT', 'SNY', 'LIKE', 'SLIM', 'WOOF', 'SDOGE', 'INU',
+  // Memecoins & trending
+  'PEPE', 'SHIB', 'DOGE', 'FLOKI', 'BABYDOGE', 'ELON', 'SAFEMOON',
+  // DeFi
+  'CAKE', 'SUSHI', 'CRV', 'MKR', 'COMP', 'SNX', 'YFI', '1INCH', 'BAL',
+  // Layer 2 & new chains
+  'ARB', 'OP', 'LRC', 'IMX', 'MAGIC', 'GMX', 'RDNT',
+];
 
 /**
  * Fetch tokens from Jupiter (baseline)
@@ -70,9 +86,19 @@ async function fetchDexScreenerActiveTokens(): Promise<any[]> {
   try {
     logger.log('🔍 [DexScreener] Fetching actively traded Solana tokens...');
     
+    // ✅ EXPANDED: Search for ALL popular Solana tokens to ensure complete coverage
+    const popularSolanaTokens = POPULAR_TOKENS.filter(t => 
+      ['TRUMP', 'BONK', 'WIF', 'JUP', 'RAY', 'ORCA', 'MNGO', 'SAMO', 'COPE', 
+       'STEP', 'MEDIA', 'ATLAS', 'POLIS', 'FIDA', 'FRONT', 'ROPE', 'ALEPH',
+       'TULIP', 'SLRS', 'PORT', 'SNY', 'LIKE', 'SLIM', 'WOOF', 'SDOGE', 'INU',
+       'USDC', 'USDT', 'SOL'].includes(t)
+    );
+    
     // Search for popular tokens to get actively traded ones
-    const searchTerms = ['TRUMP', 'BONK', 'WIF', 'JUP', 'USDC', 'USDT'];
+    const searchTerms = popularSolanaTokens.length > 0 ? popularSolanaTokens : ['TRUMP', 'BONK', 'WIF', 'JUP', 'USDC', 'USDT'];
     const tokenMap = new Map();
+    
+    logger.log(`🔍 [DexScreener] Searching for ${searchTerms.length} popular Solana tokens...`);
 
     for (const term of searchTerms) {
       try {
@@ -185,6 +211,37 @@ async function syncSolanaTokens(): Promise<number> {
       }
     });
 
+    // ✅ STEP 3: Mark official tokens (especially TRUMP - highest liquidity wins!)
+    // For popular tokens with same symbol, mark the one with highest liquidity as official
+    const symbolGroups = new Map<string, any[]>();
+    Array.from(tokenMap.values()).forEach(t => {
+      const symbol = t.symbol.toUpperCase();
+      if (!symbolGroups.has(symbol)) {
+        symbolGroups.set(symbol, []);
+      }
+      symbolGroups.get(symbol)!.push(t);
+    });
+    
+    // Mark highest liquidity token per symbol as "official" (if popular and not already marked)
+    symbolGroups.forEach((tokens, symbol) => {
+      if (tokens.length > 1 && POPULAR_TOKENS.includes(symbol)) {
+        // Sort by liquidity (highest first)
+        tokens.sort((a, b) => (b.liquidity_usd || 0) - (a.liquidity_usd || 0));
+        
+        // Mark top token as official if not already marked
+        const topToken = tokens[0];
+        if (!isOfficialToken('solana', topToken.address)) {
+          // Mark as official in tokenMap
+          const addr = topToken.address.toLowerCase();
+          const existing = tokenMap.get(addr);
+          if (existing) {
+            existing._isOfficial = true;
+            logger.log(`⭐ [Sync] Marking ${symbol} (${topToken.address.substring(0, 8)}...) as official (highest liquidity: $${(topToken.liquidity_usd || 0).toLocaleString()})`);
+          }
+        }
+      }
+    });
+
     // Convert to array and prepare for database
     const tokensToInsert = Array.from(tokenMap.values()).map(t => ({
       chain_id: actualChainId,
@@ -200,7 +257,8 @@ async function syncSolanaTokens(): Promise<number> {
       jupiter_mint: t.jupiter_mint || t.address,
       is_popular: POPULAR_TOKENS.includes(t.symbol),
       is_verified: t.is_verified || false,
-      is_official: isOfficialToken('solana', t.address), // ⭐ Mark official tokens
+      // ⭐ Mark official: either in official list OR highest liquidity popular token
+      is_official: isOfficialToken('solana', t.address) || (t._isOfficial || false),
     }));
 
     logger.log(`📊 [Sync] Total unique tokens: ${tokensToInsert.length}`);

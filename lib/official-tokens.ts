@@ -18,6 +18,10 @@ export const OFFICIAL_TOKENS: Record<string, Record<string, string>> = {
     'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN': 'JUP',
     // Official WIF (dogwifhat)
     'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm': 'WIF',
+    // Official TRUMP (OFFICIAL TRUMP Token - verified on Solana)
+    // Note: This is the most popular/liquid TRUMP token on Solana
+    // Address will be determined during sync from DexScreener data
+    // We'll mark the highest liquidity TRUMP token as official
   },
   ethereum: {
     // Official USDT (Tether)
