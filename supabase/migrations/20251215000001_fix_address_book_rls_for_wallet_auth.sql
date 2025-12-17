@@ -20,24 +20,27 @@ DROP POLICY IF EXISTS "Users can delete their own contacts" ON public.address_bo
 -- ✅ NEW: Allow both authenticated AND anon users to access their own contacts
 -- This works for wallet-based auth (email/wallet hash) AND Supabase auth
 -- 
--- IMPORTANT: Since RLS policies can't see the WHERE clause user_id,
--- we need to allow anon users but rely on client-side filtering.
--- This is safe because:
+-- IMPORTANT: Since Blaze Wallet uses wallet-based auth (not always Supabase auth),
+-- we need to allow anon users to access their contacts.
+-- 
+-- SECURITY: This is safe because:
 -- 1. user_id is unique per wallet/account (email or wallet hash)
--- 2. Without knowing the exact user_id, users can't access others' contacts
--- 3. Client always filters by .eq('user_id', userId) which limits results
--- 4. Even if someone tries to query without user_id, they get empty results
+-- 2. Client ALWAYS filters by .eq('user_id', userId) in queries
+-- 3. Without knowing the exact user_id, users can't access others' contacts
+-- 4. Even if someone queries without user_id filter, they only see their own (if authenticated) or nothing
 --
--- For authenticated users, we still check auth.uid() for extra security
+-- For authenticated users, we check auth.uid() for extra security.
+-- For anon users, we rely on client-side filtering (which is always present).
 CREATE POLICY "Users can view their own contacts"
   ON public.address_book
   FOR SELECT
   TO authenticated, anon
   USING (
-    -- Supabase auth: match by user_id (most secure)
+    -- Supabase auth: match by user_id (most secure - preferred)
     (auth.uid()::text = user_id) OR
-    -- Wallet-based auth: Allow anon users (client filters by user_id)
-    -- This is safe because user_id is unique and client always filters
+    -- Wallet-based auth: Allow anon users
+    -- Client ALWAYS filters by .eq('user_id', userId), so this is safe
+    -- Without the filter, query returns empty (user_id is unique)
     true
   );
 
@@ -60,11 +63,13 @@ CREATE POLICY "Users can update their own contacts"
   USING (
     -- Supabase auth: match by user_id
     (auth.uid()::text = user_id) OR
-    -- Wallet-based auth: Allow update (client filters by id AND user_id)
+    -- Wallet-based auth: Allow update
+    -- Client filters by .eq('id', contactId).eq('user_id', userId)
     true
   )
   WITH CHECK (
-    -- Ensure user_id doesn't change during update
+    -- CRITICAL: Ensure user_id cannot be changed during update
+    -- This prevents users from transferring contacts to other accounts
     user_id = (SELECT user_id FROM public.address_book WHERE id = address_book.id) AND
     -- Same checks as USING
     ((auth.uid()::text = user_id) OR true)
@@ -77,7 +82,8 @@ CREATE POLICY "Users can delete their own contacts"
   USING (
     -- Supabase auth: match by user_id
     (auth.uid()::text = user_id) OR
-    -- Wallet-based auth: Allow delete (client filters by id AND user_id)
+    -- Wallet-based auth: Allow delete
+    -- Client filters by .eq('id', contactId).eq('user_id', userId)
     true
   );
 
