@@ -1253,7 +1253,14 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         excludeTokens={toToken === 'native' ? [] : toToken ? [toToken.address] : []}
         walletTokens={(() => {
           // ✅ Always include native token (SOL, ETH, etc.) - user always has native balance
-          const walletTokensList: Array<{ address: string; balance: string }> = [
+          const walletTokensList: Array<{ 
+            address: string; 
+            balance: string; 
+            symbol?: string; 
+            name?: string; 
+            logo?: string; 
+            decimals?: number 
+          }> = [
             { address: 'native', balance: '1' }
           ];
           
@@ -1265,12 +1272,16 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
             ? chainTokens 
             : (fromChain === currentChain ? tokens : []);
           
-          // Add all tokens with their balances
+          // ✅ Add all tokens with their FULL data (symbol, name, logo, decimals, balance)
           tokensToUse.forEach(t => {
             if (t.address && t.balance && parseFloat(t.balance || '0') > 0) {
               walletTokensList.push({
                 address: t.address,
-                balance: t.balance || '0'
+                balance: t.balance || '0',
+                symbol: t.symbol, // ✅ Include symbol from wallet store
+                name: t.name, // ✅ Include name from wallet store
+                logo: t.logo, // ✅ Include logo from wallet store (CRITICAL!)
+                decimals: t.decimals, // ✅ Include decimals from wallet store
               });
             }
           });
@@ -1279,7 +1290,12 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
             chainTokensCount: chainTokens.length,
             tokensCount: tokens.length,
             finalCount: walletTokensList.length,
-            tokens: walletTokensList.map(t => ({ address: t.address.substring(0, 20) + '...', balance: t.balance }))
+            tokens: walletTokensList.map(t => ({ 
+              address: t.address.substring(0, 20) + '...', 
+              balance: t.balance,
+              symbol: t.symbol,
+              hasLogo: !!t.logo
+            }))
           });
           
           return walletTokensList;

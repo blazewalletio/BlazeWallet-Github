@@ -16,7 +16,7 @@ interface TokenSearchModalProps {
   selectedToken?: string;
   onSelectToken: (token: LiFiToken | 'native') => void;
   excludeTokens?: string[]; // Tokens to exclude (e.g., fromToken when selecting toToken)
-  walletTokens?: Array<{ address: string; balance?: string }>; // ✅ Tokens with balance from wallet (for filtering)
+  walletTokens?: Array<{ address: string; balance?: string; symbol?: string; name?: string; logo?: string; decimals?: number }>; // ✅ Tokens with balance from wallet (includes full token data)
   onlyShowTokensWithBalance?: boolean; // ✅ Only show tokens where user has balance > 0
 }
 
@@ -143,24 +143,28 @@ export default function TokenSearchModal({
           });
         }
         
-        // Convert wallet tokens to LiFiToken format, using metadata if available
+        // Convert wallet tokens to LiFiToken format, using wallet data as PRIMARY source, Supabase as fallback
         walletTokens
           .filter(wt => wt.address !== 'native' && parseFloat(wt.balance || '0') > 0)
           .forEach(wt => {
-            const metadata = metadataMap.get(chainKey === 'solana' ? wt.address : wt.address.toLowerCase());
-            
             // Skip if already excluded
             if (excludeTokens.some(excluded => excluded.toLowerCase() === wt.address.toLowerCase())) {
               return;
             }
             
+            // ✅ Use wallet token data as PRIMARY source (has logo, symbol, name from dashboard)
+            // ✅ Supabase metadata as fallback/enhancement
+            const metadata = metadataMap.get(chainKey === 'solana' ? wt.address : wt.address.toLowerCase());
+            
             walletTokensList.push({
               address: chainKey === 'solana' ? wt.address : wt.address.toLowerCase(),
-              symbol: metadata?.symbol || 'UNKNOWN',
-              name: metadata?.name || 'Unknown Token',
-              decimals: metadata?.decimals || (chainKey === 'ethereum' ? 18 : 9),
+              // ✅ Use wallet token symbol/name/logo FIRST, then Supabase, then fallback
+              symbol: wt.symbol || metadata?.symbol || 'UNKNOWN',
+              name: wt.name || metadata?.name || 'Unknown Token',
+              decimals: wt.decimals || metadata?.decimals || (chainKey === 'ethereum' ? 18 : 9),
               chainId: chainId,
-              logoURI: metadata?.logo_uri || '',
+              // ✅ Logo priority: wallet token logo > Supabase logo > empty
+              logoURI: wt.logo || metadata?.logo_uri || '',
               priceUSD: metadata?.price_usd?.toString() || '0',
             });
           });
