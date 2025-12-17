@@ -53,13 +53,14 @@ DROP POLICY IF EXISTS "Service role can manage address_book" ON public.address_b
 
 -- Create RLS policies for address_book
 -- Support both Supabase auth and wallet-based auth
+-- Note: user_id is TEXT (not UUID) to support both email and wallet hash
 CREATE POLICY "Users can view their own contacts"
   ON public.address_book
   FOR SELECT
   TO authenticated
   USING (
-    auth.uid() = user_id OR
-    user_id::text = current_setting('app.current_user_id', true)
+    auth.uid()::text = user_id OR
+    user_id = current_setting('app.current_user_id', true)
   );
 
 CREATE POLICY "Users can insert their own contacts"
@@ -67,8 +68,8 @@ CREATE POLICY "Users can insert their own contacts"
   FOR INSERT
   TO authenticated
   WITH CHECK (
-    auth.uid() = user_id OR
-    user_id::text = current_setting('app.current_user_id', true)
+    auth.uid()::text = user_id OR
+    user_id = current_setting('app.current_user_id', true)
   );
 
 CREATE POLICY "Users can update their own contacts"
@@ -76,12 +77,12 @@ CREATE POLICY "Users can update their own contacts"
   FOR UPDATE
   TO authenticated
   USING (
-    auth.uid() = user_id OR
-    user_id::text = current_setting('app.current_user_id', true)
+    auth.uid()::text = user_id OR
+    user_id = current_setting('app.current_user_id', true)
   )
   WITH CHECK (
-    auth.uid() = user_id OR
-    user_id::text = current_setting('app.current_user_id', true)
+    auth.uid()::text = user_id OR
+    user_id = current_setting('app.current_user_id', true)
   );
 
 CREATE POLICY "Users can delete their own contacts"
@@ -89,8 +90,8 @@ CREATE POLICY "Users can delete their own contacts"
   FOR DELETE
   TO authenticated
   USING (
-    auth.uid() = user_id OR
-    user_id::text = current_setting('app.current_user_id', true)
+    auth.uid()::text = user_id OR
+    user_id = current_setting('app.current_user_id', true)
   );
 
 -- Service role can do everything (for admin operations)
@@ -1151,7 +1152,8 @@ END $$;
 REVOKE SELECT ON public.address_book_stats FROM anon, authenticated;
 
 -- 5.3: Create a secure function to access stats
-CREATE OR REPLACE FUNCTION public.get_address_book_stats(p_user_id UUID)
+-- Note: user_id is TEXT (not UUID) in address_book table
+CREATE OR REPLACE FUNCTION public.get_address_book_stats(p_user_id TEXT)
 RETURNS TABLE (
   contact_id UUID,
   name TEXT,
@@ -1182,7 +1184,7 @@ END;
 $$;
 
 -- Grant execute to authenticated users
-GRANT EXECUTE ON FUNCTION public.get_address_book_stats(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_address_book_stats(TEXT) TO authenticated;
 
 -- ============================================================================
 -- PART 6: VERIFICATION & COMMENTS
