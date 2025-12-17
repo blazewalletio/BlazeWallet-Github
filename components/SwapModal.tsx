@@ -1313,6 +1313,44 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           setShowToTokenModal(false);
         }}
         excludeTokens={fromToken === 'native' ? [] : fromToken ? [fromToken.address] : []}
+        walletTokens={(() => {
+          // ✅ Include wallet tokens for "to" token selection (for search functionality)
+          const walletTokensList: Array<{ 
+            address: string; 
+            balance: string; 
+            symbol?: string; 
+            name?: string; 
+            logo?: string; 
+            decimals?: number 
+          }> = [
+            { address: 'native', balance: '1' }
+          ];
+          
+          // Get tokens from chain-specific storage for TO chain
+          const chainTokens = getChainTokens(toChain);
+          
+          // If chainTokens is empty, fallback to tokens array (for backward compatibility)
+          const tokensToUse = chainTokens.length > 0 
+            ? chainTokens 
+            : (toChain === currentChain ? tokens : []);
+          
+          // ✅ Add all tokens with their FULL data (for search)
+          tokensToUse.forEach(t => {
+            if (t.address && t.balance && parseFloat(t.balance || '0') > 0) {
+              walletTokensList.push({
+                address: t.address,
+                balance: t.balance || '0',
+                symbol: t.symbol,
+                name: t.name,
+                logo: t.logo,
+                decimals: t.decimals,
+              });
+            }
+          });
+          
+          return walletTokensList;
+        })()}
+        onlyShowTokensWithBalance={false} // ✅ Show all tokens for "to" selection (user can swap to any token)
       />
     </AnimatePresence>
   );

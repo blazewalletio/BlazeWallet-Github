@@ -268,6 +268,7 @@ export default function TokenSearchModal({
   };
 
   // ✅ NEW: Search tokens directly from Supabase (instant full-text search!)
+  // ✅ ALSO searches wallet tokens to ensure user's tokens are always found!
   const searchTokens = async (query: string) => {
     if (!chainId || !query || query.length < 2) return;
 
@@ -275,8 +276,47 @@ export default function TokenSearchModal({
     setError(null);
 
     try {
-      logger.log(`🔍 [TokenSearchModal] Searching Supabase for "${query}" on ${chainKey}...`);
+      logger.log(`🔍 [TokenSearchModal] Searching Supabase + wallet tokens for "${query}" on ${chainKey}...`);
 
+      // ✅ STEP 1: Search wallet tokens FIRST (user's tokens should always be found!)
+      const searchQueryLower = query.toLowerCase();
+      const matchingWalletTokens: LiFiToken[] = [];
+      
+      if (walletTokens.length > 0) {
+        walletTokens.forEach(wt => {
+          if (wt.address === 'native') return; // Skip native, handled separately
+          
+          const symbolMatch = wt.symbol?.toLowerCase().includes(searchQueryLower);
+          const nameMatch = wt.name?.toLowerCase().includes(searchQueryLower);
+          const addressMatch = wt.address.toLowerCase().includes(searchQueryLower);
+          
+          if (symbolMatch || nameMatch || addressMatch) {
+            // Skip if excluded
+            if (excludeTokens.some(excluded => excluded.toLowerCase() === wt.address.toLowerCase())) {
+              return;
+            }
+            
+            // Check if onlyShowTokensWithBalance is enabled
+            if (onlyShowTokensWithBalance && parseFloat(wt.balance || '0') <= 0) {
+              return;
+            }
+            
+            matchingWalletTokens.push({
+              address: chainKey === 'solana' ? wt.address : wt.address.toLowerCase(),
+              symbol: wt.symbol || 'UNKNOWN',
+              name: wt.name || 'Unknown Token',
+              decimals: wt.decimals || (chainKey === 'ethereum' ? 18 : 9),
+              chainId: chainId,
+              logoURI: wt.logo || '',
+              priceUSD: '0',
+            });
+          }
+        });
+      }
+      
+      logger.log(`✅ [TokenSearchModal] Found ${matchingWalletTokens.length} matching wallet tokens`);
+
+      // ✅ STEP 2: Search Supabase for additional tokens
       // Use Supabase RPC function for full-text search (instant!)
       // Limit to 50 (database will cap it), then deduplicate to ~20-30 best tokens
       const { data, error } = await supabase
@@ -287,19 +327,44 @@ export default function TokenSearchModal({
         });
 
       if (error) {
-        throw error;
+        logger.warn('⚠️ [TokenSearchModal] Supabase search error:', error);
+        // Continue with wallet tokens only if Supabase fails
       }
 
-      // Convert Supabase tokens to LiFiToken format with metadata for sorting
+      // ✅ STEP 3: Convert Supabase tokens to LiFiToken format with metadata for sorting
       interface TokenWithMetadata extends LiFiToken {
         _isPopular?: boolean;
         _isVerified?: boolean;
         _isOfficial?: boolean; // ⭐ Official token flag (highest priority!)
+        _isFromWallet?: boolean; // ✅ NEW: Flag for wallet tokens (highest priority!)
         _priceUsd?: number;
         _liquidityUsd?: number;
         _volume24hUsd?: number;
       }
 
+      // ✅ Create a set of wallet token addresses to avoid duplicates
+      const walletTokenAddresses = new Set(
+        matchingWalletTokens.map(t => t.address.toLowerCase())
+      );
+
+      // ✅ Convert wallet tokens to TokenWithMetadata format (HIGHEST PRIORITY!)
+      const walletTokensWithMetadata: TokenWithMetadata[] = matchingWalletTokens.map(t => {
+        // Check if name contains "OFFICIAL" or "Official" for extra priority
+        const isOfficialInName = t.name?.toUpperCase().includes('OFFICIAL');
+        
+        return {
+          ...t,
+          _isFromWallet: true, // ✅ Highest priority - user's tokens!
+          _isOfficial: isOfficialInName || false, // Mark as official if name contains it
+          _isPopular: false,
+          _isVerified: false,
+          _priceUsd: 0,
+          _liquidityUsd: 0,
+          _volume24hUsd: 0,
+        };
+      });
+
+      // ✅ Convert Supabase tokens, excluding duplicates from wallet
       let searchResults: TokenWithMetadata[] = (data || []).map((t: any) => ({
         address: chainKey === 'ethereum' || chainKey !== 'solana' ? t.address.toLowerCase() : t.address,
         symbol: t.symbol,
@@ -312,10 +377,16 @@ export default function TokenSearchModal({
         _isPopular: t.is_popular || false,
         _isVerified: t.is_verified || false,
         _isOfficial: t.is_official || false, // ⭐ Official token (highest priority!)
+        _isFromWallet: false, // Not from wallet
         _priceUsd: parseFloat(t.price_usd || '0'),
         _liquidityUsd: parseFloat(t.liquidity_usd || '0'),
         _volume24hUsd: parseFloat(t.volume_24h_usd || '0'),
       })).filter((token: TokenWithMetadata) => {
+        // ✅ Exclude tokens that are already in wallet tokens (avoid duplicates)
+        if (walletTokenAddresses.has(token.address.toLowerCase())) {
+          return false;
+        }
+        
         // Exclude tokens in excludeTokens list
         if (excludeTokens.some(excluded => excluded.toLowerCase() === token.address.toLowerCase())) {
           return false;
@@ -338,22 +409,31 @@ export default function TokenSearchModal({
         
         return true;
       });
+      
+      // ✅ STEP 4: Combine wallet tokens (first) with Supabase results
+      // Wallet tokens get highest priority!
+      let combinedResults: TokenWithMetadata[] = [...walletTokensWithMetadata, ...searchResults];
 
-      // ✅ DEDUPLICATION: Group by symbol, keep TOP 3 BEST tokens per symbol
+      // ✅ STEP 5: DEDUPLICATION: Group by symbol, keep TOP 3 BEST tokens per symbol
       // This reduces 109 USDT tokens to top 3 best (like MetaMask shows multiple options)
-      // We keep multiple per symbol to show variety (official, popular, high liquidity)
+      // We keep multiple per symbol to show variety (wallet tokens first, then official, popular, high liquidity)
       const deduplicatedMap = new Map<string, TokenWithMetadata[]>();
       
-      searchResults.forEach((token) => {
+      combinedResults.forEach((token) => {
         const symbolKey = token.symbol.toUpperCase();
         const existing = deduplicatedMap.get(symbolKey) || [];
         
-        // Keep top 3 tokens per symbol (official first, then best by liquidity/volume)
+        // Keep top 3 tokens per symbol (wallet tokens FIRST, then official, then best by liquidity/volume)
         if (existing.length < 3) {
           existing.push(token);
           existing.sort((a, b) => {
+            // ✅ Wallet tokens have HIGHEST priority!
+            if (a._isFromWallet && !b._isFromWallet) return -1;
+            if (!a._isFromWallet && b._isFromWallet) return 1;
+            // Then official tokens
             if (a._isOfficial && !b._isOfficial) return -1;
             if (!a._isOfficial && b._isOfficial) return 1;
+            // Then by liquidity
             const aLiq = a._liquidityUsd || 0;
             const bLiq = b._liquidityUsd || 0;
             return bLiq - aLiq;
@@ -365,8 +445,13 @@ export default function TokenSearchModal({
           if (isBetterToken(token, worst)) {
             existing[existing.length - 1] = token;
             existing.sort((a, b) => {
+              // ✅ Wallet tokens have HIGHEST priority!
+              if (a._isFromWallet && !b._isFromWallet) return -1;
+              if (!a._isFromWallet && b._isFromWallet) return 1;
+              // Then official tokens
               if (a._isOfficial && !b._isOfficial) return -1;
               if (!a._isOfficial && b._isOfficial) return 1;
+              // Then by liquidity
               const aLiq = a._liquidityUsd || 0;
               const bLiq = b._liquidityUsd || 0;
               return bLiq - aLiq;
@@ -378,11 +463,15 @@ export default function TokenSearchModal({
       // Flatten: convert Map of arrays to single array
       let deduplicatedResults = Array.from(deduplicatedMap.values()).flat();
       
-      // ✅ Additional client-side sorting to ensure logical ranking (like MetaMask)
+      // ✅ STEP 6: Additional client-side sorting to ensure logical ranking (like MetaMask)
       // Database already sorts, but we refine further for perfect results
-      const queryLower = query.toLowerCase();
+      const queryLower = searchQueryLower;
       deduplicatedResults.sort((a, b) => {
-        // ⭐ 0. OFFICIAL TOKENS FIRST (HIGHEST PRIORITY - Like MetaMask!)
+        // ⭐ 0. WALLET TOKENS FIRST (HIGHEST PRIORITY - User's tokens should always be found!)
+        if (a._isFromWallet && !b._isFromWallet) return -1;
+        if (!a._isFromWallet && b._isFromWallet) return 1;
+        
+        // ⭐ 1. OFFICIAL TOKENS SECOND (HIGHEST PRIORITY - Like MetaMask!)
         if (a._isOfficial && !b._isOfficial) return -1;
         if (!a._isOfficial && b._isOfficial) return 1;
         
@@ -473,7 +562,11 @@ export default function TokenSearchModal({
        * ⭐ OFFICIAL TOKENS ALWAYS WIN (Like MetaMask!)
        */
       function isBetterToken(a: TokenWithMetadata, b: TokenWithMetadata): boolean {
-        // ⭐ 0. OFFICIAL TOKENS ALWAYS WIN (highest priority!)
+        // ⭐ 0. WALLET TOKENS ALWAYS WIN (HIGHEST PRIORITY - User's tokens should always be found!)
+        if (a._isFromWallet && !b._isFromWallet) return true;
+        if (!a._isFromWallet && b._isFromWallet) return false;
+        
+        // ⭐ 1. OFFICIAL TOKENS SECOND (highest priority!)
         if (a._isOfficial && !b._isOfficial) return true;
         if (!a._isOfficial && b._isOfficial) return false;
         
