@@ -16,6 +16,8 @@ interface TokenSearchModalProps {
   selectedToken?: string;
   onSelectToken: (token: LiFiToken | 'native') => void;
   excludeTokens?: string[]; // Tokens to exclude (e.g., fromToken when selecting toToken)
+  walletTokens?: Array<{ address: string; balance?: string }>; // ✅ Tokens with balance from wallet (for filtering)
+  onlyShowTokensWithBalance?: boolean; // ✅ Only show tokens where user has balance > 0
 }
 
 export default function TokenSearchModal({
@@ -25,6 +27,8 @@ export default function TokenSearchModal({
   selectedToken,
   onSelectToken,
   excludeTokens = [],
+  walletTokens = [],
+  onlyShowTokensWithBalance = false, // ✅ Default: show all tokens (for "to" token selection)
 }: TokenSearchModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [tokens, setTokens] = useState<LiFiToken[]>([]);
@@ -113,12 +117,26 @@ export default function TokenSearchModal({
         priceUSD: t.price_usd?.toString() || '0',
       }));
 
-      // Filter out excluded tokens
-      const filteredTokens = chainTokens.filter(
-        token => !excludeTokens.some(excluded => 
-          excluded.toLowerCase() === token.address.toLowerCase()
-        )
-      );
+      // Filter out excluded tokens and tokens without balance (if onlyShowTokensWithBalance is true)
+      const filteredTokens = chainTokens.filter(token => {
+        // Exclude tokens in excludeTokens list
+        if (excludeTokens.some(excluded => excluded.toLowerCase() === token.address.toLowerCase())) {
+          return false;
+        }
+        
+        // ✅ If onlyShowTokensWithBalance is true, only show tokens where user has balance > 0
+        if (onlyShowTokensWithBalance && walletTokens.length > 0) {
+          const walletToken = walletTokens.find(
+            wt => wt.address.toLowerCase() === token.address.toLowerCase()
+          );
+          // Include if token has balance > 0
+          if (!walletToken || parseFloat(walletToken.balance || '0') <= 0) {
+            return false;
+          }
+        }
+        
+        return true;
+      });
 
       // Popular tokens (from RPC function or filter)
       const popular = filteredTokens.filter(t => 
@@ -199,25 +217,64 @@ export default function TokenSearchModal({
         _priceUsd: parseFloat(t.price_usd || '0'),
         _liquidityUsd: parseFloat(t.liquidity_usd || '0'),
         _volume24hUsd: parseFloat(t.volume_24h_usd || '0'),
-      })).filter((token: TokenWithMetadata) => 
-        !excludeTokens.some(excluded => excluded.toLowerCase() === token.address.toLowerCase())
-      );
+      })).filter((token: TokenWithMetadata) => {
+        // Exclude tokens in excludeTokens list
+        if (excludeTokens.some(excluded => excluded.toLowerCase() === token.address.toLowerCase())) {
+          return false;
+        }
+        
+        // ✅ If onlyShowTokensWithBalance is true, only show tokens where user has balance > 0
+        if (onlyShowTokensWithBalance && walletTokens.length > 0) {
+          const walletToken = walletTokens.find(
+            wt => wt.address.toLowerCase() === token.address.toLowerCase()
+          );
+          // Include if token has balance > 0
+          if (!walletToken || parseFloat(walletToken.balance || '0') <= 0) {
+            return false;
+          }
+        }
+        
+        return true;
+      });
 
-      // ✅ DEDUPLICATION: Group by symbol, keep only the BEST token per symbol
-      // This reduces 109 USDT tokens to 1-3 best (like MetaMask does)
-      const deduplicatedMap = new Map<string, TokenWithMetadata>();
+      // ✅ DEDUPLICATION: Group by symbol, keep TOP 3 BEST tokens per symbol
+      // This reduces 109 USDT tokens to top 3 best (like MetaMask shows multiple options)
+      // We keep multiple per symbol to show variety (official, popular, high liquidity)
+      const deduplicatedMap = new Map<string, TokenWithMetadata[]>();
       
       searchResults.forEach((token) => {
         const symbolKey = token.symbol.toUpperCase();
-        const existing = deduplicatedMap.get(symbolKey);
+        const existing = deduplicatedMap.get(symbolKey) || [];
         
-        if (!existing || isBetterToken(token, existing)) {
-          deduplicatedMap.set(symbolKey, token);
+        // Keep top 3 tokens per symbol (official first, then best by liquidity/volume)
+        if (existing.length < 3) {
+          existing.push(token);
+          existing.sort((a, b) => {
+            if (a._isOfficial && !b._isOfficial) return -1;
+            if (!a._isOfficial && b._isOfficial) return 1;
+            const aLiq = a._liquidityUsd || 0;
+            const bLiq = b._liquidityUsd || 0;
+            return bLiq - aLiq;
+          });
+          deduplicatedMap.set(symbolKey, existing);
+        } else {
+          // Replace worst token if this one is better
+          const worst = existing[existing.length - 1];
+          if (isBetterToken(token, worst)) {
+            existing[existing.length - 1] = token;
+            existing.sort((a, b) => {
+              if (a._isOfficial && !b._isOfficial) return -1;
+              if (!a._isOfficial && b._isOfficial) return 1;
+              const aLiq = a._liquidityUsd || 0;
+              const bLiq = b._liquidityUsd || 0;
+              return bLiq - aLiq;
+            });
+          }
         }
       });
       
-      // Convert back to array and sort
-      let deduplicatedResults = Array.from(deduplicatedMap.values());
+      // Flatten: convert Map of arrays to single array
+      let deduplicatedResults = Array.from(deduplicatedMap.values()).flat();
       
       // ✅ Additional client-side sorting to ensure logical ranking (like MetaMask)
       // Database already sorts, but we refine further for perfect results
@@ -302,8 +359,8 @@ export default function TokenSearchModal({
         return a.symbol.localeCompare(b.symbol);
       });
       
-      // Limit to top 30 results (after deduplication)
-      deduplicatedResults = deduplicatedResults.slice(0, 30);
+      // Limit to top 50 results (after deduplication) - show more variety
+      deduplicatedResults = deduplicatedResults.slice(0, 50);
       
       // Remove metadata before setting (clean up)
       const cleanResults: LiFiToken[] = deduplicatedResults.map(({ _isPopular, _isVerified, _isOfficial, _priceUsd, _liquidityUsd, _volume24hUsd, ...token }) => token);
@@ -525,13 +582,21 @@ export default function TokenSearchModal({
                             }`}
                           >
                             <div className="flex items-center gap-3 flex-1 min-w-0">
-                              {token.logoURI ? (
+                              {token.logoURI && token.logoURI.trim() ? (
                                 <img 
                                   src={token.logoURI} 
                                   alt={token.symbol}
-                                  className="w-10 h-10 rounded-full flex-shrink-0"
+                                  className="w-10 h-10 rounded-full flex-shrink-0 object-cover"
                                   onError={(e) => {
-                                    e.currentTarget.style.display = 'none';
+                                    // Fallback to gradient with first letter
+                                    const target = e.currentTarget;
+                                    target.style.display = 'none';
+                                    if (target.parentElement) {
+                                      const fallback = document.createElement('div');
+                                      fallback.className = 'w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center flex-shrink-0';
+                                      fallback.innerHTML = `<span class="text-white font-bold text-sm">${token.symbol[0]}</span>`;
+                                      target.parentElement.insertBefore(fallback, target);
+                                    }
                                   }}
                                 />
                               ) : (
@@ -586,22 +651,30 @@ export default function TokenSearchModal({
                               }`}
                             >
                               <div className="flex items-center gap-3 flex-1 min-w-0">
-                                {token.logoURI ? (
-                                  <img 
-                                    src={token.logoURI} 
-                                    alt={token.symbol}
-                                    className="w-10 h-10 rounded-full flex-shrink-0"
-                                    onError={(e) => {
-                                      e.currentTarget.style.display = 'none';
-                                    }}
-                                  />
-                                ) : (
-                                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center flex-shrink-0">
-                                    <span className="text-white font-bold text-sm">
-                                      {token.symbol[0]}
-                                    </span>
-                                  </div>
-                                )}
+                              {token.logoURI && token.logoURI.trim() ? (
+                                <img 
+                                  src={token.logoURI} 
+                                  alt={token.symbol}
+                                  className="w-10 h-10 rounded-full flex-shrink-0 object-cover"
+                                  onError={(e) => {
+                                    // Fallback to gradient with first letter
+                                    const target = e.currentTarget;
+                                    target.style.display = 'none';
+                                    if (target.parentElement) {
+                                      const fallback = document.createElement('div');
+                                      fallback.className = 'w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center flex-shrink-0';
+                                      fallback.innerHTML = `<span class="text-white font-bold text-sm">${token.symbol[0]}</span>`;
+                                      target.parentElement.insertBefore(fallback, target);
+                                    }
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center flex-shrink-0">
+                                  <span className="text-white font-bold text-sm">
+                                    {token.symbol[0]}
+                                  </span>
+                                </div>
+                              )}
                                 <div className="text-left flex-1 min-w-0">
                                   <div className="font-semibold text-gray-900">
                                     {token.symbol}
@@ -641,22 +714,30 @@ export default function TokenSearchModal({
                                   }`}
                                 >
                                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                                    {token.logoURI ? (
-                                      <img 
-                                        src={token.logoURI} 
-                                        alt={token.symbol}
-                                        className="w-10 h-10 rounded-full flex-shrink-0"
-                                        onError={(e) => {
-                                          e.currentTarget.style.display = 'none';
-                                        }}
-                                      />
-                                    ) : (
-                                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center flex-shrink-0">
-                                        <span className="text-white font-bold text-sm">
-                                          {token.symbol[0]}
-                                        </span>
-                                      </div>
-                                    )}
+                              {token.logoURI && token.logoURI.trim() ? (
+                                <img 
+                                  src={token.logoURI} 
+                                  alt={token.symbol}
+                                  className="w-10 h-10 rounded-full flex-shrink-0 object-cover"
+                                  onError={(e) => {
+                                    // Fallback to gradient with first letter
+                                    const target = e.currentTarget;
+                                    target.style.display = 'none';
+                                    if (target.parentElement) {
+                                      const fallback = document.createElement('div');
+                                      fallback.className = 'w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center flex-shrink-0';
+                                      fallback.innerHTML = `<span class="text-white font-bold text-sm">${token.symbol[0]}</span>`;
+                                      target.parentElement.insertBefore(fallback, target);
+                                    }
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center flex-shrink-0">
+                                  <span className="text-white font-bold text-sm">
+                                    {token.symbol[0]}
+                                  </span>
+                                </div>
+                              )}
                                     <div className="text-left flex-1 min-w-0">
                                       <div className="font-semibold text-gray-900">
                                         {token.symbol}

@@ -41,7 +41,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   useBlockBodyScroll(isOpen);
 
   // Wallet state
-  const { wallet, currentChain, getCurrentAddress, mnemonic } = useWalletStore();
+  const { wallet, currentChain, getCurrentAddress, mnemonic, getChainTokens } = useWalletStore();
   const walletAddress = getCurrentAddress();
   const { solanaAddress, address: evmAddress } = useWalletStore();
   
@@ -1251,6 +1251,16 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           setShowFromTokenModal(false);
         }}
         excludeTokens={toToken === 'native' ? [] : toToken ? [toToken.address] : []}
+        walletTokens={[
+          // ✅ Always include native token (SOL, ETH, etc.) - user always has native balance
+          { address: 'native', balance: '1' },
+          // Include all other tokens with their balances
+          ...getChainTokens(fromChain).map(t => ({ 
+            address: t.address, 
+            balance: t.balance 
+          }))
+        ]}
+        onlyShowTokensWithBalance={true} // ✅ Only show tokens where user has balance (for "from" token)
       />
 
       <TokenSearchModal
