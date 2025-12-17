@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
+
+// Use service role key for admin operations (bypasses RLS)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Admin email whitelist
 const ADMIN_EMAILS_RAW = process.env.ADMIN_EMAILS || '';
