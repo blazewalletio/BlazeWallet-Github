@@ -856,6 +856,10 @@ END;
 $$;
 
 -- 3.7: Update account features functions
+-- Drop existing function first (return type might be different)
+DROP FUNCTION IF EXISTS public.calculate_security_score(UUID);
+
+-- Recreate with search_path fix
 CREATE OR REPLACE FUNCTION public.calculate_security_score(p_user_id UUID)
 RETURNS INTEGER
 LANGUAGE plpgsql
