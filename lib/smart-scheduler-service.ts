@@ -7,6 +7,7 @@
 import { gasPriceService } from './gas-price-service';
 import { priceService } from './price-service';
 import { logger } from '@/lib/logger';
+import { apiPost, apiGet, apiDelete } from './api-client';
 
 export interface ScheduledTransaction {
   id: string;
@@ -106,16 +107,13 @@ class SmartSchedulerService {
         ? localStorage.getItem('supabase_user_id') 
         : null;
 
-      const response = await fetch(`${this.baseUrl}/create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...options,
-          supabase_user_id: supabaseUserId || undefined,
-          scheduled_for: options.scheduled_for?.toISOString(),
-          current_gas_price: currentGasPrice,
-          current_gas_cost_usd: currentGasCostUSD,
-        }),
+      // Use apiPost helper which automatically includes CSRF token
+      const response = await apiPost(`${this.baseUrl}/create`, {
+        ...options,
+        supabase_user_id: supabaseUserId || undefined,
+        scheduled_for: options.scheduled_for?.toISOString(),
+        current_gas_price: currentGasPrice,
+        current_gas_cost_usd: currentGasCostUSD,
       });
 
       const data = await response.json();
@@ -150,7 +148,7 @@ class SmartSchedulerService {
         params.append('chain', chain);
       }
 
-      const response = await fetch(`${this.baseUrl}/list?${params.toString()}`);
+      const response = await apiGet(`${this.baseUrl}/list?${params.toString()}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -169,13 +167,10 @@ class SmartSchedulerService {
    */
   async cancelTransaction(transactionId: string, userId: string): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}/cancel`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          transaction_id: transactionId,
-          user_id: userId,
-        }),
+      // Use apiPost helper which automatically includes CSRF token
+      const response = await apiPost(`${this.baseUrl}/cancel`, {
+        transaction_id: transactionId,
+        user_id: userId,
       });
 
       const data = await response.json();
@@ -197,7 +192,7 @@ class SmartSchedulerService {
     recent_savings: any[];
   }> {
     try {
-      const response = await fetch(`${this.baseUrl}/savings?user_id=${userId}`);
+      const response = await apiGet(`${this.baseUrl}/savings?user_id=${userId}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -246,14 +241,11 @@ class SmartSchedulerService {
       logger.log('🤖 Requesting AI prediction for', chain, 'current gas:', currentGas);
 
       // Call AI prediction API
-      const response = await fetch('/api/smart-scheduler/predict-optimal-time', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chain,
-          current_gas_price: currentGas,
-          max_wait_hours: maxWaitHours,
-        }),
+      // Use apiPost helper which automatically includes CSRF token
+      const response = await apiPost('/api/smart-scheduler/predict-optimal-time', {
+        chain,
+        current_gas_price: currentGas,
+        max_wait_hours: maxWaitHours,
       });
 
       const data = await response.json();

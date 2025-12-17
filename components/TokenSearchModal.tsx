@@ -162,19 +162,29 @@ export default function TokenSearchModal({
       logger.log(`🔍 [TokenSearchModal] Searching Supabase for "${query}" on ${chainKey}...`);
 
       // Use Supabase RPC function for full-text search (instant!)
+      // Limit to 50 (database will cap it), then deduplicate to ~20-30 best tokens
       const { data, error } = await supabase
         .rpc('search_tokens', {
           p_chain_key: chainKey,
           p_query: query,
-          p_limit: 200,
+          p_limit: 50, // Reduced from 200 - quality filtering + deduplication will show ~20-30 best
         });
 
       if (error) {
         throw error;
       }
 
-      // Convert Supabase tokens to LiFiToken format
-      const searchResults: LiFiToken[] = (data || []).map((t: any) => ({
+      // Convert Supabase tokens to LiFiToken format with metadata for sorting
+      interface TokenWithMetadata extends LiFiToken {
+        _isPopular?: boolean;
+        _isVerified?: boolean;
+        _isOfficial?: boolean; // ⭐ Official token flag (highest priority!)
+        _priceUsd?: number;
+        _liquidityUsd?: number;
+        _volume24hUsd?: number;
+      }
+
+      let searchResults: TokenWithMetadata[] = (data || []).map((t: any) => ({
         address: chainKey === 'ethereum' || chainKey !== 'solana' ? t.address.toLowerCase() : t.address,
         symbol: t.symbol,
         name: t.name || t.symbol,
@@ -182,13 +192,169 @@ export default function TokenSearchModal({
         chainId: chainId,
         logoURI: t.logo_uri || '',
         priceUSD: t.price_usd?.toString() || '0',
-      })).filter((token: LiFiToken) => 
+        // Store metadata for sorting
+        _isPopular: t.is_popular || false,
+        _isVerified: t.is_verified || false,
+        _isOfficial: t.is_official || false, // ⭐ Official token (highest priority!)
+        _priceUsd: parseFloat(t.price_usd || '0'),
+        _liquidityUsd: parseFloat(t.liquidity_usd || '0'),
+        _volume24hUsd: parseFloat(t.volume_24h_usd || '0'),
+      })).filter((token: TokenWithMetadata) => 
         !excludeTokens.some(excluded => excluded.toLowerCase() === token.address.toLowerCase())
       );
 
-      setTokens(searchResults);
+      // ✅ DEDUPLICATION: Group by symbol, keep only the BEST token per symbol
+      // This reduces 109 USDT tokens to 1-3 best (like MetaMask does)
+      const deduplicatedMap = new Map<string, TokenWithMetadata>();
+      
+      searchResults.forEach((token) => {
+        const symbolKey = token.symbol.toUpperCase();
+        const existing = deduplicatedMap.get(symbolKey);
+        
+        if (!existing || isBetterToken(token, existing)) {
+          deduplicatedMap.set(symbolKey, token);
+        }
+      });
+      
+      // Convert back to array and sort
+      let deduplicatedResults = Array.from(deduplicatedMap.values());
+      
+      // ✅ Additional client-side sorting to ensure logical ranking (like MetaMask)
+      // Database already sorts, but we refine further for perfect results
+      const queryLower = query.toLowerCase();
+      deduplicatedResults.sort((a, b) => {
+        // ⭐ 0. OFFICIAL TOKENS FIRST (HIGHEST PRIORITY - Like MetaMask!)
+        if (a._isOfficial && !b._isOfficial) return -1;
+        if (!a._isOfficial && b._isOfficial) return 1;
+        
+        // 1. Exact symbol match (most important after official)
+        // "USDT" query should show "USDT" first, not "FIRST USDT" or "Tether USDT"
+        const aExact = a.symbol.toLowerCase() === queryLower;
+        const bExact = b.symbol.toLowerCase() === queryLower;
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+        
+        // 2. Symbol starts with query (high priority, but after exact match)
+        const aStarts = a.symbol.toLowerCase().startsWith(queryLower);
+        const bStarts = b.symbol.toLowerCase().startsWith(queryLower);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+        
+        // 3. Name contains exact query (but symbol match is more important)
+        const aNameExact = a.name.toLowerCase() === queryLower;
+        const bNameExact = b.name.toLowerCase() === queryLower;
+        if (aNameExact && !bNameExact) return -1;
+        if (!aNameExact && bNameExact) return 1;
+        
+        // 4. Higher liquidity = more popular/established (OBJECTIVE METRIC - most reliable!)
+        // This is better than manual flags because it's based on real trading data
+        const aLiq = (a as any)._liquidityUsd || 0;
+        const bLiq = (b as any)._liquidityUsd || 0;
+        // Tier-based comparison (like database)
+        const aLiqTier = aLiq > 1000000 ? 1 : aLiq > 100000 ? 2 : aLiq > 10000 ? 3 : 4;
+        const bLiqTier = bLiq > 1000000 ? 1 : bLiq > 100000 ? 2 : bLiq > 10000 ? 3 : 4;
+        if (aLiqTier !== bLiqTier) return aLiqTier - bLiqTier;
+        // Fine-grained: higher liquidity within same tier
+        if (aLiq > bLiq) return -1;
+        if (aLiq < bLiq) return 1;
+        
+        // 5. Higher volume = actively traded (OBJECTIVE METRIC - shows real usage!)
+        const aVol = (a as any)._volume24hUsd || 0;
+        const bVol = (b as any)._volume24hUsd || 0;
+        // Tier-based comparison (like database)
+        const aVolTier = aVol > 500000 ? 1 : aVol > 50000 ? 2 : aVol > 5000 ? 3 : 4;
+        const bVolTier = bVol > 500000 ? 1 : bVol > 50000 ? 2 : bVol > 5000 ? 3 : 4;
+        if (aVolTier !== bVolTier) return aVolTier - bVolTier;
+        // Fine-grained: higher volume within same tier
+        if (aVol > bVol) return -1;
+        if (aVol < bVol) return 1;
+        
+        // 6. Popular tokens (fallback if no liquidity/volume data)
+        if (a._isPopular && !b._isPopular) return -1;
+        if (!a._isPopular && b._isPopular) return 1;
+        
+        // 7. Verified tokens (fallback if no liquidity/volume data)
+        if (a._isVerified && !b._isVerified) return -1;
+        if (!a._isVerified && b._isVerified) return 1;
+        
+        // 8. Tokens with price data (active trading)
+        const aPrice = a._priceUsd || 0;
+        const bPrice = b._priceUsd || 0;
+        if (aPrice > 0 && bPrice === 0) return -1;
+        if (aPrice === 0 && bPrice > 0) return 1;
+        if (aPrice > 0 && bPrice > 0 && aPrice !== bPrice) {
+          return bPrice - aPrice; // Higher price = usually more established
+        }
+        
+        // 9. Shorter symbol = usually better match (cleaner tokens have shorter symbols)
+        // "USDT" is better than "FIRST USDT" or "Tether USDT"
+        if (a.symbol.length !== b.symbol.length) {
+          return a.symbol.length - b.symbol.length;
+        }
+        
+        // 10. Shorter name = usually better match (cleaner tokens have shorter names)
+        // "Tether USD" is better than "FIRST USDT" or "Tether USDT Token"
+        if (a.name.length !== b.name.length) {
+          return a.name.length - b.name.length;
+        }
+        
+        // 11. Alphabetical by symbol (final tiebreaker)
+        return a.symbol.localeCompare(b.symbol);
+      });
+      
+      // Limit to top 30 results (after deduplication)
+      deduplicatedResults = deduplicatedResults.slice(0, 30);
+      
+      // Remove metadata before setting (clean up)
+      const cleanResults: LiFiToken[] = deduplicatedResults.map(({ _isPopular, _isVerified, _isOfficial, _priceUsd, _liquidityUsd, _volume24hUsd, ...token }) => token);
+      
+      /**
+       * Helper function to determine if token A is better than token B
+       * Used for deduplication - keeps only the best token per symbol
+       * ⭐ OFFICIAL TOKENS ALWAYS WIN (Like MetaMask!)
+       */
+      function isBetterToken(a: TokenWithMetadata, b: TokenWithMetadata): boolean {
+        // ⭐ 0. OFFICIAL TOKENS ALWAYS WIN (highest priority!)
+        if (a._isOfficial && !b._isOfficial) return true;
+        if (!a._isOfficial && b._isOfficial) return false;
+        
+        // 1. Higher liquidity = better
+        const aLiq = a._liquidityUsd || 0;
+        const bLiq = b._liquidityUsd || 0;
+        if (aLiq > bLiq) return true;
+        if (aLiq < bLiq) return false;
+        
+        // 2. Higher volume = better
+        const aVol = a._volume24hUsd || 0;
+        const bVol = b._volume24hUsd || 0;
+        if (aVol > bVol) return true;
+        if (aVol < bVol) return false;
+        
+        // 3. Verified = better
+        if (a._isVerified && !b._isVerified) return true;
+        if (!a._isVerified && b._isVerified) return false;
+        
+        // 4. Popular = better
+        if (a._isPopular && !b._isPopular) return true;
+        if (!a._isPopular && b._isPopular) return false;
+        
+        // 5. Higher price = better
+        const aPrice = a._priceUsd || 0;
+        const bPrice = b._priceUsd || 0;
+        if (aPrice > bPrice) return true;
+        if (aPrice < bPrice) return false;
+        
+        // 6. Shorter name = usually better (less spam)
+        if (a.name.length < b.name.length) return true;
+        if (a.name.length > b.name.length) return false;
+        
+        // 7. Alphabetical (deterministic tie-breaker)
+        return a.address < b.address;
+      }
+
+      setTokens(cleanResults);
       setPopularTokens([]); // Clear popular tokens when searching
-      logger.log(`✅ [TokenSearchModal] Found ${searchResults.length} tokens matching "${query}" (instant Supabase search!)`);
+      logger.log(`✅ [TokenSearchModal] Found ${cleanResults.length} quality tokens matching "${query}" (${data?.length || 0} before deduplication, filtered by quality!)`);
     } catch (err: any) {
       logger.error('❌ [TokenSearchModal] Search failed:', err);
       setError('Search failed. Please try again.');

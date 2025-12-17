@@ -141,17 +141,23 @@ BEGIN
       OR tr.address ILIKE '%' || p_query || '%'
     )
   ORDER BY
-    -- Prioritize exact symbol matches
+    -- 1. Exact symbol match (highest priority)
     CASE WHEN LOWER(tr.symbol) = LOWER(p_query) THEN 1 ELSE 2 END,
-    -- Then prioritize symbol starts with
+    -- 2. Symbol starts with query (high priority)
     CASE WHEN LOWER(tr.symbol) LIKE LOWER(p_query) || '%' THEN 1 ELSE 2 END,
-    -- Then prioritize popular tokens
+    -- 3. Popular tokens (boosted - most important for UX!)
     CASE WHEN tr.is_popular THEN 1 ELSE 2 END,
-    -- Then prioritize verified tokens
+    -- 4. Verified tokens (trusted sources)
     CASE WHEN tr.is_verified THEN 1 ELSE 2 END,
-    -- Then by symbol length (shorter = better match)
+    -- 5. Full-text search relevance score (better matches first)
+    ts_rank_cd(tr.search_vector, plainto_tsquery('english', p_query)) DESC,
+    -- 6. Tokens with price data (active trading = more popular)
+    CASE WHEN tr.price_usd IS NOT NULL AND tr.price_usd > 0 THEN 1 ELSE 2 END,
+    -- 7. Higher price = usually more popular/established
+    COALESCE(tr.price_usd, 0) DESC,
+    -- 8. Shorter symbol = usually better match
     LENGTH(tr.symbol),
-    -- Finally by name
+    -- 9. Finally by name (alphabetical)
     tr.name
   LIMIT p_limit;
 END;
