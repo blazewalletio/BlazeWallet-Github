@@ -48,14 +48,14 @@ async function syncSolanaTokens(): Promise<number> {
     const jupiterTokens: any[] = await response.json();
     logger.log(`🪐 [Sync] Got ${jupiterTokens.length} tokens from Jupiter`);
 
-    const chainId = getLiFiChainId('solana');
     const chainKey = 'solana';
+    const actualChainId = CHAINS[chainKey]?.id || 101; // Use actual Solana chain ID (101)
 
     // Prepare tokens for insertion
     const tokensToInsert = jupiterTokens
       .filter(t => t.address && t.symbol) // Only valid tokens
       .map(t => ({
-        chain_id: typeof chainId === 'string' ? parseInt(chainId) || 101 : chainId,
+        chain_id: actualChainId,
         chain_key: chainKey,
         address: t.address,
         symbol: t.symbol.toUpperCase(),
