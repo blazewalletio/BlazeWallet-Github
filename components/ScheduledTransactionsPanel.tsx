@@ -223,7 +223,7 @@ export default function ScheduledTransactionsPanel({ isOpen, chain, onClose }: S
                           </div>
                           
                           {/* Status Badge */}
-                          <div className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap flex items-center gap-1.5 ${
+                          <div className={`px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap flex items-center gap-1.5 ${
                             tx.status === 'pending' ? 'bg-orange-100 text-orange-700' :
                             tx.status === 'completed' ? 'bg-green-100 text-green-700' :
                             tx.status === 'failed' ? 'bg-red-100 text-red-700' :
