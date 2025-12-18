@@ -882,7 +882,11 @@ export class OnramperService {
           txnFiat: fiatLower,
           txnCrypto: cryptoLower,
           txnRedirect: 'true', // Direct redirect to provider widget
-          wallets: `${cryptoLower}:${walletAddress}`, // Required for good UX (user doesn't need to enter wallet)
+          // NOTE: We intentionally do NOT pass wallets or signature here.
+          // Recent Onramper changes made signature validation extremely strict
+          // and the official docs for Direct Checkout do not require signing
+          // when wallets is omitted. This guarantees a working flow while we
+          // finalize the signed-wallet implementation together with Onramper.
         });
 
         // Add optional parameters
@@ -890,36 +894,6 @@ export class OnramperService {
           directCheckoutParams.append('txnPaymentMethod', pmLower);
         }
         // Note: txnOnramp is optional - if not provided, Onramper uses Ranking Engine
-
-        // URL signing is REQUIRED when using wallets parameter
-        // Sensitive parameters for direct checkout:
-        // - wallets (wallet address - sensitive)
-        // - txnCrypto (crypto ID - sensitive)
-        // - txnAmount (amount - sensitive)
-        // - txnPaymentMethod (if provided)
-        const sensitiveParams: { [key: string]: string } = {
-          txnAmount: fiatAmount.toString(),
-          txnCrypto: cryptoLower,
-          wallets: `${cryptoLower}:${walletAddress}`,
-        };
-        
-        if (pmLower) {
-          sensitiveParams.txnPaymentMethod = pmLower;
-        }
-
-        // Sort keys alphabetically (required by Onramper)
-        const sortedKeys = Object.keys(sensitiveParams).sort();
-        const signContent = sortedKeys
-          .map(key => `${key}=${sensitiveParams[key]}`)
-          .join('&');
-
-        // Generate HMAC-SHA256 signature with secret key
-        const signature = crypto
-          .createHmac('sha256', secretKey)
-          .update(signContent)
-          .digest('hex');
-        
-        directCheckoutParams.append('signature', signature);
 
         const widgetUrl = `https://buy.onramper.com?${directCheckoutParams.toString()}`;
 
