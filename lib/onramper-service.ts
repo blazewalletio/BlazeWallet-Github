@@ -938,28 +938,13 @@ export class OnramperService {
 
         // Sensitive parameters to sign according to Onramper documentation
         // Docs: https://docs.onramper.com/docs/signatures/widget-sign-a-url
-        // Sensitive params: wallets, networkIds/cryptoIds, walletAddress/tags
-        // 
-        // Based on documentation, we sign:
-        // - wallets (contains wallet address - sensitive)
-        // - onlyCryptos (crypto ID - sensitive)
-        // - defaultCrypto (crypto ID - sensitive)
-        // - defaultAmount (transaction amount - sensitive)
-        // - onlyPaymentMethods (if provided)
-        // - defaultPaymentMethod (if provided)
-        //
-        // Note: defaultFiat and onlyFiats are NOT mentioned as sensitive in signing docs
+        // For the widget flow the *only* parameter that is strictly required
+        // to be signed is `wallets` (and related wallet address tags). To
+        // avoid mismatches with Onramper's own internal canonicalization we
+        // keep the signContent minimal and only include `wallets` here.
         const sensitiveParams: { [key: string]: string } = {
-          defaultAmount: fiatAmount.toString(), // Use defaultAmount (not amount)
-          defaultCrypto: cryptoLower, // Crypto ID - sensitive
-          onlyCryptos: cryptoLower, // Crypto ID - sensitive
           wallets: `${cryptoLower}:${walletAddress}`, // Wallet address - sensitive
         };
-        
-        if (pmLower) {
-          sensitiveParams.defaultPaymentMethod = pmLower;
-          sensitiveParams.onlyPaymentMethods = pmLower;
-        }
 
         // Sort keys alphabetically (required by Onramper)
         const sortedKeys = Object.keys(sensitiveParams).sort();
