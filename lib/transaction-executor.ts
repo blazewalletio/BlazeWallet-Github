@@ -14,6 +14,7 @@ import { ethers } from 'ethers';
 import { Connection, PublicKey, Transaction as SolanaTransaction, SystemProgram, sendAndConfirmTransaction, Keypair } from '@solana/web3.js';
 import * as bitcoin from 'bitcoinjs-lib';
 import { logger } from '@/lib/logger';
+import { decryptEphemeralKeySymmetric } from '@/lib/scheduled-tx-crypto';
 
 /**
  * Backend-compatible price fetcher using CoinGecko API directly
@@ -496,10 +497,9 @@ async function getPrivateKeyFromEncrypted(
   try {
     logger.log('🔐 Decrypting mnemonic...');
 
-    // Step 1: Decrypt ephemeral key using AWS KMS
-    const { kmsService } = await import('./kms-service');
-    const ephemeralKeyRaw = await kmsService.decryptEphemeralKey(kmsEncryptedEphemeralKey);
-    logger.log('✅ Ephemeral key decrypted via KMS');
+    // Step 1: Decrypt ephemeral key using symmetric key stored in env vars
+    const ephemeralKeyRaw = decryptEphemeralKeySymmetric(kmsEncryptedEphemeralKey);
+    logger.log('✅ Ephemeral key decrypted via symmetric key');
 
     // Step 2: Decrypt mnemonic using ephemeral key
     const { EphemeralKeyCrypto } = await import('./ephemeral-key-crypto');

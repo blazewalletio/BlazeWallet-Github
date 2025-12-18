@@ -129,43 +129,10 @@ export default function SmartScheduleModal({
         ephemeralKey
       );
       logger.log('✅ Mnemonic encrypted with ephemeral key');
-
-      // Step 3: Fetch KMS public key
-      logger.log('🌐 Fetching KMS public key...', {
-        endpoint: '/api/kms/public-key',
-        timestamp: new Date().toISOString(),
-      });
-
-      const kmsResponse = await fetch('/api/kms/public-key');
-      const kmsRawText = await kmsResponse.text();
-
-      logger.log('🌐 KMS response received', {
-        status: kmsResponse.status,
-        statusText: kmsResponse.statusText,
-        ok: kmsResponse.ok,
-        headers: Object.fromEntries(kmsResponse.headers.entries()),
-        bodyPreview: kmsRawText.slice(0, 500),
-      });
-
-      let kmsData: any = {};
-      try {
-        kmsData = JSON.parse(kmsRawText);
-      } catch (parseError) {
-        logger.error('⚠️ Failed to parse KMS response JSON', parseError);
-      }
-
-      if (!kmsData.success || !kmsData.publicKey) {
-        logger.error('❌ KMS public key missing or unsuccessful response', kmsData);
-        throw new Error(`Failed to retrieve KMS public key (status ${kmsResponse.status})`);
-      }
-      logger.log('✅ KMS public key retrieved');
-
-      // Step 4: Encrypt ephemeral key with KMS public key
-      const kmsEncryptedEphemeralKey = await EphemeralKeyCrypto.encryptEphemeralKeyWithKMS(
-        ephemeralKeyRaw,
-        kmsData.publicKey
-      );
-      logger.log('✅ Ephemeral key encrypted with KMS public key');
+      
+      // Step 3: Encode ephemeral key raw bytes as base64 for backend encryption
+      const ephemeralKeyBase64 = btoa(String.fromCharCode(...ephemeralKeyRaw));
+      logger.log('✅ Ephemeral key encoded (base64) for backend encryption');
 
       // Step 5: Schedule transaction with encrypted mnemonic
       let scheduleOptions: ScheduleOptions = {
@@ -182,7 +149,11 @@ export default function SmartScheduleModal({
         
         // ✅ NEW: Encrypted mnemonic
         encrypted_mnemonic: encryptedMnemonic,
-        kms_encrypted_ephemeral_key: kmsEncryptedEphemeralKey,
+        // We now send the raw ephemeral key (base64) to the backend, where it
+        // is encrypted with a symmetric key stored in Vercel env vars. The
+        // database still uses the same column name (`kms_encrypted_ephemeral_key`)
+        // but it now contains AES-256-GCM encrypted data instead of KMS output.
+        kms_encrypted_ephemeral_key: ephemeralKeyBase64,
       };
 
       if (mode === 'optimal') {
@@ -228,7 +199,7 @@ export default function SmartScheduleModal({
       logger.log('📝 Schedule options prepared', {
         ...scheduleOptions,
         encrypted_mnemonic: '[redacted]',
-        kms_encrypted_ephemeral_key: `[length: ${kmsEncryptedEphemeralKey.length}]`,
+        kms_encrypted_ephemeral_key: '[base64-ephemeral-key]',
       });
 
       await smartSchedulerService.scheduleTransaction(scheduleOptions);

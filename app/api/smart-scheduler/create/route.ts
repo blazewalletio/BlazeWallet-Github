@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
+import { encryptEphemeralKeySymmetric } from '@/lib/scheduled-tx-crypto';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -95,6 +96,22 @@ export async function POST(req: NextRequest) {
       expires_at,
     });
 
+    // Encrypt ephemeral key (if provided). On the client we send the raw
+    // ephemeral key bytes as base64; here we encrypt it with a symmetric key
+    // so that only the backend can recover it during cron execution.
+    let encryptedEphemeralKey: string | null = null;
+    if (body.kms_encrypted_ephemeral_key) {
+      try {
+        encryptedEphemeralKey = encryptEphemeralKeySymmetric(body.kms_encrypted_ephemeral_key);
+      } catch (err: any) {
+        logger.error('❌ Failed to encrypt ephemeral key for scheduled transaction:', err?.message || err);
+        return NextResponse.json(
+          { error: 'Failed to secure scheduled transaction keys' },
+          { status: 500 }
+        );
+      }
+    }
+
     // Insert scheduled transaction
     const { data, error } = await supabase
       .from('scheduled_transactions')
@@ -119,7 +136,8 @@ export async function POST(req: NextRequest) {
         
         // ✅ NEW: Store encrypted mnemonic (already encrypted by client!)
         encrypted_mnemonic: body.encrypted_mnemonic || null,
-        kms_encrypted_ephemeral_key: body.kms_encrypted_ephemeral_key || null,
+        // Symmetrically encrypted ephemeral key (never stored in plaintext)
+        kms_encrypted_ephemeral_key: encryptedEphemeralKey,
       })
       .select()
       .single();
