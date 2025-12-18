@@ -162,12 +162,11 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
         cryptoCurrency,
         walletAddress,
         paymentMethod: selectedPaymentMethod,
-        // For now we prefer the standard signed widget flow so that we can
-        // safely pass the user's wallet address via the `wallets` parameter.
-        // This allows Onramper + the providers to send the purchased crypto
-        // directly to the correct wallet, while still using our own UI for
-        // amount / asset / payment-method selection.
-        useDirectCheckout: false,
+        // Use Direct Checkout flow WITHOUT wallets/signature to avoid
+        // signature validation issues. Our UI handles all inputs; Onramper
+        // + provider handle payment. Once Onramper confirms the exact
+        // signing requirements, we can safely re-enable the signed widget.
+        useDirectCheckout: true,
       });
 
       const data = await response.json();
