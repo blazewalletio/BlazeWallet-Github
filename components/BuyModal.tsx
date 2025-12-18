@@ -162,11 +162,12 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
         cryptoCurrency,
         walletAddress,
         paymentMethod: selectedPaymentMethod,
-        // Use Direct Checkout flow WITHOUT wallets/signature to avoid
-        // signature validation issues. Our UI handles all inputs; Onramper
-        // + provider handle payment. Once Onramper confirms the exact
-        // signing requirements, we can safely re-enable the signed widget.
-        useDirectCheckout: true,
+        // For now we prefer the standard signed widget flow so that we can
+        // safely pass the user's wallet address via the `wallets` parameter.
+        // This allows Onramper + the providers to send the purchased crypto
+        // directly to the correct wallet, while still using our own UI for
+        // amount / asset / payment-method selection.
+        useDirectCheckout: false,
       });
 
       const data = await response.json();
@@ -194,15 +195,14 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
           const checkInterval = setInterval(() => {
             if (popup.closed) {
               clearInterval(checkInterval);
-              // Check transaction status (webhook will update)
+              // We cannot know yet whether the user completed or cancelled
+              // the payment. The actual status will come in via the webhook
+              // and/or the provider. So we show a neutral processing state
+              // instead of claiming success.
               setStep('processing');
-              toast.success('Payment completed! Checking transaction status...');
-              
-              // Poll for status update (webhook should handle this, but we can poll as backup)
-              setTimeout(() => {
-                setStep('success');
-                onClose();
-              }, 2000);
+              toast('Payment window closed. If you completed the payment, your crypto will arrive once the provider confirms.', {
+                icon: 'ℹ️',
+              });
             }
           }, 1000);
         } else {
