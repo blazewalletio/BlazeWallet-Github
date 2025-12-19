@@ -268,7 +268,7 @@ export class MoonPayService {
         quoteCurrencyAmount: data.quoteCurrencyAmount,
       });
       
-      // v2 API returns quote object directly
+      // v3 API returns quote object directly
       return {
         quoteCurrencyCode: data.quoteCurrencyCode || normalizedQuoteCode,
         baseCurrencyCode: data.baseCurrencyCode || normalizedBaseCode,
@@ -289,7 +289,7 @@ export class MoonPayService {
   }
 
   // Get list of supported currencies
-  // Docs: https://dev.moonpay.com/reference/get_v2-currencies
+  // Docs: https://dev.moonpay.com/reference/get_v3-currencies
   static async getSupportedCurrencies(apiKey: string, isSandbox: boolean = false): Promise<any[]> {
     try {
       const baseUrl = isSandbox ? this.SANDBOX_API_URL : this.API_URL;
