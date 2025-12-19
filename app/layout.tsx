@@ -7,6 +7,7 @@ import CSRFTokenInitializer from "@/components/CSRFTokenInitializer";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import "@/lib/console-suppression"; // ✅ Suppress non-critical console errors
+import MoonPayProviderWrapper from "@/components/MoonPayProviderWrapper";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -59,14 +60,15 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <CurrencyProvider>
-          <ErrorBoundary>
-            <CSRFTokenInitializer />
-            <PWAInstallPrompt />
-            <div className="h-[100dvh] overflow-hidden bg-gray-50">
-              <main className="relative h-full overflow-y-auto">
-                {children}
-              </main>
-            </div>
+          <MoonPayProviderWrapper>
+            <ErrorBoundary>
+              <CSRFTokenInitializer />
+              <PWAInstallPrompt />
+              <div className="h-[100dvh] overflow-hidden bg-gray-50">
+                <main className="relative h-full overflow-y-auto">
+                  {children}
+                </main>
+              </div>
             <Toaster 
             position="top-center"
             toastOptions={{
@@ -105,7 +107,8 @@ export default function RootLayout({
               },
             }}
           />
-          </ErrorBoundary>
+            </ErrorBoundary>
+          </MoonPayProviderWrapper>
         </CurrencyProvider>
       </body>
     </html>

@@ -10,7 +10,7 @@ import { MoonPayService } from '@/lib/moonpay-service';
 import { logger } from '@/lib/logger';
 import { apiPost } from '@/lib/api-client';
 import toast from 'react-hot-toast';
-import { MoonPay } from '@moonpay/moonpay-js';
+import { MoonPayBuyWidget } from '@moonpay/moonpay-react';
 
 interface BuyModalProps {
   isOpen: boolean;
@@ -30,14 +30,12 @@ interface Quote {
 export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
   useBlockBodyScroll(isOpen);
   const { currentChain, getCurrentAddress } = useWalletStore();
-  const moonPayRef = useRef<MoonPay | null>(null);
-  const widgetContainerRef = useRef<HTMLDivElement>(null);
 
   // State management
   const [step, setStep] = useState<'select' | 'widget' | 'processing' | 'success' | 'error'>('select');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [widgetUrl, setWidgetUrl] = useState<string | null>(null);
+  const [showWidget, setShowWidget] = useState(false);
   
   // Form state
   const [fiatAmount, setFiatAmount] = useState('100');
@@ -68,20 +66,6 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
       return () => clearTimeout(debounceTimer);
     }
   }, [fiatAmount, fiatCurrency, cryptoCurrency, isOpen, step]);
-
-  // Cleanup MoonPay instance on unmount
-  useEffect(() => {
-    return () => {
-      if (moonPayRef.current) {
-        try {
-          moonPayRef.current.destroy();
-        } catch (error) {
-          // Ignore cleanup errors
-        }
-        moonPayRef.current = null;
-      }
-    };
-  }, []);
 
   const fetchQuote = async () => {
     if (!fiatAmount || parseFloat(fiatAmount) <= 0 || !cryptoCurrency) return;
@@ -123,94 +107,51 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
       return;
     }
 
-    if (!widgetContainerRef.current) {
-      toast.error('Widget container not ready');
-      return;
-    }
+    // Show the React SDK widget
+    setShowWidget(true);
+    setStep('widget');
+  };
 
+  // Handle URL signature request (required when using walletAddress)
+  const handleUrlSignatureRequested = async (url: string): Promise<string> => {
     try {
-      setLoading(true);
-      setError(null);
-
-      // Get signed widget URL from API (for URL signing)
-      const response = await apiPost('/api/moonpay/widget-url', {
-        walletAddress,
+      const response = await apiPost('/api/moonpay/signature', {
+        walletAddress: getCurrentAddress(),
         currencyCode: cryptoCurrency,
         baseCurrencyCode: fiatCurrency,
         baseCurrencyAmount: parseFloat(fiatAmount),
-        theme: 'light',
-        mode: 'buy',
       });
 
       const data = await response.json();
-
-      if (!data.success || !data.widgetUrl) {
-        throw new Error(data.error || 'Failed to create payment widget');
-      }
-
-      // Get API key and signature from response
-      const apiKey = data.apiKey || '';
-      const isSandbox = data.isSandbox || false;
-
-      // Get signature for SDK (required when using walletAddress)
-      const signatureResponse = await apiPost('/api/moonpay/signature', {
-        walletAddress,
-        currencyCode: cryptoCurrency,
-        baseCurrencyCode: fiatCurrency,
-        baseCurrencyAmount: parseFloat(fiatAmount),
-      });
-
-      const signatureData = await signatureResponse.json();
-      if (!signatureData.success || !signatureData.signature) {
+      if (!data.success || !data.signature) {
         throw new Error('Failed to generate signature');
       }
 
-      // Create MoonPay instance with embedded variant
-      // This keeps everything within our UI - no iframe needed!
-      // Apple Pay/Google Pay works perfectly with embedded variant!
-      moonPayRef.current = new MoonPay({
-        apiKey: apiKey,
-        environment: isSandbox ? 'sandbox' : 'production',
-        variant: 'embedded', // Embedded variant - stays within our UI!
-        containerId: 'moonpay-widget-container',
-        walletAddress: walletAddress,
-        currencyCode: cryptoCurrency,
-        baseCurrencyCode: fiatCurrency,
-        baseCurrencyAmount: parseFloat(fiatAmount),
-        theme: 'light',
-        mode: 'buy',
-        showWalletAddressForm: false, // We provide the address
-        // Event handlers
-        onEvent: (event: any) => {
-          logger.log('MoonPay event:', event);
-          
-          if (event.type === 'transaction_completed') {
-            setStep('success');
-            toast.success('Payment completed! Your crypto will arrive shortly.');
-          } else if (event.type === 'transaction_failed') {
-            setStep('error');
-            setError(event.message || 'Payment failed. Please try again.');
-            toast.error('Payment failed. Please try again.');
-          } else if (event.type === 'close') {
-            // User closed the widget
-            setStep('select');
-          }
-        },
-      });
+      // Return the signature (not the full URL)
+      return data.signature;
+    } catch (error: any) {
+      logger.error('Failed to get signature:', error);
+      throw error;
+    }
+  };
 
-      // Update signature (required when using walletAddress)
-      moonPayRef.current.updateSignature(signatureData.signature);
-
-      // Show the embedded widget
-      moonPayRef.current.show();
-      setStep('widget');
-      toast.success('Payment widget loaded');
-    } catch (err: any) {
-      logger.error('Failed to initialize MoonPay widget:', err);
-      setError(err.message || 'Failed to initialize payment widget');
+  // Handle widget events
+  const handleWidgetEvent = (event: any) => {
+    logger.log('MoonPay widget event:', event);
+    
+    if (event.type === 'transaction_completed') {
+      setStep('success');
+      setShowWidget(false);
+      toast.success('Payment completed! Your crypto will arrive shortly.');
+    } else if (event.type === 'transaction_failed') {
       setStep('error');
-    } finally {
-      setLoading(false);
+      setShowWidget(false);
+      setError(event.message || 'Payment failed. Please try again.');
+      toast.error('Payment failed. Please try again.');
+    } else if (event.type === 'close') {
+      // User closed the widget
+      setShowWidget(false);
+      setStep('select');
     }
   };
 
@@ -390,8 +331,8 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
               </div>
             )}
 
-            {/* MoonPay Embedded Widget (SDK - No iframe!) */}
-            {step === 'widget' && (
+            {/* MoonPay React SDK Embedded Widget */}
+            {step === 'widget' && showWidget && (
               <div className="glass-card p-0 overflow-hidden">
                 <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                   <div>
@@ -400,14 +341,7 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
                   </div>
                   <button
                     onClick={() => {
-                      if (moonPayRef.current) {
-                        try {
-                          moonPayRef.current.destroy();
-                        } catch (error) {
-                          // Ignore cleanup errors
-                        }
-                        moonPayRef.current = null;
-                      }
+                      setShowWidget(false);
                       setStep('select');
                     }}
                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -416,17 +350,26 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
                   </button>
                 </div>
                 {/* 
-                  MoonPay SDK Embedded Widget Container
+                  MoonPay React SDK Buy Widget
                   - NO IFRAME! Fully native within our UI
                   - Apple Pay/Google Pay works perfectly
                   - 100% within Blaze UI/UX
+                  - Embedded variant keeps everything in our modal
                 */}
-                <div 
-                  ref={widgetContainerRef}
-                  id="moonpay-widget-container"
-                  className="w-full min-h-[600px]"
-                  style={{ minHeight: '600px' }}
-                />
+                <div className="w-full min-h-[600px]">
+                  <MoonPayBuyWidget
+                    variant="embedded" // Embedded variant - stays within our UI!
+                    baseCurrencyCode={fiatCurrency.toLowerCase()}
+                    baseCurrencyAmount={parseFloat(fiatAmount).toString()}
+                    defaultCurrencyCode={cryptoCurrency}
+                    walletAddress={getCurrentAddress() || ''}
+                    showWalletAddressForm={false} // We provide the address
+                    onUrlSignatureRequested={handleUrlSignatureRequested}
+                    onEvent={handleWidgetEvent}
+                    visible={showWidget}
+                    theme="light"
+                  />
+                </div>
               </div>
             )}
 

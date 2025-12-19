@@ -23,7 +23,7 @@
     "@metaplex-foundation/mpl-token-metadata": "^3.4.0",
     "@metaplex-foundation/umi": "^1.4.1",
     "@metaplex-foundation/umi-bundle-defaults": "^1.4.1",
-    "@moonpay/moonpay-js": "^0.7.6",
+    "@moonpay/moonpay-react": "^1.10.6",
     "@solana/spl-token": "^0.4.14",
     "@solana/web3.js": "^1.98.4",
     "@supabase/supabase-js": "^2.76.1",
