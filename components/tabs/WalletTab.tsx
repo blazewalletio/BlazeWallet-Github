@@ -17,6 +17,7 @@ import SendModal from '../SendModal';
 import ReceiveModal from '../ReceiveModal';
 import SwapModal from '../SwapModal';
 import BuyModal from '../BuyModal';
+import BuyModal2 from '../BuyModal2';
 import TokenSelector from '../TokenSelector';
 import AnimatedNumber from '../AnimatedNumber';
 import { getPortfolioHistory } from '@/lib/portfolio-history';
@@ -41,6 +42,7 @@ export default function WalletTab() {
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [showBuyModal, setShowBuyModal] = useState(false);
+  const [showBuyModal2, setShowBuyModal2] = useState(false);
   const [showTokenSelector, setShowTokenSelector] = useState(false);
   const [totalValueUSD, setTotalValueUSD] = useState(0);
   const [change24h, setChange24h] = useState(2.5);
@@ -335,7 +337,7 @@ export default function WalletTab() {
         </motion.div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-5 gap-3">
           <motion.button
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -347,6 +349,19 @@ export default function WalletTab() {
           >
             <CreditCard className="w-8 h-8 text-white mb-2" />
             <div className="text-sm font-bold text-white text-center">Buy</div>
+          </motion.button>
+
+          <motion.button
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.12 }}
+            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.05 }}
+            onClick={() => setShowBuyModal2(true)}
+            className="bg-gradient-to-br from-indigo-500 to-blue-500 rounded-xl aspect-square flex flex-col items-center justify-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+          >
+            <CreditCard className="w-8 h-8 text-white mb-2" />
+            <div className="text-sm font-bold text-white text-center">Buy2</div>
           </motion.button>
 
           <motion.button
@@ -502,6 +517,7 @@ export default function WalletTab() {
 
       {/* Modals */}
       <BuyModal isOpen={showBuyModal} onClose={() => setShowBuyModal(false)} />
+      <BuyModal2 isOpen={showBuyModal2} onClose={() => setShowBuyModal2(false)} />
       <SendModal isOpen={showSendModal} onClose={() => setShowSendModal(false)} />
       <ReceiveModal isOpen={showReceiveModal} onClose={() => setShowReceiveModal(false)} />
       <SwapModal isOpen={showSwapModal} onClose={() => setShowSwapModal(false)} />
