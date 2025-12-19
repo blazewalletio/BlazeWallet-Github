@@ -135,24 +135,19 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
     }
   };
 
-  // Handle widget events
-  const handleWidgetEvent = (event: any) => {
-    logger.log('MoonPay widget event:', event);
-    
-    if (event.type === 'transaction_completed') {
-      setStep('success');
-      setShowWidget(false);
-      toast.success('Payment completed! Your crypto will arrive shortly.');
-    } else if (event.type === 'transaction_failed') {
-      setStep('error');
-      setShowWidget(false);
-      setError(event.message || 'Payment failed. Please try again.');
-      toast.error('Payment failed. Please try again.');
-    } else if (event.type === 'close') {
-      // User closed the widget
-      setShowWidget(false);
-      setStep('select');
-    }
+  // Handle transaction completed
+  const handleTransactionCompleted = async (props: any) => {
+    logger.log('MoonPay transaction completed:', props);
+    setStep('success');
+    setShowWidget(false);
+    toast.success('Payment completed! Your crypto will arrive shortly.');
+  };
+
+  // Handle widget close
+  const handleWidgetClose = async () => {
+    logger.log('MoonPay widget closed');
+    setShowWidget(false);
+    setStep('select');
   };
 
   const quickAmounts = ['50', '100', '250', '500'];
@@ -365,7 +360,8 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
                     walletAddress={getCurrentAddress() || ''}
                     showWalletAddressForm="false" // We provide the address (string, not boolean)
                     onUrlSignatureRequested={handleUrlSignatureRequested}
-                    onEvent={handleWidgetEvent}
+                    onTransactionCompleted={handleTransactionCompleted}
+                    onClose={handleWidgetClose}
                     visible={showWidget}
                     theme="light"
                   />
