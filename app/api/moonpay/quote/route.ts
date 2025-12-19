@@ -30,6 +30,13 @@ export async function GET(request: NextRequest) {
 
     const isSandbox = process.env.MOONPAY_ENVIRONMENT === 'sandbox';
 
+    logger.log('Fetching MoonPay quote:', {
+      baseCurrencyAmount,
+      baseCurrencyCode,
+      quoteCurrencyCode,
+      isSandbox,
+    });
+
     const quote = await MoonPayService.getQuote(
       baseCurrencyAmount,
       baseCurrencyCode,
@@ -39,8 +46,12 @@ export async function GET(request: NextRequest) {
     );
 
     if (!quote) {
+      logger.error('MoonPay quote returned null');
       return NextResponse.json(
-        { error: 'Failed to fetch quote from MoonPay' },
+        { 
+          error: 'Failed to fetch quote from MoonPay',
+          details: 'Please check if the currency pair is supported'
+        },
         { status: 500 }
       );
     }

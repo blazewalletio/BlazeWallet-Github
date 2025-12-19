@@ -219,6 +219,8 @@ export class MoonPayService {
       // Use v2 API endpoint for quotes
       const url = `${baseUrl}/quotes?baseCurrencyAmount=${baseCurrencyAmount}&baseCurrencyCode=${baseCurrencyCode.toLowerCase()}&quoteCurrencyCode=${quoteCurrencyCode.toLowerCase()}&apiKey=${apiKey}`;
 
+      logger.log('MoonPay quote API request:', url.replace(apiKey, '***'));
+      
       const response = await fetch(url);
       if (!response.ok) {
         const errorText = await response.text();
@@ -226,6 +228,7 @@ export class MoonPayService {
           status: response.status,
           statusText: response.statusText,
           error: errorText,
+          url: url.replace(apiKey, '***'),
         });
         return null;
       }
