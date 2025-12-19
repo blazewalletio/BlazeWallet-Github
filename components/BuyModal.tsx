@@ -363,7 +363,7 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
                     baseCurrencyAmount={parseFloat(fiatAmount).toString()}
                     defaultCurrencyCode={cryptoCurrency}
                     walletAddress={getCurrentAddress() || ''}
-                    showWalletAddressForm={false} // We provide the address
+                    showWalletAddressForm="false" // We provide the address (string, not boolean)
                     onUrlSignatureRequested={handleUrlSignatureRequested}
                     onEvent={handleWidgetEvent}
                     visible={showWidget}
