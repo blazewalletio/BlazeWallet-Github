@@ -42,15 +42,14 @@ Voeg deze environment variables toe aan Vercel:
 ```bash
 # MoonPay API Keys (verkrijg via https://www.moonpay.com/dashboard)
 MOONPAY_API_KEY=pk_live_...          # Public API key (voor frontend/widget)
-MOONPAY_SECRET_KEY=sk_live_...       # Secret key (VERPLICHT voor URL signing en webhook validation)
-
-# Environment (optioneel, default: production)
-MOONPAY_ENVIRONMENT=production        # of 'sandbox' voor testing
+MOONPAY_SECRET_KEY=sk_live_...       # Secret key (VERPLICHT voor URL signing)
+MOONPAY_WEBHOOK_SECRET=wk_live_...  # Webhook secret (voor webhook signature validation)
+MOONPAY_ENVIRONMENT=production       # of 'sandbox' voor testing
 ```
 
-**⚠️ BELANGRIJK:** `MOONPAY_SECRET_KEY` is **VERPLICHT** omdat:
-1. **URL Signing**: MoonPay vereist URL signing wanneer `walletAddress` wordt gebruikt (security)
-2. **Webhook Validation**: Webhook signatures worden geverifieerd met de secret key
+**⚠️ BELANGRIJK:** 
+- `MOONPAY_SECRET_KEY` is **VERPLICHT** voor URL signing wanneer `walletAddress` wordt gebruikt
+- `MOONPAY_WEBHOOK_SECRET` is **AANBEVOLEN** voor webhook signature validation (fallback naar `MOONPAY_SECRET_KEY` als niet gezet)
 
 ### Voor Development/Testing
 
@@ -107,8 +106,14 @@ Of via Vercel Dashboard:
 
 1. Ga naar MoonPay Dashboard → **Settings** → **Webhooks**
 2. Voeg webhook URL toe: `https://my.blazewallet.io/api/moonpay/webhook`
-3. Kopieer de webhook secret (als die wordt gegeven)
-4. Test de webhook (MoonPay heeft een test functie)
+   - **⚠️ BELANGRIJK**: Vervang `my.blazewallet.io` met je eigen domain
+3. Kopieer de **Webhook Secret Key** (begint met `wk_live_` of `wk_test_`)
+4. Voeg toe aan Vercel environment variables:
+   ```bash
+   vercel env add MOONPAY_WEBHOOK_SECRET production
+   # Plak je webhook secret key wanneer gevraagd
+   ```
+5. Test de webhook (MoonPay heeft een test functie in het dashboard)
 
 ---
 

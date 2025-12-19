@@ -11,9 +11,10 @@ export async function POST(request: NextRequest) {
     const body = await request.text();
     const signature = request.headers.get('x-moonpay-signature') || '';
 
-    const secretKey = process.env.MOONPAY_SECRET_KEY;
-    if (!secretKey) {
-      logger.error('MOONPAY_SECRET_KEY is not set in environment variables');
+    // Use webhook secret if available, otherwise fall back to secret key
+    const webhookSecret = process.env.MOONPAY_WEBHOOK_SECRET || process.env.MOONPAY_SECRET_KEY;
+    if (!webhookSecret) {
+      logger.error('MOONPAY_WEBHOOK_SECRET or MOONPAY_SECRET_KEY is not set in environment variables');
       return NextResponse.json(
         { error: 'Webhook secret not configured' },
         { status: 500 }
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify signature
-    const isValid = MoonPayService.verifyWebhookSignature(body, signature, secretKey);
+    const isValid = MoonPayService.verifyWebhookSignature(body, signature, webhookSecret);
     if (!isValid) {
       logger.error('Invalid MoonPay webhook signature');
       return NextResponse.json(
