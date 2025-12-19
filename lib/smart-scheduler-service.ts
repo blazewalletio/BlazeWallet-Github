@@ -109,11 +109,11 @@ class SmartSchedulerService {
 
       // Use apiPost helper which automatically includes CSRF token
       const response = await apiPost(`${this.baseUrl}/create`, {
-        ...options,
-        supabase_user_id: supabaseUserId || undefined,
-        scheduled_for: options.scheduled_for?.toISOString(),
-        current_gas_price: currentGasPrice,
-        current_gas_cost_usd: currentGasCostUSD,
+          ...options,
+          supabase_user_id: supabaseUserId || undefined,
+          scheduled_for: options.scheduled_for?.toISOString(),
+          current_gas_price: currentGasPrice,
+          current_gas_cost_usd: currentGasCostUSD,
       });
 
       const data = await response.json();
@@ -169,8 +169,8 @@ class SmartSchedulerService {
     try {
       // Use apiPost helper which automatically includes CSRF token
       const response = await apiPost(`${this.baseUrl}/cancel`, {
-        transaction_id: transactionId,
-        user_id: userId,
+          transaction_id: transactionId,
+          user_id: userId,
       });
 
       const data = await response.json();
@@ -243,9 +243,9 @@ class SmartSchedulerService {
       // Call AI prediction API
       // Use apiPost helper which automatically includes CSRF token
       const response = await apiPost('/api/smart-scheduler/predict-optimal-time', {
-        chain,
-        current_gas_price: currentGas,
-        max_wait_hours: maxWaitHours,
+          chain,
+          current_gas_price: currentGas,
+          max_wait_hours: maxWaitHours,
       });
 
       const data = await response.json();

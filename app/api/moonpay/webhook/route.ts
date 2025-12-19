@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify signature
-    const isValid = MoonPayService.verifySignature(body, signature, secretKey);
+    const isValid = MoonPayService.verifyWebhookSignature(body, signature, secretKey);
     if (!isValid) {
       logger.error('Invalid MoonPay webhook signature');
       return NextResponse.json(

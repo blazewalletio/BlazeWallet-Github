@@ -47,7 +47,7 @@ export default function TokenSearchModal({
     if (isOpen && chainId) {
       if (!searchQuery.trim()) {
         // Only fetch initial tokens if no search query
-        fetchTokens();
+      fetchTokens();
       }
     } else {
       setSearchQuery('');
@@ -84,7 +84,7 @@ export default function TokenSearchModal({
       // This ensures ALL tokens with balance are shown, even if they're not in Supabase
       if (onlyShowTokensWithBalance && walletTokens.length > 0) {
         logger.log(`🔍 [TokenSearchModal] Using wallet tokens directly (${walletTokens.length} tokens with balance)...`);
-        
+
         // ✅ Check if native token should be included
         const hasNativeToken = walletTokens.some(wt => wt.address === 'native');
         const nativeTokenInfo = chainConfig?.nativeCurrency;
@@ -106,7 +106,7 @@ export default function TokenSearchModal({
           
           if (metadataError) {
             logger.warn('⚠️ [TokenSearchModal] Failed to fetch token metadata:', metadataError);
-          } else {
+      } else {
             tokenMetadata = data || [];
           }
         }
@@ -162,7 +162,7 @@ export default function TokenSearchModal({
               symbol: wt.symbol || metadata?.symbol || 'UNKNOWN',
               name: wt.name || metadata?.name || 'Unknown Token',
               decimals: wt.decimals || metadata?.decimals || (chainKey === 'ethereum' ? 18 : 9),
-              chainId: chainId,
+                  chainId: chainId,
               // ✅ Logo priority: wallet token logo > Supabase logo > empty
               logoURI: wt.logo || metadata?.logo_uri || '',
               priceUSD: metadata?.price_usd?.toString() || '0',
@@ -188,7 +188,7 @@ export default function TokenSearchModal({
         
         setPopularTokens(popular);
         setTokens([...popular, ...others]);
-        
+              
         logger.log(`✅ [TokenSearchModal] Loaded ${walletTokensList.length} wallet tokens for ${chainKey} (native: ${hasNativeToken ? 'yes' : 'no'})`);
         return;
       }
@@ -230,7 +230,7 @@ export default function TokenSearchModal({
         logoURI: t.logo_uri || '',
         priceUSD: t.price_usd?.toString() || '0',
       }));
-
+      
       // Filter out excluded tokens
       const filteredTokens = chainTokens.filter(token => 
         !excludeTokens.some(excluded => excluded.toLowerCase() === token.address.toLowerCase())
@@ -620,7 +620,7 @@ export default function TokenSearchModal({
   const filteredTokens = useMemo(() => {
     // When searching, tokens already contain search results from API
     // When not searching, show all loaded tokens
-    return tokens;
+      return tokens;
   }, [tokens]);
 
   // Always show native token (it's always available for swaps)
@@ -847,11 +847,11 @@ export default function TokenSearchModal({
                             >
                               <div className="flex items-center gap-3 flex-1 min-w-0">
                               {token.logoURI && token.logoURI.trim() ? (
-                                <img 
-                                  src={token.logoURI} 
-                                  alt={token.symbol}
+                                  <img 
+                                    src={token.logoURI} 
+                                    alt={token.symbol}
                                   className="w-10 h-10 rounded-full flex-shrink-0 object-cover"
-                                  onError={(e) => {
+                                    onError={(e) => {
                                     // Fallback to gradient with first letter
                                     const target = e.currentTarget;
                                     target.style.display = 'none';
@@ -861,15 +861,15 @@ export default function TokenSearchModal({
                                       fallback.innerHTML = `<span class="text-white font-bold text-sm">${token.symbol[0]}</span>`;
                                       target.parentElement.insertBefore(fallback, target);
                                     }
-                                  }}
-                                />
-                              ) : (
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center flex-shrink-0">
-                                  <span className="text-white font-bold text-sm">
-                                    {token.symbol[0]}
-                                  </span>
-                                </div>
-                              )}
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center flex-shrink-0">
+                                    <span className="text-white font-bold text-sm">
+                                      {token.symbol[0]}
+                                    </span>
+                                  </div>
+                                )}
                                 <div className="text-left flex-1 min-w-0">
                                   <div className="font-semibold text-gray-900">
                                     {token.symbol}
@@ -910,11 +910,11 @@ export default function TokenSearchModal({
                                 >
                                   <div className="flex items-center gap-3 flex-1 min-w-0">
                               {token.logoURI && token.logoURI.trim() ? (
-                                <img 
-                                  src={token.logoURI} 
-                                  alt={token.symbol}
+                                      <img 
+                                        src={token.logoURI} 
+                                        alt={token.symbol}
                                   className="w-10 h-10 rounded-full flex-shrink-0 object-cover"
-                                  onError={(e) => {
+                                        onError={(e) => {
                                     // Fallback to gradient with first letter
                                     const target = e.currentTarget;
                                     target.style.display = 'none';
@@ -924,15 +924,15 @@ export default function TokenSearchModal({
                                       fallback.innerHTML = `<span class="text-white font-bold text-sm">${token.symbol[0]}</span>`;
                                       target.parentElement.insertBefore(fallback, target);
                                     }
-                                  }}
-                                />
-                              ) : (
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center flex-shrink-0">
-                                  <span className="text-white font-bold text-sm">
-                                    {token.symbol[0]}
-                                  </span>
-                                </div>
-                              )}
+                                        }}
+                                      />
+                                    ) : (
+                                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center flex-shrink-0">
+                                        <span className="text-white font-bold text-sm">
+                                          {token.symbol[0]}
+                                        </span>
+                                      </div>
+                                    )}
                                     <div className="text-left flex-1 min-w-0">
                                       <div className="font-semibold text-gray-900">
                                         {token.symbol}

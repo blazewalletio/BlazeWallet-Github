@@ -42,11 +42,15 @@ Voeg deze environment variables toe aan Vercel:
 ```bash
 # MoonPay API Keys (verkrijg via https://www.moonpay.com/dashboard)
 MOONPAY_API_KEY=pk_live_...          # Public API key (voor frontend/widget)
-MOONPAY_SECRET_KEY=sk_live_...       # Secret key (voor webhook signing)
+MOONPAY_SECRET_KEY=sk_live_...       # Secret key (VERPLICHT voor URL signing en webhook validation)
 
 # Environment (optioneel, default: production)
 MOONPAY_ENVIRONMENT=production        # of 'sandbox' voor testing
 ```
+
+**⚠️ BELANGRIJK:** `MOONPAY_SECRET_KEY` is **VERPLICHT** omdat:
+1. **URL Signing**: MoonPay vereist URL signing wanneer `walletAddress` wordt gebruikt (security)
+2. **Webhook Validation**: Webhook signatures worden geverifieerd met de secret key
 
 ### Voor Development/Testing
 
@@ -74,6 +78,8 @@ MOONPAY_ENVIRONMENT=sandbox          # Gebruik sandbox mode
 2. Ga naar **Settings** → **API Keys**
 3. Kopieer je **Public Key** (begint met `pk_live_` of `pk_test_`)
 4. Kopieer je **Secret Key** (begint met `sk_live_` of `sk_test_`)
+   - **⚠️ BELANGRIJK**: De Secret Key is **VERPLICHT** voor URL signing en webhook validation
+   - Zonder secret key werkt de widget NIET (MoonPay vereist signing wanneer walletAddress wordt gebruikt)
 
 ### 3. Environment Variables Toevoegen aan Vercel
 
@@ -172,14 +178,22 @@ BuyModal.tsx
 
 De MoonPay widget URL bevat:
 - `apiKey` - Public API key
-- `walletAddress` - User's wallet address (auto-filled)
+- `walletAddress` - User's wallet address (auto-filled, **REQUIRES URL SIGNING**)
 - `currencyCode` - Selected crypto (e.g., 'eth', 'sol')
 - `baseCurrencyCode` - Selected fiat (e.g., 'eur', 'usd')
 - `baseCurrencyAmount` - Amount in fiat
+- `quoteCurrencyAmount` - Amount in crypto (optional, takes precedence)
 - `theme` - 'light' or 'dark'
 - `mode` - 'buy' or 'sell'
 - `showWalletAddressForm` - 'false' (we provide it)
 - `redirectURL` - URL to redirect after completion
+- `signature` - **REQUIRED** HMAC-SHA256 signature (base64 encoded)
+
+**URL Signing:**
+- **VERPLICHT** wanneer `walletAddress` wordt gebruikt
+- Alle parameter values worden URL-encoded vóór signing
+- Signature wordt gegenereerd met `MOONPAY_SECRET_KEY`
+- Zonder geldige signature laadt de widget NIET
 
 ### Webhook Events
 
@@ -199,6 +213,19 @@ MoonPay ondersteunt:
 - **Base**: ETH, USDC
 - **Avalanche**: AVAX, USDC, USDT
 - **Solana**: SOL, USDC_SOL, USDT_SOL
+
+### Mobile Payments (Apple Pay / Google Pay)
+
+**⚠️ BELANGRIJK**: Apple Pay en Google Pay werken **NIET** in iframes volgens MoonPay documentatie.
+
+**Oplossing:**
+- Desktop: Iframe werkt voor alle payment methods
+- Mobile: Gebruikers kunnen "Open in New Tab" gebruiken voor Apple Pay/Google Pay
+- Future: We kunnen detecteren of het mobile is en automatisch redirecten naar MoonPay's domain
+
+**MoonPay Documentatie:**
+- Apple Pay: Vereist `SFSafariViewController` (iOS) of Safari (desktop), werkt NIET in iframe
+- Google Pay: Vereist Chrome Custom Tabs (Android) of Chrome (desktop), werkt NIET in iframe
 
 ### Supported Fiat Currencies
 

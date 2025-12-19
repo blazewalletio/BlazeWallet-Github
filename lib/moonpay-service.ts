@@ -1,16 +1,30 @@
 // MoonPay integration for fiat on-ramp
 // Docs: https://dev.moonpay.com/docs/integrating-the-widget
 // Embedded widget - Fully integrated within Blaze UI
+// IMPORTANT: URL signing is REQUIRED when using walletAddress
+// Docs: https://dev.moonpay.com/docs/url-signing
 
 import { logger } from '@/lib/logger';
+import crypto from 'crypto';
 
 export interface MoonPayConfig {
   walletAddress: string;
   currencyCode?: string; // e.g., 'eth', 'sol', 'usdc'
   baseCurrencyCode?: string; // e.g., 'eur', 'usd', 'gbp'
   baseCurrencyAmount?: number; // Default fiat amount
+  quoteCurrencyAmount?: number; // Crypto amount (takes precedence over baseCurrencyAmount)
   theme?: 'light' | 'dark';
   mode?: 'buy' | 'sell';
+  email?: string; // Customer email (pre-fills if valid)
+  externalTransactionId?: string; // External transaction ID for tracking
+  externalCustomerId?: string; // External customer ID for tracking
+  redirectURL?: string; // URL to redirect after completion
+  showWalletAddressForm?: boolean; // Show wallet address form (default: false)
+  showOnlyCurrencies?: string; // Comma-separated list of currency codes to show
+  showAllCurrencies?: boolean; // Show all currencies (default: false)
+  lockAmount?: boolean; // Lock amount (prevent modification)
+  defaultPaymentMethod?: string; // Pre-select payment method
+  language?: string; // ISO 639-1 language code (e.g., 'en', 'nl')
 }
 
 export interface MoonPayQuote {
@@ -26,9 +40,9 @@ export interface MoonPayQuote {
 
 export class MoonPayService {
   private static readonly WIDGET_URL = 'https://buy.moonpay.com';
-  private static readonly API_URL = 'https://api.moonpay.com/v3';
-  private static readonly SANDBOX_WIDGET_URL = 'https://buy-staging.moonpay.com';
-  private static readonly SANDBOX_API_URL = 'https://api-staging.moonpay.com/v3';
+  private static readonly API_URL = 'https://api.moonpay.com/v2'; // Use v2 API (v3 is deprecated)
+  private static readonly SANDBOX_WIDGET_URL = 'https://buy-sandbox.moonpay.com';
+  private static readonly SANDBOX_API_URL = 'https://api-sandbox.moonpay.com/v2';
 
   // Get supported crypto currencies by chain
   static getSupportedCryptos(chainId: number): string[] {
@@ -94,39 +108,105 @@ export class MoonPayService {
   }
 
   // Build MoonPay widget URL for embedded iframe
-  static buildWidgetUrl(config: MoonPayConfig, apiKey: string, isSandbox: boolean = false): string {
+  // IMPORTANT: URL signing is REQUIRED when using walletAddress
+  // Docs: https://dev.moonpay.com/docs/url-signing
+  static buildWidgetUrl(
+    config: MoonPayConfig,
+    apiKey: string,
+    secretKey: string,
+    isSandbox: boolean = false
+  ): string {
     const baseUrl = isSandbox ? this.SANDBOX_WIDGET_URL : this.WIDGET_URL;
     const params = new URLSearchParams();
 
     // Required parameters
     params.append('apiKey', apiKey);
-    params.append('walletAddress', config.walletAddress);
+    
+    // Wallet address - REQUIRES URL SIGNING
+    // All parameter values must be URL-encoded before signing
+    params.append('walletAddress', encodeURIComponent(config.walletAddress));
 
-    // Optional parameters
+    // Optional parameters (all values must be URL-encoded)
     if (config.currencyCode) {
-      params.append('currencyCode', config.currencyCode.toLowerCase());
+      params.append('currencyCode', encodeURIComponent(config.currencyCode.toLowerCase()));
     }
     if (config.baseCurrencyCode) {
-      params.append('baseCurrencyCode', config.baseCurrencyCode.toLowerCase());
+      params.append('baseCurrencyCode', encodeURIComponent(config.baseCurrencyCode.toLowerCase()));
     }
     if (config.baseCurrencyAmount) {
-      params.append('baseCurrencyAmount', config.baseCurrencyAmount.toString());
+      params.append('baseCurrencyAmount', encodeURIComponent(config.baseCurrencyAmount.toString()));
+    }
+    if (config.quoteCurrencyAmount) {
+      params.append('quoteCurrencyAmount', encodeURIComponent(config.quoteCurrencyAmount.toString()));
     }
     if (config.theme) {
-      params.append('theme', config.theme);
+      params.append('theme', encodeURIComponent(config.theme));
     }
     if (config.mode) {
-      params.append('mode', config.mode);
+      params.append('mode', encodeURIComponent(config.mode));
+    }
+    if (config.email) {
+      params.append('email', encodeURIComponent(config.email));
+    }
+    if (config.externalTransactionId) {
+      params.append('externalTransactionId', encodeURIComponent(config.externalTransactionId));
+    }
+    if (config.externalCustomerId) {
+      params.append('externalCustomerId', encodeURIComponent(config.externalCustomerId));
+    }
+    if (config.redirectURL) {
+      params.append('redirectURL', encodeURIComponent(config.redirectURL));
+    }
+    if (config.showWalletAddressForm !== undefined) {
+      params.append('showWalletAddressForm', encodeURIComponent(config.showWalletAddressForm.toString()));
+    } else {
+      params.append('showWalletAddressForm', 'false'); // Hide wallet address form (we provide it)
+    }
+    if (config.showOnlyCurrencies) {
+      params.append('showOnlyCurrencies', encodeURIComponent(config.showOnlyCurrencies));
+    }
+    if (config.showAllCurrencies) {
+      params.append('showAllCurrencies', encodeURIComponent('true'));
+    }
+    if (config.lockAmount) {
+      params.append('lockAmount', encodeURIComponent('true'));
+    }
+    if (config.defaultPaymentMethod) {
+      params.append('defaultPaymentMethod', encodeURIComponent(config.defaultPaymentMethod));
+    }
+    if (config.language) {
+      params.append('language', encodeURIComponent(config.language));
     }
 
-    // Additional UX parameters
-    // Note: redirectURL should be set by the caller if needed
-    params.append('showWalletAddressForm', 'false'); // Hide wallet address form (we provide it)
+    // Generate signature for URL-based integrations
+    // According to MoonPay docs: All query parameter values must be URL-encoded before signing
+    // Signature is generated from the query string (without the signature parameter itself)
+    const queryString = params.toString();
+    const signature = this.generateSignature(queryString, secretKey);
+    
+    // Append signature (also URL-encoded)
+    params.append('signature', encodeURIComponent(signature));
 
     return `${baseUrl}?${params.toString()}`;
   }
 
-  // Get quote from MoonPay API
+  // Generate HMAC-SHA256 signature for MoonPay widget URL
+  // Docs: https://dev.moonpay.com/docs/url-signing
+  // IMPORTANT: All parameter values must be URL-encoded BEFORE generating the signature
+  private static generateSignature(queryString: string, secretKey: string): string {
+    try {
+      const hmac = crypto.createHmac('sha256', secretKey);
+      hmac.update(queryString);
+      // MoonPay uses base64 encoding for signatures (not hex)
+      return hmac.digest('base64');
+    } catch (error: any) {
+      logger.error('MoonPay signature generation error:', error);
+      throw new Error('Failed to generate MoonPay signature');
+    }
+  }
+
+  // Get quote from MoonPay API v2
+  // Docs: https://dev.moonpay.com/reference/get_v2-quotes
   static async getQuote(
     baseCurrencyAmount: number,
     baseCurrencyCode: string,
@@ -136,7 +216,8 @@ export class MoonPayService {
   ): Promise<MoonPayQuote | null> {
     try {
       const baseUrl = isSandbox ? this.SANDBOX_API_URL : this.API_URL;
-      const url = `${baseUrl}/currencies/${quoteCurrencyCode.toLowerCase()}/quote?baseCurrencyAmount=${baseCurrencyAmount}&baseCurrencyCode=${baseCurrencyCode.toLowerCase()}&apiKey=${apiKey}`;
+      // Use v2 API endpoint for quotes
+      const url = `${baseUrl}/quotes?baseCurrencyAmount=${baseCurrencyAmount}&baseCurrencyCode=${baseCurrencyCode.toLowerCase()}&quoteCurrencyCode=${quoteCurrencyCode.toLowerCase()}&apiKey=${apiKey}`;
 
       const response = await fetch(url);
       if (!response.ok) {
@@ -151,15 +232,16 @@ export class MoonPayService {
 
       const data = await response.json();
       
+      // v2 API returns quote object directly
       return {
-        quoteCurrencyCode: data.quoteCurrencyCode,
-        baseCurrencyCode: data.baseCurrencyCode,
-        quoteCurrencyAmount: data.quoteCurrencyAmount,
-        baseCurrencyAmount: data.baseCurrencyAmount,
-        totalAmount: data.totalAmount,
-        feeAmount: data.feeAmount,
+        quoteCurrencyCode: data.quoteCurrencyCode || quoteCurrencyCode.toLowerCase(),
+        baseCurrencyCode: data.baseCurrencyCode || baseCurrencyCode.toLowerCase(),
+        quoteCurrencyAmount: data.quoteCurrencyAmount || 0,
+        baseCurrencyAmount: data.baseCurrencyAmount || baseCurrencyAmount,
+        totalAmount: data.totalAmount || data.baseCurrencyAmount || baseCurrencyAmount,
+        feeAmount: data.feeAmount || 0,
         networkFeeAmount: data.networkFeeAmount || 0,
-        exchangeRate: data.exchangeRate,
+        exchangeRate: data.exchangeRate || 0,
       };
     } catch (error: any) {
       logger.error('MoonPay getQuote error:', error);
@@ -168,6 +250,7 @@ export class MoonPayService {
   }
 
   // Get list of supported currencies
+  // Docs: https://dev.moonpay.com/reference/get_v2-currencies
   static async getSupportedCurrencies(apiKey: string, isSandbox: boolean = false): Promise<any[]> {
     try {
       const baseUrl = isSandbox ? this.SANDBOX_API_URL : this.API_URL;
@@ -190,22 +273,26 @@ export class MoonPayService {
     }
   }
 
-  // Verify MoonPay signature (for webhook validation)
-  static verifySignature(
+  // Verify MoonPay webhook signature
+  // Docs: https://dev.moonpay.com/docs/webhooks
+  // MoonPay sends webhook signature in X-Moonpay-Signature header
+  static verifyWebhookSignature(
     payload: string,
     signature: string,
     secretKey: string
   ): boolean {
     try {
-      const crypto = require('crypto');
-      const hash = crypto
-        .createHmac('sha256', secretKey)
-        .update(payload)
-        .digest('hex');
+      const hmac = crypto.createHmac('sha256', secretKey);
+      hmac.update(payload);
+      // MoonPay webhook signatures use hex encoding
+      const expectedSignature = hmac.digest('hex');
       
-      return hash === signature;
+      return crypto.timingSafeEqual(
+        Buffer.from(signature, 'hex'),
+        Buffer.from(expectedSignature, 'hex')
+      );
     } catch (error: any) {
-      logger.error('MoonPay signature verification error:', error);
+      logger.error('MoonPay webhook signature verification error:', error);
       return false;
     }
   }

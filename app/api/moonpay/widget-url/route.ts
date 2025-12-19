@@ -34,11 +34,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const secretKey = process.env.MOONPAY_SECRET_KEY;
+    if (!secretKey) {
+      logger.error('MOONPAY_SECRET_KEY is not set in environment variables');
+      return NextResponse.json(
+        { error: 'MoonPay secret key not configured (required for URL signing)' },
+        { status: 500 }
+      );
+    }
+
     const isSandbox = process.env.MOONPAY_ENVIRONMENT === 'sandbox';
     
     // Get origin from request headers for redirect URL
     const origin = request.headers.get('origin') || request.headers.get('referer')?.split('/').slice(0, 3).join('/') || '';
 
+    // Build widget URL with signature (REQUIRED when using walletAddress)
     const widgetUrl = MoonPayService.buildWidgetUrl(
       {
         walletAddress,
@@ -47,19 +57,17 @@ export async function POST(request: NextRequest) {
         baseCurrencyAmount,
         theme,
         mode,
+        redirectURL: origin || undefined,
+        showWalletAddressForm: false, // Hide wallet address form (we provide it)
       },
       apiKey,
+      secretKey,
       isSandbox
     );
-    
-    // Add redirect URL if origin is available
-    const widgetUrlWithRedirect = origin 
-      ? `${widgetUrl}&redirectURL=${encodeURIComponent(origin)}`
-      : widgetUrl;
 
     return NextResponse.json({
       success: true,
-      widgetUrl: widgetUrlWithRedirect,
+      widgetUrl,
     });
   } catch (error: any) {
     logger.error('MoonPay widget URL API error:', error);

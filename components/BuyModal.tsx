@@ -356,13 +356,34 @@ export default function BuyModal({ isOpen, onClose }: BuyModalProps) {
                   </button>
                 </div>
                 <div className="w-full" style={{ height: '600px' }}>
+                  {/* 
+                    IMPORTANT: Apple Pay and Google Pay do NOT work in iframes.
+                    For mobile devices, we should redirect to MoonPay's domain instead.
+                    However, for desktop and other payment methods, iframe works fine.
+                    MoonPay will handle the payment method selection automatically.
+                  */}
                   <iframe
                     ref={iframeRef}
                     src={widgetUrl}
                     className="w-full h-full border-0"
                     title="MoonPay Payment Widget"
                     allow="payment"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation"
                   />
+                </div>
+                {/* Fallback: Open in new tab for mobile payments */}
+                <div className="p-4 border-t border-gray-200">
+                  <p className="text-xs text-gray-500 mb-2">
+                    Having issues with Apple Pay or Google Pay? Try opening in a new tab.
+                  </p>
+                  <button
+                    onClick={() => {
+                      window.open(widgetUrl, '_blank', 'noopener,noreferrer');
+                    }}
+                    className="w-full py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  >
+                    Open in New Tab
+                  </button>
                 </div>
               </div>
             )}
