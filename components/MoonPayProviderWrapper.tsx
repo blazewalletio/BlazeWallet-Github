@@ -31,7 +31,7 @@ export default function MoonPayProviderWrapper({ children }: { children: React.R
   return (
     <MoonPayProvider 
       apiKey={apiKey}
-      environment={isSandbox ? 'sandbox' : 'production'}
+      debug={isSandbox} // Use debug mode for sandbox
     >
       {children}
     </MoonPayProvider>
