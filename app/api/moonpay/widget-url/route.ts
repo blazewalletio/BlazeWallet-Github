@@ -67,7 +67,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      widgetUrl,
+      widgetUrl, // Keep for reference, but SDK uses direct config
+      apiKey, // Return API key for SDK initialization
+      isSandbox, // Return environment for SDK
     });
   } catch (error: any) {
     logger.error('MoonPay widget URL API error:', error);
