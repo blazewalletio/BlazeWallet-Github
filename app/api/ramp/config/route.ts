@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { logger } from '@/lib/logger';
 
 /**
  * GET /api/ramp/config
@@ -9,16 +8,22 @@ import { logger } from '@/lib/logger';
 export async function GET(req: NextRequest) {
   try {
     const hostApiKey = process.env.NEXT_PUBLIC_RAMP_API_KEY || process.env.RAMP_API_KEY || '';
-    const isSandbox = process.env.RAMP_ENVIRONMENT === 'sandbox' || !hostApiKey.includes('_live_');
+    const isSandbox = process.env.RAMP_ENVIRONMENT === 'sandbox' || (!hostApiKey.includes('_live_') && hostApiKey.length > 0);
 
+    // If no API key, return a graceful error (not 500, but 200 with success: false)
+    // This allows the frontend to show a user-friendly message
     if (!hostApiKey) {
-      logger.warn('⚠️ Ramp API key not configured');
       return NextResponse.json(
         {
           success: false,
           error: 'Ramp API key not configured',
+          config: {
+            hostApiKey: '',
+            isSandbox: true,
+            environment: 'sandbox',
+          },
         },
-        { status: 500 }
+        { status: 200 }
       );
     }
 
@@ -31,11 +36,12 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error: any) {
-    logger.error('❌ Failed to get Ramp config:', error);
+    console.error('❌ Failed to get Ramp config:', error);
     return NextResponse.json(
       {
         success: false,
         error: 'Failed to get Ramp configuration',
+        details: error.message || 'Unknown error',
       },
       { status: 500 }
     );

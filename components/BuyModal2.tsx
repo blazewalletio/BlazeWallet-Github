@@ -71,22 +71,29 @@ export default function BuyModal2({ isOpen, onClose }: BuyModal2Props) {
         let hostApiKey = '';
         try {
           const configResponse = await fetch('/api/ramp/config');
+          if (!configResponse.ok) {
+            throw new Error(`HTTP ${configResponse.status}`);
+          }
           const configData = await configResponse.json();
           if (configData.success && configData.config?.hostApiKey) {
             hostApiKey = configData.config.hostApiKey;
           } else {
+            // API key not configured - show user-friendly message
             logger.warn('Ramp API key not found in config response');
+            toast.error('Ramp Network is not configured. Please contact support.');
+            setStep('select');
+            return;
           }
-        } catch (err) {
+        } catch (err: any) {
           logger.error('Failed to fetch Ramp config:', err);
           // Fallback to env var (for development)
           hostApiKey = process.env.NEXT_PUBLIC_RAMP_API_KEY || '';
-        }
-        
-        if (!hostApiKey) {
-          toast.error('Ramp Network is not configured. Please contact support.');
-          setStep('select');
-          return;
+          
+          if (!hostApiKey) {
+            toast.error('Ramp Network is not configured. Please contact support.');
+            setStep('select');
+            return;
+          }
         }
 
         try {
