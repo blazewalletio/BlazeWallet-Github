@@ -40,9 +40,9 @@ export interface MoonPayQuote {
 
 export class MoonPayService {
   private static readonly WIDGET_URL = 'https://buy.moonpay.com';
-  private static readonly API_URL = 'https://api.moonpay.com/v2'; // Use v2 API (v3 is deprecated)
+  private static readonly API_URL = 'https://api.moonpay.com/v3'; // Use v3 API (v2 quotes endpoint doesn't exist)
   private static readonly SANDBOX_WIDGET_URL = 'https://buy-sandbox.moonpay.com';
-  private static readonly SANDBOX_API_URL = 'https://api-sandbox.moonpay.com/v2';
+  private static readonly SANDBOX_API_URL = 'https://api-sandbox.moonpay.com/v3';
 
   // Get supported crypto currencies by chain
   static getSupportedCryptos(chainId: number): string[] {
@@ -205,8 +205,8 @@ export class MoonPayService {
     }
   }
 
-  // Get quote from MoonPay API v2
-  // Docs: https://dev.moonpay.com/reference/get_v2-quotes
+  // Get quote from MoonPay API v3
+  // Docs: https://dev.moonpay.com/reference/get_v3-currencies-quote
   static async getQuote(
     baseCurrencyAmount: number,
     baseCurrencyCode: string,
@@ -226,8 +226,8 @@ export class MoonPayService {
         normalizedQuoteCode = 'sol';
       }
       
-      // Use v2 API endpoint for quotes
-      const url = `${baseUrl}/quotes?baseCurrencyAmount=${baseCurrencyAmount}&baseCurrencyCode=${normalizedBaseCode}&quoteCurrencyCode=${normalizedQuoteCode}&apiKey=${apiKey}`;
+      // Use v3 API endpoint: /v3/currencies/{currencyCode}/quote
+      const url = `${baseUrl}/currencies/${normalizedQuoteCode}/quote?baseCurrencyAmount=${baseCurrencyAmount}&baseCurrencyCode=${normalizedBaseCode}&apiKey=${apiKey}`;
 
       logger.log('MoonPay quote API request:', {
         url: url.replace(apiKey, '***'),
