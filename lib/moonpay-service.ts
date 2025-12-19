@@ -216,18 +216,45 @@ export class MoonPayService {
   ): Promise<MoonPayQuote | null> {
     try {
       const baseUrl = isSandbox ? this.SANDBOX_API_URL : this.API_URL;
-      // Use v2 API endpoint for quotes
-      const url = `${baseUrl}/quotes?baseCurrencyAmount=${baseCurrencyAmount}&baseCurrencyCode=${baseCurrencyCode.toLowerCase()}&quoteCurrencyCode=${quoteCurrencyCode.toLowerCase()}&apiKey=${apiKey}`;
-
-      logger.log('MoonPay quote API request:', url.replace(apiKey, '***'));
       
-      const response = await fetch(url);
+      // Normalize currency codes
+      const normalizedBaseCode = baseCurrencyCode.toLowerCase();
+      let normalizedQuoteCode = quoteCurrencyCode.toLowerCase();
+      
+      // MoonPay uses 'sol' for Solana, not 'sol_sol'
+      if (normalizedQuoteCode === 'sol_sol') {
+        normalizedQuoteCode = 'sol';
+      }
+      
+      // Use v2 API endpoint for quotes
+      const url = `${baseUrl}/quotes?baseCurrencyAmount=${baseCurrencyAmount}&baseCurrencyCode=${normalizedBaseCode}&quoteCurrencyCode=${normalizedQuoteCode}&apiKey=${apiKey}`;
+
+      logger.log('MoonPay quote API request:', {
+        url: url.replace(apiKey, '***'),
+        baseCurrencyCode: normalizedBaseCode,
+        quoteCurrencyCode: normalizedQuoteCode,
+        baseCurrencyAmount,
+      });
+      
+      const response = await fetch(url, {
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+      
       if (!response.ok) {
         const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = errorText;
+        }
+        
         logger.error('MoonPay quote API error:', {
           status: response.status,
           statusText: response.statusText,
-          error: errorText,
+          error: errorData,
           url: url.replace(apiKey, '***'),
         });
         return null;
@@ -235,10 +262,16 @@ export class MoonPayService {
 
       const data = await response.json();
       
+      logger.log('MoonPay quote response:', {
+        quoteCurrencyCode: data.quoteCurrencyCode,
+        baseCurrencyCode: data.baseCurrencyCode,
+        quoteCurrencyAmount: data.quoteCurrencyAmount,
+      });
+      
       // v2 API returns quote object directly
       return {
-        quoteCurrencyCode: data.quoteCurrencyCode || quoteCurrencyCode.toLowerCase(),
-        baseCurrencyCode: data.baseCurrencyCode || baseCurrencyCode.toLowerCase(),
+        quoteCurrencyCode: data.quoteCurrencyCode || normalizedQuoteCode,
+        baseCurrencyCode: data.baseCurrencyCode || normalizedBaseCode,
         quoteCurrencyAmount: data.quoteCurrencyAmount || 0,
         baseCurrencyAmount: data.baseCurrencyAmount || baseCurrencyAmount,
         totalAmount: data.totalAmount || data.baseCurrencyAmount || baseCurrencyAmount,
@@ -247,7 +280,10 @@ export class MoonPayService {
         exchangeRate: data.exchangeRate || 0,
       };
     } catch (error: any) {
-      logger.error('MoonPay getQuote error:', error);
+      logger.error('MoonPay getQuote error:', {
+        error: error.message,
+        stack: error.stack,
+      });
       return null;
     }
   }
