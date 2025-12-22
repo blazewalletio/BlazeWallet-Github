@@ -106,39 +106,54 @@ export async function POST(req: NextRequest) {
     // Add partner context for tracking
     requestBody.partnerContext = `blazewallet-${Date.now()}`;
 
-    // Generate signature for request body
-    // Onramper requires HMAC SHA256 signature of the request body
-    // Docs: https://docs.onramper.com/reference/post_checkout-intent
-    const requestBodyString = JSON.stringify(requestBody);
+    // Generate signature according to Onramper API documentation
+    // Docs: https://docs.onramper.com/docs/signatures/api-sign-requests
+    // 
+    // IMPORTANT: Only sign sensitive fields:
+    // - wallets, networkWallets, walletAddressTags, walletAddress, walletMemo, walletAddresses
+    // 
+    // In our case, we have wallet.address, so we need to sign it as "walletAddress"
+    // 
+    // Steps:
+    // 1. Create signContent string from sensitive fields (alphabetically sorted)
+    // 2. Generate HMAC SHA256 signature
+    // 3. Add both signature AND signContent to request body
+    
+    // Build signContent from sensitive fields (alphabetically sorted)
+    // Since we only have walletAddress, signContent is simple
+    const signContent = `walletAddress=${walletAddress}`;
+    
+    // Generate HMAC SHA256 signature
     const signature = crypto
       .createHmac('sha256', onramperSecretKey)
-      .update(requestBodyString)
+      .update(signContent)
       .digest('hex');
 
-    // Add signature to request body
+    // Add signature and signContent to request body (REQUIRED by Onramper)
     requestBody.signature = signature;
+    requestBody.signContent = signContent;
 
     logger.log('🔐 Generated signature for checkout intent:', {
+      signContent,
       signatureLength: signature.length,
-      requestBodyKeys: Object.keys(requestBody).join(', '),
+      signaturePrefix: signature.substring(0, 20) + '...',
     });
 
     // Call Onramper /checkout/intent API
     // IMPORTANT: 
     // 1. Authorization header: API key directly (NOT Bearer token)
-    // 2. X-Onramper-Secret header: Secret key for signature validation (REQUIRED)
-    // 3. Request body must include signature field
+    // 2. Request body must include BOTH signature AND signContent fields
+    // 3. X-Onramper-Secret header is NOT needed (secret key is only used to generate signature)
     let response;
     try {
       response = await fetch('https://api.onramper.com/checkout/intent', {
         method: 'POST',
         headers: {
           'Authorization': onramperApiKey, // Direct API key, NOT Bearer token
-          'X-Onramper-Secret': onramperSecretKey, // Secret key for signature validation (REQUIRED)
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: JSON.stringify(requestBody), // Include signature in body
+        body: JSON.stringify(requestBody), // Include signature and signContent in body
       });
     } catch (fetchError: any) {
       logger.error('❌ Failed to call Onramper /checkout/intent API:', {
