@@ -180,14 +180,19 @@ export async function POST(req: NextRequest) {
                 payout: bestQuote.payout,
               });
             } else {
-              // No provider supports this payment method
+              // No provider supports this payment method - log full details
               logger.error('❌ No onramp provider supports payment method:', {
                 paymentMethod: paymentMethodLower,
                 availableProviders: quoteData.map((q: any) => ({
                   ramp: q.ramp,
-                  paymentMethods: q.availablePaymentMethods?.map((pm: any) => 
-                    pm.paymentTypeId || pm.id || pm.name
-                  ) || [],
+                  hasPaymentMethods: !!q.availablePaymentMethods,
+                  paymentMethodsCount: q.availablePaymentMethods?.length || 0,
+                  paymentMethods: q.availablePaymentMethods?.map((pm: any) => ({
+                    paymentTypeId: pm.paymentTypeId,
+                    id: pm.id,
+                    name: pm.name,
+                    fullObject: pm, // Log full object to see all fields
+                  })) || [],
                 })),
               });
             }
