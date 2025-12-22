@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -105,10 +106,28 @@ export async function POST(req: NextRequest) {
     // Add partner context for tracking
     requestBody.partnerContext = `blazewallet-${Date.now()}`;
 
+    // Generate signature for request body
+    // Onramper requires HMAC SHA256 signature of the request body
+    // Docs: https://docs.onramper.com/reference/post_checkout-intent
+    const requestBodyString = JSON.stringify(requestBody);
+    const signature = crypto
+      .createHmac('sha256', onramperSecretKey)
+      .update(requestBodyString)
+      .digest('hex');
+
+    // Add signature to request body
+    requestBody.signature = signature;
+
+    logger.log('🔐 Generated signature for checkout intent:', {
+      signatureLength: signature.length,
+      requestBodyKeys: Object.keys(requestBody).join(', '),
+    });
+
     // Call Onramper /checkout/intent API
     // IMPORTANT: 
     // 1. Authorization header: API key directly (NOT Bearer token)
     // 2. X-Onramper-Secret header: Secret key for signature validation (REQUIRED)
+    // 3. Request body must include signature field
     let response;
     try {
       response = await fetch('https://api.onramper.com/checkout/intent', {
@@ -119,7 +138,7 @@ export async function POST(req: NextRequest) {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify(requestBody), // Include signature in body
       });
     } catch (fetchError: any) {
       logger.error('❌ Failed to call Onramper /checkout/intent API:', {
