@@ -500,8 +500,8 @@ export async function POST(req: NextRequest) {
         type: transactionInformation.type, // "iframe" or "redirect"
         params: transactionInformation.params, // iframe permissions if type is "iframe"
       },
-      // Also include session information if available
-      sessionInformation: data.sessionInformation,
+      // Also include session information if available (can be nested in message)
+      sessionInformation: data.sessionInformation || data.message?.sessionInformation,
     });
 
   } catch (error: any) {
