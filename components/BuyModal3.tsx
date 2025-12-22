@@ -253,7 +253,7 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
           } else {
             // Monitor popup for completion
             setStep('processing');
-            toast.info('Complete payment in the popup window');
+            toast('Complete payment in the popup window', { icon: '💳' });
 
             const checkPopup = setInterval(() => {
               if (popup.closed) {
