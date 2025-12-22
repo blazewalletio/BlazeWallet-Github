@@ -45,6 +45,9 @@ export async function middleware(request: NextRequest) {
     '/api/2fa', // 2FA setup/verification
     '/api/verify-device', // Device verification
     '/api/export-csv', // Transaction export (has auth check)
+    '/api/onramper', // Onramper endpoints (quotes, create-transaction, supported-data)
+    '/api/moonpay', // MoonPay endpoints
+    '/api/ramp', // Ramp Network endpoints
   ];
   
   if (publicEndpoints.some(ep => pathname.startsWith(ep))) {
