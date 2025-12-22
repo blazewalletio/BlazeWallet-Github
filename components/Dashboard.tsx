@@ -41,6 +41,7 @@ const ReceiveModal = dynamic(() => import('./ReceiveModal'), { ssr: false });
 const SwapModal = dynamic(() => import('./SwapModal'), { ssr: false });
 const BuyModal = dynamic(() => import('./BuyModal'), { ssr: false });
 const BuyModal2 = dynamic(() => import('./BuyModal2'), { ssr: false });
+const BuyModal3 = dynamic(() => import('./BuyModal3'), { ssr: false });
 const SettingsModal = dynamic(() => import('./SettingsModal'), { ssr: false });
 const QuickPayModal = dynamic(() => import('./QuickPayModal'), { ssr: false });
 const TokenDetailModal = dynamic(() => import('./TokenDetailModal'), { ssr: false });
@@ -108,6 +109,7 @@ export default function Dashboard() {
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [showBuyModal, setShowBuyModal] = useState(false);
   const [showBuyModal2, setShowBuyModal2] = useState(false);
+  const [showBuyModal3, setShowBuyModal3] = useState(false);
   const [showChainSelector, setShowChainSelector] = useState(false);
   const [showTokenSelector, setShowTokenSelector] = useState(false);
   
@@ -1336,7 +1338,7 @@ export default function Dashboard() {
           />
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-5 gap-3">
+          <div className="grid grid-cols-6 gap-3">
             <motion.button
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1361,6 +1363,19 @@ export default function Dashboard() {
             >
               <CreditCard className="w-8 h-8 text-white mb-2" />
               <div className="text-sm font-bold text-white text-center">Buy2</div>
+            </motion.button>
+
+            <motion.button
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.14 }}
+              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.05 }}
+              onClick={() => setShowBuyModal3(true)}
+              className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl aspect-square flex flex-col items-center justify-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+            >
+              <CreditCard className="w-8 h-8 text-white mb-2" />
+              <div className="text-sm font-bold text-white text-center">Buy3</div>
             </motion.button>
 
             <motion.button
@@ -1977,6 +1992,7 @@ export default function Dashboard() {
       {/* Modals */}
       <BuyModal isOpen={showBuyModal} onClose={() => setShowBuyModal(false)} />
       <BuyModal2 isOpen={showBuyModal2} onClose={() => setShowBuyModal2(false)} />
+      <BuyModal3 isOpen={showBuyModal3} onClose={() => setShowBuyModal3(false)} />
       <SendModal 
         isOpen={showSendModal} 
         onClose={() => {

@@ -18,6 +18,7 @@ import ReceiveModal from '../ReceiveModal';
 import SwapModal from '../SwapModal';
 import BuyModal from '../BuyModal';
 import BuyModal2 from '../BuyModal2';
+import BuyModal3 from '../BuyModal3';
 import TokenSelector from '../TokenSelector';
 import AnimatedNumber from '../AnimatedNumber';
 import { getPortfolioHistory } from '@/lib/portfolio-history';
@@ -43,6 +44,7 @@ export default function WalletTab() {
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [showBuyModal, setShowBuyModal] = useState(false);
   const [showBuyModal2, setShowBuyModal2] = useState(false);
+  const [showBuyModal3, setShowBuyModal3] = useState(false);
   const [showTokenSelector, setShowTokenSelector] = useState(false);
   const [totalValueUSD, setTotalValueUSD] = useState(0);
   const [change24h, setChange24h] = useState(2.5);
@@ -337,7 +339,7 @@ export default function WalletTab() {
         </motion.div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-6 gap-3">
           <motion.button
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -518,6 +520,7 @@ export default function WalletTab() {
       {/* Modals */}
       <BuyModal isOpen={showBuyModal} onClose={() => setShowBuyModal(false)} />
       <BuyModal2 isOpen={showBuyModal2} onClose={() => setShowBuyModal2(false)} />
+      <BuyModal3 isOpen={showBuyModal3} onClose={() => setShowBuyModal3(false)} />
       <SendModal isOpen={showSendModal} onClose={() => setShowSendModal(false)} />
       <ReceiveModal isOpen={showReceiveModal} onClose={() => setShowReceiveModal(false)} />
       <SwapModal isOpen={showSwapModal} onClose={() => setShowSwapModal(false)} />
