@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { OnramperService } from '@/lib/onramper-service';
+import { CHAINS } from '@/lib/chains';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -119,6 +121,50 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Determine network code based on crypto currency
+    // Map crypto currency to chain ID, then to Onramper network code
+    const getNetworkFromCrypto = (crypto: string): string | null => {
+      const cryptoUpper = crypto.toUpperCase();
+      const cryptoLower = crypto.toLowerCase();
+      
+      // Map crypto currency to chain ID
+      const cryptoToChainId: Record<string, number> = {
+        'ETH': 1,
+        'USDT': 1, // USDT on Ethereum
+        'USDC': 1, // USDC on Ethereum
+        'DAI': 1,
+        'WBTC': 1,
+        'MATIC': 137,
+        'BNB': 56,
+        'BUSD': 56,
+        'SOL': 101,
+        'AVAX': 43114,
+      };
+      
+      const chainId = cryptoToChainId[cryptoUpper];
+      if (chainId) {
+        return OnramperService.getNetworkCode(chainId);
+      }
+      
+      // Fallback: try to match by crypto name
+      if (cryptoLower.includes('sol') || cryptoLower === 'sol') {
+        return 'solana';
+      }
+      if (cryptoLower.includes('btc') || cryptoLower === 'btc') {
+        return 'bitcoin';
+      }
+      if (cryptoLower.includes('eth') || cryptoLower === 'eth') {
+        return 'ethereum';
+      }
+      if (cryptoLower.includes('matic') || cryptoLower === 'matic') {
+        return 'polygon';
+      }
+      
+      return null; // Let Onramper determine
+    };
+    
+    const networkCode = getNetworkFromCrypto(cryptoCurrency);
+    
     // Build request body for Onramper /checkout/intent API
     // IMPORTANT: Use correct field names per Onramper API documentation
     // Docs: https://docs.onramper.com/reference/post_checkout-intent
@@ -131,6 +177,14 @@ export async function POST(req: NextRequest) {
         address: walletAddress, // NOT destinationWalletAddress (nested in wallet object)
       },
     };
+    
+    // Add network field if we can determine it (optional but recommended)
+    if (networkCode) {
+      requestBody.network = networkCode;
+      logger.log('✅ Added network to request:', networkCode);
+    } else {
+      logger.warn('⚠️ Could not determine network code for crypto:', cryptoCurrency);
+    }
 
     // Add onramp provider if we found one (required to avoid "Unsupported Onramp" error)
     if (onrampProvider) {
