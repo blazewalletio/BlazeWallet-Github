@@ -51,15 +51,13 @@ export async function middleware(request: NextRequest) {
   ];
   
   // Check if pathname starts with any public endpoint
-  const isPublicEndpoint = publicEndpoints.some(ep => {
-    const matches = pathname.startsWith(ep);
-    if (matches && pathname.includes('checkout-intent')) {
-      console.log('✅ Allowing checkout-intent endpoint:', pathname);
-    }
-    return matches;
-  });
+  const isPublicEndpoint = publicEndpoints.some(ep => pathname.startsWith(ep));
   
   if (isPublicEndpoint) {
+    // Log for debugging (only in development or for specific routes)
+    if (pathname.includes('checkout-intent')) {
+      console.log('✅ Middleware: Allowing checkout-intent endpoint:', pathname, 'Method:', request.method);
+    }
     return NextResponse.next();
   }
   
