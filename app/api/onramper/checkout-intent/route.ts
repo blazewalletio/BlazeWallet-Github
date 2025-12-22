@@ -54,6 +54,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Get secret key for signature (required for /checkout/intent API)
+    const onramperSecretKey = process.env.ONRAMPER_SECRET_KEY?.trim();
+    if (!onramperSecretKey) {
+      logger.error('ONRAMPER_SECRET_KEY is not set in environment variables. This is required for /checkout/intent API.');
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Onramper secret key missing',
+          message: 'ONRAMPER_SECRET_KEY is required for /checkout/intent API. Please add it to Vercel environment variables. Contact Onramper support to obtain your secret key.',
+          requiresSecretKey: true,
+          contactEmail: 'support@onramper.com',
+        },
+        { status: 503 }
+      );
+    }
+
     logger.log('📊 Creating Onramper checkout intent:', {
       fiatAmount,
       fiatCurrency,
@@ -90,13 +106,16 @@ export async function POST(req: NextRequest) {
     requestBody.partnerContext = `blazewallet-${Date.now()}`;
 
     // Call Onramper /checkout/intent API
-    // IMPORTANT: Authorization header should be API key directly, NOT Bearer token
+    // IMPORTANT: 
+    // 1. Authorization header: API key directly (NOT Bearer token)
+    // 2. X-Onramper-Secret header: Secret key for signature validation (REQUIRED)
     let response;
     try {
       response = await fetch('https://api.onramper.com/checkout/intent', {
         method: 'POST',
         headers: {
           'Authorization': onramperApiKey, // Direct API key, NOT Bearer token
+          'X-Onramper-Secret': onramperSecretKey, // Secret key for signature validation (REQUIRED)
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
