@@ -79,6 +79,46 @@ export async function POST(req: NextRequest) {
       paymentMethod,
     });
 
+    // IMPORTANT: First get a quote with paymentMethod to determine the onramp provider
+    // The /checkout/intent API requires an 'onramp' field, which we get from the quote
+    let onrampProvider: string | null = null;
+    if (paymentMethod) {
+      try {
+        logger.log('📊 Fetching quote with paymentMethod to determine onramp provider...');
+        const fiatLower = fiatCurrency.toLowerCase();
+        const cryptoLower = cryptoCurrency.toLowerCase();
+        const quoteUrl = `https://api.onramper.com/quotes/${fiatLower}/${cryptoLower}?amount=${fiatAmount}&paymentMethod=${paymentMethod.toLowerCase()}`;
+        
+        const quoteResponse = await fetch(quoteUrl, {
+          headers: {
+            'Authorization': onramperApiKey,
+            'Accept': 'application/json',
+          },
+        });
+
+        if (quoteResponse.ok) {
+          const quoteData = await quoteResponse.json();
+          // Quote response is an array, find the one that matches our paymentMethod
+          if (Array.isArray(quoteData) && quoteData.length > 0) {
+            const matchingQuote = quoteData.find((q: any) => 
+              q.paymentMethod === paymentMethod.toLowerCase() && 
+              q.ramp && 
+              !q.errors
+            );
+            if (matchingQuote?.ramp) {
+              onrampProvider = matchingQuote.ramp;
+              logger.log('✅ Found onramp provider from quote:', onrampProvider);
+            }
+          } else if (quoteData.ramp) {
+            onrampProvider = quoteData.ramp;
+            logger.log('✅ Found onramp provider from quote:', onrampProvider);
+          }
+        }
+      } catch (quoteError: any) {
+        logger.warn('⚠️ Failed to fetch quote for onramp provider, continuing without it:', quoteError.message);
+      }
+    }
+
     // Build request body for Onramper /checkout/intent API
     // IMPORTANT: Use correct field names per Onramper API documentation
     // Docs: https://docs.onramper.com/reference/post_checkout-intent
@@ -91,6 +131,14 @@ export async function POST(req: NextRequest) {
         address: walletAddress, // NOT destinationWalletAddress (nested in wallet object)
       },
     };
+
+    // Add onramp provider if we found one (required to avoid "Unsupported Onramp" error)
+    if (onrampProvider) {
+      requestBody.onramp = onrampProvider;
+      logger.log('✅ Added onramp provider to request:', onrampProvider);
+    } else {
+      logger.warn('⚠️ No onramp provider found - Onramper will use Ranking Engine');
+    }
 
     // Add optional fields
     if (paymentMethod) {
