@@ -129,8 +129,28 @@ export async function POST(req: NextRequest) {
                 const pmId = pm.paymentTypeId?.toLowerCase() || pm.id?.toLowerCase() || '';
                 const pmName = pm.name?.toLowerCase() || '';
                 
+                // Payment method name mappings (e.g., "ideal" might be "sepainstant" in API)
+                const paymentMethodMappings: Record<string, string[]> = {
+                  'ideal': ['ideal', 'sepainstant', 'sepa', 'sepa instant', 'sepa-instant'],
+                  'sepa': ['sepa', 'sepainstant', 'sepa instant', 'sepa-instant', 'banktransfer', 'bank transfer'],
+                  'creditcard': ['creditcard', 'credit card', 'card', 'visa', 'mastercard'],
+                  'applepay': ['applepay', 'apple pay', 'apple'],
+                  'googlepay': ['googlepay', 'google pay', 'gpay'],
+                  'bancontact': ['bancontact', 'bancontact card'],
+                };
+                
+                // Get all possible names for this payment method
+                const possibleNames = paymentMethodMappings[paymentMethodLower] || [paymentMethodLower];
+                
                 // Try multiple matching strategies
-                const matches = 
+                const matches = possibleNames.some(possibleName => 
+                  pmId === possibleName || 
+                  pmName === possibleName ||
+                  pmId.includes(possibleName) ||
+                  pmName.includes(possibleName) ||
+                  possibleName.includes(pmId) ||
+                  possibleName.includes(pmName)
+                ) || 
                   pmId === paymentMethodLower || 
                   pmName === paymentMethodLower ||
                   pmId.includes(paymentMethodLower) ||
@@ -144,6 +164,9 @@ export async function POST(req: NextRequest) {
                     paymentMethodId: pmId,
                     paymentMethodName: pmName,
                     requested: paymentMethodLower,
+                    matchedVia: possibleNames.find(pn => 
+                      pmId.includes(pn) || pmName.includes(pn) || pn.includes(pmId) || pn.includes(pmName)
+                    ) || 'direct match',
                   });
                 }
                 
