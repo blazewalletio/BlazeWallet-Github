@@ -81,44 +81,93 @@ export async function POST(req: NextRequest) {
       paymentMethod,
     });
 
-    // IMPORTANT: First get a quote with paymentMethod to determine the onramp provider
+    // IMPORTANT: First get a quote to determine the onramp provider
     // The /checkout/intent API requires an 'onramp' field, which we get from the quote
+    // We fetch quotes WITHOUT paymentMethod first to get all available providers,
+    // then filter for the one that supports our paymentMethod
     let onrampProvider: string | null = null;
-    if (paymentMethod) {
-      try {
-        logger.log('📊 Fetching quote with paymentMethod to determine onramp provider...');
-        const fiatLower = fiatCurrency.toLowerCase();
-        const cryptoLower = cryptoCurrency.toLowerCase();
-        const quoteUrl = `https://api.onramper.com/quotes/${fiatLower}/${cryptoLower}?amount=${fiatAmount}&paymentMethod=${paymentMethod.toLowerCase()}`;
-        
-        const quoteResponse = await fetch(quoteUrl, {
-          headers: {
-            'Authorization': onramperApiKey,
-            'Accept': 'application/json',
-          },
-        });
+    try {
+      logger.log('📊 Fetching quote to determine onramp provider...');
+      const fiatLower = fiatCurrency.toLowerCase();
+      const cryptoLower = cryptoCurrency.toLowerCase();
+      // Fetch quotes WITHOUT paymentMethod to get all available providers
+      const quoteUrl = `https://api.onramper.com/quotes/${fiatLower}/${cryptoLower}?amount=${fiatAmount}`;
+      
+      const quoteResponse = await fetch(quoteUrl, {
+        headers: {
+          'Authorization': onramperApiKey,
+          'Accept': 'application/json',
+        },
+      });
 
-        if (quoteResponse.ok) {
-          const quoteData = await quoteResponse.json();
-          // Quote response is an array, find the one that matches our paymentMethod
-          if (Array.isArray(quoteData) && quoteData.length > 0) {
-            const matchingQuote = quoteData.find((q: any) => 
-              q.paymentMethod === paymentMethod.toLowerCase() && 
-              q.ramp && 
-              !q.errors
-            );
+      if (quoteResponse.ok) {
+        const quoteData = await quoteResponse.json();
+        logger.log('📊 Quote response for onramp provider:', {
+          isArray: Array.isArray(quoteData),
+          length: Array.isArray(quoteData) ? quoteData.length : 'N/A',
+          preview: JSON.stringify(quoteData, null, 2).substring(0, 1000),
+        });
+        
+        // Quote response is an array of quotes from different providers
+        if (Array.isArray(quoteData) && quoteData.length > 0) {
+          // If we have a paymentMethod, find a quote that supports it
+          if (paymentMethod) {
+            const matchingQuote = quoteData.find((q: any) => {
+              const supportsPaymentMethod = q.availablePaymentMethods?.some((pm: any) => 
+                pm.paymentTypeId === paymentMethod.toLowerCase() || 
+                pm.id === paymentMethod.toLowerCase()
+              );
+              return q.ramp && !q.errors && supportsPaymentMethod;
+            });
+            
             if (matchingQuote?.ramp) {
               onrampProvider = matchingQuote.ramp;
-              logger.log('✅ Found onramp provider from quote:', onrampProvider);
+              logger.log('✅ Found onramp provider with paymentMethod support:', onrampProvider);
+            } else {
+              // Fallback: use the first quote with a ramp (best quote)
+              const bestQuote = quoteData.find((q: any) => q.ramp && !q.errors);
+              if (bestQuote?.ramp) {
+                onrampProvider = bestQuote.ramp;
+                logger.log('✅ Found onramp provider (fallback to best quote):', onrampProvider);
+              }
             }
-          } else if (quoteData.ramp) {
-            onrampProvider = quoteData.ramp;
-            logger.log('✅ Found onramp provider from quote:', onrampProvider);
+          } else {
+            // No paymentMethod specified, use the best quote
+            const bestQuote = quoteData.find((q: any) => q.ramp && !q.errors);
+            if (bestQuote?.ramp) {
+              onrampProvider = bestQuote.ramp;
+              logger.log('✅ Found onramp provider (best quote):', onrampProvider);
+            }
           }
+        } else if (quoteData && typeof quoteData === 'object' && quoteData.ramp) {
+          // Single quote object
+          onrampProvider = quoteData.ramp;
+          logger.log('✅ Found onramp provider from single quote:', onrampProvider);
         }
-      } catch (quoteError: any) {
-        logger.warn('⚠️ Failed to fetch quote for onramp provider, continuing without it:', quoteError.message);
+      } else {
+        const errorText = await quoteResponse.text();
+        logger.warn('⚠️ Failed to fetch quote for onramp provider:', {
+          status: quoteResponse.status,
+          statusText: quoteResponse.statusText,
+          error: errorText.substring(0, 500),
+        });
       }
+    } catch (quoteError: any) {
+      logger.warn('⚠️ Failed to fetch quote for onramp provider, continuing without it:', quoteError.message);
+    }
+    
+    // CRITICAL: If we still don't have an onramp provider, we MUST fail
+    // The /checkout/intent API requires an 'onramp' field
+    if (!onrampProvider) {
+      logger.error('❌ Could not determine onramp provider from quotes');
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Could not determine onramp provider',
+          message: 'Unable to find a suitable payment provider for this transaction. Please try a different payment method or amount.',
+        },
+        { status: 400 }
+      );
     }
 
     // Determine network code based on crypto currency
