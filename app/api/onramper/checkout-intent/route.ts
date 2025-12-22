@@ -63,12 +63,16 @@ export async function POST(req: NextRequest) {
     });
 
     // Build request body for Onramper /checkout/intent API
+    // IMPORTANT: Use correct field names per Onramper API documentation
+    // Docs: https://docs.onramper.com/reference/post_checkout-intent
     const requestBody: any = {
-      sourceCurrency: fiatCurrency.toLowerCase(),
-      destinationCurrency: cryptoCurrency.toLowerCase(),
-      sourceAmount: parseFloat(fiatAmount),
-      destinationWalletAddress: walletAddress,
+      source: fiatCurrency.toLowerCase(), // NOT sourceCurrency
+      destination: cryptoCurrency.toLowerCase(), // NOT destinationCurrency
+      amount: parseFloat(fiatAmount), // NOT sourceAmount
       type: 'buy',
+      wallet: {
+        address: walletAddress, // NOT destinationWalletAddress (nested in wallet object)
+      },
     };
 
     // Add optional fields
@@ -86,12 +90,13 @@ export async function POST(req: NextRequest) {
     requestBody.partnerContext = `blazewallet-${Date.now()}`;
 
     // Call Onramper /checkout/intent API
+    // IMPORTANT: Authorization header should be API key directly, NOT Bearer token
     let response;
     try {
       response = await fetch('https://api.onramper.com/checkout/intent', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${onramperApiKey}`,
+          'Authorization': onramperApiKey, // Direct API key, NOT Bearer token
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
