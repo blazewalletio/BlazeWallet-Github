@@ -450,12 +450,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Extract transaction information
-    const transactionInformation = data.transactionInformation;
+    // IMPORTANT: Onramper response structure can be:
+    // 1. Direct: { transactionInformation: {...} }
+    // 2. Nested: { message: { transactionInformation: {...} } }
+    // 3. Wrapped: { message: { validationInformation: true, transactionInformation: {...} } }
+    let transactionInformation = data.transactionInformation;
+    
+    // Check if transactionInformation is nested in message
+    if (!transactionInformation && data.message) {
+      transactionInformation = data.message.transactionInformation;
+    }
+    
+    // Check if it's in message.validationInformation structure
+    if (!transactionInformation && data.message?.validationInformation) {
+      transactionInformation = data.message.transactionInformation;
+    }
+    
     if (!transactionInformation) {
-      logger.error('❌ No transactionInformation in Onramper response:', data);
+      logger.error('❌ No transactionInformation in Onramper response:', {
+        dataKeys: Object.keys(data),
+        hasMessage: !!data.message,
+        messageKeys: data.message ? Object.keys(data.message) : [],
+        fullResponse: JSON.stringify(data, null, 2).substring(0, 2000),
+      });
       return NextResponse.json(
-        { 
+        {
           success: false,
           error: 'Invalid response from Onramper',
           message: 'No transaction information returned',
