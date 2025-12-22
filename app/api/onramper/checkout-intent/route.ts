@@ -114,6 +114,12 @@ export async function POST(req: NextRequest) {
           if (paymentMethod) {
             const paymentMethodLower = paymentMethod.toLowerCase();
             
+            // Log all available payment methods for debugging
+            logger.log('🔍 Checking payment method support:', {
+              requestedPaymentMethod: paymentMethodLower,
+              providersCount: quoteData.length,
+            });
+            
             // Find all quotes that support the payment method
             const supportedQuotes = quoteData.filter((q: any) => {
               if (!q.ramp || q.errors) return false;
@@ -122,10 +128,41 @@ export async function POST(req: NextRequest) {
               const supportsPaymentMethod = q.availablePaymentMethods?.some((pm: any) => {
                 const pmId = pm.paymentTypeId?.toLowerCase() || pm.id?.toLowerCase() || '';
                 const pmName = pm.name?.toLowerCase() || '';
-                return pmId === paymentMethodLower || pmName === paymentMethodLower;
+                
+                // Try multiple matching strategies
+                const matches = 
+                  pmId === paymentMethodLower || 
+                  pmName === paymentMethodLower ||
+                  pmId.includes(paymentMethodLower) ||
+                  pmName.includes(paymentMethodLower) ||
+                  paymentMethodLower.includes(pmId) ||
+                  paymentMethodLower.includes(pmName);
+                
+                if (matches) {
+                  logger.log('✅ Payment method match found:', {
+                    provider: q.ramp,
+                    paymentMethodId: pmId,
+                    paymentMethodName: pmName,
+                    requested: paymentMethodLower,
+                  });
+                }
+                
+                return matches;
               });
               
               return supportsPaymentMethod;
+            });
+            
+            // Log which providers support the payment method
+            logger.log('📊 Payment method support check:', {
+              requestedPaymentMethod: paymentMethodLower,
+              supportedProviders: supportedQuotes.map((q: any) => ({
+                ramp: q.ramp,
+                paymentMethods: q.availablePaymentMethods?.map((pm: any) => ({
+                  id: pm.paymentTypeId || pm.id,
+                  name: pm.name,
+                })) || [],
+              })),
             });
             
             if (supportedQuotes.length > 0) {
