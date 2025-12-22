@@ -796,7 +796,7 @@ export class OnramperService {
             txnAmount: fiatAmount.toString(),
             txnFiat: fiatLower,
             txnCrypto: cryptoLower,
-            txnRedirect: 'true',
+            txnRedirect: 'false', // false = stay in iframe, don't redirect to top-level window
             wallets: `${cryptoLower}:${walletAddress}`,
           });
           
@@ -881,12 +881,9 @@ export class OnramperService {
           txnAmount: fiatAmount.toString(),
           txnFiat: fiatLower,
           txnCrypto: cryptoLower,
-          txnRedirect: 'true', // Direct redirect to provider widget
-          // NOTE: We intentionally do NOT pass wallets or signature here.
-          // Recent Onramper changes made signature validation extremely strict
-          // and the official docs for Direct Checkout do not require signing
-          // when wallets is omitted. This guarantees a working flow while we
-          // finalize the signed-wallet implementation together with Onramper.
+          txnRedirect: 'false', // false = stay in iframe, don't redirect to top-level window
+          // Add wallet address - Onramper will prompt user to confirm if not signed
+          wallets: `${cryptoLower}:${walletAddress}`,
         });
 
         // Add optional parameters

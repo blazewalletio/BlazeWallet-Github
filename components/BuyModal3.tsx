@@ -452,7 +452,8 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
                   ref={iframeRef}
                   src={widgetUrl}
                   className="w-full min-h-[600px] border-0"
-                  allow="payment"
+                  allow="payment; camera; microphone"
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
                   title="Onramper Payment Widget"
                 />
               </div>
