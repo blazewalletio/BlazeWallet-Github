@@ -882,9 +882,26 @@ export class OnramperService {
           txnFiat: fiatLower,
           txnCrypto: cryptoLower,
           txnRedirect: 'false', // false = stay in iframe, don't redirect to top-level window
-          // Add wallet address - Onramper will prompt user to confirm if not signed
-          wallets: `${cryptoLower}:${walletAddress}`,
         });
+
+        // Add wallet address with signature if secret key is available
+        // Docs: https://docs.onramper.com/docs/signatures/widget-sign-a-url
+        if (secretKey) {
+          const walletParam = `${cryptoLower}:${walletAddress}`;
+          // Sign only the wallets parameter (sensitive parameter per docs)
+          const signContent = `wallets=${walletParam}`;
+          const signature = crypto
+            .createHmac('sha256', secretKey)
+            .update(signContent)
+            .digest('hex');
+          
+          directCheckoutParams.append('wallets', walletParam);
+          directCheckoutParams.append('signature', signature);
+        } else {
+          // Without signature, Onramper may still accept it but user might need to confirm
+          logger.warn('⚠️ Wallet address added without signature - user may need to confirm address');
+          directCheckoutParams.append('wallets', `${cryptoLower}:${walletAddress}`);
+        }
 
         // Add optional parameters
         if (pmLower) {
