@@ -94,6 +94,7 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
         'https://buy.onramper.com',
         'https://buy-staging.onramper.com',
         'https://onramper.com',
+        'https://api.onramper.com',
       ];
 
       if (!allowedOrigins.some(origin => event.origin.startsWith(origin))) {
@@ -120,6 +121,17 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, []);
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setStep('select');
+      setShowWidget(false);
+      setWidgetUrl('');
+      setError(null);
+      setLoading(false);
+    }
+  }, [isOpen]);
 
   const fetchSupportedData = async () => {
     try {
@@ -191,8 +203,8 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
       setLoading(true);
       setError(null);
 
-      // Create transaction via Onramper
-      const response = await fetch('/api/onramper/create-transaction', {
+      // Use new checkout-intent API for better UI/UX control
+      const response = await fetch('/api/onramper/checkout-intent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -203,22 +215,76 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
           cryptoCurrency,
           walletAddress,
           paymentMethod,
-          useDirectCheckout: true, // Use direct checkout for better UX
         }),
       });
 
       const data = await response.json();
 
-      if (data.success && data.transaction?.paymentUrl) {
-        setWidgetUrl(data.transaction.paymentUrl);
-        setShowWidget(true);
-        setStep('widget');
+      if (data.success && data.transactionInformation) {
+        const { transactionInformation } = data;
+        const transactionType = transactionInformation.type; // "iframe" or "redirect"
+        const transactionUrl = transactionInformation.url;
+        const transactionId = transactionInformation.transactionId;
+
+        logger.log('✅ Onramper checkout intent created:', {
+          transactionId,
+          type: transactionType,
+        });
+
+        if (transactionType === 'iframe') {
+          // ✅ Embed in iframe (binnen eigen UI)
+          setWidgetUrl(transactionUrl);
+          setShowWidget(true);
+          setStep('widget');
+          toast.success('Opening payment widget...');
+        } else if (transactionType === 'redirect') {
+          // ⚠️ Open in popup (payment provider requires redirect)
+          const popup = window.open(
+            transactionUrl,
+            'onramper-payment',
+            'width=600,height=800,left=400,top=100,scrollbars=yes,resizable=yes'
+          );
+
+          if (!popup) {
+            // Popup blocked - fallback to new tab
+            toast.error('Popup blocked. Opening in new tab...');
+            window.open(transactionUrl, '_blank');
+            setStep('processing');
+          } else {
+            // Monitor popup for completion
+            setStep('processing');
+            toast.info('Complete payment in the popup window');
+
+            const checkPopup = setInterval(() => {
+              if (popup.closed) {
+                clearInterval(checkPopup);
+                // Popup closed - check transaction status
+                logger.log('Popup closed, checking transaction status...');
+                // The webhook will update the transaction status
+                // For now, show a message to the user
+                toast.success('Payment window closed. We\'ll notify you when the transaction is confirmed.');
+                setStep('select');
+              }
+            }, 1000);
+
+            // Cleanup interval after 5 minutes
+            setTimeout(() => {
+              clearInterval(checkPopup);
+            }, 5 * 60 * 1000);
+          }
+        } else {
+          // Unknown type - try iframe as fallback
+          logger.warn('Unknown transaction type, using iframe as fallback:', transactionType);
+          setWidgetUrl(transactionUrl);
+          setShowWidget(true);
+          setStep('widget');
+        }
       } else {
-        setError(data.error || 'Failed to create transaction');
-        toast.error(data.error || 'Failed to create transaction');
+        setError(data.error || data.message || 'Failed to create transaction');
+        toast.error(data.error || data.message || 'Failed to create transaction');
       }
     } catch (err: any) {
-      logger.error('Failed to create Onramper transaction:', err);
+      logger.error('Failed to create Onramper checkout intent:', err);
       setError('Failed to create transaction. Please try again.');
       toast.error('Failed to create transaction. Please try again.');
     } finally {
