@@ -110,39 +110,84 @@ export async function POST(req: NextRequest) {
         
         // Quote response is an array of quotes from different providers
         if (Array.isArray(quoteData) && quoteData.length > 0) {
-          // If we have a paymentMethod, find a quote that supports it
+          // CRITICAL: If we have a paymentMethod, we MUST find a provider that supports it
           if (paymentMethod) {
-            const matchingQuote = quoteData.find((q: any) => {
-              const supportsPaymentMethod = q.availablePaymentMethods?.some((pm: any) => 
-                pm.paymentTypeId === paymentMethod.toLowerCase() || 
-                pm.id === paymentMethod.toLowerCase()
-              );
-              return q.ramp && !q.errors && supportsPaymentMethod;
+            const paymentMethodLower = paymentMethod.toLowerCase();
+            
+            // Find all quotes that support the payment method
+            const supportedQuotes = quoteData.filter((q: any) => {
+              if (!q.ramp || q.errors) return false;
+              
+              // Check if this quote supports the payment method
+              const supportsPaymentMethod = q.availablePaymentMethods?.some((pm: any) => {
+                const pmId = pm.paymentTypeId?.toLowerCase() || pm.id?.toLowerCase() || '';
+                const pmName = pm.name?.toLowerCase() || '';
+                return pmId === paymentMethodLower || pmName === paymentMethodLower;
+              });
+              
+              return supportsPaymentMethod;
             });
             
-            if (matchingQuote?.ramp) {
-              onrampProvider = matchingQuote.ramp;
-              logger.log('✅ Found onramp provider with paymentMethod support:', onrampProvider);
+            if (supportedQuotes.length > 0) {
+              // Choose the best quote from supported providers (highest payout or lowest fees)
+              const bestQuote = supportedQuotes.reduce((best, current) => {
+                const bestPayout = parseFloat(best.payout || '0');
+                const currentPayout = parseFloat(current.payout || '0');
+                return currentPayout > bestPayout ? current : best;
+              });
+              
+              onrampProvider = bestQuote.ramp;
+              logger.log('✅ Found onramp provider with paymentMethod support:', {
+                provider: onrampProvider,
+                paymentMethod: paymentMethodLower,
+                payout: bestQuote.payout,
+              });
             } else {
-              // Fallback: use the first quote with a ramp (best quote)
-              const bestQuote = quoteData.find((q: any) => q.ramp && !q.errors);
-              if (bestQuote?.ramp) {
-                onrampProvider = bestQuote.ramp;
-                logger.log('✅ Found onramp provider (fallback to best quote):', onrampProvider);
-              }
+              // No provider supports this payment method
+              logger.error('❌ No onramp provider supports payment method:', {
+                paymentMethod: paymentMethodLower,
+                availableProviders: quoteData.map((q: any) => ({
+                  ramp: q.ramp,
+                  paymentMethods: q.availablePaymentMethods?.map((pm: any) => 
+                    pm.paymentTypeId || pm.id || pm.name
+                  ) || [],
+                })),
+              });
             }
           } else {
             // No paymentMethod specified, use the best quote
             const bestQuote = quoteData.find((q: any) => q.ramp && !q.errors);
             if (bestQuote?.ramp) {
               onrampProvider = bestQuote.ramp;
-              logger.log('✅ Found onramp provider (best quote):', onrampProvider);
+              logger.log('✅ Found onramp provider (best quote, no paymentMethod filter):', onrampProvider);
             }
           }
         } else if (quoteData && typeof quoteData === 'object' && quoteData.ramp) {
-          // Single quote object
-          onrampProvider = quoteData.ramp;
-          logger.log('✅ Found onramp provider from single quote:', onrampProvider);
+          // Single quote object - check if it supports the payment method
+          if (paymentMethod) {
+            const paymentMethodLower = paymentMethod.toLowerCase();
+            const supportsPaymentMethod = quoteData.availablePaymentMethods?.some((pm: any) => {
+              const pmId = pm.paymentTypeId?.toLowerCase() || pm.id?.toLowerCase() || '';
+              const pmName = pm.name?.toLowerCase() || '';
+              return pmId === paymentMethodLower || pmName === paymentMethodLower;
+            });
+            
+            if (supportsPaymentMethod) {
+              onrampProvider = quoteData.ramp;
+              logger.log('✅ Found onramp provider from single quote with paymentMethod support:', onrampProvider);
+            } else {
+              logger.error('❌ Single quote provider does not support payment method:', {
+                provider: quoteData.ramp,
+                paymentMethod: paymentMethodLower,
+                availableMethods: quoteData.availablePaymentMethods?.map((pm: any) => 
+                  pm.paymentTypeId || pm.id || pm.name
+                ) || [],
+              });
+            }
+          } else {
+            onrampProvider = quoteData.ramp;
+            logger.log('✅ Found onramp provider from single quote:', onrampProvider);
+          }
         }
       } else {
         const errorText = await quoteResponse.text();
