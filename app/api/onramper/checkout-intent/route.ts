@@ -181,19 +181,20 @@ export async function POST(req: NextRequest) {
               });
             } else {
               // No provider supports this payment method - log full details
+              // IMPORTANT: Log the FULL payment methods array as JSON string to see exact structure
               logger.error('❌ No onramp provider supports payment method:', {
                 paymentMethod: paymentMethodLower,
-                availableProviders: quoteData.map((q: any) => ({
-                  ramp: q.ramp,
-                  hasPaymentMethods: !!q.availablePaymentMethods,
-                  paymentMethodsCount: q.availablePaymentMethods?.length || 0,
-                  paymentMethods: q.availablePaymentMethods?.map((pm: any) => ({
-                    paymentTypeId: pm.paymentTypeId,
-                    id: pm.id,
-                    name: pm.name,
-                    fullObject: pm, // Log full object to see all fields
-                  })) || [],
-                })),
+                availableProviders: quoteData.map((q: any) => {
+                  const paymentMethodsJson = q.availablePaymentMethods 
+                    ? JSON.stringify(q.availablePaymentMethods, null, 2)
+                    : '[]';
+                  return {
+                    ramp: q.ramp,
+                    hasPaymentMethods: !!q.availablePaymentMethods,
+                    paymentMethodsCount: q.availablePaymentMethods?.length || 0,
+                    paymentMethodsFull: paymentMethodsJson, // Full JSON string to see exact structure
+                  };
+                }),
               });
             }
           } else {
