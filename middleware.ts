@@ -50,7 +50,16 @@ export async function middleware(request: NextRequest) {
     '/api/ramp', // Ramp Network endpoints
   ];
   
-  if (publicEndpoints.some(ep => pathname.startsWith(ep))) {
+  // Check if pathname starts with any public endpoint
+  const isPublicEndpoint = publicEndpoints.some(ep => {
+    const matches = pathname.startsWith(ep);
+    if (matches && pathname.includes('checkout-intent')) {
+      console.log('✅ Allowing checkout-intent endpoint:', pathname);
+    }
+    return matches;
+  });
+  
+  if (isPublicEndpoint) {
     return NextResponse.next();
   }
   
