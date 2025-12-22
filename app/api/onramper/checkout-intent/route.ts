@@ -185,6 +185,7 @@ export async function POST(req: NextRequest) {
       signContent,
       signatureLength: signature.length,
       signaturePrefix: signature.substring(0, 20) + '...',
+      requestBodyPreview: JSON.stringify(requestBody, null, 2).substring(0, 1500), // Log full request body for debugging
     });
 
     // Call Onramper /checkout/intent API
@@ -240,16 +241,19 @@ export async function POST(req: NextRequest) {
 
     // Check for API errors
     if (!response.ok) {
+      const errorMessage = data?.message || data?.error?.message || data?.error || response.statusText || 'Unknown error';
       logger.error('❌ Onramper /checkout/intent API error:', {
         status: response.status,
         statusText: response.statusText,
-        error: data,
+        errorMessage,
+        fullError: JSON.stringify(data, null, 2),
+        requestBody: JSON.stringify(requestBody, null, 2), // Log full request body for debugging
       });
       return NextResponse.json(
         { 
           success: false,
           error: 'Onramper API error',
-          message: data.message || 'Failed to create checkout intent',
+          message: errorMessage,
           details: data,
         },
         { status: response.status }
