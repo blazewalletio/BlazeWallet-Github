@@ -7,8 +7,18 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export async function GET(req: NextRequest) {
   try {
-    const hostApiKey = process.env.NEXT_PUBLIC_RAMP_API_KEY || process.env.RAMP_API_KEY || '';
-    const isSandbox = process.env.RAMP_ENVIRONMENT === 'sandbox' || (!hostApiKey.includes('_live_') && hostApiKey.length > 0);
+    // Safely get environment variables
+    const publicKey = typeof process.env.NEXT_PUBLIC_RAMP_API_KEY === 'string' 
+      ? process.env.NEXT_PUBLIC_RAMP_API_KEY.trim() 
+      : '';
+    const privateKey = typeof process.env.RAMP_API_KEY === 'string' 
+      ? process.env.RAMP_API_KEY.trim() 
+      : '';
+    const hostApiKey = publicKey || privateKey || '';
+    
+    // Determine sandbox status
+    const envSandbox = process.env.RAMP_ENVIRONMENT === 'sandbox';
+    const isSandbox = envSandbox || (!hostApiKey.includes('_live_') && hostApiKey.length > 0);
 
     // If no API key, return a graceful error (not 500, but 200 with success: false)
     // This allows the frontend to show a user-friendly message
@@ -37,13 +47,19 @@ export async function GET(req: NextRequest) {
     });
   } catch (error: any) {
     console.error('❌ Failed to get Ramp config:', error);
+    // Return 200 with error instead of 500 to prevent frontend crashes
     return NextResponse.json(
       {
         success: false,
         error: 'Failed to get Ramp configuration',
-        details: error.message || 'Unknown error',
+        details: error?.message || 'Unknown error',
+        config: {
+          hostApiKey: '',
+          isSandbox: true,
+          environment: 'sandbox',
+        },
       },
-      { status: 500 }
+      { status: 200 }
     );
   }
 }

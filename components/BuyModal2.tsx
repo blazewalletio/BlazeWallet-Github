@@ -51,71 +51,89 @@ export default function BuyModal2({ isOpen, onClose }: BuyModal2Props) {
 
   // Initialize Ramp SDK when widget should be shown
   useEffect(() => {
-    if (step === 'widget' && showWidget && containerRef.current && !rampInstanceRef.current) {
-      const initializeRamp = async () => {
-        const walletAddress = getCurrentAddress();
-        if (!walletAddress) {
+    // Only initialize when we're in widget step and widget should be shown
+    if (step !== 'widget' || !showWidget || !containerRef.current || rampInstanceRef.current) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const initializeRamp = async () => {
+      const walletAddress = getCurrentAddress();
+      if (!walletAddress) {
+        if (isMounted) {
           toast.error('Wallet address not found');
           setStep('select');
-          return;
         }
+        return;
+      }
 
-        const chain = CHAINS[currentChain];
-        if (!chain) {
+      const chain = CHAINS[currentChain];
+      if (!chain) {
+        if (isMounted) {
           toast.error('Chain not found');
           setStep('select');
-          return;
         }
+        return;
+      }
 
-        // Fetch Ramp API key from API route
-        let hostApiKey = '';
-        try {
-          const configResponse = await fetch('/api/ramp/config');
-          if (!configResponse.ok) {
-            throw new Error(`HTTP ${configResponse.status}`);
-          }
-          const configData = await configResponse.json();
-          if (configData.success && configData.config?.hostApiKey) {
-            hostApiKey = configData.config.hostApiKey;
-          } else {
-            // API key not configured - show user-friendly message
+      // Fetch Ramp API key from API route
+      let hostApiKey = '';
+      try {
+        const configResponse = await fetch('/api/ramp/config');
+        if (!configResponse.ok) {
+          throw new Error(`HTTP ${configResponse.status}`);
+        }
+        const configData = await configResponse.json();
+        if (configData.success && configData.config?.hostApiKey) {
+          hostApiKey = configData.config.hostApiKey;
+        } else {
+          // API key not configured - show user-friendly message
+          if (isMounted) {
             logger.warn('Ramp API key not found in config response');
             toast.error('Ramp Network is not configured. Please contact support.');
             setStep('select');
-            return;
           }
-        } catch (err: any) {
-          logger.error('Failed to fetch Ramp config:', err);
-          // Fallback to env var (for development)
-          hostApiKey = process.env.NEXT_PUBLIC_RAMP_API_KEY || '';
-          
-          if (!hostApiKey) {
+          return;
+        }
+      } catch (err: any) {
+        logger.error('Failed to fetch Ramp config:', err);
+        // Fallback to env var (for development)
+        hostApiKey = process.env.NEXT_PUBLIC_RAMP_API_KEY || '';
+        
+        if (!hostApiKey) {
+          if (isMounted) {
             toast.error('Ramp Network is not configured. Please contact support.');
             setStep('select');
-            return;
           }
+          return;
         }
+      }
 
-        try {
-          // Determine variant based on screen size
-          const isMobile = window.innerWidth < 768;
-          const variant = isMobile ? 'embedded-mobile' : 'embedded-desktop';
+      if (!isMounted || !containerRef.current) return;
 
-          // Create Ramp SDK instance
-          const rampInstance = new RampInstantSDK({
-            hostAppName: 'Blaze Wallet',
-            hostLogoUrl: 'https://my.blazewallet.io/logo.png',
-            hostApiKey: hostApiKey,
-            variant: variant,
-            containerNode: containerRef.current!,
-            userAddress: walletAddress,
-            swapAsset: cryptoAsset || RampService.getDefaultAsset(chain.id),
-            swapAmount: fiatAmount ? (parseFloat(fiatAmount) * 100).toString() : undefined, // Convert to smallest unit if needed
-            enabledFlows: ['ONRAMP'],
-          });
+      try {
+        // Determine variant based on screen size
+        const isMobile = window.innerWidth < 768;
+        const variant = isMobile ? 'embedded-mobile' : 'embedded-desktop';
+
+        // Create Ramp SDK instance
+        const rampInstance = new RampInstantSDK({
+          hostAppName: 'Blaze Wallet',
+          hostLogoUrl: 'https://my.blazewallet.io/logo.png',
+          hostApiKey: hostApiKey,
+          variant: variant,
+          containerNode: containerRef.current,
+          userAddress: walletAddress,
+          swapAsset: cryptoAsset || RampService.getDefaultAsset(chain.id),
+          swapAmount: fiatAmount ? (parseFloat(fiatAmount) * 100).toString() : undefined,
+          enabledFlows: ['ONRAMP'],
+        });
 
         // Set up event listeners
         rampInstance.on('*', (event: any) => {
+          if (!isMounted) return;
+          
           logger.log('Ramp event:', event);
           
           // Handle purchase created
@@ -148,35 +166,36 @@ export default function BuyModal2({ isOpen, onClose }: BuyModal2Props) {
           }
         });
 
-          // Show the widget
-          rampInstance.show();
-          rampInstanceRef.current = rampInstance;
+        // Show the widget
+        rampInstance.show();
+        rampInstanceRef.current = rampInstance;
 
-          logger.log('✅ Ramp SDK initialized and shown');
-        } catch (err: any) {
-          logger.error('Failed to initialize Ramp SDK:', err);
-          toast.error('Failed to initialize payment widget. Please try again.');
-          setError(err.message || 'Failed to initialize widget');
-          setStep('error');
-          setShowWidget(false);
-        }
-      };
+        logger.log('✅ Ramp SDK initialized and shown');
+      } catch (err: any) {
+        if (!isMounted) return;
+        
+        logger.error('Failed to initialize Ramp SDK:', err);
+        toast.error('Failed to initialize payment widget. Please try again.');
+        setError(err.message || 'Failed to initialize widget');
+        setStep('error');
+        setShowWidget(false);
+      }
+    };
 
-      initializeRamp();
-    }
+    initializeRamp();
 
-    // Cleanup on unmount or when widget is closed
+    // Cleanup function
     return () => {
+      isMounted = false;
       if (rampInstanceRef.current && !showWidget) {
         try {
-          // Ramp SDK doesn't have unmount, just clear the reference
           rampInstanceRef.current = null;
         } catch (err) {
           logger.error('Error cleaning up Ramp SDK:', err);
         }
       }
     };
-  }, [step, showWidget, currentChain, cryptoAsset, fiatCurrency, fiatAmount, getCurrentAddress]);
+  }, [step, showWidget, currentChain, cryptoAsset, fiatAmount]); // Removed fiatCurrency and getCurrentAddress from dependencies
 
   const handleContinue = async () => {
     const walletAddress = getCurrentAddress();
