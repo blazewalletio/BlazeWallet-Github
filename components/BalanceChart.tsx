@@ -275,20 +275,6 @@ export default function BalanceChart({
             </div>
           ) : chartData.length > 0 ? (
             <>
-              {/* Compact Min/Max Labels */}
-              <div className="absolute top-1 left-1 z-20">
-                <div className="bg-white/95 backdrop-blur-sm rounded px-1.5 py-0.5 shadow-sm border border-gray-200/50">
-                  <p className="text-[9px] font-medium text-gray-500">Min</p>
-                  <p className="text-[10px] font-semibold text-gray-900">{formatUSDSync(minValue)}</p>
-                </div>
-              </div>
-              <div className="absolute top-1 right-1 z-20">
-                <div className="bg-white/95 backdrop-blur-sm rounded px-1.5 py-0.5 shadow-sm border border-gray-200/50">
-                  <p className="text-[9px] font-medium text-gray-500">Max</p>
-                  <p className="text-[10px] font-semibold text-gray-900">{formatUSDSync(maxValue)}</p>
-                </div>
-              </div>
-
               {/* Compact Chart - 120px height */}
               <div className="h-[120px] -mx-1">
                 <ResponsiveContainer width="100%" height="100%">
