@@ -368,18 +368,38 @@ export async function POST(req: NextRequest) {
             });
             
             if (supportedQuotes.length > 0) {
-              // Choose the best quote from supported providers (highest payout or lowest fees)
-              const bestQuote = supportedQuotes.reduce((best, current) => {
-                const bestPayout = parseFloat(best.payout || '0');
-                const currentPayout = parseFloat(current.payout || '0');
-                return currentPayout > bestPayout ? current : best;
+              // Provider priority list (most reliable first)
+              const providerPriority = ['banxa', 'moonpay', 'ramp', 'transak', 'paybis', 'guardarian'];
+              
+              // First, sort by priority (most reliable first), then by payout
+              supportedQuotes.sort((a: any, b: any) => {
+                const aIndex = providerPriority.indexOf(a.ramp?.toLowerCase() || '');
+                const bIndex = providerPriority.indexOf(b.ramp?.toLowerCase() || '');
+                const aPriority = aIndex === -1 ? 999 : aIndex;
+                const bPriority = bIndex === -1 ? 999 : bIndex;
+                
+                // If same priority, sort by payout (descending)
+                if (aPriority === bPriority) {
+                  const payoutA = parseFloat(a.payout || a.outAmount || '0');
+                  const payoutB = parseFloat(b.payout || b.outAmount || '0');
+                  return payoutB - payoutA;
+                }
+                
+                return aPriority - bPriority;
               });
               
+              const bestQuote = supportedQuotes[0];
               onrampProvider = bestQuote.ramp;
-              logger.log('✅ Found onramp provider with paymentMethod support:', {
+              logger.log('✅ Found onramp provider (prioritized by reliability and payout):', {
                 provider: onrampProvider,
                 paymentMethod: paymentMethodLower,
-                payout: bestQuote.payout,
+                payout: bestQuote.payout || bestQuote.outAmount,
+                totalSupporting: supportedQuotes.length,
+                allProviders: supportedQuotes.map((q: any) => ({
+                  ramp: q.ramp,
+                  payout: q.payout || q.outAmount,
+                  priority: providerPriority.indexOf(q.ramp?.toLowerCase() || ''),
+                })),
               });
             } else {
               // No provider supports this payment method - log full details
