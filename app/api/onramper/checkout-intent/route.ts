@@ -711,6 +711,29 @@ export async function POST(req: NextRequest) {
     // Check for API errors
     if (!response.ok) {
       const errorMessage = data?.message || data?.error?.message || data?.error || response.statusText || 'Unknown error';
+      
+      // Handle specific error codes
+      if (typeof errorMessage === 'string' && errorMessage.includes('Error 7104')) {
+        // Provider is unreachable (temporary issue)
+        logger.error('❌ Onramper error: Provider is unreachable', {
+          provider: onrampProvider,
+          errorMessage,
+        });
+        return NextResponse.json(
+          { 
+            success: false,
+            error: 'Payment provider temporarily unavailable',
+            message: `The payment provider (${onrampProvider || 'selected provider'}) is currently unreachable. This is usually a temporary issue. Please try again in a few minutes or use a different payment method.`,
+            details: {
+              provider: onrampProvider,
+              errorCode: '7104',
+              suggestion: 'Try again in a few minutes or use a different payment method',
+            },
+          },
+          { status: 502 }
+        );
+      }
+      
       logger.error('❌ Onramper /checkout/intent API error:', {
         status: response.status,
         statusText: response.statusText,
