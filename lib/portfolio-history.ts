@@ -1,7 +1,7 @@
 // Portfolio history tracking - stores real balance snapshots over time
 import { logger } from '@/lib/logger';
 
-interface BalanceSnapshot {
+export interface BalanceSnapshot {
   timestamp: number;
   balance: number; // in USD
   address: string;
