@@ -1,12 +1,16 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Area, AreaChart, ReferenceLine } from 'recharts';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart3 } from 'lucide-react';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { getPortfolioHistory } from '@/lib/portfolio-history';
+import { reconstructPortfolioHistory } from '@/lib/portfolio-reconstruction';
 import { logger } from '@/lib/logger';
+import { Token } from '@/lib/types';
+import { CHAINS } from '@/lib/chains';
+import { useWalletStore } from '@/lib/wallet-store';
 
 interface BalanceChartProps {
   address: string;
@@ -15,6 +19,8 @@ interface BalanceChartProps {
   isPositiveChange: boolean;
   selectedTimeRange: number | null; // hours or null for "Alles"
   onTimeRangeChange?: (hours: number | null) => void;
+  tokens?: Token[]; // Current token holdings for reconstruction
+  nativeBalance?: string; // Native token balance
 }
 
 type Timeframe = 'LIVE' | '1D' | '7D' | '30D' | '1J' | 'ALLES';
@@ -26,15 +32,20 @@ export default function BalanceChart({
   isPositiveChange,
   selectedTimeRange,
   onTimeRangeChange,
+  tokens = [],
+  nativeBalance = '0',
 }: BalanceChartProps) {
   const { formatUSDSync, symbol } = useCurrency();
+  const { currentChain } = useWalletStore();
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>('1D');
   const [chartData, setChartData] = useState<Array<{ timestamp: number; balance: number; time: string }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [minValue, setMinValue] = useState(0);
   const [maxValue, setMaxValue] = useState(0);
+  const [useReconstruction, setUseReconstruction] = useState(false);
 
   const portfolioHistory = getPortfolioHistory();
+  const chainInfo = CHAINS[chain] || CHAINS[currentChain];
 
   // Convert hours to timeframe
   const hoursToTimeframe = (hours: number | null): Timeframe => {
@@ -60,55 +71,96 @@ export default function BalanceChart({
     }
   };
 
-  // Load chart data
+  // Load chart data with reconstruction fallback
   useEffect(() => {
-    const loadChartData = () => {
+    const loadChartData = async () => {
       setIsLoading(true);
       
       const hours = timeframeToHours(selectedTimeframe);
       const snapshots = portfolioHistory.getRecentSnapshots(50, hours, chain, address);
       
-      if (snapshots.length === 0) {
-        // If no history, create a single point with current balance
+      // If we have snapshots, use them
+      if (snapshots.length > 0) {
         const now = Date.now();
-        setChartData([{
-          timestamp: now,
-          balance: currentBalance,
-          time: new Date(now).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }),
-        }]);
-        setMinValue(currentBalance);
-        setMaxValue(currentBalance);
+        const data = [
+          ...snapshots.map(s => ({
+            timestamp: s.timestamp,
+            balance: s.balance,
+            time: selectedTimeframe === 'LIVE' || selectedTimeframe === '1D'
+              ? new Date(s.timestamp).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
+              : new Date(s.timestamp).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }),
+          })),
+          {
+            timestamp: now,
+            balance: currentBalance,
+            time: selectedTimeframe === 'LIVE' || selectedTimeframe === '1D'
+              ? new Date(now).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
+              : new Date(now).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }),
+          },
+        ];
+
+        const balances = data.map(d => d.balance);
+        const min = Math.min(...balances);
+        const max = Math.max(...balances);
+        const padding = (max - min) * 0.1;
+
+        setChartData(data);
+        setMinValue(Math.max(0, min - padding));
+        setMaxValue(max + padding);
+        setUseReconstruction(false);
         setIsLoading(false);
         return;
       }
-
-      // Add current balance as the latest point
+      
+      // No snapshots - try reconstruction (like Bitvavo)
+      if (tokens.length > 0 || parseFloat(nativeBalance) > 0) {
+        logger.log(`📊 [BalanceChart] No snapshots, using portfolio reconstruction for ${selectedTimeframe}`);
+        setUseReconstruction(true);
+        
+        try {
+          const reconstructed = await reconstructPortfolioHistory(
+            tokens,
+            nativeBalance,
+            chainInfo.nativeCurrency.symbol,
+            chain,
+            selectedTimeframe
+          );
+          
+          if (reconstructed.length > 0) {
+            const data = reconstructed.map(s => ({
+              timestamp: s.timestamp,
+              balance: s.balance,
+              time: selectedTimeframe === 'LIVE' || selectedTimeframe === '1D'
+                ? new Date(s.timestamp).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
+                : new Date(s.timestamp).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }),
+            }));
+            
+            const balances = data.map(d => d.balance);
+            const min = Math.min(...balances);
+            const max = Math.max(...balances);
+            const padding = (max - min) * 0.1;
+            
+            setChartData(data);
+            setMinValue(Math.max(0, min - padding));
+            setMaxValue(max + padding);
+            setIsLoading(false);
+            return;
+          }
+        } catch (error) {
+          logger.error('❌ [BalanceChart] Reconstruction failed:', error);
+        }
+      }
+      
+      // Fallback: single point with current balance
       const now = Date.now();
-      const data = [
-        ...snapshots.map(s => ({
-          timestamp: s.timestamp,
-          balance: s.balance,
-          time: selectedTimeframe === 'LIVE' || selectedTimeframe === '1D'
-            ? new Date(s.timestamp).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
-            : new Date(s.timestamp).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }),
-        })),
-        {
-          timestamp: now,
-          balance: currentBalance,
-          time: selectedTimeframe === 'LIVE' || selectedTimeframe === '1D'
-            ? new Date(now).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
-            : new Date(now).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }),
-        },
-      ];
-
-      const balances = data.map(d => d.balance);
-      const min = Math.min(...balances);
-      const max = Math.max(...balances);
-      const padding = (max - min) * 0.1; // 10% padding
-
-      setChartData(data);
-      setMinValue(Math.max(0, min - padding));
-      setMaxValue(max + padding);
+      setChartData([{
+        timestamp: now,
+        balance: currentBalance,
+        time: new Date(now).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }),
+      }]);
+      setMinValue(currentBalance);
+      setMaxValue(currentBalance);
+      setUseReconstruction(false);
       setIsLoading(false);
     };
 
@@ -119,7 +171,7 @@ export default function BalanceChart({
       const interval = setInterval(loadChartData, 30000);
       return () => clearInterval(interval);
     }
-  }, [selectedTimeframe, currentBalance, address, chain, portfolioHistory]);
+  }, [selectedTimeframe, currentBalance, address, chain, portfolioHistory, tokens, nativeBalance, chainInfo]);
 
   // Sync selectedTimeframe with selectedTimeRange prop
   useEffect(() => {
@@ -165,28 +217,44 @@ export default function BalanceChart({
   const gradientId = 'balanceGradient';
 
   return (
-    <div className="w-full">
-      {/* Timeframe Selector - Bitvavo Style */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          {isPositiveChange ? (
-            <TrendingUp className="w-5 h-5 text-green-500" />
-          ) : (
-            <TrendingDown className="w-5 h-5 text-red-500" />
-          )}
-          <h3 className="text-lg md:text-xl font-semibold text-gray-900">Portfolio</h3>
+    <div className="w-full mt-6">
+      {/* Header met BLAZE styling */}
+      <div className="flex items-center justify-between mb-4 px-1">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg ${
+            isPositiveChange 
+              ? 'bg-gradient-to-br from-emerald-500 to-teal-500' 
+              : 'bg-gradient-to-br from-rose-500 to-orange-500'
+          }`}>
+            {isPositiveChange ? (
+              <TrendingUp className="w-5 h-5 text-white" />
+            ) : (
+              <TrendingDown className="w-5 h-5 text-white" />
+            )}
+          </div>
+          <div>
+            <h3 className="text-lg md:text-xl font-bold text-gray-900">Portfolio</h3>
+            <p className="text-xs text-gray-500">Total balance over time</p>
+          </div>
         </div>
-        
-        <div className="flex items-center gap-1 bg-gray-50 rounded-lg p-1 border border-gray-200">
+      </div>
+
+      {/* Timeframe Selector - BLAZE Style */}
+      <div className="flex items-center gap-2 mb-4 px-1 overflow-x-auto pb-2 scrollbar-hide">
+        <div className="flex items-center gap-1.5 bg-white/80 backdrop-blur-sm rounded-xl p-1.5 border border-gray-200/50 shadow-sm">
           {timeframes.map((timeframe) => (
             <motion.button
               key={timeframe}
               whileTap={{ scale: 0.95 }}
               onClick={() => handleTimeframeChange(timeframe)}
-              className={`px-2 md:px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+              className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-semibold transition-all whitespace-nowrap ${
                 selectedTimeframe === timeframe
-                  ? `bg-gradient-to-r ${isPositiveChange ? 'from-green-500 to-emerald-500' : 'from-red-500 to-rose-500'} text-white shadow-sm`
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-white'
+                  ? `bg-gradient-to-r ${
+                      isPositiveChange 
+                        ? 'from-emerald-500 to-teal-500' 
+                        : 'from-rose-500 to-orange-500'
+                    } text-white shadow-lg`
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
               {timeframe}
@@ -195,79 +263,118 @@ export default function BalanceChart({
         </div>
       </div>
 
-      {/* Chart - Bitvavo Style (Large and Prominent) */}
-      <div className="relative w-full" style={{ minHeight: '300px' }}>
-        {isLoading ? (
-          <div className="h-[300px] md:h-[400px] flex items-center justify-center">
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
-              <p className="text-sm text-gray-500">Loading chart...</p>
+      {/* Chart Container - BLAZE Glass Card */}
+      <div className="glass-card rounded-2xl p-4 md:p-6 border border-gray-200/50 shadow-xl relative overflow-hidden">
+        {/* Gradient overlay - BLAZE style */}
+        <div className={`absolute inset-0 opacity-5 pointer-events-none ${
+          isPositiveChange 
+            ? 'bg-gradient-to-br from-emerald-500 to-teal-500' 
+            : 'bg-gradient-to-br from-rose-500 to-orange-500'
+        }`} />
+        
+        <div className="relative z-10">
+          {isLoading ? (
+            <div className="h-[280px] md:h-[380px] flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-sm text-gray-500 font-medium">Loading chart data...</p>
+              </div>
             </div>
-          </div>
-        ) : chartData.length > 0 ? (
-          <>
-            {/* Min/Max Labels - Bitvavo Style */}
-            <div className="absolute top-3 left-3 text-xs md:text-sm text-gray-500 font-medium z-10">
-              {formatUSDSync(minValue)}
-            </div>
-            <div className="absolute top-3 right-3 text-xs md:text-sm text-gray-500 font-medium z-10">
-              {formatUSDSync(maxValue)}
-            </div>
+          ) : chartData.length > 0 ? (
+            <>
+              {/* Min/Max Labels - BLAZE Style */}
+              <div className="absolute top-4 left-4 z-20">
+                <div className="bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1 shadow-sm border border-gray-200/50">
+                  <p className="text-xs font-semibold text-gray-500">Min</p>
+                  <p className="text-sm font-bold text-gray-900">{formatUSDSync(minValue)}</p>
+                </div>
+              </div>
+              <div className="absolute top-4 right-4 z-20">
+                <div className="bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1 shadow-sm border border-gray-200/50">
+                  <p className="text-xs font-semibold text-gray-500">Max</p>
+                  <p className="text-sm font-bold text-gray-900">{formatUSDSync(maxValue)}</p>
+                </div>
+              </div>
 
-            <ResponsiveContainer width="100%" height={400}>
-              <AreaChart 
-                data={chartData} 
-                margin={{ top: 20, right: 20, left: 0, bottom: 20 }}
-              >
-                <defs>
-                  <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={lineColor} stopOpacity={0.4} />
-                    <stop offset="100%" stopColor={lineColor} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis
-                  dataKey="time"
-                  stroke="#9ca3af"
-                  style={{ fontSize: '12px' }}
-                  tickLine={false}
-                  axisLine={false}
-                  interval="preserveStartEnd"
-                  tick={{ fill: '#6b7280' }}
-                />
-                <YAxis
-                  stroke="#9ca3af"
-                  style={{ fontSize: '12px' }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value) => formatUSDSync(value)}
-                  domain={[minValue, maxValue]}
-                  width={80}
-                  tick={{ fill: '#6b7280' }}
-                />
-                <Tooltip 
-                  content={<CustomTooltip />}
-                  cursor={{ stroke: lineColor, strokeWidth: 1, strokeDasharray: '3 3' }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="balance"
-                  stroke={lineColor}
-                  strokeWidth={3}
-                  fill={`url(#${gradientId})`}
-                  dot={false}
-                  activeDot={{ r: 6, fill: lineColor, strokeWidth: 2, stroke: '#fff' }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </>
-        ) : (
-          <div className="h-[300px] md:h-[400px] flex items-center justify-center">
-            <div className="text-center">
-              <p className="text-sm text-gray-500">No chart data available</p>
-              <p className="text-xs text-gray-400 mt-1">Balance history will appear here</p>
+              {/* Chart - Large & Prominent */}
+              <div className="h-[280px] md:h-[380px] -mx-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart 
+                    data={chartData} 
+                    margin={{ top: 10, right: 10, left: 0, bottom: 10 }}
+                  >
+                    <defs>
+                      <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={lineColor} stopOpacity={0.4} />
+                        <stop offset="50%" stopColor={lineColor} stopOpacity={0.15} />
+                        <stop offset="100%" stopColor={lineColor} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis
+                      dataKey="time"
+                      stroke="#9ca3af"
+                      style={{ fontSize: '11px', fontWeight: 500 }}
+                      tickLine={false}
+                      axisLine={false}
+                      interval="preserveStartEnd"
+                      tick={{ fill: '#6b7280' }}
+                    />
+                    <YAxis
+                      stroke="#9ca3af"
+                      style={{ fontSize: '11px', fontWeight: 500 }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value) => formatUSDSync(value)}
+                      domain={[minValue, maxValue]}
+                      width={75}
+                      tick={{ fill: '#6b7280' }}
+                    />
+                    <Tooltip 
+                      content={<CustomTooltip />}
+                      cursor={{ 
+                        stroke: lineColor, 
+                        strokeWidth: 2, 
+                        strokeDasharray: '5 5',
+                        strokeOpacity: 0.5
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="balance"
+                      stroke={lineColor}
+                      strokeWidth={3}
+                      fill={`url(#${gradientId})`}
+                      dot={false}
+                      activeDot={{ 
+                        r: 7, 
+                        fill: lineColor, 
+                        strokeWidth: 3, 
+                        stroke: '#fff',
+                        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
+                      }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </>
+          ) : (
+            <div className="h-[280px] md:h-[380px] flex items-center justify-center">
+              <div className="text-center">
+                <div className={`w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center ${
+                  isPositiveChange 
+                    ? 'bg-gradient-to-br from-emerald-500/10 to-teal-500/10' 
+                    : 'bg-gradient-to-br from-rose-500/10 to-orange-500/10'
+                }`}>
+                  <BarChart3 className={`w-8 h-8 ${
+                    isPositiveChange ? 'text-emerald-500' : 'text-rose-500'
+                  }`} />
+                </div>
+                <p className="text-sm font-semibold text-gray-700 mb-1">No chart data available</p>
+                <p className="text-xs text-gray-500">Start trading to see your portfolio history</p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

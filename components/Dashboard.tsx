@@ -1215,17 +1215,17 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Balance Chart - Bitvavo Style */}
-              <div className="mb-4 -mx-6 md:mx-0">
-                <BalanceChart
-                  address={displayAddress || address || ''}
-                  chain={currentChain}
-                  currentBalance={totalValueUSD}
-                  isPositiveChange={isPositiveChange}
-                  selectedTimeRange={selectedTimeRange}
-                  onTimeRangeChange={setSelectedTimeRange}
-                />
-              </div>
+              {/* Balance Chart - Bitvavo Style + BLAZE Design */}
+              <BalanceChart
+                address={displayAddress || address || ''}
+                chain={currentChain}
+                currentBalance={totalValueUSD}
+                isPositiveChange={isPositiveChange}
+                selectedTimeRange={selectedTimeRange}
+                onTimeRangeChange={setSelectedTimeRange}
+                tokens={tokens}
+                nativeBalance={balance}
+              />
             </div>
           </motion.div>
 
