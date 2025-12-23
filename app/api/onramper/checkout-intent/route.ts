@@ -87,32 +87,34 @@ export async function POST(req: NextRequest) {
     // then filter for the one that supports our paymentMethod
     let onrampProvider: string | null = null;
     
-    // CRITICAL: If we have a paymentMethod, we should use /supported/onramps to find providers that support it
-    // The quotes API's availablePaymentMethods might not include all payment methods
+    // CRITICAL: If we have a paymentMethod, use /supported/payment-types/{source} to find providers that support it
+    // This endpoint returns which providers support which payment methods for a specific source/destination
+    // According to Onramper docs, this is the most reliable way to check payment method support
     if (paymentMethod) {
       try {
-        logger.log('📊 Fetching supported onramps to find providers that support payment method...');
+        logger.log('📊 Fetching supported payment types to find providers that support payment method...');
         const fiatLower = fiatCurrency.toLowerCase();
         const cryptoLower = cryptoCurrency.toLowerCase();
         
-        // Use /supported/onramps endpoint to get providers that support this payment method
-        const supportedOnrampsUrl = `https://api.onramper.com/supported/onramps?type=buy&source=${fiatLower}&destination=${cryptoLower}&country=NL`;
+        // Use /supported/payment-types/{source} endpoint to get providers that support this payment method
+        // This endpoint shows which providers support which payment methods for EUR -> SOL
+        const supportedPaymentTypesUrl = `https://api.onramper.com/supported/payment-types/${fiatLower}?type=buy&destination=${cryptoLower}&country=NL`;
         
-        const supportedOnrampsResponse = await fetch(supportedOnrampsUrl, {
+        const supportedPaymentTypesResponse = await fetch(supportedPaymentTypesUrl, {
           headers: {
             'Authorization': onramperApiKey,
             'Accept': 'application/json',
           },
         });
         
-        if (supportedOnrampsResponse.ok) {
-          const supportedOnrampsData = await supportedOnrampsResponse.json();
-          const onrampsList = supportedOnrampsData.message || supportedOnrampsData || [];
+        if (supportedPaymentTypesResponse.ok) {
+          const supportedPaymentTypesData = await supportedPaymentTypesResponse.json();
+          const paymentTypesList = supportedPaymentTypesData.message || supportedPaymentTypesData || [];
           
-          logger.log('📊 Supported onramps response:', {
-            isArray: Array.isArray(onrampsList),
-            count: Array.isArray(onrampsList) ? onrampsList.length : 'N/A',
-            preview: JSON.stringify(onrampsList, null, 2).substring(0, 2000),
+          logger.log('📊 Supported payment types response:', {
+            isArray: Array.isArray(paymentTypesList),
+            count: Array.isArray(paymentTypesList) ? paymentTypesList.length : 'N/A',
+            preview: JSON.stringify(paymentTypesList, null, 2).substring(0, 2000),
           });
           
           const paymentMethodLower = paymentMethod.toLowerCase();
@@ -129,57 +131,69 @@ export async function POST(req: NextRequest) {
           
           const possibleNames = paymentMethodMappings[paymentMethodLower] || [paymentMethodLower];
           
-          // Find onramps that support this payment method
-          const supportingOnramps = onrampsList.filter((onramp: any) => {
-            if (!onramp.onramp || !onramp.paymentMethods || !Array.isArray(onramp.paymentMethods)) {
-              return false;
-            }
+          // Find payment type that matches our payment method
+          const matchingPaymentType = paymentTypesList.find((pt: any) => {
+            const ptId = pt.paymentTypeId?.toLowerCase() || pt.id?.toLowerCase() || '';
+            const ptName = pt.name?.toLowerCase() || '';
             
-            // Check if any of the payment methods match
-            return onramp.paymentMethods.some((pm: string) => {
-              const pmLower = pm.toLowerCase();
-              return possibleNames.some(possibleName => 
-                pmLower === possibleName ||
-                pmLower.includes(possibleName) ||
-                possibleName.includes(pmLower)
-              ) || pmLower === paymentMethodLower;
-            });
+            return possibleNames.some(possibleName => 
+              ptId === possibleName ||
+              ptName === possibleName ||
+              ptId.includes(possibleName) ||
+              ptName.includes(possibleName) ||
+              possibleName.includes(ptId) ||
+              possibleName.includes(ptName)
+            ) || ptId === paymentMethodLower || ptName === paymentMethodLower;
           });
           
-          logger.log('📊 Onramps that support payment method:', {
-            paymentMethod: paymentMethodLower,
-            supportingOnramps: supportingOnramps.map((o: any) => ({
-              onramp: o.onramp,
-              paymentMethods: o.paymentMethods,
-            })),
-          });
-          
-          if (supportingOnramps.length > 0) {
-            // Use the first one (or we could choose based on recommendations)
-            // We'll still fetch quotes to get the best rate, but now we know which providers support the payment method
-            onrampProvider = supportingOnramps[0].onramp;
-            logger.log('✅ Found onramp provider from /supported/onramps:', {
-              provider: onrampProvider,
+          if (matchingPaymentType && matchingPaymentType.details && matchingPaymentType.details.limits) {
+            // Extract providers from the limits object
+            // Format: { "banxa": { "min": 46, "max": 30000 }, ... }
+            const supportingProviders = Object.keys(matchingPaymentType.details.limits).filter(
+              (provider: string) => provider !== 'aggregatedLimit'
+            );
+            
+            logger.log('📊 Providers that support payment method (from /supported/payment-types):', {
               paymentMethod: paymentMethodLower,
-              totalSupporting: supportingOnramps.length,
+              paymentTypeId: matchingPaymentType.paymentTypeId,
+              paymentTypeName: matchingPaymentType.name,
+              supportingProviders,
+              limits: matchingPaymentType.details.limits,
             });
+            
+            if (supportingProviders.length > 0) {
+              // Use the first provider (or we could choose based on best rates)
+              // According to Onramper docs, Banxa is the only provider that supports iDEAL for EUR -> SOL
+              onrampProvider = supportingProviders[0];
+              logger.log('✅ Found onramp provider from /supported/payment-types:', {
+                provider: onrampProvider,
+                paymentMethod: paymentMethodLower,
+                totalSupporting: supportingProviders.length,
+                allProviders: supportingProviders,
+              });
+            } else {
+              logger.error('❌ No onramp provider found that supports payment method (from /supported/payment-types):', {
+                paymentMethod: paymentMethodLower,
+                paymentType: matchingPaymentType,
+              });
+            }
           } else {
-            logger.error('❌ No onramp provider found that supports payment method (from /supported/onramps):', {
+            logger.error('❌ Payment method not found in /supported/payment-types:', {
               paymentMethod: paymentMethodLower,
-              availableOnramps: onrampsList.map((o: any) => ({
-                onramp: o.onramp,
-                paymentMethods: o.paymentMethods,
+              availablePaymentTypes: paymentTypesList.map((pt: any) => ({
+                paymentTypeId: pt.paymentTypeId,
+                name: pt.name,
               })),
             });
           }
         } else {
-          logger.warn('⚠️ Failed to fetch supported onramps, falling back to quotes API:', {
-            status: supportedOnrampsResponse.status,
-            statusText: supportedOnrampsResponse.statusText,
+          logger.warn('⚠️ Failed to fetch supported payment types, falling back to quotes API:', {
+            status: supportedPaymentTypesResponse.status,
+            statusText: supportedPaymentTypesResponse.statusText,
           });
         }
-      } catch (supportedOnrampsError: any) {
-        logger.warn('⚠️ Error fetching supported onramps, falling back to quotes API:', supportedOnrampsError.message);
+      } catch (supportedPaymentTypesError: any) {
+        logger.warn('⚠️ Error fetching supported payment types, falling back to quotes API:', supportedPaymentTypesError.message);
       }
     }
     
