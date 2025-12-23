@@ -216,17 +216,19 @@ export class PortfolioHistory {
     if (!this.supabase || !this.userId) return;
     
     // Find and update the most recent snapshot for this address/chain
-    this.supabase
-      .from('portfolio_snapshots')
-      .update({
-        balance_usd: snapshot.balance,
-        snapshot_at: new Date(snapshot.timestamp).toISOString(),
-      })
-      .eq('user_id', this.userId)
-      .eq('address', snapshot.address)
-      .eq('chain', snapshot.chain)
-      .order('snapshot_at', { ascending: false })
-      .limit(1)
+    Promise.resolve(
+      this.supabase
+        .from('portfolio_snapshots')
+        .update({
+          balance_usd: snapshot.balance,
+          snapshot_at: new Date(snapshot.timestamp).toISOString(),
+        })
+        .eq('user_id', this.userId)
+        .eq('address', snapshot.address)
+        .eq('chain', snapshot.chain)
+        .order('snapshot_at', { ascending: false })
+        .limit(1)
+    )
       .then(() => {
         logger.log(`✅ Updated snapshot in Supabase`);
       })
