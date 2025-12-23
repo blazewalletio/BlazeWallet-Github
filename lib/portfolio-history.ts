@@ -1,5 +1,7 @@
 // Portfolio history tracking - stores real balance snapshots over time
+// Hybrid approach: localStorage (fast) + Supabase (multi-device sync)
 import { logger } from '@/lib/logger';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 export interface BalanceSnapshot {
   timestamp: number;
@@ -10,13 +12,45 @@ export interface BalanceSnapshot {
 
 const STORAGE_KEY = 'arc_portfolio_history';
 const MAX_SNAPSHOTS = 100; // Keep last 100 data points
-const SNAPSHOT_INTERVAL = 5 * 60 * 1000; // Save snapshot every 5 minutes
+
+// Smart snapshot intervals (like Bitvavo)
+const SNAPSHOT_INTERVALS: Record<string, number> = {
+  LIVE: 30 * 1000,           // 30 seconds (last 30 min)
+  '1D': 60 * 60 * 1000,      // 1 hour (24 points)
+  '7D': 6 * 60 * 60 * 1000,  // 6 hours (28 points)
+  '30D': 24 * 60 * 60 * 1000, // 1 day (30 points)
+  '1J': 7 * 24 * 60 * 60 * 1000, // 1 week (52 points)
+  'ALLES': 7 * 24 * 60 * 60 * 1000, // 1 week (for long-term)
+};
+
+// Default interval (if timeframe not specified)
+const DEFAULT_SNAPSHOT_INTERVAL = 60 * 60 * 1000; // 1 hour
 
 export class PortfolioHistory {
   private snapshots: BalanceSnapshot[] = [];
+  private supabase: SupabaseClient | null = null;
+  private userId: string | null = null;
+  private isSyncing: boolean = false;
 
   constructor() {
+    // Initialize Supabase if available
+    if (typeof window !== 'undefined') {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (supabaseUrl && supabaseKey) {
+        this.supabase = createClient(supabaseUrl, supabaseKey);
+        // Get user ID from localStorage
+        this.userId = localStorage.getItem('supabase_user_id');
+      }
+    }
+    
+    // Load from localStorage first (fast, for instant display)
     this.loadFromStorage();
+    
+    // Then sync from Supabase in background (if logged in)
+    if (this.supabase && this.userId) {
+      this.syncFromSupabase();
+    }
   }
 
   // Load history from localStorage
@@ -41,32 +75,162 @@ export class PortfolioHistory {
     }
   }
 
-  // Add a new balance snapshot
-  addSnapshot(balance: number, address: string, chain: string) {
+  // Check if we should take a snapshot based on timeframe
+  private shouldTakeSnapshot(
+    lastSnapshotTime: number,
+    timeframe?: 'LIVE' | '1D' | '7D' | '30D' | '1J' | 'ALLES'
+  ): boolean {
+    if (!timeframe) {
+      // Default: 1 hour interval
+      return Date.now() - lastSnapshotTime >= DEFAULT_SNAPSHOT_INTERVAL;
+    }
+    
+    const interval = SNAPSHOT_INTERVALS[timeframe] || DEFAULT_SNAPSHOT_INTERVAL;
+    return Date.now() - lastSnapshotTime >= interval;
+  }
+
+  // Add a new balance snapshot (hybrid: localStorage + Supabase)
+  async addSnapshot(
+    balance: number, 
+    address: string, 
+    chain: string,
+    timeframe?: 'LIVE' | '1D' | '7D' | '30D' | '1J' | 'ALLES'
+  ) {
     const now = Date.now();
     
-    // Check if we should add a new snapshot (avoid too frequent updates)
+    // Check if we should take a snapshot (smart intervals)
     const lastSnapshot = this.snapshots[this.snapshots.length - 1];
-    if (lastSnapshot && now - lastSnapshot.timestamp < SNAPSHOT_INTERVAL) {
-      // Update the last snapshot instead of creating a new one
-      lastSnapshot.balance = balance;
-      lastSnapshot.timestamp = now;
-    } else {
-      // Add new snapshot
-      this.snapshots.push({
-        timestamp: now,
-        balance,
-        address,
-        chain,
-      });
+    if (lastSnapshot && this.shouldTakeSnapshot(lastSnapshot.timestamp, timeframe)) {
+      // Update last snapshot instead of creating new one (if within interval)
+      if (lastSnapshot.address === address && lastSnapshot.chain === chain) {
+        lastSnapshot.balance = balance;
+        lastSnapshot.timestamp = now;
+        this.saveToStorage();
+        // Update in Supabase (background)
+        if (this.supabase && this.userId) {
+          this.updateLastSnapshotInSupabase(lastSnapshot);
+        }
+        return;
+      }
     }
-
-    // Keep only the last MAX_SNAPSHOTS
+    
+    // Create new snapshot
+    const snapshot: BalanceSnapshot = {
+      timestamp: now,
+      balance,
+      address,
+      chain,
+    };
+    
+    this.snapshots.push(snapshot);
+    
+    // Keep only last MAX_SNAPSHOTS
     if (this.snapshots.length > MAX_SNAPSHOTS) {
       this.snapshots = this.snapshots.slice(-MAX_SNAPSHOTS);
     }
-
+    
+    // Save to localStorage (fast, for instant display)
     this.saveToStorage();
+    
+    // Save to Supabase (background, for multi-device sync)
+    if (this.supabase && this.userId) {
+      this.saveSnapshotToSupabase(snapshot);
+    }
+  }
+
+  // Sync from Supabase (background, for multi-device sync)
+  private async syncFromSupabase() {
+    if (!this.supabase || !this.userId || this.isSyncing) return;
+    
+    this.isSyncing = true;
+    try {
+      const { data, error } = await this.supabase
+        .from('portfolio_snapshots')
+        .select('*')
+        .eq('user_id', this.userId)
+        .order('snapshot_at', { ascending: false })
+        .limit(MAX_SNAPSHOTS);
+      
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        // Convert Supabase format to BalanceSnapshot
+        const supabaseSnapshots = data.map(s => ({
+          timestamp: new Date(s.snapshot_at).getTime(),
+          balance: parseFloat(s.balance_usd),
+          address: s.address,
+          chain: s.chain,
+        }));
+        
+        // Merge with localStorage snapshots (keep most recent)
+        const merged = [...this.snapshots, ...supabaseSnapshots]
+          .sort((a, b) => b.timestamp - a.timestamp)
+          .filter((snapshot, index, self) => 
+            index === self.findIndex(s => 
+              s.timestamp === snapshot.timestamp && 
+              s.address === snapshot.address && 
+              s.chain === snapshot.chain
+            )
+          )
+          .slice(0, MAX_SNAPSHOTS);
+        
+        this.snapshots = merged;
+        this.saveToStorage();
+        
+        logger.log(`✅ Synced ${supabaseSnapshots.length} snapshots from Supabase`);
+      }
+    } catch (error) {
+      logger.error('Error syncing from Supabase:', error);
+    } finally {
+      this.isSyncing = false;
+    }
+  }
+
+  // Save snapshot to Supabase (background, non-blocking)
+  private async saveSnapshotToSupabase(snapshot: BalanceSnapshot) {
+    if (!this.supabase || !this.userId) return;
+    
+    // Don't await - fire and forget for performance
+    this.supabase
+      .from('portfolio_snapshots')
+      .insert({
+        user_id: this.userId,
+        balance_usd: snapshot.balance,
+        address: snapshot.address,
+        chain: snapshot.chain,
+        snapshot_at: new Date(snapshot.timestamp).toISOString(),
+      })
+      .then(() => {
+        logger.log(`✅ Saved snapshot to Supabase: $${snapshot.balance.toFixed(2)}`);
+      })
+      .catch((error) => {
+        logger.error('Error saving snapshot to Supabase:', error);
+        // Don't throw - localStorage is primary, Supabase is sync
+      });
+  }
+
+  // Update last snapshot in Supabase
+  private async updateLastSnapshotInSupabase(snapshot: BalanceSnapshot) {
+    if (!this.supabase || !this.userId) return;
+    
+    // Find and update the most recent snapshot for this address/chain
+    this.supabase
+      .from('portfolio_snapshots')
+      .update({
+        balance_usd: snapshot.balance,
+        snapshot_at: new Date(snapshot.timestamp).toISOString(),
+      })
+      .eq('user_id', this.userId)
+      .eq('address', snapshot.address)
+      .eq('chain', snapshot.chain)
+      .order('snapshot_at', { ascending: false })
+      .limit(1)
+      .then(() => {
+        logger.log(`✅ Updated snapshot in Supabase`);
+      })
+      .catch((error) => {
+        logger.error('Error updating snapshot in Supabase:', error);
+      });
   }
 
   // Get snapshots within a specific time range (optionally filtered by chain and address)

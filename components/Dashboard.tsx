@@ -855,9 +855,14 @@ export default function Dashboard() {
           totalValueUSD: totalValue.toFixed(2)
         });
         
-        // Save to portfolio history
+        // Save to portfolio history (with timeframe for smart intervals)
         if (displayAddress) {
-          portfolioHistory.addSnapshot(totalValue, displayAddress, currentChain);
+          const timeframe = selectedTimeRange === 1 ? 'LIVE' :
+                           selectedTimeRange === 24 ? '1D' :
+                           selectedTimeRange === 168 ? '7D' :
+                           selectedTimeRange === 720 ? '30D' :
+                           selectedTimeRange === 8760 ? '1J' : '1D';
+          portfolioHistory.addSnapshot(totalValue, displayAddress, currentChain, timeframe);
         }
       } else {
         // No tokens - native value IS total value
@@ -873,9 +878,14 @@ export default function Dashboard() {
           totalValueUSD: nativeValueUSD.toFixed(2)
         });
         
-        // Save to portfolio history
+        // Save to portfolio history (with timeframe for smart intervals)
         if (displayAddress) {
-          portfolioHistory.addSnapshot(nativeValueUSD, displayAddress, currentChain);
+          const timeframe = selectedTimeRange === 1 ? 'LIVE' :
+                           selectedTimeRange === 24 ? '1D' :
+                           selectedTimeRange === 168 ? '7D' :
+                           selectedTimeRange === 720 ? '30D' :
+                           selectedTimeRange === 8760 ? '1J' : '1D';
+          portfolioHistory.addSnapshot(nativeValueUSD, displayAddress, currentChain, timeframe);
         }
       }
 

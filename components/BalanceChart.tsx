@@ -290,22 +290,19 @@ export default function BalanceChart({
                     </defs>
                     <XAxis
                       dataKey="time"
-                      stroke="#d1d5db"
-                      style={{ fontSize: '9px' }}
+                      stroke="transparent"
                       tickLine={false}
                       axisLine={false}
-                      interval="preserveStartEnd"
-                      tick={{ fill: '#9ca3af' }}
+                      tick={false}
+                      hide={true}
                     />
                     <YAxis
-                      stroke="#d1d5db"
-                      style={{ fontSize: '9px' }}
+                      stroke="transparent"
                       tickLine={false}
                       axisLine={false}
-                      tickFormatter={(value) => formatUSDSync(value)}
+                      tick={false}
+                      hide={true}
                       domain={[minValue, maxValue]}
-                      width={50}
-                      tick={{ fill: '#9ca3af' }}
                     />
                     <Tooltip 
                       content={<CustomTooltip />}
