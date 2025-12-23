@@ -1216,7 +1216,7 @@ export default function Dashboard() {
               </div>
 
               {/* Balance Chart - Bitvavo Style */}
-              <div className="mb-4">
+              <div className="mb-4 -mx-6 md:mx-0">
                 <BalanceChart
                   address={displayAddress || address || ''}
                   chain={currentChain}

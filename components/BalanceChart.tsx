@@ -165,7 +165,7 @@ export default function BalanceChart({
   const gradientId = 'balanceGradient';
 
   return (
-    <div className="w-full bg-white rounded-2xl p-4 md:p-6 border border-gray-200">
+    <div className="w-full">
       {/* Timeframe Selector - Bitvavo Style */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
