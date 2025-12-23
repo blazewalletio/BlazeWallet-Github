@@ -119,7 +119,32 @@ export async function reconstructPortfolioHistory(
     const portfolioPoints: BalanceSnapshot[] = [];
     const nativeBalanceNum = parseFloat(nativeBalance || '0');
     
-    for (const nativePoint of nativeHistory.prices) {
+    // If we have very few points, generate more by interpolating
+    let pricePointsToUse = nativeHistory.prices;
+    
+    // For 1D timeframe, ensure we have at least 24 points (hourly)
+    if (days <= 1 && pricePointsToUse.length < 24) {
+      logger.log(`📊 [Portfolio Reconstruction] Only ${pricePointsToUse.length} points for 1D, generating interpolated points`);
+      const interpolated: PriceDataPoint[] = [];
+      const now = Date.now();
+      const start = now - 24 * 60 * 60 * 1000;
+      
+      // Use first and last price for interpolation
+      const firstPrice = pricePointsToUse[0]?.price || 0;
+      const lastPrice = pricePointsToUse[pricePointsToUse.length - 1]?.price || firstPrice;
+      
+      // Generate 24 hourly points
+      for (let i = 0; i < 24; i++) {
+        const timestamp = start + (i * 60 * 60 * 1000);
+        // Linear interpolation
+        const ratio = i / 23;
+        const price = firstPrice + (lastPrice - firstPrice) * ratio;
+        interpolated.push({ timestamp, price });
+      }
+      pricePointsToUse = interpolated;
+    }
+    
+    for (const nativePoint of pricePointsToUse) {
       // Skip if before start time
       if (nativePoint.timestamp < startTime) continue;
       
