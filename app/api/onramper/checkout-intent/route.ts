@@ -154,10 +154,27 @@ export async function POST(req: NextRequest) {
             
             // Find all quotes that support the payment method
             const supportedQuotes = quoteData.filter((q: any) => {
-              if (!q.ramp || q.errors) return false;
+              if (!q.ramp || q.errors) {
+                logger.log('⏭️ Skipping quote:', {
+                  ramp: q.ramp,
+                  hasErrors: !!q.errors,
+                  errors: q.errors,
+                });
+                return false;
+              }
+              
+              // CRITICAL: If quote has no availablePaymentMethods, we cannot verify support
+              // We MUST skip this quote to avoid choosing wrong provider
+              if (!q.availablePaymentMethods || q.availablePaymentMethods.length === 0) {
+                logger.warn('⚠️ Quote has no availablePaymentMethods - cannot verify payment method support:', {
+                  ramp: q.ramp,
+                  note: 'Skipping this quote to avoid choosing wrong provider',
+                });
+                return false;
+              }
               
               // Check if this quote supports the payment method
-              const supportsPaymentMethod = q.availablePaymentMethods?.some((pm: any) => {
+              const supportsPaymentMethod = q.availablePaymentMethods.some((pm: any) => {
                 const pmId = pm.paymentTypeId?.toLowerCase() || pm.id?.toLowerCase() || '';
                 const pmName = pm.name?.toLowerCase() || '';
                 
