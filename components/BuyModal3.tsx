@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Loader2, AlertCircle, CheckCircle2, ArrowRight, Flame, CreditCard } from 'lucide-react';
+import { X, Loader2, AlertCircle, CheckCircle2, ArrowRight, Flame, CreditCard, TestTube, Copy, Check } from 'lucide-react';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { useWalletStore } from '@/lib/wallet-store';
 import { CHAINS } from '@/lib/chains';
@@ -42,6 +42,12 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showWidget, setShowWidget] = useState(false);
+  
+  // Test & Debug state
+  const [showTestPanel, setShowTestPanel] = useState(false);
+  const [testLogs, setTestLogs] = useState<string[]>([]);
+  const [isTesting, setIsTesting] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Form state
   const [fiatAmount, setFiatAmount] = useState('100');
@@ -289,6 +295,191 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
       toast.error('Failed to create transaction. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Comprehensive test function
+  const runComprehensiveTest = async () => {
+    setIsTesting(true);
+    setTestLogs([]);
+    const logs: string[] = [];
+    
+    const addLog = (message: string, type: 'info' | 'success' | 'error' | 'warning' = 'info') => {
+      const timestamp = new Date().toISOString();
+      const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+      const logEntry = `[${timestamp}] ${prefix} ${message}`;
+      logs.push(logEntry);
+      setTestLogs([...logs]);
+      console.log(logEntry);
+    };
+
+    try {
+      addLog('🚀 Starting comprehensive Onramper integration test...', 'info');
+      addLog('', 'info');
+
+      // Test 1: Check wallet address
+      addLog('Test 1: Checking wallet address...', 'info');
+      const walletAddress = getCurrentAddress();
+      if (!walletAddress) {
+        addLog('ERROR: No wallet address found!', 'error');
+        return;
+      }
+      addLog(`SUCCESS: Wallet address found: ${walletAddress.substring(0, 10)}...`, 'success');
+      addLog('', 'info');
+
+      // Test 2: Check current form values
+      addLog('Test 2: Checking form values...', 'info');
+      addLog(`  Fiat Amount: ${fiatAmount}`, 'info');
+      addLog(`  Fiat Currency: ${fiatCurrency}`, 'info');
+      addLog(`  Crypto Currency: ${cryptoCurrency || 'NOT SET'}`, cryptoCurrency ? 'success' : 'error');
+      addLog(`  Payment Method: ${paymentMethod || 'NOT SET'}`, paymentMethod ? 'success' : 'warning');
+      addLog('', 'info');
+
+      // Test 3: Test /api/onramper/supported-data
+      addLog('Test 3: Testing /api/onramper/supported-data endpoint...', 'info');
+      try {
+        const supportedDataResponse = await fetch('/api/onramper/supported-data');
+        const supportedData = await supportedDataResponse.json();
+        if (supportedDataResponse.ok && supportedData.success) {
+          addLog(`SUCCESS: Supported data fetched`, 'success');
+          addLog(`  Payment Methods: ${supportedData.data?.paymentMethods?.length || 0}`, 'info');
+          addLog(`  Fiat Currencies: ${supportedData.data?.fiatCurrencies?.length || 0}`, 'info');
+          addLog(`  Crypto Currencies: ${supportedData.data?.cryptoCurrencies?.length || 0}`, 'info');
+          addLog(`  Full Response: ${JSON.stringify(supportedData, null, 2)}`, 'info');
+        } else {
+          addLog(`ERROR: ${supportedData.error || 'Unknown error'}`, 'error');
+          addLog(`  Response: ${JSON.stringify(supportedData, null, 2)}`, 'error');
+        }
+      } catch (err: any) {
+        addLog(`ERROR: Failed to fetch supported data: ${err.message}`, 'error');
+        addLog(`  Stack: ${err.stack}`, 'error');
+      }
+      addLog('', 'info');
+
+      // Test 4: Test /api/onramper/quotes
+      addLog('Test 4: Testing /api/onramper/quotes endpoint...', 'info');
+      if (!cryptoCurrency) {
+        addLog('WARNING: Skipping quote test - no crypto currency selected', 'warning');
+      } else {
+        try {
+          const quoteUrl = `/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${fiatCurrency}&cryptoCurrency=${cryptoCurrency}`;
+          addLog(`  URL: ${quoteUrl}`, 'info');
+          const quoteResponse = await fetch(quoteUrl);
+          const quoteData = await quoteResponse.json();
+          if (quoteResponse.ok && quoteData.success) {
+            addLog(`SUCCESS: Quote fetched`, 'success');
+            addLog(`  Crypto Amount: ${quoteData.quote?.cryptoAmount}`, 'info');
+            addLog(`  Exchange Rate: ${quoteData.quote?.exchangeRate}`, 'info');
+            addLog(`  Fee: ${quoteData.quote?.fee}`, 'info');
+            addLog(`  Full Response: ${JSON.stringify(quoteData, null, 2)}`, 'info');
+          } else {
+            addLog(`ERROR: ${quoteData.error || 'Unknown error'}`, 'error');
+            addLog(`  Response: ${JSON.stringify(quoteData, null, 2)}`, 'error');
+          }
+        } catch (err: any) {
+          addLog(`ERROR: Failed to fetch quote: ${err.message}`, 'error');
+          addLog(`  Stack: ${err.stack}`, 'error');
+        }
+      }
+      addLog('', 'info');
+
+      // Test 5: Test /api/onramper/checkout-intent (if payment method is selected)
+      addLog('Test 5: Testing /api/onramper/checkout-intent endpoint...', 'info');
+      if (!paymentMethod) {
+        addLog('WARNING: Skipping checkout-intent test - no payment method selected', 'warning');
+      } else if (!cryptoCurrency) {
+        addLog('WARNING: Skipping checkout-intent test - no crypto currency selected', 'warning');
+      } else {
+        try {
+          const checkoutIntentBody = {
+            fiatAmount: parseFloat(fiatAmount),
+            fiatCurrency,
+            cryptoCurrency,
+            walletAddress,
+            paymentMethod,
+          };
+          addLog(`  Request Body: ${JSON.stringify(checkoutIntentBody, null, 2)}`, 'info');
+          
+          const checkoutResponse = await fetch('/api/onramper/checkout-intent', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(checkoutIntentBody),
+          });
+          
+          const checkoutData = await checkoutResponse.json();
+          if (checkoutResponse.ok && checkoutData.success) {
+            addLog(`SUCCESS: Checkout intent created`, 'success');
+            addLog(`  Transaction ID: ${checkoutData.transactionInformation?.transactionId}`, 'info');
+            addLog(`  Type: ${checkoutData.transactionInformation?.type}`, 'info');
+            addLog(`  URL: ${checkoutData.transactionInformation?.url?.substring(0, 100)}...`, 'info');
+            addLog(`  Full Response: ${JSON.stringify(checkoutData, null, 2)}`, 'info');
+          } else {
+            addLog(`ERROR: ${checkoutData.error || checkoutData.message || 'Unknown error'}`, 'error');
+            addLog(`  Status: ${checkoutResponse.status}`, 'error');
+            addLog(`  Full Response: ${JSON.stringify(checkoutData, null, 2)}`, 'error');
+          }
+        } catch (err: any) {
+          addLog(`ERROR: Failed to create checkout intent: ${err.message}`, 'error');
+          addLog(`  Stack: ${err.stack}`, 'error');
+        }
+      }
+      addLog('', 'info');
+
+      // Test 6: Check environment variables (client-side check)
+      addLog('Test 6: Checking environment configuration...', 'info');
+      addLog('  Note: API keys are server-side only, checking if endpoints are accessible', 'info');
+      addLog('', 'info');
+
+      // Test 7: Test payment method matching
+      addLog('Test 7: Testing payment method matching logic...', 'info');
+      if (paymentMethod) {
+        addLog(`  Selected Payment Method: ${paymentMethod}`, 'info');
+        addLog(`  Payment Method Lowercase: ${paymentMethod.toLowerCase()}`, 'info');
+        addLog(`  Available Payment Methods: ${paymentMethods.length}`, 'info');
+        paymentMethods.forEach((pm, idx) => {
+          addLog(`    ${idx + 1}. ${pm.id} - ${pm.name}`, 'info');
+        });
+      } else {
+        addLog('  WARNING: No payment method selected', 'warning');
+      }
+      addLog('', 'info');
+
+      // Test 8: Network and chain info
+      addLog('Test 8: Checking network and chain information...', 'info');
+      if (currentChain) {
+        const chain = CHAINS[currentChain];
+        if (chain) {
+          addLog(`  Chain: ${chain.name} (ID: ${chain.id})`, 'success');
+          addLog(`  Network Code: ${OnramperService.getNetworkCode(chain.id)}`, 'info');
+          addLog(`  Default Crypto: ${OnramperService.getDefaultCrypto(chain.id)}`, 'info');
+          addLog(`  Supported Assets: ${OnramperService.getSupportedAssets(chain.id).join(', ')}`, 'info');
+        }
+      }
+      addLog('', 'info');
+
+      addLog('✅ Comprehensive test completed!', 'success');
+      addLog('', 'info');
+      addLog('📋 All logs above. Copy to clipboard for debugging.', 'info');
+
+    } catch (err: any) {
+      addLog(`FATAL ERROR: ${err.message}`, 'error');
+      addLog(`  Stack: ${err.stack}`, 'error');
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  const copyLogsToClipboard = async () => {
+    const logsText = testLogs.join('\n');
+    try {
+      await navigator.clipboard.writeText(logsText);
+      setCopied(true);
+      toast.success('Logs copied to clipboard!');
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      toast.error('Failed to copy logs');
     }
   };
 
