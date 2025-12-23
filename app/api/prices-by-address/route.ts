@@ -53,24 +53,32 @@ export async function GET(request: NextRequest) {
     const url = `https://api.coingecko.com/api/v3/simple/token_price/${platform}?contract_addresses=${addresses.join(',')}&vs_currencies=usd&include_24hr_change=true`;
 
     logger.log(`📡 [Prices by Address] Fetching from CoinGecko for ${addresses.length} addresses on ${chain}`);
+    logger.log(`📡 [Prices by Address] URL: ${url.substring(0, 150)}...`);
 
-    const response = await fetch(url, {
-      headers: {
-        'Accept': 'application/json',
-      },
-      // 10 second timeout
-      signal: AbortSignal.timeout(10000),
-    });
+    // Create timeout manually (AbortSignal.timeout may not be available in all Node.js versions)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    if (!response.ok) {
-      logger.error(`❌ [Prices by Address] CoinGecko error: ${response.status}`);
-      return NextResponse.json(
-        { error: `CoinGecko API error: ${response.status}` },
-        { status: response.status }
-      );
-    }
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'Accept': 'application/json',
+        },
+        signal: controller.signal,
+      });
 
-    const data = await response.json();
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        logger.error(`❌ [Prices by Address] CoinGecko error: ${response.status} - ${errorText.substring(0, 200)}`);
+        return NextResponse.json(
+          { error: `CoinGecko API error: ${response.status}`, details: errorText.substring(0, 200) },
+          { status: response.status }
+        );
+      }
+
+      const data = await response.json();
 
     // Transform data to our format
     // CoinGecko returns: { "0x...": { "usd": 5.42, "usd_24h_change": -2.5 } }
@@ -120,10 +128,25 @@ export async function GET(request: NextRequest) {
       },
     });
 
-  } catch (error) {
+    } catch (fetchError: any) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        logger.error('❌ [Prices by Address] Request timeout after 10 seconds');
+        return NextResponse.json(
+          { error: 'Request timeout' },
+          { status: 504 }
+        );
+      }
+      throw fetchError;
+    }
+  } catch (error: any) {
     logger.error('❌ [Prices by Address] Error:', error);
+    logger.error('❌ [Prices by Address] Error details:', {
+      message: error?.message,
+      stack: error?.stack?.substring(0, 500),
+    });
     return NextResponse.json(
-      { error: 'Failed to fetch token prices' },
+      { error: 'Failed to fetch token prices', details: error?.message || 'Unknown error' },
       { status: 500 }
     );
   }
