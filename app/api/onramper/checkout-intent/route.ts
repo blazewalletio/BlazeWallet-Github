@@ -587,8 +587,36 @@ export async function POST(req: NextRequest) {
       requestBody.country = country.toUpperCase();
     }
 
+    // Add originatingHost (recommended by Onramper docs)
+    // This helps providers like Banxa know where the request originated from
+    const origin = req.headers.get('origin') || req.headers.get('referer') || 'https://my.blazewallet.io';
+    const originUrl = new URL(origin);
+    requestBody.originatingHost = originUrl.hostname;
+    
     // Add partner context for tracking
     requestBody.partnerContext = `blazewallet-${Date.now()}`;
+    
+    // Add supportedParams with partnerData for redirect URLs
+    // CRITICAL: Banxa and other providers need redirect URLs to know where to redirect after payment
+    // This prevents session timeout errors (Error 50032)
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || origin;
+    const successUrl = `${baseUrl}/dashboard?onramper=success`;
+    const failureUrl = `${baseUrl}/dashboard?onramper=failed`;
+    
+    requestBody.supportedParams = {
+      partnerData: {
+        redirectUrl: {
+          success: encodeURIComponent(successUrl),
+          failure: encodeURIComponent(failureUrl),
+        },
+      },
+    };
+    
+    logger.log('✅ Added redirect URLs for payment providers:', {
+      successUrl,
+      failureUrl,
+      originatingHost: requestBody.originatingHost,
+    });
 
     // Generate signature according to Onramper API documentation
     // Docs: https://docs.onramper.com/docs/signatures/api-sign-requests
