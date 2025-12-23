@@ -102,11 +102,43 @@ export async function POST(req: NextRequest) {
 
       if (quoteResponse.ok) {
         const quoteData = await quoteResponse.json();
+        // Log full quote response structure for debugging
         logger.log('📊 Quote response for onramp provider:', {
           isArray: Array.isArray(quoteData),
           length: Array.isArray(quoteData) ? quoteData.length : 'N/A',
-          preview: JSON.stringify(quoteData, null, 2).substring(0, 1000),
+          preview: JSON.stringify(quoteData, null, 2).substring(0, 2000),
         });
+        
+        // Log all providers and their payment methods
+        if (Array.isArray(quoteData)) {
+          logger.log('📊 All providers in quote response:', {
+            providers: quoteData.map((q: any) => ({
+              ramp: q.ramp,
+              hasErrors: !!q.errors,
+              errors: q.errors,
+              hasPaymentMethods: !!q.availablePaymentMethods,
+              paymentMethodsCount: q.availablePaymentMethods?.length || 0,
+              paymentMethods: q.availablePaymentMethods?.map((pm: any) => ({
+                paymentTypeId: pm.paymentTypeId,
+                id: pm.id,
+                name: pm.name,
+              })) || [],
+            })),
+          });
+        } else if (quoteData && typeof quoteData === 'object') {
+          logger.log('📊 Single quote provider:', {
+            ramp: quoteData.ramp,
+            hasErrors: !!quoteData.errors,
+            errors: quoteData.errors,
+            hasPaymentMethods: !!quoteData.availablePaymentMethods,
+            paymentMethodsCount: quoteData.availablePaymentMethods?.length || 0,
+            paymentMethods: quoteData.availablePaymentMethods?.map((pm: any) => ({
+              paymentTypeId: pm.paymentTypeId,
+              id: pm.id,
+              name: pm.name,
+            })) || [],
+          });
+        }
         
         // Quote response is an array of quotes from different providers
         if (Array.isArray(quoteData) && quoteData.length > 0) {
