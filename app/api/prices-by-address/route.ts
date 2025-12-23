@@ -3,7 +3,6 @@ import { logger } from '@/lib/logger';
 
 // Force dynamic rendering (required for API routes with query params)
 export const dynamic = 'force-dynamic';
-export const runtime = 'edge';
 
 // Map chain names to CoinGecko platform IDs
 const CHAIN_TO_PLATFORM: Record<string, string> = {
