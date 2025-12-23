@@ -609,8 +609,8 @@ export async function POST(req: NextRequest) {
     requestBody.supportedParams = {
       partnerData: {
         redirectUrl: {
-          success: encodeURIComponent(successUrl),
-          failure: encodeURIComponent(failureUrl),
+          success: successUrl, // Onramper will encode this automatically
+          failure: failureUrl, // Onramper will encode this automatically
         },
       },
     };
