@@ -62,10 +62,13 @@ export async function GET(request: Request) {
       .filter(Boolean);
 
     if (tickers.length === 0) {
-      // Silent 400 - expected for unknown tokens (will fallback to DexScreener)
-      // Don't log this as error - it's part of normal operation
-      logger.log(`[BinanceAPI] Unknown symbols: ${symbols.join(', ')} - will fallback to DexScreener`);
-      return NextResponse.json({ error: 'No valid symbols for Binance' }, { status: 400 });
+      // Return empty result instead of 400 error - frontend will fallback to DexScreener
+      logger.log(`[BinanceAPI] Unknown symbols: ${symbols.join(', ')} - returning empty result for DexScreener fallback`);
+      const emptyResult: Record<string, { price: number; change24h: number }> = {};
+      symbols.forEach(symbol => {
+        emptyResult[symbol] = { price: 0, change24h: 0 };
+      });
+      return NextResponse.json(emptyResult);
     }
 
     // Fetch 24h ticker data from Binance
