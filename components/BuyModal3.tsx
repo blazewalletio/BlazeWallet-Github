@@ -263,14 +263,17 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
             setStep('processing');
             toast('Complete payment in the popup window', { icon: '💳' });
 
+            let checkPopup: NodeJS.Timeout | null = null;
+            let messageHandler: ((event: MessageEvent) => void) | null = null;
+
             // Also listen for postMessage from popup (if Banxa sends success message)
-            const handleMessage = (event: MessageEvent) => {
+            messageHandler = (event: MessageEvent) => {
               // Only accept messages from Banxa/Onramper domains
               if (event.origin.includes('banxa.com') || event.origin.includes('onramper.com')) {
                 logger.log('Received message from payment provider:', event.data);
                 if (event.data?.type === 'payment-success' || event.data?.status === 'success') {
-                  clearInterval(checkPopup);
-                  window.removeEventListener('message', handleMessage);
+                  if (checkPopup) clearInterval(checkPopup);
+                  if (messageHandler) window.removeEventListener('message', messageHandler);
                   toast.success('Payment successful! Processing your order...');
                   setStep('success');
                   // Close popup if still open
@@ -280,25 +283,61 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
                 }
               }
             };
-            window.addEventListener('message', handleMessage);
+            window.addEventListener('message', messageHandler);
 
-            const checkPopup = setInterval(() => {
-              if (popup.closed) {
-                clearInterval(checkPopup);
-                window.removeEventListener('message', handleMessage);
-                // Popup closed - check transaction status
-                logger.log('Popup closed, checking transaction status...');
-                // The webhook will update the transaction status
-                // For now, show a message to the user
-                toast.success('Payment window closed. We\'ll notify you when the transaction is confirmed.');
-                setStep('select');
+            // Monitor popup URL changes (Banxa redirects to our success URL)
+            checkPopup = setInterval(() => {
+              try {
+                // Check if popup is closed
+                if (popup.closed) {
+                  if (checkPopup) clearInterval(checkPopup);
+                  if (messageHandler) window.removeEventListener('message', messageHandler);
+                  // Popup closed - check transaction status
+                  logger.log('Popup closed, checking transaction status...');
+                  // The webhook will update the transaction status
+                  // For now, show a message to the user
+                  toast.success('Payment window closed. We\'ll notify you when the transaction is confirmed.');
+                  setStep('select');
+                  return;
+                }
+
+                // Try to check popup URL (may fail due to cross-origin restrictions)
+                try {
+                  const popupUrl = popup.location.href;
+                  if (popupUrl.includes('onramper=success') || popupUrl.includes('onramper=success')) {
+                    logger.log('✅ Detected success redirect in popup:', popupUrl);
+                    if (checkPopup) clearInterval(checkPopup);
+                    if (messageHandler) window.removeEventListener('message', messageHandler);
+                    toast.success('Payment successful! Processing your order...');
+                    setStep('success');
+                    // Close popup
+                    if (popup && !popup.closed) {
+                      popup.close();
+                    }
+                  } else if (popupUrl.includes('onramper=failed')) {
+                    logger.log('❌ Detected failure redirect in popup:', popupUrl);
+                    if (checkPopup) clearInterval(checkPopup);
+                    if (messageHandler) window.removeEventListener('message', messageHandler);
+                    toast.error('Payment failed. Please try again.');
+                    setStep('select');
+                    if (popup && !popup.closed) {
+                      popup.close();
+                    }
+                  }
+                } catch (e) {
+                  // Cross-origin restriction - can't access popup URL
+                  // This is normal, we'll rely on popup.closed and webhook
+                }
+              } catch (error) {
+                logger.error('Error monitoring popup:', error);
               }
             }, 1000);
 
             // Cleanup interval after 10 minutes (iDEAL payments can take time)
             setTimeout(() => {
-              clearInterval(checkPopup);
-              window.removeEventListener('message', handleMessage);
+              if (checkPopup) clearInterval(checkPopup);
+              if (messageHandler) window.removeEventListener('message', messageHandler);
+              logger.log('⚠️ Popup monitoring timeout - stopping checks');
             }, 10 * 60 * 1000);
           }
         } else {
