@@ -191,15 +191,17 @@ export class PortfolioHistory {
     if (!this.supabase || !this.userId) return;
     
     // Don't await - fire and forget for performance
-    this.supabase
-      .from('portfolio_snapshots')
-      .insert({
-        user_id: this.userId,
-        balance_usd: snapshot.balance,
-        address: snapshot.address,
-        chain: snapshot.chain,
-        snapshot_at: new Date(snapshot.timestamp).toISOString(),
-      })
+    Promise.resolve(
+      this.supabase
+        .from('portfolio_snapshots')
+        .insert({
+          user_id: this.userId,
+          balance_usd: snapshot.balance,
+          address: snapshot.address,
+          chain: snapshot.chain,
+          snapshot_at: new Date(snapshot.timestamp).toISOString(),
+        })
+    )
       .then(() => {
         logger.log(`✅ Saved snapshot to Supabase: $${snapshot.balance.toFixed(2)}`);
       })
