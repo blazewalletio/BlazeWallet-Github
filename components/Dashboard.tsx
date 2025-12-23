@@ -1218,7 +1218,7 @@ export default function Dashboard() {
               {/* Balance Chart - Bitvavo Style */}
               <div className="mb-4">
                 <BalanceChart
-                  address={displayAddress}
+                  address={displayAddress || address || ''}
                   chain={currentChain}
                   currentBalance={totalValueUSD}
                   isPositiveChange={isPositiveChange}
