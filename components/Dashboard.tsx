@@ -26,6 +26,7 @@ import { supabase } from '@/lib/supabase';
 import ChainSelector from './ChainSelector';
 import TokenSelector from './TokenSelector';
 import PortfolioChart from './PortfolioChart';
+import BalanceChart from './BalanceChart';
 import PasswordUnlockModal from './PasswordUnlockModal';
 import DebugPanel from './DebugPanel';
 import AnimatedNumber from './AnimatedNumber';
@@ -1214,65 +1215,16 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Mini Chart - Real Data */}
-              <div className="h-20 flex items-end gap-1 mb-4">
-                {chartData.length > 0 ? (
-                  // Show real portfolio history
-                  (() => {
-                    const minValue = Math.min(...chartData);
-                    const maxValue = Math.max(...chartData);
-                    const range = maxValue - minValue || 1; // Avoid division by zero
-                    
-                    return chartData.map((value, i) => {
-                      const heightPercent = ((value - minValue) / range) * 80 + 20;
-                      return (
-                        <motion.div
-                          key={i}
-                          initial={{ height: 0 }}
-                          animate={{ height: `${heightPercent}%` }}
-                          transition={{ delay: i * 0.03, duration: 0.5 }}
-                          className={`flex-1 rounded-t ${isPositiveChange ? 'bg-emerald-400/40' : 'bg-rose-400/40'}`}
-                        />
-                      );
-                    });
-                  })()
-                ) : (
-                  // Placeholder while loading data
-                  Array.from({ length: 20 }).map((_, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ height: 0 }}
-                      animate={{ height: '50%' }}
-                      transition={{ delay: i * 0.05, duration: 0.5 }}
-                      className="flex-1 rounded-t bg-gray-300/40"
-                    />
-                  ))
-                )}
-              </div>
-
-              {/* Time Range Selector */}
-              <div className="flex gap-2 flex-wrap">
-                {[
-                  { label: '1u', hours: 1 },
-                  { label: '1d', hours: 24 },
-                  { label: '3d', hours: 72 },
-                  { label: '1w', hours: 168 },
-                  { label: '1m', hours: 720 },
-                  { label: 'Alles', hours: null },
-                ].map((range) => (
-                  <motion.button
-                    key={range.label}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setSelectedTimeRange(range.hours)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      selectedTimeRange === range.hours
-                        ? 'bg-primary-600 text-white shadow-soft'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {range.label}
-                  </motion.button>
-                ))}
+              {/* Balance Chart - Bitvavo Style */}
+              <div className="mb-4">
+                <BalanceChart
+                  address={displayAddress}
+                  chain={currentChain}
+                  currentBalance={totalValueUSD}
+                  isPositiveChange={isPositiveChange}
+                  selectedTimeRange={selectedTimeRange}
+                  onTimeRangeChange={setSelectedTimeRange}
+                />
               </div>
             </div>
           </motion.div>
