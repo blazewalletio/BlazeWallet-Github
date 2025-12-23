@@ -289,11 +289,9 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
                 
                 // Check if we're being redirected to success page
                 // If popup was closed after redirect, user is on success page
-                // Refresh balance and show success message
-                if (refreshBalance) {
-                  setTimeout(() => {
-                    refreshBalance();
-                  }, 2000);
+                // Trigger balance refresh event
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('balanceRefresh'));
                 }
                 
                 toast.success('Payment completed! Redirecting...', { icon: '🎉' });

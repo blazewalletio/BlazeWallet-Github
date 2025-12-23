@@ -4,13 +4,11 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CheckCircle2, Loader2 } from 'lucide-react';
-import { useWalletStore } from '@/lib/wallet-store';
 import toast from 'react-hot-toast';
 
 export default function BuySuccessPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { refreshBalance } = useWalletStore();
   const [loading, setLoading] = useState(true);
   const [transactionId, setTransactionId] = useState<string | null>(null);
   const [provider, setProvider] = useState<string | null>(null);
@@ -23,10 +21,18 @@ export default function BuySuccessPage() {
     setTransactionId(txId);
     setProvider(prov);
 
-    // Refresh wallet balance after successful purchase
-    if (refreshBalance) {
+    // Trigger page reload to refresh wallet balance
+    // The wallet balance will be automatically refreshed when user navigates back
+    // We can also trigger a custom event that the dashboard can listen to
+    if (typeof window !== 'undefined') {
+      // Dispatch custom event to trigger balance refresh in other components
+      window.dispatchEvent(new CustomEvent('balanceRefresh'));
+      
+      // Also trigger a page visibility change to refresh balance
       setTimeout(() => {
-        refreshBalance();
+        if (document.visibilityState === 'visible') {
+          // Balance will be refreshed when user navigates to dashboard
+        }
       }, 2000);
     }
 
