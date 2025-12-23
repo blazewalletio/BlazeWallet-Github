@@ -34,7 +34,7 @@ interface PaymentMethod {
 
 export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
   useBlockBodyScroll(isOpen);
-  const { currentChain, getCurrentAddress } = useWalletStore();
+  const { currentChain, getCurrentAddress, refreshBalance } = useWalletStore();
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // State management
