@@ -121,12 +121,12 @@ export async function POST(req: NextRequest) {
           
           // Payment method name mappings (e.g., "ideal" might be "sepainstant" in API)
           const paymentMethodMappings: Record<string, string[]> = {
-            'ideal': ['ideal', 'sepainstant', 'sepa', 'sepa instant', 'sepa-instant'],
-            'sepa': ['sepa', 'sepainstant', 'sepa instant', 'sepa-instant', 'banktransfer', 'bank transfer', 'sepabanktransfer'],
-            'creditcard': ['creditcard', 'credit card', 'card', 'visa', 'mastercard'],
+            'ideal': ['ideal', 'sepainstant', 'sepa instant', 'sepa-instant'],
+            'sepa': ['sepa', 'sepa instant', 'sepa-instant', 'banktransfer', 'bank transfer', 'sepabanktransfer', 'sepa bank transfer'],
+            'creditcard': ['creditcard', 'credit card', 'card', 'visa', 'mastercard', 'debit card', 'debitcard'],
             'applepay': ['applepay', 'apple pay', 'apple'],
             'googlepay': ['googlepay', 'google pay', 'gpay'],
-            'bancontact': ['bancontact', 'bancontact card'],
+            'bancontact': ['bancontact', 'bancontact card', 'bancontactcard', 'banx', 'mister cash'],
           };
           
           const possibleNames = paymentMethodMappings[paymentMethodLower] || [paymentMethodLower];
@@ -162,32 +162,61 @@ export async function POST(req: NextRequest) {
             });
             
             if (supportingProviders.length > 0) {
-              // Provider priority list (most reliable first)
-              // Banxa is most reliable for EUR payments, especially iDEAL
-              // MoonPay is good for credit cards
-              // Paybis is less reliable (often unreachable)
-              const providerPriority = ['banxa', 'moonpay', 'ramp', 'transak', 'paybis', 'guardarian'];
+              // Payment method specific provider priority (most reliable first)
+              // Different payment methods have different optimal providers
+              const paymentMethodPriority: Record<string, string[]> = {
+                'ideal': ['banxa', 'moonpay', 'ramp', 'transak', 'paybis', 'guardarian'],
+                'sepa': ['moonpay', 'ramp', 'transak', 'guardarian'], // Banxa does NOT support SEPA
+                'creditcard': ['moonpay', 'banxa', 'ramp', 'transak', 'guardarian'], // MoonPay is best for credit cards, avoid Paybis
+                'applepay': ['moonpay', 'banxa', 'ramp', 'transak', 'guardarian'],
+                'googlepay': ['moonpay', 'banxa', 'ramp', 'transak', 'guardarian'],
+                'bancontact': ['banxa', 'moonpay', 'ramp', 'transak', 'guardarian'],
+              };
               
-              // Sort providers by priority (most reliable first)
-              const sortedProviders = supportingProviders.sort((a, b) => {
-                const aIndex = providerPriority.indexOf(a.toLowerCase());
-                const bIndex = providerPriority.indexOf(b.toLowerCase());
-                // If not in priority list, put at end
-                const aPriority = aIndex === -1 ? 999 : aIndex;
-                const bPriority = bIndex === -1 ? 999 : bIndex;
-                return aPriority - bPriority;
-              });
+              // Get priority list for this payment method, or use default
+              const providerPriority = paymentMethodPriority[paymentMethodLower] || ['banxa', 'moonpay', 'ramp', 'transak', 'paybis', 'guardarian'];
               
-              // Use the highest priority provider
-              onrampProvider = sortedProviders[0];
-              logger.log('✅ Found onramp provider from /supported/payment-types:', {
-                provider: onrampProvider,
-                paymentMethod: paymentMethodLower,
-                totalSupporting: supportingProviders.length,
-                allProviders: supportingProviders,
-                sortedProviders,
-                priority: providerPriority.indexOf(onrampProvider.toLowerCase()) !== -1 ? 'high' : 'low',
-              });
+              // Filter out providers that are known to NOT support this payment method
+              const excludedProviders: Record<string, string[]> = {
+                'sepa': ['banxa'], // Banxa does not support SEPA
+                'creditcard': ['paybis'], // Paybis is often unreachable for credit cards
+              };
+              
+              const excluded = excludedProviders[paymentMethodLower] || [];
+              const filteredProviders = supportingProviders.filter(p => !excluded.includes(p.toLowerCase()));
+              
+              if (filteredProviders.length === 0) {
+                logger.error('❌ All supporting providers are excluded for this payment method:', {
+                  paymentMethod: paymentMethodLower,
+                  supportingProviders,
+                  excluded,
+                });
+                // Don't set onrampProvider - we'll fail with a clear error message below
+              } else {
+                // Sort providers by priority (most reliable first)
+                const sortedProviders = filteredProviders.sort((a, b) => {
+                  const aIndex = providerPriority.indexOf(a.toLowerCase());
+                  const bIndex = providerPriority.indexOf(b.toLowerCase());
+                  // If not in priority list, put at end
+                  const aPriority = aIndex === -1 ? 999 : aIndex;
+                  const bPriority = bIndex === -1 ? 999 : bIndex;
+                  return aPriority - bPriority;
+                });
+                
+                // Use the highest priority provider
+                onrampProvider = sortedProviders[0];
+                logger.log('✅ Found onramp provider from /supported/payment-types:', {
+                  provider: onrampProvider,
+                  paymentMethod: paymentMethodLower,
+                  totalSupporting: supportingProviders.length,
+                  filteredCount: filteredProviders.length,
+                  allProviders: supportingProviders,
+                  filteredProviders,
+                  sortedProviders,
+                  priority: providerPriority.indexOf(onrampProvider.toLowerCase()) !== -1 ? providerPriority.indexOf(onrampProvider.toLowerCase()) : 'low',
+                  excludedProviders: excluded,
+                });
+              }
             } else {
               logger.error('❌ No onramp provider found that supports payment method (from /supported/payment-types):', {
                 paymentMethod: paymentMethodLower,
@@ -310,12 +339,12 @@ export async function POST(req: NextRequest) {
                 
                 // Payment method name mappings (e.g., "ideal" might be "sepainstant" in API)
                 const paymentMethodMappings: Record<string, string[]> = {
-                  'ideal': ['ideal', 'sepainstant', 'sepa', 'sepa instant', 'sepa-instant'],
-                  'sepa': ['sepa', 'sepainstant', 'sepa instant', 'sepa-instant', 'banktransfer', 'bank transfer'],
-                  'creditcard': ['creditcard', 'credit card', 'card', 'visa', 'mastercard'],
+                  'ideal': ['ideal', 'sepainstant', 'sepa instant', 'sepa-instant'],
+                  'sepa': ['sepa', 'sepa instant', 'sepa-instant', 'banktransfer', 'bank transfer', 'sepabanktransfer', 'sepa bank transfer'],
+                  'creditcard': ['creditcard', 'credit card', 'card', 'visa', 'mastercard', 'debit card', 'debitcard'],
                   'applepay': ['applepay', 'apple pay', 'apple'],
                   'googlepay': ['googlepay', 'google pay', 'gpay'],
-                  'bancontact': ['bancontact', 'bancontact card'],
+                  'bancontact': ['bancontact', 'bancontact card', 'bancontactcard', 'banx', 'mister cash'],
                 };
                 
                 // Get all possible names for this payment method
@@ -368,39 +397,74 @@ export async function POST(req: NextRequest) {
             });
             
             if (supportedQuotes.length > 0) {
-              // Provider priority list (most reliable first)
-              const providerPriority = ['banxa', 'moonpay', 'ramp', 'transak', 'paybis', 'guardarian'];
+              // Payment method specific provider priority (most reliable first)
+              const paymentMethodPriority: Record<string, string[]> = {
+                'ideal': ['banxa', 'moonpay', 'ramp', 'transak', 'paybis', 'guardarian'],
+                'sepa': ['moonpay', 'ramp', 'transak', 'guardarian'], // Banxa does NOT support SEPA
+                'creditcard': ['moonpay', 'banxa', 'ramp', 'transak', 'guardarian'], // MoonPay is best for credit cards, avoid Paybis
+                'applepay': ['moonpay', 'banxa', 'ramp', 'transak', 'guardarian'],
+                'googlepay': ['moonpay', 'banxa', 'ramp', 'transak', 'guardarian'],
+                'bancontact': ['banxa', 'moonpay', 'ramp', 'transak', 'guardarian'],
+              };
               
-              // First, sort by priority (most reliable first), then by payout
-              supportedQuotes.sort((a: any, b: any) => {
-                const aIndex = providerPriority.indexOf(a.ramp?.toLowerCase() || '');
-                const bIndex = providerPriority.indexOf(b.ramp?.toLowerCase() || '');
-                const aPriority = aIndex === -1 ? 999 : aIndex;
-                const bPriority = bIndex === -1 ? 999 : bIndex;
-                
-                // If same priority, sort by payout (descending)
-                if (aPriority === bPriority) {
-                  const payoutA = parseFloat(a.payout || a.outAmount || '0');
-                  const payoutB = parseFloat(b.payout || b.outAmount || '0');
-                  return payoutB - payoutA;
-                }
-                
-                return aPriority - bPriority;
-              });
+              // Get priority list for this payment method, or use default
+              const providerPriority = paymentMethodPriority[paymentMethodLower] || ['banxa', 'moonpay', 'ramp', 'transak', 'paybis', 'guardarian'];
               
-              const bestQuote = supportedQuotes[0];
-              onrampProvider = bestQuote.ramp;
-              logger.log('✅ Found onramp provider (prioritized by reliability and payout):', {
-                provider: onrampProvider,
-                paymentMethod: paymentMethodLower,
-                payout: bestQuote.payout || bestQuote.outAmount,
-                totalSupporting: supportedQuotes.length,
-                allProviders: supportedQuotes.map((q: any) => ({
-                  ramp: q.ramp,
-                  payout: q.payout || q.outAmount,
-                  priority: providerPriority.indexOf(q.ramp?.toLowerCase() || ''),
-                })),
-              });
+              // Filter out providers that are known to NOT support this payment method
+              const excludedProviders: Record<string, string[]> = {
+                'sepa': ['banxa'], // Banxa does not support SEPA
+                'creditcard': ['paybis'], // Paybis is often unreachable for credit cards
+              };
+              
+              const excluded = excludedProviders[paymentMethodLower] || [];
+              const filteredQuotes = supportedQuotes.filter((q: any) => !excluded.includes(q.ramp?.toLowerCase() || ''));
+              
+              if (filteredQuotes.length === 0) {
+                logger.error('❌ All supporting quotes are excluded for this payment method:', {
+                  paymentMethod: paymentMethodLower,
+                  supportedProviders: supportedQuotes.map((q: any) => q.ramp),
+                  excluded,
+                });
+                // Don't set onrampProvider - we'll fail with a clear error message below
+              } else {
+                // First, sort by priority (most reliable first), then by payout
+                filteredQuotes.sort((a: any, b: any) => {
+                  const aIndex = providerPriority.indexOf(a.ramp?.toLowerCase() || '');
+                  const bIndex = providerPriority.indexOf(b.ramp?.toLowerCase() || '');
+                  const aPriority = aIndex === -1 ? 999 : aIndex;
+                  const bPriority = bIndex === -1 ? 999 : bIndex;
+                  
+                  // If same priority, sort by payout (descending)
+                  if (aPriority === bPriority) {
+                    const payoutA = parseFloat(a.payout || a.outAmount || '0');
+                    const payoutB = parseFloat(b.payout || b.outAmount || '0');
+                    return payoutB - payoutA;
+                  }
+                  
+                  return aPriority - bPriority;
+                });
+                
+                const bestQuote = filteredQuotes[0];
+                onrampProvider = bestQuote.ramp;
+                logger.log('✅ Found onramp provider (prioritized by reliability and payout):', {
+                  provider: onrampProvider,
+                  paymentMethod: paymentMethodLower,
+                  payout: bestQuote.payout || bestQuote.outAmount,
+                  totalSupporting: supportedQuotes.length,
+                  filteredCount: filteredQuotes.length,
+                  allProviders: supportedQuotes.map((q: any) => ({
+                    ramp: q.ramp,
+                    payout: q.payout || q.outAmount,
+                    priority: providerPriority.indexOf(q.ramp?.toLowerCase() || ''),
+                  })),
+                  filteredProviders: filteredQuotes.map((q: any) => ({
+                    ramp: q.ramp,
+                    payout: q.payout || q.outAmount,
+                    priority: providerPriority.indexOf(q.ramp?.toLowerCase() || ''),
+                  })),
+                  excludedProviders: excluded,
+                });
+              }
             } else {
               // No provider supports this payment method - log full details
               // IMPORTANT: Log the FULL payment methods array as JSON string to see exact structure
@@ -435,12 +499,12 @@ export async function POST(req: NextRequest) {
             
             // Use same matching logic as array case
             const paymentMethodMappings: Record<string, string[]> = {
-              'ideal': ['ideal', 'sepainstant', 'sepa', 'sepa instant', 'sepa-instant'],
-              'sepa': ['sepa', 'sepainstant', 'sepa instant', 'sepa-instant', 'banktransfer', 'bank transfer'],
-              'creditcard': ['creditcard', 'credit card', 'card', 'visa', 'mastercard'],
+              'ideal': ['ideal', 'sepainstant', 'sepa instant', 'sepa-instant'],
+              'sepa': ['sepa', 'sepa instant', 'sepa-instant', 'banktransfer', 'bank transfer', 'sepabanktransfer', 'sepa bank transfer'],
+              'creditcard': ['creditcard', 'credit card', 'card', 'visa', 'mastercard', 'debit card', 'debitcard'],
               'applepay': ['applepay', 'apple pay', 'apple'],
               'googlepay': ['googlepay', 'google pay', 'gpay'],
-              'bancontact': ['bancontact', 'bancontact card'],
+              'bancontact': ['bancontact', 'bancontact card', 'bancontactcard', 'banx', 'mister cash'],
             };
             
             const possibleNames = paymentMethodMappings[paymentMethodLower] || [paymentMethodLower];
@@ -466,11 +530,43 @@ export async function POST(req: NextRequest) {
             });
             
             if (supportsPaymentMethod) {
-              onrampProvider = quoteData.ramp;
-              logger.log('✅ Found onramp provider from single quote with paymentMethod support:', {
-                provider: onrampProvider,
-                paymentMethod: paymentMethodLower,
-              });
+              // Check if this provider should be excluded for this payment method
+              const excludedProviders: Record<string, string[]> = {
+                'sepa': ['banxa'], // Banxa does not support SEPA
+                'creditcard': ['paybis'], // Paybis is often unreachable for credit cards
+              };
+              
+              const excluded = excludedProviders[paymentMethodLower] || [];
+              const providerLower = quoteData.ramp?.toLowerCase() || '';
+              
+              if (excluded.includes(providerLower)) {
+                logger.error('❌ Single quote provider is excluded for this payment method:', {
+                  provider: quoteData.ramp,
+                  paymentMethod: paymentMethodLower,
+                  excluded,
+                });
+                // DO NOT set onrampProvider - we'll fail later
+              } else {
+                // Get priority for this payment method
+                const paymentMethodPriority: Record<string, string[]> = {
+                  'ideal': ['banxa', 'moonpay', 'ramp', 'transak', 'paybis', 'guardarian'],
+                  'sepa': ['moonpay', 'ramp', 'transak', 'guardarian'],
+                  'creditcard': ['moonpay', 'banxa', 'ramp', 'transak', 'guardarian'],
+                  'applepay': ['moonpay', 'banxa', 'ramp', 'transak', 'guardarian'],
+                  'googlepay': ['moonpay', 'banxa', 'ramp', 'transak', 'guardarian'],
+                  'bancontact': ['banxa', 'moonpay', 'ramp', 'transak', 'guardarian'],
+                };
+                
+                const providerPriority = paymentMethodPriority[paymentMethodLower] || ['banxa', 'moonpay', 'ramp', 'transak', 'paybis', 'guardarian'];
+                const priority = providerPriority.indexOf(providerLower);
+                
+                onrampProvider = quoteData.ramp;
+                logger.log('✅ Found onramp provider from single quote with paymentMethod support:', {
+                  provider: onrampProvider,
+                  paymentMethod: paymentMethodLower,
+                  priority: priority !== -1 ? priority : 'low',
+                });
+              }
             } else {
               logger.error('❌ Single quote provider does not support payment method:', {
                 provider: quoteData.ramp,
@@ -506,11 +602,28 @@ export async function POST(req: NextRequest) {
     // The /checkout/intent API requires an 'onramp' field
     if (!onrampProvider) {
       logger.error('❌ Could not determine onramp provider from quotes');
+      
+      // Provide more specific error message based on payment method
+      let errorMessage = 'Unable to find a suitable payment provider for this transaction.';
+      if (paymentMethod) {
+        const paymentMethodLower = paymentMethod.toLowerCase();
+        if (paymentMethodLower === 'sepa') {
+          errorMessage = 'SEPA bank transfer is not supported by available providers. Please try a different payment method like iDEAL or credit card.';
+        } else if (paymentMethodLower === 'creditcard' || paymentMethodLower === 'credit card') {
+          errorMessage = 'Credit card payment is currently unavailable. Please try a different payment method like iDEAL or SEPA.';
+        } else if (paymentMethodLower === 'bancontact') {
+          errorMessage = 'Bancontact is not supported by available providers. Please try a different payment method like iDEAL or credit card.';
+        } else {
+          errorMessage = `Unable to find a payment provider that supports "${paymentMethod}". Please try a different payment method.`;
+        }
+      }
+      
       return NextResponse.json(
         { 
           success: false,
           error: 'Could not determine onramp provider',
-          message: 'Unable to find a suitable payment provider for this transaction. Please try a different payment method or amount.',
+          message: errorMessage,
+          paymentMethod: paymentMethod || null,
         },
         { status: 400 }
       );
