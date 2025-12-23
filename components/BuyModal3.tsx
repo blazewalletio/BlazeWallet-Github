@@ -228,13 +228,14 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
 
       if (data.success && data.transactionInformation) {
         const { transactionInformation } = data;
-        const transactionType = transactionInformation.type; // "iframe" or "redirect"
+        const transactionType = transactionInformation.type; // "iframe", "redirect", or "popup"
         const transactionUrl = transactionInformation.url;
         const transactionId = transactionInformation.transactionId;
 
         logger.log('✅ Onramper checkout intent created:', {
           transactionId,
           type: transactionType,
+          url: transactionUrl?.substring(0, 100) + '...',
         });
 
         if (transactionType === 'iframe') {
@@ -243,8 +244,9 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
           setShowWidget(true);
           setStep('widget');
           toast.success('Opening payment widget...');
-        } else if (transactionType === 'redirect') {
-          // ⚠️ Open in popup (payment provider requires redirect)
+        } else if (transactionType === 'redirect' || transactionType === 'popup') {
+          // ⚠️ Open in popup (payment provider requires redirect/popup)
+          // Banxa typically uses "popup" type for iDEAL payments
           const popup = window.open(
             transactionUrl,
             'onramper-payment',
@@ -261,9 +263,29 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
             setStep('processing');
             toast('Complete payment in the popup window', { icon: '💳' });
 
+            // Also listen for postMessage from popup (if Banxa sends success message)
+            const handleMessage = (event: MessageEvent) => {
+              // Only accept messages from Banxa/Onramper domains
+              if (event.origin.includes('banxa.com') || event.origin.includes('onramper.com')) {
+                logger.log('Received message from payment provider:', event.data);
+                if (event.data?.type === 'payment-success' || event.data?.status === 'success') {
+                  clearInterval(checkPopup);
+                  window.removeEventListener('message', handleMessage);
+                  toast.success('Payment successful! Processing your order...');
+                  setStep('success');
+                  // Close popup if still open
+                  if (popup && !popup.closed) {
+                    popup.close();
+                  }
+                }
+              }
+            };
+            window.addEventListener('message', handleMessage);
+
             const checkPopup = setInterval(() => {
               if (popup.closed) {
                 clearInterval(checkPopup);
+                window.removeEventListener('message', handleMessage);
                 // Popup closed - check transaction status
                 logger.log('Popup closed, checking transaction status...');
                 // The webhook will update the transaction status
@@ -273,10 +295,11 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
               }
             }, 1000);
 
-            // Cleanup interval after 5 minutes
+            // Cleanup interval after 10 minutes (iDEAL payments can take time)
             setTimeout(() => {
               clearInterval(checkPopup);
-            }, 5 * 60 * 1000);
+              window.removeEventListener('message', handleMessage);
+            }, 10 * 60 * 1000);
           }
         } else {
           // Unknown type - try iframe as fallback

@@ -599,9 +599,12 @@ export async function POST(req: NextRequest) {
     // Add supportedParams with partnerData for redirect URLs
     // CRITICAL: Banxa and other providers need redirect URLs to know where to redirect after payment
     // This prevents session timeout errors (Error 50032)
+    // IMPORTANT: Use the full origin URL, not just hostname
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || origin;
-    const successUrl = `${baseUrl}/dashboard?onramper=success`;
-    const failureUrl = `${baseUrl}/dashboard?onramper=failed`;
+    // Remove trailing slash if present
+    const cleanBaseUrl = baseUrl.replace(/\/$/, '');
+    const successUrl = `${cleanBaseUrl}/dashboard?onramper=success&transactionId={transactionId}`;
+    const failureUrl = `${cleanBaseUrl}/dashboard?onramper=failed&transactionId={transactionId}`;
     
     requestBody.supportedParams = {
       partnerData: {
@@ -616,6 +619,7 @@ export async function POST(req: NextRequest) {
       successUrl,
       failureUrl,
       originatingHost: requestBody.originatingHost,
+      baseUrl: cleanBaseUrl,
     });
 
     // Generate signature according to Onramper API documentation
