@@ -167,12 +167,54 @@ export async function GET(request: NextRequest) {
           logger.log(`⚠️ [Prices by Address] ${addressLower.substring(0, 10)}...: Price set to 0 (sanity check failed)`);
         }
       } else {
-        // Address not found in CoinGecko
+        // Address not found in CoinGecko - try DexScreener
         result[addressLower] = {
           price: 0,
           change24h: 0,
         };
-        logger.warn(`⚠️ [Prices by Address] No data for ${addressLower.substring(0, 10)}...`);
+        logger.warn(`⚠️ [Prices by Address] No CoinGecko data for ${addressLower.substring(0, 10)}..., will try DexScreener`);
+      }
+    }
+
+    // ✅ STEP 2: Try DexScreener for addresses that CoinGecko didn't find
+    const missingAddresses = addresses.filter(addr => {
+      const addrLower = addr.toLowerCase();
+      return !result[addrLower] || result[addrLower].price === 0;
+    });
+
+    if (missingAddresses.length > 0) {
+      logger.log(`🔄 [Prices by Address] Trying DexScreener for ${missingAddresses.length} missing addresses...`);
+      
+      for (let i = 0; i < missingAddresses.length; i++) {
+        const address = missingAddresses[i];
+        try {
+          const tokenData = await dexScreenerService.getTokenMetadata(address);
+          
+          if (tokenData && tokenData.priceUsd && tokenData.priceUsd > 0) {
+            let price = tokenData.priceUsd;
+            
+            // Sanity check
+            if (price > 10000) {
+              logger.warn(`⚠️ [Prices by Address] SUSPICIOUS HIGH PRICE from DexScreener: $${price.toFixed(2)}`);
+              price = 0;
+            }
+            
+            if (price > 0) {
+              result[address.toLowerCase()] = {
+                price,
+                change24h: tokenData.priceChange24h || 0,
+              };
+              logger.log(`✅ [Prices by Address] DexScreener: ${address.substring(0, 10)}... = $${price.toFixed(6)}`);
+            }
+          }
+          
+          // Rate limit: 250ms between requests
+          if (i < missingAddresses.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 250));
+          }
+        } catch (error) {
+          logger.warn(`⚠️ [Prices by Address] DexScreener failed for ${address.substring(0, 10)}...:`, error);
+        }
       }
     }
 
@@ -185,24 +227,73 @@ export async function GET(request: NextRequest) {
     } catch (fetchError: any) {
       clearTimeout(timeoutId);
       if (fetchError.name === 'AbortError') {
-        logger.error('❌ [Prices by Address] Request timeout after 10 seconds');
-        return NextResponse.json(
-          { error: 'Request timeout' },
-          { status: 504 }
-        );
+        logger.warn('⚠️ [Prices by Address] Request timeout after 10 seconds, trying DexScreener fallback...');
+      } else {
+        logger.warn(`⚠️ [Prices by Address] Fetch error: ${fetchError.message}, trying DexScreener fallback...`);
       }
-      throw fetchError;
+      
+      // Try DexScreener as fallback even on timeout/error
+      const dexScreenerResult: Record<string, { price: number; change24h: number }> = {};
+      
+      for (let i = 0; i < addresses.length; i++) {
+        const address = addresses[i];
+        try {
+          const tokenData = await dexScreenerService.getTokenMetadata(address);
+          
+          if (tokenData && tokenData.priceUsd && tokenData.priceUsd > 0) {
+            let price = tokenData.priceUsd;
+            
+            if (price > 10000) {
+              logger.warn(`⚠️ [Prices by Address] SUSPICIOUS HIGH PRICE from DexScreener: $${price.toFixed(2)}`);
+              price = 0;
+            }
+            
+            if (price > 0) {
+              dexScreenerResult[address.toLowerCase()] = {
+                price,
+                change24h: tokenData.priceChange24h || 0,
+              };
+            }
+          }
+          
+          if (i < addresses.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 250));
+          }
+        } catch (error) {
+          // Continue with next address
+        }
+      }
+      
+      // Fill in missing addresses with 0
+      addresses.forEach(addr => {
+        if (!dexScreenerResult[addr.toLowerCase()]) {
+          dexScreenerResult[addr.toLowerCase()] = { price: 0, change24h: 0 };
+        }
+      });
+      
+      logger.log(`✅ [Prices by Address] DexScreener fallback: ${Object.keys(dexScreenerResult).filter(k => dexScreenerResult[k].price > 0).length}/${addresses.length} prices found`);
+      
+      return NextResponse.json(dexScreenerResult, {
+        headers: {
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        },
+      });
     }
   } catch (error: any) {
     logger.error('❌ [Prices by Address] Error:', error);
-    logger.error('❌ [Prices by Address] Error details:', {
-      message: error?.message,
-      stack: error?.stack?.substring(0, 500),
+    
+    // Last resort: return empty result instead of error
+    const emptyResult: Record<string, { price: number; change24h: number }> = {};
+    addresses.forEach(addr => {
+      emptyResult[addr.toLowerCase()] = { price: 0, change24h: 0 };
     });
-    return NextResponse.json(
-      { error: 'Failed to fetch token prices', details: error?.message || 'Unknown error' },
-      { status: 500 }
-    );
+    
+    logger.warn(`⚠️ [Prices by Address] Returning empty result due to error (frontend will try DexScreener)`);
+    return NextResponse.json(emptyResult, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+      },
+    });
   }
 }
 
