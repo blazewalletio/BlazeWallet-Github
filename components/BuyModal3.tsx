@@ -280,24 +280,52 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
             setStep('processing');
             toast('Complete payment in the popup window', { icon: '💳' });
 
-            // Check if popup is still open and focused
+            // Monitor popup for completion and redirect
             const checkPopup = setInterval(() => {
               if (popup.closed) {
                 clearInterval(checkPopup);
-                // Popup closed - check transaction status
+                // Popup closed - user likely completed payment or cancelled
                 logger.log('Popup closed, checking transaction status...');
-                // The webhook will update the transaction status
-                // For now, show a message to the user
-                toast.success('Payment window closed. We\'ll notify you when the transaction is confirmed.');
+                
+                // Check if we're being redirected to success page
+                // If popup was closed after redirect, user is on success page
+                // Refresh balance and show success message
+                if (refreshBalance) {
+                  setTimeout(() => {
+                    refreshBalance();
+                  }, 2000);
+                }
+                
+                toast.success('Payment completed! Redirecting...', { icon: '🎉' });
                 setStep('select');
+                
+                // Close modal after a short delay
+                setTimeout(() => {
+                  onClose();
+                }, 1500);
               } else {
-                // Keep popup focused to prevent it from being hidden
+                // Check if popup URL changed to success page (indicates payment completed)
                 try {
-                  if (document.hasFocus() && !popup.document.hasFocus()) {
-                    popup.focus();
+                  const popupUrl = popup.location.href;
+                  if (popupUrl.includes('/buy/success') || popupUrl.includes('/status/')) {
+                    // Payment completed - close popup and redirect
+                    clearInterval(checkPopup);
+                    popup.close();
+                    
+                    // Redirect to success page
+                    window.location.href = `/buy/success?provider=onramper&transactionId=${transactionId || Date.now()}`;
                   }
                 } catch (e) {
-                  // Cross-origin restrictions - ignore
+                  // Cross-origin restrictions - can't access popup.location
+                  // This is normal for Banxa/Onramper popups
+                  // Keep popup focused to prevent it from being hidden
+                  try {
+                    if (document.hasFocus() && !popup.document.hasFocus()) {
+                      popup.focus();
+                    }
+                  } catch (focusError) {
+                    // Ignore focus errors
+                  }
                 }
               }
             }, 1000);
