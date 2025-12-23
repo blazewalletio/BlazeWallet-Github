@@ -158,7 +158,13 @@ async function fetchCoinGeckoPriceHistory(
 
     const apiKey = process.env.COINGECKO_API_KEY?.trim();
     const apiKeyParam = apiKey ? `&x_cg_demo_api_key=${apiKey}` : '';
-    const url = `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}&interval=hourly${apiKeyParam}`;
+    
+    // Use appropriate interval based on days requested
+    // For 1 day: hourly, for 7+ days: daily (like Bitvavo)
+    const interval = days <= 1 ? 'hourly' : 'daily';
+    const url = `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}&interval=${interval}${apiKeyParam}`;
+    
+    logger.log(`🦎 [CoinGecko] Fetching ${days} days with ${interval} interval for ${symbol}...`);
     
     const response = await fetch(url, {
       headers: { 'Accept': 'application/json' },

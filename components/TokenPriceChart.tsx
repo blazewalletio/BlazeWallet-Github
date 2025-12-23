@@ -213,10 +213,10 @@ export default function TokenPriceChart({
         ))}
       </div>
 
-      {/* Chart */}
-      <div className="relative">
+      {/* Chart - Bitvavo Style (Large and Prominent) */}
+      <div className="relative w-full" style={{ minHeight: '300px' }}>
         {isLoading ? (
-          <div className="h-64 flex items-center justify-center">
+          <div className="h-[300px] md:h-[400px] flex items-center justify-center">
             <div className="flex flex-col items-center gap-2">
               <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
               <p className="text-sm text-gray-500">Loading chart...</p>
@@ -224,88 +224,102 @@ export default function TokenPriceChart({
           </div>
         ) : priceHistory.length > 0 ? (
           <>
-            {/* Min/Max Labels */}
-            <div className="absolute top-2 left-2 text-xs text-gray-500 font-medium">
+            {/* Min/Max Labels - Bitvavo Style */}
+            <div className="absolute top-3 left-3 text-xs md:text-sm text-gray-500 font-medium z-10">
               {formatUSDSync(minValue)}
             </div>
-            <div className="absolute top-2 right-2 text-xs text-gray-500 font-medium">
+            <div className="absolute top-3 right-3 text-xs md:text-sm text-gray-500 font-medium z-10">
               {formatUSDSync(maxValue)}
             </div>
 
-            <ResponsiveContainer width="100%" height={256}>
+            <ResponsiveContainer width="100%" height={400}>
               {chartType === 'line' ? (
-                <AreaChart data={priceHistory} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+                <AreaChart 
+                  data={priceHistory} 
+                  margin={{ top: 20, right: 20, left: 0, bottom: 20 }}
+                >
                   <defs>
                     <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={lineColor} stopOpacity={0.3} />
-                      <stop offset="95%" stopColor={lineColor} stopOpacity={0} />
+                      <stop offset="0%" stopColor={lineColor} stopOpacity={0.4} />
+                      <stop offset="100%" stopColor={lineColor} stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <XAxis
                     dataKey="time"
                     stroke="#9ca3af"
-                    style={{ fontSize: '11px' }}
+                    style={{ fontSize: '12px' }}
                     tickLine={false}
                     axisLine={false}
                     interval="preserveStartEnd"
+                    tick={{ fill: '#6b7280' }}
                   />
                   <YAxis
                     stroke="#9ca3af"
-                    style={{ fontSize: '11px' }}
+                    style={{ fontSize: '12px' }}
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(value) => formatUSDSync(value)}
                     domain={[minValue, maxValue]}
-                    width={70}
+                    width={80}
+                    tick={{ fill: '#6b7280' }}
                   />
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip 
+                    content={<CustomTooltip />}
+                    cursor={{ stroke: lineColor, strokeWidth: 1, strokeDasharray: '3 3' }}
+                  />
                   <Area
                     type="monotone"
                     dataKey="price"
                     stroke={lineColor}
-                    strokeWidth={2}
+                    strokeWidth={3}
                     fill={`url(#${gradientId})`}
                     dot={false}
-                    activeDot={{ r: 4, fill: lineColor }}
+                    activeDot={{ r: 6, fill: lineColor, strokeWidth: 2, stroke: '#fff' }}
                   />
                 </AreaChart>
               ) : (
-                // Candlestick chart - using line chart with thicker strokes to simulate candlesticks
-                // Note: Full OHLC candlestick would require different data structure
-                // This provides a candlestick-like visualization
-                <LineChart data={priceHistory} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+                // Candlestick chart - using line chart with thicker strokes
+                <LineChart 
+                  data={priceHistory} 
+                  margin={{ top: 20, right: 20, left: 0, bottom: 20 }}
+                >
                   <XAxis
                     dataKey="time"
                     stroke="#9ca3af"
-                    style={{ fontSize: '11px' }}
+                    style={{ fontSize: '12px' }}
                     tickLine={false}
                     axisLine={false}
                     interval="preserveStartEnd"
+                    tick={{ fill: '#6b7280' }}
                   />
                   <YAxis
                     stroke="#9ca3af"
-                    style={{ fontSize: '11px' }}
+                    style={{ fontSize: '12px' }}
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(value) => formatUSDSync(value)}
                     domain={[minValue, maxValue]}
-                    width={70}
+                    width={80}
+                    tick={{ fill: '#6b7280' }}
                   />
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip 
+                    content={<CustomTooltip />}
+                    cursor={{ stroke: lineColor, strokeWidth: 1, strokeDasharray: '3 3' }}
+                  />
                   <Line
-                    type="stepAfter"
+                    type="monotone"
                     dataKey="price"
                     stroke={lineColor}
                     strokeWidth={3}
                     dot={false}
-                    activeDot={{ r: 5, fill: lineColor, strokeWidth: 2 }}
+                    activeDot={{ r: 6, fill: lineColor, strokeWidth: 2, stroke: '#fff' }}
                   />
                 </LineChart>
               )}
             </ResponsiveContainer>
           </>
         ) : (
-          <div className="h-64 flex items-center justify-center">
+          <div className="h-[300px] md:h-[400px] flex items-center justify-center">
             <div className="text-center">
               <BarChart3 className="w-8 h-8 text-gray-300 mx-auto mb-2" />
               <p className="text-sm text-gray-500">Chart not available</p>

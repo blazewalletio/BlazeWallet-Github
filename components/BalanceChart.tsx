@@ -165,8 +165,8 @@ export default function BalanceChart({
   const gradientId = 'balanceGradient';
 
   return (
-    <div className="w-full">
-      {/* Timeframe Selector */}
+    <div className="w-full bg-white rounded-2xl p-4 md:p-6 border border-gray-200">
+      {/* Timeframe Selector - Bitvavo Style */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           {isPositiveChange ? (
@@ -174,19 +174,19 @@ export default function BalanceChart({
           ) : (
             <TrendingDown className="w-5 h-5 text-red-500" />
           )}
-          <h3 className="text-lg font-semibold text-gray-900">Portfolio</h3>
+          <h3 className="text-lg md:text-xl font-semibold text-gray-900">Portfolio</h3>
         </div>
         
-        <div className="flex items-center gap-1 bg-white rounded-lg p-1 border border-gray-200">
+        <div className="flex items-center gap-1 bg-gray-50 rounded-lg p-1 border border-gray-200">
           {timeframes.map((timeframe) => (
             <motion.button
               key={timeframe}
               whileTap={{ scale: 0.95 }}
               onClick={() => handleTimeframeChange(timeframe)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+              className={`px-2 md:px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
                 selectedTimeframe === timeframe
                   ? `bg-gradient-to-r ${isPositiveChange ? 'from-green-500 to-emerald-500' : 'from-red-500 to-rose-500'} text-white shadow-sm`
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-white'
               }`}
             >
               {timeframe}
@@ -195,10 +195,10 @@ export default function BalanceChart({
         </div>
       </div>
 
-      {/* Chart */}
-      <div className="relative">
+      {/* Chart - Bitvavo Style (Large and Prominent) */}
+      <div className="relative w-full" style={{ minHeight: '300px' }}>
         {isLoading ? (
-          <div className="h-64 flex items-center justify-center">
+          <div className="h-[300px] md:h-[400px] flex items-center justify-center">
             <div className="flex flex-col items-center gap-2">
               <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
               <p className="text-sm text-gray-500">Loading chart...</p>
@@ -206,54 +206,62 @@ export default function BalanceChart({
           </div>
         ) : chartData.length > 0 ? (
           <>
-            {/* Min/Max Labels */}
-            <div className="absolute top-2 left-2 text-xs text-gray-500 font-medium">
+            {/* Min/Max Labels - Bitvavo Style */}
+            <div className="absolute top-3 left-3 text-xs md:text-sm text-gray-500 font-medium z-10">
               {formatUSDSync(minValue)}
             </div>
-            <div className="absolute top-2 right-2 text-xs text-gray-500 font-medium">
+            <div className="absolute top-3 right-3 text-xs md:text-sm text-gray-500 font-medium z-10">
               {formatUSDSync(maxValue)}
             </div>
 
-            <ResponsiveContainer width="100%" height={256}>
-              <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+            <ResponsiveContainer width="100%" height={400}>
+              <AreaChart 
+                data={chartData} 
+                margin={{ top: 20, right: 20, left: 0, bottom: 20 }}
+              >
                 <defs>
                   <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={lineColor} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={lineColor} stopOpacity={0} />
+                    <stop offset="0%" stopColor={lineColor} stopOpacity={0.4} />
+                    <stop offset="100%" stopColor={lineColor} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <XAxis
                   dataKey="time"
                   stroke="#9ca3af"
-                  style={{ fontSize: '11px' }}
+                  style={{ fontSize: '12px' }}
                   tickLine={false}
                   axisLine={false}
                   interval="preserveStartEnd"
+                  tick={{ fill: '#6b7280' }}
                 />
                 <YAxis
                   stroke="#9ca3af"
-                  style={{ fontSize: '11px' }}
+                  style={{ fontSize: '12px' }}
                   tickLine={false}
                   axisLine={false}
                   tickFormatter={(value) => formatUSDSync(value)}
                   domain={[minValue, maxValue]}
-                  width={70}
+                  width={80}
+                  tick={{ fill: '#6b7280' }}
                 />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip 
+                  content={<CustomTooltip />}
+                  cursor={{ stroke: lineColor, strokeWidth: 1, strokeDasharray: '3 3' }}
+                />
                 <Area
                   type="monotone"
                   dataKey="balance"
                   stroke={lineColor}
-                  strokeWidth={2}
+                  strokeWidth={3}
                   fill={`url(#${gradientId})`}
                   dot={false}
-                  activeDot={{ r: 4, fill: lineColor }}
+                  activeDot={{ r: 6, fill: lineColor, strokeWidth: 2, stroke: '#fff' }}
                 />
               </AreaChart>
             </ResponsiveContainer>
           </>
         ) : (
-          <div className="h-64 flex items-center justify-center">
+          <div className="h-[300px] md:h-[400px] flex items-center justify-center">
             <div className="text-center">
               <p className="text-sm text-gray-500">No chart data available</p>
               <p className="text-xs text-gray-400 mt-1">Balance history will appear here</p>
