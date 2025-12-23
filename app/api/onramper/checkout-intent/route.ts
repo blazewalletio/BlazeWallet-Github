@@ -449,6 +449,7 @@ export async function POST(req: NextRequest) {
     } catch (quoteError: any) {
       logger.warn('⚠️ Failed to fetch quote for onramp provider, continuing without it:', quoteError.message);
     }
+    } // Close if (!onrampProvider) block
     
     // CRITICAL: If we still don't have an onramp provider, we MUST fail
     // The /checkout/intent API requires an 'onramp' field
