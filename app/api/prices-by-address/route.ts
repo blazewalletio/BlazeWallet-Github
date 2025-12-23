@@ -285,6 +285,11 @@ export async function GET(request: NextRequest) {
     logger.error('❌ [Prices by Address] Error:', error);
     
     // Last resort: return empty result instead of error
+    // Parse addresses again in case we're in the outer catch block
+    const { searchParams } = new URL(request.url);
+    const addressesParam = searchParams.get('addresses');
+    const addresses = addressesParam ? addressesParam.split(',').map(addr => addr.trim().toLowerCase()) : [];
+    
     const emptyResult: Record<string, { price: number; change24h: number }> = {};
     addresses.forEach(addr => {
       emptyResult[addr.toLowerCase()] = { price: 0, change24h: 0 };
