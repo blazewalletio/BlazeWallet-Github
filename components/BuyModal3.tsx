@@ -342,9 +342,24 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
         const supportedData = await supportedDataResponse.json();
         if (supportedDataResponse.ok && supportedData.success) {
           addLog(`SUCCESS: Supported data fetched`, 'success');
-          addLog(`  Payment Methods: ${supportedData.data?.paymentMethods?.length || 0}`, 'info');
-          addLog(`  Fiat Currencies: ${supportedData.data?.fiatCurrencies?.length || 0}`, 'info');
-          addLog(`  Crypto Currencies: ${supportedData.data?.cryptoCurrencies?.length || 0}`, 'info');
+          // Response structure: paymentMethods, fiatCurrencies, cryptoCurrencies are direct properties
+          const paymentMethods = supportedData.paymentMethods || supportedData.data?.paymentMethods || [];
+          const fiatCurrencies = supportedData.fiatCurrencies || supportedData.data?.fiatCurrencies || [];
+          const cryptoCurrencies = supportedData.cryptoCurrencies || supportedData.data?.cryptoCurrencies || [];
+          addLog(`  Payment Methods: ${paymentMethods.length}`, 'info');
+          if (paymentMethods.length > 0) {
+            paymentMethods.forEach((pm: any, idx: number) => {
+              addLog(`    ${idx + 1}. ${pm.id} - ${pm.name} (${pm.processingTime}, ${pm.fee})`, 'info');
+            });
+          }
+          addLog(`  Fiat Currencies: ${fiatCurrencies.length}`, 'info');
+          if (fiatCurrencies.length > 0) {
+            addLog(`    ${fiatCurrencies.join(', ')}`, 'info');
+          }
+          addLog(`  Crypto Currencies: ${cryptoCurrencies.length}`, 'info');
+          if (cryptoCurrencies.length > 0) {
+            addLog(`    ${cryptoCurrencies.join(', ')}`, 'info');
+          }
           addLog(`  Full Response: ${JSON.stringify(supportedData, null, 2)}`, 'info');
         } else {
           addLog(`ERROR: ${supportedData.error || 'Unknown error'}`, 'error');
