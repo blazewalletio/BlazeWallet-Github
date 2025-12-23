@@ -81,7 +81,6 @@ export default function Dashboard() {
     updateBalance, 
     currentChain, 
     tokens,
-    getChainTokens, // ✅ Get chain-specific tokens
     updateTokens,
     updateActivity,
     checkAutoLock, // ✅ SECURITY FIX: Auto-lock check
@@ -1224,7 +1223,7 @@ export default function Dashboard() {
                 isPositiveChange={isPositiveChange}
                 selectedTimeRange={selectedTimeRange}
                 onTimeRangeChange={setSelectedTimeRange}
-                tokens={getChainTokens(currentChain)} // ✅ Use chain-specific tokens
+                tokens={tokens}
                 nativeBalance={balance}
               />
             </div>

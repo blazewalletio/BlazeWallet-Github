@@ -10,7 +10,7 @@
 
 import { logger } from '@/lib/logger';
 
-interface PriceDataPoint {
+export interface PriceDataPoint {
   timestamp: number;
   price: number;
 }
