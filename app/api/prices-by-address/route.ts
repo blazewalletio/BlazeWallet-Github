@@ -52,8 +52,8 @@ export async function GET(request: NextRequest) {
 
     // CoinGecko API endpoint for token prices by contract address
     // Use URL encoding to ensure addresses are properly formatted
-    const addressesParam = addresses.join(',');
-    const url = `https://api.coingecko.com/api/v3/simple/token_price/${platform}?contract_addresses=${encodeURIComponent(addressesParam)}&vs_currencies=usd&include_24hr_change=true`;
+    const addressesQuery = addresses.join(',');
+    const url = `https://api.coingecko.com/api/v3/simple/token_price/${platform}?contract_addresses=${encodeURIComponent(addressesQuery)}&vs_currencies=usd&include_24hr_change=true`;
 
     logger.log(`📡 [Prices by Address] Fetching from CoinGecko for ${addresses.length} addresses on ${chain}`);
     logger.log(`📡 [Prices by Address] Platform: ${platform}`);
