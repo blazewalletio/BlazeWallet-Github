@@ -162,14 +162,31 @@ export async function POST(req: NextRequest) {
             });
             
             if (supportingProviders.length > 0) {
-              // Use the first provider (or we could choose based on best rates)
-              // According to Onramper docs, Banxa is the only provider that supports iDEAL for EUR -> SOL
-              onrampProvider = supportingProviders[0];
+              // Provider priority list (most reliable first)
+              // Banxa is most reliable for EUR payments, especially iDEAL
+              // MoonPay is good for credit cards
+              // Paybis is less reliable (often unreachable)
+              const providerPriority = ['banxa', 'moonpay', 'ramp', 'transak', 'paybis', 'guardarian'];
+              
+              // Sort providers by priority (most reliable first)
+              const sortedProviders = supportingProviders.sort((a, b) => {
+                const aIndex = providerPriority.indexOf(a.toLowerCase());
+                const bIndex = providerPriority.indexOf(b.toLowerCase());
+                // If not in priority list, put at end
+                const aPriority = aIndex === -1 ? 999 : aIndex;
+                const bPriority = bIndex === -1 ? 999 : bIndex;
+                return aPriority - bPriority;
+              });
+              
+              // Use the highest priority provider
+              onrampProvider = sortedProviders[0];
               logger.log('✅ Found onramp provider from /supported/payment-types:', {
                 provider: onrampProvider,
                 paymentMethod: paymentMethodLower,
                 totalSupporting: supportingProviders.length,
                 allProviders: supportingProviders,
+                sortedProviders,
+                priority: providerPriority.indexOf(onrampProvider.toLowerCase()) !== -1 ? 'high' : 'low',
               });
             } else {
               logger.error('❌ No onramp provider found that supports payment method (from /supported/payment-types):', {
