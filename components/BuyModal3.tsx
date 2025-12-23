@@ -398,6 +398,30 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
       }
       addLog('', 'info');
 
+      // Test 4.5: Test quotes with payment method to see which providers support it
+      addLog('Test 4.5: Testing quotes with payment method to see provider support...', 'info');
+      if (!paymentMethod) {
+        addLog('WARNING: Skipping - no payment method selected', 'warning');
+      } else if (!cryptoCurrency) {
+        addLog('WARNING: Skipping - no crypto currency selected', 'warning');
+      } else {
+        try {
+          // Fetch quotes directly from Onramper API to see availablePaymentMethods
+          const quotesUrl = `https://api.onramper.com/quotes/${fiatCurrency.toLowerCase()}/${cryptoCurrency.toLowerCase()}?amount=${fiatAmount}`;
+          addLog(`  Fetching quotes from: ${quotesUrl}`, 'info');
+          
+          // We need to get the API key from our endpoint first, or just test the endpoint
+          const quotesTestResponse = await fetch(`/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${fiatCurrency}&cryptoCurrency=${cryptoCurrency}`);
+          if (quotesTestResponse.ok) {
+            addLog(`  Note: Our /api/onramper/quotes endpoint returns a single best quote, not all providers`, 'info');
+            addLog(`  To see all providers and their payment methods, we need to check server logs`, 'info');
+          }
+        } catch (err: any) {
+          addLog(`  ERROR: ${err.message}`, 'error');
+        }
+      }
+      addLog('', 'info');
+
       // Test 5: Test /api/onramper/checkout-intent (if payment method is selected)
       addLog('Test 5: Testing /api/onramper/checkout-intent endpoint...', 'info');
       if (!paymentMethod) {
@@ -414,6 +438,7 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
             paymentMethod,
           };
           addLog(`  Request Body: ${JSON.stringify(checkoutIntentBody, null, 2)}`, 'info');
+          addLog(`  Note: Server will fetch quotes and find provider that supports "${paymentMethod}"`, 'info');
           
           const checkoutResponse = await fetch('/api/onramper/checkout-intent', {
             method: 'POST',
@@ -434,6 +459,10 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
             addLog(`ERROR: ${checkoutData.error || checkoutData.message || 'Unknown error'}`, 'error');
             addLog(`  Status: ${checkoutResponse.status}`, 'error');
             addLog(`  Full Response: ${JSON.stringify(checkoutData, null, 2)}`, 'error');
+            addLog(`  ⚠️ This error usually means:`, 'warning');
+            addLog(`    1. No provider found that supports "${paymentMethod}"`, 'warning');
+            addLog(`    2. Or the provider matching logic failed`, 'warning');
+            addLog(`    3. Check Vercel logs for detailed provider/payment method info`, 'warning');
           }
         } catch (err: any) {
           addLog(`ERROR: Failed to create checkout intent: ${err.message}`, 'error');

@@ -347,11 +347,35 @@ export async function POST(req: NextRequest) {
     }
 
     // Add onramp provider if we found one (required to avoid "Unsupported Onramp" error)
+    // CRITICAL: If we have a paymentMethod, we MUST have an onramp provider that supports it
+    // If we don't have one, we should fail here, not let Onramper choose (which might choose wrong provider)
     if (onrampProvider) {
       requestBody.onramp = onrampProvider;
-      logger.log('✅ Added onramp provider to request:', onrampProvider);
+      logger.log('✅ Added onramp provider to request:', {
+        provider: onrampProvider,
+        paymentMethod: paymentMethod || 'none',
+        note: paymentMethod ? 'Provider supports the selected payment method' : 'No payment method filter applied',
+      });
     } else {
-      logger.warn('⚠️ No onramp provider found - Onramper will use Ranking Engine');
+      // If we have a paymentMethod but no provider, we MUST fail
+      if (paymentMethod) {
+        logger.error('❌ CRITICAL: No onramp provider found that supports payment method:', {
+          paymentMethod,
+          message: 'Cannot proceed - no provider supports this payment method for this transaction',
+        });
+        return NextResponse.json(
+          { 
+            success: false,
+            error: 'No compatible payment provider found',
+            message: `Unable to find a payment provider that supports "${paymentMethod}" for this transaction. Please try a different payment method.`,
+            paymentMethod,
+          },
+          { status: 400 }
+        );
+      } else {
+        // No paymentMethod specified - Onramper can use Ranking Engine
+        logger.warn('⚠️ No onramp provider found - Onramper will use Ranking Engine (no payment method filter)');
+      }
     }
 
     // Add optional fields
