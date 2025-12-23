@@ -590,6 +590,27 @@ export async function POST(req: NextRequest) {
     // Add partner context for tracking
     requestBody.partnerContext = `blazewallet-${Date.now()}`;
 
+    // Add redirect URL for successful payment completion
+    // This will redirect users back to Blaze Wallet after payment
+    // Docs: https://docs.onramper.com/reference/post_checkout-intent
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || 'https://my.blazewallet.io';
+    const successRedirectUrl = `${baseUrl}/buy/success?provider=onramper&transactionId=${Date.now()}`;
+    
+    // Add supportedParams with partnerData for redirect URL
+    // Format according to Onramper API: partnerData.redirectUrl.success
+    requestBody.supportedParams = {
+      partnerData: {
+        redirectUrl: {
+          success: successRedirectUrl,
+        },
+      },
+    };
+
+    logger.log('✅ Added redirect URL for successful payment:', {
+      redirectUrl: successRedirectUrl,
+      baseUrl,
+    });
+
     // Generate signature according to Onramper API documentation
     // Docs: https://docs.onramper.com/docs/signatures/api-sign-requests
     // 
