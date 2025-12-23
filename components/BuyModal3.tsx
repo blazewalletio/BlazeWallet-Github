@@ -517,18 +517,103 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
             </div>
 
             <div className="mb-6">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <CreditCard className="w-6 h-6 text-white" />
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <CreditCard className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Buy crypto (Onramper)</h2>
+                    <p className="text-sm text-gray-600">
+                      Purchase crypto with credit card, bank transfer or Apple Pay via Onramper
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Buy crypto (Onramper)</h2>
-                  <p className="text-sm text-gray-600">
-                    Purchase crypto with credit card, bank transfer or Apple Pay via Onramper
-                  </p>
-                </div>
+                <button
+                  onClick={() => setShowTestPanel(!showTestPanel)}
+                  className="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white rounded-xl font-semibold flex items-center gap-2 transition-all shadow-lg hover:shadow-xl"
+                >
+                  <TestTube className="w-4 h-4" />
+                  {showTestPanel ? 'Hide' : 'Show'} Test Panel
+                </button>
               </div>
             </div>
+
+            {/* Test Panel */}
+            {showTestPanel && (
+              <div className="mb-6 glass-card p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-gray-900">🧪 Comprehensive Test Panel</h3>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={copyLogsToClipboard}
+                      disabled={testLogs.length === 0}
+                      className="px-3 py-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="w-4 h-4 text-green-500" />
+                          <span>Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4" />
+                          <span>Copy Logs</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={runComprehensiveTest}
+                      disabled={isTesting}
+                      className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-semibold flex items-center gap-2 transition-all shadow-lg hover:shadow-xl"
+                    >
+                      {isTesting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Testing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <TestTube className="w-4 h-4" />
+                          <span>Run Full Test</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+                <div className="bg-gray-900 rounded-lg p-4 max-h-96 overflow-y-auto font-mono text-xs">
+                  {testLogs.length === 0 ? (
+                    <div className="text-gray-500 text-center py-8">
+                      Click "Run Full Test" to start comprehensive testing...
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      {testLogs.map((log, idx) => {
+                        const isError = log.includes('❌') || log.includes('ERROR');
+                        const isSuccess = log.includes('✅') || log.includes('SUCCESS');
+                        const isWarning = log.includes('⚠️') || log.includes('WARNING');
+                        return (
+                          <div
+                            key={idx}
+                            className={`${
+                              isError
+                                ? 'text-red-400'
+                                : isSuccess
+                                ? 'text-green-400'
+                                : isWarning
+                                ? 'text-yellow-400'
+                                : 'text-gray-300'
+                            } whitespace-pre-wrap break-words`}
+                          >
+                            {log}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Content */}
             {step === 'select' && (
