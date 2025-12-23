@@ -204,20 +204,19 @@ export default function BalanceChart({
 
   const timeframes: Timeframe[] = ['LIVE', '1D', '7D', '30D', '1J', 'ALLES'];
 
-  // Custom tooltip
+  // Compact tooltip
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
-        <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3">
-          <p className="text-sm font-semibold text-gray-900">
+        <div className="bg-white rounded-lg shadow-lg border border-gray-200 px-2 py-1.5">
+          <p className="text-xs font-semibold text-gray-900">
             {formatUSDSync(data.balance)}
           </p>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-[10px] text-gray-500">
             {new Date(data.timestamp).toLocaleString('nl-NL', {
               day: 'numeric',
               month: 'short',
-              year: 'numeric',
               hour: '2-digit',
               minute: '2-digit',
             })}
@@ -232,44 +231,23 @@ export default function BalanceChart({
   const gradientId = 'balanceGradient';
 
   return (
-    <div className="w-full mt-4 md:mt-6">
-      {/* Header met BLAZE styling - Mobile: smaller */}
-      <div className="flex items-center justify-between mb-3 md:mb-4 px-1">
-        <div className="flex items-center gap-2 md:gap-3">
-          <div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center shadow-lg ${
-            isPositiveChange 
-              ? 'bg-gradient-to-br from-emerald-500 to-teal-500' 
-              : 'bg-gradient-to-br from-rose-500 to-orange-500'
-          }`}>
-            {isPositiveChange ? (
-              <TrendingUp className="w-4 h-4 md:w-5 md:h-5 text-white" />
-            ) : (
-              <TrendingDown className="w-4 h-4 md:w-5 md:h-5 text-white" />
-            )}
-          </div>
-          <div>
-            <h3 className="text-base md:text-xl font-bold text-gray-900">Portfolio</h3>
-            <p className="text-[10px] md:text-xs text-gray-500">Total balance over time</p>
-          </div>
+    <div className="w-full mt-3">
+      {/* Compact Header */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-gray-900">Portfolio</h3>
         </div>
-      </div>
-
-      {/* Timeframe Selector - BLAZE Style - Mobile: smaller buttons */}
-      <div className="flex items-center gap-2 mb-3 md:mb-4 px-1 overflow-x-auto pb-2 scrollbar-hide">
-        <div className="flex items-center gap-1 md:gap-1.5 bg-white/80 backdrop-blur-sm rounded-xl p-1 md:p-1.5 border border-gray-200/50 shadow-sm">
+        {/* Compact Timeframe Selector */}
+        <div className="flex items-center gap-0.5 bg-gray-50 rounded-lg p-0.5">
           {timeframes.map((timeframe) => (
             <motion.button
               key={timeframe}
               whileTap={{ scale: 0.95 }}
               onClick={() => handleTimeframeChange(timeframe)}
-              className={`px-2 md:px-4 py-1.5 md:py-2 rounded-lg text-[10px] md:text-sm font-semibold transition-all whitespace-nowrap ${
+              className={`px-2 py-1 rounded text-[10px] font-medium transition-all whitespace-nowrap ${
                 selectedTimeframe === timeframe
-                  ? `bg-gradient-to-r ${
-                      isPositiveChange 
-                        ? 'from-emerald-500 to-teal-500' 
-                        : 'from-rose-500 to-orange-500'
-                    } text-white shadow-lg`
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  ? `bg-white text-gray-900 shadow-sm`
+                  : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               {timeframe}
@@ -278,8 +256,8 @@ export default function BalanceChart({
         </div>
       </div>
 
-      {/* Chart Container - BLAZE Glass Card */}
-      <div className="glass-card rounded-2xl p-3 md:p-6 border border-gray-200/50 shadow-xl relative overflow-hidden">
+      {/* Compact Chart Container */}
+      <div className="bg-gray-50 rounded-lg p-2 relative overflow-hidden">
         {/* Gradient overlay - BLAZE style */}
         <div className={`absolute inset-0 opacity-5 pointer-events-none ${
           isPositiveChange 
@@ -289,83 +267,81 @@ export default function BalanceChart({
         
         <div className="relative z-10">
           {isLoading ? (
-            <div className="h-[240px] md:h-[380px] flex items-center justify-center">
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
-                <p className="text-sm text-gray-500 font-medium">Loading chart data...</p>
+            <div className="h-[120px] flex items-center justify-center">
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-xs text-gray-500">Loading...</p>
               </div>
             </div>
           ) : chartData.length > 0 ? (
             <>
-              {/* Min/Max Labels - BLAZE Style (Mobile: smaller, top corners) */}
-              <div className="absolute top-2 left-2 md:top-4 md:left-4 z-20">
-                <div className="bg-white/90 backdrop-blur-sm rounded-lg px-1.5 py-0.5 md:px-2 md:py-1 shadow-sm border border-gray-200/50">
-                  <p className="text-[10px] md:text-xs font-semibold text-gray-500">Min</p>
-                  <p className="text-xs md:text-sm font-bold text-gray-900">{formatUSDSync(minValue)}</p>
+              {/* Compact Min/Max Labels */}
+              <div className="absolute top-1 left-1 z-20">
+                <div className="bg-white/95 backdrop-blur-sm rounded px-1.5 py-0.5 shadow-sm border border-gray-200/50">
+                  <p className="text-[9px] font-medium text-gray-500">Min</p>
+                  <p className="text-[10px] font-semibold text-gray-900">{formatUSDSync(minValue)}</p>
                 </div>
               </div>
-              <div className="absolute top-2 right-2 md:top-4 md:right-4 z-20">
-                <div className="bg-white/90 backdrop-blur-sm rounded-lg px-1.5 py-0.5 md:px-2 md:py-1 shadow-sm border border-gray-200/50">
-                  <p className="text-[10px] md:text-xs font-semibold text-gray-500">Max</p>
-                  <p className="text-xs md:text-sm font-bold text-gray-900">{formatUSDSync(maxValue)}</p>
+              <div className="absolute top-1 right-1 z-20">
+                <div className="bg-white/95 backdrop-blur-sm rounded px-1.5 py-0.5 shadow-sm border border-gray-200/50">
+                  <p className="text-[9px] font-medium text-gray-500">Max</p>
+                  <p className="text-[10px] font-semibold text-gray-900">{formatUSDSync(maxValue)}</p>
                 </div>
               </div>
 
-              {/* Chart - Mobile: 240px, Desktop: 380px */}
-              <div className="h-[240px] md:h-[380px] -mx-1 md:-mx-2">
+              {/* Compact Chart - 120px height */}
+              <div className="h-[120px] -mx-1">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart 
                     data={chartData} 
-                    margin={{ top: 10, right: 10, left: 0, bottom: 10 }}
+                    margin={{ top: 5, right: 5, left: 0, bottom: 5 }}
                   >
                     <defs>
                       <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={lineColor} stopOpacity={0.4} />
-                        <stop offset="50%" stopColor={lineColor} stopOpacity={0.15} />
+                        <stop offset="0%" stopColor={lineColor} stopOpacity={0.3} />
                         <stop offset="100%" stopColor={lineColor} stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <XAxis
                       dataKey="time"
-                      stroke="#9ca3af"
-                      style={{ fontSize: '11px', fontWeight: 500 }}
+                      stroke="#d1d5db"
+                      style={{ fontSize: '9px' }}
                       tickLine={false}
                       axisLine={false}
                       interval="preserveStartEnd"
-                      tick={{ fill: '#6b7280' }}
+                      tick={{ fill: '#9ca3af' }}
                     />
                     <YAxis
-                      stroke="#9ca3af"
-                      style={{ fontSize: '11px', fontWeight: 500 }}
+                      stroke="#d1d5db"
+                      style={{ fontSize: '9px' }}
                       tickLine={false}
                       axisLine={false}
                       tickFormatter={(value) => formatUSDSync(value)}
                       domain={[minValue, maxValue]}
-                      width={75}
-                      tick={{ fill: '#6b7280' }}
+                      width={50}
+                      tick={{ fill: '#9ca3af' }}
                     />
                     <Tooltip 
                       content={<CustomTooltip />}
                       cursor={{ 
                         stroke: lineColor, 
-                        strokeWidth: 2, 
-                        strokeDasharray: '5 5',
-                        strokeOpacity: 0.5
+                        strokeWidth: 1, 
+                        strokeDasharray: '3 3',
+                        strokeOpacity: 0.4
                       }}
                     />
                     <Area
                       type="monotone"
                       dataKey="balance"
                       stroke={lineColor}
-                      strokeWidth={3}
+                      strokeWidth={2}
                       fill={`url(#${gradientId})`}
                       dot={false}
                       activeDot={{ 
-                        r: 7, 
+                        r: 4, 
                         fill: lineColor, 
-                        strokeWidth: 3, 
-                        stroke: '#fff',
-                        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
+                        strokeWidth: 2, 
+                        stroke: '#fff'
                       }}
                     />
                   </AreaChart>
@@ -373,19 +349,12 @@ export default function BalanceChart({
               </div>
             </>
           ) : (
-            <div className="h-[240px] md:h-[380px] flex items-center justify-center">
+            <div className="h-[120px] flex items-center justify-center">
               <div className="text-center">
-                <div className={`w-12 h-12 md:w-16 md:h-16 rounded-2xl mx-auto mb-3 md:mb-4 flex items-center justify-center ${
-                  isPositiveChange 
-                    ? 'bg-gradient-to-br from-emerald-500/10 to-teal-500/10' 
-                    : 'bg-gradient-to-br from-rose-500/10 to-orange-500/10'
-                }`}>
-                  <BarChart3 className={`w-6 h-6 md:w-8 md:h-8 ${
-                    isPositiveChange ? 'text-emerald-500' : 'text-rose-500'
-                  }`} />
-                </div>
-                <p className="text-xs md:text-sm font-semibold text-gray-700 mb-1">No chart data available</p>
-                <p className="text-[10px] md:text-xs text-gray-500">Start trading to see your portfolio history</p>
+                <BarChart3 className={`w-5 h-5 mx-auto mb-1 ${
+                  isPositiveChange ? 'text-emerald-500' : 'text-rose-500'
+                }`} />
+                <p className="text-[10px] text-gray-500">No data available</p>
               </div>
             </div>
           )}
