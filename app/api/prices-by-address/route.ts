@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { dexScreenerService } from '@/lib/dexscreener-service';
 
 // Force dynamic rendering (required for API routes with query params)
 export const dynamic = 'force-dynamic';
@@ -75,27 +76,60 @@ export async function GET(request: NextRequest) {
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error');
-        logger.error(`❌ [Prices by Address] CoinGecko error: ${response.status} - ${errorText.substring(0, 200)}`);
+        logger.warn(`⚠️ [Prices by Address] CoinGecko error: ${response.status} - ${errorText.substring(0, 200)}`);
         
-        // If CoinGecko returns 400, it might be rate limiting or invalid request
-        // Return empty result instead of error so frontend can fallback to DexScreener
-        if (response.status === 400 || response.status === 429) {
-          logger.warn(`⚠️ [Prices by Address] CoinGecko returned ${response.status}, returning empty result for fallback`);
-          const emptyResult: Record<string, { price: number; change24h: number }> = {};
-          addresses.forEach(addr => {
-            emptyResult[addr.toLowerCase()] = { price: 0, change24h: 0 };
-          });
-          return NextResponse.json(emptyResult, {
-            headers: {
-              'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120', // Short cache for errors
-            },
-          });
+        // If CoinGecko fails, try DexScreener directly as fallback
+        logger.log(`🔄 [Prices by Address] CoinGecko failed, trying DexScreener fallback...`);
+        
+        const dexScreenerResult: Record<string, { price: number; change24h: number }> = {};
+        
+        // Try DexScreener for each address (with rate limiting)
+        for (let i = 0; i < addresses.length; i++) {
+          const address = addresses[i];
+          try {
+            const tokenData = await dexScreenerService.getTokenMetadata(address);
+            
+            if (tokenData && tokenData.priceUsd && tokenData.priceUsd > 0) {
+              let price = tokenData.priceUsd;
+              
+              // Sanity check
+              if (price > 10000) {
+                logger.warn(`⚠️ [Prices by Address] SUSPICIOUS HIGH PRICE from DexScreener: $${price.toFixed(2)}`);
+                price = 0;
+              }
+              
+              if (price > 0) {
+                dexScreenerResult[address.toLowerCase()] = {
+                  price,
+                  change24h: tokenData.priceChange24h || 0,
+                };
+                logger.log(`✅ [Prices by Address] DexScreener: ${address.substring(0, 10)}... = $${price.toFixed(6)}`);
+              }
+            }
+            
+            // Rate limit: 250ms between requests
+            if (i < addresses.length - 1) {
+              await new Promise(resolve => setTimeout(resolve, 250));
+            }
+          } catch (error) {
+            logger.warn(`⚠️ [Prices by Address] DexScreener failed for ${address.substring(0, 10)}...:`, error);
+          }
         }
         
-        return NextResponse.json(
-          { error: `CoinGecko API error: ${response.status}`, details: errorText.substring(0, 200) },
-          { status: response.status }
-        );
+        // Fill in missing addresses with 0
+        addresses.forEach(addr => {
+          if (!dexScreenerResult[addr.toLowerCase()]) {
+            dexScreenerResult[addr.toLowerCase()] = { price: 0, change24h: 0 };
+          }
+        });
+        
+        logger.log(`✅ [Prices by Address] DexScreener fallback: ${Object.keys(dexScreenerResult).filter(k => dexScreenerResult[k].price > 0).length}/${addresses.length} prices found`);
+        
+        return NextResponse.json(dexScreenerResult, {
+          headers: {
+            'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+          },
+        });
       }
 
       const data = await response.json();
