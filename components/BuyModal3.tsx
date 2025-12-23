@@ -320,6 +320,18 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
               // Focus the popup to ensure it's visible
               popup.focus();
               
+              // ✅ Wait a moment for popup to load, then check if it's still accessible
+              setTimeout(() => {
+                try {
+                  // Try to access popup.location to verify it loaded
+                  const popupUrl = popup.location.href;
+                  logger.log('✅ Popup loaded successfully:', popupUrl.substring(0, 100));
+                } catch (e) {
+                  // Cross-origin error is expected for Banxa - this is normal
+                  logger.log('ℹ️ Popup opened (cross-origin, cannot access URL - this is normal for Banxa)');
+                }
+              }, 1000);
+              
               // Monitor popup for completion
               setStep('processing');
               toast('Complete payment in the popup window', { icon: '💳' });
