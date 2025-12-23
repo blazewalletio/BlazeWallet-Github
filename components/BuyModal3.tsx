@@ -244,94 +244,138 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
           setStep('widget');
           toast.success('Opening payment widget...');
         } else if (transactionType === 'redirect' || transactionType === 'popup') {
-          // ⚠️ Open in popup (payment provider requires redirect/popup)
-          // For Banxa and other providers that need redirects
-          // Use more permissive popup features to allow payment flows
-          const popupFeatures = [
-            'width=800',
-            'height=900',
-            'left=' + (window.screen.width / 2 - 400),
-            'top=' + (window.screen.height / 2 - 450),
-            'scrollbars=yes',
-            'resizable=yes',
-            'toolbar=no',
-            'menubar=no',
-            'location=no',
-            'directories=no',
-            'status=no',
-          ].join(',');
-
-          const popup = window.open(
-            transactionUrl,
-            'onramper-payment',
-            popupFeatures
-          );
-
-          if (!popup) {
-            // Popup blocked - fallback to new tab
-            toast.error('Popup blocked. Opening in new tab...');
-            window.open(transactionUrl, '_blank');
-            setStep('processing');
-          } else {
-            // Focus the popup to ensure it's visible
-            popup.focus();
+          // Detect if user is on mobile device
+          const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
+                          (typeof window !== 'undefined' && window.innerWidth <= 768);
+          
+          if (isMobile) {
+            // 📱 MOBILE: Direct redirect in same window (popups are often blocked on mobile)
+            // This provides the best UX on mobile devices
+            logger.log('📱 Mobile device detected - using direct redirect instead of popup');
             
-            // Monitor popup for completion
+            // Show message to user
+            toast('Redirecting to payment page...', { icon: '💳', duration: 2000 });
+            
+            // Store transaction info in sessionStorage so we can track it
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem('onramper_transaction', JSON.stringify({
+                transactionId,
+                provider: 'onramper',
+                timestamp: Date.now(),
+              }));
+            }
+            
+            // Direct redirect - user will complete payment and be redirected back via redirectUrl
             setStep('processing');
-            toast('Complete payment in the popup window', { icon: '💳' });
-
-            // Monitor popup for completion and redirect
-            const checkPopup = setInterval(() => {
-              if (popup.closed) {
-                clearInterval(checkPopup);
-                // Popup closed - user likely completed payment or cancelled
-                logger.log('Popup closed, checking transaction status...');
-                
-                // Check if we're being redirected to success page
-                // If popup was closed after redirect, user is on success page
-                // Trigger balance refresh event
-                if (typeof window !== 'undefined') {
-                  window.dispatchEvent(new CustomEvent('balanceRefresh'));
-                }
-                
-                toast.success('Payment completed! Redirecting...', { icon: '🎉' });
-                setStep('select');
-                
-                // Close modal after a short delay
-                setTimeout(() => {
-                  onClose();
-                }, 1500);
-              } else {
-                // Check if popup URL changed to success page (indicates payment completed)
-                try {
-                  const popupUrl = popup.location.href;
-                  if (popupUrl.includes('/buy/success') || popupUrl.includes('/status/')) {
-                    // Payment completed - close popup and redirect
-                    clearInterval(checkPopup);
-                    popup.close();
-                    
-                    // Redirect to success page
-                    window.location.href = `/buy/success?provider=onramper&transactionId=${transactionId || Date.now()}`;
-                  }
-                } catch (e) {
-                  // Cross-origin restrictions - can't access popup.location
-                  // This is normal for Banxa/Onramper popups
-                  // Keep popup focused to prevent it from being hidden
-                  try {
-                    if (document.hasFocus() && !popup.document.hasFocus()) {
-                      popup.focus();
-                    }
-                  } catch (focusError) {
-                    // Ignore focus errors
-                  }
-                }
-              }
-            }, 1000);
-
-            // Cleanup interval after 10 minutes (longer for payment flows)
+            
+            // Small delay to ensure toast is visible, then redirect
             setTimeout(() => {
-              clearInterval(checkPopup);
-            }, 10 * 60 * 1000);
+              window.location.href = transactionUrl;
+            }, 500);
+          } else {
+            // 💻 DESKTOP: Use popup (better UX, keeps user in context)
+            logger.log('💻 Desktop device detected - using popup');
+            
+            // Use more permissive popup features to allow payment flows
+            const popupFeatures = [
+              'width=800',
+              'height=900',
+              'left=' + (window.screen.width / 2 - 400),
+              'top=' + (window.screen.height / 2 - 450),
+              'scrollbars=yes',
+              'resizable=yes',
+              'toolbar=no',
+              'menubar=no',
+              'location=no',
+              'directories=no',
+              'status=no',
+            ].join(',');
+
+            const popup = window.open(
+              transactionUrl,
+              'onramper-payment',
+              popupFeatures
+            );
+
+            if (!popup) {
+              // Popup blocked - fallback to direct redirect (same as mobile)
+              logger.warn('⚠️ Popup blocked - falling back to direct redirect');
+              toast('Popup blocked. Redirecting to payment page...', { icon: '💳' });
+              
+              // Store transaction info
+              if (typeof window !== 'undefined') {
+                sessionStorage.setItem('onramper_transaction', JSON.stringify({
+                  transactionId,
+                  provider: 'onramper',
+                  timestamp: Date.now(),
+                }));
+              }
+              
+              setStep('processing');
+              setTimeout(() => {
+                window.location.href = transactionUrl;
+              }, 500);
+            } else {
+              // Focus the popup to ensure it's visible
+              popup.focus();
+              
+              // Monitor popup for completion
+              setStep('processing');
+              toast('Complete payment in the popup window', { icon: '💳' });
+
+              // Monitor popup for completion and redirect
+              const checkPopup = setInterval(() => {
+                if (popup.closed) {
+                  clearInterval(checkPopup);
+                  // Popup closed - user likely completed payment or cancelled
+                  logger.log('Popup closed, checking transaction status...');
+                  
+                  // Check if we're being redirected to success page
+                  // If popup was closed after redirect, user is on success page
+                  // Trigger balance refresh event
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('balanceRefresh'));
+                  }
+                  
+                  toast.success('Payment completed! Redirecting...', { icon: '🎉' });
+                  setStep('select');
+                  
+                  // Close modal after a short delay
+                  setTimeout(() => {
+                    onClose();
+                  }, 1500);
+                } else {
+                  // Check if popup URL changed to success page (indicates payment completed)
+                  try {
+                    const popupUrl = popup.location.href;
+                    if (popupUrl.includes('/buy/success') || popupUrl.includes('/status/')) {
+                      // Payment completed - close popup and redirect
+                      clearInterval(checkPopup);
+                      popup.close();
+                      
+                      // Redirect to success page
+                      window.location.href = `/buy/success?provider=onramper&transactionId=${transactionId || Date.now()}`;
+                    }
+                  } catch (e) {
+                    // Cross-origin restrictions - can't access popup.location
+                    // This is normal for Banxa/Onramper popups
+                    // Keep popup focused to prevent it from being hidden
+                    try {
+                      if (document.hasFocus() && !popup.document.hasFocus()) {
+                        popup.focus();
+                      }
+                    } catch (focusError) {
+                      // Ignore focus errors
+                    }
+                  }
+                }
+              }, 1000);
+
+              // Cleanup interval after 10 minutes (longer for payment flows)
+              setTimeout(() => {
+                clearInterval(checkPopup);
+              }, 10 * 60 * 1000);
+            }
           }
         } else {
           // Unknown type - try iframe as fallback
