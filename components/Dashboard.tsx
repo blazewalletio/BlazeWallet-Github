@@ -776,8 +776,25 @@ export default function Dashboard() {
           // Combine tokens with prices
           const tokensWithPrices = erc20Tokens.map((token: any) => {
             const addressLower = token.address.toLowerCase();
-            const priceData = pricesByAddress.get(addressLower) || { price: 0, change24h: 0 };
+            let priceData = pricesByAddress.get(addressLower) || { price: 0, change24h: 0 };
             const balanceNum = parseFloat(token.balance || '0');
+            
+            // 🛡️ SANITY CHECK: Detect and fix abnormally high prices
+            // Common issues:
+            // 1. CoinGecko returning price in wrong unit (e.g., per 1e18 tokens instead of per token)
+            // 2. Cached stale data with incorrect values
+            // 3. API error returning wrong format
+            // Threshold: $10k per token (most tokens should be well below this)
+            if (priceData.price > 10000) {
+              logger.warn(`⚠️ [Dashboard] SUSPICIOUS HIGH PRICE detected for ${token.symbol}: $${priceData.price.toFixed(2)} per token`);
+              logger.warn(`   Balance: ${token.balance}, Address: ${token.address}`);
+              logger.warn(`   This would result in: $${(balanceNum * priceData.price).toFixed(2)}`);
+              logger.warn(`   Setting price to 0 to prevent incorrect calculation. Will try DexScreener fallback.`);
+              
+              // Set price to 0 to trigger fallback or show $0 value
+              priceData = { price: 0, change24h: 0 };
+            }
+            
             const balanceUSD = balanceNum * priceData.price;
             
             // ✅ DEBUG: Log price data to identify missing prices

@@ -397,17 +397,19 @@ export class PriceService {
           if (data[address] && priceValue > 0) {
             let price = priceValue;
             
-            // 🛡️ SANITY CHECK: Detect abnormally high prices (>$100k per token)
+            // 🛡️ SANITY CHECK: Detect abnormally high prices (>$10k per token)
+            // Lowered threshold from $100k to $10k to catch more errors
             // This could indicate:
             // 1. CoinGecko returning price in wrong unit (e.g., per 1e18 tokens instead of per token)
             // 2. Cached stale data from when token was worth more
-            // 3. API error
-            if (price > 100000) {
+            // 3. API error returning wrong format
+            // Most legitimate tokens are well below $10k per token
+            if (price > 10000) {
               logger.warn(`⚠️ [PriceService] SUSPICIOUS HIGH PRICE detected for ${address.substring(0, 10)}...: $${price.toFixed(2)}`);
               logger.warn(`   This price seems abnormally high. Possible causes:`);
               logger.warn(`   1. CoinGecko API error`);
               logger.warn(`   2. Stale cached data`);
-              logger.warn(`   3. Price in wrong unit (e.g., per 1e18 tokens)`);
+              logger.warn(`   3. Price in wrong unit (e.g., per 1e18 tokens instead of per token)`);
               logger.warn(`   Setting price to 0 to prevent incorrect value calculation.`);
               
               // Set price to 0 to prevent incorrect calculations
