@@ -277,6 +277,7 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
             logger.log('💻 Desktop device detected - using popup');
             
             // Use more permissive popup features to allow payment flows
+            // location=yes allows Banxa to show URL bar and handle redirects properly
             const popupFeatures = [
               'width=800',
               'height=900',
@@ -286,9 +287,9 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
               'resizable=yes',
               'toolbar=no',
               'menubar=no',
-              'location=no',
+              'location=yes', // ✅ Changed to 'yes' to allow Banxa verification page to load properly
               'directories=no',
-              'status=no',
+              'status=yes', // ✅ Changed to 'yes' for better compatibility with Banxa
             ].join(',');
 
             const popup = window.open(
