@@ -232,27 +232,61 @@ export async function POST(req: NextRequest) {
           // Single quote object - check if it supports the payment method
           if (paymentMethod) {
             const paymentMethodLower = paymentMethod.toLowerCase();
+            
+            // Use same matching logic as array case
+            const paymentMethodMappings: Record<string, string[]> = {
+              'ideal': ['ideal', 'sepainstant', 'sepa', 'sepa instant', 'sepa-instant'],
+              'sepa': ['sepa', 'sepainstant', 'sepa instant', 'sepa-instant', 'banktransfer', 'bank transfer'],
+              'creditcard': ['creditcard', 'credit card', 'card', 'visa', 'mastercard'],
+              'applepay': ['applepay', 'apple pay', 'apple'],
+              'googlepay': ['googlepay', 'google pay', 'gpay'],
+              'bancontact': ['bancontact', 'bancontact card'],
+            };
+            
+            const possibleNames = paymentMethodMappings[paymentMethodLower] || [paymentMethodLower];
+            
             const supportsPaymentMethod = quoteData.availablePaymentMethods?.some((pm: any) => {
               const pmId = pm.paymentTypeId?.toLowerCase() || pm.id?.toLowerCase() || '';
               const pmName = pm.name?.toLowerCase() || '';
-              return pmId === paymentMethodLower || pmName === paymentMethodLower;
+              
+              return possibleNames.some(possibleName => 
+                pmId === possibleName || 
+                pmName === possibleName ||
+                pmId.includes(possibleName) ||
+                pmName.includes(possibleName) ||
+                possibleName.includes(pmId) ||
+                possibleName.includes(pmName)
+              ) || 
+                pmId === paymentMethodLower || 
+                pmName === paymentMethodLower ||
+                pmId.includes(paymentMethodLower) ||
+                pmName.includes(paymentMethodLower) ||
+                paymentMethodLower.includes(pmId) ||
+                paymentMethodLower.includes(pmName);
             });
             
             if (supportsPaymentMethod) {
               onrampProvider = quoteData.ramp;
-              logger.log('✅ Found onramp provider from single quote with paymentMethod support:', onrampProvider);
+              logger.log('✅ Found onramp provider from single quote with paymentMethod support:', {
+                provider: onrampProvider,
+                paymentMethod: paymentMethodLower,
+              });
             } else {
               logger.error('❌ Single quote provider does not support payment method:', {
                 provider: quoteData.ramp,
                 paymentMethod: paymentMethodLower,
-                availableMethods: quoteData.availablePaymentMethods?.map((pm: any) => 
-                  pm.paymentTypeId || pm.id || pm.name
-                ) || [],
+                availableMethods: quoteData.availablePaymentMethods?.map((pm: any) => ({
+                  id: pm.paymentTypeId || pm.id,
+                  name: pm.name,
+                  full: pm,
+                })) || [],
+                paymentMethodsFull: JSON.stringify(quoteData.availablePaymentMethods, null, 2),
               });
+              // DO NOT set onrampProvider - we'll fail later
             }
           } else {
             onrampProvider = quoteData.ramp;
-            logger.log('✅ Found onramp provider from single quote:', onrampProvider);
+            logger.log('✅ Found onramp provider from single quote (no paymentMethod filter):', onrampProvider);
           }
         }
       } else {
