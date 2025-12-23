@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Area, AreaChart, CandleStickChart, Candlestick } from 'recharts';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Area, AreaChart } from 'recharts';
 import { TrendingUp, TrendingDown, BarChart3 } from 'lucide-react';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { getTokenPriceHistory } from '@/lib/token-price-history';
@@ -270,9 +270,9 @@ export default function TokenPriceChart({
                   />
                 </AreaChart>
               ) : (
-                // Candlestick chart - simplified version using line chart with OHLC data
-                // Note: Full candlestick requires OHLC data which we'd need to fetch separately
-                // For now, we'll show a line chart that looks more like candlesticks
+                // Candlestick chart - using line chart with thicker strokes to simulate candlesticks
+                // Note: Full OHLC candlestick would require different data structure
+                // This provides a candlestick-like visualization
                 <LineChart data={priceHistory} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
                   <XAxis
                     dataKey="time"
@@ -293,12 +293,12 @@ export default function TokenPriceChart({
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Line
-                    type="monotone"
+                    type="stepAfter"
                     dataKey="price"
                     stroke={lineColor}
-                    strokeWidth={2}
+                    strokeWidth={3}
                     dot={false}
-                    activeDot={{ r: 4, fill: lineColor }}
+                    activeDot={{ r: 5, fill: lineColor, strokeWidth: 2 }}
                   />
                 </LineChart>
               )}

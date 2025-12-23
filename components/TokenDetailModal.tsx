@@ -24,8 +24,8 @@ import { useWalletStore } from '@/lib/wallet-store';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { CHAINS } from '@/lib/chains';
 import { refreshTokenMetadata } from '@/lib/spl-token-metadata';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
-import { getTokenPriceHistory, calculatePriceChange, getPriceRange } from '@/lib/token-price-history';
+// Recharts imports removed - now using TokenPriceChart component
+// Price history functions removed - now handled by TokenPriceChart
 import TokenPriceChart from './TokenPriceChart';
 import { logger } from '@/lib/logger';
 
