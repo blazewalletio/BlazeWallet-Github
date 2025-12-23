@@ -192,6 +192,18 @@ export async function reconstructPortfolioHistory(
     
     logger.log(`✅ [Portfolio Reconstruction] Generated ${portfolioPoints.length} portfolio points`);
     
+    // Ensure we have at least 2 points for a line (if only 1 point, duplicate it with slight time offset)
+    if (portfolioPoints.length === 1) {
+      const singlePoint = portfolioPoints[0];
+      portfolioPoints.unshift({
+        timestamp: singlePoint.timestamp - 3600000, // 1 hour before
+        balance: singlePoint.balance,
+        address: '',
+        chain: chain
+      });
+      logger.log(`📊 [Portfolio Reconstruction] Added duplicate point for line rendering`);
+    }
+    
     return portfolioPoints;
     
   } catch (error) {
