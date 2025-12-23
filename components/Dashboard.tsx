@@ -885,7 +885,10 @@ export default function Dashboard() {
                            selectedTimeRange === 168 ? '7D' :
                            selectedTimeRange === 720 ? '30D' :
                            selectedTimeRange === 8760 ? '1J' : '1D';
-          portfolioHistory.addSnapshot(nativeValueUSD, displayAddress, currentChain, timeframe);
+          // Fire and forget - don't await for performance
+          portfolioHistory.addSnapshot(nativeValueUSD, displayAddress, currentChain, timeframe).catch(err => {
+            logger.error('Error saving snapshot:', err);
+          });
         }
       }
 
