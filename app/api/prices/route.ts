@@ -93,6 +93,9 @@ export async function GET(request: Request) {
           price: data[coinId].usd || 0,
           change24h: data[coinId].usd_24h_change || 0,
         };
+      } else {
+        // Include all symbols in result, even if not found (for consistency)
+        result[symbol] = { price: 0, change24h: 0 };
       }
     });
 

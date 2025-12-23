@@ -115,6 +115,9 @@ export async function GET(request: Request) {
           price: data.price,
           change24h: data.change24h,
         };
+      } else {
+        // Include all symbols in result, even if not found (for consistency)
+        result[symbol] = { price: 0, change24h: 0 };
       }
     });
 
