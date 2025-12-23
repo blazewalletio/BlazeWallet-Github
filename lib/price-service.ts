@@ -390,21 +390,53 @@ export class PriceService {
         const data = await response.json();
 
         uncachedAddresses.forEach(address => {
-          if (data[address] && data[address].price > 0) {
+          // CoinGecko API route returns: { "0x...": { price: 5.42, change24h: -2.5 } }
+          // (transformed from CoinGecko's { "0x...": { usd: 5.42, usd_24h_change: -2.5 } })
+          const priceValue = data[address]?.price || data[address]?.usd || 0;
+          
+          if (data[address] && priceValue > 0) {
+            let price = priceValue;
+            
+            // 🛡️ SANITY CHECK: Detect abnormally high prices (>$100k per token)
+            // This could indicate:
+            // 1. CoinGecko returning price in wrong unit (e.g., per 1e18 tokens instead of per token)
+            // 2. Cached stale data from when token was worth more
+            // 3. API error
+            if (price > 100000) {
+              logger.warn(`⚠️ [PriceService] SUSPICIOUS HIGH PRICE detected for ${address.substring(0, 10)}...: $${price.toFixed(2)}`);
+              logger.warn(`   This price seems abnormally high. Possible causes:`);
+              logger.warn(`   1. CoinGecko API error`);
+              logger.warn(`   2. Stale cached data`);
+              logger.warn(`   3. Price in wrong unit (e.g., per 1e18 tokens)`);
+              logger.warn(`   Setting price to 0 to prevent incorrect value calculation.`);
+              
+              // Set price to 0 to prevent incorrect calculations
+              // The fallback to DexScreener will try to get correct price
+              price = 0;
+            }
+            
+            // Get change24h from either format
+            const change24h = data[address].change24h || data[address].usd_24h_change || 0;
+            
             const priceData = {
-              price: data[address].price,
-              change24h: data[address].change24h || 0,
+              price,
+              change24h,
             };
             
-            result.set(address, priceData);
-            
-            // Update cache with TTL
-            this.addressCache.set(address, {
-              ...priceData,
-              source: 'coingecko-address',
-            }, this.cacheDuration);
-            
-            logger.log(`✅ [PriceService] CoinGecko: ${address.substring(0, 10)}... = $${priceData.price}`);
+            // Only cache and use if price is valid (not 0 after sanity check)
+            if (price > 0) {
+              result.set(address, priceData);
+              
+              // Update cache with TTL
+              this.addressCache.set(address, {
+                ...priceData,
+                source: 'coingecko-address',
+              }, this.cacheDuration);
+              
+              logger.log(`✅ [PriceService] CoinGecko: ${address.substring(0, 10)}... = $${priceData.price.toFixed(6)}`);
+            } else {
+              logger.log(`⚠️ [PriceService] Skipping invalid price for ${address.substring(0, 10)}... (will try DexScreener)`);
+            }
           }
         });
       } else {
@@ -460,12 +492,22 @@ export class PriceService {
     }
 
     // ✅ STEP 4: Fill in any remaining addresses with stale cache or 0
+    // BUT: Apply sanity check to stale cache too!
     uncachedAddresses.forEach(address => {
       if (!result.has(address)) {
         const cached = this.addressCache.get(address);
         if (cached) {
-          logger.warn(`⚠️ [PriceService] Using stale cache for ${address.substring(0, 10)}...: $${cached.price}`);
-          result.set(address, { price: cached.price, change24h: cached.change24h });
+          // 🛡️ SANITY CHECK: Don't use stale cache if price is abnormally high
+          if (cached.price > 100000) {
+            logger.warn(`⚠️ [PriceService] Stale cache has suspicious high price for ${address.substring(0, 10)}...: $${cached.price.toFixed(2)}`);
+            logger.warn(`   Clearing stale cache and setting price to 0`);
+            // Clear the bad cache entry
+            this.addressCache.delete(address);
+            result.set(address, { price: 0, change24h: 0 });
+          } else {
+            logger.warn(`⚠️ [PriceService] Using stale cache for ${address.substring(0, 10)}...: $${cached.price.toFixed(6)}`);
+            result.set(address, { price: cached.price, change24h: cached.change24h });
+          }
         } else {
           // No price available anywhere
           result.set(address, { price: 0, change24h: 0 });
@@ -475,6 +517,29 @@ export class PriceService {
 
     logger.log(`✅ [PriceService] Final: ${result.size}/${addresses.length} addresses processed`);
     return result;
+  }
+
+  /**
+   * Clear cache for specific address(es)
+   * Useful for fixing incorrect cached prices
+   */
+  clearAddressCache(addresses: string | string[]): void {
+    const addressesArray = Array.isArray(addresses) ? addresses : [addresses];
+    addressesArray.forEach(address => {
+      const addressLower = address.toLowerCase();
+      this.addressCache.delete(addressLower);
+      logger.log(`🗑️ [PriceService] Cleared cache for ${addressLower.substring(0, 10)}...`);
+    });
+  }
+
+  /**
+   * Clear all caches (useful for debugging or fixing widespread issues)
+   */
+  clearAllCaches(): void {
+    this.cache.clear();
+    this.mintCache.clear();
+    this.addressCache.clear();
+    logger.log(`🗑️ [PriceService] Cleared all caches`);
   }
 
   /**

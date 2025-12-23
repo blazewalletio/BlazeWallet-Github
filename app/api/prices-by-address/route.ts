@@ -81,11 +81,30 @@ export async function GET(request: NextRequest) {
     for (const address of addresses) {
       const addressLower = address.toLowerCase();
       if (data[addressLower]) {
+        let price = data[addressLower].usd || 0;
+        
+        // 🛡️ SANITY CHECK: Detect abnormally high prices (>$100k per token)
+        // This prevents incorrect value calculations from API errors or stale data
+        if (price > 100000) {
+          logger.warn(`⚠️ [Prices by Address] SUSPICIOUS HIGH PRICE for ${addressLower.substring(0, 10)}...: $${price.toFixed(2)}`);
+          logger.warn(`   This price seems abnormally high (>$100k). Possible causes:`);
+          logger.warn(`   1. CoinGecko API error`);
+          logger.warn(`   2. Price in wrong unit (e.g., per 1e18 tokens instead of per token)`);
+          logger.warn(`   3. Stale or corrupted data`);
+          logger.warn(`   Setting price to 0 - will fallback to DexScreener if available.`);
+          price = 0; // Set to 0 so fallback can try DexScreener
+        }
+        
         result[addressLower] = {
-          price: data[addressLower].usd || 0,
+          price,
           change24h: data[addressLower].usd_24h_change || 0,
         };
-        logger.log(`✅ [Prices by Address] ${addressLower.substring(0, 10)}...: $${result[addressLower].price}`);
+        
+        if (price > 0) {
+          logger.log(`✅ [Prices by Address] ${addressLower.substring(0, 10)}...: $${result[addressLower].price.toFixed(6)}`);
+        } else {
+          logger.log(`⚠️ [Prices by Address] ${addressLower.substring(0, 10)}...: Price set to 0 (sanity check failed)`);
+        }
       } else {
         // Address not found in CoinGecko
         result[addressLower] = {
