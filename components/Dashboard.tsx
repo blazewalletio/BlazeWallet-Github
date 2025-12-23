@@ -1320,8 +1320,23 @@ export default function Dashboard() {
           />
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-6 gap-3">
+          <div className="grid grid-cols-4 gap-3">
+            {/* Buy (Buy3) - Official Buy button */}
             <motion.button
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 }}
+              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.05 }}
+              onClick={() => setShowBuyModal3(true)}
+              className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl aspect-square flex flex-col items-center justify-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+            >
+              <CreditCard className="w-8 h-8 text-white mb-2" />
+              <div className="text-sm font-bold text-white text-center">Buy</div>
+            </motion.button>
+
+            {/* Buy - Temporarily disabled */}
+            {/* <motion.button
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.1 }}
@@ -1332,9 +1347,10 @@ export default function Dashboard() {
             >
               <CreditCard className="w-8 h-8 text-white mb-2" />
               <div className="text-sm font-bold text-white text-center">Buy</div>
-            </motion.button>
+            </motion.button> */}
 
-            <motion.button
+            {/* Buy2 - Temporarily disabled */}
+            {/* <motion.button
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.12 }}
@@ -1345,20 +1361,7 @@ export default function Dashboard() {
             >
               <CreditCard className="w-8 h-8 text-white mb-2" />
               <div className="text-sm font-bold text-white text-center">Buy2</div>
-            </motion.button>
-
-            <motion.button
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.14 }}
-              whileTap={{ scale: 0.95 }}
-              whileHover={{ scale: 1.05 }}
-              onClick={() => setShowBuyModal3(true)}
-              className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl aspect-square flex flex-col items-center justify-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
-            >
-              <CreditCard className="w-8 h-8 text-white mb-2" />
-              <div className="text-sm font-bold text-white text-center">Buy3</div>
-            </motion.button>
+            </motion.button> */}
 
             <motion.button
               initial={{ opacity: 0, scale: 0.9 }}
@@ -2062,7 +2065,7 @@ export default function Dashboard() {
             chain={chain.name}
             onBuyToken={(symbol) => {
               setShowAIPortfolioAdvisor(false);
-              setShowBuyModal(true);
+              setShowBuyModal3(true);
             }}
             onSellToken={(symbol) => {
               setShowAIPortfolioAdvisor(false);
