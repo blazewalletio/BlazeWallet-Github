@@ -50,10 +50,14 @@ export async function GET(request: NextRequest) {
     const platform = CHAIN_TO_PLATFORM[chain] || 'ethereum';
 
     // CoinGecko API endpoint for token prices by contract address
-    const url = `https://api.coingecko.com/api/v3/simple/token_price/${platform}?contract_addresses=${addresses.join(',')}&vs_currencies=usd&include_24hr_change=true`;
+    // Use URL encoding to ensure addresses are properly formatted
+    const addressesParam = addresses.join(',');
+    const url = `https://api.coingecko.com/api/v3/simple/token_price/${platform}?contract_addresses=${encodeURIComponent(addressesParam)}&vs_currencies=usd&include_24hr_change=true`;
 
     logger.log(`📡 [Prices by Address] Fetching from CoinGecko for ${addresses.length} addresses on ${chain}`);
-    logger.log(`📡 [Prices by Address] URL: ${url.substring(0, 150)}...`);
+    logger.log(`📡 [Prices by Address] Platform: ${platform}`);
+    logger.log(`📡 [Prices by Address] Addresses: ${addresses.map(a => a.substring(0, 10) + '...').join(', ')}`);
+    logger.log(`📡 [Prices by Address] URL: ${url.substring(0, 200)}...`);
 
     // Create timeout manually (AbortSignal.timeout may not be available in all Node.js versions)
     const controller = new AbortController();
