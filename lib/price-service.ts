@@ -463,20 +463,34 @@ export class PriceService {
           const tokenData = await dexScreenerService.getTokenMetadata(address);
           
           if (tokenData && tokenData.priceUsd && tokenData.priceUsd > 0) {
+            let price = tokenData.priceUsd;
+            
+            // 🛡️ SANITY CHECK: Also check DexScreener prices for abnormalities
+            if (price > 10000) {
+              logger.warn(`⚠️ [PriceService] SUSPICIOUS HIGH PRICE from DexScreener for ${address.substring(0, 10)}...: $${price.toFixed(2)}`);
+              logger.warn(`   Setting price to 0 to prevent incorrect calculation.`);
+              price = 0;
+            }
+            
             const priceData = {
-              price: tokenData.priceUsd,
+              price,
               change24h: tokenData.priceChange24h || 0,
             };
             
-            result.set(address, priceData);
-            
-            // Update cache with TTL
-            this.addressCache.set(address, {
-              ...priceData,
-              source: 'dexscreener',
-            }, this.cacheDuration);
-            
-            logger.log(`✅ [PriceService] DexScreener: ${address.substring(0, 10)}... = $${priceData.price}`);
+            // Only set if price is valid after sanity check
+            if (price > 0) {
+              result.set(address, priceData);
+              
+              // Update cache with TTL
+              this.addressCache.set(address, {
+                ...priceData,
+                source: 'dexscreener',
+              }, this.cacheDuration);
+              
+              logger.log(`✅ [PriceService] DexScreener: ${address.substring(0, 10)}... = $${priceData.price}`);
+            } else {
+              logger.log(`⚠️ [PriceService] Skipping invalid DexScreener price for ${address.substring(0, 10)}...`);
+            }
           }
           
           // Rate limit: 250ms between requests (respects DexScreener 300/min limit)
