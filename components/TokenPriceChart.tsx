@@ -71,23 +71,36 @@ export default function TokenPriceChart({
         );
 
         if (result.success && result.prices.length > 0) {
+          // Format time labels based on timeframe (like Bitvavo)
+          const formatTime = (timestamp: number) => {
+            const date = new Date(timestamp);
+            if (selectedTimeframe === 'LIVE' || selectedTimeframe === '1D') {
+              return date.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+            } else if (selectedTimeframe === '7D' || selectedTimeframe === '30D') {
+              return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
+            } else {
+              return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: '2-digit' });
+            }
+          };
+
           const data = result.prices.map(p => ({
             timestamp: p.timestamp,
             price: p.price,
-            time: selectedTimeframe === 'LIVE' || selectedTimeframe === '1D'
-              ? new Date(p.timestamp).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
-              : new Date(p.timestamp).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }),
+            time: formatTime(p.timestamp),
           }));
 
-          // Add current price as latest point
+          // Add current price as latest point only if it's different from last point
+          const lastPrice = data.length > 0 ? data[data.length - 1].price : null;
           const now = Date.now();
-          data.push({
-            timestamp: now,
-            price: currentPrice,
-            time: selectedTimeframe === 'LIVE' || selectedTimeframe === '1D'
-              ? new Date(now).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
-              : new Date(now).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }),
-          });
+          
+          // Only add current price if it's significantly different or if we don't have recent data
+          if (lastPrice === null || Math.abs(currentPrice - lastPrice) > 0.0001 || (now - data[data.length - 1].timestamp) > 60000) {
+            data.push({
+              timestamp: now,
+              price: currentPrice,
+              time: formatTime(now),
+            });
+          }
 
           const prices = data.map(d => d.price);
           const min = Math.min(...prices);
