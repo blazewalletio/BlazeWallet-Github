@@ -112,43 +112,58 @@ export default function BalanceChart({
         return;
       }
       
-      // No snapshots - try reconstruction (like Bitvavo)
-      if (tokens.length > 0 || parseFloat(nativeBalance) > 0) {
-        logger.log(`📊 [BalanceChart] No snapshots, using portfolio reconstruction for ${selectedTimeframe}`);
-        setUseReconstruction(true);
+      // No snapshots - ALWAYS try reconstruction (like Bitvavo)
+      logger.log(`📊 [BalanceChart] No snapshots (${snapshots.length}), attempting portfolio reconstruction for ${selectedTimeframe}`);
+      logger.log(`📊 [BalanceChart] Tokens: ${tokens.length}, Native balance: ${nativeBalance}`);
+      setUseReconstruction(true);
+      
+      try {
+        const reconstructed = await reconstructPortfolioHistory(
+          tokens || [],
+          nativeBalance || '0',
+          chainInfo.nativeCurrency.symbol,
+          chain,
+          selectedTimeframe
+        );
         
-        try {
-          const reconstructed = await reconstructPortfolioHistory(
-            tokens,
-            nativeBalance,
-            chainInfo.nativeCurrency.symbol,
-            chain,
-            selectedTimeframe
-          );
+        logger.log(`📊 [BalanceChart] Reconstruction returned ${reconstructed.length} points`);
+        
+        if (reconstructed.length > 0) {
+          const data = reconstructed.map(s => ({
+            timestamp: s.timestamp,
+            balance: s.balance,
+            time: selectedTimeframe === 'LIVE' || selectedTimeframe === '1D'
+              ? new Date(s.timestamp).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
+              : new Date(s.timestamp).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }),
+          }));
           
-          if (reconstructed.length > 0) {
-            const data = reconstructed.map(s => ({
-              timestamp: s.timestamp,
-              balance: s.balance,
+          // Ensure we have at least 2 points for a line
+          if (data.length === 1) {
+            // Add a point 1 hour ago with same balance (flat line)
+            data.unshift({
+              timestamp: data[0].timestamp - 3600000,
+              balance: data[0].balance,
               time: selectedTimeframe === 'LIVE' || selectedTimeframe === '1D'
-                ? new Date(s.timestamp).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
-                : new Date(s.timestamp).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }),
-            }));
-            
-            const balances = data.map(d => d.balance);
-            const min = Math.min(...balances);
-            const max = Math.max(...balances);
-            const padding = (max - min) * 0.1;
-            
-            setChartData(data);
-            setMinValue(Math.max(0, min - padding));
-            setMaxValue(max + padding);
-            setIsLoading(false);
-            return;
+                ? new Date(data[0].timestamp - 3600000).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
+                : new Date(data[0].timestamp - 3600000).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }),
+            });
           }
-        } catch (error) {
-          logger.error('❌ [BalanceChart] Reconstruction failed:', error);
+          
+          const balances = data.map(d => d.balance);
+          const min = Math.min(...balances);
+          const max = Math.max(...balances);
+          const padding = Math.max((max - min) * 0.1, max * 0.02); // At least 2% padding
+          
+          setChartData(data);
+          setMinValue(Math.max(0, min - padding));
+          setMaxValue(max + padding);
+          setIsLoading(false);
+          return;
+        } else {
+          logger.warn(`⚠️ [BalanceChart] Reconstruction returned 0 points`);
         }
+      } catch (error) {
+        logger.error('❌ [BalanceChart] Reconstruction failed:', error);
       }
       
       // Fallback: single point with current balance
