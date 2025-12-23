@@ -76,6 +76,22 @@ export async function GET(request: NextRequest) {
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error');
         logger.error(`❌ [Prices by Address] CoinGecko error: ${response.status} - ${errorText.substring(0, 200)}`);
+        
+        // If CoinGecko returns 400, it might be rate limiting or invalid request
+        // Return empty result instead of error so frontend can fallback to DexScreener
+        if (response.status === 400 || response.status === 429) {
+          logger.warn(`⚠️ [Prices by Address] CoinGecko returned ${response.status}, returning empty result for fallback`);
+          const emptyResult: Record<string, { price: number; change24h: number }> = {};
+          addresses.forEach(addr => {
+            emptyResult[addr.toLowerCase()] = { price: 0, change24h: 0 };
+          });
+          return NextResponse.json(emptyResult, {
+            headers: {
+              'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120', // Short cache for errors
+            },
+          });
+        }
+        
         return NextResponse.json(
           { error: `CoinGecko API error: ${response.status}`, details: errorText.substring(0, 200) },
           { status: response.status }
