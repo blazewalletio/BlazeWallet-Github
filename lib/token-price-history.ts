@@ -156,13 +156,14 @@ async function fetchCoinGeckoPriceHistory(
       throw new Error(`No CoinGecko ID mapping for ${symbol}`);
     }
 
-    const response = await fetch(
-      `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}&interval=hourly`,
-      {
-        headers: { 'Accept': 'application/json' },
-        next: { revalidate: 900 } // 15 min cache
-      }
-    );
+    const apiKey = process.env.COINGECKO_API_KEY?.trim();
+    const apiKeyParam = apiKey ? `&x_cg_demo_api_key=${apiKey}` : '';
+    const url = `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}&interval=hourly${apiKeyParam}`;
+    
+    const response = await fetch(url, {
+      headers: { 'Accept': 'application/json' },
+      next: { revalidate: 900 } // 15 min cache
+    });
 
     if (!response.ok) {
       if (response.status === 429) {
@@ -214,13 +215,14 @@ async function searchCoinGeckoByContract(
     const platform = platformMap[chain.toLowerCase()];
     if (!platform) return null;
 
-    const response = await fetch(
-      `https://api.coingecko.com/api/v3/coins/${platform}/contract/${contractAddress}`,
-      { 
-        headers: { 'Accept': 'application/json' },
-        next: { revalidate: 3600 } // 1 hour cache
-      }
-    );
+    const apiKey = process.env.COINGECKO_API_KEY?.trim();
+    const apiKeyParam = apiKey ? `?x_cg_demo_api_key=${apiKey}` : '';
+    const url = `https://api.coingecko.com/api/v3/coins/${platform}/contract/${contractAddress}${apiKeyParam}`;
+    
+    const response = await fetch(url, { 
+      headers: { 'Accept': 'application/json' },
+      next: { revalidate: 3600 } // 1 hour cache
+    });
 
     if (!response.ok) return null;
 

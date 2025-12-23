@@ -68,15 +68,18 @@ export async function GET(request: Request) {
     }
 
     // Fetch from CoinGecko (server-side, no CORS issues!)
-    const response = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${coinIds.join(',')}&vs_currencies=usd&include_24hr_change=true`,
-      {
-        headers: {
-          'Accept': 'application/json',
-        },
-        next: { revalidate: 10 }, // ✅ Cache for 10 seconds only (ultra-fresh)
-      }
-    );
+    const apiKey = process.env.COINGECKO_API_KEY?.trim();
+    const apiKeyParam = apiKey ? `&x_cg_demo_api_key=${apiKey}` : '';
+    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coinIds.join(',')}&vs_currencies=usd&include_24hr_change=true${apiKeyParam}`;
+    
+    logger.log(`📡 [Prices] Fetching from CoinGecko for ${coinIds.length} coins (API key: ${apiKey ? 'Yes' : 'No'})`);
+    
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+      },
+      next: { revalidate: 10 }, // ✅ Cache for 10 seconds only (ultra-fresh)
+    });
 
     if (!response.ok) {
       throw new Error(`CoinGecko API error: ${response.status}`);
