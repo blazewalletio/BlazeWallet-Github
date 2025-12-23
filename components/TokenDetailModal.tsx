@@ -203,7 +203,7 @@ export default function TokenDetailModal({
                     tokenSymbol={token.symbol}
                     tokenAddress={token.address}
                     chain={chain.name.toLowerCase()}
-                    currentPrice={parseFloat(token.priceUSD || '0')}
+                    currentPrice={typeof token.priceUSD === 'string' ? parseFloat(token.priceUSD) : (token.priceUSD || 0)}
                     isPositiveChange={isPositiveChange}
                   />
                 </div>
