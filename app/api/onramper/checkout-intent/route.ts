@@ -162,15 +162,14 @@ export async function POST(req: NextRequest) {
             });
             
             if (supportingProviders.length > 0) {
-              // Use the first provider, but log all available providers
-              // If Banxa is unavailable, we can try other providers
+              // Use the first provider (or we could choose based on best rates)
+              // According to Onramper docs, Banxa is the only provider that supports iDEAL for EUR -> SOL
               onrampProvider = supportingProviders[0];
               logger.log('✅ Found onramp provider from /supported/payment-types:', {
                 provider: onrampProvider,
                 paymentMethod: paymentMethodLower,
                 totalSupporting: supportingProviders.length,
                 allProviders: supportingProviders,
-                note: 'If first provider fails, we can try other providers from the list',
               });
             } else {
               logger.error('❌ No onramp provider found that supports payment method (from /supported/payment-types):', {
@@ -588,40 +587,8 @@ export async function POST(req: NextRequest) {
       requestBody.country = country.toUpperCase();
     }
 
-    // Add originatingHost (recommended by Onramper docs)
-    // This helps providers like Banxa know where the request originated from
-    const origin = req.headers.get('origin') || req.headers.get('referer') || 'https://my.blazewallet.io';
-    const originUrl = new URL(origin);
-    requestBody.originatingHost = originUrl.hostname;
-    
     // Add partner context for tracking
     requestBody.partnerContext = `blazewallet-${Date.now()}`;
-    
-    // Add supportedParams with partnerData for redirect URLs
-    // CRITICAL: Banxa and other providers need redirect URLs to know where to redirect after payment
-    // This prevents session timeout errors (Error 50032)
-    // IMPORTANT: Use the full origin URL, not just hostname
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || origin;
-    // Remove trailing slash if present
-    const cleanBaseUrl = baseUrl.replace(/\/$/, '');
-    const successUrl = `${cleanBaseUrl}/dashboard?onramper=success&transactionId={transactionId}`;
-    const failureUrl = `${cleanBaseUrl}/dashboard?onramper=failed&transactionId={transactionId}`;
-    
-    requestBody.supportedParams = {
-      partnerData: {
-        redirectUrl: {
-          success: successUrl, // Onramper will encode this automatically
-          failure: failureUrl, // Onramper will encode this automatically
-        },
-      },
-    };
-    
-    logger.log('✅ Added redirect URLs for payment providers:', {
-      successUrl,
-      failureUrl,
-      originatingHost: requestBody.originatingHost,
-      baseUrl: cleanBaseUrl,
-    });
 
     // Generate signature according to Onramper API documentation
     // Docs: https://docs.onramper.com/docs/signatures/api-sign-requests
@@ -711,29 +678,6 @@ export async function POST(req: NextRequest) {
     // Check for API errors
     if (!response.ok) {
       const errorMessage = data?.message || data?.error?.message || data?.error || response.statusText || 'Unknown error';
-      
-      // Handle specific error codes
-      if (typeof errorMessage === 'string' && errorMessage.includes('Error 7104')) {
-        // Provider is unreachable (temporary issue)
-        logger.error('❌ Onramper error: Provider is unreachable', {
-          provider: onrampProvider,
-          errorMessage,
-        });
-        return NextResponse.json(
-          { 
-            success: false,
-            error: 'Payment provider temporarily unavailable',
-            message: `The payment provider (${onrampProvider || 'selected provider'}) is currently unreachable. This is usually a temporary issue. Please try again in a few minutes or use a different payment method.`,
-            details: {
-              provider: onrampProvider,
-              errorCode: '7104',
-              suggestion: 'Try again in a few minutes or use a different payment method',
-            },
-          },
-          { status: 502 }
-        );
-      }
-      
       logger.error('❌ Onramper /checkout/intent API error:', {
         status: response.status,
         statusText: response.statusText,

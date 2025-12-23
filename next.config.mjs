@@ -46,7 +46,7 @@ const nextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(self "https://widget.onramper.com"), microphone=(self "https://widget.onramper.com"), geolocation=(self "https://widget.onramper.com"), payment=(self "https://widget.onramper.com")',
+            value: 'camera=(self "https://widget.onramper.com" "https://*.banxa.com" "https://orlt.banxa.com"), microphone=(self "https://widget.onramper.com" "https://*.banxa.com" "https://orlt.banxa.com"), geolocation=(self "https://widget.onramper.com" "https://*.banxa.com" "https://orlt.banxa.com"), payment=(self "https://widget.onramper.com" "https://*.banxa.com" "https://orlt.banxa.com")',
           },
           {
             key: 'X-XSS-Protection',
