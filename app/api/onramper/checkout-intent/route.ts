@@ -162,14 +162,15 @@ export async function POST(req: NextRequest) {
             });
             
             if (supportingProviders.length > 0) {
-              // Use the first provider (or we could choose based on best rates)
-              // According to Onramper docs, Banxa is the only provider that supports iDEAL for EUR -> SOL
+              // Use the first provider, but log all available providers
+              // If Banxa is unavailable, we can try other providers
               onrampProvider = supportingProviders[0];
               logger.log('✅ Found onramp provider from /supported/payment-types:', {
                 provider: onrampProvider,
                 paymentMethod: paymentMethodLower,
                 totalSupporting: supportingProviders.length,
                 allProviders: supportingProviders,
+                note: 'If first provider fails, we can try other providers from the list',
               });
             } else {
               logger.error('❌ No onramp provider found that supports payment method (from /supported/payment-types):', {
