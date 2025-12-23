@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
         
         const supportedPaymentTypesResponse = await fetch(supportedPaymentTypesUrl, {
           headers: {
-            'Authorization': onramperApiKey,
+            'Authorization': onramperApiKey || '',
             'Accept': 'application/json',
           },
         });
