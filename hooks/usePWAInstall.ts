@@ -23,12 +23,18 @@ export function usePWAInstall() {
 
     // Listen for beforeinstallprompt event
     const handler = (e: Event) => {
-      // Prevent the native browser prompt
-      e.preventDefault();
+      // Prevent the native browser prompt only if we're going to show our custom prompt
+      // This prevents the console warning about preventDefault() without prompt()
+      const installPromptEvent = e as BeforeInstallPromptEvent;
       
-      // Store the event for later use
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setIsInstallable(true);
+      // Only prevent default if we have a valid prompt method
+      if (installPromptEvent.prompt) {
+        e.preventDefault();
+        
+        // Store the event for later use
+        setDeferredPrompt(installPromptEvent);
+        setIsInstallable(true);
+      }
     };
 
     window.addEventListener('beforeinstallprompt', handler);

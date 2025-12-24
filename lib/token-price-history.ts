@@ -134,6 +134,7 @@ async function fetchJupiterPriceHistory(
 
 /**
  * TIER 2: CoinGecko API (Major crypto + ERC20)
+ * Uses server-side API route to avoid client-side 401 errors
  */
 async function fetchCoinGeckoPriceHistory(
   symbol: string,
@@ -144,61 +145,38 @@ async function fetchCoinGeckoPriceHistory(
   try {
     logger.log(`🦎 [CoinGecko] Fetching price history for ${symbol}...`);
     
-    // Try to get CoinGecko ID
-    let coinGeckoId = getCoinGeckoId(symbol);
+    // Use server-side API route instead of direct CoinGecko call
+    // This ensures API key is available and errors are handled gracefully
+    const params = new URLSearchParams({
+      symbol,
+      days: days.toString(),
+    });
+    if (contractAddress) params.append('contractAddress', contractAddress);
+    if (chain) params.append('chain', chain);
     
-    // If no direct mapping, try to search by contract address
-    if (!coinGeckoId && contractAddress && chain) {
-      coinGeckoId = await searchCoinGeckoByContract(contractAddress, chain);
-    }
+    const apiUrl = `/api/price-history?${params.toString()}`;
+    logger.log(`🦎 [CoinGecko] Using API route: ${apiUrl}`);
     
-    if (!coinGeckoId) {
-      throw new Error(`No CoinGecko ID mapping for ${symbol}`);
-    }
-
-    const apiKey = process.env.COINGECKO_API_KEY?.trim();
-    const apiKeyParam = apiKey ? `&x_cg_demo_api_key=${apiKey}` : '';
-    
-    // Use appropriate interval based on days requested
-    // For 1 day: hourly, for 7+ days: daily (like Bitvavo)
-    const interval = days <= 1 ? 'hourly' : 'daily';
-    const url = `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}&interval=${interval}${apiKeyParam}`;
-    
-    logger.log(`🦎 [CoinGecko] Fetching ${days} days with ${interval} interval for ${symbol}...`);
-    if (!apiKey) {
-      logger.warn('⚠️ [CoinGecko] No API key set - using free tier (rate limited to 10-50 calls/min)');
-    }
-    
-    const response = await fetch(url, {
+    const response = await fetch(apiUrl, {
       headers: { 'Accept': 'application/json' },
       next: { revalidate: 900 } // 15 min cache
     });
 
     if (!response.ok) {
-      if (response.status === 401) {
-        logger.warn('⚠️ [CoinGecko] 401 Unauthorized - API key may be invalid or missing. Using free tier.');
-        throw new Error('CoinGecko API key invalid or missing');
-      }
-      if (response.status === 429) {
-        throw new Error('Rate limited');
-      }
-      throw new Error(`CoinGecko API error: ${response.status}`);
+      // API route returns 200 even on errors, but check just in case
+      logger.warn(`⚠️ [CoinGecko] API route returned ${response.status}`);
+      return { prices: [], success: false, error: `API error: ${response.status}`, source: 'CoinGecko' };
     }
 
     const data = await response.json();
     
-    if (!data.prices || data.prices.length === 0) {
-      throw new Error('No price data from CoinGecko');
+    if (!data.success || !data.prices || data.prices.length === 0) {
+      logger.warn(`⚠️ [CoinGecko] No price data: ${data.error || 'Unknown error'}`);
+      return { prices: [], success: false, error: data.error || 'No price data available', source: 'CoinGecko' };
     }
 
-    // CoinGecko returns [[timestamp, price], ...]
-    const prices: PriceDataPoint[] = data.prices.map(([timestamp, price]: [number, number]) => ({
-      timestamp,
-      price,
-    }));
-
-    logger.log(`✅ [CoinGecko] Got ${prices.length} price points`);
-    return { prices, success: true, source: 'CoinGecko' };
+    logger.log(`✅ [CoinGecko] Got ${data.prices.length} price points`);
+    return { prices: data.prices, success: true, source: 'CoinGecko' };
     
   } catch (error) {
     logger.warn(`❌ [CoinGecko] Failed:`, error);
