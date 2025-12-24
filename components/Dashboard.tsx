@@ -92,7 +92,8 @@ export default function Dashboard() {
   
   // Get the correct address for the current chain (Solana or EVM)
   // ✅ Memoize to prevent unnecessary re-renders
-  const displayAddress = useMemo(() => getCurrentAddress(), [getCurrentAddress, currentChain]);
+  // Only recalculate when currentChain changes (getCurrentAddress is stable from Zustand)
+  const displayAddress = useMemo(() => getCurrentAddress(), [currentChain]);
 
   // Founder/Developer wallet addresses (add your addresses here)
   const founderAddresses = [
