@@ -155,6 +155,9 @@ export default function Dashboard() {
   // ✅ Refs to track tokens and balance without causing dependency issues
   const tokensRef = useRef(tokens);
   const balanceRef = useRef(balance);
+  // ✅ Refs to track callback functions to prevent useEffect re-triggers
+  const refreshPricesOnlyRef = useRef<() => Promise<void>>();
+  const fetchDataRef = useRef<(force?: boolean) => Promise<void>>();
   
   // Update refs when values change
   useEffect(() => {
@@ -1011,6 +1014,11 @@ export default function Dashboard() {
   }, [displayAddress, currentChain, updateBalance, updateTokens, updateCurrentChainState, selectedTimeRange]);
   // ✅ Removed chain, priceService, blockchain, tokenService, portfolioHistory from dependencies
   // These are created/accessed inside the function and don't need to be in dependencies
+  
+  // ✅ Update fetchData ref when function changes
+  useEffect(() => {
+    fetchDataRef.current = fetchData;
+  }, [fetchData]);
 
   // Update chart data when time range changes
   const updateChartData = () => {
@@ -1238,6 +1246,11 @@ export default function Dashboard() {
   // - chain: derived from currentChain (already in dependencies)
   // - priceService: singleton, doesn't need to be in dependencies
   // This prevents the callback from being recreated on every price update
+  
+  // ✅ Update refreshPricesOnly ref when function changes
+  useEffect(() => {
+    refreshPricesOnlyRef.current = refreshPricesOnly;
+  }, [refreshPricesOnly]);
 
   useEffect(() => {
     console.log('🔄 [Dashboard] useEffect triggered', { displayAddress, currentChain });
@@ -1250,20 +1263,30 @@ export default function Dashboard() {
     console.log('🔄 [Dashboard] Setting up refresh intervals');
     logger.log('🔄 [Dashboard] Setting up refresh intervals');
     console.log('🔄 [Dashboard] Calling fetchData(true)');
-    fetchData(true).catch(error => {
-      console.error('❌ [Dashboard] fetchData error:', error);
-      logger.error('❌ [Dashboard] fetchData error:', error);
-    }); // Force refresh on mount
+    // Use ref to call fetchData to avoid dependency issues
+    if (fetchDataRef.current) {
+      fetchDataRef.current(true).catch(error => {
+        console.error('❌ [Dashboard] fetchData error:', error);
+        logger.error('❌ [Dashboard] fetchData error:', error);
+      }); // Force refresh on mount
+    }
+    
     // ✅ Auto-refresh prices every 30 seconds (frequent price updates)
     // Full data refresh every 60 seconds (balances, new tokens, etc.)
     const priceRefreshInterval = setInterval(() => {
       logger.log('⏰ [Dashboard] Price refresh interval triggered');
-      refreshPricesOnly();
+      // Use ref to call refreshPricesOnly to avoid dependency issues
+      if (refreshPricesOnlyRef.current) {
+        refreshPricesOnlyRef.current();
+      }
     }, 30000); // 30 seconds for price updates
     
     const fullRefreshInterval = setInterval(() => {
       logger.log('⏰ [Dashboard] Full refresh interval triggered');
-      fetchData(false);
+      // Use ref to call fetchData to avoid dependency issues
+      if (fetchDataRef.current) {
+        fetchDataRef.current(false);
+      }
     }, 60000); // ✅ Full update every 60 seconds
     
     // ✅ REMOVED: Scroll to top was causing scroll issues
@@ -1275,7 +1298,9 @@ export default function Dashboard() {
       clearInterval(priceRefreshInterval);
       clearInterval(fullRefreshInterval);
     };
-  }, [displayAddress, currentChain, refreshPricesOnly, fetchData]); // ✅ Added fetchData to dependencies
+  }, [displayAddress, currentChain]); // ✅ Only depend on displayAddress and currentChain
+  // ✅ Removed refreshPricesOnly and fetchData from dependencies - using refs instead
+  // This prevents infinite loops when these functions are recreated
 
   // Check Priority List status
   useEffect(() => {
