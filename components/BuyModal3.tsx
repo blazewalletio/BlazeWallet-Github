@@ -2,12 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Loader2, AlertCircle, CheckCircle2, ArrowRight, Flame, CreditCard, TestTube, Copy, Check } from 'lucide-react';
+import { X, Loader2, AlertCircle, CheckCircle2, ArrowRight, Flame, CreditCard, TestTube, Copy, Check, TrendingUp, Shield, Star, Award, Info } from 'lucide-react';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { useWalletStore } from '@/lib/wallet-store';
 import { CHAINS } from '@/lib/chains';
 import { OnramperService } from '@/lib/onramper-service';
+import { ProviderSelector } from '@/lib/provider-selector';
+import { UserOnRampPreferencesService } from '@/lib/user-onramp-preferences';
 import { logger } from '@/lib/logger';
+import { supabase } from '@/lib/supabase';
 import toast from 'react-hot-toast';
 
 interface BuyModal3Props {
@@ -22,6 +25,19 @@ interface Quote {
   totalAmount: string;
   baseCurrency: string;
   quoteCurrency: string;
+}
+
+interface ProviderQuote {
+  ramp: string;
+  paymentMethod: string;
+  rate?: number;
+  networkFee?: number;
+  transactionFee?: number;
+  payout?: number;
+  availablePaymentMethods?: Array<{ paymentTypeId: string; name: string; icon: string }>;
+  quoteId?: string;
+  recommendations?: string[];
+  errors?: Array<{ type: string; errorId: number; message: string }>;
 }
 
 interface PaymentMethod {
@@ -57,12 +73,43 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
 
   // Data state
   const [quote, setQuote] = useState<Quote | null>(null);
+  const [providerQuotes, setProviderQuotes] = useState<ProviderQuote[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+  const [showProviderComparison, setShowProviderComparison] = useState(false);
+  const [comparisonQuotes, setComparisonQuotes] = useState<ProviderQuote[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userPreferences, setUserPreferences] = useState<{ verifiedProviders: string[]; preferredProvider: string | null } | null>(null);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [fiatCurrencies, setFiatCurrencies] = useState<string[]>(['EUR', 'USD', 'GBP']);
   const [cryptoCurrencies, setCryptoCurrencies] = useState<string[]>([]);
   const [widgetUrl, setWidgetUrl] = useState<string>('');
+  const [lastTransactionId, setLastTransactionId] = useState<string | null>(null);
 
   const supportedFiats = ['EUR', 'USD', 'GBP', 'CAD', 'AUD', 'JPY', 'CHF', 'NOK', 'SEK', 'DKK'];
+
+  // Get user ID and preferences for provider selection
+  useEffect(() => {
+    const getUser = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id) {
+          setUserId(user.id);
+          // Load user preferences
+          const preferences = await UserOnRampPreferencesService.get(user.id);
+          if (preferences) {
+            setUserPreferences({
+              verifiedProviders: preferences.verifiedProviders || [],
+              preferredProvider: preferences.preferredProvider,
+            });
+          }
+        }
+      } catch (error) {
+        // User not logged in - that's okay
+        setUserId(null);
+      }
+    };
+    getUser();
+  }, []);
 
   // Initialize default crypto based on current chain
   useEffect(() => {
@@ -141,7 +188,8 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
 
   const fetchSupportedData = async () => {
     try {
-      const response = await fetch('/api/onramper/supported-data?country=NL');
+      // Remove hardcoded country - let server auto-detect
+      const response = await fetch('/api/onramper/supported-data');
       const data = await response.json();
 
       if (data.success) {
@@ -167,22 +215,81 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
       setLoading(true);
       setError(null);
 
-      const quoteResponse = await fetch(
-        `/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${fiatCurrency}&cryptoCurrency=${cryptoCurrency}`
-      );
+      // Fetch quotes from ALL providers
+      const quoteUrl = `/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${fiatCurrency}&cryptoCurrency=${cryptoCurrency}${paymentMethod ? `&paymentMethod=${paymentMethod}` : ''}`;
+      const quoteResponse = await fetch(quoteUrl);
 
       const data = await quoteResponse.json();
 
-      if (data.success && data.quote) {
-        setQuote(data.quote);
+      if (data.success && data.quotes) {
+        // Store all provider quotes
+        setProviderQuotes(data.quotes);
+        
+        // Select best provider using smart selection (with user preferences)
+        if (data.quotes.length > 0 && paymentMethod) {
+          try {
+            const selection = await ProviderSelector.selectProvider(
+              data.quotes,
+              userId,
+              paymentMethod
+            );
+            
+            // Set selected provider
+            setSelectedProvider(selection.quote.ramp);
+            
+            // Show comparison if needed
+            if (selection.showComparison && selection.comparisonQuotes) {
+              setShowProviderComparison(true);
+              setComparisonQuotes(selection.comparisonQuotes);
+            } else {
+              setShowProviderComparison(false);
+              setComparisonQuotes([]);
+            }
+            
+            // Convert selected quote to old format for backward compatibility
+            const selectedQuote = selection.quote;
+            if (selectedQuote.payout) {
+              setQuote({
+                cryptoAmount: selectedQuote.payout.toString(),
+                exchangeRate: selectedQuote.rate?.toString() || '0',
+                fee: ((selectedQuote.networkFee || 0) + (selectedQuote.transactionFee || 0)).toString(),
+                totalAmount: fiatAmount,
+                baseCurrency: fiatCurrency,
+                quoteCurrency: cryptoCurrency,
+              });
+            }
+          } catch (selectionError: any) {
+            logger.error('Failed to select provider:', selectionError);
+            // Fallback: use first valid quote
+            const firstValid = data.quotes.find((q: ProviderQuote) => !q.errors || q.errors.length === 0);
+            if (firstValid) {
+              setSelectedProvider(firstValid.ramp);
+              if (firstValid.payout) {
+                setQuote({
+                  cryptoAmount: firstValid.payout.toString(),
+                  exchangeRate: firstValid.rate?.toString() || '0',
+                  fee: ((firstValid.networkFee || 0) + (firstValid.transactionFee || 0)).toString(),
+                  totalAmount: fiatAmount,
+                  baseCurrency: fiatCurrency,
+                  quoteCurrency: cryptoCurrency,
+                });
+              }
+            }
+          }
+        } else {
+          // No payment method selected yet - just store quotes
+          setProviderQuotes(data.quotes);
+        }
       } else {
-        setError(data.error || 'Failed to fetch quote');
+        setError(data.error || 'Failed to fetch quotes');
         setQuote(null);
+        setProviderQuotes([]);
       }
     } catch (err: any) {
-      logger.error('Failed to fetch Onramper quote:', err);
-      setError('Failed to fetch quote. Please try again.');
+      logger.error('Failed to fetch Onramper quotes:', err);
+      setError('Failed to fetch quotes. Please try again.');
       setQuote(null);
+      setProviderQuotes([]);
     } finally {
       setLoading(false);
     }
@@ -205,11 +312,41 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
       return;
     }
 
+    // Select provider if not already selected
+    let providerToUse = selectedProvider;
+    if (!providerToUse && providerQuotes.length > 0) {
+      try {
+        const selection = await ProviderSelector.selectProvider(
+          providerQuotes,
+          userId,
+          paymentMethod
+        );
+        providerToUse = selection.quote.ramp;
+        setSelectedProvider(providerToUse);
+      } catch (selectionError: any) {
+        logger.error('Failed to select provider:', selectionError);
+        // Fallback: use first valid quote
+        const firstValid = providerQuotes.find((q: ProviderQuote) => !q.errors || q.errors.length === 0);
+        if (firstValid) {
+          providerToUse = firstValid.ramp;
+          setSelectedProvider(providerToUse);
+        } else {
+          toast.error('No valid provider available');
+          return;
+        }
+      }
+    }
+
+    if (!providerToUse) {
+      toast.error('No provider available. Please try again.');
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
 
-      // Use new checkout-intent API for better UI/UX control
+      // Use new checkout-intent API with selected provider
       const response = await fetch('/api/onramper/checkout-intent', {
         method: 'POST',
         headers: {
@@ -221,6 +358,7 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
           cryptoCurrency,
           walletAddress,
           paymentMethod,
+          onramp: providerToUse, // REQUIRED: Selected provider
         }),
       });
 
@@ -232,9 +370,13 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
         const transactionUrl = transactionInformation.url;
         const transactionId = transactionInformation.transactionId;
 
+        // Store transaction ID for tracking
+        setLastTransactionId(transactionId);
+
         logger.log('✅ Onramper checkout intent created:', {
           transactionId,
           type: transactionType,
+          provider: providerToUse,
         });
 
         if (transactionType === 'iframe') {
@@ -365,6 +507,16 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
                       // Payment completed - close popup and redirect
                       clearInterval(checkPopup);
                       popup.close();
+                      
+                      // Update user preferences after successful transaction
+                      if (userId && transactionId) {
+                        try {
+                          await UserOnRampPreferencesService.updateAfterTransaction(userId, transactionId);
+                          logger.log('✅ Updated user preferences after transaction');
+                        } catch (error) {
+                          logger.error('Failed to update preferences:', error);
+                        }
+                      }
                       
                       // Redirect to success page
                       window.location.href = `/buy/success?provider=onramper&transactionId=${transactionId || Date.now()}`;
@@ -875,6 +1027,105 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
                   </div>
                 )}
 
+                {/* Provider Comparison UI */}
+                {showProviderComparison && comparisonQuotes.length > 0 && (
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl mb-4">
+                    <div className="flex items-start gap-2 mb-3">
+                      <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <h4 className="text-sm font-semibold text-blue-900 mb-1">Compare Providers</h4>
+                        <p className="text-xs text-blue-700">Your preferred provider has a different rate. Compare options:</p>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {comparisonQuotes.map((q) => {
+                        const isVerified = userPreferences?.verifiedProviders?.includes(q.ramp);
+                        const isPreferred = userPreferences?.preferredProvider === q.ramp;
+                        const isSelected = selectedProvider === q.ramp;
+                        const hasBestPrice = q.recommendations?.includes('BestPrice');
+                        
+                        return (
+                          <motion.button
+                            key={q.ramp}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => {
+                              setSelectedProvider(q.ramp);
+                              if (q.payout) {
+                                setQuote({
+                                  cryptoAmount: q.payout.toString(),
+                                  exchangeRate: q.rate?.toString() || '0',
+                                  fee: ((q.networkFee || 0) + (q.transactionFee || 0)).toString(),
+                                  totalAmount: fiatAmount,
+                                  baseCurrency: fiatCurrency,
+                                  quoteCurrency: cryptoCurrency,
+                                });
+                              }
+                            }}
+                            className={`w-full p-3 rounded-lg border-2 transition-all text-left ${
+                              isSelected
+                                ? 'border-indigo-500 bg-indigo-50'
+                                : 'border-gray-200 hover:border-gray-300 bg-white'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <span className="font-semibold text-sm capitalize">{q.ramp}</span>
+                                {isVerified && (
+                                  <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                                    <Shield className="w-3 h-3" />
+                                    Verified
+                                  </span>
+                                )}
+                                {isPreferred && (
+                                  <span className="flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                                    <Star className="w-3 h-3" />
+                                    Preferred
+                                  </span>
+                                )}
+                                {hasBestPrice && (
+                                  <span className="flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
+                                    <TrendingUp className="w-3 h-3" />
+                                    Best Price
+                                  </span>
+                                )}
+                              </div>
+                              {q.payout && (
+                                <span className="text-sm font-bold text-gray-900 ml-2">
+                                  {parseFloat(q.payout.toString()).toFixed(6)} {cryptoCurrency}
+                                </span>
+                              )}
+                            </div>
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Selected Provider Badge */}
+                {selectedProvider && quote && !loading && (
+                  <div className="mb-4 p-3 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-700">Provider:</span>
+                        <span className="text-sm font-semibold capitalize text-indigo-900">{selectedProvider}</span>
+                        {userPreferences?.verifiedProviders?.includes(selectedProvider) && (
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                            <Shield className="w-3 h-3" />
+                            Verified
+                          </span>
+                        )}
+                        {userPreferences?.preferredProvider === selectedProvider && (
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                            <Star className="w-3 h-3" />
+                            Preferred
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {quote && !loading && (
                   <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-xl">
                     <div className="space-y-2">
@@ -900,6 +1151,71 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
                           {quote.baseCurrency} {quote.totalAmount}
                         </span>
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* All Available Providers (Mobile-friendly) */}
+                {providerQuotes.length > 1 && !showProviderComparison && paymentMethod && (
+                  <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-semibold text-gray-700">Available Providers</h4>
+                      <button
+                        onClick={() => setShowProviderComparison(true)}
+                        className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                      >
+                        Compare all
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {providerQuotes
+                        .filter((q) => !q.errors || q.errors.length === 0)
+                        .slice(0, 3)
+                        .map((q) => {
+                          const isVerified = userPreferences?.verifiedProviders?.includes(q.ramp);
+                          const isPreferred = userPreferences?.preferredProvider === q.ramp;
+                          const isSelected = selectedProvider === q.ramp;
+                          const hasBestPrice = q.recommendations?.includes('BestPrice');
+                          
+                          return (
+                            <div
+                              key={q.ramp}
+                              className={`p-2 rounded-lg border ${
+                                isSelected
+                                  ? 'border-indigo-500 bg-indigo-50'
+                                  : 'border-gray-200 bg-white'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  <span className="text-xs font-medium capitalize text-gray-700">{q.ramp}</span>
+                                  {isVerified && (
+                                    <Shield className="w-3 h-3 text-green-600" title="Verified" />
+                                  )}
+                                  {isPreferred && (
+                                    <Star className="w-3 h-3 text-purple-600" title="Preferred" />
+                                  )}
+                                  {hasBestPrice && (
+                                    <TrendingUp className="w-3 h-3 text-orange-600" title="Best Price" />
+                                  )}
+                                </div>
+                                {q.payout && (
+                                  <span className="text-xs font-semibold text-gray-900 ml-2">
+                                    {parseFloat(q.payout.toString()).toFixed(4)} {cryptoCurrency}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      {providerQuotes.filter((q) => !q.errors || q.errors.length === 0).length > 3 && (
+                        <button
+                          onClick={() => setShowProviderComparison(true)}
+                          className="w-full text-xs text-indigo-600 hover:text-indigo-700 font-medium py-2"
+                        >
+                          View all {providerQuotes.filter((q) => !q.errors || q.errors.length === 0).length} providers →
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}

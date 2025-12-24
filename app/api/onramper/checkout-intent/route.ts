@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { OnramperService } from '@/lib/onramper-service';
 import { CHAINS } from '@/lib/chains';
+import { GeolocationService } from '@/lib/geolocation';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -28,6 +29,7 @@ export async function POST(req: NextRequest) {
       paymentMethod,
       email,
       country,
+      onramp, // REQUIRED: Provider name (banxa, moonpay, etc.)
     } = await req.json();
 
     // Validate required fields
@@ -37,6 +39,18 @@ export async function POST(req: NextRequest) {
           success: false,
           error: 'Missing required fields',
           message: 'fiatAmount, fiatCurrency, cryptoCurrency, and walletAddress are required'
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate provider (REQUIRED for /checkout/intent)
+    if (!onramp) {
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'Missing required field',
+          message: 'onramp (provider name) is required. Please select a provider first.'
         },
         { status: 400 }
       );
@@ -73,26 +87,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Detect country if not provided
+    let detectedCountry = country;
+    if (!detectedCountry) {
+      detectedCountry = await GeolocationService.detectCountry(req) || undefined;
+      if (detectedCountry) {
+        logger.log('✅ Auto-detected country:', detectedCountry);
+      }
+    }
+
     logger.log('📊 Creating Onramper checkout intent:', {
       fiatAmount,
       fiatCurrency,
       cryptoCurrency,
       walletAddress: walletAddress.substring(0, 10) + '...',
       paymentMethod,
+      onramp,
+      country: detectedCountry || 'auto-detect',
     });
 
-    // SIMPLIFIED: Always use Banxa as the provider
-    // Later we can add logic to choose between providers, but for now Banxa works for all payment methods
-    let onrampProvider: string = 'banxa';
+    // Use provided provider (selected by smart provider selection)
+    const onrampProvider = onramp.toLowerCase();
     
-    logger.log('✅ Using Banxa as onramp provider:', {
+    logger.log('✅ Using selected onramp provider:', {
+      provider: onrampProvider,
       paymentMethod: paymentMethod || 'none',
-      note: 'Banxa supports most payment methods (iDEAL, creditcard, Apple Pay, Google Pay, etc.)',
     });
     
-    // Optional: Check if Banxa supports the payment method (for logging/debugging)
-    // We'll still use Banxa even if this check fails, as Banxa supports most methods
-    if (paymentMethod && false) { // Disabled for now - always use Banxa
+    // Optional: Check if provider supports the payment method (for logging/debugging)
+    if (paymentMethod && false) { // Disabled for now - provider already selected
       try {
         logger.log('📊 Fetching supported payment types to find providers that support payment method...');
         const fiatLower = fiatCurrency.toLowerCase();
@@ -100,7 +123,8 @@ export async function POST(req: NextRequest) {
         
         // Use /supported/payment-types/{source} endpoint to get providers that support this payment method
         // This endpoint shows which providers support which payment methods for EUR -> SOL
-        const supportedPaymentTypesUrl = `https://api.onramper.com/supported/payment-types/${fiatLower}?type=buy&destination=${cryptoLower}&country=NL`;
+        const countryParam = detectedCountry ? `&country=${detectedCountry.toLowerCase()}` : '';
+        const supportedPaymentTypesUrl = `https://api.onramper.com/supported/payment-types/${fiatLower}?type=buy&destination=${cryptoLower}${countryParam}`;
         
         const supportedPaymentTypesResponse = await fetch(supportedPaymentTypesUrl, {
           headers: {
@@ -266,12 +290,11 @@ export async function POST(req: NextRequest) {
       logger.warn('⚠️ Could not determine network code for crypto:', cryptoCurrency);
     }
 
-    // Always use Banxa as the provider
+    // Add selected provider (REQUIRED for /checkout/intent)
     requestBody.onramp = onrampProvider;
-    logger.log('✅ Added Banxa as onramp provider to request:', {
+    logger.log('✅ Added selected onramp provider to request:', {
       provider: onrampProvider,
       paymentMethod: paymentMethod || 'none',
-      note: 'Banxa supports most payment methods (iDEAL, creditcard, Apple Pay, Google Pay, Bancontact, etc.)',
     });
 
     // Add optional fields
@@ -281,8 +304,9 @@ export async function POST(req: NextRequest) {
     if (email) {
       requestBody.email = email;
     }
-    if (country) {
-      requestBody.country = country.toUpperCase();
+    // Add country if detected (otherwise Onramper auto-detects via IP)
+    if (detectedCountry) {
+      requestBody.country = detectedCountry.toUpperCase();
     }
 
     // Add partner context for tracking

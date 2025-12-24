@@ -1010,5 +1010,412 @@ export class OnramperService {
       return null;
     }
   }
+
+  // =============================================================================
+  // NEW METHODS FOR MULTI-PROVIDER SUPPORT
+  // =============================================================================
+
+  /**
+   * Get available onramp providers for a specific transaction
+   * Endpoint: GET /supported/onramps
+   * Docs: https://docs.onramper.com/reference/get_supported-onramps
+   */
+  static async getAvailableProviders(
+    fiatCurrency: string,
+    cryptoCurrency: string,
+    country?: string,
+    apiKey?: string
+  ): Promise<Array<{
+    onramp: string;
+    country: string;
+    paymentMethods: string[];
+    recommendedPaymentMethod: string;
+  }>> {
+    try {
+      if (!apiKey) {
+        logger.warn('⚠️ Onramper API key not provided for getAvailableProviders');
+        return [];
+      }
+
+      const fiatLower = fiatCurrency.toLowerCase();
+      const cryptoLower = cryptoCurrency.toLowerCase();
+      let url = `https://api.onramper.com/supported/onramps?type=buy&source=${fiatLower}&destination=${cryptoLower}`;
+      
+      // Add country if provided (otherwise Onramper auto-detects via IP)
+      if (country) {
+        url += `&country=${country.toLowerCase()}`;
+      }
+
+      logger.log('📊 Fetching available providers:', { fiatCurrency, cryptoCurrency, country: country || 'auto-detect' });
+
+      // Try multiple authentication methods
+      let response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok && (response.status === 401 || response.status === 403)) {
+        response = await fetch(url, {
+          headers: {
+            'Authorization': apiKey,
+            'Accept': 'application/json',
+          },
+        });
+      }
+
+      if (!response.ok) {
+        logger.error('❌ Failed to fetch available providers:', {
+          status: response.status,
+          statusText: response.statusText,
+        });
+        return [];
+      }
+
+      const data = await response.json();
+      
+      // Response format: { message: [...] }
+      const providers = data.message || [];
+      
+      logger.log(`✅ Found ${providers.length} available providers`);
+      return providers;
+    } catch (error: any) {
+      logger.error('❌ Error fetching available providers:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get payment methods with provider support
+   * Endpoint: GET /supported/payment-types/{source}
+   * Docs: https://docs.onramper.com/reference/get_supported-payment-types-source
+   */
+  static async getPaymentMethods(
+    fiatCurrency: string,
+    cryptoCurrency: string,
+    country?: string,
+    apiKey?: string
+  ): Promise<Array<{
+    paymentTypeId: string;
+    name: string;
+    icon: string;
+    details: {
+      currencyStatus: string;
+      limits: Record<string, { min: number; max: number }>;
+    };
+  }>> {
+    try {
+      if (!apiKey) {
+        logger.warn('⚠️ Onramper API key not provided for getPaymentMethods');
+        return [];
+      }
+
+      const fiatLower = fiatCurrency.toLowerCase();
+      const cryptoLower = cryptoCurrency.toLowerCase();
+      let url = `https://api.onramper.com/supported/payment-types/${fiatLower}?type=buy&destination=${cryptoLower}`;
+      
+      // Add country if provided (otherwise Onramper auto-detects via IP)
+      if (country) {
+        url += `&country=${country.toLowerCase()}`;
+      }
+
+      logger.log('📊 Fetching payment methods:', { fiatCurrency, cryptoCurrency, country: country || 'auto-detect' });
+
+      // Try multiple authentication methods
+      let response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok && (response.status === 401 || response.status === 403)) {
+        response = await fetch(url, {
+          headers: {
+            'Authorization': apiKey,
+            'Accept': 'application/json',
+          },
+        });
+      }
+
+      if (!response.ok) {
+        logger.error('❌ Failed to fetch payment methods:', {
+          status: response.status,
+          statusText: response.statusText,
+        });
+        return [];
+      }
+
+      const data = await response.json();
+      
+      // Response format: { message: [...] }
+      const paymentMethods = data.message || [];
+      
+      logger.log(`✅ Found ${paymentMethods.length} payment methods`);
+      return paymentMethods;
+    } catch (error: any) {
+      logger.error('❌ Error fetching payment methods:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get country-specific defaults
+   * Endpoint: GET /supported/defaults/all
+   * Docs: https://docs.onramper.com/reference/get_supported-defaults-all
+   */
+  static async getCountryDefaults(
+    country?: string,
+    apiKey?: string
+  ): Promise<{
+    recommended?: {
+      source: string;
+      target: string;
+      amount: number;
+      paymentMethod: string;
+      provider: string;
+      country: string;
+    };
+    defaults?: Record<string, {
+      source: string;
+      target: string;
+      amount: number;
+      paymentMethod: string;
+      provider: string;
+    }>;
+  } | null> {
+    try {
+      if (!apiKey) {
+        logger.warn('⚠️ Onramper API key not provided for getCountryDefaults');
+        return null;
+      }
+
+      let url = `https://api.onramper.com/supported/defaults/all?type=buy`;
+      
+      // Add country if provided (otherwise Onramper auto-detects via IP)
+      if (country) {
+        url += `&country=${country.toLowerCase()}`;
+      }
+
+      logger.log('📊 Fetching country defaults:', { country: country || 'auto-detect' });
+
+      // Try multiple authentication methods
+      let response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok && (response.status === 401 || response.status === 403)) {
+        response = await fetch(url, {
+          headers: {
+            'Authorization': apiKey,
+            'Accept': 'application/json',
+          },
+        });
+      }
+
+      if (!response.ok) {
+        logger.error('❌ Failed to fetch country defaults:', {
+          status: response.status,
+          statusText: response.statusText,
+        });
+        return null;
+      }
+
+      const data = await response.json();
+      
+      // Response format: { message: {...} }
+      const defaults = data.message || {};
+      
+      logger.log('✅ Country defaults fetched:', { 
+        hasRecommended: !!defaults.recommended,
+        defaultCount: defaults.defaults ? Object.keys(defaults.defaults).length : 0,
+      });
+      return defaults;
+    } catch (error: any) {
+      logger.error('❌ Error fetching country defaults:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get all provider quotes for comparison
+   * Endpoint: GET /quotes/{fiat}/{crypto}
+   * Docs: https://docs.onramper.com/reference/get_quotes-fiat-crypto
+   * 
+   * ⚠️ IMPORTANT: This endpoint returns DIRECT ARRAY (not in message field!)
+   */
+  static async getAllProviderQuotes(
+    fiatAmount: number,
+    fiatCurrency: string,
+    cryptoCurrency: string,
+    paymentMethod?: string,
+    country?: string,
+    apiKey?: string
+  ): Promise<Array<{
+    ramp: string;
+    paymentMethod: string;
+    rate?: number;
+    networkFee?: number;
+    transactionFee?: number;
+    payout?: number;
+    availablePaymentMethods?: Array<{ paymentTypeId: string; name: string; icon: string }>;
+    quoteId?: string;
+    recommendations?: string[];
+    errors?: Array<{ type: string; errorId: number; message: string }>;
+  }>> {
+    try {
+      if (!apiKey) {
+        logger.warn('⚠️ Onramper API key not provided for getAllProviderQuotes');
+        return [];
+      }
+
+      const fiatLower = fiatCurrency.toLowerCase();
+      const cryptoLower = cryptoCurrency.toLowerCase();
+      let url = `https://api.onramper.com/quotes/${fiatLower}/${cryptoLower}?amount=${fiatAmount}`;
+      
+      // Add payment method if provided
+      if (paymentMethod) {
+        url += `&paymentMethod=${paymentMethod.toLowerCase()}`;
+      }
+      
+      // Add country if provided (otherwise Onramper auto-detects via IP)
+      if (country) {
+        url += `&country=${country.toLowerCase()}`;
+      }
+
+      logger.log('📊 Fetching all provider quotes:', { 
+        fiatAmount, 
+        fiatCurrency, 
+        cryptoCurrency, 
+        paymentMethod: paymentMethod || 'any',
+        country: country || 'auto-detect',
+      });
+
+      // Try multiple authentication methods
+      let response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok && (response.status === 401 || response.status === 403)) {
+        response = await fetch(url, {
+          headers: {
+            'Authorization': apiKey,
+            'Accept': 'application/json',
+          },
+        });
+      }
+
+      if (!response.ok) {
+        logger.error('❌ Failed to fetch quotes:', {
+          status: response.status,
+          statusText: response.statusText,
+        });
+        return [];
+      }
+
+      const data = await response.json();
+      
+      // ⚠️ CRITICAL: Quotes endpoint returns DIRECT ARRAY (not in message field!)
+      const quotes = Array.isArray(data) ? data : (data.message || []);
+      
+      // Filter out quotes with errors (but keep them for debugging)
+      const validQuotes = quotes.filter((q: any) => !q.errors || q.errors.length === 0);
+      
+      logger.log(`✅ Found ${quotes.length} provider quotes (${validQuotes.length} valid)`);
+      return quotes; // Return all quotes (including errors) for comparison
+    } catch (error: any) {
+      logger.error('❌ Error fetching all provider quotes:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get transaction details
+   * Endpoint: GET /transactions/{transactionId}
+   * Docs: https://docs.onramper.com/reference/get_transactions-transactionid
+   */
+  static async getTransaction(
+    transactionId: string,
+    apiKey?: string,
+    secretKey?: string
+  ): Promise<{
+    transactionId: string;
+    onramp: string;
+    status: string;
+    paymentMethod: string;
+    sourceCurrency: string;
+    targetCurrency: string;
+    inAmount: number;
+    outAmount: number;
+    country: string;
+    walletAddress: string;
+    statusDate: string;
+    transactionHash?: string;
+    onrampTransactionId?: string;
+  } | null> {
+    try {
+      if (!apiKey || !secretKey) {
+        logger.warn('⚠️ Onramper API key or secret key not provided for getTransaction');
+        return null;
+      }
+
+      const url = `https://api.onramper.com/transactions/${transactionId}`;
+
+      logger.log('📊 Fetching transaction details:', { transactionId });
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': apiKey,
+          'x-onramper-secret': secretKey, // Required for transaction endpoint
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        logger.error('❌ Failed to fetch transaction:', {
+          status: response.status,
+          statusText: response.statusText,
+        });
+        return null;
+      }
+
+      const data = await response.json();
+      
+      // Response format: Direct object (not in message field)
+      // { transactionId, onramp, status, paymentMethod, ... }
+      
+      logger.log('✅ Transaction details fetched:', { 
+        transactionId: data.transactionId,
+        onramp: data.onramp,
+        status: data.status,
+      });
+      
+      return {
+        transactionId: data.transactionId,
+        onramp: data.onramp,
+        status: data.status,
+        paymentMethod: data.paymentMethod,
+        sourceCurrency: data.sourceCurrency,
+        targetCurrency: data.targetCurrency,
+        inAmount: data.inAmount,
+        outAmount: data.outAmount,
+        country: data.country,
+        walletAddress: data.walletAddress,
+        statusDate: data.statusDate,
+        transactionHash: data.transactionHash,
+        onrampTransactionId: data.onrampTransactionId,
+      };
+    } catch (error: any) {
+      logger.error('❌ Error fetching transaction:', error);
+      return null;
+    }
+  }
 }
 

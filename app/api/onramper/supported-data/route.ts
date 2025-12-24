@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { OnramperService } from '@/lib/onramper-service';
+import { GeolocationService } from '@/lib/geolocation';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,7 +10,19 @@ export async function GET(req: NextRequest) {
     // CRITICAL: Trim API key to remove any whitespace/newlines
     const onramperApiKey = process.env.ONRAMPER_API_KEY?.trim();
     const { searchParams } = new URL(req.url);
-    const country = searchParams.get('country') || 'NL'; // Default to Netherlands
+    const countryParam = searchParams.get('country');
+    
+    // Detect country if not provided
+    let country = countryParam;
+    if (!country) {
+      country = await GeolocationService.detectCountry(req) || undefined;
+      if (country) {
+        logger.log('✅ Auto-detected country:', country);
+      }
+    }
+    
+    // Use 'NL' as fallback only if no country detected (for backward compatibility)
+    const countryForApi = country || undefined; // Let Onramper auto-detect if not provided
     
     // If no API key, return fallback data so UI still works
     if (!onramperApiKey) {
@@ -29,10 +42,10 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    logger.log('📊 Fetching Onramper supported data...', { country });
+    logger.log('📊 Fetching Onramper supported data...', { country: countryForApi || 'auto-detect' });
 
-    // Get supported data from Onramper (with country parameter for payment types)
-    const supportedData = await OnramperService.getSupportedData(onramperApiKey, country);
+    // Get supported data from Onramper (country is optional - Onramper auto-detects if not provided)
+    const supportedData = await OnramperService.getSupportedData(onramperApiKey, countryForApi);
 
     if (!supportedData) {
       // Return fallback data if API fails
