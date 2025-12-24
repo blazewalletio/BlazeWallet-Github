@@ -239,11 +239,12 @@ export class PriceService {
       }
     }
 
-    // Silent fail for getPrice() - DexScreener will be used as final fallback
-    // Only log if it's a well-known token (not a meme coin)
+    // Silent fail for getPrice() - DexScreener will be used as final fallback for tokens with addresses
+    // For native tokens (MATIC, ETH, etc), if both CoinGecko and Binance fail, we return 0
+    // This is expected behavior - the price will be fetched on next refresh or from cache
     const knownTokens = ['ETH', 'BTC', 'SOL', 'MATIC', 'BNB', 'USDT', 'USDC'];
     if (knownTokens.includes(symbol.toUpperCase())) {
-      logger.error(`❌ [PriceService] All APIs failed for ${symbol}`);
+      logger.warn(`⚠️ [PriceService] CoinGecko and Binance both failed for ${symbol} - price will be 0 until next refresh. Check API keys and rate limits.`);
     }
     return 0;
   }

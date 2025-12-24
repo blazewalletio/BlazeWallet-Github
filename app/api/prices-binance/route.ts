@@ -103,6 +103,8 @@ export async function GET(request: Request) {
     const results = await Promise.all(pricePromises);
     const validResults = results.filter(r => r !== null);
 
+    logger.log(`✅ [BinanceAPI] Successfully fetched ${validResults.length}/${tickers.length} prices`);
+
     // Convert back to symbol-keyed format that PriceService expects
     const result: Record<string, { price: number; change24h: number }> = {};
     
@@ -115,9 +117,15 @@ export async function GET(request: Request) {
           price: data.price,
           change24h: data.change24h,
         };
+        logger.log(`✅ [BinanceAPI] ${symbol} = $${data.price} (${ticker})`);
       } else {
         // Include all symbols in result, even if not found (for consistency)
         result[symbol] = { price: 0, change24h: 0 };
+        if (ticker) {
+          logger.warn(`⚠️ [BinanceAPI] Failed to fetch ${symbol} (${ticker}) - will fallback to DexScreener`);
+        } else {
+          logger.warn(`⚠️ [BinanceAPI] Unknown symbol ${symbol} - no Binance ticker available`);
+        }
       }
     });
 

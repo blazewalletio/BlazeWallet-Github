@@ -20,7 +20,8 @@ export async function GET(request: Request) {
       ETH: 'ethereum',
       SOL: 'solana',
       BTC: 'bitcoin',
-      MATIC: 'matic-network',
+      MATIC: 'matic-network', // CoinGecko still uses 'matic-network' for MATIC token
+      POLYGON: 'polygon', // Polygon network native token (alternative name)
       BNB: 'binancecoin',
       TBNB: 'binancecoin', // Testnet BNB uses same price as mainnet BNB
       ARB: 'arbitrum',
@@ -116,9 +117,15 @@ export async function GET(request: Request) {
           price: data[coinId].usd || 0,
           change24h: data[coinId].usd_24h_change || 0,
         };
+        logger.log(`✅ [Prices] ${symbol} = $${result[symbol].price} (${coinId})`);
       } else {
         // Include all symbols in result, even if not found (for consistency)
         result[symbol] = { price: 0, change24h: 0 };
+        if (coinId) {
+          logger.warn(`⚠️ [Prices] CoinGecko returned no data for ${symbol} (${coinId}) - will fallback to Binance`);
+        } else {
+          logger.warn(`⚠️ [Prices] Unknown symbol ${symbol} - will fallback to Binance/DexScreener`);
+        }
       }
     });
 
