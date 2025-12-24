@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic'; // ✅ PERFORMANCE: Code splitting
 import { 
@@ -91,7 +91,8 @@ export default function Dashboard() {
   const { formatUSDSync, symbol } = useCurrency();
   
   // Get the correct address for the current chain (Solana or EVM)
-  const displayAddress = getCurrentAddress();
+  // ✅ Memoize to prevent unnecessary re-renders
+  const displayAddress = useMemo(() => getCurrentAddress(), [getCurrentAddress, currentChain]);
 
   // Founder/Developer wallet addresses (add your addresses here)
   const founderAddresses = [
@@ -158,6 +159,8 @@ export default function Dashboard() {
   // ✅ Refs to track callback functions to prevent useEffect re-triggers
   const refreshPricesOnlyRef = useRef<() => Promise<void>>();
   const fetchDataRef = useRef<(force?: boolean) => Promise<void>>();
+  // ✅ Ref to track if intervals are already set up to prevent duplicate intervals
+  const intervalsSetupRef = useRef<{ priceInterval?: NodeJS.Timeout; fullInterval?: NodeJS.Timeout; address?: string; chain?: string }>({});
   
   // Update refs when values change
   useEffect(() => {
@@ -1253,10 +1256,27 @@ export default function Dashboard() {
   }, [refreshPricesOnly]);
 
   useEffect(() => {
+    // ✅ Check if intervals are already set up for the same address and chain
+    const existingSetup = intervalsSetupRef.current;
+    if (existingSetup.address === displayAddress && existingSetup.chain === currentChain) {
+      // Intervals already set up for this address/chain combination - skip
+      return;
+    }
+    
+    // ✅ Clean up existing intervals if they exist
+    if (existingSetup.priceInterval) {
+      clearInterval(existingSetup.priceInterval);
+    }
+    if (existingSetup.fullInterval) {
+      clearInterval(existingSetup.fullInterval);
+    }
+    
     console.log('🔄 [Dashboard] useEffect triggered', { displayAddress, currentChain });
     if (!displayAddress) {
       console.warn('⚠️ [Dashboard] Skipping interval setup - no displayAddress');
       logger.log('⚠️ [Dashboard] Skipping interval setup - no displayAddress');
+      // Clear the ref to allow setup when address becomes available
+      intervalsSetupRef.current = {};
       return;
     }
     
@@ -1289,14 +1309,24 @@ export default function Dashboard() {
       }
     }, 60000); // ✅ Full update every 60 seconds
     
+    // ✅ Store interval IDs and current address/chain in ref
+    intervalsSetupRef.current = {
+      priceInterval: priceRefreshInterval,
+      fullInterval: fullRefreshInterval,
+      address: displayAddress,
+      chain: currentChain
+    };
+    
     // ✅ REMOVED: Scroll to top was causing scroll issues
     // This was preventing users from scrolling down and causing the page to jump back to top
     // Only scroll on initial mount if needed, not on every refresh
     
     return () => {
       logger.log('🔄 [Dashboard] Cleaning up refresh intervals');
-      clearInterval(priceRefreshInterval);
-      clearInterval(fullRefreshInterval);
+      if (priceRefreshInterval) clearInterval(priceRefreshInterval);
+      if (fullRefreshInterval) clearInterval(fullRefreshInterval);
+      // Clear the ref when cleaning up
+      intervalsSetupRef.current = {};
     };
   }, [displayAddress, currentChain]); // ✅ Only depend on displayAddress and currentChain
   // ✅ Removed refreshPricesOnly and fetchData from dependencies - using refs instead
