@@ -73,6 +73,9 @@ export async function GET(request: Request) {
     const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coinIds.join(',')}&vs_currencies=usd&include_24hr_change=true${apiKeyParam}`;
     
     logger.log(`📡 [Prices] Fetching from CoinGecko for ${coinIds.length} coins (API key: ${apiKey ? 'Yes' : 'No'})`);
+    if (!apiKey) {
+      logger.warn('⚠️ [Prices] No CoinGecko API key - using free tier (rate limited to 10-50 calls/min)');
+    }
     
     const response = await fetch(url, {
       headers: {
@@ -82,6 +85,23 @@ export async function GET(request: Request) {
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        logger.warn('⚠️ [Prices] CoinGecko 401 Unauthorized - API key may be invalid or missing. Using free tier.');
+        // Return empty result to trigger fallback to Binance/DexScreener
+        const emptyResult: Record<string, { price: number; change24h: number }> = {};
+        symbols.forEach(symbol => {
+          emptyResult[symbol] = { price: 0, change24h: 0 };
+        });
+        return NextResponse.json(emptyResult);
+      }
+      if (response.status === 429) {
+        logger.warn('⚠️ [Prices] CoinGecko rate limit hit - returning empty result for fallback');
+        const emptyResult: Record<string, { price: number; change24h: number }> = {};
+        symbols.forEach(symbol => {
+          emptyResult[symbol] = { price: 0, change24h: 0 };
+        });
+        return NextResponse.json(emptyResult);
+      }
       throw new Error(`CoinGecko API error: ${response.status}`);
     }
 

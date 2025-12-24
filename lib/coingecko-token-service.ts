@@ -55,17 +55,23 @@ class CoinGeckoTokenService {
       logger.log(`🦎 [CoinGecko] Fetching metadata for ${mint.substring(0, 8)}...`);
       
       // CoinGecko API endpoint for Solana tokens
-      const response = await fetch(
-        `https://api.coingecko.com/api/v3/coins/solana/contract/${mint}`,
-        {
-          headers: {
-            'Accept': 'application/json',
-          },
-        }
-      );
+      const apiKey = process.env.COINGECKO_API_KEY?.trim();
+      const apiKeyParam = apiKey ? `?x_cg_demo_api_key=${apiKey}` : '';
+      const url = `https://api.coingecko.com/api/v3/coins/solana/contract/${mint}${apiKeyParam}`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
 
       if (response.status === 404) {
         logger.log(`ℹ️ [CoinGecko] Token not found: ${mint.substring(0, 8)}...`);
+        return null;
+      }
+
+      if (response.status === 401) {
+        logger.warn('⚠️ [CoinGecko] 401 Unauthorized - API key may be invalid or missing. Using free tier.');
         return null;
       }
 

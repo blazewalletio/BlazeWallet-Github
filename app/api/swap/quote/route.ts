@@ -93,14 +93,27 @@ export async function GET(request: Request) {
     }
 
     // Fetch prices from CoinGecko
-    const priceUrl = `${COINGECKO_API_URL}/simple/price?ids=${srcId},${dstId}&vs_currencies=usd`;
+    const apiKey = process.env.COINGECKO_API_KEY?.trim();
+    const apiKeyParam = apiKey ? `&x_cg_demo_api_key=${apiKey}` : '';
+    const priceUrl = `${COINGECKO_API_URL}/simple/price?ids=${srcId},${dstId}&vs_currencies=usd${apiKeyParam}`;
     logger.log('Fetching prices from CoinGecko:', priceUrl);
+    if (!apiKey) {
+      logger.warn('⚠️ [Swap Quote] No CoinGecko API key - using free tier (rate limited)');
+    }
 
     const priceResponse = await fetch(priceUrl, {
       headers: { 'Accept': 'application/json' },
     });
 
     if (!priceResponse.ok) {
+      if (priceResponse.status === 401) {
+        logger.warn('⚠️ [Swap Quote] CoinGecko 401 Unauthorized - API key may be invalid or missing');
+        throw new Error('CoinGecko API key invalid or missing');
+      }
+      if (priceResponse.status === 429) {
+        logger.warn('⚠️ [Swap Quote] CoinGecko rate limit hit');
+        throw new Error('CoinGecko rate limit exceeded');
+      }
       throw new Error(`CoinGecko API error: ${priceResponse.status}`);
     }
 

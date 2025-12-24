@@ -61,6 +61,9 @@ export async function GET(request: NextRequest) {
     logger.log(`📡 [Prices by Address] Platform: ${platform}`);
     logger.log(`📡 [Prices by Address] Using API key: ${apiKey ? 'Yes' : 'No'}`);
     logger.log(`📡 [Prices by Address] Addresses: ${addresses.map(a => a.substring(0, 10) + '...').join(', ')}`);
+    if (!apiKey) {
+      logger.warn('⚠️ [Prices by Address] No CoinGecko API key - using free tier (rate limited to 10-50 calls/min)');
+    }
 
     // Create timeout manually (AbortSignal.timeout may not be available in all Node.js versions)
     const controller = new AbortController();
@@ -78,7 +81,15 @@ export async function GET(request: NextRequest) {
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error');
-        logger.warn(`⚠️ [Prices by Address] CoinGecko error: ${response.status} - ${errorText.substring(0, 200)}`);
+        
+        // Handle specific error codes
+        if (response.status === 401) {
+          logger.warn('⚠️ [Prices by Address] CoinGecko 401 Unauthorized - API key may be invalid or missing. Using DexScreener fallback.');
+        } else if (response.status === 429) {
+          logger.warn('⚠️ [Prices by Address] CoinGecko rate limit hit. Using DexScreener fallback.');
+        } else {
+          logger.warn(`⚠️ [Prices by Address] CoinGecko error: ${response.status} - ${errorText.substring(0, 200)}`);
+        }
         
         // If CoinGecko fails, try DexScreener directly as fallback
         logger.log(`🔄 [Prices by Address] CoinGecko failed, trying DexScreener fallback...`);

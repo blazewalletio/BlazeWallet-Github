@@ -56,17 +56,26 @@ async function getTokenPriceBackend(symbol: string): Promise<number> {
     logger.log(`🔍 [PriceBackend] Fetching ${symbol} price from CoinGecko...`);
     
     // Direct CoinGecko API call (works in backend)
-    const response = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd`,
-      {
-        headers: {
-          'Accept': 'application/json',
-        },
-        signal: AbortSignal.timeout(5000), // 5 second timeout
-      }
-    );
+    const apiKey = process.env.COINGECKO_API_KEY?.trim();
+    const apiKeyParam = apiKey ? `&x_cg_demo_api_key=${apiKey}` : '';
+    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd${apiKeyParam}`;
+    
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+      },
+      signal: AbortSignal.timeout(5000), // 5 second timeout
+    });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        logger.warn('⚠️ [PriceBackend] CoinGecko 401 Unauthorized - API key may be invalid or missing');
+        throw new Error('CoinGecko API key invalid or missing');
+      }
+      if (response.status === 429) {
+        logger.warn('⚠️ [PriceBackend] CoinGecko rate limit hit');
+        throw new Error('Rate limited');
+      }
       throw new Error(`HTTP ${response.status}`);
     }
 
