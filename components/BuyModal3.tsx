@@ -485,8 +485,24 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
                   // Popup closed - user likely completed payment or cancelled
                   logger.log('Popup closed, checking transaction status...');
                   
-                  // Check if we're being redirected to success page
-                  // If popup was closed after redirect, user is on success page
+                  // Update user preferences after successful transaction
+                  if (userId && lastTransactionId) {
+                    try {
+                      await UserOnRampPreferencesService.updateAfterTransaction(userId, lastTransactionId);
+                      logger.log('✅ Updated user preferences after transaction');
+                      // Reload preferences
+                      const updatedPrefs = await UserOnRampPreferencesService.get(userId);
+                      if (updatedPrefs) {
+                        setUserPreferences({
+                          verifiedProviders: updatedPrefs.verifiedProviders || [],
+                          preferredProvider: updatedPrefs.preferredProvider,
+                        });
+                      }
+                    } catch (error) {
+                      logger.error('Failed to update preferences:', error);
+                    }
+                  }
+                  
                   // Trigger balance refresh event
                   if (typeof window !== 'undefined') {
                     window.dispatchEvent(new CustomEvent('balanceRefresh'));
