@@ -29,41 +29,86 @@ export async function GET(request: Request) {
       );
     }
 
-    // Symbol to CoinGecko ID mapping
-    const symbolToId: Record<string, string> = {
-      ETH: 'ethereum',
-      SOL: 'solana',
-      BTC: 'bitcoin',
-      MATIC: 'matic-network',
-      BNB: 'binancecoin',
-      ARB: 'arbitrum',
-      BASE: 'base',
-      OP: 'optimism',
-      AVAX: 'avalanche-2',
-      FTM: 'fantom',
-      CRO: 'crypto-com-chain',
-      LTC: 'litecoin',
-      DOGE: 'dogecoin',
-      BCH: 'bitcoin-cash',
-      USDT: 'tether',
-      USDC: 'usd-coin',
-      BUSD: 'binance-usd',
-      WBTC: 'wrapped-bitcoin',
-      LINK: 'chainlink',
-      RAY: 'raydium',
-      BONK: 'bonk',
-      JUP: 'jupiter-exchange-solana',
-      WIF: 'dogwifcoin',
-      JTO: 'jito-governance-token',
-      PYTH: 'pyth-network',
-      ORCA: 'orca',
-      MNGO: 'mango-markets',
-    };
+    const apiKey = process.env.COINGECKO_API_KEY?.trim();
+    const apiKeyParam = apiKey ? `&x_cg_demo_api_key=${apiKey}` : '';
+    const interval = days <= 1 ? 'hourly' : 'daily';
+    let coinGeckoId: string | null = null;
+    let url: string;
 
-    const coinGeckoId = symbolToId[symbol.toUpperCase()];
+    // ✅ PRIORITY 1: Try contract address lookup (for EVM tokens)
+    if (contractAddress && chain && chain !== 'solana') {
+      const platformMap: Record<string, string> = {
+        'ethereum': 'ethereum',
+        'polygon': 'polygon-pos',
+        'bsc': 'binance-smart-chain',
+        'binance-smart-chain': 'binance-smart-chain',
+        'base': 'base',
+        'avalanche': 'avalanche',
+        'fantom': 'fantom',
+        'arbitrum': 'arbitrum-one',
+        'optimism': 'optimistic-ethereum',
+      };
+
+      const platform = platformMap[chain.toLowerCase()];
+      if (platform) {
+        try {
+          logger.log(`📡 [Price History] Trying contract address lookup: ${contractAddress} on ${platform}`);
+          const contractUrl = `https://api.coingecko.com/api/v3/coins/${platform}/contract/${contractAddress}${apiKeyParam ? '?' + apiKeyParam.substring(1) : ''}`;
+          const contractResponse = await fetch(contractUrl, {
+            headers: { 'Accept': 'application/json' },
+            next: { revalidate: 3600 } // 1 hour cache
+          });
+
+          if (contractResponse.ok) {
+            const contractData = await contractResponse.json();
+            coinGeckoId = contractData.id;
+            logger.log(`✅ [Price History] Found CoinGecko ID via contract: ${coinGeckoId}`);
+          } else {
+            logger.log(`⚠️ [Price History] Contract lookup failed (${contractResponse.status}), falling back to symbol`);
+          }
+        } catch (error) {
+          logger.warn(`⚠️ [Price History] Contract lookup error:`, error);
+        }
+      }
+    }
+
+    // ✅ PRIORITY 2: Fallback to symbol-to-ID mapping
+    if (!coinGeckoId) {
+      const symbolToId: Record<string, string> = {
+        ETH: 'ethereum',
+        SOL: 'solana',
+        BTC: 'bitcoin',
+        MATIC: 'matic-network',
+        BNB: 'binancecoin',
+        ARB: 'arbitrum',
+        BASE: 'base',
+        OP: 'optimism',
+        AVAX: 'avalanche-2',
+        FTM: 'fantom',
+        CRO: 'crypto-com-chain',
+        LTC: 'litecoin',
+        DOGE: 'dogecoin',
+        BCH: 'bitcoin-cash',
+        USDT: 'tether',
+        USDC: 'usd-coin',
+        BUSD: 'binance-usd',
+        WBTC: 'wrapped-bitcoin',
+        LINK: 'chainlink',
+        RAY: 'raydium',
+        BONK: 'bonk',
+        JUP: 'jupiter-exchange-solana',
+        WIF: 'dogwifcoin',
+        JTO: 'jito-governance-token',
+        PYTH: 'pyth-network',
+        ORCA: 'orca',
+        MNGO: 'mango-markets',
+      };
+
+      coinGeckoId = symbolToId[symbol.toUpperCase()] || null;
+    }
     
     if (!coinGeckoId) {
-      logger.warn(`[Price History] No CoinGecko ID mapping for ${symbol}`);
+      logger.warn(`[Price History] No CoinGecko ID found for ${symbol}${contractAddress ? ` (contract: ${contractAddress})` : ''}`);
       return NextResponse.json(
         { prices: [], success: false, error: 'Token not supported' },
         { status: 200 } // Return 200 with empty data (not an error)
@@ -71,12 +116,9 @@ export async function GET(request: Request) {
     }
 
     // Fetch from CoinGecko (server-side, with API key)
-    const apiKey = process.env.COINGECKO_API_KEY?.trim();
-    const apiKeyParam = apiKey ? `&x_cg_demo_api_key=${apiKey}` : '';
-    const interval = days <= 1 ? 'hourly' : 'daily';
-    const url = `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}&interval=${interval}${apiKeyParam}`;
+    url = `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}&interval=${interval}${apiKeyParam}`;
     
-    logger.log(`📡 [Price History] Fetching ${days} days (${interval}) for ${symbol} (API key: ${apiKey ? 'Yes' : 'No'})`);
+    logger.log(`📡 [Price History] Fetching ${days} days (${interval}) for ${symbol} (${coinGeckoId})${contractAddress ? ` via contract ${contractAddress}` : ''} (API key: ${apiKey ? 'Yes' : 'No'})`);
     
     const response = await fetch(url, {
       headers: {

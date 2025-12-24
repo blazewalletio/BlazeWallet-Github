@@ -71,10 +71,15 @@ export default function BalanceChart({
     }
   };
 
+  // Track if we have tokens/balance for reconstruction
+  const hasTokensForReconstruction = tokens.length > 0 || (nativeBalance && parseFloat(nativeBalance) > 0);
+  const tokensKey = `${tokens.length}_${tokens.map(t => t.address).join(',')}`; // Unique key when tokens change
+  const nativeBalanceKey = nativeBalance || '0'; // Track native balance changes
+
   // Load chart data with reconstruction fallback
   useEffect(() => {
     const loadChartData = async () => {
-      logger.log(`📊 [BalanceChart] Loading chart data for ${selectedTimeframe}`);
+      logger.log(`📊 [BalanceChart] Loading chart data for ${selectedTimeframe} (chain: ${chain}, address: ${address?.substring(0, 10)}...)`);
       setIsLoading(true);
       
       const hours = timeframeToHours(selectedTimeframe);
@@ -195,9 +200,9 @@ export default function BalanceChart({
       }, 30000);
       return () => clearInterval(interval);
     }
-  }, [selectedTimeframe, currentBalance, address, chain, portfolioHistory, chainInfo]); 
-  // ✅ Removed tokens and nativeBalance from dependencies to prevent reloads on price updates
-  // These are only needed for reconstruction, which happens inside loadChartData
+  }, [selectedTimeframe, currentBalance, address, chain, portfolioHistory, chainInfo, tokensKey, nativeBalanceKey]); 
+  // ✅ Added tokensKey and nativeBalanceKey to trigger reload when tokens/balance become available
+  // This ensures reconstruction runs when tokens are loaded, without triggering on every price update
 
   // Sync selectedTimeframe with selectedTimeRange prop
   useEffect(() => {
