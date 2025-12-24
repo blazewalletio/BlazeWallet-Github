@@ -152,6 +152,15 @@ export default function Dashboard() {
   
   // ✅ AbortController tracking per chain
   const activeFetchControllers = useRef<Map<string, AbortController>>(new Map());
+  // ✅ Refs to track tokens and balance without causing dependency issues
+  const tokensRef = useRef(tokens);
+  const balanceRef = useRef(balance);
+  
+  // Update refs when values change
+  useEffect(() => {
+    tokensRef.current = tokens;
+    balanceRef.current = balance;
+  }, [tokens, balance]);
   
   // Helper: Get current chain state
   const getCurrentChainState = (): ChainState => {
@@ -442,8 +451,13 @@ export default function Dashboard() {
     return weightedChange;
   };
 
-  const fetchData = async (force = false) => {
-    if (!displayAddress) return;
+  const fetchData = useCallback(async (force = false) => {
+    console.log('🔄 [Dashboard] fetchData called', { force, displayAddress, currentChain });
+    if (!displayAddress) {
+      console.warn('⚠️ [Dashboard] fetchData called but no displayAddress');
+      logger.log('⚠️ [Dashboard] fetchData called but no displayAddress');
+      return;
+    }
     
     // ✅ PHASE 2: AbortController Pattern
     // Cancel previous fetch for this chain
@@ -1116,9 +1130,9 @@ export default function Dashboard() {
       // Clear price cache to force fresh fetch
       priceService.clearCache();
       
-      // Get current tokens from store (read directly, don't use in dependencies)
-      const currentTokens = tokens;
-      if (currentTokens.length === 0) {
+      // Get current tokens from ref (avoids dependency issues)
+      const currentTokens = tokensRef.current;
+      if (!currentTokens || currentTokens.length === 0) {
         logger.log('💰 [Dashboard] No tokens to refresh');
         return;
       }
@@ -1184,8 +1198,9 @@ export default function Dashboard() {
       }
       
       // Also refresh native token price
+      const currentBalance = balanceRef.current;
       const nativePrice = await priceService.getPrice(chain.nativeCurrency.symbol);
-      const nativeValueUSD = parseFloat(balance) * nativePrice;
+      const nativeValueUSD = parseFloat(currentBalance || '0') * nativePrice;
       
       // Recalculate total portfolio value
       const tokensTotalUSD = currentTokens.reduce(
@@ -1214,11 +1229,25 @@ export default function Dashboard() {
     } catch (error) {
       logger.error('❌ [Dashboard] Failed to refresh prices:', error);
     }
-  }, [displayAddress, currentChain, isRefreshing, tokens, balance, chain, priceService, updateTokens, updateCurrentChainState]);
+  }, [displayAddress, currentChain, isRefreshing, chain, priceService, updateTokens, updateCurrentChainState]);
+  // ✅ Removed tokens and balance from dependencies - they're read directly inside the function
+  // This prevents the callback from being recreated on every price update
 
   useEffect(() => {
+    console.log('🔄 [Dashboard] useEffect triggered', { displayAddress, currentChain });
+    if (!displayAddress) {
+      console.warn('⚠️ [Dashboard] Skipping interval setup - no displayAddress');
+      logger.log('⚠️ [Dashboard] Skipping interval setup - no displayAddress');
+      return;
+    }
+    
+    console.log('🔄 [Dashboard] Setting up refresh intervals');
     logger.log('🔄 [Dashboard] Setting up refresh intervals');
-    fetchData(true); // Force refresh on mount
+    console.log('🔄 [Dashboard] Calling fetchData(true)');
+    fetchData(true).catch(error => {
+      console.error('❌ [Dashboard] fetchData error:', error);
+      logger.error('❌ [Dashboard] fetchData error:', error);
+    }); // Force refresh on mount
     // ✅ Auto-refresh prices every 30 seconds (frequent price updates)
     // Full data refresh every 60 seconds (balances, new tokens, etc.)
     const priceRefreshInterval = setInterval(() => {
@@ -1240,7 +1269,7 @@ export default function Dashboard() {
       clearInterval(priceRefreshInterval);
       clearInterval(fullRefreshInterval);
     };
-  }, [displayAddress, currentChain, refreshPricesOnly]); // ✅ Removed tokens and balance - they cause unnecessary reloads
+  }, [displayAddress, currentChain, refreshPricesOnly, fetchData]); // ✅ Added fetchData to dependencies
 
   // Check Priority List status
   useEffect(() => {
