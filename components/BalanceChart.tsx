@@ -74,6 +74,7 @@ export default function BalanceChart({
   // Load chart data with reconstruction fallback
   useEffect(() => {
     const loadChartData = async () => {
+      logger.log(`📊 [BalanceChart] Loading chart data for ${selectedTimeframe}`);
       setIsLoading(true);
       
       const hours = timeframeToHours(selectedTimeframe);
@@ -81,6 +82,7 @@ export default function BalanceChart({
       
       // If we have snapshots, use them
       if (snapshots.length > 0) {
+        logger.log(`📊 [BalanceChart] Using ${snapshots.length} snapshots`);
         const now = Date.now();
         const data = [
           ...snapshots.map(s => ({
@@ -109,6 +111,7 @@ export default function BalanceChart({
         setMaxValue(max + padding);
         setUseReconstruction(false);
         setIsLoading(false);
+        logger.log(`✅ [BalanceChart] Chart data loaded (${data.length} points)`);
         return;
       }
       
@@ -157,7 +160,9 @@ export default function BalanceChart({
           setChartData(data);
           setMinValue(Math.max(0, min - padding));
           setMaxValue(max + padding);
+          setUseReconstruction(true);
           setIsLoading(false);
+          logger.log(`✅ [BalanceChart] Chart data loaded from reconstruction (${data.length} points)`);
           return;
         } else {
           logger.warn(`⚠️ [BalanceChart] Reconstruction returned 0 points`);
@@ -167,6 +172,7 @@ export default function BalanceChart({
       }
       
       // Fallback: single point with current balance
+      logger.log(`📊 [BalanceChart] Using fallback: single point with current balance`);
       const now = Date.now();
       setChartData([{
         timestamp: now,
@@ -183,10 +189,15 @@ export default function BalanceChart({
 
     // For LIVE timeframe, update every 30 seconds
     if (selectedTimeframe === 'LIVE') {
-      const interval = setInterval(loadChartData, 30000);
+      const interval = setInterval(() => {
+        logger.log(`📊 [BalanceChart] LIVE interval triggered - reloading chart data`);
+        loadChartData();
+      }, 30000);
       return () => clearInterval(interval);
     }
-  }, [selectedTimeframe, currentBalance, address, chain, portfolioHistory, tokens, nativeBalance, chainInfo]);
+  }, [selectedTimeframe, currentBalance, address, chain, portfolioHistory, chainInfo]); 
+  // ✅ Removed tokens and nativeBalance from dependencies to prevent reloads on price updates
+  // These are only needed for reconstruction, which happens inside loadChartData
 
   // Sync selectedTimeframe with selectedTimeRange prop
   useEffect(() => {

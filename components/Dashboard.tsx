@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic'; // ✅ PERFORMANCE: Code splitting
 import { 
@@ -1096,9 +1096,13 @@ export default function Dashboard() {
   /**
    * 🔄 NEW: Refresh prices only (without fetching balances)
    * Called every 30 seconds to keep prices up-to-date
+   * Memoized with useCallback to prevent recreation on every render
    */
-  const refreshPricesOnly = async () => {
-    if (!displayAddress) return;
+  const refreshPricesOnly = useCallback(async () => {
+    if (!displayAddress) {
+      logger.log('💰 [Dashboard] Skipping price refresh - no address');
+      return;
+    }
     
     // Don't refresh if a full fetch is in progress
     if (isRefreshing) {
@@ -1112,9 +1116,12 @@ export default function Dashboard() {
       // Clear price cache to force fresh fetch
       priceService.clearCache();
       
-      // Get current tokens from store
+      // Get current tokens from store (read directly, don't use in dependencies)
       const currentTokens = tokens;
-      if (currentTokens.length === 0) return;
+      if (currentTokens.length === 0) {
+        logger.log('💰 [Dashboard] No tokens to refresh');
+        return;
+      }
       
       // Declare variables for both Solana and EVM
       let pricesMap: Record<string, number> | null = null;
@@ -1203,31 +1210,37 @@ export default function Dashboard() {
         totalValueUSD: totalValue,
       });
       
-      logger.log('✅ [Dashboard] Prices refreshed');
+      logger.log('✅ [Dashboard] Prices refreshed successfully');
     } catch (error) {
       logger.error('❌ [Dashboard] Failed to refresh prices:', error);
     }
-  };
+  }, [displayAddress, currentChain, isRefreshing, tokens, balance, chain, priceService, updateTokens, updateCurrentChainState]);
 
   useEffect(() => {
+    logger.log('🔄 [Dashboard] Setting up refresh intervals');
     fetchData(true); // Force refresh on mount
     // ✅ Auto-refresh prices every 30 seconds (frequent price updates)
     // Full data refresh every 60 seconds (balances, new tokens, etc.)
     const priceRefreshInterval = setInterval(() => {
+      logger.log('⏰ [Dashboard] Price refresh interval triggered');
       refreshPricesOnly();
     }, 30000); // 30 seconds for price updates
     
-    const fullRefreshInterval = setInterval(() => fetchData(false), 60000); // ✅ Full update every 60 seconds
+    const fullRefreshInterval = setInterval(() => {
+      logger.log('⏰ [Dashboard] Full refresh interval triggered');
+      fetchData(false);
+    }, 60000); // ✅ Full update every 60 seconds
     
     // ✅ REMOVED: Scroll to top was causing scroll issues
     // This was preventing users from scrolling down and causing the page to jump back to top
     // Only scroll on initial mount if needed, not on every refresh
     
     return () => {
+      logger.log('🔄 [Dashboard] Cleaning up refresh intervals');
       clearInterval(priceRefreshInterval);
       clearInterval(fullRefreshInterval);
     };
-  }, [displayAddress, currentChain, tokens, balance]); // ✅ Include tokens and balance for refreshPricesOnly
+  }, [displayAddress, currentChain, refreshPricesOnly]); // ✅ Removed tokens and balance - they cause unnecessary reloads
 
   // Check Priority List status
   useEffect(() => {

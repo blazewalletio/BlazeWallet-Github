@@ -116,62 +116,42 @@ export async function getCurrencyLogo(
 }
 
 /**
- * Fetch logo from CoinGecko API
+ * Fetch logo from CoinGecko API via server-side route
+ * This avoids CSP/CORS issues with direct client-side API calls
  */
 async function getCoinGeckoLogo(
   symbol: string,
   contractAddress?: string
 ): Promise<string | null> {
   try {
-    // If we have a contract address, use it for more accurate results
+    // Determine platform based on contract address format
+    let platform = 'ethereum';
     if (contractAddress) {
-      // Determine platform based on contract address format
-      let platform = 'ethereum';
       if (contractAddress.length === 44 || contractAddress.length === 43) {
         platform = 'solana';
       }
-
-      const response = await fetch(
-        `https://api.coingecko.com/api/v3/coins/${platform}/contract/${contractAddress}`
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.image?.large || data.image?.small) {
-          return data.image.large || data.image.small;
-        }
-      }
     }
 
-    // Fallback: search by symbol
-    const coinId = SYMBOL_TO_COINGECKO_ID[symbol.toUpperCase()];
-    if (coinId) {
-      const response = await fetch(
-        `https://api.coingecko.com/api/v3/coins/${coinId}`
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.image?.large || data.image?.small) {
-          return data.image.large || data.image.small;
-        }
-      }
+    // Build query parameters
+    const params = new URLSearchParams({ symbol });
+    if (contractAddress) {
+      params.append('contractAddress', contractAddress);
     }
+    params.append('platform', platform);
 
-    // Last resort: search by symbol name
-    const searchResponse = await fetch(
-      `https://api.coingecko.com/api/v3/search?query=${symbol}`
-    );
+    // Use server-side API route to avoid CSP/CORS issues
+    const response = await fetch(`/api/currency-logo?${params.toString()}`);
 
-    if (searchResponse.ok) {
-      const searchData = await searchResponse.json();
-      const coin = searchData.coins?.[0];
-      if (coin?.large || coin?.thumb) {
-        return coin.large || coin.thumb;
+    if (response.ok) {
+      const data = await response.json();
+      if (data.logo) {
+        return data.logo;
       }
+    } else {
+      logger.warn(`[CurrencyLogo] API route returned ${response.status} for ${symbol}`);
     }
   } catch (error) {
-    logger.warn(`[CoinGecko] Failed to fetch logo for ${symbol}:`, error);
+    logger.warn(`[CurrencyLogo] Failed to fetch logo for ${symbol}:`, error);
   }
 
   return null;
@@ -179,24 +159,12 @@ async function getCoinGeckoLogo(
 
 /**
  * Fetch logo from CryptoCompare API
+ * Note: CryptoCompare has CSP restrictions, so this may fail in some browsers
+ * We keep it as a fallback but expect it to fail in production
  */
 async function getCryptoCompareLogo(symbol: string): Promise<string | null> {
-  try {
-    const response = await fetch(
-      `https://min-api.cryptocompare.com/data/pricemultifull?fsyms=${symbol.toUpperCase()}&tsyms=USD`
-    );
-
-    if (response.ok) {
-      const data = await response.json();
-      const coinData = data.RAW?.[symbol.toUpperCase()]?.USD;
-      if (coinData?.IMAGEURL) {
-        return `https://www.cryptocompare.com${coinData.IMAGEURL}`;
-      }
-    }
-  } catch (error) {
-    logger.warn(`[CryptoCompare] Failed to fetch logo for ${symbol}:`, error);
-  }
-
+  // Skip CryptoCompare due to CSP restrictions
+  // The server-side CoinGecko route should handle most cases
   return null;
 }
 
