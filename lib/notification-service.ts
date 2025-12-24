@@ -11,11 +11,8 @@
  * and user permission - implemented here but optional
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export interface Notification {
   id: string;
@@ -29,7 +26,8 @@ export interface Notification {
 }
 
 class NotificationService {
-  private supabase = createClient(supabaseUrl, supabaseKey);
+  // Use singleton supabase client to avoid "Multiple GoTrueClient instances" warning
+  private supabase = supabase;
   private listeners: Set<(notifications: Notification[]) => void> = new Set();
   private unreadCount = 0;
   

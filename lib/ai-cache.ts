@@ -1,4 +1,5 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
+import { SupabaseClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
 
 /**
@@ -51,7 +52,7 @@ class AICache {
   private localStorageMaxAge = 24 * 60 * 60 * 1000; // 24 hours
 
   /**
-   * Lazy initialize Supabase client
+   * Lazy initialize Supabase client (use singleton to avoid multiple instances)
    */
   private getSupabase(): SupabaseClient | null {
     if (this.supabaseClient) return this.supabaseClient;
@@ -64,7 +65,8 @@ class AICache {
       return null;
     }
     
-    this.supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+    // Use singleton supabase client to avoid "Multiple GoTrueClient instances" warning
+    this.supabaseClient = supabase;
     return this.supabaseClient;
   }
 

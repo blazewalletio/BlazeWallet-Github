@@ -1,7 +1,8 @@
 // Portfolio history tracking - stores real balance snapshots over time
 // Hybrid approach: localStorage (fast) + Supabase (multi-device sync)
 import { logger } from '@/lib/logger';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 export interface BalanceSnapshot {
   timestamp: number;
@@ -33,12 +34,13 @@ export class PortfolioHistory {
   private isSyncing: boolean = false;
 
   constructor() {
-    // Initialize Supabase if available
+    // Initialize Supabase if available (use singleton to avoid multiple instances)
     if (typeof window !== 'undefined') {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
       if (supabaseUrl && supabaseKey) {
-        this.supabase = createClient(supabaseUrl, supabaseKey);
+        // Use singleton supabase client to avoid "Multiple GoTrueClient instances" warning
+        this.supabase = supabase;
         // Get user ID from localStorage
         this.userId = localStorage.getItem('supabase_user_id');
       }

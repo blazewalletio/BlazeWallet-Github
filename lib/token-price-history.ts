@@ -165,6 +165,9 @@ async function fetchCoinGeckoPriceHistory(
     const url = `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}&interval=${interval}${apiKeyParam}`;
     
     logger.log(`🦎 [CoinGecko] Fetching ${days} days with ${interval} interval for ${symbol}...`);
+    if (!apiKey) {
+      logger.warn('⚠️ [CoinGecko] No API key set - using free tier (rate limited to 10-50 calls/min)');
+    }
     
     const response = await fetch(url, {
       headers: { 'Accept': 'application/json' },
@@ -172,6 +175,10 @@ async function fetchCoinGeckoPriceHistory(
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        logger.warn('⚠️ [CoinGecko] 401 Unauthorized - API key may be invalid or missing. Using free tier.');
+        throw new Error('CoinGecko API key invalid or missing');
+      }
       if (response.status === 429) {
         throw new Error('Rate limited');
       }
