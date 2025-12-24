@@ -1008,7 +1008,9 @@ export default function Dashboard() {
       });
       activeFetchControllers.current.delete(currentChain);
     }
-  }, [displayAddress, currentChain, updateBalance, updateTokens, updateCurrentChainState, selectedTimeRange, chain, priceService, blockchain, tokenService, multiChainService, portfolioHistory]);
+  }, [displayAddress, currentChain, updateBalance, updateTokens, updateCurrentChainState, selectedTimeRange]);
+  // ✅ Removed chain, priceService, blockchain, tokenService, portfolioHistory from dependencies
+  // These are created/accessed inside the function and don't need to be in dependencies
 
   // Update chart data when time range changes
   const updateChartData = () => {
