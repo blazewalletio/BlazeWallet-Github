@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Use provided provider (selected by smart provider selection)
-    const onrampProvider = onramp.toLowerCase();
+    let onrampProvider = onramp.toLowerCase();
     
     logger.log('✅ Using selected onramp provider:', {
       provider: onrampProvider,

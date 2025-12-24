@@ -479,7 +479,7 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
               toast('Complete payment in the popup window', { icon: '💳' });
 
               // Monitor popup for completion and redirect
-              const checkPopup = setInterval(() => {
+              const checkPopup = setInterval(async () => {
                 if (popup.closed) {
                   clearInterval(checkPopup);
                   // Popup closed - user likely completed payment or cancelled
@@ -1206,13 +1206,19 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                   <span className="text-xs font-medium capitalize text-gray-700">{q.ramp}</span>
                                   {isVerified && (
-                                    <Shield className="w-3 h-3 text-green-600" title="Verified" />
+                                    <span title="Verified">
+                                      <Shield className="w-3 h-3 text-green-600" />
+                                    </span>
                                   )}
                                   {isPreferred && (
-                                    <Star className="w-3 h-3 text-purple-600" title="Preferred" />
+                                    <span title="Preferred">
+                                      <Star className="w-3 h-3 text-purple-600" />
+                                    </span>
                                   )}
                                   {hasBestPrice && (
-                                    <TrendingUp className="w-3 h-3 text-orange-600" title="Best Price" />
+                                    <span title="Best Price">
+                                      <TrendingUp className="w-3 h-3 text-orange-600" />
+                                    </span>
                                   )}
                                 </div>
                                 {q.payout && (

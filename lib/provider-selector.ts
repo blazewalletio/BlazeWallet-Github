@@ -99,7 +99,7 @@ export class ProviderSelector {
     }
 
     // Priority 2: Any verified provider (if preferred not available)
-    if (preferences?.verifiedProviders?.length > 0) {
+    if (preferences?.verifiedProviders && preferences.verifiedProviders.length > 0) {
       for (const verifiedProvider of preferences.verifiedProviders) {
         const verifiedQuote = validQuotes.find(
           q => q.ramp === verifiedProvider &&

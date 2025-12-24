@@ -13,16 +13,17 @@ export async function GET(req: NextRequest) {
     const countryParam = searchParams.get('country');
     
     // Detect country if not provided
-    let country = countryParam;
+    let country: string | null = countryParam || null;
     if (!country) {
-      country = await GeolocationService.detectCountry(req) || undefined;
+      const detected = await GeolocationService.detectCountry(req);
+      country = detected;
       if (country) {
         logger.log('✅ Auto-detected country:', country);
       }
     }
     
-    // Use 'NL' as fallback only if no country detected (for backward compatibility)
-    const countryForApi = country || undefined; // Let Onramper auto-detect if not provided
+    // Use null as fallback (let Onramper auto-detect if not provided)
+    const countryForApi = country || undefined;
     
     // If no API key, return fallback data so UI still works
     if (!onramperApiKey) {
