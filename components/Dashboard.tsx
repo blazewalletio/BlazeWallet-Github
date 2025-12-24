@@ -1201,7 +1201,8 @@ export default function Dashboard() {
       
       // Also refresh native token price
       const currentBalance = balanceRef.current;
-      const nativePrice = await priceService.getPrice(chain.nativeCurrency.symbol);
+      const currentChainConfig = CHAINS[currentChain]; // Read directly to avoid dependency
+      const nativePrice = await priceService.getPrice(currentChainConfig.nativeCurrency.symbol);
       const nativeValueUSD = parseFloat(currentBalance || '0') * nativePrice;
       
       // Recalculate total portfolio value
@@ -1231,8 +1232,11 @@ export default function Dashboard() {
     } catch (error) {
       logger.error('❌ [Dashboard] Failed to refresh prices:', error);
     }
-  }, [displayAddress, currentChain, isRefreshing, chain, priceService, updateTokens, updateCurrentChainState]);
-  // ✅ Removed tokens and balance from dependencies - they're read directly inside the function
+  }, [displayAddress, currentChain, isRefreshing, updateTokens, updateCurrentChainState]);
+  // ✅ Removed tokens, balance, chain, and priceService from dependencies
+  // - tokens and balance: read directly from refs inside the function
+  // - chain: derived from currentChain (already in dependencies)
+  // - priceService: singleton, doesn't need to be in dependencies
   // This prevents the callback from being recreated on every price update
 
   useEffect(() => {
