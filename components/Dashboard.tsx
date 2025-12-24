@@ -77,6 +77,7 @@ const UpcomingTransactionsBanner = dynamic(() => import('./UpcomingTransactionsB
 export default function Dashboard() {
   const { 
     address, // EVM address (for backward compat)
+    solanaAddress, // Solana address
     balance, 
     updateBalance, 
     currentChain, 
@@ -92,8 +93,8 @@ export default function Dashboard() {
   
   // Get the correct address for the current chain (Solana or EVM)
   // ✅ Memoize to prevent unnecessary re-renders
-  // Only recalculate when currentChain changes (getCurrentAddress is stable from Zustand)
-  const displayAddress = useMemo(() => getCurrentAddress(), [currentChain]);
+  // Recalculate when currentChain or any address changes (so it updates when wallet is loaded)
+  const displayAddress = useMemo(() => getCurrentAddress(), [currentChain, address, solanaAddress]);
 
   // Founder/Developer wallet addresses (add your addresses here)
   const founderAddresses = [
@@ -1257,28 +1258,38 @@ export default function Dashboard() {
   }, [refreshPricesOnly]);
 
   useEffect(() => {
-    // ✅ Check if intervals are already set up for the same address and chain
-    const existingSetup = intervalsSetupRef.current;
-    if (existingSetup.address === displayAddress && existingSetup.chain === currentChain) {
-      // Intervals already set up for this address/chain combination - skip
+    console.log('🔄 [Dashboard] useEffect triggered', { displayAddress, currentChain });
+    
+    // ✅ Early return if no displayAddress
+    if (!displayAddress) {
+      console.warn('⚠️ [Dashboard] Skipping interval setup - no displayAddress');
+      logger.log('⚠️ [Dashboard] Skipping interval setup - no displayAddress');
+      // Clean up any existing intervals when address becomes null
+      const existingSetup = intervalsSetupRef.current;
+      if (existingSetup.priceInterval) {
+        clearInterval(existingSetup.priceInterval);
+      }
+      if (existingSetup.fullInterval) {
+        clearInterval(existingSetup.fullInterval);
+      }
+      intervalsSetupRef.current = {};
       return;
     }
     
-    // ✅ Clean up existing intervals if they exist
+    // ✅ Check if intervals are already set up for the same address and chain
+    const existingSetup = intervalsSetupRef.current;
+    if (existingSetup.address === displayAddress && existingSetup.chain === currentChain && existingSetup.priceInterval && existingSetup.fullInterval) {
+      // Intervals already set up for this address/chain combination - skip
+      console.log('✅ [Dashboard] Intervals already set up for this address/chain, skipping');
+      return;
+    }
+    
+    // ✅ Clean up existing intervals if they exist (different address/chain)
     if (existingSetup.priceInterval) {
       clearInterval(existingSetup.priceInterval);
     }
     if (existingSetup.fullInterval) {
       clearInterval(existingSetup.fullInterval);
-    }
-    
-    console.log('🔄 [Dashboard] useEffect triggered', { displayAddress, currentChain });
-    if (!displayAddress) {
-      console.warn('⚠️ [Dashboard] Skipping interval setup - no displayAddress');
-      logger.log('⚠️ [Dashboard] Skipping interval setup - no displayAddress');
-      // Clear the ref to allow setup when address becomes available
-      intervalsSetupRef.current = {};
-      return;
     }
     
     console.log('🔄 [Dashboard] Setting up refresh intervals');
