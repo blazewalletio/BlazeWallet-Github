@@ -731,6 +731,10 @@ export default function Dashboard() {
           
           if (erc20Tokens.length > 0) {
             logger.log(`[${timestamp}] ✅ Alchemy found ${erc20Tokens.length} ERC20 tokens with balance`);
+            // ✅ DEBUG: Log logo URLs to verify they're being fetched
+            erc20Tokens.forEach((token: any) => {
+              logger.log(`[${timestamp}] 🖼️ Token ${token.symbol}: logo = ${token.logo || 'MISSING'}`);
+            });
           } else {
             logger.log(`[${timestamp}] ℹ️ No tokens found via Alchemy, falling back to POPULAR_TOKENS`);
           }
@@ -774,6 +778,34 @@ export default function Dashboard() {
           
           logger.log(`[${timestamp}] 💰 Received prices for ${pricesByAddress.size}/${tokenAddresses.length} tokens`);
           
+          // ✅ STEP 4.5: Fetch missing logos from CoinGecko for tokens without logos
+          const tokensNeedingLogos = erc20Tokens.filter((token: any) => 
+            !token.logo || 
+            token.logo === '/crypto-placeholder.png' || 
+            token.logo === '/crypto-eth.png' ||
+            token.logo.trim() === ''
+          );
+          
+          if (tokensNeedingLogos.length > 0) {
+            logger.log(`[${timestamp}] 🖼️ Fetching logos from CoinGecko for ${tokensNeedingLogos.length} tokens...`);
+            
+            // Fetch logos in parallel
+            await Promise.all(
+              tokensNeedingLogos.map(async (token: any) => {
+                try {
+                  const { getCurrencyLogo } = await import('@/lib/currency-logo-service');
+                  const logo = await getCurrencyLogo(token.symbol, token.address);
+                  if (logo && logo !== '/crypto-eth.png' && logo !== '/crypto-placeholder.png') {
+                    token.logo = logo;
+                    logger.log(`[${timestamp}] ✅ Fetched logo for ${token.symbol}: ${logo}`);
+                  }
+                } catch (error) {
+                  logger.warn(`[${timestamp}] ⚠️ Failed to fetch logo for ${token.symbol}:`, error);
+                }
+              })
+            );
+          }
+          
           // Combine tokens with prices
           const tokensWithPrices = erc20Tokens.map((token: any) => {
             const addressLower = token.address.toLowerCase();
@@ -805,12 +837,14 @@ export default function Dashboard() {
               logger.log(`[${timestamp}] 💰 ${token.symbol}: ${token.balance} × $${priceData.price.toFixed(2)} = $${balanceUSD.toFixed(2)}`);
             }
             
+            // ✅ FIX: Ensure logo is preserved when updating token with prices
             return {
               ...token,
               priceUSD: priceData.price,
               balanceUSD: balanceUSD.toFixed(2),
               change24h: priceData.change24h,
               isNative: false,
+              logo: token.logo || '/crypto-placeholder.png', // Preserve logo from Alchemy
             };
           });
 
@@ -1064,7 +1098,13 @@ export default function Dashboard() {
    * Called every 30 seconds to keep prices up-to-date
    */
   const refreshPricesOnly = async () => {
-    if (!displayAddress || isRefreshing) return;
+    if (!displayAddress) return;
+    
+    // Don't refresh if a full fetch is in progress
+    if (isRefreshing) {
+      logger.log('💰 [Dashboard] Skipping price refresh - full fetch in progress');
+      return;
+    }
     
     try {
       logger.log('💰 [Dashboard] Refreshing prices only...');
@@ -1179,13 +1219,9 @@ export default function Dashboard() {
     
     const fullRefreshInterval = setInterval(() => fetchData(false), 60000); // ✅ Full update every 60 seconds
     
-    // ✅ Scroll to top on mount (especially after onboarding) - scroll MAIN container
-    if (typeof window !== 'undefined') {
-      const mainElement = document.querySelector('main');
-      if (mainElement) {
-        mainElement.scrollTo({ top: 0, behavior: 'instant' });
-      }
-    }
+    // ✅ REMOVED: Scroll to top was causing scroll issues
+    // This was preventing users from scrolling down and causing the page to jump back to top
+    // Only scroll on initial mount if needed, not on every refresh
     
     return () => {
       clearInterval(priceRefreshInterval);
@@ -1296,7 +1332,9 @@ export default function Dashboard() {
                           />
                         </h2>
                         <div className="text-right">
-                          <div className="text-sm text-gray-500">{balance} {chain.nativeCurrency.symbol}</div>
+                          <div className="text-sm text-gray-500">
+                            {parseFloat(balance).toFixed(6)} {chain.nativeCurrency.symbol}
+                          </div>
                           <div className="text-xs text-gray-400">Native balance</div>
                         </div>
                         <motion.button
@@ -1646,11 +1684,29 @@ export default function Dashboard() {
                       {(() => {
                         const logoUrl = token.logo;
                         
-                        if (logoUrl && (
+                        // ✅ FIX: Check if logo is placeholder and try to fetch from CoinGecko
+                        if (!logoUrl || logoUrl === '/crypto-placeholder.png' || logoUrl === '/crypto-eth.png') {
+                          // Try to fetch logo from CoinGecko if we have symbol and address
+                          if (token.symbol && token.address) {
+                            // Use a placeholder for now, but log that we need to fetch
+                            logger.log(`⚠️ [Dashboard] Token ${token.symbol} has placeholder logo, should fetch from CoinGecko`);
+                            // Return symbol initial as fallback
+                            return <span className="text-gray-600 font-bold">{token.symbol[0]}</span>;
+                          }
+                          return <span className="text-gray-600 font-bold">{token.symbol[0]}</span>;
+                        }
+                        
+                        // ✅ FIX: Also check for empty string or null
+                        if (!logoUrl || logoUrl.trim() === '') {
+                          return <span className="text-gray-600 font-bold">{token.symbol[0]}</span>;
+                        }
+                        
+                        // Valid logo URL - try to display it
+                        if (
                           logoUrl.startsWith('http') ||
                           logoUrl.startsWith('/') || // ✅ Support local files (e.g. /crypto-wif.png)
                           logoUrl.startsWith('data:')
-                        )) {
+                        ) {
                           return (
                             <img 
                               src={logoUrl} 
@@ -1660,14 +1716,19 @@ export default function Dashboard() {
                                 logger.error(`❌ Failed to load logo for ${token.symbol}:`, logoUrl);
                                 // Fallback to symbol if image fails to load
                                 e.currentTarget.style.display = 'none';
-                                e.currentTarget.parentElement!.textContent = token.symbol[0];
+                                const parent = e.currentTarget.parentElement;
+                                if (parent) {
+                                  parent.textContent = token.symbol[0];
+                                  parent.className = 'w-12 h-12 bg-white rounded-full flex items-center justify-center text-xl flex-shrink-0';
+                                }
                               }}
                             />
                           );
                         }
                         
-                        logger.log(`⚠️ Using fallback for ${token.symbol}, logo:`, logoUrl);
-                        return logoUrl || token.symbol[0];
+                        // Invalid logo format - use symbol initial
+                        logger.log(`⚠️ [Dashboard] Invalid logo format for ${token.symbol}:`, logoUrl);
+                        return <span className="text-gray-600 font-bold">{token.symbol[0]}</span>;
                       })()}
                     </div>
                     <div className="flex-1 min-w-0">
