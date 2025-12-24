@@ -379,13 +379,20 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
           provider: providerToUse,
         });
 
-        if (transactionType === 'iframe') {
-          // ✅ Embed in iframe (binnen eigen UI)
+        // Check if URL is from Moonpay (CSP blocks iframe embedding)
+        const isMoonpay = transactionUrl.includes('moonpay.com') || transactionUrl.includes('buy.moonpay.com');
+        
+        if (transactionType === 'iframe' && !isMoonpay) {
+          // ✅ Embed in iframe (binnen eigen UI) - but NOT for Moonpay (CSP blocks it)
           setWidgetUrl(transactionUrl);
           setShowWidget(true);
           setStep('widget');
           toast.success('Opening payment widget...');
-        } else if (transactionType === 'redirect' || transactionType === 'popup') {
+        } else if (transactionType === 'redirect' || transactionType === 'popup' || isMoonpay) {
+          // Force popup/redirect for Moonpay (CSP blocks iframe)
+          if (isMoonpay) {
+            logger.log('⚠️ Moonpay detected - using popup/redirect (CSP blocks iframe embedding)');
+          }
           // Detect if user is on mobile device
           const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
                           (typeof window !== 'undefined' && window.innerWidth <= 768);

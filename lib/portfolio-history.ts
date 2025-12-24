@@ -192,6 +192,21 @@ export class PortfolioHistory {
   private async saveSnapshotToSupabase(snapshot: BalanceSnapshot) {
     if (!this.supabase || !this.userId) return;
     
+    // Check if user is authenticated with Supabase (required for RLS)
+    try {
+      const { data: { session } } = await this.supabase.auth.getSession();
+      if (!session) {
+        // User not authenticated with Supabase - skip Supabase sync
+        // This is OK - localStorage is primary, Supabase is just for multi-device sync
+        logger.log('ℹ️ User not authenticated with Supabase - skipping Supabase sync (localStorage is primary)');
+        return;
+      }
+    } catch (error) {
+      // Auth check failed - skip Supabase sync
+      logger.log('ℹ️ Could not check Supabase auth - skipping Supabase sync (localStorage is primary)');
+      return;
+    }
+    
     // Don't await - fire and forget for performance
     Promise.resolve(
       this.supabase
@@ -208,7 +223,12 @@ export class PortfolioHistory {
         logger.log(`✅ Saved snapshot to Supabase: $${snapshot.balance.toFixed(2)}`);
       })
       .catch((error) => {
-        logger.error('Error saving snapshot to Supabase:', error);
+        // Only log 401 errors as warnings (user not authenticated), others as errors
+        if (error?.code === 'PGRST301' || error?.message?.includes('401') || error?.message?.includes('Unauthorized')) {
+          logger.log('ℹ️ Supabase sync skipped - user not authenticated (localStorage is primary)');
+        } else {
+          logger.error('Error saving snapshot to Supabase:', error);
+        }
         // Don't throw - localStorage is primary, Supabase is sync
       });
   }
@@ -216,6 +236,18 @@ export class PortfolioHistory {
   // Update last snapshot in Supabase
   private async updateLastSnapshotInSupabase(snapshot: BalanceSnapshot) {
     if (!this.supabase || !this.userId) return;
+    
+    // Check if user is authenticated with Supabase (required for RLS)
+    try {
+      const { data: { session } } = await this.supabase.auth.getSession();
+      if (!session) {
+        // User not authenticated with Supabase - skip Supabase sync
+        return;
+      }
+    } catch (error) {
+      // Auth check failed - skip Supabase sync
+      return;
+    }
     
     // Find and update the most recent snapshot for this address/chain
     Promise.resolve(
