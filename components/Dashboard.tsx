@@ -1008,7 +1008,7 @@ export default function Dashboard() {
       });
       activeFetchControllers.current.delete(currentChain);
     }
-  };
+  }, [displayAddress, currentChain, updateBalance, updateTokens, updateCurrentChainState, selectedTimeRange, chain, priceService, blockchain, tokenService, multiChainService, portfolioHistory]);
 
   // Update chart data when time range changes
   const updateChartData = () => {
