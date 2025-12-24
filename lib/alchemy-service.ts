@@ -20,7 +20,7 @@ interface EnrichedToken {
   name: string;
   decimals: number;
   balance: string;
-  logo: string | null;
+  logo: string; // Always a string (fallback to placeholder if not found)
 }
 
 /**
@@ -92,13 +92,29 @@ export class AlchemyService {
               return null;
             }
 
+            // ✅ FIX: If Alchemy doesn't provide logo, try CoinGecko/currency-logo-service
+            let logo: string = metadata.logo || '/crypto-placeholder.png';
+            if (!metadata.logo && metadata.symbol) {
+              try {
+                const { getCurrencyLogo } = await import('./currency-logo-service');
+                const fetchedLogo = await getCurrencyLogo(metadata.symbol, token.contractAddress);
+                if (fetchedLogo) {
+                  logo = fetchedLogo;
+                  logger.log(`🦎 [AlchemyService] Fetched logo from CoinGecko for ${metadata.symbol}: ${logo}`);
+                }
+              } catch (error) {
+                logger.warn(`⚠️ [AlchemyService] Failed to fetch logo from CoinGecko for ${metadata.symbol}:`, error);
+                // Keep placeholder
+              }
+            }
+
             return {
               address: token.contractAddress,
               symbol: metadata.symbol || 'UNKNOWN',
               name: metadata.name || 'Unknown Token',
               decimals,
               balance,
-              logo: metadata.logo || null,
+              logo, // Always a string now
             };
           } catch (error) {
             logger.warn(`⚠️ [AlchemyService] Failed to get metadata for ${token.contractAddress}:`, error);

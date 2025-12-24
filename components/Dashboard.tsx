@@ -1059,9 +1059,125 @@ export default function Dashboard() {
     }
   };
 
+  /**
+   * 🔄 NEW: Refresh prices only (without fetching balances)
+   * Called every 30 seconds to keep prices up-to-date
+   */
+  const refreshPricesOnly = async () => {
+    if (!displayAddress || isRefreshing) return;
+    
+    try {
+      logger.log('💰 [Dashboard] Refreshing prices only...');
+      
+      // Clear price cache to force fresh fetch
+      priceService.clearCache();
+      
+      // Get current tokens from store
+      const currentTokens = tokens;
+      if (currentTokens.length === 0) return;
+      
+      // Declare variables for both Solana and EVM
+      let pricesMap: Record<string, number> | null = null;
+      let pricesByAddress: Map<string, { price: number; change24h: number }> | null = null;
+      
+      // Fetch fresh prices for all tokens
+      if (currentChain === 'solana') {
+        // Solana: Use symbol-based pricing
+        const symbols = currentTokens.map(t => t.symbol);
+        pricesMap = await priceService.getMultiplePrices(symbols);
+        
+        // Update tokens with new prices
+        const updatedTokens = await Promise.all(
+          currentTokens.map(async (token) => {
+            const price = pricesMap![token.symbol] || token.priceUSD || 0;
+            const balanceNum = parseFloat(token.balance || '0');
+            const balanceUSD = balanceNum * price;
+            
+            // Get 24h change
+            let change24h = token.change24h || 0;
+            if (price > 0) {
+              try {
+                change24h = await priceService.get24hChange(token.symbol);
+              } catch (error) {
+                // Keep existing change24h if fetch fails
+              }
+            }
+            
+            return {
+              ...token,
+              priceUSD: price,
+              balanceUSD: balanceUSD.toFixed(2),
+              change24h,
+            };
+          })
+        );
+        
+        updateTokens(currentChain, updatedTokens);
+      } else {
+        // EVM: Use address-based pricing
+        const tokenAddresses = currentTokens.map(t => t.address);
+        pricesByAddress = await priceService.getPricesByAddresses(tokenAddresses, currentChain);
+        
+        // Update tokens with new prices
+        const updatedTokens = currentTokens.map((token) => {
+          const addressLower = token.address.toLowerCase();
+          const priceData = pricesByAddress!.get(addressLower) || { price: token.priceUSD || 0, change24h: token.change24h || 0 };
+          const balanceNum = parseFloat(token.balance || '0');
+          const balanceUSD = balanceNum * priceData.price;
+          
+          return {
+            ...token,
+            priceUSD: priceData.price,
+            balanceUSD: balanceUSD.toFixed(2),
+            change24h: priceData.change24h,
+          };
+        });
+        
+        updateTokens(currentChain, updatedTokens);
+      }
+      
+      // Also refresh native token price
+      const nativePrice = await priceService.getPrice(chain.nativeCurrency.symbol);
+      const nativeValueUSD = parseFloat(balance) * nativePrice;
+      
+      // Recalculate total portfolio value
+      const tokensTotalUSD = currentTokens.reduce(
+        (sum, token) => {
+          // For Solana, use symbol-based price lookup
+          if (currentChain === 'solana') {
+            const price = pricesMap?.[token.symbol] || token.priceUSD || 0;
+            return sum + (parseFloat(token.balance || '0') * price);
+          } else {
+            // For EVM, use address-based price lookup
+            const addressLower = token.address.toLowerCase();
+            const priceData = pricesByAddress?.get(addressLower) || { price: token.priceUSD || 0 };
+            return sum + (parseFloat(token.balance || '0') * priceData.price);
+          }
+        },
+        0
+      );
+      const totalValue = nativeValueUSD + tokensTotalUSD;
+      
+      updateCurrentChainState({
+        nativePriceUSD: nativePrice,
+        totalValueUSD: totalValue,
+      });
+      
+      logger.log('✅ [Dashboard] Prices refreshed');
+    } catch (error) {
+      logger.error('❌ [Dashboard] Failed to refresh prices:', error);
+    }
+  };
+
   useEffect(() => {
     fetchData(true); // Force refresh on mount
-    const interval = setInterval(() => fetchData(false), 60000); // ✅ Update every 60 seconds (was 10s - too aggressive!)
+    // ✅ Auto-refresh prices every 30 seconds (frequent price updates)
+    // Full data refresh every 60 seconds (balances, new tokens, etc.)
+    const priceRefreshInterval = setInterval(() => {
+      refreshPricesOnly();
+    }, 30000); // 30 seconds for price updates
+    
+    const fullRefreshInterval = setInterval(() => fetchData(false), 60000); // ✅ Full update every 60 seconds
     
     // ✅ Scroll to top on mount (especially after onboarding) - scroll MAIN container
     if (typeof window !== 'undefined') {
@@ -1071,8 +1187,11 @@ export default function Dashboard() {
       }
     }
     
-    return () => clearInterval(interval);
-  }, [displayAddress, currentChain]); // ✅ Use displayAddress (changes when chain switches)
+    return () => {
+      clearInterval(priceRefreshInterval);
+      clearInterval(fullRefreshInterval);
+    };
+  }, [displayAddress, currentChain, tokens, balance]); // ✅ Include tokens and balance for refreshPricesOnly
 
   // Check Priority List status
   useEffect(() => {
