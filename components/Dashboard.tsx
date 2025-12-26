@@ -202,11 +202,6 @@ export default function Dashboard() {
   };
   
   // Derived state from current chain
-  const currentState = getCurrentChainState();
-  const isRefreshing = currentState.isRefreshing;
-  const totalValueUSD = currentState.totalValueUSD;
-  const change24h = currentState.change24h;
-  
   // Priority List status
   const [isPriorityListLive, setIsPriorityListLive] = useState(false);
   
@@ -225,6 +220,32 @@ export default function Dashboard() {
 
   // Bottom navigation state
   const [activeTab, setActiveTab] = useState<TabType>('wallet');
+  
+  // Get current chain state
+  const currentState = getCurrentChainState();
+  const isRefreshing = currentState.isRefreshing;
+  const totalValueUSD = currentState.totalValueUSD;
+  const change24h = currentState.change24h;
+  
+  // ✅ Helper function to create native token object
+  const createNativeToken = useCallback((): Token => {
+    const chain = CHAINS[currentChain];
+    const nativeBalance = balance;
+    const nativePriceUSD = currentState.nativePriceUSD;
+    const change24h = currentState.change24h;
+    
+    return {
+      address: displayAddress || 'native', // Use wallet address for native tokens
+      symbol: chain.nativeCurrency.symbol,
+      name: chain.nativeCurrency.name,
+      decimals: chain.nativeCurrency.decimals || 18,
+      balance: nativeBalance,
+      balanceUSD: (parseFloat(nativeBalance) * nativePriceUSD).toString(),
+      priceUSD: nativePriceUSD,
+      change24h: change24h,
+      logo: chain.logoUrl || chain.icon,
+    };
+  }, [currentChain, balance, currentState.nativePriceUSD, currentState.change24h, displayAddress]);
   
   // ✅ Load user preferences from Supabase (cross-device sync)
   useEffect(() => {
@@ -1734,6 +1755,12 @@ export default function Dashboard() {
           {/* Native Token */}
           <motion.div
             whileTap={{ scale: 0.98 }}
+            onClick={() => {
+              // ✅ Create native token object and open modal
+              const nativeToken = createNativeToken();
+              setSelectedToken(nativeToken);
+              setShowTokenDetail(true);
+            }}
             className="glass p-4 rounded-xl flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer"
           >
             <div className="flex items-center gap-4">
@@ -2572,6 +2599,8 @@ export default function Dashboard() {
           }}
           onSend={() => {
             setShowTokenDetail(false);
+            // ✅ Prefill with token symbol
+            setSendPrefillData({ token: selectedToken.symbol });
             setShowSendModal(true);
           }}
           onReceive={() => {
@@ -2580,9 +2609,15 @@ export default function Dashboard() {
           }}
           onSwap={() => {
             setShowTokenDetail(false);
+            // ✅ Prefill with token symbol
+            setSwapPrefillData({ fromToken: selectedToken.symbol });
             setShowSwapModal(true);
           }}
           onRefresh={handleRefreshToken}
+          // ✅ Pass native token data
+          nativePriceUSD={currentState.nativePriceUSD}
+          nativeChange24h={currentState.change24h}
+          walletAddress={displayAddress}
         />
       )}
       
