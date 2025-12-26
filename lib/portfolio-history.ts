@@ -146,18 +146,25 @@ export class PortfolioHistory {
     
     this.isSyncing = true;
     try {
-      const { data, error } = await this.supabase
+      // ✅ Add timeout to prevent hanging requests
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Network timeout')), 10000); // 10 second timeout
+      });
+      
+      const fetchPromise = this.supabase
         .from('portfolio_snapshots')
         .select('*')
         .eq('user_id', this.userId)
         .order('snapshot_at', { ascending: false })
         .limit(MAX_SNAPSHOTS);
       
+      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
+      
       if (error) throw error;
       
       if (data && data.length > 0) {
         // Convert Supabase format to BalanceSnapshot
-        const supabaseSnapshots = data.map(s => ({
+        const supabaseSnapshots = data.map((s: any) => ({
           timestamp: new Date(s.snapshot_at).getTime(),
           balance: parseFloat(s.balance_usd),
           address: s.address,
@@ -179,10 +186,30 @@ export class PortfolioHistory {
         this.snapshots = merged;
         this.saveToStorage();
         
-        logger.log(`✅ Synced ${supabaseSnapshots.length} snapshots from Supabase`);
+        if (process.env.NODE_ENV === 'development') {
+          logger.log(`✅ Synced ${supabaseSnapshots.length} snapshots from Supabase`);
+        }
       }
-    } catch (error) {
-      logger.error('Error syncing from Supabase:', error);
+    } catch (error: any) {
+      // ✅ Better error handling for network timeouts and auth errors
+      if (error?.name === 'AbortError' || error?.message?.includes('timeout') || error?.message?.includes('QUIC') || error?.message?.includes('Failed to fetch')) {
+        // Network timeout/error - not critical, localStorage is primary
+        // Only log in development
+        if (process.env.NODE_ENV === 'development') {
+          logger.log('ℹ️ [PortfolioHistory] Network timeout syncing from Supabase (localStorage is primary)');
+        }
+      } else if (error?.code === 'PGRST301' || error?.message?.includes('401') || error?.message?.includes('Unauthorized')) {
+        // Auth error - user not authenticated, this is OK
+        // Only log in development
+        if (process.env.NODE_ENV === 'development') {
+          logger.log('ℹ️ [PortfolioHistory] User not authenticated - skipping Supabase sync (localStorage is primary)');
+        }
+      } else {
+        // Other errors - log in development only
+        if (process.env.NODE_ENV === 'development') {
+          logger.error('Error syncing from Supabase:', error);
+        }
+      }
     } finally {
       this.isSyncing = false;
     }

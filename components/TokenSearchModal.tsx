@@ -8,6 +8,7 @@ import { LiFiService, LiFiToken } from '@/lib/lifi-service';
 import { logger } from '@/lib/logger';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { supabase } from '@/lib/supabase';
+import { getIPFSGatewayUrl, isIPFSUrl, initIPFSErrorSuppression } from '@/lib/ipfs-utils';
 
 interface TokenSearchModalProps {
   isOpen: boolean;
@@ -41,6 +42,11 @@ export default function TokenSearchModal({
   const chainId = chainConfig?.id;
 
   useBlockBodyScroll(isOpen);
+
+  // ✅ Initialize IPFS error suppression on mount
+  useEffect(() => {
+    initIPFSErrorSuppression();
+  }, []);
 
   // Fetch initial tokens when modal opens (only if no search query)
   useEffect(() => {
@@ -779,11 +785,11 @@ export default function TokenSearchModal({
                             <div className="flex items-center gap-3 flex-1 min-w-0">
                               {token.logoURI && token.logoURI.trim() ? (
                                 <img 
-                                  src={token.logoURI} 
+                                  src={isIPFSUrl(token.logoURI) ? getIPFSGatewayUrl(token.logoURI) : token.logoURI} 
                                   alt={token.symbol}
                                   className="w-10 h-10 rounded-full flex-shrink-0 object-cover"
                                   onError={(e) => {
-                                    // Fallback to gradient with first letter
+                                    // ✅ Silently handle image load errors (prevents console spam)
                                     const target = e.currentTarget;
                                     target.style.display = 'none';
                                     if (target.parentElement) {
@@ -792,6 +798,10 @@ export default function TokenSearchModal({
                                       fallback.innerHTML = `<span class="text-white font-bold text-sm">${token.symbol[0]}</span>`;
                                       target.parentElement.insertBefore(fallback, target);
                                     }
+                                  }}
+                                  onLoad={(e) => {
+                                    // ✅ Image loaded successfully - ensure it's visible
+                                    e.currentTarget.style.display = 'block';
                                   }}
                                 />
                               ) : (
@@ -848,11 +858,11 @@ export default function TokenSearchModal({
                               <div className="flex items-center gap-3 flex-1 min-w-0">
                               {token.logoURI && token.logoURI.trim() ? (
                                   <img 
-                                    src={token.logoURI} 
+                                    src={isIPFSUrl(token.logoURI) ? getIPFSGatewayUrl(token.logoURI) : token.logoURI} 
                                     alt={token.symbol}
                                   className="w-10 h-10 rounded-full flex-shrink-0 object-cover"
                                     onError={(e) => {
-                                    // Fallback to gradient with first letter
+                                    // ✅ Silently handle image load errors (prevents console spam)
                                     const target = e.currentTarget;
                                     target.style.display = 'none';
                                     if (target.parentElement) {
@@ -861,6 +871,10 @@ export default function TokenSearchModal({
                                       fallback.innerHTML = `<span class="text-white font-bold text-sm">${token.symbol[0]}</span>`;
                                       target.parentElement.insertBefore(fallback, target);
                                     }
+                                    }}
+                                    onLoad={(e) => {
+                                      // ✅ Image loaded successfully - ensure it's visible
+                                      e.currentTarget.style.display = 'block';
                                     }}
                                   />
                                 ) : (
@@ -908,14 +922,14 @@ export default function TokenSearchModal({
                                     isSelected ? 'bg-orange-50' : ''
                                   }`}
                                 >
-                                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
                               {token.logoURI && token.logoURI.trim() ? (
-                                      <img 
-                                        src={token.logoURI} 
-                                        alt={token.symbol}
+                                <img 
+                                  src={isIPFSUrl(token.logoURI) ? getIPFSGatewayUrl(token.logoURI) : token.logoURI} 
+                                  alt={token.symbol}
                                   className="w-10 h-10 rounded-full flex-shrink-0 object-cover"
-                                        onError={(e) => {
-                                    // Fallback to gradient with first letter
+                                  onError={(e) => {
+                                    // ✅ Silently handle image load errors (prevents console spam)
                                     const target = e.currentTarget;
                                     target.style.display = 'none';
                                     if (target.parentElement) {
@@ -924,24 +938,28 @@ export default function TokenSearchModal({
                                       fallback.innerHTML = `<span class="text-white font-bold text-sm">${token.symbol[0]}</span>`;
                                       target.parentElement.insertBefore(fallback, target);
                                     }
-                                        }}
-                                      />
-                                    ) : (
-                                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center flex-shrink-0">
-                                        <span className="text-white font-bold text-sm">
-                                          {token.symbol[0]}
-                                        </span>
-                                      </div>
-                                    )}
-                                    <div className="text-left flex-1 min-w-0">
-                                      <div className="font-semibold text-gray-900">
-                                        {token.symbol}
-                                      </div>
-                                      <div className="text-sm text-gray-500 truncate">
-                                        {token.name}
-                                      </div>
-                                    </div>
-                                  </div>
+                                  }}
+                                  onLoad={(e) => {
+                                    // ✅ Image loaded successfully - ensure it's visible
+                                    e.currentTarget.style.display = 'block';
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center flex-shrink-0">
+                                  <span className="text-white font-bold text-sm">
+                                    {token.symbol[0]}
+                                  </span>
+                                </div>
+                              )}
+                              <div className="text-left flex-1 min-w-0">
+                                <div className="font-semibold text-gray-900">
+                                  {token.symbol}
+                                </div>
+                                <div className="text-sm text-gray-500 truncate">
+                                  {token.name}
+                                </div>
+                              </div>
+                            </div>
                                   {isSelected && (
                                     <Check className="w-5 h-5 text-orange-500 flex-shrink-0" />
                                   )}

@@ -24,6 +24,7 @@ import { ethers } from 'ethers';
 import { Connection, Transaction, VersionedTransaction, MessageV0 } from '@solana/web3.js';
 import { SolanaService } from '@/lib/solana-service';
 import TokenSearchModal from './TokenSearchModal';
+import { getIPFSGatewayUrl, isIPFSUrl, initIPFSErrorSuppression } from '@/lib/ipfs-utils';
 
 interface SwapModalProps {
   isOpen: boolean;
@@ -39,6 +40,11 @@ type SwapStep = 'input' | 'review' | 'executing' | 'success' | 'error';
 
 export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalProps) {
   useBlockBodyScroll(isOpen);
+
+  // ✅ Initialize IPFS error suppression on mount
+  useEffect(() => {
+    initIPFSErrorSuppression();
+  }, []);
 
   // Wallet state
   const { wallet, currentChain, getCurrentAddress, mnemonic, getChainTokens, tokens } = useWalletStore();
@@ -831,14 +837,19 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                           <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center overflow-hidden border border-gray-200">
                             {fromTokenDisplay.logo && (fromTokenDisplay.logo.startsWith('http') || fromTokenDisplay.logo.startsWith('/')) ? (
                               <img 
-                                src={fromTokenDisplay.logo} 
+                                src={isIPFSUrl(fromTokenDisplay.logo) ? getIPFSGatewayUrl(fromTokenDisplay.logo) : fromTokenDisplay.logo} 
                                 alt={fromTokenDisplay.symbol}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
+                                  // ✅ Silently handle image load errors (prevents console spam)
                                   e.currentTarget.style.display = 'none';
                                   if (e.currentTarget.parentElement) {
                                     e.currentTarget.parentElement.textContent = fromTokenDisplay.symbol[0];
                                   }
+                                }}
+                                onLoad={(e) => {
+                                  // ✅ Image loaded successfully - ensure it's visible
+                                  e.currentTarget.style.display = 'block';
                                 }}
                               />
                             ) : (
@@ -955,14 +966,19 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                           <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center overflow-hidden border border-gray-200">
                             {toTokenDisplay.logo && (toTokenDisplay.logo.startsWith('http') || toTokenDisplay.logo.startsWith('/')) ? (
                               <img 
-                                src={toTokenDisplay.logo} 
+                                src={isIPFSUrl(toTokenDisplay.logo) ? getIPFSGatewayUrl(toTokenDisplay.logo) : toTokenDisplay.logo} 
                                 alt={toTokenDisplay.symbol}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
+                                  // ✅ Silently handle image load errors (prevents console spam)
                                   e.currentTarget.style.display = 'none';
                                   if (e.currentTarget.parentElement) {
                                     e.currentTarget.parentElement.textContent = toTokenDisplay.symbol[0];
                                   }
+                                }}
+                                onLoad={(e) => {
+                                  // ✅ Image loaded successfully - ensure it's visible
+                                  e.currentTarget.style.display = 'block';
                                 }}
                               />
                             ) : (

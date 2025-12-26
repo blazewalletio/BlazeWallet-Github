@@ -20,6 +20,9 @@ if (typeof window !== 'undefined') {
       'GET https://my.blazewallet.io/api/prices',
       // Network errors that are expected during fallback attempts
       'Failed to fetch',
+      'ERR_NAME_NOT_RESOLVED',
+      'cf-ipfs.com',
+      'mypinata.cloud',
       'NetworkError',
       'AbortError',
       'Load failed',

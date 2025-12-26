@@ -481,10 +481,17 @@ export default function Dashboard() {
   };
 
   const fetchData = useCallback(async (force = false) => {
-    console.log('🔄 [Dashboard] fetchData called', { force, displayAddress, currentChain });
+    // ✅ DEBUG: Only log in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔄 [Dashboard] fetchData called', { force, displayAddress, currentChain });
+    }
+    
+    // ✅ Early return if no displayAddress (normal during initialization)
     if (!displayAddress) {
-      console.warn('⚠️ [Dashboard] fetchData called but no displayAddress');
-      logger.log('⚠️ [Dashboard] fetchData called but no displayAddress');
+      // ✅ DEBUG: Only log in development, not as warning
+      if (process.env.NODE_ENV === 'development') {
+        logger.log('🔍 [Dashboard] fetchData called but wallet not ready yet');
+      }
       return;
     }
     
@@ -1279,12 +1286,17 @@ export default function Dashboard() {
   }, [refreshPricesOnly]);
 
   useEffect(() => {
-    console.log('🔄 [Dashboard] useEffect triggered', { displayAddress, currentChain });
+    // ✅ DEBUG: Only log in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔄 [Dashboard] useEffect triggered', { displayAddress, currentChain });
+    }
     
-    // ✅ Early return if no displayAddress
+    // ✅ Early return if no displayAddress (normal during initialization)
     if (!displayAddress) {
-      console.warn('⚠️ [Dashboard] Skipping interval setup - no displayAddress');
-      logger.log('⚠️ [Dashboard] Skipping interval setup - no displayAddress');
+      // ✅ DEBUG: Only log in development, not as warning
+      if (process.env.NODE_ENV === 'development') {
+        logger.log('🔍 [Dashboard] Waiting for wallet address...');
+      }
       // Clean up any existing intervals when address becomes null
       const existingSetup = intervalsSetupRef.current;
       if (existingSetup.priceInterval) {
@@ -1301,7 +1313,9 @@ export default function Dashboard() {
     const existingSetup = intervalsSetupRef.current;
     if (existingSetup.address === displayAddress && existingSetup.chain === currentChain && existingSetup.priceInterval && existingSetup.fullInterval) {
       // Intervals already set up for this address/chain combination - skip
-      console.log('✅ [Dashboard] Intervals already set up for this address/chain, skipping');
+      if (process.env.NODE_ENV === 'development') {
+        logger.log('✅ [Dashboard] Intervals already set up for this address/chain, skipping');
+      }
       return;
     }
     
@@ -1313,21 +1327,30 @@ export default function Dashboard() {
       clearInterval(existingSetup.fullInterval);
     }
     
-    console.log('🔄 [Dashboard] Setting up refresh intervals');
-    logger.log('🔄 [Dashboard] Setting up refresh intervals');
-    console.log('🔄 [Dashboard] Calling fetchData(true)');
+    // ✅ DEBUG: Only log in development mode
+    if (process.env.NODE_ENV === 'development') {
+      logger.log('🔄 [Dashboard] Setting up refresh intervals');
+    }
+    
     // Use ref to call fetchData to avoid dependency issues
     if (fetchDataRef.current) {
       fetchDataRef.current(true).catch(error => {
-        console.error('❌ [Dashboard] fetchData error:', error);
-        logger.error('❌ [Dashboard] fetchData error:', error);
+        // ✅ Better error handling - only log critical errors
+        if (error?.message && !error.message.includes('aborted') && !error.message.includes('timeout')) {
+          logger.error('❌ [Dashboard] fetchData error:', error);
+        } else if (process.env.NODE_ENV === 'development') {
+          logger.log('🔍 [Dashboard] fetchData cancelled or timed out (normal during initialization)');
+        }
       }); // Force refresh on mount
     }
     
     // ✅ Auto-refresh prices every 30 seconds (frequent price updates)
     // Full data refresh every 60 seconds (balances, new tokens, etc.)
     const priceRefreshInterval = setInterval(() => {
-      logger.log('⏰ [Dashboard] Price refresh interval triggered');
+      // ✅ DEBUG: Only log in development mode
+      if (process.env.NODE_ENV === 'development') {
+        logger.log('⏰ [Dashboard] Price refresh interval triggered');
+      }
       // Use ref to call refreshPricesOnly to avoid dependency issues
       if (refreshPricesOnlyRef.current) {
         refreshPricesOnlyRef.current();
@@ -1335,7 +1358,10 @@ export default function Dashboard() {
     }, 30000); // 30 seconds for price updates
     
     const fullRefreshInterval = setInterval(() => {
-      logger.log('⏰ [Dashboard] Full refresh interval triggered');
+      // ✅ DEBUG: Only log in development mode
+      if (process.env.NODE_ENV === 'development') {
+        logger.log('⏰ [Dashboard] Full refresh interval triggered');
+      }
       // Use ref to call fetchData to avoid dependency issues
       if (fetchDataRef.current) {
         fetchDataRef.current(false);
