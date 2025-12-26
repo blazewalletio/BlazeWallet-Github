@@ -527,38 +527,49 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
         >
-          {/* Header */}
-          <div className="sticky top-0 z-10 bg-gradient-to-r from-orange-500 to-yellow-500 px-4 sm:px-6 pt-safe">
-            <div className="flex items-center justify-between py-4">
-              <button
-                onClick={() => {
-                  if (mode === 'method' || mode === 'processing' || mode === 'success') {
-                    onClose();
-                  } else {
-                    handleBack();
-                  }
-                }}
-                className="flex items-center gap-2 text-white hover:bg-white/10 px-3 py-2 rounded-lg transition-colors"
-              >
-                <ArrowRight className="w-5 h-5 rotate-180" />
-                <span className="font-semibold">
-                  {mode === 'method' || mode === 'processing' || mode === 'success' ? 'Close' : 'Back'}
-                </span>
-              </button>
-              <div className="flex items-center gap-2">
-                <Zap className="w-6 h-6 text-white" />
-                <div className="text-center">
-                  <h2 className="text-xl font-bold text-white">Quick Pay</h2>
-                  {mode === 'amount' && <p className="text-xs text-white/80">Step 1 of 2</p>}
-                  {mode === 'address' && <p className="text-xs text-white/80">Step 2 of 2</p>}
+          <div className="max-w-4xl mx-auto p-6">
+            {/* Back Button */}
+            <button
+              onClick={() => {
+                if (mode === 'method' || mode === 'processing' || mode === 'success') {
+                  onClose();
+                } else {
+                  handleBack();
+                }
+              }}
+              className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+            >
+              ← {mode === 'method' || mode === 'processing' || mode === 'success' ? 'Close' : 'Back'}
+            </button>
+
+            {/* Header */}
+            <div className="mb-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Zap className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Quick Pay</h2>
+                  <p className="text-sm text-gray-600">
+                    {mode === 'method' && 'Choose payment method'}
+                    {mode === 'amount' && 'Step 1 of 2: Enter amount'}
+                    {mode === 'address' && 'Step 2 of 2: Enter address'}
+                    {mode === 'scan' && 'Scan QR code'}
+                    {mode === 'lightning' && 'Lightning Network'}
+                    {mode === 'lightning-send' && 'Pay Lightning invoice'}
+                    {mode === 'lightning-receive' && 'Receive Lightning payment'}
+                    {mode === 'chain-switch' && 'Switch network'}
+                    {mode === 'confirm' && 'Review payment'}
+                    {mode === 'processing' && 'Processing...'}
+                    {mode === 'success' && 'Payment successful'}
+                    {!['method', 'amount', 'address', 'scan', 'lightning', 'lightning-send', 'lightning-receive', 'chain-switch', 'confirm', 'processing', 'success'].includes(mode) && 'Fast and easy payments'}
+                  </p>
                 </div>
               </div>
-              <div className="w-24" /> {/* Spacer for centering */}
             </div>
-          </div>
 
-          {/* Content */}
-          <div className="px-4 sm:px-6 py-6 pb-safe max-w-2xl mx-auto">
+            {/* Content */}
+            <div className="max-w-2xl mx-auto space-y-6">
 
             {/* ⚡ CHAIN SWITCH DIALOG - User-friendly Lightning prompt */}
             {showChainSwitchDialog && (
@@ -652,7 +663,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   <motion.button
                     whileTap={{ scale: 0.98 }}
                     onClick={() => handleMethodSelect('scanqr')}
-                    className="w-full glass p-5 rounded-xl hover:bg-theme-bg-secondary transition-all duration-200 group"
+                    className="w-full glass-card p-5 hover:bg-white/10 transition-all duration-200 group"
                   >
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
@@ -670,7 +681,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   <motion.button
                     whileTap={{ scale: 0.98 }}
                     onClick={() => handleMethodSelect('manual')}
-                    className="w-full glass p-5 rounded-xl hover:bg-theme-bg-secondary transition-all duration-200 group"
+                    className="w-full glass-card p-5 hover:bg-white/10 transition-all duration-200 group"
                   >
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
@@ -688,7 +699,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   <motion.button
                     whileTap={{ scale: 0.98 }}
                     onClick={() => handleMethodSelect('lightning')}
-                    className="w-full glass p-5 rounded-xl hover:bg-theme-bg-secondary transition-all duration-200 group"
+                    className="w-full glass-card p-5 hover:bg-white/10 transition-all duration-200 group"
                   >
                     <div className="flex items-center gap-4">
                       <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
@@ -751,7 +762,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                             setSelectedAmount(null);
                           }}
                           placeholder="0.00"
-                          className="w-full pl-12 pr-4 py-4 text-2xl font-bold bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          className="w-full pl-12 pr-4 py-4 text-2xl font-bold input-field placeholder-gray-400"
                         />
                       </div>
                     </div>
@@ -760,7 +771,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   <button
                     onClick={handleAmountNext}
                     disabled={!amount || amount <= 0}
-                    className="w-full py-4 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-semibold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                    className="w-full py-3 px-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                   >
                     Next →
                   </button>
@@ -786,7 +797,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                       onChange={(e) => setRecipientAddress(e.target.value)}
                       placeholder="0x... or paste wallet address"
                       rows={3}
-                      className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono text-sm resize-none"
+                      className="w-full input-field font-mono text-sm resize-none"
                     />
                   </div>
 
@@ -823,7 +834,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   <button
                     onClick={handleAddressNext}
                     disabled={!recipientAddress || recipientAddress.length < 26}
-                    className="w-full py-4 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-semibold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                    className="w-full py-3 px-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                   >
                     Review payment →
                   </button>
@@ -931,7 +942,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   </div>
 
                   {/* Current vs Detected Chain */}
-                  <div className="glass p-5 rounded-xl space-y-4">
+                  <div className="glass-card p-5 space-y-4">
                     {/* Current Chain */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -1022,7 +1033,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                         setNeedsChainSwitch(false);
                         setMode('method');
                       }}
-                      className="flex-1 py-4 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold transition-colors"
+                      className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-xl font-semibold transition-colors"
                     >
                       Cancel
                     </button>
@@ -1036,7 +1047,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                         setNeedsChainSwitch(false);
                         setMode('confirm');
                       }}
-                      className="flex-1 py-4 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold transition-all shadow-lg flex items-center justify-center gap-2"
+                      className="flex-1 py-3 px-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
                     >
                       <RefreshCw className="w-5 h-5" />
                       Switch & Continue
@@ -1237,7 +1248,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                       onChange={(e) => setLightningInvoiceInput(e.target.value)}
                       placeholder="lnbc... or lightning:lnbc..."
                       rows={4}
-                      className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono text-sm resize-none"
+                      className="w-full input-field font-mono text-sm resize-none"
                     />
                   </div>
 
@@ -1325,7 +1336,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                       }
                     }}
                     disabled={!lightningInvoiceInput}
-                    className="w-full py-4 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-semibold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-3 px-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                   >
                     Pay Invoice ⚡
                   </button>
@@ -1400,7 +1411,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                               setSelectedAmount(null);
                             }}
                             placeholder="0.00"
-                            className="w-full pl-12 pr-4 py-4 text-2xl font-bold bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            className="w-full pl-12 pr-4 py-4 text-2xl font-bold input-field placeholder-gray-400"
                           />
                         </div>
                       </div>
@@ -1489,7 +1500,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                           }
                         }}
                         disabled={!amount || amount <= 0}
-                        className="w-full py-4 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full py-3 px-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                       >
                         Generate Invoice ⚡
                       </button>
@@ -1704,13 +1715,13 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                         setParsedQR(null);
                         setMode('method');
                       }}
-                      className="flex-1 py-4 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-900 font-semibold transition-colors"
+                      className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-xl font-semibold transition-colors"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleConfirmPayment}
-                      className="flex-1 py-4 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-semibold transition-all shadow-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                      className="flex-1 py-3 px-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                     >
                       Confirm & send
                     </button>
@@ -1747,6 +1758,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   </div>
                 </div>
               )}
+            </div>
           </div>
         </motion.div>
       )}
