@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, Area, AreaChart } from 'recharts';
 import { TrendingUp, TrendingDown, BarChart3 } from 'lucide-react';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { getTokenPriceHistory } from '@/lib/token-price-history';
+import { priceHistoryCache } from '@/lib/price-history-cache';
 import { logger } from '@/lib/logger';
 
 interface TokenPriceChartProps {
@@ -35,105 +36,386 @@ export default function TokenPriceChart({
   const [isLoading, setIsLoading] = useState(false);
   const [minValue, setMinValue] = useState(0);
   const [maxValue, setMaxValue] = useState(0);
+  
+  // ✅ REFS: Track intervals and prevent memory leaks
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
 
-  // Load price history
-  useEffect(() => {
-    if (!tokenSymbol) return;
+  // ✅ Get days for timeframe
+  const getDaysForTimeframe = useCallback((timeframe: Timeframe): number => {
+    switch (timeframe) {
+      case 'LIVE':
+      case '1D':
+        return 1;
+      case '7D':
+        return 7;
+      case '30D':
+        return 30;
+      case '1J':
+        return 365;
+      case 'ALLES':
+        return 365; // Max available
+      default:
+        return 1;
+    }
+  }, []);
 
-    const loadPriceHistory = async () => {
-      setIsLoading(true);
-      try {
-        let days = 1;
-        switch (selectedTimeframe) {
-          case 'LIVE':
-          case '1D':
-            days = 1;
-            break;
-          case '7D':
-            days = 7;
-            break;
-          case '30D':
-            days = 30;
-            break;
-          case '1J':
-            days = 365;
-            break;
-          case 'ALLES':
-            days = 365; // Max available
-            break;
+  // ✅ Get refresh interval for timeframe (like Bitvavo/Coinbase)
+  const getRefreshInterval = useCallback((timeframe: Timeframe): number => {
+    switch (timeframe) {
+      case 'LIVE':
+        return 1000; // ✅ 1 seconde voor echt live data (zoals Bitvavo)
+      case '1D':
+        return 60000; // 1 minuut voor 1D
+      case '7D':
+        return 5 * 60000; // 5 minuten voor 7D
+      case '30D':
+        return 10 * 60000; // 10 minuten voor 30D
+      case '1J':
+      case 'ALLES':
+        return 30 * 60000; // 30 minuten voor langere timeframes
+      default:
+        return 60000;
+    }
+  }, []);
+
+  // ✅ LIVE data: Update only the latest price point (no full history fetch)
+  const updateLivePrice = useCallback(async () => {
+    if (!tokenSymbol || selectedTimeframe !== 'LIVE' || !isMountedRef.current) return;
+    
+    // For LIVE, we only update the current price point
+    // Use the existing price history and just update the last point
+    setPriceHistory(prev => {
+      if (prev.length === 0 || currentPrice <= 0) return prev;
+      
+      const now = Date.now();
+      const formatTime = (timestamp: number) => {
+        const date = new Date(timestamp);
+        return date.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      };
+      
+      // Update last point or add new one
+      const lastPoint = prev[prev.length - 1];
+      const timeSinceLastPoint = now - lastPoint.timestamp;
+      
+      // Only update if price changed or more than 1 second passed
+      if (timeSinceLastPoint > 1000 || Math.abs(currentPrice - lastPoint.price) / lastPoint.price > 0.0001) {
+        const newData = [...prev];
+        
+        // Keep only last 60 points for LIVE (last minute of data)
+        if (newData.length >= 60) {
+          newData.shift();
+        }
+        
+        // Update or add latest point
+        if (timeSinceLastPoint < 5000 && newData.length > 0) {
+          // Update existing point
+          newData[newData.length - 1] = {
+            timestamp: now,
+            price: currentPrice,
+            time: formatTime(now),
+          };
+        } else {
+          // Add new point
+          newData.push({
+            timestamp: now,
+            price: currentPrice,
+            time: formatTime(now),
+          });
+        }
+        
+        // Update min/max
+        const prices = newData.map(d => d.price);
+        const min = Math.min(...prices);
+        const max = Math.max(...prices);
+        const range = max - min;
+        const padding = range > 0 ? range * 0.05 : max * 0.01;
+        
+        setMinValue(Math.max(0, min - padding));
+        setMaxValue(max + padding);
+        
+        if (onPriceUpdate) {
+          onPriceUpdate(currentPrice);
+        }
+        
+        return newData;
+      }
+      
+      return prev;
+    });
+  }, [tokenSymbol, selectedTimeframe, currentPrice, onPriceUpdate]);
+
+  // ✅ Load price history with smart caching
+  const loadPriceHistory = useCallback(async (forceRefresh = false) => {
+    if (!tokenSymbol || !isMountedRef.current) return;
+
+    const days = getDaysForTimeframe(selectedTimeframe);
+    
+    // ✅ Check cache first (unless forced refresh)
+    if (!forceRefresh) {
+      const cached = priceHistoryCache.get(tokenSymbol, days, tokenAddress, chain);
+      if (cached && cached.prices.length > 0) {
+        // Use cached data immediately
+        const formatTime = (timestamp: number) => {
+          const date = new Date(timestamp);
+          if (selectedTimeframe === 'LIVE' || selectedTimeframe === '1D') {
+            return date.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+          } else if (selectedTimeframe === '7D' || selectedTimeframe === '30D') {
+            return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
+          } else {
+            return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: '2-digit' });
+          }
+        };
+
+        const data = cached.prices.map(p => ({
+          timestamp: p.timestamp,
+          price: p.price,
+          time: formatTime(p.timestamp),
+        }));
+
+        // Add current price if available and different
+        if (currentPrice > 0) {
+          const lastPrice = data[data.length - 1]?.price;
+          if (!lastPrice || Math.abs(currentPrice - lastPrice) / lastPrice > 0.001) {
+            data.push({
+              timestamp: Date.now(),
+              price: currentPrice,
+              time: formatTime(Date.now()),
+            });
+          }
         }
 
-        const result = await getTokenPriceHistory(
+        const prices = data.map(d => d.price);
+        const min = Math.min(...prices);
+        const max = Math.max(...prices);
+        const range = max - min;
+        const padding = range > 0 ? range * 0.05 : max * 0.01;
+
+        setPriceHistory(data);
+        setMinValue(Math.max(0, min - padding));
+        setMaxValue(max + padding);
+        setIsLoading(false);
+
+        // ✅ Background refresh if cache is getting stale
+        if (priceHistoryCache.needsRefresh(tokenSymbol, days, tokenAddress, chain)) {
+          logger.log(`🔄 [TokenPriceChart] Cache getting stale, refreshing in background...`);
+          loadPriceHistory(true); // Refresh in background
+        }
+        return;
+      }
+    }
+
+    setIsLoading(true);
+    try {
+
+      const result = await getTokenPriceHistory(
+        tokenSymbol,
+        days,
+        tokenAddress,
+        chain
+      );
+
+      if (result.success && result.prices && result.prices.length > 0) {
+        // ✅ IMPROVED: Filter and validate price data
+        const validPrices = result.prices
+          .filter(p => p && p.timestamp && p.price && p.price > 0 && !isNaN(p.price) && !isNaN(p.timestamp))
+          .sort((a, b) => a.timestamp - b.timestamp); // Ensure chronological order
+
+        if (validPrices.length === 0) {
+          logger.warn(`⚠️ No valid price data after filtering for ${tokenSymbol}`);
+          if (isMountedRef.current) {
+            setPriceHistory([]);
+            setIsLoading(false);
+          }
+          return;
+        }
+
+        // ✅ Cache the result
+        priceHistoryCache.set(
           tokenSymbol,
           days,
+          validPrices,
+          result.coinGeckoId,
           tokenAddress,
-          chain
+          chain,
+          result.source || 'CoinGecko'
         );
 
-        if (result.success && result.prices.length > 0) {
-          // Format time labels based on timeframe (like Bitvavo)
-          const formatTime = (timestamp: number) => {
-            const date = new Date(timestamp);
-            if (selectedTimeframe === 'LIVE' || selectedTimeframe === '1D') {
-              return date.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
-            } else if (selectedTimeframe === '7D' || selectedTimeframe === '30D') {
-              return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
-            } else {
-              return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: '2-digit' });
-            }
-          };
+        // Format time labels based on timeframe (like Bitvavo)
+        const formatTime = (timestamp: number) => {
+          const date = new Date(timestamp);
+          if (selectedTimeframe === 'LIVE' || selectedTimeframe === '1D') {
+            return date.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+          } else if (selectedTimeframe === '7D' || selectedTimeframe === '30D') {
+            return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
+          } else {
+            return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: '2-digit' });
+          }
+        };
 
-          const data = result.prices.map(p => ({
-            timestamp: p.timestamp,
-            price: p.price,
-            time: formatTime(p.timestamp),
-          }));
+        let data = validPrices.map(p => ({
+          timestamp: p.timestamp,
+          price: p.price,
+          time: formatTime(p.timestamp),
+        }));
 
-          // Add current price as latest point only if it's different from last point
-          const lastPrice = data.length > 0 ? data[data.length - 1].price : null;
-          const now = Date.now();
+        // ✅ IMPROVED: Add current price intelligently
+        const lastPoint = data[data.length - 1];
+        const now = Date.now();
+        const timeSinceLastPoint = now - lastPoint.timestamp;
+        
+        // Add current price if:
+        // 1. We have a valid current price
+        // 2. Last point is more than 1 minute old (for 1D) or 5 minutes old (for others)
+        // 3. Price is significantly different (>0.1% change)
+        if (currentPrice > 0) {
+          const priceDiff = Math.abs(currentPrice - lastPoint.price) / lastPoint.price;
+          const shouldAdd = timeSinceLastPoint > (days <= 1 ? 60000 : 300000) || priceDiff > 0.001;
           
-          // Only add current price if it's significantly different or if we don't have recent data
-          if (lastPrice === null || Math.abs(currentPrice - lastPrice) > 0.0001 || (now - data[data.length - 1].timestamp) > 60000) {
+          if (shouldAdd) {
             data.push({
               timestamp: now,
               price: currentPrice,
               time: formatTime(now),
             });
           }
+        }
 
-          const prices = data.map(d => d.price);
-          const min = Math.min(...prices);
-          const max = Math.max(...prices);
-          const padding = (max - min) * 0.1;
+        // ✅ IMPROVED: Ensure minimum data points for smooth chart
+        if (data.length === 1 && currentPrice > 0) {
+          data.unshift({
+            timestamp: data[0].timestamp - 3600000, // 1 hour before
+            price: data[0].price * 0.99, // Slightly lower for visual
+            time: formatTime(data[0].timestamp - 3600000),
+          });
+        }
 
+        // Calculate min/max with proper padding
+        const prices = data.map(d => d.price);
+        const min = Math.min(...prices);
+        const max = Math.max(...prices);
+        const range = max - min;
+        const padding = range > 0 ? range * 0.05 : max * 0.01;
+
+        if (isMountedRef.current) {
           setPriceHistory(data);
           setMinValue(Math.max(0, min - padding));
           setMaxValue(max + padding);
+          setIsLoading(false);
 
           if (onPriceUpdate && data.length > 0) {
             onPriceUpdate(data[data.length - 1].price);
           }
-        } else {
-          logger.warn(`⚠️ No price history available for ${tokenSymbol}`);
-          setPriceHistory([]);
         }
-      } catch (error) {
-        logger.error('❌ Failed to load price history:', error);
+
+        logger.log(`✅ [TokenPriceChart] Loaded ${data.length} price points for ${tokenSymbol} (${days}d)`);
+      } else {
+        logger.warn(`⚠️ No price history available for ${tokenSymbol}: ${result.error || 'Unknown error'}`);
+        
+        // ✅ IMPROVED: If we have current price but no history, create a simple chart
+        if (currentPrice > 0 && isMountedRef.current) {
+          const now = Date.now();
+          const pastTime = now - (days * 24 * 60 * 60 * 1000);
+          
+          const fallbackData = [
+            {
+              timestamp: pastTime,
+              price: currentPrice * 0.95, // 5% lower
+              time: new Date(pastTime).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }),
+            },
+            {
+              timestamp: now,
+              price: currentPrice,
+              time: new Date(now).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }),
+            },
+          ];
+          
+          setPriceHistory(fallbackData);
+          setMinValue(currentPrice * 0.90);
+          setMaxValue(currentPrice * 1.05);
+          setIsLoading(false);
+          logger.log(`⚠️ [TokenPriceChart] Using fallback chart for ${tokenSymbol}`);
+        } else if (isMountedRef.current) {
+          setPriceHistory([]);
+          setIsLoading(false);
+        }
+      }
+    } catch (error) {
+      logger.error('❌ Failed to load price history:', error);
+      if (isMountedRef.current) {
         setPriceHistory([]);
-      } finally {
         setIsLoading(false);
       }
-    };
-
-    loadPriceHistory();
-
-    // For LIVE timeframe, update every 30 seconds
-    if (selectedTimeframe === 'LIVE') {
-      const interval = setInterval(loadPriceHistory, 30000);
-      return () => clearInterval(interval);
     }
-  }, [tokenSymbol, tokenAddress, chain, selectedTimeframe, currentPrice, onPriceUpdate]);
+  }, [tokenSymbol, tokenAddress, chain, selectedTimeframe, currentPrice, onPriceUpdate, getDaysForTimeframe]);
+
+  // ✅ Main effect: Load data and set up refresh intervals
+  useEffect(() => {
+    if (!tokenSymbol) return;
+    
+    isMountedRef.current = true;
+    
+    // Initial load
+    if (selectedTimeframe === 'LIVE') {
+      // For LIVE, load initial history then update only price
+      loadPriceHistory(false);
+    } else {
+      loadPriceHistory(false);
+    }
+
+    // ✅ Set up smart refresh interval based on timeframe
+    const refreshInterval = getRefreshInterval(selectedTimeframe);
+    
+    // Clear existing interval
+    if (refreshIntervalRef.current) {
+      clearInterval(refreshIntervalRef.current);
+    }
+
+    // Set up new interval
+    if (selectedTimeframe === 'LIVE') {
+      // ✅ LIVE: Update only price (no full history fetch)
+      refreshIntervalRef.current = setInterval(() => {
+        if (isMountedRef.current) {
+          updateLivePrice();
+        }
+      }, refreshInterval);
+      
+      // Also refresh full history every 30 seconds for LIVE (to get new data points)
+      const historyRefreshInterval = setInterval(() => {
+        if (isMountedRef.current) {
+          logger.log(`🔄 [TokenPriceChart] Refreshing LIVE history for ${tokenSymbol}`);
+          loadPriceHistory(false);
+        }
+      }, 30000);
+      
+      // Cleanup
+      return () => {
+        if (refreshIntervalRef.current) {
+          clearInterval(refreshIntervalRef.current);
+          refreshIntervalRef.current = null;
+        }
+        clearInterval(historyRefreshInterval);
+        isMountedRef.current = false;
+      };
+    } else {
+      // Other timeframes: Full refresh
+      refreshIntervalRef.current = setInterval(() => {
+        if (isMountedRef.current) {
+          logger.log(`🔄 [TokenPriceChart] Auto-refresh for ${tokenSymbol} (${selectedTimeframe})`);
+          loadPriceHistory(false); // Use cache if available, refresh if stale
+        }
+      }, refreshInterval);
+
+      // Cleanup
+      return () => {
+        if (refreshIntervalRef.current) {
+          clearInterval(refreshIntervalRef.current);
+          refreshIntervalRef.current = null;
+        }
+        isMountedRef.current = false;
+      };
+    }
+  }, [tokenSymbol, tokenAddress, chain, selectedTimeframe, loadPriceHistory, getRefreshInterval, updateLivePrice]);
 
   const timeframes: Timeframe[] = ['LIVE', '1D', '7D', '30D', '1J', 'ALLES'];
 

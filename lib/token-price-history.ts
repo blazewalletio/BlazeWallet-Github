@@ -6,9 +6,12 @@
  * TIER 2: CoinGecko API (Major crypto + ERC20) - BEST for ETH/BTC
  * TIER 3: Birdeye API (All chains) - Fallback for everything
  * TIER 4: DexScreener (DEX tokens) - Ultimate fallback
+ * 
+ * ✅ IMPROVED: Now uses smart caching service
  */
 
 import { logger } from '@/lib/logger';
+import { priceHistoryCache } from './price-history-cache';
 
 export interface PriceDataPoint {
   timestamp: number;
@@ -20,14 +23,12 @@ interface PriceHistoryResult {
   success: boolean;
   error?: string;
   source?: string;
+  coinGeckoId?: string;
 }
-
-// Cache to prevent rate limiting (15 min TTL)
-const priceHistoryCache = new Map<string, { data: PriceHistoryResult; timestamp: number }>();
-const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
 /**
  * MAIN FUNCTION: Fetch price history with multi-API fallback
+ * ✅ IMPROVED: Uses smart caching service
  */
 export async function getTokenPriceHistory(
   symbol: string,
@@ -35,22 +36,34 @@ export async function getTokenPriceHistory(
   contractAddress?: string,
   chain?: string
 ): Promise<PriceHistoryResult> {
-  const cacheKey = `${chain || 'unknown'}_${contractAddress || symbol}_${days}d`;
-  
-  // Check cache first
-  const cached = priceHistoryCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    logger.log(`📊 [Cache] Using cached price history for ${symbol}`);
-    return cached.data;
+  // ✅ Check smart cache first
+  const cached = priceHistoryCache.get(symbol, days, contractAddress, chain);
+  if (cached) {
+    logger.log(`📊 [TokenPriceHistory] Using cached data for ${symbol} (${days}d)`);
+    return {
+      prices: cached.prices,
+      success: true,
+      source: cached.source,
+      coinGeckoId: cached.coinGeckoId,
+    };
   }
 
-  logger.log(`📊 Fetching price history for ${symbol} (${days}d)...`);
+  logger.log(`📊 [TokenPriceHistory] Fetching fresh data for ${symbol} (${days}d)...`);
 
   // TIER 1: Jupiter API for Solana SPL tokens
   if (chain?.toLowerCase() === 'solana' && contractAddress) {
     const jupiterResult = await fetchJupiterPriceHistory(contractAddress, days);
     if (jupiterResult.success) {
-      priceHistoryCache.set(cacheKey, { data: jupiterResult, timestamp: Date.now() });
+      // ✅ Cache the result
+      priceHistoryCache.set(
+        symbol,
+        days,
+        jupiterResult.prices,
+        undefined,
+        contractAddress,
+        chain,
+        jupiterResult.source || 'Jupiter'
+      );
       return jupiterResult;
     }
   }
@@ -58,7 +71,16 @@ export async function getTokenPriceHistory(
   // TIER 2: CoinGecko API for major tokens
   const coinGeckoResult = await fetchCoinGeckoPriceHistory(symbol, days, contractAddress, chain);
   if (coinGeckoResult.success) {
-    priceHistoryCache.set(cacheKey, { data: coinGeckoResult, timestamp: Date.now() });
+    // ✅ Cache the result
+    priceHistoryCache.set(
+      symbol,
+      days,
+      coinGeckoResult.prices,
+      coinGeckoResult.coinGeckoId,
+      contractAddress,
+      chain,
+      coinGeckoResult.source || 'CoinGecko'
+    );
     return coinGeckoResult;
   }
 
@@ -66,13 +88,22 @@ export async function getTokenPriceHistory(
   if (contractAddress && chain) {
     const dexScreenerResult = await fetchDexScreenerPriceHistory(contractAddress, chain, days);
     if (dexScreenerResult.success) {
-      priceHistoryCache.set(cacheKey, { data: dexScreenerResult, timestamp: Date.now() });
+      // ✅ Cache the result
+      priceHistoryCache.set(
+        symbol,
+        days,
+        dexScreenerResult.prices,
+        undefined,
+        contractAddress,
+        chain,
+        dexScreenerResult.source || 'DexScreener'
+      );
       return dexScreenerResult;
     }
   }
 
   // TIER 4: Generate synthetic data from current price if available
-  logger.warn(`⚠️ No price history available for ${symbol} from any API`);
+  logger.warn(`⚠️ [TokenPriceHistory] No price history available for ${symbol} from any API`);
   return { prices: [], success: false, error: 'No data available', source: 'none' };
 }
 
@@ -176,7 +207,12 @@ async function fetchCoinGeckoPriceHistory(
     }
 
     logger.log(`✅ [CoinGecko] Got ${data.prices.length} price points`);
-    return { prices: data.prices, success: true, source: 'CoinGecko' };
+    return { 
+      prices: data.prices, 
+      success: true, 
+      source: 'CoinGecko',
+      coinGeckoId: data.coinGeckoId, // ✅ Pass through CoinGecko ID for caching
+    };
     
   } catch (error) {
     logger.warn(`❌ [CoinGecko] Failed:`, error);
