@@ -173,17 +173,9 @@ export default function TokenPriceChart({
           time: formatTime(p.timestamp),
         }));
 
-        // Add current price if available and different
-        if (currentPrice > 0) {
-          const lastPrice = data[data.length - 1]?.price;
-          if (!lastPrice || Math.abs(currentPrice - lastPrice) / lastPrice > 0.001) {
-            data.push({
-              timestamp: Date.now(),
-              price: currentPrice,
-              time: formatTime(Date.now()),
-            });
-          }
-        }
+        // ✅ EXACT CoinGecko data - NO manipulation!
+        // CoinGecko already provides complete data, including the latest price point
+        // We should NOT add currentPrice as it would distort the chart shape
 
         const prices = data.map(d => d.price);
         const min = Math.min(...prices);
@@ -259,36 +251,10 @@ export default function TokenPriceChart({
           time: formatTime(p.timestamp),
         }));
 
-        // ✅ IMPROVED: Add current price intelligently
-        const lastPoint = data[data.length - 1];
-        const now = Date.now();
-        const timeSinceLastPoint = now - lastPoint.timestamp;
-        
-        // Add current price if:
-        // 1. We have a valid current price
-        // 2. Last point is more than 1 minute old (for 1D) or 5 minutes old (for others)
-        // 3. Price is significantly different (>0.1% change)
-        if (currentPrice > 0) {
-          const priceDiff = Math.abs(currentPrice - lastPoint.price) / lastPoint.price;
-          const shouldAdd = timeSinceLastPoint > (days <= 1 ? 60000 : 300000) || priceDiff > 0.001;
-          
-          if (shouldAdd) {
-            data.push({
-              timestamp: now,
-              price: currentPrice,
-              time: formatTime(now),
-            });
-          }
-        }
-
-        // ✅ IMPROVED: Ensure minimum data points for smooth chart
-        if (data.length === 1 && currentPrice > 0) {
-          data.unshift({
-            timestamp: data[0].timestamp - 3600000, // 1 hour before
-            price: data[0].price * 0.99, // Slightly lower for visual
-            time: formatTime(data[0].timestamp - 3600000),
-          });
-        }
+        // ✅ EXACT CoinGecko data - NO manipulation!
+        // CoinGecko already provides complete data, including the latest price point
+        // We should NOT add currentPrice as it would distort the chart shape
+        // Only use CoinGecko's exact data points to match their website exactly
 
         // Calculate min/max with proper padding
         const prices = data.map(d => d.price);
@@ -541,22 +507,17 @@ export default function TokenPriceChart({
                   </defs>
                   <XAxis
                     dataKey="time"
-                    stroke="#9ca3af"
-                    style={{ fontSize: '12px' }}
                     tickLine={false}
                     axisLine={false}
-                    interval="preserveStartEnd"
-                    tick={{ fill: '#6b7280' }}
+                    hide={true}
+                    // ✅ No labels on X-axis (saves space, cleaner look like CoinGecko)
                   />
                   <YAxis
-                    stroke="#9ca3af"
-                    style={{ fontSize: '12px' }}
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(value) => formatUSDSync(value)}
                     domain={[minValue, maxValue]}
-                    width={80}
-                    tick={{ fill: '#6b7280' }}
+                    hide={true}
+                    // ✅ No labels on Y-axis (saves space, cleaner look like CoinGecko)
                   />
                   <Tooltip 
                     content={<CustomTooltip />}
@@ -580,22 +541,17 @@ export default function TokenPriceChart({
                 >
                   <XAxis
                     dataKey="time"
-                    stroke="#9ca3af"
-                    style={{ fontSize: '12px' }}
                     tickLine={false}
                     axisLine={false}
-                    interval="preserveStartEnd"
-                    tick={{ fill: '#6b7280' }}
+                    hide={true}
+                    // ✅ No labels on X-axis (saves space, cleaner look like CoinGecko)
                   />
                   <YAxis
-                    stroke="#9ca3af"
-                    style={{ fontSize: '12px' }}
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(value) => formatUSDSync(value)}
                     domain={[minValue, maxValue]}
-                    width={80}
-                    tick={{ fill: '#6b7280' }}
+                    hide={true}
+                    // ✅ No labels on Y-axis (saves space, cleaner look like CoinGecko)
                   />
                   <Tooltip 
                     content={<CustomTooltip />}

@@ -32,15 +32,18 @@ export async function GET(request: Request) {
     const apiKey = process.env.COINGECKO_API_KEY?.trim();
     const apiKeyParam = apiKey ? `&x_cg_demo_api_key=${apiKey}` : '';
     
-    // ✅ IMPROVED: Better interval selection based on timeframe
-    // CoinGecko supports: hourly (1-90 days), daily (1-365 days), auto (auto-selects best)
-    let interval = 'auto';
-    if (days <= 1) {
-      interval = 'hourly'; // For 1D, use hourly data
+    // ✅ EXACT CoinGecko granularity matching:
+    // - 1 day: NO interval parameter → automatically gives 5-minute data (288 points)
+    // - 1-90 days: interval=hourly → hourly data
+    // - >90 days: interval=daily → daily data
+    let interval: string | null = null;
+    if (days === 1) {
+      // ✅ 1D: No interval parameter = CoinGecko automatically gives 5-minute intervals
+      interval = null; // Don't add interval parameter for 1D
     } else if (days <= 90) {
-      interval = 'daily'; // For 7D, 30D, use daily data
+      interval = 'hourly'; // For 7D, 30D: hourly data
     } else {
-      interval = 'daily'; // For 1J, ALLES, use daily data
+      interval = 'daily'; // For 1J, ALLES: daily data
     }
     
     let coinGeckoId: string | null = null;
@@ -213,10 +216,18 @@ export async function GET(request: Request) {
       );
     }
 
-    // ✅ IMPROVED: Fetch from CoinGecko with better error handling
-    url = `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}&interval=${interval}${apiKeyParam}`;
+    // ✅ EXACT CoinGecko API call matching their website
+    // For 1D: No interval parameter (CoinGecko automatically gives 5-minute data)
+    // For others: Use interval parameter
+    if (interval) {
+      url = `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}&interval=${interval}${apiKeyParam}`;
+    } else {
+      // 1D: No interval parameter = 5-minute granularity
+      url = `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}${apiKeyParam}`;
+    }
     
-    logger.log(`📡 [Price History] Fetching ${days} days (${interval}) for ${symbol} (${coinGeckoId})${isNativeToken ? ' [Native]' : ''}${contractAddress ? ` via contract ${contractAddress}` : ''} (API key: ${apiKey ? 'Yes' : 'No'})`);
+    const intervalLabel = interval || '5-minute (auto)';
+    logger.log(`📡 [Price History] Fetching ${days} days (${intervalLabel}) for ${symbol} (${coinGeckoId})${isNativeToken ? ' [Native]' : ''}${contractAddress ? ` via contract ${contractAddress}` : ''} (API key: ${apiKey ? 'Yes' : 'No'})`);
     
     const response = await fetch(url, {
       headers: {
@@ -264,8 +275,9 @@ export async function GET(request: Request) {
       );
     }
 
-    // ✅ IMPROVED: CoinGecko returns [[timestamp, price], ...]
-    // Filter out invalid data points and ensure chronological order
+    // ✅ EXACT CoinGecko data - minimal filtering, preserve exact shape
+    // Only filter out truly invalid data (null, NaN, negative)
+    // Keep ALL valid data points to match CoinGecko's exact chart shape
     const prices = data.prices
       .filter(([timestamp, price]: [number, number]) => 
         timestamp && price && price > 0 && !isNaN(price) && !isNaN(timestamp)
@@ -274,7 +286,7 @@ export async function GET(request: Request) {
         timestamp: timestamp,
         price: price,
       }))
-      .sort((a: { timestamp: number; price: number }, b: { timestamp: number; price: number }) => a.timestamp - b.timestamp); // Ensure chronological order
+      .sort((a: { timestamp: number; price: number }, b: { timestamp: number; price: number }) => a.timestamp - b.timestamp);
 
     if (prices.length === 0) {
       logger.warn(`⚠️ [Price History] No valid price points after filtering for ${symbol}`);
@@ -284,20 +296,13 @@ export async function GET(request: Request) {
       );
     }
 
-    // ✅ IMPROVED: For very short timeframes, ensure we have enough data points
-    // If we have less than 10 points for 1D, try to interpolate or use current price
-    if (days <= 1 && prices.length < 10) {
-      logger.log(`⚠️ [Price History] Only ${prices.length} points for 1D, ensuring minimum data`);
-      // Add current price if missing
-      const now = Date.now();
-      const lastPoint = prices[prices.length - 1];
-      if (lastPoint && (now - lastPoint.timestamp) > 300000) { // More than 5 min old
-        prices.push({
-          timestamp: now,
-          price: lastPoint.price, // Use last known price
-        });
-      }
-    }
+    // ✅ NO data manipulation - use CoinGecko's exact data
+    // CoinGecko already provides complete, accurate data:
+    // - 1D: ~288 points (5-minute intervals)
+    // - 7D: ~168 points (hourly intervals)
+    // - 30D: ~720 points (hourly intervals)
+    // - 1J: ~365 points (daily intervals)
+    // Adding extra points would distort the chart shape and make it not match CoinGecko
 
     logger.log(`✅ [Price History] Got ${prices.length} price points for ${symbol} (${coinGeckoId})`);
     
