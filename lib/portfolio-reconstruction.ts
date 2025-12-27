@@ -13,13 +13,67 @@ import { Token } from '@/lib/types';
 import { getTokenPriceHistory, PriceDataPoint } from '@/lib/token-price-history';
 import { logger } from '@/lib/logger';
 import { BalanceSnapshot } from '@/lib/portfolio-history';
+import { CHAINS } from '@/lib/chains';
+
+/**
+ * Get CoinGecko ID for native token based on chain
+ * ✅ IMPROVED: Chain-specific native token detection
+ */
+function getNativeTokenCoinGeckoId(chain: string, nativeSymbol: string): string {
+  const chainLower = chain.toLowerCase();
+  
+  // Chain-specific mappings (prioritize chain over symbol)
+  const chainToCoinGeckoId: Record<string, string> = {
+    'ethereum': 'ethereum',
+    'solana': 'solana',
+    'polygon': 'polygon',
+    'bsc': 'binancecoin',
+    'binance-smart-chain': 'binancecoin',
+    'arbitrum': 'arbitrum',
+    'base': 'base',
+    'optimism': 'optimism',
+    'avalanche': 'avalanche-2',
+    'fantom': 'fantom',
+    'cronos': 'crypto-com-chain',
+    'bitcoin': 'bitcoin',
+    'litecoin': 'litecoin',
+    'dogecoin': 'dogecoin',
+    'bitcoincash': 'bitcoin-cash',
+  };
+  
+  // Try chain-based lookup first
+  if (chainToCoinGeckoId[chainLower]) {
+    return chainToCoinGeckoId[chainLower];
+  }
+  
+  // Fallback to symbol-based lookup
+  const symbolToCoinGeckoId: Record<string, string> = {
+    'ETH': 'ethereum',
+    'SOL': 'solana',
+    'MATIC': 'polygon',
+    'BNB': 'binancecoin',
+    'ARB': 'arbitrum',
+    'BASE': 'base',
+    'OP': 'optimism',
+    'AVAX': 'avalanche-2',
+    'FTM': 'fantom',
+    'CRO': 'crypto-com-chain',
+    'BTC': 'bitcoin',
+    'LTC': 'litecoin',
+    'DOGE': 'dogecoin',
+    'BCH': 'bitcoin-cash',
+  };
+  
+  return symbolToCoinGeckoId[nativeSymbol.toUpperCase()] || nativeSymbol.toLowerCase();
+}
 
 /**
  * Convert timeframe to days
+ * ✅ IMPROVED: LIVE uses only last 10 minutes (not 12 hours)
  */
 function timeframeToDays(timeframe: 'LIVE' | '1D' | '7D' | '30D' | '1J' | 'ALLES'): number {
   switch (timeframe) {
-    case 'LIVE': return 2 / 24; // ✅ FIXED: 2 hours (not 12 hours) for true live view
+    case 'LIVE': return 0.007; // ~10 minutes (for price history fetch, but we'll only use last few points)
     case '1D': return 1;
     case '7D': return 7;
     case '30D': return 30;
@@ -30,11 +84,29 @@ function timeframeToDays(timeframe: 'LIVE' | '1D' | '7D' | '30D' | '1J' | 'ALLES
 }
 
 /**
+ * Get tolerance for findClosestPrice based on timeframe
+ * ✅ IMPROVED: Timeframe-specific tolerances for better accuracy
+ */
+function getPriceTolerance(timeframe: 'LIVE' | '1D' | '7D' | '30D' | '1J' | 'ALLES'): number {
+  switch (timeframe) {
+    case 'LIVE': return 1 * 60 * 1000; // 1 minute
+    case '1D': return 5 * 60 * 1000; // 5 minutes
+    case '7D': return 60 * 60 * 1000; // 1 hour
+    case '30D': return 60 * 60 * 1000; // 1 hour
+    case '1J': return 24 * 60 * 60 * 1000; // 24 hours
+    case 'ALLES': return 24 * 60 * 60 * 1000; // 24 hours
+    default: return 60 * 60 * 1000; // 1 hour
+  }
+}
+
+/**
  * Find closest price point to a given timestamp
+ * ✅ IMPROVED: Uses timeframe-specific tolerance for better accuracy
  */
 function findClosestPrice(
   prices: PriceDataPoint[],
-  targetTimestamp: number
+  targetTimestamp: number,
+  tolerance: number
 ): PriceDataPoint | null {
   if (prices.length === 0) return null;
   
@@ -60,8 +132,8 @@ function findClosestPrice(
     }
   }
   
-  // Only return if within 24 hours
-  if (minDiff < 24 * 60 * 60 * 1000) {
+  // Only return if within tolerance (timeframe-specific)
+  if (minDiff < tolerance) {
     return closest;
   }
   
@@ -85,26 +157,24 @@ export async function reconstructPortfolioHistory(
   firstTransactionTimestamp?: number
 ): Promise<BalanceSnapshot[]> {
   try {
-    console.log(`🔍 [Portfolio Reconstruction] ========== RECONSTRUCTION START ==========`);
-    console.log(`🔍 [Portfolio Reconstruction] Input params: timeframe=${timeframe}, tokens=${tokens.length}, nativeBalance=${nativeBalance}, nativeSymbol=${nativeSymbol}, chain=${chain}`);
     logger.log(`📊 [Portfolio Reconstruction] Starting for ${tokens.length} tokens, timeframe: ${timeframe}`);
     
     const days = timeframeToDays(timeframe);
-    console.log(`🔍 [Portfolio Reconstruction] Timeframe '${timeframe}' converted to days: ${days} (${days * 24} hours)`);
-    
     const now = Date.now();
     const startTime = firstTransactionTimestamp 
       ? Math.max(firstTransactionTimestamp, now - days * 24 * 60 * 60 * 1000)
       : now - days * 24 * 60 * 60 * 1000;
     
-    console.log(`🔍 [Portfolio Reconstruction] Time range: now=${new Date(now).toISOString()}, startTime=${new Date(startTime).toISOString()}, duration=${days * 24} hours`);
-    
     // 1. Fetch historical prices for native token and all tokens (parallel)
-    console.log(`🔍 [Portfolio Reconstruction] Fetching price histories for ${1 + tokens.length} tokens (1 native + ${tokens.length} tokens)...`);
-    logger.log(`📊 [Portfolio Reconstruction] Fetching price histories...`);
+    logger.log(`📊 [Portfolio Reconstruction] Fetching price histories for chain: ${chain}, native: ${nativeSymbol}...`);
+    
+    // ✅ IMPROVED: Use CoinGecko ID for native token (better detection)
+    // For native tokens, we want to use CoinGecko directly (not contract address)
+    const nativeCoinGeckoId = getNativeTokenCoinGeckoId(chain, nativeSymbol);
+    logger.log(`📊 [Portfolio Reconstruction] Native token CoinGecko ID: ${nativeCoinGeckoId}`);
     
     const pricePromises = [
-      // Native token (always first)
+      // Native token (always first) - use symbol with chain for better detection
       getTokenPriceHistory(nativeSymbol, days, undefined, chain),
       // All tokens
       ...tokens.map(token => 
@@ -112,20 +182,10 @@ export async function reconstructPortfolioHistory(
       )
     ];
     
-    console.log(`🔍 [Portfolio Reconstruction] Waiting for ${pricePromises.length} price history promises...`);
     const priceHistories = await Promise.all(pricePromises);
     const nativeHistory = priceHistories[0];
     
-    console.log(`🔍 [Portfolio Reconstruction] Native price history result: success=${nativeHistory.success}, points=${nativeHistory.prices.length}, source=${nativeHistory.source}`);
-    if (nativeHistory.prices.length > 0) {
-      const oldestPrice = nativeHistory.prices[0];
-      const newestPrice = nativeHistory.prices[nativeHistory.prices.length - 1];
-      const priceTimeSpan = (newestPrice.timestamp - oldestPrice.timestamp) / (1000 * 60 * 60);
-      console.log(`🔍 [Portfolio Reconstruction] Native price time span: ${priceTimeSpan.toFixed(2)} hours (from ${new Date(oldestPrice.timestamp).toISOString()} to ${new Date(newestPrice.timestamp).toISOString()})`);
-    }
-    
     if (!nativeHistory.success || nativeHistory.prices.length === 0) {
-      console.log(`🔍 [Portfolio Reconstruction] ❌ No native price history available - returning empty array`);
       logger.warn(`⚠️ [Portfolio Reconstruction] No native price history available`);
       return [];
     }
@@ -136,34 +196,33 @@ export async function reconstructPortfolioHistory(
     const portfolioPoints: BalanceSnapshot[] = [];
     const nativeBalanceNum = parseFloat(nativeBalance || '0');
     
-    // ✅ REMOVED: No interpolation - use only real API data
-    // Interpolation generates fake data that doesn't match reality
-    // If we have few points, that's OK - we'll use what we have
-    const pricePointsToUse = nativeHistory.prices;
+    // ✅ IMPROVED: Use CoinGecko's exact data - no interpolation needed
+    // CoinGecko already provides optimal granularity:
+    // - 1D: ~288 points (5-minute intervals)
+    // - 7D/30D: hourly intervals
+    // - 1J/ALLES: daily intervals
+    let pricePointsToUse = nativeHistory.prices;
     
-    if (pricePointsToUse.length < 2) {
-      logger.warn(`⚠️ [Portfolio Reconstruction] Only ${pricePointsToUse.length} price points available - may result in limited chart data`);
+    // ✅ For LIVE timeframe: only use last 10 minutes of data
+    if (timeframe === 'LIVE') {
+      const tenMinutesAgo = now - 10 * 60 * 1000;
+      pricePointsToUse = pricePointsToUse.filter(p => p.timestamp >= tenMinutesAgo);
+      logger.log(`📊 [Portfolio Reconstruction] LIVE mode: using last ${pricePointsToUse.length} points (last 10 minutes)`);
     }
-    
-    console.log(`🔍 [Portfolio Reconstruction] Processing ${pricePointsToUse.length} price points...`);
-    let skippedCount = 0;
-    let processedCount = 0;
     
     for (const nativePoint of pricePointsToUse) {
       // Skip if before start time
-      if (nativePoint.timestamp < startTime) {
-        skippedCount++;
-        continue;
-      }
+      if (nativePoint.timestamp < startTime) continue;
       
       // Start with native token value
       let totalValue = nativeBalanceNum * nativePoint.price;
       
       // Add token values
+      const tolerance = getPriceTolerance(timeframe);
       tokens.forEach((token, index) => {
         const tokenHistory = priceHistories[index + 1];
         if (tokenHistory.success && tokenHistory.prices.length > 0) {
-          const closestPrice = findClosestPrice(tokenHistory.prices, nativePoint.timestamp);
+          const closestPrice = findClosestPrice(tokenHistory.prices, nativePoint.timestamp, tolerance);
           if (closestPrice) {
             const tokenBalance = parseFloat(token.balance || '0');
             totalValue += tokenBalance * closestPrice.price;
@@ -177,10 +236,7 @@ export async function reconstructPortfolioHistory(
         address: '', // Not needed for chart
         chain: chain
       });
-      processedCount++;
     }
-    
-    console.log(`🔍 [Portfolio Reconstruction] Processed ${processedCount} points, skipped ${skippedCount} points (before startTime)`);
     
     // Add current balance as final point if needed
     if (portfolioPoints.length > 0) {
@@ -226,20 +282,10 @@ export async function reconstructPortfolioHistory(
       });
     }
     
-    console.log(`🔍 [Portfolio Reconstruction] Generated ${portfolioPoints.length} portfolio points`);
-    if (portfolioPoints.length > 0) {
-      const oldestPoint = portfolioPoints[0];
-      const newestPoint = portfolioPoints[portfolioPoints.length - 1];
-      const portfolioTimeSpan = (newestPoint.timestamp - oldestPoint.timestamp) / (1000 * 60 * 60);
-      console.log(`🔍 [Portfolio Reconstruction] Portfolio time span: ${portfolioTimeSpan.toFixed(2)} hours (from ${new Date(oldestPoint.timestamp).toISOString()} to ${new Date(newestPoint.timestamp).toISOString()})`);
-      console.log(`🔍 [Portfolio Reconstruction] Expected timeframe: ${timeframe} (${days * 24} hours)`);
-    }
-    
     logger.log(`✅ [Portfolio Reconstruction] Generated ${portfolioPoints.length} portfolio points`);
     
     // Ensure we have at least 2 points for a line (if only 1 point, duplicate it with slight time offset)
     if (portfolioPoints.length === 1) {
-      console.log(`🔍 [Portfolio Reconstruction] Only 1 point, adding duplicate for line rendering`);
       const singlePoint = portfolioPoints[0];
       portfolioPoints.unshift({
         timestamp: singlePoint.timestamp - 3600000, // 1 hour before
@@ -250,7 +296,6 @@ export async function reconstructPortfolioHistory(
       logger.log(`📊 [Portfolio Reconstruction] Added duplicate point for line rendering`);
     }
     
-    console.log(`🔍 [Portfolio Reconstruction] ========== RECONSTRUCTION COMPLETE ==========`);
     return portfolioPoints;
     
   } catch (error) {

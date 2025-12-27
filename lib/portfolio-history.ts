@@ -14,15 +14,14 @@ export interface BalanceSnapshot {
 const STORAGE_KEY = 'arc_portfolio_history';
 const MAX_SNAPSHOTS = 100; // Keep last 100 data points
 
-// ✅ OPTIMIZED: Smart snapshot intervals (like Bitvavo)
-// Intervals are optimized for each timeframe to provide good granularity
+// Smart snapshot intervals (like Bitvavo)
 const SNAPSHOT_INTERVALS: Record<string, number> = {
-  LIVE: 15 * 1000,           // ✅ OPTIMIZED: 15 seconds for true live updates (was 30s)
-  '1D': 5 * 60 * 1000,       // ✅ OPTIMIZED: 5 minutes for 1D (was 1 hour) - better granularity
-  '7D': 6 * 60 * 60 * 1000,  // 6 hours (28 points) - unchanged
-  '30D': 24 * 60 * 60 * 1000, // 1 day (30 points) - unchanged
-  '1J': 7 * 24 * 60 * 60 * 1000, // 1 week (52 points) - unchanged
-  'ALLES': 7 * 24 * 60 * 60 * 1000, // 1 week (for long-term) - unchanged
+  LIVE: 30 * 1000,           // 30 seconds (last 30 min)
+  '1D': 60 * 60 * 1000,      // 1 hour (24 points)
+  '7D': 6 * 60 * 60 * 1000,  // 6 hours (28 points)
+  '30D': 24 * 60 * 60 * 1000, // 1 day (30 points)
+  '1J': 7 * 24 * 60 * 60 * 1000, // 1 week (52 points)
+  'ALLES': 7 * 24 * 60 * 60 * 1000, // 1 week (for long-term)
 };
 
 // Default interval (if timeframe not specified)
@@ -301,49 +300,29 @@ export class PortfolioHistory {
 
   // Get snapshots within a specific time range (optionally filtered by chain and address)
   getSnapshotsInRange(hours: number | null = null, chain?: string, address?: string): BalanceSnapshot[] {
-    console.log(`🔍 [PortfolioHistory] getSnapshotsInRange called: hours=${hours} (${hours === null ? 'ALLES' : hours + ' hours'}), chain=${chain}, address=${address?.substring(0, 10)}...`);
-    console.log(`🔍 [PortfolioHistory] Total snapshots in storage: ${this.snapshots.length}`);
-    
     if (this.snapshots.length === 0) {
-      console.log(`🔍 [PortfolioHistory] No snapshots available, returning empty array`);
       return [];
     }
 
     // Filter by chain and address if provided
     let filtered = this.snapshots;
-    console.log(`🔍 [PortfolioHistory] Before filtering: ${filtered.length} snapshots`);
-    
     if (chain) {
       filtered = filtered.filter(s => s.chain === chain);
-      console.log(`🔍 [PortfolioHistory] After chain filter (${chain}): ${filtered.length} snapshots`);
     }
     if (address) {
       filtered = filtered.filter(s => s.address === address);
-      console.log(`🔍 [PortfolioHistory] After address filter: ${filtered.length} snapshots`);
     }
 
     // If null, return all filtered snapshots
     if (hours === null) {
-      console.log(`🔍 [PortfolioHistory] Hours is null (ALLES), returning all ${filtered.length} filtered snapshots`);
       return filtered;
     }
 
     const now = Date.now();
     const cutoffTime = now - (hours * 60 * 60 * 1000);
-    console.log(`🔍 [PortfolioHistory] Time filtering: now=${new Date(now).toISOString()}, cutoffTime=${new Date(cutoffTime).toISOString()}, hours=${hours}`);
 
     // Filter snapshots within the time range
     const timeFiltered = filtered.filter(s => s.timestamp >= cutoffTime);
-    console.log(`🔍 [PortfolioHistory] After time filter: ${timeFiltered.length} snapshots within ${hours} hours`);
-    
-    if (timeFiltered.length > 0) {
-      const oldest = timeFiltered[0];
-      const newest = timeFiltered[timeFiltered.length - 1];
-      const timeSpan = (newest.timestamp - oldest.timestamp) / (1000 * 60 * 60);
-      console.log(`🔍 [PortfolioHistory] Time filtered snapshots span: ${timeSpan.toFixed(2)} hours (from ${new Date(oldest.timestamp).toISOString()} to ${new Date(newest.timestamp).toISOString()})`);
-    } else {
-      console.log(`🔍 [PortfolioHistory] ⚠️ No snapshots within time range, returning all filtered snapshots as fallback`);
-    }
 
     return timeFiltered.length > 0 ? timeFiltered : filtered;
   }
