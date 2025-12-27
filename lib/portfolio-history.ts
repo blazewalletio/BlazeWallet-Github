@@ -301,29 +301,49 @@ export class PortfolioHistory {
 
   // Get snapshots within a specific time range (optionally filtered by chain and address)
   getSnapshotsInRange(hours: number | null = null, chain?: string, address?: string): BalanceSnapshot[] {
+    console.log(`🔍 [PortfolioHistory] getSnapshotsInRange called: hours=${hours} (${hours === null ? 'ALLES' : hours + ' hours'}), chain=${chain}, address=${address?.substring(0, 10)}...`);
+    console.log(`🔍 [PortfolioHistory] Total snapshots in storage: ${this.snapshots.length}`);
+    
     if (this.snapshots.length === 0) {
+      console.log(`🔍 [PortfolioHistory] No snapshots available, returning empty array`);
       return [];
     }
 
     // Filter by chain and address if provided
     let filtered = this.snapshots;
+    console.log(`🔍 [PortfolioHistory] Before filtering: ${filtered.length} snapshots`);
+    
     if (chain) {
       filtered = filtered.filter(s => s.chain === chain);
+      console.log(`🔍 [PortfolioHistory] After chain filter (${chain}): ${filtered.length} snapshots`);
     }
     if (address) {
       filtered = filtered.filter(s => s.address === address);
+      console.log(`🔍 [PortfolioHistory] After address filter: ${filtered.length} snapshots`);
     }
 
     // If null, return all filtered snapshots
     if (hours === null) {
+      console.log(`🔍 [PortfolioHistory] Hours is null (ALLES), returning all ${filtered.length} filtered snapshots`);
       return filtered;
     }
 
     const now = Date.now();
     const cutoffTime = now - (hours * 60 * 60 * 1000);
+    console.log(`🔍 [PortfolioHistory] Time filtering: now=${new Date(now).toISOString()}, cutoffTime=${new Date(cutoffTime).toISOString()}, hours=${hours}`);
 
     // Filter snapshots within the time range
     const timeFiltered = filtered.filter(s => s.timestamp >= cutoffTime);
+    console.log(`🔍 [PortfolioHistory] After time filter: ${timeFiltered.length} snapshots within ${hours} hours`);
+    
+    if (timeFiltered.length > 0) {
+      const oldest = timeFiltered[0];
+      const newest = timeFiltered[timeFiltered.length - 1];
+      const timeSpan = (newest.timestamp - oldest.timestamp) / (1000 * 60 * 60);
+      console.log(`🔍 [PortfolioHistory] Time filtered snapshots span: ${timeSpan.toFixed(2)} hours (from ${new Date(oldest.timestamp).toISOString()} to ${new Date(newest.timestamp).toISOString()})`);
+    } else {
+      console.log(`🔍 [PortfolioHistory] ⚠️ No snapshots within time range, returning all filtered snapshots as fallback`);
+    }
 
     return timeFiltered.length > 0 ? timeFiltered : filtered;
   }

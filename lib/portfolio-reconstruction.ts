@@ -85,15 +85,22 @@ export async function reconstructPortfolioHistory(
   firstTransactionTimestamp?: number
 ): Promise<BalanceSnapshot[]> {
   try {
+    console.log(`🔍 [Portfolio Reconstruction] ========== RECONSTRUCTION START ==========`);
+    console.log(`🔍 [Portfolio Reconstruction] Input params: timeframe=${timeframe}, tokens=${tokens.length}, nativeBalance=${nativeBalance}, nativeSymbol=${nativeSymbol}, chain=${chain}`);
     logger.log(`📊 [Portfolio Reconstruction] Starting for ${tokens.length} tokens, timeframe: ${timeframe}`);
     
     const days = timeframeToDays(timeframe);
+    console.log(`🔍 [Portfolio Reconstruction] Timeframe '${timeframe}' converted to days: ${days} (${days * 24} hours)`);
+    
     const now = Date.now();
     const startTime = firstTransactionTimestamp 
       ? Math.max(firstTransactionTimestamp, now - days * 24 * 60 * 60 * 1000)
       : now - days * 24 * 60 * 60 * 1000;
     
+    console.log(`🔍 [Portfolio Reconstruction] Time range: now=${new Date(now).toISOString()}, startTime=${new Date(startTime).toISOString()}, duration=${days * 24} hours`);
+    
     // 1. Fetch historical prices for native token and all tokens (parallel)
+    console.log(`🔍 [Portfolio Reconstruction] Fetching price histories for ${1 + tokens.length} tokens (1 native + ${tokens.length} tokens)...`);
     logger.log(`📊 [Portfolio Reconstruction] Fetching price histories...`);
     
     const pricePromises = [
@@ -105,10 +112,20 @@ export async function reconstructPortfolioHistory(
       )
     ];
     
+    console.log(`🔍 [Portfolio Reconstruction] Waiting for ${pricePromises.length} price history promises...`);
     const priceHistories = await Promise.all(pricePromises);
     const nativeHistory = priceHistories[0];
     
+    console.log(`🔍 [Portfolio Reconstruction] Native price history result: success=${nativeHistory.success}, points=${nativeHistory.prices.length}, source=${nativeHistory.source}`);
+    if (nativeHistory.prices.length > 0) {
+      const oldestPrice = nativeHistory.prices[0];
+      const newestPrice = nativeHistory.prices[nativeHistory.prices.length - 1];
+      const priceTimeSpan = (newestPrice.timestamp - oldestPrice.timestamp) / (1000 * 60 * 60);
+      console.log(`🔍 [Portfolio Reconstruction] Native price time span: ${priceTimeSpan.toFixed(2)} hours (from ${new Date(oldestPrice.timestamp).toISOString()} to ${new Date(newestPrice.timestamp).toISOString()})`);
+    }
+    
     if (!nativeHistory.success || nativeHistory.prices.length === 0) {
+      console.log(`🔍 [Portfolio Reconstruction] ❌ No native price history available - returning empty array`);
       logger.warn(`⚠️ [Portfolio Reconstruction] No native price history available`);
       return [];
     }
@@ -128,9 +145,16 @@ export async function reconstructPortfolioHistory(
       logger.warn(`⚠️ [Portfolio Reconstruction] Only ${pricePointsToUse.length} price points available - may result in limited chart data`);
     }
     
+    console.log(`🔍 [Portfolio Reconstruction] Processing ${pricePointsToUse.length} price points...`);
+    let skippedCount = 0;
+    let processedCount = 0;
+    
     for (const nativePoint of pricePointsToUse) {
       // Skip if before start time
-      if (nativePoint.timestamp < startTime) continue;
+      if (nativePoint.timestamp < startTime) {
+        skippedCount++;
+        continue;
+      }
       
       // Start with native token value
       let totalValue = nativeBalanceNum * nativePoint.price;
@@ -153,7 +177,10 @@ export async function reconstructPortfolioHistory(
         address: '', // Not needed for chart
         chain: chain
       });
+      processedCount++;
     }
+    
+    console.log(`🔍 [Portfolio Reconstruction] Processed ${processedCount} points, skipped ${skippedCount} points (before startTime)`);
     
     // Add current balance as final point if needed
     if (portfolioPoints.length > 0) {
@@ -199,10 +226,20 @@ export async function reconstructPortfolioHistory(
       });
     }
     
+    console.log(`🔍 [Portfolio Reconstruction] Generated ${portfolioPoints.length} portfolio points`);
+    if (portfolioPoints.length > 0) {
+      const oldestPoint = portfolioPoints[0];
+      const newestPoint = portfolioPoints[portfolioPoints.length - 1];
+      const portfolioTimeSpan = (newestPoint.timestamp - oldestPoint.timestamp) / (1000 * 60 * 60);
+      console.log(`🔍 [Portfolio Reconstruction] Portfolio time span: ${portfolioTimeSpan.toFixed(2)} hours (from ${new Date(oldestPoint.timestamp).toISOString()} to ${new Date(newestPoint.timestamp).toISOString()})`);
+      console.log(`🔍 [Portfolio Reconstruction] Expected timeframe: ${timeframe} (${days * 24} hours)`);
+    }
+    
     logger.log(`✅ [Portfolio Reconstruction] Generated ${portfolioPoints.length} portfolio points`);
     
     // Ensure we have at least 2 points for a line (if only 1 point, duplicate it with slight time offset)
     if (portfolioPoints.length === 1) {
+      console.log(`🔍 [Portfolio Reconstruction] Only 1 point, adding duplicate for line rendering`);
       const singlePoint = portfolioPoints[0];
       portfolioPoints.unshift({
         timestamp: singlePoint.timestamp - 3600000, // 1 hour before
@@ -213,6 +250,7 @@ export async function reconstructPortfolioHistory(
       logger.log(`📊 [Portfolio Reconstruction] Added duplicate point for line rendering`);
     }
     
+    console.log(`🔍 [Portfolio Reconstruction] ========== RECONSTRUCTION COMPLETE ==========`);
     return portfolioPoints;
     
   } catch (error) {

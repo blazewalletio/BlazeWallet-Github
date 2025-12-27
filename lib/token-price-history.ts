@@ -36,9 +36,14 @@ export async function getTokenPriceHistory(
   contractAddress?: string,
   chain?: string
 ): Promise<PriceHistoryResult> {
+  console.log(`🔍 [TokenPriceHistory] ========== GET PRICE HISTORY START ==========`);
+  console.log(`🔍 [TokenPriceHistory] Input: symbol=${symbol}, days=${days}, contractAddress=${contractAddress}, chain=${chain}`);
+  
   // ✅ Check smart cache first
   const cached = priceHistoryCache.get(symbol, days, contractAddress, chain);
   if (cached) {
+    console.log(`🔍 [TokenPriceHistory] ✅ Cache hit for ${symbol} (${days}d, chain=${chain})`);
+    console.log(`🔍 [TokenPriceHistory] Cached data: ${cached.prices.length} points, source=${cached.source}, age=${Math.round((Date.now() - cached.timestamp) / 1000)}s`);
     logger.log(`📊 [TokenPriceHistory] Using cached data for ${symbol} (${days}d)`);
     return {
       prices: cached.prices,
@@ -48,12 +53,16 @@ export async function getTokenPriceHistory(
     };
   }
 
+  console.log(`🔍 [TokenPriceHistory] ❌ Cache miss - fetching fresh data for ${symbol} (${days}d, chain=${chain})...`);
   logger.log(`📊 [TokenPriceHistory] Fetching fresh data for ${symbol} (${days}d)...`);
 
   // TIER 1: Jupiter API for Solana SPL tokens
   if (chain?.toLowerCase() === 'solana' && contractAddress) {
+    console.log(`🔍 [TokenPriceHistory] 🪐 Trying Jupiter API (Solana chain detected)`);
     const jupiterResult = await fetchJupiterPriceHistory(contractAddress, days);
+    console.log(`🔍 [TokenPriceHistory] Jupiter result: success=${jupiterResult.success}, points=${jupiterResult.prices.length}, error=${jupiterResult.error || 'none'}`);
     if (jupiterResult.success) {
+      console.log(`🔍 [TokenPriceHistory] ✅ Jupiter API succeeded, caching and returning`);
       // ✅ Cache the result
       priceHistoryCache.set(
         symbol,
@@ -65,12 +74,19 @@ export async function getTokenPriceHistory(
         jupiterResult.source || 'Jupiter'
       );
       return jupiterResult;
+    } else {
+      console.log(`🔍 [TokenPriceHistory] ⚠️ Jupiter API failed, falling back to CoinGecko`);
     }
+  } else {
+    console.log(`🔍 [TokenPriceHistory] ⏭️ Skipping Jupiter (chain=${chain}, contractAddress=${contractAddress ? 'present' : 'missing'})`);
   }
 
   // TIER 2: CoinGecko API for major tokens
+  console.log(`🔍 [TokenPriceHistory] 🦎 Trying CoinGecko API`);
   const coinGeckoResult = await fetchCoinGeckoPriceHistory(symbol, days, contractAddress, chain);
+  console.log(`🔍 [TokenPriceHistory] CoinGecko result: success=${coinGeckoResult.success}, points=${coinGeckoResult.prices.length}, coinGeckoId=${coinGeckoResult.coinGeckoId || 'none'}, error=${coinGeckoResult.error || 'none'}`);
   if (coinGeckoResult.success) {
+    console.log(`🔍 [TokenPriceHistory] ✅ CoinGecko API succeeded, caching and returning`);
     // ✅ Cache the result
     priceHistoryCache.set(
       symbol,
@@ -82,12 +98,17 @@ export async function getTokenPriceHistory(
       coinGeckoResult.source || 'CoinGecko'
     );
     return coinGeckoResult;
+  } else {
+    console.log(`🔍 [TokenPriceHistory] ⚠️ CoinGecko API failed, trying DexScreener`);
   }
 
   // TIER 3: DexScreener for DEX tokens
   if (contractAddress && chain) {
+    console.log(`🔍 [TokenPriceHistory] 🔍 Trying DexScreener API (chain=${chain}, contractAddress=${contractAddress})`);
     const dexScreenerResult = await fetchDexScreenerPriceHistory(contractAddress, chain, days);
+    console.log(`🔍 [TokenPriceHistory] DexScreener result: success=${dexScreenerResult.success}, points=${dexScreenerResult.prices.length}, error=${dexScreenerResult.error || 'none'}`);
     if (dexScreenerResult.success) {
+      console.log(`🔍 [TokenPriceHistory] ✅ DexScreener API succeeded, caching and returning`);
       // ✅ Cache the result
       priceHistoryCache.set(
         symbol,
@@ -99,10 +120,16 @@ export async function getTokenPriceHistory(
         dexScreenerResult.source || 'DexScreener'
       );
       return dexScreenerResult;
+    } else {
+      console.log(`🔍 [TokenPriceHistory] ⚠️ DexScreener API failed`);
     }
+  } else {
+    console.log(`🔍 [TokenPriceHistory] ⏭️ Skipping DexScreener (contractAddress=${contractAddress ? 'present' : 'missing'}, chain=${chain || 'missing'})`);
   }
 
-  // TIER 4: Generate synthetic data from current price if available
+  // TIER 4: All APIs failed
+  console.log(`🔍 [TokenPriceHistory] ❌ All APIs failed for ${symbol} (${days}d, chain=${chain})`);
+  console.log(`🔍 [TokenPriceHistory] ========== GET PRICE HISTORY FAILED ==========`);
   logger.warn(`⚠️ [TokenPriceHistory] No price history available for ${symbol} from any API`);
   return { prices: [], success: false, error: 'No data available', source: 'none' };
 }
@@ -161,6 +188,7 @@ async function fetchCoinGeckoPriceHistory(
   chain?: string
 ): Promise<PriceHistoryResult> {
   try {
+    console.log(`🔍 [CoinGecko] Fetching price history: symbol=${symbol}, days=${days}, contractAddress=${contractAddress}, chain=${chain}`);
     logger.log(`🦎 [CoinGecko] Fetching price history for ${symbol}...`);
     
     // Use server-side API route instead of direct CoinGecko call
@@ -173,6 +201,7 @@ async function fetchCoinGeckoPriceHistory(
     if (chain) params.append('chain', chain);
     
     const apiUrl = `/api/price-history?${params.toString()}`;
+    console.log(`🔍 [CoinGecko] API URL: ${apiUrl}`);
     logger.log(`🦎 [CoinGecko] Using API route: ${apiUrl}`);
     
     const response = await fetch(apiUrl, {
@@ -180,17 +209,30 @@ async function fetchCoinGeckoPriceHistory(
       next: { revalidate: 900 } // 15 min cache
     });
 
+    console.log(`🔍 [CoinGecko] Response status: ${response.status} ${response.statusText}`);
+
     if (!response.ok) {
       // API route returns 200 even on errors, but check just in case
+      console.log(`🔍 [CoinGecko] ❌ API route returned error status: ${response.status}`);
       logger.warn(`⚠️ [CoinGecko] API route returned ${response.status}`);
       return { prices: [], success: false, error: `API error: ${response.status}`, source: 'CoinGecko' };
     }
 
     const data = await response.json();
+    console.log(`🔍 [CoinGecko] Response data: success=${data.success}, prices=${data.prices?.length || 0}, coinGeckoId=${data.coinGeckoId || 'none'}, error=${data.error || 'none'}`);
     
     if (!data.success || !data.prices || data.prices.length === 0) {
+      console.log(`🔍 [CoinGecko] ❌ No price data: ${data.error || 'Unknown error'}`);
       logger.warn(`⚠️ [CoinGecko] No price data: ${data.error || 'Unknown error'}`);
       return { prices: [], success: false, error: data.error || 'No price data available', source: 'CoinGecko' };
+    }
+
+    if (data.prices.length > 0) {
+      const oldestPrice = data.prices[0];
+      const newestPrice = data.prices[data.prices.length - 1];
+      const priceTimeSpan = (newestPrice.timestamp - oldestPrice.timestamp) / (1000 * 60 * 60);
+      console.log(`🔍 [CoinGecko] ✅ Price data time span: ${priceTimeSpan.toFixed(2)} hours (${data.prices.length} points)`);
+      console.log(`🔍 [CoinGecko] Price range: from ${new Date(oldestPrice.timestamp).toISOString()} to ${new Date(newestPrice.timestamp).toISOString()}`);
     }
 
     logger.log(`✅ [CoinGecko] Got ${data.prices.length} price points`);
@@ -202,6 +244,7 @@ async function fetchCoinGeckoPriceHistory(
     };
     
   } catch (error) {
+    console.error(`🔍 [CoinGecko] ❌ Exception:`, error);
     logger.warn(`❌ [CoinGecko] Failed:`, error);
     return { prices: [], success: false, error: String(error), source: 'CoinGecko' };
   }

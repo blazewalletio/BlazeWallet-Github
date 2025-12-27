@@ -79,14 +79,37 @@ export default function BalanceChart({
   // Load chart data with reconstruction fallback
   useEffect(() => {
     const loadChartData = async () => {
-      logger.log(`📊 [BalanceChart] Loading chart data for ${selectedTimeframe} (chain: ${chain}, address: ${address?.substring(0, 10)}...)`);
+      console.log(`🔍 [BalanceChart] ========== LOAD CHART DATA START ==========`);
+      console.log(`🔍 [BalanceChart] Selected timeframe: ${selectedTimeframe}`);
+      console.log(`🔍 [BalanceChart] Chain: ${chain}, Address: ${address?.substring(0, 10)}...`);
+      console.log(`🔍 [BalanceChart] Current balance: $${currentBalance.toFixed(2)}`);
+      console.log(`🔍 [BalanceChart] Tokens count: ${tokens.length}`);
+      console.log(`🔍 [BalanceChart] Native balance: ${nativeBalance}`);
+      
       setIsLoading(true);
       
       const hours = timeframeToHours(selectedTimeframe);
-      const snapshots = portfolioHistory.getRecentSnapshots(50, hours, chain, address);
+      console.log(`🔍 [BalanceChart] Timeframe '${selectedTimeframe}' converted to hours: ${hours} (${hours === null ? 'ALLES (null)' : hours + ' hours'})`);
       
-      // If we have snapshots, use them
+      console.log(`🔍 [BalanceChart] Calling getRecentSnapshots with: count=50, hours=${hours}, chain=${chain}, address=${address?.substring(0, 10)}...`);
+      const snapshots = portfolioHistory.getRecentSnapshots(50, hours, chain, address);
+      console.log(`🔍 [BalanceChart] getRecentSnapshots returned ${snapshots.length} snapshots`);
+      
       if (snapshots.length > 0) {
+        console.log(`🔍 [BalanceChart] ========== USING SNAPSHOTS ==========`);
+        console.log(`🔍 [BalanceChart] Snapshot details:`);
+        snapshots.forEach((s, i) => {
+          const date = new Date(s.timestamp);
+          const ageHours = (Date.now() - s.timestamp) / (1000 * 60 * 60);
+          console.log(`🔍 [BalanceChart]   Snapshot ${i + 1}: timestamp=${s.timestamp} (${date.toISOString()}), balance=$${s.balance.toFixed(2)}, age=${ageHours.toFixed(2)} hours, chain=${s.chain}, address=${s.address?.substring(0, 10)}...`);
+        });
+        
+        const oldestSnapshot = snapshots[0];
+        const newestSnapshot = snapshots[snapshots.length - 1];
+        const timeSpanHours = (newestSnapshot.timestamp - oldestSnapshot.timestamp) / (1000 * 60 * 60);
+        console.log(`🔍 [BalanceChart] Snapshot time span: ${timeSpanHours.toFixed(2)} hours (from ${new Date(oldestSnapshot.timestamp).toISOString()} to ${new Date(newestSnapshot.timestamp).toISOString()})`);
+        console.log(`🔍 [BalanceChart] Requested hours: ${hours === null ? 'ALLES (all snapshots)' : hours + ' hours'}`);
+        
         logger.log(`📊 [BalanceChart] Using ${snapshots.length} snapshots`);
         const now = Date.now();
         const data = [
@@ -106,10 +129,16 @@ export default function BalanceChart({
           },
         ];
 
+        console.log(`🔍 [BalanceChart] Final chart data points: ${data.length}`);
+        console.log(`🔍 [BalanceChart] Data point timestamps:`, data.map(d => new Date(d.timestamp).toISOString()));
+        console.log(`🔍 [BalanceChart] Data point balances:`, data.map(d => `$${d.balance.toFixed(2)}`));
+
         const balances = data.map(d => d.balance);
         const min = Math.min(...balances);
         const max = Math.max(...balances);
         const padding = (max - min) * 0.1;
+
+        console.log(`🔍 [BalanceChart] Chart min: $${min.toFixed(2)}, max: $${max.toFixed(2)}, padding: $${padding.toFixed(2)}`);
 
         setChartData(data);
         setMinValue(Math.max(0, min - padding));
@@ -117,15 +146,20 @@ export default function BalanceChart({
         setUseReconstruction(false);
         setIsLoading(false);
         logger.log(`✅ [BalanceChart] Chart data loaded (${data.length} points)`);
+        console.log(`🔍 [BalanceChart] ========== SNAPSHOTS PATH COMPLETE ==========`);
         return;
       }
       
       // No snapshots - ALWAYS try reconstruction (like Bitvavo)
+      console.log(`🔍 [BalanceChart] ========== USING RECONSTRUCTION ==========`);
+      console.log(`🔍 [BalanceChart] No snapshots found (${snapshots.length}), attempting portfolio reconstruction`);
+      console.log(`🔍 [BalanceChart] Reconstruction params: timeframe=${selectedTimeframe}, tokens=${tokens.length}, nativeBalance=${nativeBalance}, nativeSymbol=${chainInfo.nativeCurrency.symbol}, chain=${chain}`);
       logger.log(`📊 [BalanceChart] No snapshots (${snapshots.length}), attempting portfolio reconstruction for ${selectedTimeframe}`);
       logger.log(`📊 [BalanceChart] Tokens: ${tokens.length}, Native balance: ${nativeBalance}`);
       setUseReconstruction(true);
       
       try {
+        console.log(`🔍 [BalanceChart] Calling reconstructPortfolioHistory...`);
         const reconstructed = await reconstructPortfolioHistory(
           tokens || [],
           nativeBalance || '0',
@@ -134,9 +168,23 @@ export default function BalanceChart({
           selectedTimeframe
         );
         
-        logger.log(`📊 [BalanceChart] Reconstruction returned ${reconstructed.length} points`);
+        console.log(`🔍 [BalanceChart] Reconstruction returned ${reconstructed.length} points`);
+        console.log(`🔍 [BalanceChart] Reconstruction point details:`);
+        reconstructed.forEach((s, i) => {
+          const date = new Date(s.timestamp);
+          const ageHours = (Date.now() - s.timestamp) / (1000 * 60 * 60);
+          console.log(`🔍 [BalanceChart]   Point ${i + 1}: timestamp=${s.timestamp} (${date.toISOString()}), balance=$${s.balance.toFixed(2)}, age=${ageHours.toFixed(2)} hours`);
+        });
         
         if (reconstructed.length > 0) {
+          const oldestPoint = reconstructed[0];
+          const newestPoint = reconstructed[reconstructed.length - 1];
+          const timeSpanHours = (newestPoint.timestamp - oldestPoint.timestamp) / (1000 * 60 * 60);
+          console.log(`🔍 [BalanceChart] Reconstruction time span: ${timeSpanHours.toFixed(2)} hours (from ${new Date(oldestPoint.timestamp).toISOString()} to ${new Date(newestPoint.timestamp).toISOString()})`);
+          console.log(`🔍 [BalanceChart] Expected timeframe: ${selectedTimeframe}`);
+          
+          logger.log(`📊 [BalanceChart] Reconstruction returned ${reconstructed.length} points`);
+          
           const data = reconstructed.map(s => ({
             timestamp: s.timestamp,
             balance: s.balance,
@@ -145,8 +193,13 @@ export default function BalanceChart({
               : new Date(s.timestamp).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }),
           }));
           
+          console.log(`🔍 [BalanceChart] Mapped data points: ${data.length}`);
+          console.log(`🔍 [BalanceChart] Data point timestamps:`, data.map(d => new Date(d.timestamp).toISOString()));
+          console.log(`🔍 [BalanceChart] Data point balances:`, data.map(d => `$${d.balance.toFixed(2)}`));
+          
           // Ensure we have at least 2 points for a line
           if (data.length === 1) {
+            console.log(`🔍 [BalanceChart] Only 1 data point, adding duplicate point for line rendering`);
             // Add a point 1 hour ago with same balance (flat line)
             data.unshift({
               timestamp: data[0].timestamp - 3600000,
@@ -162,21 +215,28 @@ export default function BalanceChart({
           const max = Math.max(...balances);
           const padding = Math.max((max - min) * 0.1, max * 0.02); // At least 2% padding
           
+          console.log(`🔍 [BalanceChart] Chart min: $${min.toFixed(2)}, max: $${max.toFixed(2)}, padding: $${padding.toFixed(2)}`);
+          
           setChartData(data);
           setMinValue(Math.max(0, min - padding));
           setMaxValue(max + padding);
           setUseReconstruction(true);
           setIsLoading(false);
           logger.log(`✅ [BalanceChart] Chart data loaded from reconstruction (${data.length} points)`);
+          console.log(`🔍 [BalanceChart] ========== RECONSTRUCTION PATH COMPLETE ==========`);
           return;
         } else {
+          console.log(`🔍 [BalanceChart] ⚠️ Reconstruction returned 0 points - this is a problem!`);
           logger.warn(`⚠️ [BalanceChart] Reconstruction returned 0 points`);
         }
       } catch (error) {
+        console.error(`🔍 [BalanceChart] ❌ Reconstruction failed with error:`, error);
         logger.error('❌ [BalanceChart] Reconstruction failed:', error);
       }
       
       // Fallback: single point with current balance
+      console.log(`🔍 [BalanceChart] ========== USING FALLBACK ==========`);
+      console.log(`🔍 [BalanceChart] Using fallback: single point with current balance`);
       logger.log(`📊 [BalanceChart] Using fallback: single point with current balance`);
       const now = Date.now();
       setChartData([{
@@ -188,6 +248,7 @@ export default function BalanceChart({
       setMaxValue(currentBalance);
       setUseReconstruction(false);
       setIsLoading(false);
+      console.log(`🔍 [BalanceChart] ========== FALLBACK PATH COMPLETE ==========`);
     };
 
     loadChartData();
