@@ -95,7 +95,39 @@ export default function BalanceChart({
       const snapshots = portfolioHistory.getRecentSnapshots(50, hours, chain, address);
       console.log(`🔍 [BalanceChart] getRecentSnapshots returned ${snapshots.length} snapshots`);
       
+      // ✅ FIX: Check if snapshots have enough time span for the requested timeframe
+      // If snapshots exist but don't cover enough time, use reconstruction instead
+      let shouldUseSnapshots = snapshots.length > 0;
+      
       if (snapshots.length > 0) {
+        const oldestSnapshot = snapshots[0];
+        const newestSnapshot = snapshots[snapshots.length - 1];
+        const snapshotTimeSpanHours = (newestSnapshot.timestamp - oldestSnapshot.timestamp) / (1000 * 60 * 60);
+        const requestedHours = hours || Infinity; // For ALLES, use Infinity
+        
+        console.log(`🔍 [BalanceChart] Snapshot time span: ${snapshotTimeSpanHours.toFixed(2)} hours`);
+        console.log(`🔍 [BalanceChart] Requested hours: ${hours === null ? 'ALLES (all snapshots)' : hours + ' hours'}`);
+        
+        // ✅ FIX: For timeframes > 1D, require at least 50% of requested time span
+        // For LIVE and 1D, snapshots are OK even if short (they're recent)
+        // For ALLES, require at least 7 days of data
+        const minRequiredTimeSpan = selectedTimeframe === 'LIVE' || selectedTimeframe === '1D' 
+          ? 0.1 // LIVE/1D: accept snapshots even if only 0.1 hours (6 min)
+          : selectedTimeframe === 'ALLES'
+          ? 168 // ALLES: need at least 7 days (168 hours) of snapshot data
+          : requestedHours * 0.5; // 7D/30D/1J: need at least 50% of requested time
+        
+        console.log(`🔍 [BalanceChart] Minimum required time span: ${minRequiredTimeSpan.toFixed(2)} hours`);
+        
+        if (snapshotTimeSpanHours < minRequiredTimeSpan) {
+          console.log(`🔍 [BalanceChart] ⚠️ Snapshot time span (${snapshotTimeSpanHours.toFixed(2)}h) is less than required (${minRequiredTimeSpan.toFixed(2)}h) - will use reconstruction instead`);
+          shouldUseSnapshots = false;
+        } else {
+          console.log(`🔍 [BalanceChart] ✅ Snapshot time span (${snapshotTimeSpanHours.toFixed(2)}h) is sufficient - will use snapshots`);
+        }
+      }
+      
+      if (shouldUseSnapshots && snapshots.length > 0) {
         console.log(`🔍 [BalanceChart] ========== USING SNAPSHOTS ==========`);
         console.log(`🔍 [BalanceChart] Snapshot details:`);
         snapshots.forEach((s, i) => {
@@ -150,11 +182,14 @@ export default function BalanceChart({
         return;
       }
       
-      // No snapshots - ALWAYS try reconstruction (like Bitvavo)
+      // No snapshots OR snapshots don't have enough time span - use reconstruction
+      const reason = snapshots.length === 0 
+        ? `No snapshots found (${snapshots.length})`
+        : `Snapshots exist but don't have enough time span for ${selectedTimeframe}`;
       console.log(`🔍 [BalanceChart] ========== USING RECONSTRUCTION ==========`);
-      console.log(`🔍 [BalanceChart] No snapshots found (${snapshots.length}), attempting portfolio reconstruction`);
+      console.log(`🔍 [BalanceChart] ${reason}, attempting portfolio reconstruction`);
       console.log(`🔍 [BalanceChart] Reconstruction params: timeframe=${selectedTimeframe}, tokens=${tokens.length}, nativeBalance=${nativeBalance}, nativeSymbol=${chainInfo.nativeCurrency.symbol}, chain=${chain}`);
-      logger.log(`📊 [BalanceChart] No snapshots (${snapshots.length}), attempting portfolio reconstruction for ${selectedTimeframe}`);
+      logger.log(`📊 [BalanceChart] ${reason}, attempting portfolio reconstruction for ${selectedTimeframe}`);
       logger.log(`📊 [BalanceChart] Tokens: ${tokens.length}, Native balance: ${nativeBalance}`);
       setUseReconstruction(true);
       
