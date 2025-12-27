@@ -192,12 +192,12 @@ export default function BalanceChart({
 
     loadChartData();
 
-    // For LIVE timeframe, update every 30 seconds
+    // ✅ OPTIMIZED: For LIVE timeframe, update every 10 seconds for true live feel
     if (selectedTimeframe === 'LIVE') {
       const interval = setInterval(() => {
         logger.log(`📊 [BalanceChart] LIVE interval triggered - reloading chart data`);
         loadChartData();
-      }, 30000);
+      }, 10000); // ✅ Changed from 30s to 10s for faster updates
       return () => clearInterval(interval);
     }
   }, [selectedTimeframe, currentBalance, address, chain, portfolioHistory, chainInfo, tokensKey, nativeBalanceKey]); 

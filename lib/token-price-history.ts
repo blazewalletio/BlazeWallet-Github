@@ -138,24 +138,11 @@ async function fetchJupiterPriceHistory(
       throw new Error('No price data from Jupiter');
     }
 
-    // Jupiter only gives current price, so we generate hourly points
-    // with small random variations (±2%) to create a realistic chart
-    const currentPrice = tokenData.price;
-    const prices: PriceDataPoint[] = [];
-    const now = Date.now();
-    const hoursBack = days * 24;
-    
-    for (let i = hoursBack; i >= 0; i--) {
-      const variation = 0.98 + Math.random() * 0.04; // ±2%
-      const price = currentPrice * variation * (1 - (Math.random() * 0.1 * (i / hoursBack))); // slight downtrend
-      prices.push({
-        timestamp: now - (i * 3600000),
-        price: price
-      });
-    }
-
-    logger.log(`✅ [Jupiter] Got ${prices.length} price points`);
-    return { prices, success: true, source: 'Jupiter' };
+    // ✅ REMOVED: No synthetic data generation
+    // Jupiter only provides current price, not historical data
+    // Return empty result to fallback to CoinGecko which has real historical data
+    logger.warn(`⚠️ [Jupiter] Only current price available, no historical data - falling back to CoinGecko`);
+    return { prices: [], success: false, error: 'Jupiter only provides current price, no historical data', source: 'Jupiter' };
     
   } catch (error) {
     logger.warn(`❌ [Jupiter] Failed:`, error);
@@ -306,31 +293,11 @@ async function fetchDexScreenerPriceHistory(
       throw new Error('No price data from DexScreener');
     }
 
+    // ✅ REMOVED: No synthetic data generation
     // DexScreener doesn't provide historical data directly
-    // Generate synthetic data from current price with realistic variations
-    const currentPrice = parseFloat(pair.priceUsd);
-    const priceChange24h = pair.priceChange?.h24 || 0;
-    const prices: PriceDataPoint[] = [];
-    const now = Date.now();
-    const hoursBack = days * 24;
-    
-    // Calculate starting price based on 24h change
-    const startPrice = currentPrice / (1 + priceChange24h / 100);
-    
-    for (let i = hoursBack; i >= 0; i--) {
-      const progress = 1 - (i / hoursBack);
-      const variation = 0.97 + Math.random() * 0.06; // ±3% random noise
-      const trendPrice = startPrice + (currentPrice - startPrice) * progress;
-      const price = trendPrice * variation;
-      
-      prices.push({
-        timestamp: now - (i * 3600000),
-        price: Math.max(price, 0.000001) // Ensure positive
-      });
-    }
-
-    logger.log(`✅ [DexScreener] Got ${prices.length} synthetic price points`);
-    return { prices, success: true, source: 'DexScreener' };
+    // Return empty result to fallback to CoinGecko which has real historical data
+    logger.warn(`⚠️ [DexScreener] Only current price available, no historical data - falling back to CoinGecko`);
+    return { prices: [], success: false, error: 'DexScreener only provides current price, no historical data', source: 'DexScreener' };
     
   } catch (error) {
     logger.warn(`❌ [DexScreener] Failed:`, error);

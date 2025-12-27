@@ -14,14 +14,15 @@ export interface BalanceSnapshot {
 const STORAGE_KEY = 'arc_portfolio_history';
 const MAX_SNAPSHOTS = 100; // Keep last 100 data points
 
-// Smart snapshot intervals (like Bitvavo)
+// ✅ OPTIMIZED: Smart snapshot intervals (like Bitvavo)
+// Intervals are optimized for each timeframe to provide good granularity
 const SNAPSHOT_INTERVALS: Record<string, number> = {
-  LIVE: 30 * 1000,           // 30 seconds (last 30 min)
-  '1D': 60 * 60 * 1000,      // 1 hour (24 points)
-  '7D': 6 * 60 * 60 * 1000,  // 6 hours (28 points)
-  '30D': 24 * 60 * 60 * 1000, // 1 day (30 points)
-  '1J': 7 * 24 * 60 * 60 * 1000, // 1 week (52 points)
-  'ALLES': 7 * 24 * 60 * 60 * 1000, // 1 week (for long-term)
+  LIVE: 15 * 1000,           // ✅ OPTIMIZED: 15 seconds for true live updates (was 30s)
+  '1D': 5 * 60 * 1000,       // ✅ OPTIMIZED: 5 minutes for 1D (was 1 hour) - better granularity
+  '7D': 6 * 60 * 60 * 1000,  // 6 hours (28 points) - unchanged
+  '30D': 24 * 60 * 60 * 1000, // 1 day (30 points) - unchanged
+  '1J': 7 * 24 * 60 * 60 * 1000, // 1 week (52 points) - unchanged
+  'ALLES': 7 * 24 * 60 * 60 * 1000, // 1 week (for long-term) - unchanged
 };
 
 // Default interval (if timeframe not specified)

@@ -19,7 +19,7 @@ import { BalanceSnapshot } from '@/lib/portfolio-history';
  */
 function timeframeToDays(timeframe: 'LIVE' | '1D' | '7D' | '30D' | '1J' | 'ALLES'): number {
   switch (timeframe) {
-    case 'LIVE': return 0.5; // 12 hours
+    case 'LIVE': return 2 / 24; // ✅ FIXED: 2 hours (not 12 hours) for true live view
     case '1D': return 1;
     case '7D': return 7;
     case '30D': return 30;
@@ -119,29 +119,13 @@ export async function reconstructPortfolioHistory(
     const portfolioPoints: BalanceSnapshot[] = [];
     const nativeBalanceNum = parseFloat(nativeBalance || '0');
     
-    // If we have very few points, generate more by interpolating
-    let pricePointsToUse = nativeHistory.prices;
+    // ✅ REMOVED: No interpolation - use only real API data
+    // Interpolation generates fake data that doesn't match reality
+    // If we have few points, that's OK - we'll use what we have
+    const pricePointsToUse = nativeHistory.prices;
     
-    // For 1D timeframe, ensure we have at least 24 points (hourly)
-    if (days <= 1 && pricePointsToUse.length < 24) {
-      logger.log(`📊 [Portfolio Reconstruction] Only ${pricePointsToUse.length} points for 1D, generating interpolated points`);
-      const interpolated: PriceDataPoint[] = [];
-      const now = Date.now();
-      const start = now - 24 * 60 * 60 * 1000;
-      
-      // Use first and last price for interpolation
-      const firstPrice = pricePointsToUse[0]?.price || 0;
-      const lastPrice = pricePointsToUse[pricePointsToUse.length - 1]?.price || firstPrice;
-      
-      // Generate 24 hourly points
-      for (let i = 0; i < 24; i++) {
-        const timestamp = start + (i * 60 * 60 * 1000);
-        // Linear interpolation
-        const ratio = i / 23;
-        const price = firstPrice + (lastPrice - firstPrice) * ratio;
-        interpolated.push({ timestamp, price });
-      }
-      pricePointsToUse = interpolated;
+    if (pricePointsToUse.length < 2) {
+      logger.warn(`⚠️ [Portfolio Reconstruction] Only ${pricePointsToUse.length} price points available - may result in limited chart data`);
     }
     
     for (const nativePoint of pricePointsToUse) {
