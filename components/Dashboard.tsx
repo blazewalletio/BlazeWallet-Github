@@ -162,7 +162,7 @@ export default function Dashboard() {
   const refreshPricesOnlyRef = useRef<() => Promise<void>>();
   const fetchDataRef = useRef<(force?: boolean) => Promise<void>>();
   // ✅ Ref to track if intervals are already set up to prevent duplicate intervals
-  const intervalsSetupRef = useRef<{ priceInterval?: NodeJS.Timeout; fullInterval?: NodeJS.Timeout; address?: string; chain?: string }>({});
+  const intervalsSetupRef = useRef<{ liveSnapshotInterval?: NodeJS.Timeout; priceInterval?: NodeJS.Timeout; fullInterval?: NodeJS.Timeout; address?: string; chain?: string }>({});
   
   // Update refs when values change
   useEffect(() => {
@@ -1299,6 +1299,9 @@ export default function Dashboard() {
       }
       // Clean up any existing intervals when address becomes null
       const existingSetup = intervalsSetupRef.current;
+      if (existingSetup.liveSnapshotInterval) {
+        clearInterval(existingSetup.liveSnapshotInterval);
+      }
       if (existingSetup.priceInterval) {
         clearInterval(existingSetup.priceInterval);
       }
@@ -1311,7 +1314,8 @@ export default function Dashboard() {
     
     // ✅ Check if intervals are already set up for the same address and chain
     const existingSetup = intervalsSetupRef.current;
-    if (existingSetup.address === displayAddress && existingSetup.chain === currentChain && existingSetup.priceInterval && existingSetup.fullInterval) {
+    if (existingSetup.address === displayAddress && existingSetup.chain === currentChain && 
+        existingSetup.liveSnapshotInterval && existingSetup.priceInterval && existingSetup.fullInterval) {
       // Intervals already set up for this address/chain combination - skip
       if (process.env.NODE_ENV === 'development') {
         logger.log('✅ [Dashboard] Intervals already set up for this address/chain, skipping');
@@ -1320,6 +1324,9 @@ export default function Dashboard() {
     }
     
     // ✅ Clean up existing intervals if they exist (different address/chain)
+    if (existingSetup.liveSnapshotInterval) {
+      clearInterval(existingSetup.liveSnapshotInterval);
+    }
     if (existingSetup.priceInterval) {
       clearInterval(existingSetup.priceInterval);
     }
@@ -1346,6 +1353,23 @@ export default function Dashboard() {
     
     // ✅ Auto-refresh prices every 30 seconds (frequent price updates)
     // Full data refresh every 60 seconds (balances, new tokens, etc.)
+    // ✅ LIVE snapshots: elke 5 seconden (altijd actief voor LIVE grafiek)
+    // Dit zorgt ervoor dat we altijd recente snapshots hebben voor LIVE grafiek
+    const liveSnapshotInterval = setInterval(() => {
+      if (displayAddress) {
+        // ✅ Gebruik currentState.totalValueUSD (meest actuele waarde)
+        const currentTotal = currentState.totalValueUSD;
+        if (currentTotal > 0) {
+          // ✅ Snapshot maken voor LIVE timeframe (elke 5 seconden)
+          portfolioHistory.addSnapshot(currentTotal, displayAddress, currentChain, 'LIVE').catch(err => {
+            if (process.env.NODE_ENV === 'development') {
+              logger.warn('⚠️ [Dashboard] Failed to save LIVE snapshot:', err);
+            }
+          });
+        }
+      }
+    }, 5000); // 5 seconden voor LIVE snapshots
+    
     const priceRefreshInterval = setInterval(() => {
       // ✅ DEBUG: Only log in development mode
       if (process.env.NODE_ENV === 'development') {
@@ -1382,6 +1406,7 @@ export default function Dashboard() {
     
     return () => {
       logger.log('🔄 [Dashboard] Cleaning up refresh intervals');
+      if (liveSnapshotInterval) clearInterval(liveSnapshotInterval);
       if (priceRefreshInterval) clearInterval(priceRefreshInterval);
       if (fullRefreshInterval) clearInterval(fullRefreshInterval);
       // Clear the ref when cleaning up

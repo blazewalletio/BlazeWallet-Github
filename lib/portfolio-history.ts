@@ -14,14 +14,15 @@ export interface BalanceSnapshot {
 const STORAGE_KEY = 'arc_portfolio_history';
 const MAX_SNAPSHOTS = 100; // Keep last 100 data points
 
-// Smart snapshot intervals (like Bitvavo)
+// ✅ IMPROVED: Smart snapshot intervals (like Bitvavo)
+// Optimized for accurate chart rendering per timeframe
 const SNAPSHOT_INTERVALS: Record<string, number> = {
-  LIVE: 30 * 1000,           // 30 seconds (last 30 min)
-  '1D': 60 * 60 * 1000,      // 1 hour (24 points)
-  '7D': 6 * 60 * 60 * 1000,  // 6 hours (28 points)
-  '30D': 24 * 60 * 60 * 1000, // 1 day (30 points)
-  '1J': 7 * 24 * 60 * 60 * 1000, // 1 week (52 points)
-  'ALLES': 7 * 24 * 60 * 60 * 1000, // 1 week (for long-term)
+  LIVE: 5 * 1000,            // 5 seconds (voor real-time updates)
+  '1D': 5 * 60 * 1000,       // 5 minutes (laatste 24 uur = ~288 punten)
+  '7D': 60 * 60 * 1000,      // 1 uur (laatste 7 dagen = 168 punten)
+  '30D': 6 * 60 * 60 * 1000, // 6 uur (laatste 30 dagen = 120 punten)
+  '1J': 24 * 60 * 60 * 1000, // 1 dag (laatste jaar = 365 punten)
+  'ALLES': 24 * 60 * 60 * 1000, // 1 dag (max 5 jaar = 1825 punten)
 };
 
 // Default interval (if timeframe not specified)
@@ -350,6 +351,51 @@ export class PortfolioHistory {
     }
 
     return result;
+  }
+
+  /**
+   * ✅ NEW: Get snapshots with gap detection
+   * Returns snapshots + gap information for gap filling
+   */
+  getSnapshotsWithGaps(
+    timeframe: 'LIVE' | '1D' | '7D' | '30D' | '1J' | 'ALLES',
+    chain?: string,
+    address?: string
+  ): { snapshots: BalanceSnapshot[]; gaps: Array<{ start: number; end: number }> } {
+    const hours = timeframe === 'LIVE' ? 1 : 
+                   timeframe === '1D' ? 24 :
+                   timeframe === '7D' ? 168 :
+                   timeframe === '30D' ? 720 :
+                   timeframe === '1J' ? 8760 : null;
+    
+    const snapshots = this.getSnapshotsInRange(hours, chain, address);
+    
+    if (snapshots.length === 0) {
+      return { snapshots: [], gaps: [] };
+    }
+
+    // Sort by timestamp (oldest first)
+    const sorted = [...snapshots].sort((a, b) => a.timestamp - b.timestamp);
+    
+    // Detect gaps
+    const gaps: Array<{ start: number; end: number }> = [];
+    const interval = SNAPSHOT_INTERVALS[timeframe] || DEFAULT_SNAPSHOT_INTERVAL;
+    const gapThreshold = interval * 2; // Gap if > 2x interval
+    
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const current = sorted[i];
+      const next = sorted[i + 1];
+      const gap = next.timestamp - current.timestamp;
+      
+      if (gap > gapThreshold) {
+        gaps.push({
+          start: current.timestamp,
+          end: next.timestamp,
+        });
+      }
+    }
+    
+    return { snapshots: sorted, gaps };
   }
 
   // Get the change percentage over a specific time range (optionally filtered by chain and address)

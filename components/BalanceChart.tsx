@@ -76,47 +76,104 @@ export default function BalanceChart({
   const tokensKey = `${tokens.length}_${tokens.map(t => t.address).join(',')}`; // Unique key when tokens change
   const nativeBalanceKey = nativeBalance || '0'; // Track native balance changes
 
-  // Load chart data with reconstruction fallback
+  // ✅ IMPROVED: Load chart data with gap filling (hybrid: snapshots + reconstruction)
   useEffect(() => {
     const loadChartData = async () => {
       logger.log(`📊 [BalanceChart] Loading chart data for ${selectedTimeframe} (chain: ${chain}, address: ${address?.substring(0, 10)}...)`);
       setIsLoading(true);
       
-      const hours = timeframeToHours(selectedTimeframe);
-      const snapshots = portfolioHistory.getRecentSnapshots(50, hours, chain, address);
+      // Get snapshots with gap detection
+      const { snapshots, gaps } = portfolioHistory.getSnapshotsWithGaps(selectedTimeframe, chain, address);
       
-      // If we have snapshots, use them
+      // If we have snapshots, use them + fill gaps
       if (snapshots.length > 0) {
-        logger.log(`📊 [BalanceChart] Using ${snapshots.length} snapshots`);
+        logger.log(`📊 [BalanceChart] Using ${snapshots.length} snapshots, ${gaps.length} gaps detected`);
+        
+        let chartDataPoints = snapshots.map(s => ({
+          timestamp: s.timestamp,
+          balance: s.balance,
+          time: selectedTimeframe === 'LIVE' || selectedTimeframe === '1D'
+            ? new Date(s.timestamp).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
+            : new Date(s.timestamp).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }),
+        }));
+        
+        // ✅ Fill gaps with reconstruction
+        if (gaps.length > 0 && hasTokensForReconstruction) {
+          logger.log(`📊 [BalanceChart] Filling ${gaps.length} gaps with reconstruction...`);
+          
+          for (const gap of gaps) {
+            try {
+              // Reconstruct for gap period
+              // Use timeframe that matches gap duration
+              const gapDuration = gap.end - gap.start;
+              const gapDays = gapDuration / (24 * 60 * 60 * 1000);
+              
+              // Determine appropriate timeframe for gap
+              let gapTimeframe: 'LIVE' | '1D' | '7D' | '30D' | '1J' | 'ALLES' = '1D';
+              if (gapDays <= 0.01) gapTimeframe = 'LIVE';
+              else if (gapDays <= 1) gapTimeframe = '1D';
+              else if (gapDays <= 7) gapTimeframe = '7D';
+              else if (gapDays <= 30) gapTimeframe = '30D';
+              else gapTimeframe = '1J';
+              
+              const gapReconstructed = await reconstructPortfolioHistory(
+                tokens || [],
+                nativeBalance || '0',
+                chainInfo.nativeCurrency.symbol,
+                chain,
+                gapTimeframe,
+                gap.start
+              );
+              
+              // Filter to gap period only
+              const gapPoints = gapReconstructed
+                .filter(p => p.timestamp >= gap.start && p.timestamp <= gap.end)
+                .map(s => ({
+                  timestamp: s.timestamp,
+                  balance: s.balance,
+                  time: selectedTimeframe === 'LIVE' || selectedTimeframe === '1D'
+                    ? new Date(s.timestamp).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
+                    : new Date(s.timestamp).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }),
+                }));
+              
+              // Merge gap points into chart data
+              chartDataPoints = [...chartDataPoints, ...gapPoints];
+              
+              logger.log(`✅ [BalanceChart] Filled gap: ${gapPoints.length} points`);
+            } catch (error) {
+              logger.warn(`⚠️ [BalanceChart] Failed to fill gap:`, error);
+            }
+          }
+        }
+        
+        // Add current balance as final point
         const now = Date.now();
-        const data = [
-          ...snapshots.map(s => ({
-            timestamp: s.timestamp,
-            balance: s.balance,
-            time: selectedTimeframe === 'LIVE' || selectedTimeframe === '1D'
-              ? new Date(s.timestamp).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
-              : new Date(s.timestamp).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }),
-          })),
-          {
-            timestamp: now,
-            balance: currentBalance,
-            time: selectedTimeframe === 'LIVE' || selectedTimeframe === '1D'
-              ? new Date(now).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
-              : new Date(now).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }),
-          },
-        ];
+        chartDataPoints.push({
+          timestamp: now,
+          balance: currentBalance,
+          time: selectedTimeframe === 'LIVE' || selectedTimeframe === '1D'
+            ? new Date(now).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })
+            : new Date(now).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }),
+        });
+        
+        // Sort by timestamp and remove duplicates
+        chartDataPoints = chartDataPoints
+          .sort((a, b) => a.timestamp - b.timestamp)
+          .filter((point, index, self) => 
+            index === 0 || point.timestamp !== self[index - 1].timestamp
+          );
 
-        const balances = data.map(d => d.balance);
+        const balances = chartDataPoints.map(d => d.balance);
         const min = Math.min(...balances);
         const max = Math.max(...balances);
         const padding = (max - min) * 0.1;
 
-        setChartData(data);
+        setChartData(chartDataPoints);
         setMinValue(Math.max(0, min - padding));
         setMaxValue(max + padding);
-        setUseReconstruction(false);
+        setUseReconstruction(gaps.length > 0);
         setIsLoading(false);
-        logger.log(`✅ [BalanceChart] Chart data loaded (${data.length} points)`);
+        logger.log(`✅ [BalanceChart] Chart data loaded (${chartDataPoints.length} points: ${snapshots.length} snapshots + ${chartDataPoints.length - snapshots.length - 1} reconstructed)`);
         return;
       }
       
