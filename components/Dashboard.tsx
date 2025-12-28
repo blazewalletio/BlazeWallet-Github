@@ -1522,22 +1522,15 @@ export default function Dashboard() {
       }); // Force refresh on mount
     }
     
-    // ✅ Auto-refresh prices every 30 seconds (frequent price updates)
-    // Full data refresh every 60 seconds (balances, new tokens, etc.)
-    const priceRefreshInterval = setInterval(() => {
-      // ✅ DEBUG: Only log in development mode
-      if (process.env.NODE_ENV === 'development') {
-        logger.log('⏰ [Dashboard] Price refresh interval triggered');
-      }
-      // Use ref to call refreshPricesOnly to avoid dependency issues
-      if (refreshPricesOnlyRef.current) {
-        refreshPricesOnlyRef.current();
-      }
-    }, 30000); // 30 seconds for price updates
+    // 🔥 DISABLED: 30-second price-only refresh was causing portfolio value to jump to wrong values
+    // Using ONLY the 60-second full refresh instead for consistency
+    // The price-only refresh was updating prices but using stale balance data from refs
     
+    // ✅ Full data refresh every 60 seconds (balances, prices, everything)
     const fullRefreshInterval = setInterval(() => {
       // ✅ DEBUG: Only log in development mode
       if (process.env.NODE_ENV === 'development') {
+        console.log('⏰ [Dashboard] Full refresh interval triggered (60s)');
         logger.log('⏰ [Dashboard] Full refresh interval triggered');
       }
       // Use ref to call fetchData to avoid dependency issues
@@ -1548,7 +1541,6 @@ export default function Dashboard() {
     
     // ✅ Store interval IDs and current address/chain in ref
     intervalsSetupRef.current = {
-      priceInterval: priceRefreshInterval,
       fullInterval: fullRefreshInterval,
       address: displayAddress,
       chain: currentChain
@@ -1560,7 +1552,6 @@ export default function Dashboard() {
     
     return () => {
       logger.log('🔄 [Dashboard] Cleaning up refresh intervals');
-      if (priceRefreshInterval) clearInterval(priceRefreshInterval);
       if (fullRefreshInterval) clearInterval(fullRefreshInterval);
       // Clear the ref when cleaning up
       intervalsSetupRef.current = {};
