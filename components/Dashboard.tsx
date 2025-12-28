@@ -409,18 +409,33 @@ export default function Dashboard() {
   }, [currentChain, displayAddress]);
 
   // ✅ Auto-refresh on visibility change (user returns to tab after transaction)
+  // 🔥 FIX: Debounce to prevent race conditions with chain switch
   useEffect(() => {
+    let visibilityTimer: NodeJS.Timeout;
+    
     const handleVisibilityChange = () => {
       if (!document.hidden && displayAddress) {
-        logger.log('👁️ [Dashboard] Tab became visible - checking for fresh data');
-        // Force a fresh fetch when user returns to tab
-        fetchData(false);
+        // Clear any existing timer
+        clearTimeout(visibilityTimer);
+        
+        // Debounce visibility change fetch to prevent race with chain switch
+        visibilityTimer = setTimeout(() => {
+          // Only fetch if there's NO active controller for this chain (no ongoing fetch)
+          const activeController = activeFetchControllers.current.get(currentChain);
+          if (!activeController) {
+            logger.log('👁️ [Dashboard] Tab became visible - checking for fresh data');
+            fetchData(false);
+          } else {
+            logger.log('👁️ [Dashboard] Tab became visible but fetch already in progress - skipping');
+          }
+        }, 500); // 500ms debounce
       }
     };
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
     return () => {
+      clearTimeout(visibilityTimer);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [currentChain, displayAddress]);
