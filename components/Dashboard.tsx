@@ -621,6 +621,7 @@ export default function Dashboard() {
         console.log('\n\n');
         console.log('╔═══════════════════════════════════════════════════════════════╗');
         console.log('║        🔥 ETHEREUM DEBUG - START PORTFOLIO BEREKENING        ║');
+        console.log('║        ⚡ BUILD: 2025-12-29-00:48 - ZERO CACHE VERSION       ║');
         console.log('╚═══════════════════════════════════════════════════════════════╝');
         console.log('\n');
         console.log('═══════════════════════════════════════════════════════════════');
