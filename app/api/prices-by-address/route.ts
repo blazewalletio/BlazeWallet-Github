@@ -55,11 +55,14 @@ export async function GET(request: NextRequest) {
     const addressesQuery = addresses.join(',');
     const apiKey = process.env.COINGECKO_API_KEY?.trim();
     const apiKeyParam = apiKey ? `&x_cg_demo_api_key=${apiKey}` : '';
-    const url = `https://api.coingecko.com/api/v3/simple/token_price/${platform}?contract_addresses=${encodeURIComponent(addressesQuery)}&vs_currencies=usd&include_24hr_change=true${apiKeyParam}`;
+    // 🔥 CACHE BUSTING: Add timestamp to bypass CoinGecko's own cache
+    const cacheBuster = Date.now();
+    const url = `https://api.coingecko.com/api/v3/simple/token_price/${platform}?contract_addresses=${encodeURIComponent(addressesQuery)}&vs_currencies=usd&include_24hr_change=true${apiKeyParam}&_=${cacheBuster}`;
 
     logger.log(`📡 [Prices by Address] Fetching from CoinGecko for ${addresses.length} addresses on ${chain}`);
     logger.log(`📡 [Prices by Address] Platform: ${platform}`);
     logger.log(`📡 [Prices by Address] Using API key: ${apiKey ? 'Yes' : 'No'}`);
+    logger.log(`📡 [Prices by Address] Cache buster: ${cacheBuster}`);
     logger.log(`📡 [Prices by Address] Addresses: ${addresses.map(a => a.substring(0, 10) + '...').join(', ')}`);
     if (!apiKey) {
       logger.warn('⚠️ [Prices by Address] No CoinGecko API key - using free tier (rate limited to 10-50 calls/min)');
