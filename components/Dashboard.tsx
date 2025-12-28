@@ -353,6 +353,18 @@ export default function Dashboard() {
     const isAddressChange = previousChainAddress.current.address !== displayAddress;
     const isInitialLoad = previousChainAddress.current.address === null && displayAddress === null;
     
+    console.log('╔═══════════════════════════════════════════════════════════════╗');
+    console.log('║           🔄 CHAIN SWITCH EFFECT TRIGGERED                     ║');
+    console.log('╚═══════════════════════════════════════════════════════════════╝');
+    console.log(`   Current chain: ${currentChain}`);
+    console.log(`   Current address: ${displayAddress?.substring(0, 12) || 'null'}...`);
+    console.log(`   Previous chain: ${previousChainAddress.current.chain}`);
+    console.log(`   Previous address: ${previousChainAddress.current.address?.substring(0, 12) || 'null'}...`);
+    console.log(`   Is REAL chain switch: ${isRealChainSwitch}`);
+    console.log(`   Is address change ONLY: ${isAddressChange && !isRealChainSwitch}`);
+    console.log(`   Is initial load: ${isInitialLoad}`);
+    console.log('═══════════════════════════════════════════════════════════════');
+    
     logger.log(`🔄 [Dashboard] Effect triggered: chain=${currentChain}, address=${displayAddress?.substring(0, 8) || 'null'}`);
     logger.log(`   Previous: chain=${previousChainAddress.current.chain}, address=${previousChainAddress.current.address?.substring(0, 8) || 'null'}`);
     logger.log(`   Is real chain switch: ${isRealChainSwitch}`);
@@ -364,6 +376,12 @@ export default function Dashboard() {
     
     // 🚫 SKIP if this is ONLY an address change (wallet unlock) and NOT a chain switch
     if (!isRealChainSwitch && isAddressChange && displayAddress) {
+      console.log('');
+      console.log('⏭️  SKIPPING FETCH - This is just wallet unlock, NOT a chain switch!');
+      console.log(`   Address changed from null → ${displayAddress.substring(0, 12)}...`);
+      console.log(`   Chain stayed the same: ${currentChain}`);
+      console.log(`   The initial load already triggered fetchData, so we don\'t need another one.`);
+      console.log('');
       logger.log(`⏭️ [Dashboard] Skipping fetch - this is just wallet unlock, not a chain switch`);
       logger.log(`   Address changed from null → ${displayAddress.substring(0, 8)}... but chain stayed ${currentChain}`);
       return; // EXIT EARLY - don't trigger another fetch!
@@ -373,6 +391,7 @@ export default function Dashboard() {
       ? Array.from(activeFetchControllers.current.keys())[0] 
       : null;
     
+    console.log(`✅ Proceeding with chain switch logic: ${prevChain || 'initial'} → ${currentChain}`);
     logger.log(`🔄 [Dashboard] Chain switching: ${prevChain || 'initial'} → ${currentChain}`);
     
     // 🔥 CRITICAL: Block visibility change fetches during chain switch
@@ -428,6 +447,9 @@ export default function Dashboard() {
     
     // 5. Start fresh fetch voor nieuwe chain (always fetch to get latest balance!)
     const fetchTimer = setTimeout(() => {
+      console.log('');
+      console.log('⏰ Triggering fetchData() from chain switch effect (100ms delay)');
+      console.log('');
       fetchData(false); // Always fetch fresh data on chain switch
     }, 100);
     
@@ -2704,9 +2726,11 @@ export default function Dashboard() {
       <PasswordUnlockModal
         isOpen={showPasswordUnlock}
         onComplete={() => {
-          logger.log('✅ Wallet unlocked successfully - refreshing data');
+          logger.log('✅ Wallet unlocked successfully');
           setShowPasswordUnlock(false);
-          fetchData(true); // Refresh all wallet data
+          // 🔥 REMOVED: Don't call fetchData here!
+          // The chain switch useEffect will handle fetching when displayAddress becomes available
+          // Calling fetchData here causes DOUBLE FETCH (race condition with chain switch effect)
         }}
         onFallback={() => {
           // User wants to use recovery phrase instead
