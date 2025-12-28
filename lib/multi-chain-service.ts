@@ -7,6 +7,18 @@ import { BitcoinForkService } from './bitcoin-fork-service';
 import { CHAINS } from './chains';
 import { logger } from '@/lib/logger';
 
+// ✅ DEBUG: Force logging for balance debugging
+const DEBUG_BALANCES = true;
+const balanceLog = (...args: any[]) => {
+  if (DEBUG_BALANCES) console.log('[MultiChainService]', ...args);
+};
+const balanceWarn = (...args: any[]) => {
+  if (DEBUG_BALANCES) console.warn('[MultiChainService]', ...args);
+};
+const balanceError = (...args: any[]) => {
+  console.error('[MultiChainService]', ...args);
+};
+
 /**
  * Unified Multi-Chain Service
  * Automatically routes to the correct blockchain service based on chain type
@@ -91,18 +103,56 @@ export class MultiChainService {
   }
 
   async getBalance(address: string): Promise<string> {
-    if (this.isSolana() && this.solanaService) {
-      return await this.solanaService.getBalance(address);
-    } else if (this.isBitcoin() && this.bitcoinService) {
-      const { confirmed } = await this.bitcoinService.getBalance(address);
-      return ethers.formatUnits(confirmed, 8); // Bitcoin has 8 decimals
-    } else if (this.isBitcoinFork() && this.bitcoinForkService) {
-      const { confirmed } = await this.bitcoinForkService.getBalance(address);
-      return ethers.formatUnits(confirmed, 8); // All use 8 decimals
-    } else if (this.evmService) {
-      return await this.evmService.getBalance(address);
+    const startTime = Date.now();
+    balanceLog(`\n╔════════════════════════════════════════════════════════════╗`);
+    balanceLog(`║ BALANCE FETCH [${this.chainKey}]`.padEnd(61) + `║`);
+    balanceLog(`╠════════════════════════════════════════════════════════════╣`);
+    balanceLog(`║ Address: ${address.substring(0, 20)}...`.padEnd(61) + `║`);
+    
+    try {
+      let balance: string;
+      let method: string;
+      
+      if (this.isSolana() && this.solanaService) {
+        method = 'SolanaService.getBalance()';
+        balanceLog(`║ Method: ${method}`.padEnd(61) + `║`);
+        balance = await this.solanaService.getBalance(address);
+      } else if (this.isBitcoin() && this.bitcoinService) {
+        method = 'BitcoinService.getBalance() [Blockstream API]';
+        balanceLog(`║ Method: ${method}`.padEnd(61) + `║`);
+        const { confirmed } = await this.bitcoinService.getBalance(address);
+        balance = ethers.formatUnits(confirmed, 8); // Bitcoin has 8 decimals
+        balanceLog(`║ Raw satoshis: ${confirmed}`.padEnd(61) + `║`);
+      } else if (this.isBitcoinFork() && this.bitcoinForkService) {
+        method = `BitcoinForkService.getBalance() [${this.chainKey}]`;
+        balanceLog(`║ Method: ${method}`.padEnd(61) + `║`);
+        const { confirmed } = await this.bitcoinForkService.getBalance(address);
+        balance = ethers.formatUnits(confirmed, 8); // All use 8 decimals
+        balanceLog(`║ Raw units: ${confirmed}`.padEnd(61) + `║`);
+      } else if (this.evmService) {
+        method = 'BlockchainService.getBalance() [EVM RPC]';
+        balanceLog(`║ Method: ${method}`.padEnd(61) + `║`);
+        balance = await this.evmService.getBalance(address);
+      } else {
+        throw new Error('Service not initialized');
+      }
+      
+      const duration = Date.now() - startTime;
+      const chain = CHAINS[this.chainKey];
+      balanceLog(`╠────────────────────────────────────────────────────────────╣`);
+      balanceLog(`║ ✅ Balance: ${balance} ${chain.nativeCurrency.symbol}`.padEnd(61) + `║`);
+      balanceLog(`║ Duration: ${duration}ms`.padEnd(61) + `║`);
+      balanceLog(`╚════════════════════════════════════════════════════════════╝\n`);
+      
+      return balance;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      balanceError(`╠────────────────────────────────────────────────────────────╣`);
+      balanceError(`║ ❌ ERROR: ${(error as Error)?.message?.substring(0, 45) || 'Unknown'}`.padEnd(61) + `║`);
+      balanceError(`║ Duration: ${duration}ms`.padEnd(61) + `║`);
+      balanceError(`╚════════════════════════════════════════════════════════════╝\n`);
+      throw error;
     }
-    throw new Error('Service not initialized');
   }
 
   async getGasPrice(): Promise<{ slow: string; standard: string; fast: string }> {

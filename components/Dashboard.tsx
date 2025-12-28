@@ -33,6 +33,23 @@ import PremiumBadge, { PremiumCard } from './PremiumBadge';
 import BottomNavigation, { TabType } from './BottomNavigation';
 import { PRESALE_FEATURE_ENABLED } from '@/lib/feature-flags';
 import { calculateWeightedPortfolioChange } from '@/lib/portfolio-change-calculator';
+import { 
+  portfolioDebug,
+  debugFetchStart, 
+  debugChainInfo, 
+  debugNativeBalance, 
+  debugBatchPrices,
+  debugTokenBalances,
+  debugPortfolioResult,
+  debugMissingData,
+  debugFetchComplete,
+  debugCache,
+  debugChange24h,
+  type ChainInfo,
+  type BalanceResult,
+  type TokenResult,
+  type PortfolioSummary
+} from '@/lib/portfolio-debug-logger';
 
 // ✅ PERFORMANCE FIX: Lazy load modals (reduces initial bundle size by ~200KB)
 const SendModal = dynamic(() => import('./SendModal'), { ssr: false });
@@ -431,17 +448,14 @@ export default function Dashboard() {
   const priceService = new PriceService();
 
   const fetchData = useCallback(async (force = false) => {
-    // ✅ DEBUG: Only log in development mode
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🔄 [Dashboard] fetchData called', { force, displayAddress, currentChain });
-    }
+    const fetchStartTime = Date.now();
+    
+    // ✅ DEBUG: Uitgebreide logging voor debugging
+    debugFetchStart(currentChain, displayAddress || 'NO_ADDRESS', force);
     
     // ✅ Early return if no displayAddress (normal during initialization)
     if (!displayAddress) {
-      // ✅ DEBUG: Only log in development, not as warning
-      if (process.env.NODE_ENV === 'development') {
-        logger.log('🔍 [Dashboard] fetchData called but wallet not ready yet');
-      }
+      console.warn('⚠️ [Dashboard] fetchData called but wallet not ready yet - displayAddress is null');
       return;
     }
     
@@ -481,9 +495,28 @@ export default function Dashboard() {
       activeFetchId: fetchId 
     });
     
+    // ✅ DEBUG: Log chain info
+    const chainInfo: ChainInfo = {
+      chainKey: currentChain,
+      chainName: chain.name,
+      nativeSymbol: chain.nativeCurrency.symbol,
+      nativeDecimals: chain.nativeCurrency.decimals || 18,
+      isEVM: !['solana', 'bitcoin', 'litecoin', 'dogecoin', 'bitcoincash'].includes(currentChain),
+      isSolana: currentChain === 'solana',
+      isBitcoin: currentChain === 'bitcoin',
+      isBitcoinFork: ['litecoin', 'dogecoin', 'bitcoincash'].includes(currentChain),
+      hasAlchemy: blockchain.hasAlchemy?.() || false,
+      rpcUrl: chain.rpcUrl.substring(0, 50) + '...'
+    };
+    debugChainInfo(chainInfo);
+    
     // ✅ STALE-WHILE-REVALIDATE: Check cache first
     const { tokens: cachedTokens, nativeBalance: cachedBalance, nativePrice: cachedNativePrice, nativeValueUSD: cachedNativeValueUSD, timestamp: cacheTimestamp, isStale } = 
       await tokenBalanceCache.getStale(currentChain, displayAddress);
+    
+    // ✅ DEBUG: Log cache status
+    const cacheAge = cacheTimestamp > 0 ? Date.now() - cacheTimestamp : null;
+    debugCache(currentChain, displayAddress, cachedTokens !== null, cacheAge, isStale);
     
     if (cachedTokens && cachedBalance) {
       // ✅ Abort check after cache read
@@ -542,7 +575,29 @@ export default function Dashboard() {
       
       // ✅ STEP 1: Fetch native balance
       logger.log(`\n--- STEP 1: Fetch Native Balance ---`);
-      const bal = await blockchain.getBalance(displayAddress);
+      let bal: string;
+      let balanceResult: BalanceResult;
+      
+      try {
+        bal = await blockchain.getBalance(displayAddress);
+        balanceResult = {
+          raw: bal,
+          formatted: `${bal} ${chain.nativeCurrency.symbol}`,
+          source: 'blockchain'
+        };
+      } catch (balanceError: any) {
+        bal = '0';
+        balanceResult = {
+          raw: '0',
+          formatted: `0 ${chain.nativeCurrency.symbol}`,
+          source: 'error',
+          error: balanceError?.message || 'Unknown error'
+        };
+        console.error('❌ [Dashboard] Failed to fetch native balance:', balanceError);
+      }
+      
+      // ✅ DEBUG: Log native balance result
+      debugNativeBalance(currentChain, displayAddress, balanceResult);
       
       // ✅ Abort check after balance fetch
       if (!isStillRelevant()) {
@@ -562,8 +617,15 @@ export default function Dashboard() {
         allSymbols.push(...popularTokens.map(t => t.symbol));
       }
       
+      console.log(`\n📡 [DEBUG] Fetching prices for symbols:`, allSymbols);
+      console.log(`📡 [DEBUG] Native symbol: ${chain.nativeCurrency.symbol}`);
+      console.log(`📡 [DEBUG] Popular tokens for ${currentChain}:`, popularTokens.length);
+      
       logger.log(`[${timestamp}] 📡 Fetching prices + change24h for: ${allSymbols.join(', ')}`);
       const pricesMap = await priceService.getMultiplePrices(allSymbols);
+      
+      // ✅ DEBUG: Log batch price results
+      debugBatchPrices(allSymbols, pricesMap);
       
       // ✅ Abort check after price fetch
       if (!isStillRelevant()) {
@@ -849,6 +911,25 @@ export default function Dashboard() {
         throw new Error('Fetch aborted');
       }
       
+      // ✅ DEBUG: Prepare token results for logging
+      const tokenResults: TokenResult[] = tokensWithValue.map(token => ({
+        address: token.address || 'native',
+        symbol: token.symbol || 'UNKNOWN',
+        name: token.name || 'Unknown Token',
+        balance: token.balance || '0',
+        balanceUSD: token.balanceUSD || '0',
+        priceUSD: token.priceUSD || 0,
+        change24h: token.change24h || 0,
+        priceSource: token.priceSource || 'unknown',
+        logo: token.logo
+      }));
+      
+      // ✅ DEBUG: Log token balances
+      const tokenMethod = currentChain === 'solana' ? 'spl' : 
+                         (blockchain.hasAlchemy?.() ? 'alchemy' : 
+                          (popularTokens.length > 0 ? 'popular_tokens' : 'none'));
+      debugTokenBalances(currentChain, tokenMethod as any, tokenResults);
+      
       if (tokensWithValue.length > 0) {
         // ✅ Chain-specific token update
         updateTokens(currentChain, tokensWithValue);
@@ -933,6 +1014,51 @@ export default function Dashboard() {
       
       logger.log(`[${timestamp}] 📊 Portfolio 24h Change: ${weightedChange >= 0 ? '+' : ''}${weightedChange.toFixed(2)}%`);
       
+      // ✅ DEBUG: Log 24h change details for all assets
+      const tokenChangeDetails = tokensWithValue.map(token => ({
+        symbol: token.symbol || 'UNKNOWN',
+        change24h: token.change24h || 0,
+        hasData: token.change24h !== undefined && token.change24h !== 0
+      }));
+      debugChange24h(currentChain, chain.nativeCurrency.symbol, nativeChange, tokenChangeDetails);
+      
+      // ✅ DEBUG: Log complete portfolio summary
+      const portfolioSummary: PortfolioSummary = {
+        chain: currentChain,
+        address: displayAddress,
+        nativeBalance: bal,
+        nativeSymbol: chain.nativeCurrency.symbol,
+        nativePriceUSD: nativePrice,
+        nativeValueUSD: nativeValueUSD,
+        nativeChange24h: nativeChange,
+        tokensCount: tokensWithValue.length,
+        tokensTotalUSD: tokensWithValue.reduce((sum, t) => sum + parseFloat(t.balanceUSD || '0'), 0),
+        totalPortfolioUSD: nativeValueUSD + tokensWithValue.reduce((sum, t) => sum + parseFloat(t.balanceUSD || '0'), 0),
+        weightedChange24h: weightedChange,
+        timestamp: Date.now()
+      };
+      debugPortfolioResult(portfolioSummary);
+      
+      // ✅ DEBUG: Check for missing data issues
+      const issues: string[] = [];
+      if (nativePrice === 0) {
+        issues.push(`Native token ${chain.nativeCurrency.symbol} has no price data - portfolio value will be incorrect`);
+      }
+      if (nativeChange === 0 && nativePrice > 0) {
+        issues.push(`Native token ${chain.nativeCurrency.symbol} has no 24h change data`);
+      }
+      tokensWithValue.forEach(token => {
+        if ((token.priceUSD || 0) === 0 && parseFloat(token.balance || '0') > 0) {
+          issues.push(`Token ${token.symbol} has balance but no price data`);
+        }
+        if ((token.change24h || 0) === 0 && (token.priceUSD || 0) > 0) {
+          issues.push(`Token ${token.symbol} has price but no 24h change data`);
+        }
+      });
+      if (issues.length > 0) {
+        debugMissingData(currentChain, issues);
+      }
+      
       // ✅ PHASE 4: Cache with native price included
       await tokenBalanceCache.set(
         currentChain, 
@@ -948,7 +1074,11 @@ export default function Dashboard() {
       // This will override with portfolio history if available (>= 2 snapshots with enough time span), 
       // otherwise it will keep the weighted change we just set above
       
-      logger.log(`========== FETCH DATA COMPLETE [${Date.now() - timestamp}ms] ==========\n`);
+      const fetchDuration = Date.now() - fetchStartTime;
+      logger.log(`========== FETCH DATA COMPLETE [${fetchDuration}ms] ==========\n`);
+      
+      // ✅ DEBUG: Log fetch complete
+      debugFetchComplete(currentChain, fetchDuration, true);
       
       // ✅ Success: Mark fetch as complete and cleanup
       updateCurrentChainState({
@@ -958,14 +1088,26 @@ export default function Dashboard() {
       activeFetchControllers.current.delete(currentChain);
       
     } catch (error) {
+      const fetchDuration = Date.now() - fetchStartTime;
+      
       // ✅ Handle aborted fetches gracefully
       if (error instanceof Error && error.message === 'Fetch aborted') {
         logger.log(`✅ [Dashboard] Fetch ${fetchId} successfully aborted`);
+        debugFetchComplete(currentChain, fetchDuration, false);
         return; // Silent return, state already cleaned up
       }
       
-      logger.error('❌ Error fetching data:', error);
-      logger.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+      console.error('❌ [Dashboard] Error fetching data:', error);
+      console.error('❌ [Dashboard] Error details:', error instanceof Error ? error.message : 'Unknown error');
+      console.error('❌ [Dashboard] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      
+      // ✅ DEBUG: Log failed fetch
+      debugFetchComplete(currentChain, fetchDuration, false);
+      debugMissingData(currentChain, [
+        `Fetch failed with error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Chain: ${currentChain}`,
+        `Address: ${displayAddress}`
+      ]);
       
       // ✅ Update chain-specific state with error
       updateCurrentChainState({
