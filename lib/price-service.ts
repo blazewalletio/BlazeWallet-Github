@@ -312,7 +312,9 @@ export class PriceService {
     // ✅ STEP 1: Try CoinGecko first (batch request - returns price + change24h!)
     try {
       logger.log(`📡 [PriceService] Trying CoinGecko batch for: ${symbols.join(', ')}`);
-      const response = await fetch(`${this.primaryApiUrl}?symbols=${symbols.join(',')}`, {
+      // 🔥 CACHE BUSTING: Add timestamp to force Vercel to fetch fresh data
+      const cacheBuster = Date.now();
+      const response = await fetch(`${this.primaryApiUrl}?symbols=${symbols.join(',')}&_t=${cacheBuster}`, {
         signal: AbortSignal.timeout(10000), // 10 second timeout for batch
       });
       
@@ -465,8 +467,10 @@ export class PriceService {
 
     // ✅ STEP 2: Fetch from CoinGecko by address (batch request = efficient!)
     try {
+      // 🔥 CACHE BUSTING: Add timestamp to force Vercel to fetch fresh data
+      const cacheBuster = Date.now();
       const response = await fetch(
-        `${this.addressApiUrl}?addresses=${uncachedAddresses.join(',')}&chain=${chain}`,
+        `${this.addressApiUrl}?addresses=${uncachedAddresses.join(',')}&chain=${chain}&_t=${cacheBuster}`,
         { signal: AbortSignal.timeout(15000) }
       );
 
