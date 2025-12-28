@@ -12,7 +12,6 @@ import { useWalletStore } from '@/lib/wallet-store';
 import { BlockchainService } from '@/lib/blockchain';
 import { CHAINS } from '@/lib/chains';
 import AnimatedNumber from './AnimatedNumber';
-import PortfolioChart from './PortfolioChart';
 import TransactionHistory from './TransactionHistory';
 import SettingsModal from './SettingsModal';
 import StakingDashboard from './StakingDashboard';
@@ -31,9 +30,6 @@ interface TabContentProps {
   tokens: any[];
   totalValueUSD: number;
   change24h: number;
-  chartData: number[];
-  selectedTimeRange: number | null;
-  setSelectedTimeRange: (range: number | null) => void;
   setShowSendModal: (show: boolean) => void;
   setShowReceiveModal: (show: boolean) => void;
   setShowSwapModal: (show: boolean) => void;
@@ -49,9 +45,6 @@ export default function TabContent({
   tokens,
   totalValueUSD,
   change24h,
-  chartData,
-  selectedTimeRange,
-  setSelectedTimeRange,
   setShowSendModal,
   setShowReceiveModal,
   setShowSwapModal,
@@ -157,32 +150,6 @@ export default function TabContent({
           </div>
         </div>
 
-        {/* Mini Chart */}
-        <div className="h-20 mb-4">
-          <PortfolioChart data={chartData} />
-        </div>
-
-        {/* Time Range Selector */}
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          {[1, 24, 72, 168, 720, null].map((hours, index) => {
-            const labels = ['1u', '1d', '3d', '1w', '1m', 'Alles'];
-            const isSelected = selectedTimeRange === hours;
-            
-            return (
-              <button
-                key={index}
-                onClick={() => setSelectedTimeRange(hours)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                  isSelected
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {labels[index]}
-              </button>
-            );
-          })}
-        </div>
       </motion.div>
 
       {/* Action Buttons */}

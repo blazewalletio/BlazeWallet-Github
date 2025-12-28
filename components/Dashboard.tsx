@@ -25,14 +25,11 @@ import { logger } from '@/lib/logger';
 import { supabase } from '@/lib/supabase';
 import ChainSelector from './ChainSelector';
 import TokenSelector from './TokenSelector';
-import PortfolioChart from './PortfolioChart';
-import BalanceChart from './BalanceChart';
 import PasswordUnlockModal from './PasswordUnlockModal';
 import DebugPanel from './DebugPanel';
 import AnimatedNumber from './AnimatedNumber';
 import TransactionHistory from './TransactionHistory';
 import PremiumBadge, { PremiumCard } from './PremiumBadge';
-import { getPortfolioHistory } from '@/lib/portfolio-history';
 import BottomNavigation, { TabType } from './BottomNavigation';
 import { PRESALE_FEATURE_ENABLED } from '@/lib/feature-flags';
 
@@ -150,8 +147,6 @@ export default function Dashboard() {
   }
   
   const [chainStates, setChainStates] = useState<Map<string, ChainState>>(new Map());
-  const [chartData, setChartData] = useState<number[]>([]);
-  const [selectedTimeRange, setSelectedTimeRange] = useState<number | null>(24); // Default: 24 hours
   
   // ✅ AbortController tracking per chain
   const activeFetchControllers = useRef<Map<string, AbortController>>(new Map());
@@ -162,7 +157,7 @@ export default function Dashboard() {
   const refreshPricesOnlyRef = useRef<() => Promise<void>>();
   const fetchDataRef = useRef<(force?: boolean) => Promise<void>>();
   // ✅ Ref to track if intervals are already set up to prevent duplicate intervals
-  const intervalsSetupRef = useRef<{ liveSnapshotInterval?: NodeJS.Timeout; priceInterval?: NodeJS.Timeout; fullInterval?: NodeJS.Timeout; address?: string; chain?: string }>({});
+  const intervalsSetupRef = useRef<{ priceInterval?: NodeJS.Timeout; fullInterval?: NodeJS.Timeout; address?: string; chain?: string }>({});
   
   // Update refs when values change
   useEffect(() => {
@@ -433,7 +428,6 @@ export default function Dashboard() {
   const blockchain = MultiChainService.getInstance(currentChain); // ✅ Use singleton (prevents re-initialization)
   const tokenService = new TokenService(chain.rpcUrl);
   const priceService = new PriceService();
-  const portfolioHistory = getPortfolioHistory();
 
   /**
    * 📊 Calculate weighted average portfolio change
@@ -939,15 +933,6 @@ export default function Dashboard() {
           totalValueUSD: totalValue.toFixed(2)
         });
         
-        // Save to portfolio history (with timeframe for smart intervals)
-        if (displayAddress) {
-          const timeframe = selectedTimeRange === 1 ? 'LIVE' :
-                           selectedTimeRange === 24 ? '1D' :
-                           selectedTimeRange === 168 ? '7D' :
-                           selectedTimeRange === 720 ? '30D' :
-                           selectedTimeRange === 8760 ? '1J' : '1D';
-          portfolioHistory.addSnapshot(totalValue, displayAddress, currentChain, timeframe);
-        }
       } else {
         // No tokens - native value IS total value
         updateTokens(currentChain, []); // Clear tokens for this chain
@@ -962,18 +947,6 @@ export default function Dashboard() {
           totalValueUSD: nativeValueUSD.toFixed(2)
         });
         
-        // Save to portfolio history (with timeframe for smart intervals)
-        if (displayAddress) {
-          const timeframe = selectedTimeRange === 1 ? 'LIVE' :
-                           selectedTimeRange === 24 ? '1D' :
-                           selectedTimeRange === 168 ? '7D' :
-                           selectedTimeRange === 720 ? '30D' :
-                           selectedTimeRange === 8760 ? '1J' : '1D';
-          // Fire and forget - don't await for performance
-          portfolioHistory.addSnapshot(nativeValueUSD, displayAddress, currentChain, timeframe).catch(err => {
-            logger.error('Error saving snapshot:', err);
-          });
-        }
       }
 
       // ✅ STEP 6: Get 24h change for native token
@@ -1016,7 +989,6 @@ export default function Dashboard() {
       // ✅ Update chart data from history based on selected time range
       // This will override with portfolio history if available (>= 2 snapshots with enough time span), 
       // otherwise it will keep the weighted change we just set above
-      updateChartData();
       
       logger.log(`========== FETCH DATA COMPLETE [${Date.now() - timestamp}ms] ==========\n`);
       
@@ -1044,7 +1016,7 @@ export default function Dashboard() {
       });
       activeFetchControllers.current.delete(currentChain);
     }
-  }, [displayAddress, currentChain, updateBalance, updateTokens, updateCurrentChainState, selectedTimeRange]);
+  }, [displayAddress, currentChain, updateBalance, updateTokens, updateCurrentChainState]);
   // ✅ Removed chain, priceService, blockchain, tokenService, portfolioHistory from dependencies
   // These are created/accessed inside the function and don't need to be in dependencies
   
@@ -1053,59 +1025,6 @@ export default function Dashboard() {
     fetchDataRef.current = fetchData;
   }, [fetchData]);
 
-  // Update chart data when time range changes
-  const updateChartData = () => {
-    if (!displayAddress) return;
-    
-    // ✅ Filter snapshots by current chain and address
-    const recentSnapshots = portfolioHistory.getRecentSnapshots(20, selectedTimeRange, currentChain, displayAddress);
-    
-    if (recentSnapshots.length >= 2) {
-      // ✅ Check if snapshots are actually within the requested time range
-      // AND have enough time span between them to calculate meaningful change
-      const now = Date.now();
-      const cutoffTime = selectedTimeRange ? now - (selectedTimeRange * 60 * 60 * 1000) : 0;
-      const oldestSnapshot = recentSnapshots[0];
-      const newestSnapshot = recentSnapshots[recentSnapshots.length - 1];
-      
-      // Time span between oldest and newest snapshot (in hours)
-      const timeSpanHours = (newestSnapshot.timestamp - oldestSnapshot.timestamp) / (1000 * 60 * 60);
-      
-      // We need at least 50% of the requested time range to have meaningful data
-      // For 24h (1d), we need at least 12 hours of data
-      // For 72h (3d), we need at least 36 hours of data
-      const minRequiredHours = selectedTimeRange ? selectedTimeRange * 0.5 : 0;
-      
-      const hasValidTimeRange = !selectedTimeRange || (oldestSnapshot.timestamp >= cutoffTime);
-      const hasEnoughTimeSpan = timeSpanHours >= minRequiredHours;
-      
-      if (hasValidTimeRange && hasEnoughTimeSpan) {
-        // We have valid recent data with enough time span - use portfolio history
-        setChartData(recentSnapshots.map(s => s.balance));
-        
-        // Update change percentage for selected range (chain-specific)
-        const rangeChange = portfolioHistory.getChangePercentage(selectedTimeRange, currentChain, displayAddress);
-        updateCurrentChainState({ change24h: rangeChange });
-        logger.log(`[updateChartData] ✅ Using portfolio history: ${timeSpanHours.toFixed(1)}h span, ${rangeChange.toFixed(2)}% change`);
-      } else {
-        // Snapshots are too old or too close together - keep the weighted portfolio change
-        setChartData(recentSnapshots.map(s => s.balance)); // Show data in chart
-        // Don't update change24h - keep the weighted portfolio change from fetchData
-        logger.log(`[updateChartData] ⏳ Insufficient history data (${timeSpanHours.toFixed(1)}h span, need ${minRequiredHours}h), keeping weighted change`);
-      }
-    } else if (recentSnapshots.length === 1) {
-      // Only 1 snapshot - show it but keep weighted portfolio change percentage
-      setChartData(recentSnapshots.map(s => s.balance));
-      // Don't update change24h - keep the weighted portfolio change from fetchData
-      logger.log(`[updateChartData] ⏳ Only 1 snapshot, keeping weighted change`);
-    } else {
-      // No data yet for this chain/time range
-      setChartData([]);
-      // ✅ Don't override the weighted change if there's no history data yet
-      // Keep the existing change24h value (weighted portfolio change from fetchData)
-      logger.log(`[updateChartData] ⏳ No snapshots yet, keeping weighted change`);
-    }
-  };
 
   /**
    * 🔄 NEW: Manually refresh unknown token metadata
@@ -1299,9 +1218,6 @@ export default function Dashboard() {
       }
       // Clean up any existing intervals when address becomes null
       const existingSetup = intervalsSetupRef.current;
-      if (existingSetup.liveSnapshotInterval) {
-        clearInterval(existingSetup.liveSnapshotInterval);
-      }
       if (existingSetup.priceInterval) {
         clearInterval(existingSetup.priceInterval);
       }
@@ -1315,7 +1231,7 @@ export default function Dashboard() {
     // ✅ Check if intervals are already set up for the same address and chain
     const existingSetup = intervalsSetupRef.current;
     if (existingSetup.address === displayAddress && existingSetup.chain === currentChain && 
-        existingSetup.liveSnapshotInterval && existingSetup.priceInterval && existingSetup.fullInterval) {
+        existingSetup.priceInterval && existingSetup.fullInterval) {
       // Intervals already set up for this address/chain combination - skip
       if (process.env.NODE_ENV === 'development') {
         logger.log('✅ [Dashboard] Intervals already set up for this address/chain, skipping');
@@ -1324,9 +1240,6 @@ export default function Dashboard() {
     }
     
     // ✅ Clean up existing intervals if they exist (different address/chain)
-    if (existingSetup.liveSnapshotInterval) {
-      clearInterval(existingSetup.liveSnapshotInterval);
-    }
     if (existingSetup.priceInterval) {
       clearInterval(existingSetup.priceInterval);
     }
@@ -1353,23 +1266,6 @@ export default function Dashboard() {
     
     // ✅ Auto-refresh prices every 30 seconds (frequent price updates)
     // Full data refresh every 60 seconds (balances, new tokens, etc.)
-    // ✅ LIVE snapshots: elke 5 seconden (altijd actief voor LIVE grafiek)
-    // Dit zorgt ervoor dat we altijd recente snapshots hebben voor LIVE grafiek
-    const liveSnapshotInterval = setInterval(() => {
-      if (displayAddress) {
-        // ✅ Gebruik currentState.totalValueUSD (meest actuele waarde)
-        const currentTotal = currentState.totalValueUSD;
-        if (currentTotal > 0) {
-          // ✅ Snapshot maken voor LIVE timeframe (elke 5 seconden)
-          portfolioHistory.addSnapshot(currentTotal, displayAddress, currentChain, 'LIVE').catch(err => {
-            if (process.env.NODE_ENV === 'development') {
-              logger.warn('⚠️ [Dashboard] Failed to save LIVE snapshot:', err);
-            }
-          });
-        }
-      }
-    }, 5000); // 5 seconden voor LIVE snapshots
-    
     const priceRefreshInterval = setInterval(() => {
       // ✅ DEBUG: Only log in development mode
       if (process.env.NODE_ENV === 'development') {
@@ -1406,7 +1302,6 @@ export default function Dashboard() {
     
     return () => {
       logger.log('🔄 [Dashboard] Cleaning up refresh intervals');
-      if (liveSnapshotInterval) clearInterval(liveSnapshotInterval);
       if (priceRefreshInterval) clearInterval(priceRefreshInterval);
       if (fullRefreshInterval) clearInterval(fullRefreshInterval);
       // Clear the ref when cleaning up
@@ -1467,9 +1362,6 @@ export default function Dashboard() {
   }, [checkAutoLock]);
 
   // Update chart when time range changes
-  useEffect(() => {
-    updateChartData();
-  }, [selectedTimeRange]);
 
   // ✅ Format the CURRENT chain address (not just EVM address)
   const formattedAddress = displayAddress ? BlockchainService.formatAddress(displayAddress) : '';
@@ -1553,13 +1445,7 @@ export default function Dashboard() {
                       <TrendingDown className="w-4 h-4" />
                     )}
                     <span>
-                      {isPositiveChange ? '+' : ''}{change24h.toFixed(2)}% 
-                      {selectedTimeRange === 1 ? " last hour" : 
-                       selectedTimeRange === 24 ? " today" : 
-                       selectedTimeRange === 72 ? " last 3 days" :
-                       selectedTimeRange === 168 ? " this week" :
-                       selectedTimeRange === 720 ? " this month" :
-                       " total"}
+                      {isPositiveChange ? '+' : ''}{change24h.toFixed(2)}% today
                     </span>
                   </div>
                   
@@ -1572,17 +1458,6 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Balance Chart - Bitvavo Style + BLAZE Design */}
-              <BalanceChart
-                address={displayAddress || address || ''}
-                chain={currentChain}
-                currentBalance={totalValueUSD}
-                isPositiveChange={isPositiveChange}
-                selectedTimeRange={selectedTimeRange}
-                onTimeRangeChange={setSelectedTimeRange}
-                tokens={tokens}
-                nativeBalance={balance}
-              />
             </div>
           </motion.div>
 

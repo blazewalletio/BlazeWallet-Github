@@ -21,7 +21,6 @@ import BuyModal2 from '../BuyModal2';
 import BuyModal3 from '../BuyModal3';
 import TokenSelector from '../TokenSelector';
 import AnimatedNumber from '../AnimatedNumber';
-import { getPortfolioHistory } from '@/lib/portfolio-history';
 import { logger } from '@/lib/logger';
 
 export default function WalletTab() {
@@ -48,14 +47,11 @@ export default function WalletTab() {
   const [showTokenSelector, setShowTokenSelector] = useState(false);
   const [totalValueUSD, setTotalValueUSD] = useState(0);
   const [change24h, setChange24h] = useState(2.5);
-  const [chartData, setChartData] = useState<number[]>([]);
-  const [selectedTimeRange, setSelectedTimeRange] = useState<number | null>(24);
 
   const chain = CHAINS[currentChain];
   const blockchain = new BlockchainService(currentChain as any);
   const tokenService = new TokenService(chain.rpcUrl);
   const priceService = new PriceService();
-  const portfolioHistory = getPortfolioHistory();
 
   const fetchData = async (force = false) => {
     if (!address) return;
@@ -115,16 +111,13 @@ export default function WalletTab() {
         const totalValue = nativeValueUSD + tokensTotalUSD;
         setTotalValueUSD(totalValue);
         
-        portfolioHistory.addSnapshot(totalValue, address, currentChain);
       } else {
         setTotalValueUSD(nativeValueUSD);
-        portfolioHistory.addSnapshot(nativeValueUSD, address, currentChain);
       }
 
       const nativeChange = await priceService.get24hChange(chain.nativeCurrency.symbol);
       setChange24h(nativeChange);
       
-      updateChartData();
       
     } catch (error) {
       logger.error('Error fetching data:', error);
@@ -133,33 +126,10 @@ export default function WalletTab() {
     }
   };
 
-  const updateChartData = () => {
-    if (!address) return;
-    
-    // ✅ Filter snapshots by current chain and address
-    const recentSnapshots = portfolioHistory.getRecentSnapshots(20, selectedTimeRange, currentChain, address);
-    if (recentSnapshots.length > 0) {
-      setChartData(recentSnapshots.map(s => s.balance));
-      
-      // Update change percentage for selected range (chain-specific)
-      const rangeChange = portfolioHistory.getChangePercentage(selectedTimeRange, currentChain, address);
-      if (rangeChange !== 0) {
-        setChange24h(rangeChange);
-      }
-    } else {
-      // No data yet for this chain/time range
-      setChartData([]);
-      setChange24h(0);
-    }
-  };
 
   useEffect(() => {
     fetchData(true);
   }, [address, currentChain]);
-
-  useEffect(() => {
-    updateChartData();
-  }, [selectedTimeRange]);
 
   const formattedAddress = address ? BlockchainService.formatAddress(address) : '';
   const isPositiveChange = change24h >= 0;
@@ -265,76 +235,12 @@ export default function WalletTab() {
                     <TrendingDown className="w-4 h-4" />
                   )}
                   <span>
-                    {isPositiveChange ? '+' : ''}{change24h.toFixed(2)}% 
-                    {selectedTimeRange === 1 ? " last hour" : 
-                     selectedTimeRange === 24 ? " today" : 
-                     selectedTimeRange === 72 ? " last 3 days" :
-                     selectedTimeRange === 168 ? " this week" :
-                     selectedTimeRange === 720 ? " this month" :
-                     " total"}
+                    {isPositiveChange ? '+' : ''}{change24h.toFixed(2)}% today
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Mini Chart */}
-            <div className="h-20 flex items-end gap-1 mb-4">
-              {chartData.length > 0 ? (
-                (() => {
-                  const minValue = Math.min(...chartData);
-                  const maxValue = Math.max(...chartData);
-                  const range = maxValue - minValue || 1;
-                  
-                  return chartData.map((value, i) => {
-                    const heightPercent = ((value - minValue) / range) * 80 + 20;
-                    return (
-                      <motion.div
-                        key={i}
-                        initial={{ height: 0 }}
-                        animate={{ height: `${heightPercent}%` }}
-                        transition={{ delay: i * 0.03, duration: 0.5 }}
-                        className={`flex-1 rounded-t ${isPositiveChange ? 'bg-emerald-400/40' : 'bg-rose-400/40'}`}
-                      />
-                    );
-                  });
-                })()
-              ) : (
-                Array.from({ length: 20 }).map((_, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ height: 0 }}
-                    animate={{ height: '50%' }}
-                    transition={{ delay: i * 0.05, duration: 0.5 }}
-                    className="flex-1 rounded-t bg-gray-300/40"
-                  />
-                ))
-              )}
-            </div>
-
-            {/* Time Range Selector */}
-            <div className="flex gap-2 flex-wrap">
-              {[
-                { label: '1u', hours: 1 },
-                { label: '1d', hours: 24 },
-                { label: '3d', hours: 72 },
-                { label: '1w', hours: 168 },
-                { label: '1m', hours: 720 },
-                { label: 'Alles', hours: null },
-              ].map((range) => (
-                <motion.button
-                  key={range.label}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setSelectedTimeRange(range.hours)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    selectedTimeRange === range.hours
-                      ? 'bg-primary-600 text-white shadow-soft'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {range.label}
-                </motion.button>
-              ))}
-            </div>
           </div>
         </motion.div>
 
