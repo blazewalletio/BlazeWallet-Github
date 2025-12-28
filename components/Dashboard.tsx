@@ -682,7 +682,8 @@ export default function Dashboard() {
       let nativeChange = pricesMap[chain.nativeCurrency.symbol]?.change24h || 0;
       
       if (currentChain === 'ethereum') {
-        console.log(`\n💰 ETH Prijs ontvangen:`);
+        console.log('\n💰 ETH Prijs ontvangen:');
+        console.log(`   ⏰ TIMESTAMP: ${new Date().toLocaleTimeString('nl-NL')} (${new Date().toISOString()})`);
         console.log(`   Prijs: $${nativePrice}`);
         console.log(`   24h Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
         console.log(`   Bron: ${pricesMap[chain.nativeCurrency.symbol] ? 'CoinGecko/Binance' : 'GEEN DATA'}`);
@@ -949,7 +950,8 @@ export default function Dashboard() {
           logger.log(`[${timestamp}] 💰 Received prices for ${pricesByAddress.size}/${tokenAddresses.length} tokens`);
           
           if (currentChain === 'ethereum') {
-            console.log(`\n💰 Prijzen ontvangen van CoinGecko:`);
+            console.log('\n💰 Prijzen ontvangen van CoinGecko:');
+            console.log(`   ⏰ TIMESTAMP: ${new Date().toLocaleTimeString('nl-NL')} (${new Date().toISOString()})`);
             erc20Tokens.forEach((token: any) => {
               const priceData = pricesByAddress.get(token.address.toLowerCase());
               if (priceData && priceData.price > 0) {

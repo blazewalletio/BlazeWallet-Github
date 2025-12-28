@@ -318,11 +318,19 @@ export class PriceService {
       
       if (response.ok) {
         const data = await response.json();
+        
+        // 🔍 DEBUG: Log RAW response from CoinGecko
+        logger.log(`📦 [PriceService] RAW CoinGecko batch response:`, JSON.stringify(data, null, 2));
 
         symbols.forEach(symbol => {
           if (data[symbol] && data[symbol].price > 0) {
             const price = data[symbol].price;
             const change24h = data[symbol].change24h || 0;
+            
+            // 🔍 DEBUG: Log transformation
+            logger.log(`🔍 [PriceService] Processing ${symbol}:`);
+            logger.log(`   RAW: price=${data[symbol].price}, change24h=${data[symbol].change24h}`);
+            logger.log(`   TRANSFORMED: price=$${price}, change24h=${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%`);
             
             // ✅ Store both price AND change24h
             result[symbol] = { price, change24h };
@@ -332,7 +340,7 @@ export class PriceService {
               source: 'coingecko'
             }, this.cacheDuration);
             
-            logger.log(`✅ [PriceService] CoinGecko: ${symbol} = $${price}, change24h: ${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%`);
+            logger.log(`✅ [PriceService] CACHED for ${this.cacheDuration/1000}s: ${symbol} = $${price}, change24h: ${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%`);
           } else {
             // ⚠️ DON'T add to result yet - let fallbacks try first!
             logger.log(`⚠️ [PriceService] ${symbol}: NOT FOUND in CoinGecko (price: ${data[symbol]?.price || 0})`);
@@ -441,7 +449,8 @@ export class PriceService {
       const cached = this.addressCache.get(addressLower);
       if (cached) {
         result.set(addressLower, { price: cached.price, change24h: cached.change24h });
-        logger.log(`💾 [PriceService] Cache hit: ${addressLower.substring(0, 10)}... = $${cached.price}`);
+        logger.log(`💾 [PriceService] 🔴 CACHE HIT: ${addressLower.substring(0, 10)}... = $${cached.price.toFixed(6)}, change24h: ${cached.change24h.toFixed(2)}%`);
+        logger.log(`   ⚠️ Using CACHED data - this may be up to 60 seconds old!`);
       } else {
         uncachedAddresses.push(addressLower);
       }
@@ -511,6 +520,7 @@ export class PriceService {
               }, this.cacheDuration);
               
               logger.log(`✅ [PriceService] CoinGecko: ${address.substring(0, 10)}... = $${priceData.price.toFixed(6)}`);
+              logger.log(`🔍 [PriceService] FRESH DATA from API: price=$${priceData.price.toFixed(6)}, change24h=${priceData.change24h.toFixed(2)}%`);
             } else {
               logger.log(`⚠️ [PriceService] Skipping invalid price for ${address.substring(0, 10)}... (will try DexScreener)`);
             }

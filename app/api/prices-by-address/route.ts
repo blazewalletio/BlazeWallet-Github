@@ -146,6 +146,9 @@ export async function GET(request: NextRequest) {
       }
 
       const data = await response.json();
+      
+      // 🔍 DEBUG: Log RAW CoinGecko response
+      logger.log(`📦 [Prices by Address] RAW CoinGecko Response:`, JSON.stringify(data, null, 2));
 
     // Transform data to our format
     // CoinGecko returns: { "0x...": { "usd": 5.42, "usd_24h_change": -2.5 } }
@@ -156,6 +159,12 @@ export async function GET(request: NextRequest) {
       const addressLower = address.toLowerCase();
       if (data[addressLower]) {
         let price = data[addressLower].usd || 0;
+        const change24h = data[addressLower].usd_24h_change || 0;
+        
+        // 🔍 DEBUG: Log each token's data transformation
+        logger.log(`🔍 [Prices by Address] Processing ${addressLower.substring(0, 10)}...:`);
+        logger.log(`   RAW from CoinGecko: usd=${data[addressLower].usd}, usd_24h_change=${data[addressLower].usd_24h_change}`);
+        logger.log(`   TRANSFORMED: price=$${price}, change24h=${change24h}%`);
         
         // 🛡️ SANITY CHECK: Detect abnormally high prices (>$100k per token)
         // This prevents incorrect value calculations from API errors or stale data
@@ -171,11 +180,11 @@ export async function GET(request: NextRequest) {
         
         result[addressLower] = {
           price,
-          change24h: data[addressLower].usd_24h_change || 0,
+          change24h,
         };
         
         if (price > 0) {
-          logger.log(`✅ [Prices by Address] ${addressLower.substring(0, 10)}...: $${result[addressLower].price.toFixed(6)}`);
+          logger.log(`✅ [Prices by Address] FINAL: ${addressLower.substring(0, 10)}...: price=$${result[addressLower].price.toFixed(6)}, change24h=${result[addressLower].change24h.toFixed(2)}%`);
         } else {
           logger.log(`⚠️ [Prices by Address] ${addressLower.substring(0, 10)}...: Price set to 0 (sanity check failed)`);
         }
