@@ -182,7 +182,14 @@ export async function GET(request: Request) {
     }
 
     // ✅ Return flat format: { "SOL": { price: 202.5, change24h: 0.2 } }
-    return NextResponse.json(result);
+    return NextResponse.json(result, {
+      headers: {
+        // ⚡ NO SERVER-SIDE CACHE - Always fetch fresh data from CoinGecko
+        // User requirement: "Ik wil ALTIJD correcte data hebben in BLAZE wallet"
+        // Client-side cache (60s in price-service.ts) is still active for performance
+        'Cache-Control': 'public, s-maxage=0, must-revalidate',
+      },
+    });
 
   } catch (error) {
     logger.error('Error fetching prices:', error);

@@ -242,8 +242,10 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result, {
       headers: {
-        // ✅ FIX: Shorter cache for change24h data (1 minute) - prices can be cached longer
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120', // 1min cache for fresh change24h
+        // ⚡ NO SERVER-SIDE CACHE - Always fetch fresh data from CoinGecko
+        // User requirement: "Ik wil ALTIJD correcte data hebben in BLAZE wallet"
+        // Client-side cache (60s in price-service.ts) is still active for performance
+        'Cache-Control': 'public, s-maxage=0, must-revalidate',
       },
     });
 
