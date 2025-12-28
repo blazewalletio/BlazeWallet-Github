@@ -617,17 +617,6 @@ export default function Dashboard() {
       logger.log(`📍 Display Address: ${displayAddress}`);
       
       // ✅ STEP 1: Fetch native balance
-      if (currentChain === 'ethereum') {
-        console.log('\n\n');
-        console.log('╔═══════════════════════════════════════════════════════════════╗');
-        console.log('║        🔥 ETHEREUM DEBUG - START PORTFOLIO BEREKENING          ║');
-        console.log('╚═══════════════════════════════════════════════════════════════╝');
-        console.log('\n');
-        console.log('═══════════════════════════════════════════════════════════════');
-        console.log('🔍 ETHEREUM DEBUG - STEP 1: NATIVE ETH BALANCE');
-        console.log('═══════════════════════════════════════════════════════════════');
-      }
-      
       logger.log(`\n--- STEP 1: Fetch Native Balance ---`);
       const bal = await blockchain.getBalance(displayAddress);
       
@@ -638,33 +627,16 @@ export default function Dashboard() {
       
       logger.log(`[${timestamp}] ✅ Balance received: ${bal} ${chain.nativeCurrency.symbol}`);
       
-      if (currentChain === 'ethereum') {
-        console.log(`📍 Wallet Address: ${displayAddress}`);
-        console.log(`✅ Native ETH Balance: ${bal} ETH`);
-      }
-      
       updateBalance(bal);
 
       // ✅ STEP 2: Fetch ALL prices in ONE batch request (optimized!)
-      if (currentChain === 'ethereum') {
-        console.log('\n');
-        console.log('═══════════════════════════════════════════════════════════════');
-        console.log('💰 ETHEREUM DEBUG - STEP 2: ETH PRIJS OPHALEN');
-        console.log('═══════════════════════════════════════════════════════════════');
-      }
-      
       logger.log(`\n--- STEP 2: Fetch Prices (Batch) ---`);
       const popularTokens = POPULAR_TOKENS[currentChain] || [];
       const allSymbols = [chain.nativeCurrency.symbol];
       
-      // Add token symbols (EVM only, Ethereum has no ERC-20 tokens implemented yet)
-      if (currentChain !== 'ethereum' && popularTokens.length > 0) {
+      // Add token symbols (EVM only, Solana has no SPL tokens implemented yet)
+      if (currentChain !== 'solana' && popularTokens.length > 0) {
         allSymbols.push(...popularTokens.map(t => t.symbol));
-      }
-      
-      if (currentChain === 'ethereum') {
-        console.log(`📡 Fetching prijs voor: ${chain.nativeCurrency.symbol}`);
-        console.log('   Via: CoinGecko → Binance (fallback)');
       }
       
       logger.log(`[${timestamp}] 📡 Fetching prices + change24h for: ${allSymbols.join(', ')}`);
@@ -681,28 +653,14 @@ export default function Dashboard() {
       let nativePrice = pricesMap[chain.nativeCurrency.symbol]?.price || 0;
       let nativeChange = pricesMap[chain.nativeCurrency.symbol]?.change24h || 0;
       
-      if (currentChain === 'ethereum') {
-        console.log(`\n💰 ETH Prijs ontvangen:`);
-        console.log(`   Prijs: $${nativePrice}`);
-        console.log(`   24h Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
-        console.log(`   Bron: ${pricesMap[chain.nativeCurrency.symbol] ? 'CoinGecko/Binance' : 'GEEN DATA'}`);
-      }
-      
       // ✅ FALLBACK: If price is 0, try to use cached price or fetch again
       if (nativePrice === 0) {
         logger.warn(`⚠️ [Dashboard] Native price is 0 for ${chain.nativeCurrency.symbol}, trying fallback...`);
-        if (currentChain === 'ethereum') {
-          console.log('\n⚠️  ETH prijs is $0, proberen fallback...');
-        }
         
         const cachedState = getCurrentChainState();
         if (cachedState.nativePriceUSD > 0) {
           logger.log(`✅ [Dashboard] Using cached price: $${cachedState.nativePriceUSD}`);
           nativePrice = cachedState.nativePriceUSD;
-          
-          if (currentChain === 'ethereum') {
-            console.log(`✅ Cached prijs gebruikt: $${nativePrice}`);
-          }
         } else {
           // Try fetching price directly as fallback
           try {
@@ -710,16 +668,9 @@ export default function Dashboard() {
             if (fallbackPrice > 0) {
               logger.log(`✅ [Dashboard] Fallback price fetch successful: $${fallbackPrice}`);
               nativePrice = fallbackPrice;
-              
-              if (currentChain === 'ethereum') {
-                console.log(`✅ Fallback prijs fetch succesvol: $${fallbackPrice}`);
-              }
             }
           } catch (error) {
             logger.error(`❌ [Dashboard] Fallback price fetch failed:`, error);
-            if (currentChain === 'ethereum') {
-              console.log(`❌ Fallback fetch gefaald:`, error);
-            }
           }
         }
       }
@@ -737,60 +688,33 @@ export default function Dashboard() {
         priceUSD: nativePrice,
         valueUSD: nativeValueUSD.toFixed(2)
       });
-      
-      if (currentChain === 'ethereum') {
-        console.log('\n🧮 ETH Waarde Berekening:');
-        console.log(`   ${bal} ETH × $${nativePrice.toFixed(2)}`);
-        console.log(`   💵 = $${nativeValueUSD.toFixed(2)}`);
-      }
 
       // ✅ STEP 3: Fetch token balances (chain-specific)
       let tokensWithValue: Token[] = [];
       
-      if (currentChain === 'ethereum') {
-        // ✅ ETHEREUM: Fetch ERC-20 tokens
-        console.log('\n');
-        console.log('═══════════════════════════════════════════════════════════════');
-        console.log('🔍 ETHEREUM DEBUG - STEP 3: ERC-20 TOKEN BALANCES');
-        console.log('═══════════════════════════════════════════════════════════════');
-        logger.log(`\n--- STEP 3: Fetch SPL Token Balances (Ethereum) ---`);
-        logger.log(`[${timestamp}] 🪙 Fetching ERC-20 tokens from chain...`);
-        console.log(`📍 Wallet Address: ${displayAddress}`);
+      if (currentChain === 'solana') {
+        // ✅ SOLANA: Fetch SPL tokens
+        logger.log(`\n--- STEP 3: Fetch SPL Token Balances (Solana) ---`);
+        logger.log(`[${timestamp}] 🪙 Fetching SPL tokens from chain...`);
         
-        const ethereumService = blockchain as any; // Access Ethereum-specific methods
-        const splTokens = await ethereumService.getSPLTokenBalances(displayAddress);
+        const solanaService = blockchain as any; // Access Solana-specific methods
+        const splTokens = await solanaService.getSPLTokenBalances(displayAddress);
         
-        // ✅ Abort check after ERC-20 token fetch
+        // ✅ Abort check after SPL token fetch
         if (!isStillRelevant()) {
           throw new Error('Fetch aborted');
         }
         
-        logger.log(`[${timestamp}] ✅ Found ${splTokens.length} ERC-20 tokens with balance`);
-        logger.log(`[${timestamp}] 📊 ERC-20 Tokens:`, splTokens);
-        console.log(`\n✅ Found ${splTokens.length} ERC-20 tokens with non-zero balance`);
-        
-        // 🔍 DEBUG: Log elk token dat gevonden is
-        splTokens.forEach((token: any, index: number) => {
-          console.log(`\n  Token ${index + 1}:`);
-          console.log(`    Symbol: ${token.symbol}`);
-          console.log(`    Name: ${token.name}`);
-          console.log(`    Balance: ${token.balance}`);
-          console.log(`    Contract Address: ${token.address}`);
-          console.log(`    Decimals: ${token.decimals}`);
-        });
+        logger.log(`[${timestamp}] ✅ Found ${splTokens.length} SPL tokens with balance`);
+        logger.log(`[${timestamp}] 📊 SPL Tokens:`, splTokens);
         
         if (splTokens.length > 0) {
-          // ✅ STEP 4: Fetch prices for ERC-20 tokens (using contract addresses for Uniswap/1inch!)
-          console.log('\n');
-          console.log('═══════════════════════════════════════════════════════════════');
-          console.log('💰 ETHEREUM DEBUG - STEP 4: ERC-20 TOKEN PRICES');
-          console.log('═══════════════════════════════════════════════════════════════');
+          // ✅ STEP 4: Fetch prices for SPL tokens (using mint addresses for DexScreener!)
           logger.log(`\n--- STEP 4: Fetch SPL Token Prices ---`);
           
           // ✅ Try symbol-based pricing first (CoinGecko/Binance) - returns price + change24h in ONE batch call!
           const splSymbols = splTokens.map((t: any) => t.symbol);
-          console.log(`\n📡 Fetching prices via CoinGecko/Binance voor symbols: [${splSymbols.join(', ')}]`);
-          logger.log(`[${timestamp}] 📡 Fetching prices + change24h for ERC-20 tokens: ${splSymbols.join(', ')}`);
+          logger.log(`[${timestamp}] 📡 Fetching prices + change24h for SPL tokens: ${splSymbols.join(', ')}`);
           
           const splPricesMap = await priceService.getMultiplePrices(splSymbols);
           
@@ -800,78 +724,39 @@ export default function Dashboard() {
           }
           
           logger.log(`[${timestamp}] 💰 SPL prices + change24h received:`, splPricesMap);
-          console.log('\n💰 Prijzen ontvangen van CoinGecko/Binance:');
-          Object.keys(splPricesMap).forEach(symbol => {
-            const data = splPricesMap[symbol];
-            console.log(`  ${symbol}:`);
-            console.log(`    Prijs: $${data.price}`);
-            console.log(`    24h Change: ${data.change24h >= 0 ? '+' : ''}${data.change24h.toFixed(2)}%`);
-          });
           
-          // ✅ For tokens without a symbol price, try mint-based pricing (Uniswap/1inch)
+          // ✅ For tokens without a symbol price, try mint-based pricing (DexScreener)
           const tokensNeedingMintPrice = splTokens.filter((t: any) => !splPricesMap[t.symbol] || splPricesMap[t.symbol]?.price === 0);
           
-          console.log('\n');
-          console.log('═══════════════════════════════════════════════════════════════');
-          console.log('🔄 ETHEREUM DEBUG - DEXSCREENER FALLBACK');
-          console.log('═══════════════════════════════════════════════════════════════');
-          
           if (tokensNeedingMintPrice.length > 0) {
-            console.log(`\n🔍 ${tokensNeedingMintPrice.length} tokens hebben geen prijs via CoinGecko/Binance`);
-            console.log('   Proberen via Uniswap/1inch (mint-based)...');
-            console.log('\n   Tokens die Uniswap/1inch fallback nodig hebben:');
-            tokensNeedingMintPrice.forEach((token: any, idx: number) => {
-              console.log(`   ${idx + 1}. ${token.symbol} (${token.name})`);
-              console.log(`      Contract: ${token.address}`);
-              console.log(`      Balance: ${token.balance}`);
-            });
-            
-            logger.log(`[${timestamp}] 🔍 Fetching Uniswap/1inch prices for ${tokensNeedingMintPrice.length} tokens without CoinGecko/Binance prices...`);
+            logger.log(`[${timestamp}] 🔍 Fetching DexScreener prices for ${tokensNeedingMintPrice.length} tokens without CoinGecko/Binance prices...`);
             const mints = tokensNeedingMintPrice.map((t: any) => t.address);
-            console.log(`\n📡 Fetching prices van Uniswap/1inch voor ${mints.length} contract addresses...`);
+            console.log(`\n📡 Fetching prices van DexScreener voor ${mints.length} mint addresses...`);
             
             const mintPrices = await priceService.getPricesByMints(mints);
             
-            // ✅ Abort check after Uniswap/1inch fetch
+            // ✅ Abort check after DexScreener fetch
             if (!isStillRelevant()) {
               throw new Error('Fetch aborted');
             }
             
-            console.log('\n💰 Prijzen ontvangen van Uniswap/1inch:');
             // ✅ Merge mint prices into splPricesMap (with both price AND change24h!)
             tokensNeedingMintPrice.forEach((token: any) => {
               const mintPrice = mintPrices.get(token.address);
               if (mintPrice && mintPrice.price > 0) {
                 splPricesMap[token.symbol] = { price: mintPrice.price, change24h: mintPrice.change24h };
-                console.log(`  ${token.symbol}:`);
-                console.log(`    Prijs: $${mintPrice.price}`);
-                console.log(`    24h Change: ${mintPrice.change24h >= 0 ? '+' : ''}${mintPrice.change24h.toFixed(2)}%`);
-                logger.log(`[${timestamp}] 💰 Uniswap/1inch: ${token.symbol} = $${mintPrice.price}, change24h: ${mintPrice.change24h >= 0 ? '+' : ''}${mintPrice.change24h.toFixed(2)}%`);
-              } else {
-                console.log(`  ${token.symbol}: ❌ Geen prijs gevonden`);
+                logger.log(`[${timestamp}] 💰 DexScreener: ${token.symbol} = $${mintPrice.price}, change24h: ${mintPrice.change24h >= 0 ? '+' : ''}${mintPrice.change24h.toFixed(2)}%`);
               }
             });
           }
           
-          console.log('\n');
-          console.log('═══════════════════════════════════════════════════════════════');
-          console.log('🧮 ETHEREUM DEBUG - TOKEN VALUE BEREKENINGEN');
-          console.log('═══════════════════════════════════════════════════════════════');
-          
-          // ✅ Combine ERC-20 tokens with prices + change24h (NO extra API calls needed!)
+          // ✅ Combine SPL tokens with prices + change24h (NO extra API calls needed!)
           tokensWithValue = splTokens.map((token: any, index: number) => {
             const priceData = splPricesMap[token.symbol] || { price: 0, change24h: 0 };
             const price = priceData.price || 0;
             const change24h = priceData.change24h || 0;
             const balanceNum = parseFloat(token.balance || '0');
             const balanceUSD = balanceNum * price;
-            
-            console.log(`\n📊 Token ${index + 1}: ${token.symbol}`);
-            console.log(`   Balance: ${token.balance}`);
-            console.log(`   Prijs per token: $${price.toFixed(6)}`);
-            console.log(`   Berekening: ${balanceNum.toFixed(6)} × $${price.toFixed(6)}`);
-            console.log(`   💵 Totale waarde: $${balanceUSD.toFixed(2)}`);
-            console.log(`   📈 24h Change: ${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%`);
             
             logger.log(`[${timestamp}] 💰 ${token.symbol}:`, {
               balance: token.balance,
@@ -895,9 +780,6 @@ export default function Dashboard() {
           const totalTokenValue = tokensWithValue.reduce((sum, token) => {
             return sum + parseFloat(token.balanceUSD || '0');
           }, 0);
-          console.log('\n═══════════════════════════════════════════════════════════════');
-          console.log(`💰 TOTALE ERC-20 TOKEN WAARDE: $${totalTokenValue.toFixed(2)}`);
-          console.log('═══════════════════════════════════════════════════════════════');
         }
         
       } else if (displayAddress) {
@@ -953,9 +835,9 @@ export default function Dashboard() {
           
           // ✅ NEW: Use contract addresses instead of symbols!
           const tokenAddresses = erc20Tokens.map((t: any) => t.address);
-          logger.log(`[${timestamp}] 📡 Fetching prices for ${tokenAddresses.length} addresses via CoinGecko + Uniswap/1inch...`);
+          logger.log(`[${timestamp}] 📡 Fetching prices for ${tokenAddresses.length} addresses via CoinGecko + DexScreener...`);
           
-          // Use new address-based price lookup (hybrid: CoinGecko + Uniswap/1inch)
+          // Use new address-based price lookup (hybrid: CoinGecko + DexScreener)
           const pricesByAddress = await priceService.getPricesByAddresses(tokenAddresses, currentChain);
           
           // ✅ Abort check after price fetch
@@ -1009,7 +891,7 @@ export default function Dashboard() {
               logger.warn(`⚠️ [Dashboard] SUSPICIOUS HIGH PRICE detected for ${token.symbol}: $${priceData.price.toFixed(2)} per token`);
               logger.warn(`   Balance: ${token.balance}, Address: ${token.address}`);
               logger.warn(`   This would result in: $${(balanceNum * priceData.price).toFixed(2)}`);
-              logger.warn(`   Setting price to 0 to prevent incorrect calculation. Will try Uniswap/1inch fallback.`);
+              logger.warn(`   Setting price to 0 to prevent incorrect calculation. Will try DexScreener fallback.`);
               
               // Set price to 0 to trigger fallback or show $0 value
               priceData = { price: 0, change24h: 0 };
@@ -1052,13 +934,6 @@ export default function Dashboard() {
         throw new Error('Fetch aborted');
       }
       
-      if (currentChain === 'ethereum') {
-        console.log('\n');
-        console.log('═══════════════════════════════════════════════════════════════');
-        console.log('💎 ETHEREUM DEBUG - STEP 5: TOTALE PORTFOLIO VALUE');
-        console.log('═══════════════════════════════════════════════════════════════');
-      }
-      
       if (tokensWithValue.length > 0) {
         // ✅ Chain-specific token update
         updateTokens(currentChain, tokensWithValue);
@@ -1069,17 +944,6 @@ export default function Dashboard() {
           0
         );
         const totalValue = nativeValueUSD + tokensTotalUSD;
-        
-        if (currentChain === 'ethereum') {
-          console.log(`\n💰 Native ETH waarde: $${nativeValueUSD.toFixed(2)}`);
-          console.log(`💰 ERC-20 Tokens waarde: $${tokensTotalUSD.toFixed(2)}`);
-          console.log(`   (${tokensWithValue.length} tokens)`);
-          console.log('\n🧮 Totale Portfolio Berekening:');
-          console.log(`   $${nativeValueUSD.toFixed(2)} (ETH)`);
-          console.log(`   + $${tokensTotalUSD.toFixed(2)} (Tokens)`);
-          console.log(`   ────────────────────`);
-          console.log(`   💎 TOTAAL: $${totalValue.toFixed(2)}`);
-        }
         
         // ✅ Update chain-specific state
         updateCurrentChainState({
@@ -1098,12 +962,6 @@ export default function Dashboard() {
         // No tokens - native value IS total value
         updateTokens(currentChain, []); // Clear tokens for this chain
         
-        if (currentChain === 'ethereum') {
-          console.log(`\n💰 Native ETH waarde: $${nativeValueUSD.toFixed(2)}`);
-          console.log(`💰 ERC-20 Tokens waarde: $0.00 (geen tokens)`);
-          console.log(`\n💎 TOTAAL: $${nativeValueUSD.toFixed(2)} (alleen native ETH)`);
-        }
-        
         // ✅ Update chain-specific state
         updateCurrentChainState({
           totalValueUSD: nativeValueUSD,
@@ -1118,19 +976,8 @@ export default function Dashboard() {
 
       // ✅ STEP 6: Native 24h change already fetched in batch call above!
       // No extra API call needed - change24h is already in pricesMap!
-      if (currentChain === 'ethereum') {
-        console.log('\n');
-        console.log('═══════════════════════════════════════════════════════════════');
-        console.log('📈 ETHEREUM DEBUG - STEP 6: 24H CHANGE BEREKENING');
-        console.log('═══════════════════════════════════════════════════════════════');
-      }
-      
       logger.log(`\n--- STEP 6: Native 24h Change (from batch) ---`);
       logger.log(`[${timestamp}] 📈 Native 24h Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
-      
-      if (currentChain === 'ethereum') {
-        console.log(`\n📈 Native ETH 24h Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
-      }
       
       // ✅ STEP 7: Calculate weighted portfolio change (instant accurate!)
       // ✅ CRITICAL FIX: Always calculate portfolio change, even if no tokens
@@ -1149,24 +996,8 @@ export default function Dashboard() {
         nativeChange
       });
       
-      if (currentChain === 'ethereum') {
-        console.log(`\n🔍 Tokens gebruikt voor weighted change berekening:`);
-        console.log(`   Totaal tokens: ${tokensWithValue.length}`);
-        console.log(`   Tokens met valide change data: ${tokensForCalculation.length}`);
-        console.log(`\n📊 Weighted Change Inputs:`);
-        console.log(`   Native Balance: ${parseFloat(bal)} ETH`);
-        console.log(`   Native Price: $${nativePrice.toFixed(2)}`);
-        console.log(`   Native Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
-      }
-      
       tokensForCalculation.forEach((token, idx) => {
         logger.log(`[${timestamp}]   Token ${idx + 1}: ${token.symbol || token.name || 'Unknown'} - balanceUSD: ${token.balanceUSD}, change24h: ${token.change24h}%`);
-        
-        if (currentChain === 'ethereum') {
-            console.log(`\n   Token ${idx + 1}: ${token.symbol}`);
-            console.log(`     USD Waarde: $${token.balanceUSD}`);
-            console.log(`     24h Change: ${(token.change24h || 0) >= 0 ? '+' : ''}${(token.change24h || 0).toFixed(2)}%`);
-        }
       });
       
       // ✅ ALWAYS calculate weighted change (even if no tokens, it will return native change)
@@ -1180,43 +1011,6 @@ export default function Dashboard() {
       // ✅ DEBUG: Log calculation result
       logger.log(`[${timestamp}] 🔍 DEBUG: Weighted change calculated: ${weightedChange.toFixed(2)}% (native: ${nativeChange.toFixed(2)}%)`);
       
-      if (currentChain === 'ethereum') {
-        console.log(`\n🧮 Weighted Portfolio Change Berekening:`);
-        
-        const totalPortfolioValue = nativeValueUSD + tokensWithValue.reduce((sum, t) => sum + parseFloat(t.balanceUSD || '0'), 0);
-        
-        if (totalPortfolioValue > 0) {
-          const nativeWeight = nativeValueUSD / totalPortfolioValue;
-          const nativeContribution = nativeWeight * nativeChange;
-          
-          console.log(`\n   Native ETH Contributie:`);
-          console.log(`     Waarde: $${nativeValueUSD.toFixed(2)}`);
-          console.log(`     Weight: ${(nativeWeight * 100).toFixed(2)}%`);
-          console.log(`     Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
-          console.log(`     Contributie: ${(nativeWeight * 100).toFixed(2)}% × ${nativeChange.toFixed(2)}% = ${nativeContribution.toFixed(3)}%`);
-          
-          let tokenContribution = 0;
-          tokensForCalculation.forEach((token, idx) => {
-            const tokenValue = parseFloat(token.balanceUSD || '0');
-            const tokenWeight = tokenValue / totalPortfolioValue;
-            const contribution = tokenWeight * (token.change24h || 0);
-            tokenContribution += contribution;
-            
-            console.log(`\n   Token ${idx + 1} (${token.symbol}) Contributie:`);
-            console.log(`     Waarde: $${tokenValue.toFixed(2)}`);
-            console.log(`     Weight: ${(tokenWeight * 100).toFixed(2)}%`);
-            console.log(`     Change: ${(token.change24h || 0) >= 0 ? '+' : ''}${(token.change24h || 0).toFixed(2)}%`);
-            console.log(`     Contributie: ${(tokenWeight * 100).toFixed(2)}% × ${(token.change24h || 0).toFixed(2)}% = ${contribution.toFixed(3)}%`);
-          });
-          
-          console.log(`\n   ────────────────────────────────────`);
-          console.log(`   📈 TOTALE WEIGHTED CHANGE: ${weightedChange >= 0 ? '+' : ''}${weightedChange.toFixed(2)}%`);
-          console.log(`      (Native: ${nativeContribution.toFixed(3)}% + Tokens: ${tokenContribution.toFixed(3)}%)`);
-        } else {
-          console.log(`   ⚠️  Portfolio value is $0, weighted change = ${weightedChange.toFixed(2)}%`);
-        }
-      }
-      
       // ✅ CRITICAL: Update chain-specific state with WEIGHTED change (portfolio) and NATIVE change (asset)
       updateCurrentChainState({
         change24h: weightedChange, // Portfolio weighted change
@@ -1224,20 +1018,6 @@ export default function Dashboard() {
       });
       
       logger.log(`[${timestamp}] 📊 Portfolio 24h Change: ${weightedChange >= 0 ? '+' : ''}${weightedChange.toFixed(2)}%`);
-      
-      if (currentChain === 'ethereum') {
-        console.log('\n');
-        console.log('╔═══════════════════════════════════════════════════════════════╗');
-        console.log('║           ✅ ETHEREUM DEBUG - BEREKENING COMPLEET              ║');
-        console.log('╚═══════════════════════════════════════════════════════════════╝');
-        console.log('\n📊 FINALE WAARDEN DIE GETOOND WORDEN:');
-        console.log(`   💎 Total Portfolio Value: $${(nativeValueUSD + tokensWithValue.reduce((sum, t) => sum + parseFloat(t.balanceUSD || '0'), 0)).toFixed(2)}`);
-        console.log(`   📈 24h Change: ${weightedChange >= 0 ? '+' : ''}${weightedChange.toFixed(2)}%`);
-        console.log(`   🪙 Native Balance: ${bal} ETH`);
-        console.log(`   💰 Native Value: $${nativeValueUSD.toFixed(2)}`);
-        console.log(`   🎯 Aantal Tokens: ${tokensWithValue.length}`);
-        console.log('\n');
-      }
       
       // ✅ PHASE 4: Cache with native price included
       await tokenBalanceCache.set(
@@ -1364,14 +1144,14 @@ export default function Dashboard() {
         return;
       }
       
-      // Declare variables for both Ethereum and EVM
+      // Declare variables for both Solana and EVM
       let pricesMap: Record<string, { price: number; change24h: number }> | null = null;
       let pricesByAddress: Map<string, { price: number; change24h: number }> | null = null;
       
       // Fetch fresh prices for all tokens
       let updatedTokens: any[] = [];
-      if (currentChain === 'ethereum') {
-        // ✅ Ethereum: Use symbol-based pricing (returns price + change24h in ONE batch call!)
+      if (currentChain === 'solana') {
+        // ✅ Solana: Use symbol-based pricing (returns price + change24h in ONE batch call!)
         const symbols = currentTokens.map(t => t.symbol);
         pricesMap = await priceService.getMultiplePrices(symbols);
         
@@ -1981,10 +1761,10 @@ export default function Dashboard() {
             </div>
           </motion.div>
 
-          {/* ERC-20 Tokens / ERC-20 Tokens */}
+          {/* ERC-20 Tokens / SPL Tokens */}
           <AnimatePresence>
             {tokens.map((token, index) => {
-              const isUnknownToken = token.name === 'Unknown Token' && currentChain === 'ethereum';
+              const isUnknownToken = token.name === 'Unknown Token' && currentChain === 'solana';
               const isRefreshing = refreshingToken === token.address;
               
               return (
