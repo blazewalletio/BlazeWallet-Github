@@ -161,6 +161,8 @@ export default function Dashboard() {
   const intervalsSetupRef = useRef<{ priceInterval?: NodeJS.Timeout; fullInterval?: NodeJS.Timeout; address?: string; chain?: string }>({});
   // 🔥 NEW: Track if we're in a critical fetch period (to block visibility change fetches)
   const criticalFetchPeriod = useRef<boolean>(false);
+  // 🔥 NEW: Track previous chain + address to detect actual chain switches vs address-only updates
+  const previousChainAddress = useRef<{chain: string; address: string | null}>({chain: currentChain, address: displayAddress});
   
   // Update refs when values change
   useEffect(() => {
@@ -346,6 +348,27 @@ export default function Dashboard() {
   // ✅ PHASE 5: Chain Switch Hook met Cleanup
   // Proper chain switching with abort, cleanup, and cached data loading
   useEffect(() => {
+    // 🔥 CRITICAL FIX: Detect if this is a REAL chain switch or just address update
+    const isRealChainSwitch = previousChainAddress.current.chain !== currentChain;
+    const isAddressChange = previousChainAddress.current.address !== displayAddress;
+    const isInitialLoad = previousChainAddress.current.address === null && displayAddress === null;
+    
+    logger.log(`🔄 [Dashboard] Effect triggered: chain=${currentChain}, address=${displayAddress?.substring(0, 8) || 'null'}`);
+    logger.log(`   Previous: chain=${previousChainAddress.current.chain}, address=${previousChainAddress.current.address?.substring(0, 8) || 'null'}`);
+    logger.log(`   Is real chain switch: ${isRealChainSwitch}`);
+    logger.log(`   Is address change only: ${isAddressChange && !isRealChainSwitch}`);
+    logger.log(`   Is initial load: ${isInitialLoad}`);
+    
+    // Update the previous chain/address tracker
+    previousChainAddress.current = { chain: currentChain, address: displayAddress };
+    
+    // 🚫 SKIP if this is ONLY an address change (wallet unlock) and NOT a chain switch
+    if (!isRealChainSwitch && isAddressChange && displayAddress) {
+      logger.log(`⏭️ [Dashboard] Skipping fetch - this is just wallet unlock, not a chain switch`);
+      logger.log(`   Address changed from null → ${displayAddress.substring(0, 8)}... but chain stayed ${currentChain}`);
+      return; // EXIT EARLY - don't trigger another fetch!
+    }
+    
     const prevChain = activeFetchControllers.current.size > 0 
       ? Array.from(activeFetchControllers.current.keys())[0] 
       : null;
