@@ -505,6 +505,10 @@ export default function Dashboard() {
       console.log('🔄 [Dashboard] fetchData called', { force, displayAddress, currentChain });
     }
     
+    // 🔥 CRITICAL: ALWAYS clear price cache to get fresh prices!
+    console.log('🗑️ CLEARING ALL PRICE CACHES - forcing fresh data!');
+    priceService.clearCache();
+    
     // ✅ Early return if no displayAddress (normal during initialization)
     if (!displayAddress) {
       // ✅ DEBUG: Only log in development, not as warning

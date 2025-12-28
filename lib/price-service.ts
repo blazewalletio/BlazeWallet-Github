@@ -8,7 +8,7 @@ export class PriceService {
   private cache = new LRUCache<{ price: number; change24h: number; source: string }>(200); // Symbol cache
   private mintCache = new LRUCache<{ price: number; change24h: number; source: string }>(100); // Solana mint cache
   private addressCache = new LRUCache<{ price: number; change24h: number; source: string }>(100); // EVM address cache
-  private cacheDuration = 600000; // ✅ 10 minutes cache for prices (efficient)
+  private cacheDuration = 60000; // 🔥 FIXED: 1 minute cache (was 10 minutes - way too long for crypto prices!)
   private change24hCacheDuration = 120000; // ✅ 2 minutes cache for 24h change (fresher data)
   private primaryApiUrl = '/api/prices'; // CoinGecko (primary)
   private fallbackApiUrl = '/api/prices-binance'; // Binance (fallback)
