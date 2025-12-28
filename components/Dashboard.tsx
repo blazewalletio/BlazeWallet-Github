@@ -168,6 +168,9 @@ export default function Dashboard() {
   
   // ✅ AbortController tracking per chain
   const activeFetchControllers = useRef<Map<string, AbortController>>(new Map());
+  // ✅ Debounce: Track last fetch time per chain to prevent duplicate fetches
+  const lastFetchTimeRef = useRef<Map<string, number>>(new Map());
+  const FETCH_DEBOUNCE_MS = 200; // Minimum time between fetches for same chain
   // ✅ Refs to track tokens and balance without causing dependency issues
   const tokensRef = useRef(tokens);
   const balanceRef = useRef(balance);
@@ -458,6 +461,15 @@ export default function Dashboard() {
       console.warn('⚠️ [Dashboard] fetchData called but wallet not ready yet - displayAddress is null');
       return;
     }
+    
+    // ✅ DEBOUNCE: Prevent duplicate fetches within short time window
+    const lastFetchTime = lastFetchTimeRef.current.get(currentChain) || 0;
+    const timeSinceLastFetch = Date.now() - lastFetchTime;
+    if (!force && timeSinceLastFetch < FETCH_DEBOUNCE_MS) {
+      logger.log(`⏳ [Dashboard] Debounced fetch for ${currentChain} (${timeSinceLastFetch}ms since last fetch)`);
+      return;
+    }
+    lastFetchTimeRef.current.set(currentChain, Date.now());
     
     // ✅ PHASE 2: AbortController Pattern
     // Cancel previous fetch for this chain
@@ -1092,8 +1104,8 @@ export default function Dashboard() {
       
       // ✅ Handle aborted fetches gracefully
       if (error instanceof Error && error.message === 'Fetch aborted') {
-        logger.log(`✅ [Dashboard] Fetch ${fetchId} successfully aborted`);
-        debugFetchComplete(currentChain, fetchDuration, false);
+        logger.log(`✅ [Dashboard] Fetch ${fetchId} successfully aborted (superseded by newer fetch)`);
+        debugFetchComplete(currentChain, fetchDuration, false, 'Superseded by newer fetch');
         return; // Silent return, state already cleaned up
       }
       
@@ -1101,8 +1113,9 @@ export default function Dashboard() {
       console.error('❌ [Dashboard] Error details:', error instanceof Error ? error.message : 'Unknown error');
       console.error('❌ [Dashboard] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       
-      // ✅ DEBUG: Log failed fetch
-      debugFetchComplete(currentChain, fetchDuration, false);
+      // ✅ DEBUG: Log failed fetch with error message
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      debugFetchComplete(currentChain, fetchDuration, false, errorMsg);
       debugMissingData(currentChain, [
         `Fetch failed with error: ${error instanceof Error ? error.message : 'Unknown error'}`,
         `Chain: ${currentChain}`,

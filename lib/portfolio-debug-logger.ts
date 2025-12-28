@@ -305,7 +305,7 @@ class PortfolioDebugLogger {
   /**
    * Log fetch complete
    */
-  logFetchComplete(chain: string, duration: number, success: boolean) {
+  logFetchComplete(chain: string, duration: number, success: boolean, errorMessage?: string) {
     const status = success ? '✅ SUCCESS' : '❌ FAILED';
     console.log('\n');
     console.log('╔════════════════════════════════════════════════════════════════════════════════╗');
@@ -314,6 +314,10 @@ class PortfolioDebugLogger {
     console.log(`║ Chain:           ${chain.padEnd(60)}║`);
     console.log(`║ Duration:        ${duration}ms`.padEnd(79) + '║');
     console.log(`║ Time:            ${new Date().toISOString().padEnd(60)}║`);
+    if (!success && errorMessage) {
+      console.log('╠────────────────────────────────────────────────────────────────────────────────╣');
+      console.log(`║ Reason:          ${errorMessage.substring(0, 58).padEnd(60)}║`);
+    }
     console.log('╚════════════════════════════════════════════════════════════════════════════════╝');
     console.log('\n');
   }
@@ -431,8 +435,8 @@ export const debugPortfolioResult = (summary: PortfolioSummary) =>
 export const debugMissingData = (chain: string, issues: string[]) => 
   portfolioDebug.logMissingData(chain, issues);
 
-export const debugFetchComplete = (chain: string, duration: number, success: boolean) => 
-  portfolioDebug.logFetchComplete(chain, duration, success);
+export const debugFetchComplete = (chain: string, duration: number, success: boolean, errorMessage?: string) => 
+  portfolioDebug.logFetchComplete(chain, duration, success, errorMessage);
 
 export const debugCache = (chain: string, address: string, hit: boolean, age: number | null, stale: boolean) => 
   portfolioDebug.logCacheStatus(chain, address, hit, age, stale);
