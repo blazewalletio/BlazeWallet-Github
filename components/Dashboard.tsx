@@ -141,7 +141,8 @@ export default function Dashboard() {
     nativePriceUSD: number;
     totalValueUSD: number;
     nativeBalance: string;
-    change24h: number;
+    change24h: number; // Weighted portfolio change
+    nativeChange24h: number; // Native token price change only
     lastUpdate: Date | null;
     isRefreshing: boolean;
     activeFetchId: string | null; // Track async operations
@@ -177,6 +178,7 @@ export default function Dashboard() {
       totalValueUSD: 0,
       nativeBalance: '0',
       change24h: 0,
+      nativeChange24h: 0, // Native token price change
       lastUpdate: null,
       isRefreshing: false,
       activeFetchId: null,
@@ -192,6 +194,7 @@ export default function Dashboard() {
         totalValueUSD: 0,
         nativeBalance: '0',
         change24h: 0,
+        nativeChange24h: 0, // Native token price change
         lastUpdate: null,
         isRefreshing: false,
         activeFetchId: null,
@@ -1214,9 +1217,10 @@ export default function Dashboard() {
         }
       }
       
-      // ✅ CRITICAL: Update chain-specific state with WEIGHTED change (not just native)
+      // ✅ CRITICAL: Update chain-specific state with WEIGHTED change (portfolio) and NATIVE change (asset)
       updateCurrentChainState({
-        change24h: weightedChange,
+        change24h: weightedChange, // Portfolio weighted change
+        nativeChange24h: nativeChange, // Native token price change only
       });
       
       logger.log(`[${timestamp}] 📊 Portfolio 24h Change: ${weightedChange >= 0 ? '+' : ''}${weightedChange.toFixed(2)}%`);
@@ -1443,7 +1447,8 @@ export default function Dashboard() {
       updateCurrentChainState({
         nativePriceUSD: nativePrice,
         totalValueUSD: totalValue,
-        change24h: weightedChange, // ✅ Update portfolio change, not just native change
+        change24h: weightedChange, // ✅ Portfolio weighted change
+        nativeChange24h: nativeChange, // ✅ Native token price change only
       });
       
       logger.log('✅ [Dashboard] Prices refreshed successfully');
@@ -1970,8 +1975,8 @@ export default function Dashboard() {
                   : formatUSDSync(0)
                 }
               </div>
-              <div className={`text-sm ${isPositiveChange ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {isPositiveChange ? '+' : ''}{change24h.toFixed(2)}%
+              <div className={`text-sm ${currentState.nativeChange24h >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {currentState.nativeChange24h >= 0 ? '+' : ''}{currentState.nativeChange24h.toFixed(2)}%
               </div>
             </div>
           </motion.div>
