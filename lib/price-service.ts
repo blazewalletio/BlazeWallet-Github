@@ -3,25 +3,6 @@ import { dexScreenerService } from './dexscreener-service';
 import { LRUCache } from './lru-cache'; // ✅ PERFORMANCE: LRU cache for better memory management
 import { logger } from '@/lib/logger';
 
-// ✅ DEBUG: Force logging for price debugging
-const DEBUG_PRICES = true;
-
-const priceLog = (...args: any[]) => {
-  if (DEBUG_PRICES) {
-    console.log('[PriceService]', ...args);
-  }
-};
-
-const priceWarn = (...args: any[]) => {
-  if (DEBUG_PRICES) {
-    console.warn('[PriceService]', ...args);
-  }
-};
-
-const priceError = (...args: any[]) => {
-  console.error('[PriceService]', ...args);
-};
-
 export class PriceService {
   // ✅ PERFORMANCE FIX: Use LRU cache instead of Map for automatic eviction
   private cache = new LRUCache<{ price: number; change24h: number; source: string }>(200); // Symbol cache
@@ -155,10 +136,20 @@ export class PriceService {
     }
 
     logger.log(`🔍 [PriceService] Fetching price by mint for ${mint.substring(0, 8)}...`);
+    console.log(`\n🔎 DexScreener lookup voor mint: ${mint}`);
 
     try {
+      console.log(`   📡 Calling DexScreener API...`);
       // Try DexScreener (best for DEX-traded tokens)
       const dexToken = await dexScreenerService.getTokenMetadata(mint);
+      
+      console.log(`   📦 Response ontvangen:`, {
+        hasData: !!dexToken,
+        priceUsd: dexToken?.priceUsd,
+        priceChange24h: dexToken?.priceChange24h,
+        symbol: dexToken?.symbol,
+        name: dexToken?.name,
+      });
       
       if (dexToken && dexToken.priceUsd && dexToken.priceUsd > 0) {
         const price = dexToken.priceUsd;
@@ -172,14 +163,21 @@ export class PriceService {
         }, this.cacheDuration);
         
         logger.log(`✅ [PriceService] DexScreener: ${mint.substring(0, 8)}... = $${price}`);
+        console.log(`   ✅ Prijs gevonden: $${price}`);
+        console.log(`   📈 24h Change: ${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%`);
         return { price, change24h };
+      } else {
+        console.log(`   ❌ Geen valide prijs gevonden (priceUsd: ${dexToken?.priceUsd || 'undefined'})`);
       }
     } catch (error) {
-      logger.warn(`⚠️ [PriceService] DexScreener failed for ${mint.substring(0, 8)}...:`, error instanceof Error ? error.message : 'Unknown error');
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      logger.warn(`⚠️ [PriceService] DexScreener failed for ${mint.substring(0, 8)}...:`, errorMsg);
+      console.log(`   ⚠️ DexScreener API error: ${errorMsg}`);
     }
 
     // If API fails, return 0 (LRU cache would have returned cached value if fresh)
     logger.error(`❌ [PriceService] Failed to get price by mint for ${mint.substring(0, 8)}...`);
+    console.log(`   ❌ Geen prijs beschikbaar voor deze mint`);
     return { price: 0, change24h: 0 };
   }
 
@@ -310,29 +308,16 @@ export class PriceService {
    */
   private async fetchMultiplePricesWithFallback(symbols: string[]): Promise<Record<string, { price: number; change24h: number }>> {
     const result: Record<string, { price: number; change24h: number }> = {};
-    const startTime = Date.now();
-
-    priceLog(`\n╔════════════════════════════════════════════════════════════╗`);
-    priceLog(`║ BATCH PRICE FETCH START                                    ║`);
-    priceLog(`╠════════════════════════════════════════════════════════════╣`);
-    priceLog(`║ Symbols: ${symbols.join(', ').substring(0, 50).padEnd(50)}║`);
-    priceLog(`╚════════════════════════════════════════════════════════════╝`);
 
     // ✅ STEP 1: Try CoinGecko first (batch request - returns price + change24h!)
     try {
-      const apiUrl = `${this.primaryApiUrl}?symbols=${symbols.join(',')}`;
-      priceLog(`📡 STEP 1: Trying CoinGecko...`);
-      priceLog(`   URL: ${apiUrl}`);
-      
-      const response = await fetch(apiUrl, {
+      logger.log(`📡 [PriceService] Trying CoinGecko batch for: ${symbols.join(', ')}`);
+      const response = await fetch(`${this.primaryApiUrl}?symbols=${symbols.join(',')}`, {
         signal: AbortSignal.timeout(10000), // 10 second timeout for batch
       });
       
-      priceLog(`   Response status: ${response.status}`);
-      
       if (response.ok) {
         const data = await response.json();
-        priceLog(`   Raw response:`, JSON.stringify(data, null, 2));
 
         symbols.forEach(symbol => {
           if (data[symbol] && data[symbol].price > 0) {
@@ -347,60 +332,40 @@ export class PriceService {
               source: 'coingecko'
             }, this.cacheDuration);
             
-            priceLog(`   ✅ ${symbol}: $${price.toFixed(6)}, 24h: ${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%`);
+            logger.log(`✅ [PriceService] CoinGecko: ${symbol} = $${price}, change24h: ${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%`);
           } else {
-            // Include in result with 0 values for consistency
-            result[symbol] = { price: 0, change24h: 0 };
-            priceWarn(`   ❌ ${symbol}: NOT FOUND in CoinGecko response`);
+            // ⚠️ DON'T add to result yet - let fallbacks try first!
+            logger.log(`⚠️ [PriceService] ${symbol}: NOT FOUND in CoinGecko (price: ${data[symbol]?.price || 0})`);
           }
         });
-
-        const foundCount = Object.values(result).filter(r => r.price > 0).length;
-        priceLog(`   Result: ${foundCount}/${symbols.length} prices found via CoinGecko`);
-
-        // If we got all symbols, return
-        if (Object.keys(result).length === symbols.length) {
-          priceLog(`   All symbols resolved, skipping Binance fallback`);
-          return result;
-        }
       } else if (response.status === 400) {
         // 400 is expected for unknown tokens - don't log as error
-        priceWarn(`   ⚠️ CoinGecko returned 400 (unknown symbols), trying Binance...`);
-      } else {
-        priceWarn(`   ⚠️ CoinGecko returned ${response.status}, trying Binance...`);
+        logger.log(`⏭️ [PriceService] Some tokens not in CoinGecko (${response.status}), trying Binance...`);
       }
     } catch (error) {
       // Don't log fetch errors as warnings - they're expected for unknown tokens
-      priceWarn(`   ⚠️ CoinGecko failed:`, error instanceof Error ? error.message : 'Unknown error');
-      priceLog(`   Falling back to Binance...`);
+      logger.log(`⏭️ [PriceService] CoinGecko batch fallthrough, trying Binance...`);
     }
 
-    // ✅ STEP 2: Find symbols that still need prices
+    // ✅ STEP 2: Find symbols that still need prices (not found in CoinGecko)
     const missingSymbols = symbols.filter(s => !result[s] || result[s].price === 0);
     
-    priceLog(`\n📡 STEP 2: Check missing symbols`);
-    priceLog(`   Missing: ${missingSymbols.length > 0 ? missingSymbols.join(', ') : 'NONE'}`);
-    
     if (missingSymbols.length === 0) {
-      priceLog(`   All prices found, returning results`);
+      logger.log(`✅ [PriceService] All ${symbols.length} symbols found via CoinGecko`);
       return result;
     }
+    
+    logger.log(`🔍 [PriceService] ${missingSymbols.length}/${symbols.length} symbols still missing, trying Binance fallback...`);
 
     // ✅ STEP 3: Try Binance fallback for missing symbols
     try {
-      const binanceUrl = `${this.fallbackApiUrl}?symbols=${missingSymbols.join(',')}`;
-      priceLog(`\n📡 STEP 3: Trying Binance fallback...`);
-      priceLog(`   URL: ${binanceUrl}`);
-      
-      const response = await fetch(binanceUrl, {
+      logger.log(`📡 [PriceService] Trying Binance batch for missing: ${missingSymbols.join(', ')}`);
+      const response = await fetch(`${this.fallbackApiUrl}?symbols=${missingSymbols.join(',')}`, {
         signal: AbortSignal.timeout(10000),
       });
       
-      priceLog(`   Response status: ${response.status}`);
-      
       if (response.ok) {
         const data = await response.json();
-        priceLog(`   Raw response:`, JSON.stringify(data, null, 2));
 
         missingSymbols.forEach(symbol => {
           if (data[symbol] && data[symbol].price > 0) {
@@ -415,45 +380,36 @@ export class PriceService {
               source: 'binance'
             }, this.cacheDuration);
             
-            priceLog(`   ✅ ${symbol}: $${price.toFixed(6)}, 24h: ${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%`);
+            logger.log(`✅ [PriceService] Binance: ${symbol} = $${price}, change24h: ${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%`);
           } else {
-            // Include in result with 0 values for consistency
-            if (!result[symbol]) {
-              result[symbol] = { price: 0, change24h: 0 };
-            }
-            priceWarn(`   ❌ ${symbol}: NOT FOUND in Binance response`);
+            // ⚠️ Still not found - will try DexScreener fallback if mint/address available
+            logger.log(`⚠️ [PriceService] ${symbol}: NOT FOUND in Binance either (price: ${data[symbol]?.price || 0})`);
           }
         });
-        
-        const foundCount = Object.values(result).filter(r => r.price > 0).length;
-        priceLog(`   Result: ${foundCount}/${symbols.length} total prices found`);
       } else if (response.status === 400) {
         // 400 is expected for unknown tokens - don't log as error
-        priceWarn(`   ⚠️ Binance returned 400 (unknown symbols)`);
-      } else {
-        priceWarn(`   ⚠️ Binance returned ${response.status}`);
+        logger.log(`⏭️ [PriceService] Symbols not found in Binance either (${response.status}), will use DexScreener fallback`);
       }
     } catch (error) {
       // Don't log as warning - expected for unknown tokens
-      priceWarn(`   ⚠️ Binance failed:`, error instanceof Error ? error.message : 'Unknown error');
+      logger.log(`⏭️ [PriceService] Binance batch fallthrough, will use DexScreener fallback`);
     }
 
-    // ✅ Ensure all symbols are in result (even if 0)
+    // ✅ STEP 4: Log final summary
+    const foundSymbols = symbols.filter(s => result[s] && result[s].price > 0);
+    const notFoundSymbols = symbols.filter(s => !result[s] || result[s].price === 0);
+    
+    logger.log(`\n📊 [PriceService] FINAL BATCH RESULT:`);
+    logger.log(`   ✅ Found: ${foundSymbols.length}/${symbols.length} (${foundSymbols.join(', ') || 'none'})`);
+    logger.log(`   ❌ Not Found: ${notFoundSymbols.length}/${symbols.length} (${notFoundSymbols.join(', ') || 'none'})`);
+    logger.log(`   ℹ️  Not found tokens will use DexScreener fallback if mint/address available\n`);
+
+    // ✅ Ensure all symbols are in result (even if 0) - required for consistency
     symbols.forEach(symbol => {
       if (!result[symbol]) {
         result[symbol] = { price: 0, change24h: 0 };
-        priceWarn(`   ❌ ${symbol}: NO PRICE DATA from any source`);
       }
     });
-
-    const finalFoundCount = Object.values(result).filter(r => r.price > 0).length;
-    const duration = Date.now() - startTime;
-    priceLog(`\n╔════════════════════════════════════════════════════════════╗`);
-    priceLog(`║ BATCH PRICE FETCH COMPLETE                                 ║`);
-    priceLog(`╠════════════════════════════════════════════════════════════╣`);
-    priceLog(`║ Found: ${finalFoundCount}/${symbols.length} prices`.padEnd(61) + `║`);
-    priceLog(`║ Duration: ${duration}ms`.padEnd(61) + `║`);
-    priceLog(`╚════════════════════════════════════════════════════════════╝\n`);
 
     return result;
   }

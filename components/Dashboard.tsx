@@ -735,15 +735,25 @@ export default function Dashboard() {
           // ✅ For tokens without a symbol price, try mint-based pricing (DexScreener)
           const tokensNeedingMintPrice = splTokens.filter((t: any) => !splPricesMap[t.symbol] || splPricesMap[t.symbol]?.price === 0);
           
+          console.log('\n');
+          console.log('═══════════════════════════════════════════════════════════════');
+          console.log('🔄 SOLANA DEBUG - DEXSCREENER FALLBACK');
+          console.log('═══════════════════════════════════════════════════════════════');
+          
           if (tokensNeedingMintPrice.length > 0) {
             console.log(`\n🔍 ${tokensNeedingMintPrice.length} tokens hebben geen prijs via CoinGecko/Binance`);
             console.log('   Proberen via DexScreener (mint-based)...');
-            tokensNeedingMintPrice.forEach((token: any) => {
-              console.log(`   - ${token.symbol} (${token.address.substring(0, 8)}...)`);
+            console.log('\n   Tokens die DexScreener fallback nodig hebben:');
+            tokensNeedingMintPrice.forEach((token: any, idx: number) => {
+              console.log(`   ${idx + 1}. ${token.symbol} (${token.name})`);
+              console.log(`      Mint: ${token.address}`);
+              console.log(`      Balance: ${token.balance}`);
             });
             
             logger.log(`[${timestamp}] 🔍 Fetching DexScreener prices for ${tokensNeedingMintPrice.length} tokens without CoinGecko/Binance prices...`);
             const mints = tokensNeedingMintPrice.map((t: any) => t.address);
+            console.log(`\n📡 Fetching prices van DexScreener voor ${mints.length} mint addresses...`);
+            
             const mintPrices = await priceService.getPricesByMints(mints);
             
             // ✅ Abort check after DexScreener fetch
