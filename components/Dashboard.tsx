@@ -920,7 +920,7 @@ export default function Dashboard() {
         balanceUSD: token.balanceUSD || '0',
         priceUSD: token.priceUSD || 0,
         change24h: token.change24h || 0,
-        priceSource: token.priceSource || 'unknown',
+        priceSource: 'coingecko', // Default source since Token type doesn't have priceSource
         logo: token.logo
       }));
       
