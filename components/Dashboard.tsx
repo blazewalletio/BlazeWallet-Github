@@ -75,7 +75,7 @@ const UpcomingTransactionsBanner = dynamic(() => import('./UpcomingTransactionsB
 export default function Dashboard() {
   const { 
     address, // EVM address (for backward compat)
-    ethereumAddress, // Ethereum address
+    solanaAddress, // Solana address
     balance, 
     updateBalance, 
     currentChain, 
@@ -89,10 +89,10 @@ export default function Dashboard() {
   
   const { formatUSDSync, symbol } = useCurrency();
   
-  // Get the correct address for the current chain (Ethereum or EVM)
+  // Get the correct address for the current chain (Solana or EVM)
   // ✅ Memoize to prevent unnecessary re-renders
   // Recalculate when currentChain or any address changes (so it updates when wallet is loaded)
-  const displayAddress = useMemo(() => getCurrentAddress(), [currentChain, address, ethereumAddress]);
+  const displayAddress = useMemo(() => getCurrentAddress(), [currentChain, address, solanaAddress]);
 
   // Founder/Developer wallet addresses (add your addresses here)
   const founderAddresses = [
