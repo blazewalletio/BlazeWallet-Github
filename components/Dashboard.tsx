@@ -33,23 +33,6 @@ import PremiumBadge, { PremiumCard } from './PremiumBadge';
 import BottomNavigation, { TabType } from './BottomNavigation';
 import { PRESALE_FEATURE_ENABLED } from '@/lib/feature-flags';
 import { calculateWeightedPortfolioChange } from '@/lib/portfolio-change-calculator';
-import { 
-  portfolioDebug,
-  debugFetchStart, 
-  debugChainInfo, 
-  debugNativeBalance, 
-  debugBatchPrices,
-  debugTokenBalances,
-  debugPortfolioResult,
-  debugMissingData,
-  debugFetchComplete,
-  debugCache,
-  debugChange24h,
-  type ChainInfo,
-  type BalanceResult,
-  type TokenResult,
-  type PortfolioSummary
-} from '@/lib/portfolio-debug-logger';
 
 // ✅ PERFORMANCE FIX: Lazy load modals (reduces initial bundle size by ~200KB)
 const SendModal = dynamic(() => import('./SendModal'), { ssr: false });
@@ -168,9 +151,6 @@ export default function Dashboard() {
   
   // ✅ AbortController tracking per chain
   const activeFetchControllers = useRef<Map<string, AbortController>>(new Map());
-  // ✅ Debounce: Track last fetch time per chain to prevent duplicate fetches
-  const lastFetchTimeRef = useRef<Map<string, number>>(new Map());
-  const FETCH_DEBOUNCE_MS = 200; // Minimum time between fetches for same chain
   // ✅ Refs to track tokens and balance without causing dependency issues
   const tokensRef = useRef(tokens);
   const balanceRef = useRef(balance);
@@ -451,25 +431,19 @@ export default function Dashboard() {
   const priceService = new PriceService();
 
   const fetchData = useCallback(async (force = false) => {
-    const fetchStartTime = Date.now();
-    
-    // ✅ DEBUG: Uitgebreide logging voor debugging
-    debugFetchStart(currentChain, displayAddress || 'NO_ADDRESS', force);
+    // ✅ DEBUG: Only log in development mode
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔄 [Dashboard] fetchData called', { force, displayAddress, currentChain });
+    }
     
     // ✅ Early return if no displayAddress (normal during initialization)
     if (!displayAddress) {
-      console.warn('⚠️ [Dashboard] fetchData called but wallet not ready yet - displayAddress is null');
+      // ✅ DEBUG: Only log in development, not as warning
+      if (process.env.NODE_ENV === 'development') {
+        logger.log('🔍 [Dashboard] fetchData called but wallet not ready yet');
+      }
       return;
     }
-    
-    // ✅ DEBOUNCE: Prevent duplicate fetches within short time window
-    const lastFetchTime = lastFetchTimeRef.current.get(currentChain) || 0;
-    const timeSinceLastFetch = Date.now() - lastFetchTime;
-    if (!force && timeSinceLastFetch < FETCH_DEBOUNCE_MS) {
-      logger.log(`⏳ [Dashboard] Debounced fetch for ${currentChain} (${timeSinceLastFetch}ms since last fetch)`);
-      return;
-    }
-    lastFetchTimeRef.current.set(currentChain, Date.now());
     
     // ✅ PHASE 2: AbortController Pattern
     // Cancel previous fetch for this chain
@@ -507,28 +481,9 @@ export default function Dashboard() {
       activeFetchId: fetchId 
     });
     
-    // ✅ DEBUG: Log chain info
-    const chainInfo: ChainInfo = {
-      chainKey: currentChain,
-      chainName: chain.name,
-      nativeSymbol: chain.nativeCurrency.symbol,
-      nativeDecimals: chain.nativeCurrency.decimals || 18,
-      isEVM: !['solana', 'bitcoin', 'litecoin', 'dogecoin', 'bitcoincash'].includes(currentChain),
-      isSolana: currentChain === 'solana',
-      isBitcoin: currentChain === 'bitcoin',
-      isBitcoinFork: ['litecoin', 'dogecoin', 'bitcoincash'].includes(currentChain),
-      hasAlchemy: blockchain.hasAlchemy?.() || false,
-      rpcUrl: chain.rpcUrl.substring(0, 50) + '...'
-    };
-    debugChainInfo(chainInfo);
-    
     // ✅ STALE-WHILE-REVALIDATE: Check cache first
     const { tokens: cachedTokens, nativeBalance: cachedBalance, nativePrice: cachedNativePrice, nativeValueUSD: cachedNativeValueUSD, timestamp: cacheTimestamp, isStale } = 
       await tokenBalanceCache.getStale(currentChain, displayAddress);
-    
-    // ✅ DEBUG: Log cache status
-    const cacheAge = cacheTimestamp > 0 ? Date.now() - cacheTimestamp : null;
-    debugCache(currentChain, displayAddress, cachedTokens !== null, cacheAge, isStale);
     
     if (cachedTokens && cachedBalance) {
       // ✅ Abort check after cache read
@@ -586,30 +541,19 @@ export default function Dashboard() {
       logger.log(`📍 Display Address: ${displayAddress}`);
       
       // ✅ STEP 1: Fetch native balance
-      logger.log(`\n--- STEP 1: Fetch Native Balance ---`);
-      let bal: string;
-      let balanceResult: BalanceResult;
-      
-      try {
-        bal = await blockchain.getBalance(displayAddress);
-        balanceResult = {
-          raw: bal,
-          formatted: `${bal} ${chain.nativeCurrency.symbol}`,
-          source: 'blockchain'
-        };
-      } catch (balanceError: any) {
-        bal = '0';
-        balanceResult = {
-          raw: '0',
-          formatted: `0 ${chain.nativeCurrency.symbol}`,
-          source: 'error',
-          error: balanceError?.message || 'Unknown error'
-        };
-        console.error('❌ [Dashboard] Failed to fetch native balance:', balanceError);
+      if (currentChain === 'solana') {
+        console.log('\n\n');
+        console.log('╔═══════════════════════════════════════════════════════════════╗');
+        console.log('║        🔥 SOLANA DEBUG - START PORTFOLIO BEREKENING          ║');
+        console.log('╚═══════════════════════════════════════════════════════════════╝');
+        console.log('\n');
+        console.log('═══════════════════════════════════════════════════════════════');
+        console.log('🔍 SOLANA DEBUG - STEP 1: NATIVE SOL BALANCE');
+        console.log('═══════════════════════════════════════════════════════════════');
       }
       
-      // ✅ DEBUG: Log native balance result
-      debugNativeBalance(currentChain, displayAddress, balanceResult);
+      logger.log(`\n--- STEP 1: Fetch Native Balance ---`);
+      const bal = await blockchain.getBalance(displayAddress);
       
       // ✅ Abort check after balance fetch
       if (!isStillRelevant()) {
@@ -617,9 +561,22 @@ export default function Dashboard() {
       }
       
       logger.log(`[${timestamp}] ✅ Balance received: ${bal} ${chain.nativeCurrency.symbol}`);
+      
+      if (currentChain === 'solana') {
+        console.log(`📍 Wallet Address: ${displayAddress}`);
+        console.log(`✅ Native SOL Balance: ${bal} SOL`);
+      }
+      
       updateBalance(bal);
 
       // ✅ STEP 2: Fetch ALL prices in ONE batch request (optimized!)
+      if (currentChain === 'solana') {
+        console.log('\n');
+        console.log('═══════════════════════════════════════════════════════════════');
+        console.log('💰 SOLANA DEBUG - STEP 2: SOL PRIJS OPHALEN');
+        console.log('═══════════════════════════════════════════════════════════════');
+      }
+      
       logger.log(`\n--- STEP 2: Fetch Prices (Batch) ---`);
       const popularTokens = POPULAR_TOKENS[currentChain] || [];
       const allSymbols = [chain.nativeCurrency.symbol];
@@ -629,15 +586,13 @@ export default function Dashboard() {
         allSymbols.push(...popularTokens.map(t => t.symbol));
       }
       
-      console.log(`\n📡 [DEBUG] Fetching prices for symbols:`, allSymbols);
-      console.log(`📡 [DEBUG] Native symbol: ${chain.nativeCurrency.symbol}`);
-      console.log(`📡 [DEBUG] Popular tokens for ${currentChain}:`, popularTokens.length);
+      if (currentChain === 'solana') {
+        console.log(`📡 Fetching prijs voor: ${chain.nativeCurrency.symbol}`);
+        console.log('   Via: CoinGecko → Binance (fallback)');
+      }
       
       logger.log(`[${timestamp}] 📡 Fetching prices + change24h for: ${allSymbols.join(', ')}`);
       const pricesMap = await priceService.getMultiplePrices(allSymbols);
-      
-      // ✅ DEBUG: Log batch price results
-      debugBatchPrices(allSymbols, pricesMap);
       
       // ✅ Abort check after price fetch
       if (!isStillRelevant()) {
@@ -650,13 +605,28 @@ export default function Dashboard() {
       let nativePrice = pricesMap[chain.nativeCurrency.symbol]?.price || 0;
       let nativeChange = pricesMap[chain.nativeCurrency.symbol]?.change24h || 0;
       
+      if (currentChain === 'solana') {
+        console.log(`\n💰 SOL Prijs ontvangen:`);
+        console.log(`   Prijs: $${nativePrice}`);
+        console.log(`   24h Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
+        console.log(`   Bron: ${pricesMap[chain.nativeCurrency.symbol] ? 'CoinGecko/Binance' : 'GEEN DATA'}`);
+      }
+      
       // ✅ FALLBACK: If price is 0, try to use cached price or fetch again
       if (nativePrice === 0) {
         logger.warn(`⚠️ [Dashboard] Native price is 0 for ${chain.nativeCurrency.symbol}, trying fallback...`);
+        if (currentChain === 'solana') {
+          console.log('\n⚠️  SOL prijs is $0, proberen fallback...');
+        }
+        
         const cachedState = getCurrentChainState();
         if (cachedState.nativePriceUSD > 0) {
           logger.log(`✅ [Dashboard] Using cached price: $${cachedState.nativePriceUSD}`);
           nativePrice = cachedState.nativePriceUSD;
+          
+          if (currentChain === 'solana') {
+            console.log(`✅ Cached prijs gebruikt: $${nativePrice}`);
+          }
         } else {
           // Try fetching price directly as fallback
           try {
@@ -664,9 +634,16 @@ export default function Dashboard() {
             if (fallbackPrice > 0) {
               logger.log(`✅ [Dashboard] Fallback price fetch successful: $${fallbackPrice}`);
               nativePrice = fallbackPrice;
+              
+              if (currentChain === 'solana') {
+                console.log(`✅ Fallback prijs fetch succesvol: $${fallbackPrice}`);
+              }
             }
           } catch (error) {
             logger.error(`❌ [Dashboard] Fallback price fetch failed:`, error);
+            if (currentChain === 'solana') {
+              console.log(`❌ Fallback fetch gefaald:`, error);
+            }
           }
         }
       }
@@ -684,14 +661,25 @@ export default function Dashboard() {
         priceUSD: nativePrice,
         valueUSD: nativeValueUSD.toFixed(2)
       });
+      
+      if (currentChain === 'solana') {
+        console.log('\n🧮 SOL Waarde Berekening:');
+        console.log(`   ${bal} SOL × $${nativePrice.toFixed(2)}`);
+        console.log(`   💵 = $${nativeValueUSD.toFixed(2)}`);
+      }
 
       // ✅ STEP 3: Fetch token balances (chain-specific)
       let tokensWithValue: Token[] = [];
       
       if (currentChain === 'solana') {
         // ✅ SOLANA: Fetch SPL tokens
+        console.log('\n');
+        console.log('═══════════════════════════════════════════════════════════════');
+        console.log('🔍 SOLANA DEBUG - STEP 3: SPL TOKEN BALANCES');
+        console.log('═══════════════════════════════════════════════════════════════');
         logger.log(`\n--- STEP 3: Fetch SPL Token Balances (Solana) ---`);
         logger.log(`[${timestamp}] 🪙 Fetching SPL tokens from chain...`);
+        console.log(`📍 Wallet Address: ${displayAddress}`);
         
         const solanaService = blockchain as any; // Access Solana-specific methods
         const splTokens = await solanaService.getSPLTokenBalances(displayAddress);
@@ -703,13 +691,29 @@ export default function Dashboard() {
         
         logger.log(`[${timestamp}] ✅ Found ${splTokens.length} SPL tokens with balance`);
         logger.log(`[${timestamp}] 📊 SPL Tokens:`, splTokens);
+        console.log(`\n✅ Found ${splTokens.length} SPL tokens with non-zero balance`);
+        
+        // 🔍 DEBUG: Log elk token dat gevonden is
+        splTokens.forEach((token: any, index: number) => {
+          console.log(`\n  Token ${index + 1}:`);
+          console.log(`    Symbol: ${token.symbol}`);
+          console.log(`    Name: ${token.name}`);
+          console.log(`    Balance: ${token.balance}`);
+          console.log(`    Mint Address: ${token.address}`);
+          console.log(`    Decimals: ${token.decimals}`);
+        });
         
         if (splTokens.length > 0) {
           // ✅ STEP 4: Fetch prices for SPL tokens (using mint addresses for DexScreener!)
+          console.log('\n');
+          console.log('═══════════════════════════════════════════════════════════════');
+          console.log('💰 SOLANA DEBUG - STEP 4: SPL TOKEN PRICES');
+          console.log('═══════════════════════════════════════════════════════════════');
           logger.log(`\n--- STEP 4: Fetch SPL Token Prices ---`);
           
           // ✅ Try symbol-based pricing first (CoinGecko/Binance) - returns price + change24h in ONE batch call!
           const splSymbols = splTokens.map((t: any) => t.symbol);
+          console.log(`\n📡 Fetching prices via CoinGecko/Binance voor symbols: [${splSymbols.join(', ')}]`);
           logger.log(`[${timestamp}] 📡 Fetching prices + change24h for SPL tokens: ${splSymbols.join(', ')}`);
           
           const splPricesMap = await priceService.getMultiplePrices(splSymbols);
@@ -720,11 +724,24 @@ export default function Dashboard() {
           }
           
           logger.log(`[${timestamp}] 💰 SPL prices + change24h received:`, splPricesMap);
+          console.log('\n💰 Prijzen ontvangen van CoinGecko/Binance:');
+          Object.keys(splPricesMap).forEach(symbol => {
+            const data = splPricesMap[symbol];
+            console.log(`  ${symbol}:`);
+            console.log(`    Prijs: $${data.price}`);
+            console.log(`    24h Change: ${data.change24h >= 0 ? '+' : ''}${data.change24h.toFixed(2)}%`);
+          });
           
           // ✅ For tokens without a symbol price, try mint-based pricing (DexScreener)
           const tokensNeedingMintPrice = splTokens.filter((t: any) => !splPricesMap[t.symbol] || splPricesMap[t.symbol]?.price === 0);
           
           if (tokensNeedingMintPrice.length > 0) {
+            console.log(`\n🔍 ${tokensNeedingMintPrice.length} tokens hebben geen prijs via CoinGecko/Binance`);
+            console.log('   Proberen via DexScreener (mint-based)...');
+            tokensNeedingMintPrice.forEach((token: any) => {
+              console.log(`   - ${token.symbol} (${token.address.substring(0, 8)}...)`);
+            });
+            
             logger.log(`[${timestamp}] 🔍 Fetching DexScreener prices for ${tokensNeedingMintPrice.length} tokens without CoinGecko/Binance prices...`);
             const mints = tokensNeedingMintPrice.map((t: any) => t.address);
             const mintPrices = await priceService.getPricesByMints(mints);
@@ -734,23 +751,41 @@ export default function Dashboard() {
               throw new Error('Fetch aborted');
             }
             
+            console.log('\n💰 Prijzen ontvangen van DexScreener:');
             // ✅ Merge mint prices into splPricesMap (with both price AND change24h!)
             tokensNeedingMintPrice.forEach((token: any) => {
               const mintPrice = mintPrices.get(token.address);
               if (mintPrice && mintPrice.price > 0) {
                 splPricesMap[token.symbol] = { price: mintPrice.price, change24h: mintPrice.change24h };
+                console.log(`  ${token.symbol}:`);
+                console.log(`    Prijs: $${mintPrice.price}`);
+                console.log(`    24h Change: ${mintPrice.change24h >= 0 ? '+' : ''}${mintPrice.change24h.toFixed(2)}%`);
                 logger.log(`[${timestamp}] 💰 DexScreener: ${token.symbol} = $${mintPrice.price}, change24h: ${mintPrice.change24h >= 0 ? '+' : ''}${mintPrice.change24h.toFixed(2)}%`);
+              } else {
+                console.log(`  ${token.symbol}: ❌ Geen prijs gevonden`);
               }
             });
           }
           
+          console.log('\n');
+          console.log('═══════════════════════════════════════════════════════════════');
+          console.log('🧮 SOLANA DEBUG - TOKEN VALUE BEREKENINGEN');
+          console.log('═══════════════════════════════════════════════════════════════');
+          
           // ✅ Combine SPL tokens with prices + change24h (NO extra API calls needed!)
-          tokensWithValue = splTokens.map((token: any) => {
+          tokensWithValue = splTokens.map((token: any, index: number) => {
             const priceData = splPricesMap[token.symbol] || { price: 0, change24h: 0 };
             const price = priceData.price || 0;
             const change24h = priceData.change24h || 0;
             const balanceNum = parseFloat(token.balance || '0');
             const balanceUSD = balanceNum * price;
+            
+            console.log(`\n📊 Token ${index + 1}: ${token.symbol}`);
+            console.log(`   Balance: ${token.balance}`);
+            console.log(`   Prijs per token: $${price.toFixed(6)}`);
+            console.log(`   Berekening: ${balanceNum.toFixed(6)} × $${price.toFixed(6)}`);
+            console.log(`   💵 Totale waarde: $${balanceUSD.toFixed(2)}`);
+            console.log(`   📈 24h Change: ${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%`);
             
             logger.log(`[${timestamp}] 💰 ${token.symbol}:`, {
               balance: token.balance,
@@ -769,6 +804,14 @@ export default function Dashboard() {
           });
           
           logger.log(`[${timestamp}] ✅ Final tokensWithValue:`, tokensWithValue);
+          
+          // 🔍 DEBUG: Totale token value
+          const totalTokenValue = tokensWithValue.reduce((sum, token) => {
+            return sum + parseFloat(token.balanceUSD || '0');
+          }, 0);
+          console.log('\n═══════════════════════════════════════════════════════════════');
+          console.log(`💰 TOTALE SPL TOKEN WAARDE: $${totalTokenValue.toFixed(2)}`);
+          console.log('═══════════════════════════════════════════════════════════════');
         }
         
       } else if (displayAddress) {
@@ -923,24 +966,12 @@ export default function Dashboard() {
         throw new Error('Fetch aborted');
       }
       
-      // ✅ DEBUG: Prepare token results for logging
-      const tokenResults: TokenResult[] = tokensWithValue.map(token => ({
-        address: token.address || 'native',
-        symbol: token.symbol || 'UNKNOWN',
-        name: token.name || 'Unknown Token',
-        balance: token.balance || '0',
-        balanceUSD: token.balanceUSD || '0',
-        priceUSD: token.priceUSD || 0,
-        change24h: token.change24h || 0,
-        priceSource: 'coingecko', // Default source since Token type doesn't have priceSource
-        logo: token.logo
-      }));
-      
-      // ✅ DEBUG: Log token balances
-      const tokenMethod = currentChain === 'solana' ? 'spl' : 
-                         (blockchain.hasAlchemy?.() ? 'alchemy' : 
-                          (popularTokens.length > 0 ? 'popular_tokens' : 'none'));
-      debugTokenBalances(currentChain, tokenMethod as any, tokenResults);
+      if (currentChain === 'solana') {
+        console.log('\n');
+        console.log('═══════════════════════════════════════════════════════════════');
+        console.log('💎 SOLANA DEBUG - STEP 5: TOTALE PORTFOLIO VALUE');
+        console.log('═══════════════════════════════════════════════════════════════');
+      }
       
       if (tokensWithValue.length > 0) {
         // ✅ Chain-specific token update
@@ -952,6 +983,17 @@ export default function Dashboard() {
           0
         );
         const totalValue = nativeValueUSD + tokensTotalUSD;
+        
+        if (currentChain === 'solana') {
+          console.log(`\n💰 Native SOL waarde: $${nativeValueUSD.toFixed(2)}`);
+          console.log(`💰 SPL Tokens waarde: $${tokensTotalUSD.toFixed(2)}`);
+          console.log(`   (${tokensWithValue.length} tokens)`);
+          console.log('\n🧮 Totale Portfolio Berekening:');
+          console.log(`   $${nativeValueUSD.toFixed(2)} (SOL)`);
+          console.log(`   + $${tokensTotalUSD.toFixed(2)} (Tokens)`);
+          console.log(`   ────────────────────`);
+          console.log(`   💎 TOTAAL: $${totalValue.toFixed(2)}`);
+        }
         
         // ✅ Update chain-specific state
         updateCurrentChainState({
@@ -970,6 +1012,12 @@ export default function Dashboard() {
         // No tokens - native value IS total value
         updateTokens(currentChain, []); // Clear tokens for this chain
         
+        if (currentChain === 'solana') {
+          console.log(`\n💰 Native SOL waarde: $${nativeValueUSD.toFixed(2)}`);
+          console.log(`💰 SPL Tokens waarde: $0.00 (geen tokens)`);
+          console.log(`\n💎 TOTAAL: $${nativeValueUSD.toFixed(2)} (alleen native SOL)`);
+        }
+        
         // ✅ Update chain-specific state
         updateCurrentChainState({
           totalValueUSD: nativeValueUSD,
@@ -984,8 +1032,19 @@ export default function Dashboard() {
 
       // ✅ STEP 6: Native 24h change already fetched in batch call above!
       // No extra API call needed - change24h is already in pricesMap!
+      if (currentChain === 'solana') {
+        console.log('\n');
+        console.log('═══════════════════════════════════════════════════════════════');
+        console.log('📈 SOLANA DEBUG - STEP 6: 24H CHANGE BEREKENING');
+        console.log('═══════════════════════════════════════════════════════════════');
+      }
+      
       logger.log(`\n--- STEP 6: Native 24h Change (from batch) ---`);
       logger.log(`[${timestamp}] 📈 Native 24h Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
+      
+      if (currentChain === 'solana') {
+        console.log(`\n📈 Native SOL 24h Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
+      }
       
       // ✅ STEP 7: Calculate weighted portfolio change (instant accurate!)
       // ✅ CRITICAL FIX: Always calculate portfolio change, even if no tokens
@@ -1004,8 +1063,24 @@ export default function Dashboard() {
         nativeChange
       });
       
+      if (currentChain === 'solana') {
+        console.log(`\n🔍 Tokens gebruikt voor weighted change berekening:`);
+        console.log(`   Totaal tokens: ${tokensWithValue.length}`);
+        console.log(`   Tokens met valide change data: ${tokensForCalculation.length}`);
+        console.log(`\n📊 Weighted Change Inputs:`);
+        console.log(`   Native Balance: ${parseFloat(bal)} SOL`);
+        console.log(`   Native Price: $${nativePrice.toFixed(2)}`);
+        console.log(`   Native Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
+      }
+      
       tokensForCalculation.forEach((token, idx) => {
         logger.log(`[${timestamp}]   Token ${idx + 1}: ${token.symbol || token.name || 'Unknown'} - balanceUSD: ${token.balanceUSD}, change24h: ${token.change24h}%`);
+        
+        if (currentChain === 'solana') {
+            console.log(`\n   Token ${idx + 1}: ${token.symbol}`);
+            console.log(`     USD Waarde: $${token.balanceUSD}`);
+            console.log(`     24h Change: ${(token.change24h || 0) >= 0 ? '+' : ''}${(token.change24h || 0).toFixed(2)}%`);
+        }
       });
       
       // ✅ ALWAYS calculate weighted change (even if no tokens, it will return native change)
@@ -1019,6 +1094,43 @@ export default function Dashboard() {
       // ✅ DEBUG: Log calculation result
       logger.log(`[${timestamp}] 🔍 DEBUG: Weighted change calculated: ${weightedChange.toFixed(2)}% (native: ${nativeChange.toFixed(2)}%)`);
       
+      if (currentChain === 'solana') {
+        console.log(`\n🧮 Weighted Portfolio Change Berekening:`);
+        
+        const totalPortfolioValue = nativeValueUSD + tokensWithValue.reduce((sum, t) => sum + parseFloat(t.balanceUSD || '0'), 0);
+        
+        if (totalPortfolioValue > 0) {
+          const nativeWeight = nativeValueUSD / totalPortfolioValue;
+          const nativeContribution = nativeWeight * nativeChange;
+          
+          console.log(`\n   Native SOL Contributie:`);
+          console.log(`     Waarde: $${nativeValueUSD.toFixed(2)}`);
+          console.log(`     Weight: ${(nativeWeight * 100).toFixed(2)}%`);
+          console.log(`     Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
+          console.log(`     Contributie: ${(nativeWeight * 100).toFixed(2)}% × ${nativeChange.toFixed(2)}% = ${nativeContribution.toFixed(3)}%`);
+          
+          let tokenContribution = 0;
+          tokensForCalculation.forEach((token, idx) => {
+            const tokenValue = parseFloat(token.balanceUSD || '0');
+            const tokenWeight = tokenValue / totalPortfolioValue;
+            const contribution = tokenWeight * (token.change24h || 0);
+            tokenContribution += contribution;
+            
+            console.log(`\n   Token ${idx + 1} (${token.symbol}) Contributie:`);
+            console.log(`     Waarde: $${tokenValue.toFixed(2)}`);
+            console.log(`     Weight: ${(tokenWeight * 100).toFixed(2)}%`);
+            console.log(`     Change: ${(token.change24h || 0) >= 0 ? '+' : ''}${(token.change24h || 0).toFixed(2)}%`);
+            console.log(`     Contributie: ${(tokenWeight * 100).toFixed(2)}% × ${(token.change24h || 0).toFixed(2)}% = ${contribution.toFixed(3)}%`);
+          });
+          
+          console.log(`\n   ────────────────────────────────────`);
+          console.log(`   📈 TOTALE WEIGHTED CHANGE: ${weightedChange >= 0 ? '+' : ''}${weightedChange.toFixed(2)}%`);
+          console.log(`      (Native: ${nativeContribution.toFixed(3)}% + Tokens: ${tokenContribution.toFixed(3)}%)`);
+        } else {
+          console.log(`   ⚠️  Portfolio value is $0, weighted change = ${weightedChange.toFixed(2)}%`);
+        }
+      }
+      
       // ✅ CRITICAL: Update chain-specific state with WEIGHTED change (not just native)
       updateCurrentChainState({
         change24h: weightedChange,
@@ -1026,49 +1138,18 @@ export default function Dashboard() {
       
       logger.log(`[${timestamp}] 📊 Portfolio 24h Change: ${weightedChange >= 0 ? '+' : ''}${weightedChange.toFixed(2)}%`);
       
-      // ✅ DEBUG: Log 24h change details for all assets
-      const tokenChangeDetails = tokensWithValue.map(token => ({
-        symbol: token.symbol || 'UNKNOWN',
-        change24h: token.change24h || 0,
-        hasData: token.change24h !== undefined && token.change24h !== 0
-      }));
-      debugChange24h(currentChain, chain.nativeCurrency.symbol, nativeChange, tokenChangeDetails);
-      
-      // ✅ DEBUG: Log complete portfolio summary
-      const portfolioSummary: PortfolioSummary = {
-        chain: currentChain,
-        address: displayAddress,
-        nativeBalance: bal,
-        nativeSymbol: chain.nativeCurrency.symbol,
-        nativePriceUSD: nativePrice,
-        nativeValueUSD: nativeValueUSD,
-        nativeChange24h: nativeChange,
-        tokensCount: tokensWithValue.length,
-        tokensTotalUSD: tokensWithValue.reduce((sum, t) => sum + parseFloat(t.balanceUSD || '0'), 0),
-        totalPortfolioUSD: nativeValueUSD + tokensWithValue.reduce((sum, t) => sum + parseFloat(t.balanceUSD || '0'), 0),
-        weightedChange24h: weightedChange,
-        timestamp: Date.now()
-      };
-      debugPortfolioResult(portfolioSummary);
-      
-      // ✅ DEBUG: Check for missing data issues
-      const issues: string[] = [];
-      if (nativePrice === 0) {
-        issues.push(`Native token ${chain.nativeCurrency.symbol} has no price data - portfolio value will be incorrect`);
-      }
-      if (nativeChange === 0 && nativePrice > 0) {
-        issues.push(`Native token ${chain.nativeCurrency.symbol} has no 24h change data`);
-      }
-      tokensWithValue.forEach(token => {
-        if ((token.priceUSD || 0) === 0 && parseFloat(token.balance || '0') > 0) {
-          issues.push(`Token ${token.symbol} has balance but no price data`);
-        }
-        if ((token.change24h || 0) === 0 && (token.priceUSD || 0) > 0) {
-          issues.push(`Token ${token.symbol} has price but no 24h change data`);
-        }
-      });
-      if (issues.length > 0) {
-        debugMissingData(currentChain, issues);
+      if (currentChain === 'solana') {
+        console.log('\n');
+        console.log('╔═══════════════════════════════════════════════════════════════╗');
+        console.log('║           ✅ SOLANA DEBUG - BEREKENING COMPLEET              ║');
+        console.log('╚═══════════════════════════════════════════════════════════════╝');
+        console.log('\n📊 FINALE WAARDEN DIE GETOOND WORDEN:');
+        console.log(`   💎 Total Portfolio Value: $${(nativeValueUSD + tokensWithValue.reduce((sum, t) => sum + parseFloat(t.balanceUSD || '0'), 0)).toFixed(2)}`);
+        console.log(`   📈 24h Change: ${weightedChange >= 0 ? '+' : ''}${weightedChange.toFixed(2)}%`);
+        console.log(`   🪙 Native Balance: ${bal} SOL`);
+        console.log(`   💰 Native Value: $${nativeValueUSD.toFixed(2)}`);
+        console.log(`   🎯 Aantal Tokens: ${tokensWithValue.length}`);
+        console.log('\n');
       }
       
       // ✅ PHASE 4: Cache with native price included
@@ -1086,11 +1167,7 @@ export default function Dashboard() {
       // This will override with portfolio history if available (>= 2 snapshots with enough time span), 
       // otherwise it will keep the weighted change we just set above
       
-      const fetchDuration = Date.now() - fetchStartTime;
-      logger.log(`========== FETCH DATA COMPLETE [${fetchDuration}ms] ==========\n`);
-      
-      // ✅ DEBUG: Log fetch complete
-      debugFetchComplete(currentChain, fetchDuration, true);
+      logger.log(`========== FETCH DATA COMPLETE [${Date.now() - timestamp}ms] ==========\n`);
       
       // ✅ Success: Mark fetch as complete and cleanup
       updateCurrentChainState({
@@ -1100,27 +1177,14 @@ export default function Dashboard() {
       activeFetchControllers.current.delete(currentChain);
       
     } catch (error) {
-      const fetchDuration = Date.now() - fetchStartTime;
-      
       // ✅ Handle aborted fetches gracefully
       if (error instanceof Error && error.message === 'Fetch aborted') {
-        logger.log(`✅ [Dashboard] Fetch ${fetchId} successfully aborted (superseded by newer fetch)`);
-        debugFetchComplete(currentChain, fetchDuration, false, 'Superseded by newer fetch');
+        logger.log(`✅ [Dashboard] Fetch ${fetchId} successfully aborted`);
         return; // Silent return, state already cleaned up
       }
       
-      console.error('❌ [Dashboard] Error fetching data:', error);
-      console.error('❌ [Dashboard] Error details:', error instanceof Error ? error.message : 'Unknown error');
-      console.error('❌ [Dashboard] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-      
-      // ✅ DEBUG: Log failed fetch with error message
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      debugFetchComplete(currentChain, fetchDuration, false, errorMsg);
-      debugMissingData(currentChain, [
-        `Fetch failed with error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        `Chain: ${currentChain}`,
-        `Address: ${displayAddress}`
-      ]);
+      logger.error('❌ Error fetching data:', error);
+      logger.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
       
       // ✅ Update chain-specific state with error
       updateCurrentChainState({
