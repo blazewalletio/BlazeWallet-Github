@@ -70,7 +70,9 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   balance: '0',
   isLocked: false,
   mnemonic: null,
-  currentChain: DEFAULT_CHAIN,
+  currentChain: typeof window !== 'undefined' 
+    ? (localStorage.getItem('current_chain') || DEFAULT_CHAIN)
+    : DEFAULT_CHAIN, // ✅ FIX: Load saved chain IMMEDIATELY on store init, not just on unlock
   
   // ✅ PHASE 3: Initialize chain-specific token storage
   chainTokens: new Map(),
