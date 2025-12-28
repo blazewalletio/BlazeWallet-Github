@@ -22,6 +22,7 @@ import BuyModal3 from '../BuyModal3';
 import TokenSelector from '../TokenSelector';
 import AnimatedNumber from '../AnimatedNumber';
 import { logger } from '@/lib/logger';
+import { calculateWeightedPortfolioChange } from '@/lib/portfolio-change-calculator';
 
 export default function WalletTab() {
   const { 
@@ -70,6 +71,7 @@ export default function WalletTab() {
 
       const nativePrice = await priceService.getPrice(chain.nativeCurrency.symbol);
       const nativeValueUSD = parseFloat(bal) * nativePrice;
+      const nativeChange = await priceService.get24hChange(chain.nativeCurrency.symbol);
       
       logger.log(`[${timestamp}] Native balance details:`, {
         balance: bal,
@@ -78,6 +80,7 @@ export default function WalletTab() {
         valueUSD: nativeValueUSD
       });
 
+      let tokensWithValue: any[] = [];
       const popularTokens = POPULAR_TOKENS[currentChain] || [];
       if (popularTokens.length > 0) {
         const tokensWithBalance = await tokenService.getMultipleTokenBalances(
@@ -98,7 +101,7 @@ export default function WalletTab() {
           })
         );
 
-        const tokensWithValue = tokensWithPrices.filter(
+        tokensWithValue = tokensWithPrices.filter(
           t => parseFloat(t.balance || '0') > 0
         );
         // ✅ Use chain-specific updateTokens
@@ -115,8 +118,19 @@ export default function WalletTab() {
         setTotalValueUSD(nativeValueUSD);
       }
 
-      const nativeChange = await priceService.get24hChange(chain.nativeCurrency.symbol);
-      setChange24h(nativeChange);
+      // ✅ Calculate weighted portfolio change (native + all tokens)
+      if (tokensWithValue.length > 0) {
+        const weightedChange = calculateWeightedPortfolioChange(
+          tokensWithValue,
+          parseFloat(bal),
+          nativePrice,
+          nativeChange
+        );
+        setChange24h(weightedChange);
+      } else {
+        // No tokens, only native - use native change
+        setChange24h(nativeChange);
+      }
       
       
     } catch (error) {

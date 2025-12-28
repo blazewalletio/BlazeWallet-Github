@@ -32,6 +32,7 @@ import TransactionHistory from './TransactionHistory';
 import PremiumBadge, { PremiumCard } from './PremiumBadge';
 import BottomNavigation, { TabType } from './BottomNavigation';
 import { PRESALE_FEATURE_ENABLED } from '@/lib/feature-flags';
+import { calculateWeightedPortfolioChange } from '@/lib/portfolio-change-calculator';
 
 // ✅ PERFORMANCE FIX: Lazy load modals (reduces initial bundle size by ~200KB)
 const SendModal = dynamic(() => import('./SendModal'), { ssr: false });
@@ -428,51 +429,6 @@ export default function Dashboard() {
   const blockchain = MultiChainService.getInstance(currentChain); // ✅ Use singleton (prevents re-initialization)
   const tokenService = new TokenService(chain.rpcUrl);
   const priceService = new PriceService();
-
-  /**
-   * 📊 Calculate weighted average portfolio change
-   * Used when portfolio history snapshots are insufficient (< 2 snapshots or < 30 min data)
-   */
-  const calculateWeightedPortfolioChange = (
-    tokens: any[],
-    nativeBalance: number,
-    nativePrice: number,
-    nativeChange: number
-  ): number => {
-    const nativeValue = nativeBalance * nativePrice;
-    
-    // Calculate total token value
-    const tokensTotalValue = tokens.reduce(
-      (sum, token) => sum + parseFloat(token.balanceUSD || '0'),
-      0
-    );
-    
-    const totalPortfolioValue = nativeValue + tokensTotalValue;
-    
-    // Avoid division by zero
-    if (totalPortfolioValue === 0) {
-      return 0;
-    }
-    
-    // Calculate weighted change: Σ(asset_value / total_value × asset_change%)
-    let weightedChange = 0;
-    
-    // Native token contribution
-    const nativeWeight = nativeValue / totalPortfolioValue;
-    weightedChange += nativeWeight * nativeChange;
-    
-    // Each token's contribution
-    tokens.forEach(token => {
-      const tokenValue = parseFloat(token.balanceUSD || '0');
-      const tokenWeight = tokenValue / totalPortfolioValue;
-      const tokenChange = token.change24h || 0;
-      weightedChange += tokenWeight * tokenChange;
-    });
-    
-    logger.log(`📊 Weighted portfolio change: ${weightedChange.toFixed(2)}% (native: ${(nativeWeight * 100).toFixed(1)}%, tokens: ${((1 - nativeWeight) * 100).toFixed(1)}%)`);
-    
-    return weightedChange;
-  };
 
   const fetchData = useCallback(async (force = false) => {
     // ✅ DEBUG: Only log in development mode
@@ -1104,13 +1060,14 @@ export default function Dashboard() {
       let pricesByAddress: Map<string, { price: number; change24h: number }> | null = null;
       
       // Fetch fresh prices for all tokens
+      let updatedTokens: any[] = [];
       if (currentChain === 'solana') {
         // Solana: Use symbol-based pricing
         const symbols = currentTokens.map(t => t.symbol);
         pricesMap = await priceService.getMultiplePrices(symbols);
         
         // Update tokens with new prices
-        const updatedTokens = await Promise.all(
+        updatedTokens = await Promise.all(
           currentTokens.map(async (token) => {
             const price = pricesMap![token.symbol] || token.priceUSD || 0;
             const balanceNum = parseFloat(token.balance || '0');
@@ -1142,7 +1099,7 @@ export default function Dashboard() {
         pricesByAddress = await priceService.getPricesByAddresses(tokenAddresses, currentChain);
         
         // Update tokens with new prices
-        const updatedTokens = currentTokens.map((token) => {
+        updatedTokens = currentTokens.map((token) => {
           const addressLower = token.address.toLowerCase();
           const priceData = pricesByAddress!.get(addressLower) || { price: token.priceUSD || 0, change24h: token.change24h || 0 };
           const balanceNum = parseFloat(token.balance || '0');
@@ -1159,33 +1116,34 @@ export default function Dashboard() {
         updateTokens(currentChain, updatedTokens);
       }
       
-      // Also refresh native token price
+      // Also refresh native token price and change
       const currentBalance = balanceRef.current;
       const currentChainConfig = CHAINS[currentChain]; // Read directly to avoid dependency
       const nativePrice = await priceService.getPrice(currentChainConfig.nativeCurrency.symbol);
+      const nativeChange = await priceService.get24hChange(currentChainConfig.nativeCurrency.symbol);
       const nativeValueUSD = parseFloat(currentBalance || '0') * nativePrice;
       
       // Recalculate total portfolio value
-      const tokensTotalUSD = currentTokens.reduce(
+      const tokensTotalUSD = updatedTokens.reduce(
         (sum, token) => {
-          // For Solana, use symbol-based price lookup
-          if (currentChain === 'solana') {
-            const price = pricesMap?.[token.symbol] || token.priceUSD || 0;
-            return sum + (parseFloat(token.balance || '0') * price);
-          } else {
-            // For EVM, use address-based price lookup
-            const addressLower = token.address.toLowerCase();
-            const priceData = pricesByAddress?.get(addressLower) || { price: token.priceUSD || 0 };
-            return sum + (parseFloat(token.balance || '0') * priceData.price);
-          }
+          return sum + parseFloat(String(token.balanceUSD || '0'));
         },
         0
       );
       const totalValue = nativeValueUSD + tokensTotalUSD;
       
+      // ✅ Calculate weighted portfolio change (native + all tokens)
+      const weightedChange = calculateWeightedPortfolioChange(
+        updatedTokens,
+        parseFloat(currentBalance || '0'),
+        nativePrice,
+        nativeChange
+      );
+      
       updateCurrentChainState({
         nativePriceUSD: nativePrice,
         totalValueUSD: totalValue,
+        change24h: weightedChange, // ✅ Update portfolio change, not just native change
       });
       
       logger.log('✅ [Dashboard] Prices refreshed successfully');
@@ -1548,7 +1506,7 @@ export default function Dashboard() {
               whileTap={{ scale: 0.95 }}
               whileHover={{ scale: 1.05 }}
               onClick={() => setShowBuyModal3(true)}
-              className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl aspect-square flex flex-col items-center justify-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+              className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl aspect-square flex flex-col items-center justify-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
             >
               <CreditCard className="w-8 h-8 text-white mb-2" />
               <div className="text-sm font-bold text-white text-center">Buy</div>
