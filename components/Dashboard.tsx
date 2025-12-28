@@ -159,6 +159,8 @@ export default function Dashboard() {
   const fetchDataRef = useRef<(force?: boolean) => Promise<void>>();
   // ✅ Ref to track if intervals are already set up to prevent duplicate intervals
   const intervalsSetupRef = useRef<{ priceInterval?: NodeJS.Timeout; fullInterval?: NodeJS.Timeout; address?: string; chain?: string }>({});
+  // 🔥 NEW: Track if we're in a critical fetch period (to block visibility change fetches)
+  const criticalFetchPeriod = useRef<boolean>(false);
   
   // Update refs when values change
   useEffect(() => {
@@ -350,6 +352,9 @@ export default function Dashboard() {
     
     logger.log(`🔄 [Dashboard] Chain switching: ${prevChain || 'initial'} → ${currentChain}`);
     
+    // 🔥 CRITICAL: Block visibility change fetches during chain switch
+    criticalFetchPeriod.current = true;
+    
     // 1. Abort ALL active fetches (cleanup)
     activeFetchControllers.current.forEach((controller, chain) => {
       controller.abort();
@@ -403,39 +408,43 @@ export default function Dashboard() {
       fetchData(false); // Always fetch fresh data on chain switch
     }, 100);
     
+    // 6. 🔥 CRITICAL: Unblock visibility fetches after 2 seconds
+    const unblockTimer = setTimeout(() => {
+      criticalFetchPeriod.current = false;
+      logger.log('🔓 [Dashboard] Critical fetch period ended - visibility fetches allowed');
+    }, 2000);
+    
     return () => {
       clearTimeout(fetchTimer);
+      clearTimeout(unblockTimer);
     };
   }, [currentChain, displayAddress]);
 
   // ✅ Auto-refresh on visibility change (user returns to tab after transaction)
-  // 🔥 FIX: Debounce to prevent race conditions with chain switch
+  // 🔥 FIX: Block during critical fetch periods to prevent race conditions
   useEffect(() => {
-    let visibilityTimer: NodeJS.Timeout;
-    
     const handleVisibilityChange = () => {
       if (!document.hidden && displayAddress) {
-        // Clear any existing timer
-        clearTimeout(visibilityTimer);
+        // 🔥 CRITICAL: Skip if we're in a critical fetch period (chain switch/initial load)
+        if (criticalFetchPeriod.current) {
+          logger.log('👁️ [Dashboard] Tab became visible but in CRITICAL FETCH PERIOD - BLOCKING visibility fetch');
+          return;
+        }
         
-        // Debounce visibility change fetch to prevent race with chain switch
-        visibilityTimer = setTimeout(() => {
-          // Only fetch if there's NO active controller for this chain (no ongoing fetch)
-          const activeController = activeFetchControllers.current.get(currentChain);
-          if (!activeController) {
-            logger.log('👁️ [Dashboard] Tab became visible - checking for fresh data');
-            fetchData(false);
-          } else {
-            logger.log('👁️ [Dashboard] Tab became visible but fetch already in progress - skipping');
-          }
-        }, 500); // 500ms debounce
+        // Only fetch if there's NO active controller for this chain (no ongoing fetch)
+        const activeController = activeFetchControllers.current.get(currentChain);
+        if (!activeController) {
+          logger.log('👁️ [Dashboard] Tab became visible - checking for fresh data');
+          fetchData(false);
+        } else {
+          logger.log('👁️ [Dashboard] Tab became visible but fetch already in progress - skipping');
+        }
       }
     };
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
     return () => {
-      clearTimeout(visibilityTimer);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [currentChain, displayAddress]);
