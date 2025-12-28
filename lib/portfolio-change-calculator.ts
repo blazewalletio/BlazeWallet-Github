@@ -60,9 +60,22 @@ export function calculateWeightedPortfolioChange(
     weightedChange += tokenWeight * tokenChange;
   });
   
-  if (process.env.NODE_ENV === 'development') {
-    logger.log(`📊 Weighted portfolio change: ${weightedChange.toFixed(2)}% (native: ${(nativeWeight * 100).toFixed(1)}%, tokens: ${((1 - nativeWeight) * 100).toFixed(1)}%)`);
-  }
+  // ✅ Always log for debugging (both dev and prod to catch issues)
+  logger.log(`📊 Weighted portfolio change calculation:`, {
+    nativeValue: nativeValue.toFixed(2),
+    tokensTotalValue: tokensTotalValue.toFixed(2),
+    totalPortfolioValue: totalPortfolioValue.toFixed(2),
+    nativeWeight: `${(nativeWeight * 100).toFixed(1)}%`,
+    tokensWeight: `${((1 - nativeWeight) * 100).toFixed(1)}%`,
+    nativeChange: `${nativeChange.toFixed(2)}%`,
+    weightedChange: `${weightedChange.toFixed(2)}%`,
+    tokensCount: tokens.length,
+    tokensWithChange: tokens.map(t => ({
+      symbol: (t as any).symbol || (t as any).name || 'unknown',
+      balanceUSD: String(t.balanceUSD || '0'),
+      change24h: `${(t.change24h || 0).toFixed(2)}%`
+    }))
+  });
   
   return weightedChange;
 }

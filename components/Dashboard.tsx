@@ -562,7 +562,7 @@ export default function Dashboard() {
         allSymbols.push(...popularTokens.map(t => t.symbol));
       }
       
-      logger.log(`[${timestamp}] 📡 Fetching prices for: ${allSymbols.join(', ')}`);
+      logger.log(`[${timestamp}] 📡 Fetching prices + change24h for: ${allSymbols.join(', ')}`);
       const pricesMap = await priceService.getMultiplePrices(allSymbols);
       
       // ✅ Abort check after price fetch
@@ -570,10 +570,11 @@ export default function Dashboard() {
         throw new Error('Fetch aborted');
       }
       
-      logger.log(`[${timestamp}] 💰 Prices received:`, pricesMap);
+      logger.log(`[${timestamp}] 💰 Prices + change24h received:`, pricesMap);
       
-      // Extract native price
-      let nativePrice = pricesMap[chain.nativeCurrency.symbol] || 0;
+      // ✅ Extract native price AND change24h (both from batch call!)
+      let nativePrice = pricesMap[chain.nativeCurrency.symbol]?.price || 0;
+      let nativeChange = pricesMap[chain.nativeCurrency.symbol]?.change24h || 0;
       
       // ✅ FALLBACK: If price is 0, try to use cached price or fetch again
       if (nativePrice === 0) {
@@ -633,9 +634,9 @@ export default function Dashboard() {
           // ✅ STEP 4: Fetch prices for SPL tokens (using mint addresses for DexScreener!)
           logger.log(`\n--- STEP 4: Fetch SPL Token Prices ---`);
           
-          // Try symbol-based pricing first (CoinGecko/Binance) for popular tokens
+          // ✅ Try symbol-based pricing first (CoinGecko/Binance) - returns price + change24h in ONE batch call!
           const splSymbols = splTokens.map((t: any) => t.symbol);
-          logger.log(`[${timestamp}] 📡 Fetching prices for SPL tokens: ${splSymbols.join(', ')}`);
+          logger.log(`[${timestamp}] 📡 Fetching prices + change24h for SPL tokens: ${splSymbols.join(', ')}`);
           
           const splPricesMap = await priceService.getMultiplePrices(splSymbols);
           
@@ -644,10 +645,10 @@ export default function Dashboard() {
             throw new Error('Fetch aborted');
           }
           
-          logger.log(`[${timestamp}] 💰 SPL prices received:`, splPricesMap);
+          logger.log(`[${timestamp}] 💰 SPL prices + change24h received:`, splPricesMap);
           
-          // For tokens without a symbol price, try mint-based pricing (DexScreener)
-          const tokensNeedingMintPrice = splTokens.filter((t: any) => !splPricesMap[t.symbol] || splPricesMap[t.symbol] === 0);
+          // ✅ For tokens without a symbol price, try mint-based pricing (DexScreener)
+          const tokensNeedingMintPrice = splTokens.filter((t: any) => !splPricesMap[t.symbol] || splPricesMap[t.symbol]?.price === 0);
           
           if (tokensNeedingMintPrice.length > 0) {
             logger.log(`[${timestamp}] 🔍 Fetching DexScreener prices for ${tokensNeedingMintPrice.length} tokens without CoinGecko/Binance prices...`);
@@ -659,56 +660,39 @@ export default function Dashboard() {
               throw new Error('Fetch aborted');
             }
             
-            // Merge mint prices into splPricesMap
+            // ✅ Merge mint prices into splPricesMap (with both price AND change24h!)
             tokensNeedingMintPrice.forEach((token: any) => {
               const mintPrice = mintPrices.get(token.address);
               if (mintPrice && mintPrice.price > 0) {
-                splPricesMap[token.symbol] = mintPrice.price;
-                logger.log(`[${timestamp}] 💰 DexScreener: ${token.symbol} = $${mintPrice.price}`);
+                splPricesMap[token.symbol] = { price: mintPrice.price, change24h: mintPrice.change24h };
+                logger.log(`[${timestamp}] 💰 DexScreener: ${token.symbol} = $${mintPrice.price}, change24h: ${mintPrice.change24h >= 0 ? '+' : ''}${mintPrice.change24h.toFixed(2)}%`);
               }
             });
           }
           
-          // Combine SPL tokens with prices
-          tokensWithValue = await Promise.all(
-            splTokens.map(async (token: any) => {
-              const price = splPricesMap[token.symbol] || 0;
-              const balanceNum = parseFloat(token.balance || '0');
-              const balanceUSD = balanceNum * price;
-              
-              // Get 24h change (try mint-based if symbol fails)
-              let change24h = 0;
-              if (price > 0) {
-                try {
-                  // Try symbol first
-                  change24h = await priceService.get24hChange(token.symbol);
-                  
-                  // If symbol failed, try mint
-                  if (change24h === 0) {
-                    const mintPrice = await priceService.getPriceByMint(token.address);
-                    change24h = mintPrice.change24h;
-                  }
-                } catch (error) {
-                  logger.warn(`Failed to get 24h change for ${token.symbol}:`, error);
-                }
-              }
-              
-              logger.log(`[${timestamp}] 💰 ${token.symbol}:`, {
-                balance: token.balance,
-                price: price,
-                balanceUSD: balanceUSD.toFixed(2),
-                change24h: change24h,
-                logo: token.logo
-              });
-              
-              return {
-                ...token,
-                priceUSD: price,
-                balanceUSD: balanceUSD.toFixed(2),
-                change24h,
-              };
-            })
-          );
+          // ✅ Combine SPL tokens with prices + change24h (NO extra API calls needed!)
+          tokensWithValue = splTokens.map((token: any) => {
+            const priceData = splPricesMap[token.symbol] || { price: 0, change24h: 0 };
+            const price = priceData.price || 0;
+            const change24h = priceData.change24h || 0;
+            const balanceNum = parseFloat(token.balance || '0');
+            const balanceUSD = balanceNum * price;
+            
+            logger.log(`[${timestamp}] 💰 ${token.symbol}:`, {
+              balance: token.balance,
+              price: price,
+              balanceUSD: balanceUSD.toFixed(2),
+              change24h: change24h,
+              logo: token.logo
+            });
+            
+            return {
+              ...token,
+              priceUSD: price,
+              balanceUSD: balanceUSD.toFixed(2),
+              change24h, // ✅ Direct from batch call - no extra API calls!
+            };
+          });
           
           logger.log(`[${timestamp}] ✅ Final tokensWithValue:`, tokensWithValue);
         }
@@ -905,26 +889,44 @@ export default function Dashboard() {
         
       }
 
-      // ✅ STEP 6: Get 24h change for native token
-      logger.log(`\n--- STEP 6: Fetch 24h Change ---`);
-      const nativeChange = await priceService.get24hChange(chain.nativeCurrency.symbol);
-      
-      // ✅ Abort check after 24h change fetch
-      if (!isStillRelevant()) {
-        throw new Error('Fetch aborted');
-      }
-      
+      // ✅ STEP 6: Native 24h change already fetched in batch call above!
+      // No extra API call needed - change24h is already in pricesMap!
+      logger.log(`\n--- STEP 6: Native 24h Change (from batch) ---`);
       logger.log(`[${timestamp}] 📈 Native 24h Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
       
       // ✅ STEP 7: Calculate weighted portfolio change (instant accurate!)
+      // ✅ CRITICAL FIX: Always calculate portfolio change, even if no tokens
+      // Filter tokens to ensure they have valid change24h values
+      const tokensForCalculation = tokensWithValue.filter(token => {
+        const hasBalance = parseFloat(String(token.balanceUSD || '0')) > 0;
+        const hasChange = typeof token.change24h === 'number' && !isNaN(token.change24h);
+        return hasBalance && hasChange;
+      });
+      
+      logger.log(`[${timestamp}] 🔍 DEBUG: Calculating portfolio change:`, {
+        totalTokens: tokensWithValue.length,
+        validTokens: tokensForCalculation.length,
+        nativeBalance: parseFloat(bal),
+        nativePrice,
+        nativeChange
+      });
+      
+      tokensForCalculation.forEach((token, idx) => {
+        logger.log(`[${timestamp}]   Token ${idx + 1}: ${token.symbol || token.name || 'Unknown'} - balanceUSD: ${token.balanceUSD}, change24h: ${token.change24h}%`);
+      });
+      
+      // ✅ ALWAYS calculate weighted change (even if no tokens, it will return native change)
       const weightedChange = calculateWeightedPortfolioChange(
-        tokensWithValue,
+        tokensForCalculation,
         parseFloat(bal),
         nativePrice,
         nativeChange
       );
       
-      // ✅ Update chain-specific state with WEIGHTED change (not just native)
+      // ✅ DEBUG: Log calculation result
+      logger.log(`[${timestamp}] 🔍 DEBUG: Weighted change calculated: ${weightedChange.toFixed(2)}% (native: ${nativeChange.toFixed(2)}%)`);
+      
+      // ✅ CRITICAL: Update chain-specific state with WEIGHTED change (not just native)
       updateCurrentChainState({
         change24h: weightedChange,
       });
@@ -1045,7 +1047,8 @@ export default function Dashboard() {
     try {
       logger.log('💰 [Dashboard] Refreshing prices only...');
       
-      // Clear price cache to force fresh fetch
+      // ✅ CRITICAL FIX: Clear ALL caches (symbol, address, mint) to force fresh fetch
+      // This ensures change24h is always fresh, not from stale cache
       priceService.clearCache();
       
       // Get current tokens from ref (avoids dependency issues)
@@ -1056,41 +1059,31 @@ export default function Dashboard() {
       }
       
       // Declare variables for both Solana and EVM
-      let pricesMap: Record<string, number> | null = null;
+      let pricesMap: Record<string, { price: number; change24h: number }> | null = null;
       let pricesByAddress: Map<string, { price: number; change24h: number }> | null = null;
       
       // Fetch fresh prices for all tokens
       let updatedTokens: any[] = [];
       if (currentChain === 'solana') {
-        // Solana: Use symbol-based pricing
+        // ✅ Solana: Use symbol-based pricing (returns price + change24h in ONE batch call!)
         const symbols = currentTokens.map(t => t.symbol);
         pricesMap = await priceService.getMultiplePrices(symbols);
         
-        // Update tokens with new prices
-        updatedTokens = await Promise.all(
-          currentTokens.map(async (token) => {
-            const price = pricesMap![token.symbol] || token.priceUSD || 0;
-            const balanceNum = parseFloat(token.balance || '0');
-            const balanceUSD = balanceNum * price;
-            
-            // Get 24h change
-            let change24h = token.change24h || 0;
-            if (price > 0) {
-              try {
-                change24h = await priceService.get24hChange(token.symbol);
-              } catch (error) {
-                // Keep existing change24h if fetch fails
-              }
-            }
-            
-            return {
-              ...token,
-              priceUSD: price,
-              balanceUSD: balanceUSD.toFixed(2),
-              change24h,
-            };
-          })
-        );
+        // ✅ Update tokens with new prices + change24h (NO extra API calls!)
+        updatedTokens = currentTokens.map((token) => {
+          const priceData = pricesMap![token.symbol] || { price: token.priceUSD || 0, change24h: token.change24h || 0 };
+          const price = priceData.price || 0;
+          const change24h = priceData.change24h || 0;
+          const balanceNum = parseFloat(token.balance || '0');
+          const balanceUSD = balanceNum * price;
+          
+          return {
+            ...token,
+            priceUSD: price,
+            balanceUSD: balanceUSD.toFixed(2),
+            change24h, // ✅ Direct from batch call - no extra API calls!
+          };
+        });
         
         updateTokens(currentChain, updatedTokens);
       } else {
@@ -1116,11 +1109,16 @@ export default function Dashboard() {
         updateTokens(currentChain, updatedTokens);
       }
       
-      // Also refresh native token price and change
+      // ✅ Also refresh native token price and change (batch fetch for all native tokens!)
       const currentBalance = balanceRef.current;
       const currentChainConfig = CHAINS[currentChain]; // Read directly to avoid dependency
-      const nativePrice = await priceService.getPrice(currentChainConfig.nativeCurrency.symbol);
-      const nativeChange = await priceService.get24hChange(currentChainConfig.nativeCurrency.symbol);
+      
+      // ✅ Batch fetch native token price + change24h (no extra calls!)
+      const nativeSymbol = currentChainConfig.nativeCurrency.symbol;
+      const nativePrices = await priceService.getMultiplePrices([nativeSymbol]);
+      const nativePriceData = nativePrices[nativeSymbol] || { price: 0, change24h: 0 };
+      const nativePrice = nativePriceData.price || 0;
+      const nativeChange = nativePriceData.change24h || 0;
       const nativeValueUSD = parseFloat(currentBalance || '0') * nativePrice;
       
       // Recalculate total portfolio value

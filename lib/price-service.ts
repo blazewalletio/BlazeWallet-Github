@@ -8,7 +8,8 @@ export class PriceService {
   private cache = new LRUCache<{ price: number; change24h: number; source: string }>(200); // Symbol cache
   private mintCache = new LRUCache<{ price: number; change24h: number; source: string }>(100); // Solana mint cache
   private addressCache = new LRUCache<{ price: number; change24h: number; source: string }>(100); // EVM address cache
-  private cacheDuration = 600000; // ✅ 10 minutes cache (efficient for token prices)
+  private cacheDuration = 600000; // ✅ 10 minutes cache for prices (efficient)
+  private change24hCacheDuration = 120000; // ✅ 2 minutes cache for 24h change (fresher data)
   private primaryApiUrl = '/api/prices'; // CoinGecko (primary)
   private fallbackApiUrl = '/api/prices-binance'; // Binance (fallback)
   private addressApiUrl = '/api/prices-by-address'; // CoinGecko by address (NEW!)
@@ -34,19 +35,21 @@ export class PriceService {
   }
 
   /**
-   * Get multiple prices in batch (optimized)
+   * Get multiple prices AND 24h changes in batch (optimized)
+   * ✅ CRITICAL FIX: Returns both price AND change24h in one call
+   * This eliminates the need for separate get24hChange() calls!
    */
-  async getMultiplePrices(symbols: string[]): Promise<Record<string, number>> {
-    logger.log(`🔍 [PriceService] Fetching multiple prices for: ${symbols.join(', ')}`);
+  async getMultiplePrices(symbols: string[]): Promise<Record<string, { price: number; change24h: number }>> {
+    logger.log(`🔍 [PriceService] Fetching multiple prices + change24h for: ${symbols.join(', ')}`);
 
     // Check which symbols are in LRU cache
     const uncachedSymbols: string[] = [];
-    const result: Record<string, number> = {};
+    const result: Record<string, { price: number; change24h: number }> = {};
 
     symbols.forEach(symbol => {
       const cached = this.cache.get(symbol);
       if (cached) {
-        result[symbol] = cached.price;
+        result[symbol] = { price: cached.price, change24h: cached.change24h };
       } else {
         uncachedSymbols.push(symbol);
       }
@@ -59,12 +62,12 @@ export class PriceService {
       return result;
     }
 
-    // Fetch uncached prices with fallback
-    const fetchedPrices = await this.fetchMultiplePricesWithFallback(uncachedSymbols);
+    // Fetch uncached prices + change24h with fallback
+    const fetchedData = await this.fetchMultiplePricesWithFallback(uncachedSymbols);
     
     // Merge with cached results
-    Object.keys(fetchedPrices).forEach(symbol => {
-      result[symbol] = fetchedPrices[symbol];
+    Object.keys(fetchedData).forEach(symbol => {
+      result[symbol] = fetchedData[symbol];
     });
 
     return result;
@@ -72,18 +75,50 @@ export class PriceService {
 
   /**
    * Get 24h change with fallback
+   * ✅ NOTE: This is now mainly used as fallback - prefer getMultiplePrices() for batch fetching!
+   * For single symbol, use cached value if available, otherwise fetch fresh
    */
-  async get24hChange(symbol: string): Promise<number> {
-    // Check LRU cache first (TTL handled internally)
-    const cached = this.cache.get(symbol);
-    if (cached) {
-      return cached.change24h;
+  async get24hChange(symbol: string, forceRefresh: boolean = false): Promise<number> {
+    // Check cache first (unless force refresh)
+    if (!forceRefresh) {
+      const cached = this.cache.get(symbol);
+      if (cached) {
+        return cached.change24h;
+      }
     }
 
     // Fetch fresh data (will update cache)
+    try {
+      const response = await fetch(`${this.primaryApiUrl}?symbols=${symbol}`, {
+        signal: AbortSignal.timeout(5000),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data[symbol] && data[symbol].change24h !== undefined) {
+          const change24h = data[symbol].change24h || 0;
+          const price = data[symbol].price || 0;
+          
+          // Update cache
+          this.cache.set(symbol, {
+            price: price,
+            change24h: change24h,
+            source: 'coingecko',
+          }, this.cacheDuration);
+          
+          return change24h;
+        }
+      }
+    } catch (error) {
+      // If fetch fails, try cached value
+      const cached = this.cache.get(symbol);
+      if (cached) {
+        return cached.change24h;
+      }
+    }
+
+    // Final fallback: fetch full price data (includes change24h)
     await this.getPrice(symbol);
-    
-    // Return from cache (now updated)
     const updated = this.cache.get(symbol);
     return updated?.change24h || 0;
   }
@@ -250,12 +285,14 @@ export class PriceService {
   }
 
   /**
-   * Private: Fetch multiple prices with fallback (batch optimized)
+   * Private: Fetch multiple prices + change24h with fallback (batch optimized)
+   * ✅ CRITICAL FIX: Returns both price AND change24h in one call
+   * CoinGecko API already returns both, so we use it directly!
    */
-  private async fetchMultiplePricesWithFallback(symbols: string[]): Promise<Record<string, number>> {
-    const result: Record<string, number> = {};
+  private async fetchMultiplePricesWithFallback(symbols: string[]): Promise<Record<string, { price: number; change24h: number }>> {
+    const result: Record<string, { price: number; change24h: number }> = {};
 
-    // Try CoinGecko first (batch request)
+    // ✅ STEP 1: Try CoinGecko first (batch request - returns price + change24h!)
     try {
       logger.log(`📡 [PriceService] Trying CoinGecko batch for: ${symbols.join(', ')}`);
       const response = await fetch(`${this.primaryApiUrl}?symbols=${symbols.join(',')}`, {
@@ -264,21 +301,24 @@ export class PriceService {
       
       if (response.ok) {
         const data = await response.json();
-        const now = Date.now();
 
         symbols.forEach(symbol => {
           if (data[symbol] && data[symbol].price > 0) {
             const price = data[symbol].price;
             const change24h = data[symbol].change24h || 0;
             
-            result[symbol] = price;
+            // ✅ Store both price AND change24h
+            result[symbol] = { price, change24h };
             this.cache.set(symbol, { 
               price, 
               change24h, 
               source: 'coingecko'
             }, this.cacheDuration);
             
-            logger.log(`✅ [PriceService] CoinGecko: ${symbol} = $${price}`);
+            logger.log(`✅ [PriceService] CoinGecko: ${symbol} = $${price}, change24h: ${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%`);
+          } else {
+            // Include in result with 0 values for consistency
+            result[symbol] = { price: 0, change24h: 0 };
           }
         });
 
@@ -295,14 +335,14 @@ export class PriceService {
       logger.log(`⏭️ [PriceService] CoinGecko batch fallthrough, trying Binance...`);
     }
 
-    // Find symbols that still need prices
-    const missingSymbols = symbols.filter(s => !result[s]);
+    // ✅ STEP 2: Find symbols that still need prices
+    const missingSymbols = symbols.filter(s => !result[s] || result[s].price === 0);
     
     if (missingSymbols.length === 0) {
       return result;
     }
 
-    // Try Binance fallback for missing symbols
+    // ✅ STEP 3: Try Binance fallback for missing symbols
     try {
       logger.log(`📡 [PriceService] Trying Binance batch for missing: ${missingSymbols.join(', ')}`);
       const response = await fetch(`${this.fallbackApiUrl}?symbols=${missingSymbols.join(',')}`, {
@@ -311,21 +351,26 @@ export class PriceService {
       
       if (response.ok) {
         const data = await response.json();
-        const now = Date.now();
 
         missingSymbols.forEach(symbol => {
           if (data[symbol] && data[symbol].price > 0) {
             const price = data[symbol].price;
             const change24h = data[symbol].change24h || 0;
             
-            result[symbol] = price;
+            // ✅ Store both price AND change24h
+            result[symbol] = { price, change24h };
             this.cache.set(symbol, { 
               price, 
               change24h, 
               source: 'binance'
             }, this.cacheDuration);
             
-            logger.log(`✅ [PriceService] Binance: ${symbol} = $${price}`);
+            logger.log(`✅ [PriceService] Binance: ${symbol} = $${price}, change24h: ${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%`);
+          } else {
+            // Include in result with 0 values for consistency
+            if (!result[symbol]) {
+              result[symbol] = { price: 0, change24h: 0 };
+            }
           }
         });
       } else if (response.status === 400) {
@@ -336,6 +381,13 @@ export class PriceService {
       // Don't log as warning - expected for unknown tokens
       logger.log(`⏭️ [PriceService] Binance batch fallthrough, will use DexScreener fallback`);
     }
+
+    // ✅ Ensure all symbols are in result (even if 0)
+    symbols.forEach(symbol => {
+      if (!result[symbol]) {
+        result[symbol] = { price: 0, change24h: 0 };
+      }
+    });
 
     return result;
   }

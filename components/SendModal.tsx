@@ -175,7 +175,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
       const nativeBalance = await chainService.getBalance(displayAddress);
       const nativeSymbol = chainConfig.nativeCurrency.symbol;
       const prices = await priceService.getMultiplePrices([nativeSymbol]);
-      const nativePrice = prices[nativeSymbol] || 0;
+      const nativePrice = prices[nativeSymbol]?.price || 0;
       
       const assets: Asset[] = [
         {
@@ -199,7 +199,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
           const splPrices = await priceService.getMultiplePrices(splSymbols);
           
           splTokens.forEach((token: any) => {
-            const price = splPrices[token.symbol] || 0;
+            const price = splPrices[token.symbol]?.price || 0;
             const balance = parseFloat(token.balance || '0');
             assets.push({
               symbol: token.symbol,

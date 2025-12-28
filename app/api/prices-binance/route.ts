@@ -79,7 +79,7 @@ export async function GET(request: Request) {
           `https://api.binance.com/api/v3/ticker/24hr?symbol=${ticker}`,
           {
             headers: { 'Accept': 'application/json' },
-            next: { revalidate: 10 }, // ✅ Cache for 10 seconds only (ultra-fresh)
+            next: { revalidate: 60 }, // ✅ Cache for 60 seconds (1 minute) for fresh change24h data
           }
         );
 

@@ -69,9 +69,13 @@ export default function WalletTab() {
       logger.log(`[${timestamp}] Balance received: ${bal} ${chain.nativeCurrency.symbol}`);
       updateBalance(bal);
 
-      const nativePrice = await priceService.getPrice(chain.nativeCurrency.symbol);
+      // ✅ Batch fetch native token price + change24h (ONE API call instead of 2!)
+      const nativeSymbol = chain.nativeCurrency.symbol;
+      const nativePrices = await priceService.getMultiplePrices([nativeSymbol]);
+      const nativePriceData = nativePrices[nativeSymbol] || { price: 0, change24h: 0 };
+      const nativePrice = nativePriceData.price || 0;
+      const nativeChange = nativePriceData.change24h || 0;
       const nativeValueUSD = parseFloat(bal) * nativePrice;
-      const nativeChange = await priceService.get24hChange(chain.nativeCurrency.symbol);
       
       logger.log(`[${timestamp}] Native balance details:`, {
         balance: bal,
@@ -88,18 +92,22 @@ export default function WalletTab() {
           address
         );
         
-        const tokensWithPrices = await Promise.all(
-          tokensWithBalance.map(async (token) => {
-            const price = await priceService.getPrice(token.symbol);
-            const balanceUSD = parseFloat(token.balance || '0') * price;
-            return {
-              ...token,
-              priceUSD: price,
-              balanceUSD: balanceUSD.toFixed(2),
-              change24h: await priceService.get24hChange(token.symbol),
-            };
-          })
-        );
+        // ✅ Batch fetch prices + change24h for all tokens (ONE API call instead of N calls!)
+        const tokenSymbols = tokensWithBalance.map(t => t.symbol);
+        const pricesMap = await priceService.getMultiplePrices(tokenSymbols);
+        
+        const tokensWithPrices = tokensWithBalance.map((token) => {
+          const priceData = pricesMap[token.symbol] || { price: 0, change24h: 0 };
+          const price = priceData.price || 0;
+          const change24h = priceData.change24h || 0;
+          const balanceUSD = parseFloat(token.balance || '0') * price;
+          return {
+            ...token,
+            priceUSD: price,
+            balanceUSD: balanceUSD.toFixed(2),
+            change24h, // ✅ Direct from batch call - no extra API calls!
+          };
+        });
 
         tokensWithValue = tokensWithPrices.filter(
           t => parseFloat(t.balance || '0') > 0

@@ -82,7 +82,7 @@ export async function GET(request: Request) {
       headers: {
         'Accept': 'application/json',
       },
-      next: { revalidate: 10 }, // ✅ Cache for 10 seconds only (ultra-fresh)
+      next: { revalidate: 60 }, // ✅ Cache for 60 seconds (1 minute) for fresh change24h data
     });
 
     if (!response.ok) {

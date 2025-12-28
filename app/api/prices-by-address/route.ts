@@ -233,7 +233,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result, {
       headers: {
-        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600', // 5min cache
+        // ✅ FIX: Shorter cache for change24h data (1 minute) - prices can be cached longer
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120', // 1min cache for fresh change24h
       },
     });
 
