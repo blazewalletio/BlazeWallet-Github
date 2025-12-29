@@ -268,15 +268,24 @@ async function executeEVMTransaction(req: ExecutionRequest): Promise<ExecutionRe
       }
 
       // ✅ FIX: Normalize amount to prevent "too many decimals" error
-      // Round to max decimals to avoid floating point precision issues
+      // Use precise rounding to avoid floating point precision issues
       const amountNum = parseFloat(req.amount);
       if (isNaN(amountNum) || amountNum < 0) {
         throw new Error(`Invalid amount: ${req.amount}`);
       }
       
-      // Round to max decimals (prevent overflow)
-      const normalizedAmount = amountNum.toFixed(decimals);
-      const amountWei = ethers.parseUnits(normalizedAmount, decimals);
+      // ✅ ROBUST FIX: Multiply by 10^decimals, round to integer, then divide back
+      // This ensures we never have more decimals than the token supports
+      const multiplier = Math.pow(10, decimals);
+      const amountInSmallestUnit = Math.round(amountNum * multiplier);
+      const normalizedAmount = (amountInSmallestUnit / multiplier).toFixed(decimals);
+      
+      // Remove trailing zeros to avoid issues
+      const cleanAmount = normalizedAmount.replace(/\.?0+$/, '');
+      
+      logger.log(`📊 Amount normalization: ${req.amount} → ${cleanAmount} (${decimals} decimals)`);
+      
+      const amountWei = ethers.parseUnits(cleanAmount, decimals);
 
       // ✅ PRIORITEIT 2: Dynamic gas limit estimation for token transfers
       let gasLimit: bigint;
@@ -301,15 +310,24 @@ async function executeEVMTransaction(req: ExecutionRequest): Promise<ExecutionRe
     } else {
       // Native Currency Transfer
       // ✅ FIX: Normalize amount to prevent "too many decimals" error
-      // ETH has 18 decimals, so round to max 18 decimal places
+      // ETH has 18 decimals, so use precise rounding
       const amountNum = parseFloat(req.amount);
       if (isNaN(amountNum) || amountNum < 0) {
         throw new Error(`Invalid amount: ${req.amount}`);
       }
       
-      // Round to 18 decimals (ETH precision)
-      const normalizedAmount = amountNum.toFixed(18);
-      const amountWei = ethers.parseEther(normalizedAmount);
+      // ✅ ROBUST FIX: Multiply by 10^18, round to integer, then divide back
+      // This ensures we never have more than 18 decimals
+      const multiplier = Math.pow(10, 18);
+      const amountInWei = Math.round(amountNum * multiplier);
+      const normalizedAmount = (amountInWei / multiplier).toFixed(18);
+      
+      // Remove trailing zeros to avoid issues
+      const cleanAmount = normalizedAmount.replace(/\.?0+$/, '');
+      
+      logger.log(`📊 ETH amount normalization: ${req.amount} → ${cleanAmount}`);
+      
+      const amountWei = ethers.parseEther(cleanAmount);
 
       tx = await wallet.sendTransaction({
         to: req.toAddress,
