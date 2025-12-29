@@ -281,6 +281,19 @@ export default function SmartScheduleModal({
     onClose();
   };
 
+  // ✅ Reset date/time when modal opens to prevent stale values
+  useEffect(() => {
+    if (isOpen && mode === 'custom') {
+      // Reset to today's date in local timezone
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      if (customDate !== todayStr) {
+        setCustomDate(todayStr);
+        logger.log('📅 Reset custom date to today:', todayStr);
+      }
+    }
+  }, [isOpen, mode]);
+
   if (!isOpen) return null;
 
   return (
