@@ -49,68 +49,178 @@ class BlockchairService {
   }
 
   /**
-   * Get address information and UTXOs
+   * Get address information and UTXOs with fallback to alternative APIs
    */
   async getAddressData(chain: string, address: string): Promise<{
     info: AddressInfo;
     utxos: UTXO[];
   }> {
+    // Try Blockchair first
     try {
-      const chainName = this.getChainName(chain);
-      const url = `${this.baseUrl}/${chainName}/dashboards/address/${address}`;
+      return await this.getAddressDataFromBlockchair(chain, address);
+    } catch (error: any) {
+      logger.warn(`⚠️ [Blockchair] Primary API failed, trying fallback: ${error.message}`);
       
-      logger.log(`🔍 [Blockchair] Fetching address data for ${address} on ${chainName}`);
-      
-      const params = new URLSearchParams();
-      if (this.apiKey) {
-        params.append('key', this.apiKey);
+      // Fallback to alternative APIs
+      if (chain.toLowerCase() === 'bitcoin') {
+        try {
+          return await this.getAddressDataFromBlockstream(chain, address);
+        } catch (fallbackError: any) {
+          logger.warn(`⚠️ [Blockstream] Fallback also failed: ${fallbackError.message}`);
+        }
       }
       
-      const response = await fetch(`${url}?${params}`, {
-        headers: {
-          'Accept': 'application/json',
-        },
-        signal: AbortSignal.timeout(10000), // 10 second timeout
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      const addressData = data.data[address];
-
-      if (!addressData) {
-        throw new Error('Address not found in response');
-      }
-
-      const info: AddressInfo = {
-        balance: addressData.address.balance || 0,
-        received: addressData.address.received || 0,
-        spent: addressData.address.spent || 0,
-        unspent_output_count: addressData.address.unspent_output_count || 0,
-        transaction_count: addressData.address.transaction_count || 0,
-      };
-
-      const utxos: UTXO[] = (addressData.utxo || []).map((utxo: any) => ({
-        transaction_hash: utxo.transaction_hash,
-        index: utxo.index,
-        value: utxo.value,
-        script_hex: utxo.script_hex,
-        block_id: utxo.block_id,
-        confirmations: data.context?.state ? 
-          data.context.state - utxo.block_id + 1 : undefined,
-      }));
-
-      logger.log(`✅ [Blockchair] Found ${utxos.length} UTXOs for ${address}`);
-      logger.log(`💰 [Blockchair] Balance: ${info.balance} satoshis`);
-
-      return { info, utxos };
-
-    } catch (error) {
-      logger.error(`❌ [Blockchair] Error fetching address data:`, error);
+      // If all fallbacks fail, throw original error
       throw error;
     }
+  }
+
+  /**
+   * Get address data from Blockchair (primary)
+   */
+  private async getAddressDataFromBlockchair(chain: string, address: string): Promise<{
+    info: AddressInfo;
+    utxos: UTXO[];
+  }> {
+    const chainName = this.getChainName(chain);
+    const url = `${this.baseUrl}/${chainName}/dashboards/address/${address}`;
+    
+    logger.log(`🔍 [Blockchair] Fetching address data for ${address} on ${chainName}`);
+    
+    const params = new URLSearchParams();
+    if (this.apiKey) {
+      params.append('key', this.apiKey);
+    }
+    
+    const response = await fetch(`${url}?${params}`, {
+      headers: {
+        'Accept': 'application/json',
+      },
+      signal: AbortSignal.timeout(10000), // 10 second timeout
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const addressData = data.data[address];
+
+    if (!addressData) {
+      throw new Error('Address not found in response');
+    }
+
+    const info: AddressInfo = {
+      balance: addressData.address.balance || 0,
+      received: addressData.address.received || 0,
+      spent: addressData.address.spent || 0,
+      unspent_output_count: addressData.address.unspent_output_count || 0,
+      transaction_count: addressData.address.transaction_count || 0,
+    };
+
+    const utxos: UTXO[] = (addressData.utxo || []).map((utxo: any) => ({
+      transaction_hash: utxo.transaction_hash,
+      index: utxo.index,
+      value: utxo.value,
+      script_hex: utxo.script_hex,
+      block_id: utxo.block_id,
+      confirmations: data.context?.state ? 
+        data.context.state - utxo.block_id + 1 : undefined,
+    }));
+
+    logger.log(`✅ [Blockchair] Found ${utxos.length} UTXOs for ${address}`);
+    logger.log(`💰 [Blockchair] Balance: ${info.balance} satoshis`);
+
+    return { info, utxos };
+  }
+
+  /**
+   * Get address data from Blockstream API (fallback for Bitcoin)
+   */
+  private async getAddressDataFromBlockstream(chain: string, address: string): Promise<{
+    info: AddressInfo;
+    utxos: UTXO[];
+  }> {
+    if (chain.toLowerCase() !== 'bitcoin') {
+      throw new Error('Blockstream API only supports Bitcoin');
+    }
+
+    logger.log(`🔍 [Blockstream] Fetching address data for ${address} (fallback)`);
+    
+    // Blockstream API endpoint
+    const url = `https://blockstream.info/api/address/${address}/utxo`;
+    
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const utxoData = await response.json();
+    
+    // Get address info from summary endpoint
+    const summaryUrl = `https://blockstream.info/api/address/${address}`;
+    const summaryResponse = await fetch(summaryUrl, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(10000),
+    });
+
+    let balance = 0;
+    if (summaryResponse.ok) {
+      const summary = await summaryResponse.json();
+      balance = summary.chain_stats?.funded_txo_sum || 0;
+    }
+
+    // Convert Blockstream format to our UTXO format
+    const utxos: UTXO[] = utxoData.map((utxo: any) => ({
+      transaction_hash: utxo.txid,
+      index: utxo.vout,
+      value: utxo.value,
+      script_hex: '', // Blockstream doesn't provide script_hex in UTXO endpoint
+      block_id: utxo.status?.block_height || 0,
+      confirmations: utxo.status?.block_height ? 
+        (await this.getCurrentBlockHeight()) - utxo.status.block_height + 1 : 0,
+    }));
+
+    // Calculate balance from UTXOs if summary failed
+    if (balance === 0) {
+      balance = utxos.reduce((sum, utxo) => sum + utxo.value, 0);
+    }
+
+    const info: AddressInfo = {
+      balance,
+      received: balance, // Approximate
+      spent: 0, // Not available from Blockstream UTXO endpoint
+      unspent_output_count: utxos.length,
+      transaction_count: 0, // Not available
+    };
+
+    logger.log(`✅ [Blockstream] Found ${utxos.length} UTXOs for ${address} (fallback)`);
+    logger.log(`💰 [Blockstream] Balance: ${info.balance} satoshis`);
+
+    return { info, utxos };
+  }
+
+  /**
+   * Get current block height (for confirmations calculation)
+   */
+  private async getCurrentBlockHeight(): Promise<number> {
+    try {
+      const response = await fetch('https://blockstream.info/api/blocks/tip/height', {
+        signal: AbortSignal.timeout(5000),
+      });
+      if (response.ok) {
+        return parseInt(await response.text());
+      }
+    } catch (error) {
+      logger.warn('⚠️ Failed to get block height from Blockstream');
+    }
+    return 0; // Fallback
   }
 
   /**
@@ -172,9 +282,39 @@ class BlockchairService {
   }
 
   /**
-   * Broadcast signed transaction
+   * Broadcast signed transaction with fallback to alternative APIs
    */
   async broadcastTransaction(chain: string, rawTxHex: string): Promise<BroadcastResult> {
+    // Try Blockchair first
+    const blockchairResult = await this.broadcastTransactionToBlockchair(chain, rawTxHex);
+    if (blockchairResult.success) {
+      return blockchairResult;
+    }
+
+    logger.warn(`⚠️ [Blockchair] Broadcast failed, trying fallback: ${blockchairResult.error}`);
+    
+    // Fallback to alternative APIs
+    if (chain.toLowerCase() === 'bitcoin') {
+      const blockstreamResult = await this.broadcastTransactionToBlockstream(chain, rawTxHex);
+      if (blockstreamResult.success) {
+        return blockstreamResult;
+      }
+      
+      // Try Mempool.space as second fallback
+      const mempoolResult = await this.broadcastTransactionToMempool(chain, rawTxHex);
+      if (mempoolResult.success) {
+        return mempoolResult;
+      }
+    }
+    
+    // If all fallbacks fail, return original error
+    return blockchairResult;
+  }
+
+  /**
+   * Broadcast transaction to Blockchair (primary)
+   */
+  private async broadcastTransactionToBlockchair(chain: string, rawTxHex: string): Promise<BroadcastResult> {
     try {
       const chainName = this.getChainName(chain);
       const url = `${this.baseUrl}/${chainName}/push/transaction`;
@@ -219,6 +359,94 @@ class BlockchairService {
 
     } catch (error: any) {
       logger.error(`❌ [Blockchair] Broadcast error:`, error);
+      return {
+        success: false,
+        error: error.message || 'Broadcast failed',
+      };
+    }
+  }
+
+  /**
+   * Broadcast transaction to Blockstream API (fallback for Bitcoin)
+   */
+  private async broadcastTransactionToBlockstream(chain: string, rawTxHex: string): Promise<BroadcastResult> {
+    if (chain.toLowerCase() !== 'bitcoin') {
+      return { success: false, error: 'Blockstream API only supports Bitcoin' };
+    }
+
+    try {
+      logger.log(`📡 [Blockstream] Broadcasting transaction (fallback)`);
+      
+      const url = 'https://blockstream.info/api/tx';
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain',
+        },
+        body: rawTxHex,
+        signal: AbortSignal.timeout(15000),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const txHash = await response.text();
+      
+      logger.log(`✅ [Blockstream] Transaction broadcast successful: ${txHash}`);
+
+      return {
+        success: true,
+        transaction_hash: txHash.trim(),
+      };
+
+    } catch (error: any) {
+      logger.error(`❌ [Blockstream] Broadcast error:`, error);
+      return {
+        success: false,
+        error: error.message || 'Broadcast failed',
+      };
+    }
+  }
+
+  /**
+   * Broadcast transaction to Mempool.space API (fallback for Bitcoin)
+   */
+  private async broadcastTransactionToMempool(chain: string, rawTxHex: string): Promise<BroadcastResult> {
+    if (chain.toLowerCase() !== 'bitcoin') {
+      return { success: false, error: 'Mempool.space API only supports Bitcoin' };
+    }
+
+    try {
+      logger.log(`📡 [Mempool.space] Broadcasting transaction (fallback)`);
+      
+      const url = 'https://mempool.space/api/tx';
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain',
+        },
+        body: rawTxHex,
+        signal: AbortSignal.timeout(15000),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const txHash = await response.text();
+      
+      logger.log(`✅ [Mempool.space] Transaction broadcast successful: ${txHash}`);
+
+      return {
+        success: true,
+        transaction_hash: txHash.trim(),
+      };
+
+    } catch (error: any) {
+      logger.error(`❌ [Mempool.space] Broadcast error:`, error);
       return {
         success: false,
         error: error.message || 'Broadcast failed',
