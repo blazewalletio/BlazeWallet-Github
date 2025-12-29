@@ -44,6 +44,12 @@ export async function GET(req: NextRequest) {
     const isVercelCron = vercelCronHeader === '1' || userAgent.includes('vercel-cron') || isFromVercel;
     const cronSecret = req.url.includes('CRON_SECRET=') ? new URL(req.url).searchParams.get('CRON_SECRET') : null;
     
+    // ⚠️ DEPRECATED: Log warning if URL secret is used
+    if (cronSecret && !authHeader) {
+      logger.warn('⚠️ [SECURITY] CRON_SECRET in URL is deprecated. Use Authorization header instead.');
+      logger.warn('   Update EasyCron to use: Authorization: Bearer {CRON_SECRET}');
+    }
+    
     // Detect cron source
     const isEasyCron = userAgent.includes('EasyCron') || userAgent.includes('curl') || userAgent.includes('python');
     
