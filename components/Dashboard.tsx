@@ -33,8 +33,6 @@ import PremiumBadge, { PremiumCard } from './PremiumBadge';
 import BottomNavigation, { TabType } from './BottomNavigation';
 import { PRESALE_FEATURE_ENABLED } from '@/lib/feature-flags';
 import { calculateWeightedPortfolioChange } from '@/lib/portfolio-change-calculator';
-import { usePullToRefresh } from '@/hooks/usePullToRefresh';
-import PullToRefreshIndicator from './PullToRefreshIndicator';
 
 // ✅ PERFORMANCE FIX: Lazy load modals (reduces initial bundle size by ~200KB)
 const SendModal = dynamic(() => import('./SendModal'), { ssr: false });
@@ -230,14 +228,6 @@ export default function Dashboard() {
   const currentState = getCurrentChainState();
   const isRefreshing = currentState.isRefreshing;
   
-  // ✅ Pull-to-refresh hook (only on wallet tab and mobile)
-  const pullToRefresh = usePullToRefresh({
-    onRefresh: () => fetchData(true),
-    enabled: activeTab === 'wallet', // Only enable on wallet tab
-    disabled: isRefreshing, // Disable when already refreshing
-    threshold: 80, // 80px pull distance to trigger
-    externalIsRefreshing: isRefreshing, // Use Dashboard's refresh state
-  });
   const totalValueUSD = currentState.totalValueUSD;
   const change24h = currentState.change24h;
   
@@ -1671,27 +1661,10 @@ export default function Dashboard() {
   // Wallet tab content
   const renderWalletContent = () => (
     <div className="space-y-6">
-          {/* Pull-to-refresh indicator (mobile only) */}
-          <div className="md:hidden">
-            <PullToRefreshIndicator
-              pullDistance={pullToRefresh.pullDistance}
-              isPulling={pullToRefresh.isPulling}
-              isRefreshing={pullToRefresh.isRefreshing}
-              threshold={pullToRefresh.threshold}
-              progress={pullToRefresh.progress}
-            />
-          </div>
-          
-          {/* Portfolio Value Card - animates down during pull */}
+          {/* Portfolio Value Card */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
-            animate={{ 
-              opacity: 1, 
-              y: pullToRefresh.isPulling ? pullToRefresh.pullDistance : 0,
-            }}
-            transition={{
-              y: { type: 'spring', stiffness: 300, damping: 30 },
-            }}
+            animate={{ opacity: 1, y: 0 }}
             className="glass-card relative overflow-hidden card-3d subtle-shimmer"
           >
             <div className="absolute inset-0 bg-gradient-primary opacity-5 animate-gradient" />
@@ -2413,6 +2386,38 @@ export default function Dashboard() {
   return (
     <>
       <div className="min-h-screen pb-24 relative">
+        {/* ✅ Pull-to-refresh loading indicator (mobile only) */}
+        <AnimatePresence>
+          {(pullToRefresh.isPulling || pullToRefresh.isRefreshing) && (
+            <motion.div
+              initial={{ opacity: 0, y: -50 }}
+              animate={{ 
+                opacity: 1, 
+                y: pullToRefresh.isRefreshing ? 0 : Math.max(0, pullToRefresh.pullDistance - 20)
+              }}
+              exit={{ opacity: 0, y: -50 }}
+              transition={{ duration: 0.2 }}
+              className="fixed top-0 left-0 right-0 z-40 flex justify-center items-center pt-4 pointer-events-none md:hidden"
+            >
+              <div className="glass-card px-4 py-2 rounded-full flex items-center gap-2 shadow-lg backdrop-blur-xl bg-white/90">
+                <RefreshCw 
+                  className={`w-5 h-5 text-gray-700 ${
+                    pullToRefresh.isRefreshing ? 'animate-spin' : ''
+                  }`}
+                  style={{
+                    transform: pullToRefresh.isRefreshing 
+                      ? 'rotate(0deg)' 
+                      : `rotate(${pullToRefresh.progress * 360}deg)`
+                  }}
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  {pullToRefresh.isRefreshing ? 'Verversen...' : 'Laat los om te verversen'}
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Header with Network Selector */}
         <div className="sticky top-0 z-30 backdrop-blur-xl bg-white/95 border-b border-gray-200 shadow-sm">
           <div className="max-w-4xl mx-auto px-4 py-4">
@@ -2461,6 +2466,15 @@ export default function Dashboard() {
                   <span className="text-sm font-semibold whitespace-nowrap">Presale Blaze Token</span>
                 </motion.button>
                 )}
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => fetchData(true)}
+                  disabled={isRefreshing}
+                  className="glass-card p-2.5 sm:p-3 rounded-xl hover:bg-gray-50"
+                  title="Refresh"
+                >
+                  <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 text-gray-700 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </motion.button>
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setShowProfile(true)}
