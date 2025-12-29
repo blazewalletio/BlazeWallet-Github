@@ -63,6 +63,7 @@ export async function GET(request: NextRequest) {
     logger.log(`📡 [Prices by Address] Platform: ${platform}`);
     logger.log(`📡 [Prices by Address] Using API key: ${apiKey ? 'Yes' : 'No'}`);
     logger.log(`📡 [Prices by Address] Cache buster: ${cacheBuster}`);
+    logger.log(`📡 [Prices by Address] Full URL: ${url}`);
     logger.log(`📡 [Prices by Address] Addresses: ${addresses.map(a => a.substring(0, 10) + '...').join(', ')}`);
     if (!apiKey) {
       logger.warn('⚠️ [Prices by Address] No CoinGecko API key - using free tier (rate limited to 10-50 calls/min)');
@@ -76,8 +77,14 @@ export async function GET(request: NextRequest) {
       const response = await fetch(url, {
         headers: {
           'Accept': 'application/json',
+          // 🔥 NO CACHE HEADERS - Force fresh data
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
         },
         signal: controller.signal,
+        // 🔥 NO CACHE - Bypass Node.js http cache
+        cache: 'no-store' as RequestCache,
       });
 
       clearTimeout(timeoutId);
@@ -152,6 +159,16 @@ export async function GET(request: NextRequest) {
       
       // 🔍 DEBUG: Log RAW CoinGecko response
       logger.log(`📦 [Prices by Address] RAW CoinGecko Response:`, JSON.stringify(data, null, 2));
+      
+      // 🔍 DEBUG: Log THQ specifically
+      const thqAddress = '0xaffbe9a60f1f45e057fd9b6dc70004bb0ccc8b99';
+      if (data[thqAddress]) {
+        logger.log(`🎯 [Prices by Address] THQ DATA FROM COINGECKO:`);
+        logger.log(`   Address: ${thqAddress}`);
+        logger.log(`   USD: ${data[thqAddress].usd}`);
+        logger.log(`   24h Change: ${data[thqAddress].usd_24h_change}`);
+        logger.log(`   Timestamp: ${new Date().toISOString()}`);
+      }
 
     // Transform data to our format
     // CoinGecko returns: { "0x...": { "usd": 5.42, "usd_24h_change": -2.5 } }
