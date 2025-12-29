@@ -176,6 +176,9 @@ class BlockchairService {
       balance = summary.chain_stats?.funded_txo_sum || 0;
     }
 
+    // Get current block height once (for confirmations calculation)
+    const currentBlockHeight = await this.getCurrentBlockHeight();
+
     // Convert Blockstream format to our UTXO format
     const utxos: UTXO[] = utxoData.map((utxo: any) => ({
       transaction_hash: utxo.txid,
@@ -184,7 +187,7 @@ class BlockchairService {
       script_hex: '', // Blockstream doesn't provide script_hex in UTXO endpoint
       block_id: utxo.status?.block_height || 0,
       confirmations: utxo.status?.block_height ? 
-        (await this.getCurrentBlockHeight()) - utxo.status.block_height + 1 : 0,
+        currentBlockHeight - utxo.status.block_height + 1 : 0,
     }));
 
     // Calculate balance from UTXOs if summary failed
