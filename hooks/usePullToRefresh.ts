@@ -38,8 +38,11 @@ export function usePullToRefresh({
   // Check if we're at the top of the scrollable container
   const checkScrollPosition = useCallback(() => {
     if (!scrollElement.current) {
-      // Check window scroll if no specific element
-      isAtTop.current = window.scrollY === 0;
+      // Check multiple scroll sources for mobile compatibility
+      const windowScroll = window.scrollY || window.pageYOffset || 0;
+      const bodyScroll = document.body.scrollTop || 0;
+      const documentScroll = document.documentElement.scrollTop || 0;
+      isAtTop.current = windowScroll === 0 && bodyScroll === 0 && documentScroll === 0;
       return;
     }
     isAtTop.current = scrollElement.current.scrollTop === 0;
@@ -54,22 +57,32 @@ export function usePullToRefresh({
 
   // Handle touch start
   const handleTouchStart = useCallback((e: TouchEvent) => {
-    if (!enabled || disabled || state.isRefreshing) return;
+    if (!enabled || disabled || state.isRefreshing) {
+      logger.log(`🚫 [PullToRefresh] Disabled - enabled: ${enabled}, disabled: ${disabled}, isRefreshing: ${state.isRefreshing}`);
+      return;
+    }
 
     checkScrollPosition();
     
     // Only start if we're at the top
-    if (!isAtTop.current) return;
+    if (!isAtTop.current) {
+      logger.log(`🚫 [PullToRefresh] Not at top - scrollY: ${window.scrollY}, body.scrollTop: ${document.body.scrollTop}`);
+      return;
+    }
 
     const touch = e.touches[0];
     touchStartY.current = touch.clientY;
     touchStartTime.current = Date.now();
+    logger.log(`👆 [PullToRefresh] Touch start at Y: ${touch.clientY}`);
   }, [enabled, disabled, state.isRefreshing, checkScrollPosition]);
 
   // Handle touch move
   const handleTouchMove = useCallback((e: TouchEvent) => {
     if (!enabled || disabled || state.isRefreshing || touchStartY.current === null) return;
 
+    // Re-check scroll position during move
+    checkScrollPosition();
+    
     const touch = e.touches[0];
     const currentY = touch.clientY;
     const deltaY = currentY - touchStartY.current;
@@ -78,23 +91,27 @@ export function usePullToRefresh({
     if (deltaY > 0 && isAtTop.current) {
       // Prevent default scroll behavior
       e.preventDefault();
+      e.stopPropagation();
 
       // Calculate pull distance with resistance (ease out)
       const resistance = 0.5; // Makes it harder to pull further
       const pullDistance = Math.min(deltaY * resistance, threshold * 1.5);
 
+      const wasPulling = state.isPulling;
+      
       setState((prev: PullToRefreshState) => ({
         ...prev,
         isPulling: true,
         pullDistance,
       }));
 
-      // Trigger haptic at threshold
-      if (pullDistance >= threshold && !state.isPulling) {
+      // Trigger haptic at threshold (only once)
+      if (pullDistance >= threshold && !wasPulling) {
         triggerHaptic();
+        logger.log(`🎯 [PullToRefresh] Threshold reached: ${pullDistance}px`);
       }
-    } else if (deltaY < 0) {
-      // User is scrolling up, reset
+    } else if (deltaY < 0 || !isAtTop.current) {
+      // User is scrolling up or not at top, reset
       touchStartY.current = null;
       setState({
         isPulling: false,
@@ -114,12 +131,15 @@ export function usePullToRefresh({
     const pullDistance = state.pullDistance;
     const shouldRefresh = pullDistance >= threshold;
 
+    logger.log(`👋 [PullToRefresh] Touch end - distance: ${pullDistance}px, threshold: ${threshold}px, shouldRefresh: ${shouldRefresh}`);
+
     // Reset touch state
     touchStartY.current = null;
     touchStartTime.current = null;
 
     if (shouldRefresh && !state.isRefreshing) {
       // Trigger refresh
+      logger.log('🔄 [PullToRefresh] Starting refresh...');
       setState((prev: PullToRefreshState) => ({
         ...prev,
         isRefreshing: true,
@@ -145,6 +165,7 @@ export function usePullToRefresh({
       }
     } else {
       // Reset without refresh
+      logger.log(`🚫 [PullToRefresh] Not refreshing - distance too small or already refreshing`);
       setState({
         isPulling: false,
         pullDistance: 0,
@@ -184,18 +205,34 @@ export function usePullToRefresh({
       checkScrollPosition();
     };
 
-    const scrollTarget = scrollElement.current || window;
-    scrollTarget.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('touchstart', handleTouchStart, { passive: true });
-    window.addEventListener('touchmove', handleTouchMove, { passive: false }); // Need preventDefault
-    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    // Add scroll listeners to multiple targets for mobile compatibility
+    const scrollTargets = [
+      scrollElement.current,
+      window,
+      document.body,
+      document.documentElement,
+    ].filter(Boolean) as (HTMLElement | Window)[];
+
+    scrollTargets.forEach(target => {
+      target.addEventListener('scroll', handleScroll, { passive: true });
+    });
+
+    // Use document instead of window for better mobile compatibility
+    // Capture phase ensures we catch events before they bubble
+    document.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
+    document.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true }); // Need preventDefault
+    document.addEventListener('touchend', handleTouchEnd, { passive: true, capture: true });
+    
+    logger.log('✅ [PullToRefresh] Event listeners attached', { enabled });
 
     return () => {
-      scrollTarget.removeEventListener('scroll', handleScroll);
+      scrollTargets.forEach(target => {
+        target.removeEventListener('scroll', handleScroll);
+      });
       window.removeEventListener('resize', handleResize);
-      window.removeEventListener('touchstart', handleTouchStart);
-      window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('touchend', handleTouchEnd);
+      document.removeEventListener('touchstart', handleTouchStart, { capture: true });
+      document.removeEventListener('touchmove', handleTouchMove, { capture: true });
+      document.removeEventListener('touchend', handleTouchEnd, { capture: true });
     };
   }, [enabled, handleTouchStart, handleTouchMove, handleTouchEnd, checkScrollPosition]);
 
