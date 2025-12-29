@@ -267,7 +267,16 @@ async function executeEVMTransaction(req: ExecutionRequest): Promise<ExecutionRe
         decimals = 18; // Default to 18 decimals
       }
 
-      const amountWei = ethers.parseUnits(req.amount, decimals);
+      // ✅ FIX: Normalize amount to prevent "too many decimals" error
+      // Round to max decimals to avoid floating point precision issues
+      const amountNum = parseFloat(req.amount);
+      if (isNaN(amountNum) || amountNum < 0) {
+        throw new Error(`Invalid amount: ${req.amount}`);
+      }
+      
+      // Round to max decimals (prevent overflow)
+      const normalizedAmount = amountNum.toFixed(decimals);
+      const amountWei = ethers.parseUnits(normalizedAmount, decimals);
 
       // ✅ PRIORITEIT 2: Dynamic gas limit estimation for token transfers
       let gasLimit: bigint;
@@ -291,7 +300,16 @@ async function executeEVMTransaction(req: ExecutionRequest): Promise<ExecutionRe
 
     } else {
       // Native Currency Transfer
-      const amountWei = ethers.parseEther(req.amount);
+      // ✅ FIX: Normalize amount to prevent "too many decimals" error
+      // ETH has 18 decimals, so round to max 18 decimal places
+      const amountNum = parseFloat(req.amount);
+      if (isNaN(amountNum) || amountNum < 0) {
+        throw new Error(`Invalid amount: ${req.amount}`);
+      }
+      
+      // Round to 18 decimals (ETH precision)
+      const normalizedAmount = amountNum.toFixed(18);
+      const amountWei = ethers.parseEther(normalizedAmount);
 
       tx = await wallet.sendTransaction({
         to: req.toAddress,
