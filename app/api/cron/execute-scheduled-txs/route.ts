@@ -15,7 +15,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { gasPriceService } from '@/lib/gas-price-service';
 import { ethers } from 'ethers';
-import { logger } from '@/lib/logger';
+import { logger, secureLogger } from '@/lib/logger';
+import { apiRateLimiter } from '@/lib/api-rate-limiter';
+import { sanitizeErrorResponse } from '@/lib/error-handler';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes max
@@ -88,6 +90,20 @@ export async function GET(req: NextRequest) {
       }, { status: 401 });
     }
 
+    // ✅ Rate limiting per IP (for cron endpoint)
+    const ipAddress = req.headers.get('x-forwarded-for')?.split(',')[0] || 
+                     req.headers.get('x-real-ip') || 
+                     'unknown';
+    
+    // 20 requests per minute per IP (cron runs every 5 min, so 12/hour max)
+    if (!apiRateLimiter.check(ipAddress, 20, 60000)) {
+      logger.warn('⚠️ [Rate Limit] Cron endpoint rate limited:', ipAddress);
+      return NextResponse.json(
+        { error: 'Rate limit exceeded' },
+        { status: 429 }
+      );
+    }
+
     logger.log('\n========================================');
     logger.log('⏰ [CRON] SMART SEND EXECUTION JOB');
     logger.log('========================================');
@@ -129,9 +145,7 @@ export async function GET(req: NextRequest) {
     for (const tx of pendingTxs) {
       try {
         logger.log(`\n💫 Processing transaction ${tx.id}`);
-        logger.log(`   Chain: ${tx.chain}`);
-        logger.log(`   Amount: ${tx.amount} ${tx.token_symbol}`);
-        logger.log(`   To: ${tx.to_address}`);
+        secureLogger.transaction(tx);
 
         // Check current gas price
         const currentGas = await gasPriceService.getGasPrice(tx.chain);
@@ -245,11 +259,7 @@ export async function GET(req: NextRequest) {
 
   } catch (error: any) {
     logger.error('❌ [CRON] Fatal error:', error);
-
-    return NextResponse.json({
-      success: false,
-      error: error.message,
-    }, { status: 500 });
+    return sanitizeErrorResponse(error);
   }
 }
 

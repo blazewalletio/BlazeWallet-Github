@@ -121,6 +121,54 @@ export const perfLogger = {
   },
 };
 
+/**
+ * 🔒 SECURE LOGGER - Sanitization for production
+ * 
+ * Automatically sanitizes sensitive data in logs:
+ * - Development: Full data (for debugging)
+ * - Production: Sanitized data (for privacy)
+ */
+export const secureLogger = {
+  /**
+   * Hash address (show first 4 + last 4 chars)
+   * Development: full address
+   * Production: hashed
+   */
+  hashAddress(address: string | null | undefined): string {
+    if (!address) return '[no address]';
+    if (showDebugLogs) return address; // Full in dev
+    if (address.length < 8) return '***';
+    return `${address.substring(0, 4)}...${address.substring(address.length - 4)}`;
+  },
+
+  /**
+   * Mask amount (round to range)
+   * Development: exact amount
+   * Production: masked range
+   */
+  maskAmount(amount: string, symbol?: string): string {
+    if (showDebugLogs) return `${amount} ${symbol || ''}`.trim();
+    const num = parseFloat(amount);
+    if (isNaN(num)) return `[invalid] ${symbol || ''}`.trim();
+    if (num < 0.01) return `<0.01 ${symbol || ''}`.trim();
+    if (num < 1) return `<1 ${symbol || ''}`.trim();
+    if (num < 10) return `~1-10 ${symbol || ''}`.trim();
+    const rounded = Math.round(num / 10) * 10;
+    return `~${rounded}-${rounded + 10} ${symbol || ''}`.trim();
+  },
+
+  /**
+   * Log transaction details (sanitized)
+   */
+  transaction(tx: any) {
+    logger.log(`   Chain: ${tx.chain}`);
+    logger.log(`   Amount: ${secureLogger.maskAmount(tx.amount, tx.token_symbol)}`);
+    logger.log(`   To: ${secureLogger.hashAddress(tx.to_address)}`);
+    logger.log(`   From: ${secureLogger.hashAddress(tx.from_address)}`);
+    logger.log(`   Status: ${tx.status}`);
+  }
+};
+
 // Export for backwards compatibility
 export default logger;
 

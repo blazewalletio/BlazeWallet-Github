@@ -6,6 +6,19 @@
  *
  * - We still use the existing `encrypted_mnemonic` (AES-256-GCM via EphemeralKeyCrypto)
  * - This module ONLY encrypts/decrypts the ephemeral AES key itself.
+ * 
+ * ⚠️ SECURITY NOTES:
+ * - This is a master key for ALL scheduled transactions
+ * - If leaked, ALL transactions can be decrypted
+ * - Key rotation requires re-encrypting all pending transactions
+ * 
+ * KEY ROTATION PROCESS (Manual):
+ * 1. Generate new key: openssl rand -base64 32
+ * 2. Update Vercel env var: SCHEDULED_TX_ENCRYPTION_KEY
+ * 3. Re-encrypt all pending transactions (migration script needed)
+ * 4. Update old transactions to use new key version
+ * 
+ * FUTURE: Implement automatic key rotation with versioning
  */
 
 import crypto from 'crypto';

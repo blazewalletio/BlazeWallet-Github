@@ -13,7 +13,7 @@
 import { ethers } from 'ethers';
 import { Connection, PublicKey, Transaction as SolanaTransaction, SystemProgram, sendAndConfirmTransaction, Keypair } from '@solana/web3.js';
 import * as bitcoin from 'bitcoinjs-lib';
-import { logger } from '@/lib/logger';
+import { logger, secureLogger } from '@/lib/logger';
 import { decryptEphemeralKeySymmetric } from '@/lib/scheduled-tx-crypto';
 
 /**
@@ -205,7 +205,7 @@ async function executeEVMTransaction(req: ExecutionRequest): Promise<ExecutionRe
     let mnemonicStr: any = mnemonic;
     mnemonicStr = null;
     
-    logger.log(`🔑 EVM wallet derived: ${wallet.address}`);
+    logger.log(`🔑 EVM wallet derived: ${secureLogger.hashAddress(wallet.address)}`);
 
     // ✅ Get current fee data from provider to determine EIP-1559 support
     const feeData = await provider.getFeeData();
@@ -551,8 +551,8 @@ async function executeBitcoinLikeTransaction(req: ExecutionRequest): Promise<Exe
     const privateKeyBuffer = Buffer.from(child.privateKey);
     const derivedAddress = bitcoinTxBuilder.getAddressFromPrivateKey(privateKeyBuffer, req.chain);
     
-    logger.log(`📍 Derived address: ${derivedAddress}`);
-    logger.log(`📍 Expected address: ${req.fromAddress}`);
+    logger.log(`📍 Derived address: ${secureLogger.hashAddress(derivedAddress)}`);
+    logger.log(`📍 Expected address: ${secureLogger.hashAddress(req.fromAddress)}`);
     
     // Verify address matches (important security check)
     if (derivedAddress !== req.fromAddress) {

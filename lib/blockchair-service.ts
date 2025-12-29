@@ -8,7 +8,7 @@
  * Rate Limits: 10,000 requests/day (free tier)
  */
 
-import { logger } from '@/lib/logger';
+import { logger, secureLogger } from '@/lib/logger';
 
 export interface UTXO {
   transaction_hash: string;
@@ -85,7 +85,7 @@ class BlockchairService {
     const chainName = this.getChainName(chain);
     const url = `${this.baseUrl}/${chainName}/dashboards/address/${address}`;
     
-    logger.log(`🔍 [Blockchair] Fetching address data for ${address} on ${chainName}`);
+      logger.log(`🔍 [Blockchair] Fetching address data for ${secureLogger.hashAddress(address)} on ${chainName}`);
     
     const params = new URLSearchParams();
     if (this.apiKey) {
@@ -128,8 +128,8 @@ class BlockchairService {
         data.context.state - utxo.block_id + 1 : undefined,
     }));
 
-    logger.log(`✅ [Blockchair] Found ${utxos.length} UTXOs for ${address}`);
-    logger.log(`💰 [Blockchair] Balance: ${info.balance} satoshis`);
+      logger.log(`✅ [Blockchair] Found ${utxos.length} UTXOs for ${secureLogger.hashAddress(address)}`);
+      logger.log(`💰 [Blockchair] Balance: ${info.balance} satoshis`);
 
     return { info, utxos };
   }
@@ -145,7 +145,7 @@ class BlockchairService {
       throw new Error('Blockstream API only supports Bitcoin');
     }
 
-    logger.log(`🔍 [Blockstream] Fetching address data for ${address} (fallback)`);
+    logger.log(`🔍 [Blockstream] Fetching address data for ${secureLogger.hashAddress(address)} (fallback)`);
     
     // Blockstream API endpoint
     const url = `https://blockstream.info/api/address/${address}/utxo`;
@@ -203,7 +203,7 @@ class BlockchairService {
       transaction_count: 0, // Not available
     };
 
-    logger.log(`✅ [Blockstream] Found ${utxos.length} UTXOs for ${address} (fallback)`);
+    logger.log(`✅ [Blockstream] Found ${utxos.length} UTXOs for ${secureLogger.hashAddress(address)} (fallback)`);
     logger.log(`💰 [Blockstream] Balance: ${info.balance} satoshis`);
 
     return { info, utxos };
