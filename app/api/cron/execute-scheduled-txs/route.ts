@@ -300,7 +300,10 @@ async function executeTransaction(tx: any, currentGasPrice: number): Promise<{
   try {
     // ✅ SECURITY: Check if encrypted mnemonic exists
     if (!tx.encrypted_mnemonic || !tx.kms_encrypted_ephemeral_key) {
-      throw new Error('Missing encrypted mnemonic. Transaction cannot be executed automatically.');
+      const missingFields = [];
+      if (!tx.encrypted_mnemonic) missingFields.push('encrypted_mnemonic');
+      if (!tx.kms_encrypted_ephemeral_key) missingFields.push('kms_encrypted_ephemeral_key');
+      throw new Error(`Missing encrypted keys: ${missingFields.join(', ')}. Transaction cannot be executed automatically.`);
     }
 
     // Import the chain-specific execution service
