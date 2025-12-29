@@ -290,21 +290,69 @@ async function executeSolanaTransaction(req: ExecutionRequest): Promise<Executio
 
     if (req.tokenAddress) {
       // SPL Token Transfer
-      const { getAssociatedTokenAddress, createTransferInstruction, TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
+      const { getAssociatedTokenAddress, createTransferInstruction, createAssociatedTokenAccountInstruction, TOKEN_PROGRAM_ID } = await import('@solana/spl-token');
 
       const mintPubkey = new PublicKey(req.tokenAddress);
-      const fromTokenAccount = await getAssociatedTokenAddress(mintPubkey, fromKeypair.publicKey);
-      const toTokenAccount = await getAssociatedTokenAddress(mintPubkey, toPubkey);
 
-      const decimals = 9; // TODO: Fetch actual decimals
-      const amountLamports = Math.floor(parseFloat(req.amount) * Math.pow(10, decimals));
+      // ✅ Check if fromTokenAccount exists
+      const fromTokenAccounts = await connection.getParsedTokenAccountsByOwner(
+        fromKeypair.publicKey,
+        { mint: mintPubkey }
+      );
 
-      const transaction = new SolanaTransaction().add(
+      if (fromTokenAccounts.value.length === 0) {
+        throw new Error(`No token account found for token ${req.tokenAddress}. Please ensure you have a token account for this mint.`);
+      }
+
+      const fromTokenAccount = fromTokenAccounts.value[0].pubkey;
+      logger.log(`✅ From token account found: ${fromTokenAccount.toBase58()}`);
+
+      // ✅ Check if toTokenAccount exists, create if not
+      const toTokenAccounts = await connection.getParsedTokenAccountsByOwner(
+        toPubkey,
+        { mint: mintPubkey }
+      );
+
+      let toTokenAccount: PublicKey;
+      const transaction = new SolanaTransaction();
+
+      if (toTokenAccounts.value.length === 0) {
+        // Create associated token account for recipient
+        toTokenAccount = await getAssociatedTokenAddress(
+          mintPubkey,
+          toPubkey
+        );
+
+        transaction.add(
+          createAssociatedTokenAccountInstruction(
+            fromKeypair.publicKey, // payer
+            toTokenAccount,
+            toPubkey, // owner
+            mintPubkey
+          )
+        );
+        
+        logger.log(`🆕 Creating associated token account for recipient: ${toTokenAccount.toBase58()}`);
+      } else {
+        toTokenAccount = toTokenAccounts.value[0].pubkey;
+        logger.log(`✅ To token account found: ${toTokenAccount.toBase58()}`);
+      }
+
+      // ✅ Get actual token decimals from mint
+      const mintInfo = await connection.getParsedAccountInfo(mintPubkey);
+      const decimals = (mintInfo.value?.data as any)?.parsed?.info?.decimals || 9;
+      logger.log(`📊 Token decimals: ${decimals}`);
+
+      // Convert amount to token units
+      const amountInTokenUnits = Math.floor(parseFloat(req.amount) * Math.pow(10, decimals));
+
+      // Add transfer instruction
+      transaction.add(
         createTransferInstruction(
           fromTokenAccount,
           toTokenAccount,
           fromKeypair.publicKey,
-          amountLamports,
+          amountInTokenUnits,
           [],
           TOKEN_PROGRAM_ID
         )
