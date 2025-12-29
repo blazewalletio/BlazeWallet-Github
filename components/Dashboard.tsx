@@ -2413,38 +2413,6 @@ export default function Dashboard() {
   return (
     <>
       <div className="min-h-screen pb-24 relative">
-        {/* ✅ Pull-to-refresh loading indicator (mobile only) */}
-        <AnimatePresence>
-          {(pullToRefresh.isPulling || pullToRefresh.isRefreshing) && (
-            <motion.div
-              initial={{ opacity: 0, y: -50 }}
-              animate={{ 
-                opacity: 1, 
-                y: pullToRefresh.isRefreshing ? 0 : Math.max(0, pullToRefresh.pullDistance - 20)
-              }}
-              exit={{ opacity: 0, y: -50 }}
-              transition={{ duration: 0.2 }}
-              className="fixed top-0 left-0 right-0 z-40 flex justify-center items-center pt-4 pointer-events-none md:hidden"
-            >
-              <div className="glass-card px-4 py-2 rounded-full flex items-center gap-2 shadow-lg backdrop-blur-xl bg-white/90">
-                <RefreshCw 
-                  className={`w-5 h-5 text-gray-700 ${
-                    pullToRefresh.isRefreshing ? 'animate-spin' : ''
-                  }`}
-                  style={{
-                    transform: pullToRefresh.isRefreshing 
-                      ? 'rotate(0deg)' 
-                      : `rotate(${pullToRefresh.progress * 360}deg)`
-                  }}
-                />
-                <span className="text-sm font-medium text-gray-700">
-                  {pullToRefresh.isRefreshing ? 'Verversen...' : 'Laat los om te verversen'}
-                </span>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Header with Network Selector */}
         <div className="sticky top-0 z-30 backdrop-blur-xl bg-white/95 border-b border-gray-200 shadow-sm">
           <div className="max-w-4xl mx-auto px-4 py-4">
@@ -2493,14 +2461,6 @@ export default function Dashboard() {
                   <span className="text-sm font-semibold whitespace-nowrap">Presale Blaze Token</span>
                 </motion.button>
                 )}
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => fetchData(true)}
-                  disabled={isRefreshing}
-                  className="glass-card p-2.5 sm:p-3 rounded-xl hover:bg-gray-50"
-                >
-                  <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 text-gray-700 ${isRefreshing ? 'animate-spin' : ''}`} />
-                </motion.button>
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setShowProfile(true)}
