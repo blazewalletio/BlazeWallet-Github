@@ -213,11 +213,29 @@ export async function GET(req: NextRequest) {
         }
 
       } catch (error: any) {
-        logger.error(`   ❌ Failed to execute ${tx.id}:`, error.message);
+        // ✅ Enhanced error logging with full details
+        const errorMessage = error?.message || error?.toString() || 'Unknown error';
+        const errorStack = error?.stack || 'No stack trace';
+        
+        logger.error(`   ❌ Failed to execute ${tx.id}:`, {
+          error: errorMessage,
+          stack: errorStack,
+          chain: tx.chain,
+          amount: tx.amount,
+          token_symbol: tx.token_symbol,
+          has_encrypted_mnemonic: !!tx.encrypted_mnemonic,
+          has_kms_key: !!tx.kms_encrypted_ephemeral_key,
+          retry_count: tx.retry_count || 0,
+        });
 
         // Update retry count
         const newRetryCount = (tx.retry_count || 0) + 1;
         const maxRetries = 3;
+
+        // ✅ Store full error details (truncate if too long for database)
+        const fullErrorMessage = errorMessage.length > 500 
+          ? errorMessage.substring(0, 500) + '...' 
+          : errorMessage;
 
         if (newRetryCount >= maxRetries) {
           // Mark as failed after max retries
@@ -225,24 +243,24 @@ export async function GET(req: NextRequest) {
             .from('scheduled_transactions')
             .update({
               status: 'failed',
-              error_message: error.message,
+              error_message: fullErrorMessage,
               retry_count: newRetryCount,
               updated_at: new Date().toISOString(),
             })
             .eq('id', tx.id);
-          logger.log(`   ❌ Transaction failed after ${maxRetries} retries`);
+          logger.log(`   ❌ Transaction failed after ${maxRetries} retries: ${fullErrorMessage}`);
         } else {
           // Mark as pending for retry
           await supabase
             .from('scheduled_transactions')
             .update({
               status: 'pending',
-              error_message: error.message,
+              error_message: fullErrorMessage,
               retry_count: newRetryCount,
               updated_at: new Date().toISOString(),
             })
             .eq('id', tx.id);
-          logger.log(`   🔄 Will retry (attempt ${newRetryCount}/${maxRetries})`);
+          logger.log(`   🔄 Will retry (attempt ${newRetryCount}/${maxRetries}): ${fullErrorMessage}`);
         }
 
         failed++;
