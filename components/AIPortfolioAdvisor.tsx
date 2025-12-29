@@ -406,10 +406,20 @@ export default function AIPortfolioAdvisor({
               <div className="space-y-3 bg-white rounded-xl border border-gray-200 p-6">
                 <h3 className="font-semibold text-gray-900">Top Holdings</h3>
                 <div className="space-y-3">
-                  {tokens.slice(0, 5).map((token, i) => {
-                    // Calculate USD value properly using correct Token properties
-                    const tokenUsdValue = token.balanceUSD ? parseFloat(token.balanceUSD) :
-                                         (token.priceUSD && token.balance ? parseFloat(token.balance) * token.priceUSD : 0);
+                  {(() => {
+                    // ✅ Sort tokens by USD value (highest first) before taking top 5
+                    const sortedTokens = [...tokens].sort((a, b) => {
+                      const aValue = a.balanceUSD ? parseFloat(a.balanceUSD) :
+                                    (a.priceUSD && a.balance ? parseFloat(a.balance) * a.priceUSD : 0);
+                      const bValue = b.balanceUSD ? parseFloat(b.balanceUSD) :
+                                    (b.priceUSD && b.balance ? parseFloat(b.balance) * b.priceUSD : 0);
+                      return bValue - aValue; // Sort descending (highest first)
+                    });
+                    
+                    return sortedTokens.slice(0, 5).map((token, i) => {
+                      // Calculate USD value properly using correct Token properties
+                      const tokenUsdValue = token.balanceUSD ? parseFloat(token.balanceUSD) :
+                                           (token.priceUSD && token.balance ? parseFloat(token.balance) * token.priceUSD : 0);
                     const percentage = tokenUsdValue > 0 && totalValue > 0 ? (tokenUsdValue / totalValue) * 100 : 0;
                     
                     // Get correct logo - Dashboard uses 'logo' property
@@ -473,7 +483,8 @@ export default function AIPortfolioAdvisor({
                         </div>
                       </div>
                     );
-                  })}
+                  });
+                  })()}
                 </div>
               </div>
 

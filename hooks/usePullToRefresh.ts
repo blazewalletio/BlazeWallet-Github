@@ -6,6 +6,7 @@ interface UsePullToRefreshOptions {
   enabled?: boolean;
   threshold?: number; // Distance in pixels to trigger refresh
   disabled?: boolean; // Disable when already refreshing
+  externalIsRefreshing?: boolean; // External refresh state (from Dashboard)
 }
 
 interface PullToRefreshState {
@@ -23,12 +24,16 @@ export function usePullToRefresh({
   enabled = true,
   threshold = 80,
   disabled = false,
+  externalIsRefreshing = false,
 }: UsePullToRefreshOptions) {
   const [state, setState] = useState<PullToRefreshState>({
     isPulling: false,
     pullDistance: 0,
     isRefreshing: false,
   });
+
+  // Use external refresh state if provided, otherwise use internal
+  const isRefreshing = externalIsRefreshing || state.isRefreshing;
 
   const touchStartY = useRef<number | null>(null);
   const touchStartTime = useRef<number | null>(null);
@@ -57,8 +62,8 @@ export function usePullToRefresh({
 
   // Handle touch start
   const handleTouchStart = useCallback((e: TouchEvent) => {
-    if (!enabled || disabled || state.isRefreshing) {
-      logger.log(`🚫 [PullToRefresh] Disabled - enabled: ${enabled}, disabled: ${disabled}, isRefreshing: ${state.isRefreshing}`);
+    if (!enabled || disabled || isRefreshing) {
+      logger.log(`🚫 [PullToRefresh] Disabled - enabled: ${enabled}, disabled: ${disabled}, isRefreshing: ${isRefreshing}`);
       return;
     }
 
@@ -74,11 +79,11 @@ export function usePullToRefresh({
     touchStartY.current = touch.clientY;
     touchStartTime.current = Date.now();
     logger.log(`👆 [PullToRefresh] Touch start at Y: ${touch.clientY}`);
-  }, [enabled, disabled, state.isRefreshing, checkScrollPosition]);
+  }, [enabled, disabled, isRefreshing, checkScrollPosition]);
 
   // Handle touch move
   const handleTouchMove = useCallback((e: TouchEvent) => {
-    if (!enabled || disabled || state.isRefreshing || touchStartY.current === null) return;
+    if (!enabled || disabled || isRefreshing || touchStartY.current === null) return;
 
     // Re-check scroll position during move
     checkScrollPosition();
@@ -119,7 +124,7 @@ export function usePullToRefresh({
         isRefreshing: false,
       });
     }
-  }, [enabled, disabled, state.isRefreshing, state.isPulling, threshold, triggerHaptic, checkScrollPosition]);
+  }, [enabled, disabled, isRefreshing, state.isPulling, threshold, triggerHaptic, checkScrollPosition]);
 
   // Handle touch end
   const handleTouchEnd = useCallback(async () => {
@@ -137,7 +142,7 @@ export function usePullToRefresh({
     touchStartY.current = null;
     touchStartTime.current = null;
 
-    if (shouldRefresh && !state.isRefreshing) {
+    if (shouldRefresh && !isRefreshing) {
       // Trigger refresh
       logger.log('🔄 [PullToRefresh] Starting refresh...');
       setState((prev: PullToRefreshState) => ({
@@ -154,14 +159,23 @@ export function usePullToRefresh({
       } catch (error) {
         logger.error('❌ [PullToRefresh] Refresh failed:', error);
       } finally {
-        // Reset after a short delay for smooth animation
-        setTimeout(() => {
+        // Reset after a short delay for smooth animation (only if not using external state)
+        if (!externalIsRefreshing) {
+          setTimeout(() => {
+            setState({
+              isPulling: false,
+              pullDistance: 0,
+              isRefreshing: false,
+            });
+          }, 300);
+        } else {
+          // If using external state, just reset pulling state
           setState({
             isPulling: false,
             pullDistance: 0,
             isRefreshing: false,
           });
-        }, 300);
+        }
       }
     } else {
       // Reset without refresh
@@ -172,7 +186,7 @@ export function usePullToRefresh({
         isRefreshing: false,
       });
     }
-  }, [enabled, disabled, state.pullDistance, state.isRefreshing, threshold, onRefresh, triggerHaptic]);
+  }, [enabled, disabled, state.pullDistance, isRefreshing, threshold, onRefresh, triggerHaptic, externalIsRefreshing]);
 
   // Set up event listeners
   useEffect(() => {
@@ -242,7 +256,7 @@ export function usePullToRefresh({
   return {
     isPulling: state.isPulling,
     pullDistance: state.pullDistance,
-    isRefreshing: state.isRefreshing,
+    isRefreshing: isRefreshing,
     progress,
     threshold,
   };

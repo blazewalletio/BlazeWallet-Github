@@ -34,6 +34,7 @@ import BottomNavigation, { TabType } from './BottomNavigation';
 import { PRESALE_FEATURE_ENABLED } from '@/lib/feature-flags';
 import { calculateWeightedPortfolioChange } from '@/lib/portfolio-change-calculator';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import PullToRefreshIndicator from './PullToRefreshIndicator';
 
 // ✅ PERFORMANCE FIX: Lazy load modals (reduces initial bundle size by ~200KB)
 const SendModal = dynamic(() => import('./SendModal'), { ssr: false });
@@ -235,6 +236,7 @@ export default function Dashboard() {
     enabled: activeTab === 'wallet', // Only enable on wallet tab
     disabled: isRefreshing, // Disable when already refreshing
     threshold: 80, // 80px pull distance to trigger
+    externalIsRefreshing: isRefreshing, // Use Dashboard's refresh state
   });
   const totalValueUSD = currentState.totalValueUSD;
   const change24h = currentState.change24h;
@@ -1669,10 +1671,27 @@ export default function Dashboard() {
   // Wallet tab content
   const renderWalletContent = () => (
     <div className="space-y-6">
-          {/* Portfolio Value Card */}
+          {/* Pull-to-refresh indicator (mobile only) */}
+          <div className="md:hidden">
+            <PullToRefreshIndicator
+              pullDistance={pullToRefresh.pullDistance}
+              isPulling={pullToRefresh.isPulling}
+              isRefreshing={pullToRefresh.isRefreshing}
+              threshold={pullToRefresh.threshold}
+              progress={pullToRefresh.progress}
+            />
+          </div>
+          
+          {/* Portfolio Value Card - animates down during pull */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            animate={{ 
+              opacity: 1, 
+              y: pullToRefresh.isPulling ? pullToRefresh.pullDistance : 0,
+            }}
+            transition={{
+              y: { type: 'spring', stiffness: 300, damping: 30 },
+            }}
             className="glass-card relative overflow-hidden card-3d subtle-shimmer"
           >
             <div className="absolute inset-0 bg-gradient-primary opacity-5 animate-gradient" />
