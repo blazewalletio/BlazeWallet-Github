@@ -61,10 +61,11 @@ async function getActiveScheduledTransactions() {
     // Show summary
     console.log('📈 SUMMARY:\n');
     Object.entries(byStatus).forEach(([status, txs]) => {
-      const ready = txs.filter(tx => 
+      const txsArray = txs as any[];
+      const ready = txsArray.filter((tx: any) =>
         !tx.scheduled_for || new Date(tx.scheduled_for) <= new Date()
       ).length;
-      console.log(`  ${status.toUpperCase()}: ${txs.length} total, ${ready} ready to execute`);
+      console.log(`  ${status.toUpperCase()}: ${txsArray.length} total, ${ready} ready to execute`);
     });
     console.log('');
 
