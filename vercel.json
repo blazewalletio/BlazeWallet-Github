@@ -22,8 +22,5 @@
       "maxDuration": 300
     }
   },
-  "crons": [{
-    "path": "/api/cron/execute-scheduled-txs",
-    "schedule": "*/5 * * * *"
-  }]
+  "crons": []
 }

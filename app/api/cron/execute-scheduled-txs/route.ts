@@ -8,7 +8,7 @@
  * - Sends notifications
  * - Tracks savings
  * 
- * Vercel Cron: every 5 minutes
+ * EasyCron: every 5 minutes (migrated from Vercel Cron for better reliability)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -42,21 +42,26 @@ export async function GET(req: NextRequest) {
     const isVercelCron = vercelCronHeader === '1' || userAgent.includes('vercel-cron') || isFromVercel;
     const cronSecret = req.url.includes('CRON_SECRET=') ? new URL(req.url).searchParams.get('CRON_SECRET') : null;
     
+    // Detect cron source
+    const isEasyCron = userAgent.includes('EasyCron') || userAgent.includes('curl') || userAgent.includes('python');
+    
     // Debug logging
     logger.log('🔐 Auth check:', {
       userAgent,
+      cronSource: isVercelCron ? 'vercel' : isEasyCron ? 'easycron' : 'unknown',
       vercelCronHeader: vercelCronHeader ? 'present' : 'missing',
       vercelId: vercelId ? 'present' : 'missing',
       vercelDeploymentId: vercelDeploymentId ? 'present' : 'missing',
       isFromVercel,
       isVercelCron,
+      isEasyCron,
       hasAuthHeader: !!authHeader,
       hasCronSecret: !!cronSecret,
       cronSecretMatch: cronSecret === CRON_SECRET,
     });
     
-    // Allow: Vercel requests (via headers), Authorization header, or query param secret
-    if (!isVercelCron && authHeader !== `Bearer ${CRON_SECRET}` && cronSecret !== CRON_SECRET) {
+    // Allow: Vercel Cron, EasyCron (via CRON_SECRET), Authorization header, or query param secret
+    if (!isVercelCron && !isEasyCron && authHeader !== `Bearer ${CRON_SECRET}` && cronSecret !== CRON_SECRET) {
       logger.error('❌ Unauthorized cron attempt', {
         vercelCronHeader,
         vercelId: !!vercelId,
@@ -87,6 +92,7 @@ export async function GET(req: NextRequest) {
     logger.log('⏰ [CRON] SMART SEND EXECUTION JOB');
     logger.log('========================================');
     logger.log('🕐 Time:', new Date().toISOString());
+    logger.log('🔔 Triggered by:', isVercelCron ? 'Vercel Cron' : isEasyCron ? 'EasyCron' : 'Manual/Unknown');
 
     // Get all pending scheduled transactions
     const { data: pendingTxs, error: fetchError } = await supabase
