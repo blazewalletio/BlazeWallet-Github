@@ -6,6 +6,8 @@
  * - Production: Generic error messages (for security)
  */
 
+import { NextResponse } from 'next/server';
+
 const isDevelopment = process.env.NODE_ENV === 'development';
 
 export interface SanitizedError {
@@ -58,7 +60,6 @@ export function sanitizeError(error: any): SanitizedError {
  * Create sanitized error response
  */
 export function sanitizeErrorResponse(error: any): NextResponse {
-  const { NextResponse } = require('next/server');
   const sanitized = sanitizeError(error);
   
   if (isDevelopment) {
