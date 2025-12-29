@@ -169,8 +169,47 @@ export default function SmartScheduleModal({
         const [year, month, day] = customDate.split('-').map(Number);
         const [hours, minutes] = customTime.split(':').map(Number);
         
+        // Validate inputs
+        if (isNaN(year) || isNaN(month) || isNaN(day) || isNaN(hours) || isNaN(minutes)) {
+          throw new Error('Invalid date or time format');
+        }
+        
         // Create Date in LOCAL timezone (month is 0-indexed!)
         const scheduledFor = new Date(year, month - 1, day, hours, minutes, 0, 0);
+        
+        // ✅ DEBUG: Verify the date was parsed correctly
+        const expectedDateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const actualDateStr = scheduledFor.toLocaleDateString('en-CA'); // YYYY-MM-DD format
+        
+        logger.log('📅 Custom schedule parsing:', {
+          userInputDate: customDate,
+          userInputTime: customTime,
+          parsedYear: year,
+          parsedMonth: month,
+          parsedDay: day,
+          parsedHours: hours,
+          parsedMinutes: minutes,
+          expectedDateStr,
+          actualDateStr,
+          scheduledForLocal: scheduledFor.toLocaleString('nl-NL', { 
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            dateStyle: 'full',
+            timeStyle: 'short'
+          }),
+          scheduledForUTC: scheduledFor.toISOString(),
+          userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        });
+        
+        // ✅ VALIDATION: Check if the date was parsed correctly
+        if (actualDateStr !== expectedDateStr) {
+          logger.error('❌ Date parsing mismatch!', {
+            expected: expectedDateStr,
+            actual: actualDateStr,
+            userInput: customDate,
+            parsedDate: scheduledFor.toString(),
+          });
+          throw new Error(`Date parsing error: Expected ${expectedDateStr} but got ${actualDateStr}. Please try again.`);
+        }
         
         // Validate it's in the future
         if (scheduledFor <= new Date()) {
@@ -181,7 +220,7 @@ export default function SmartScheduleModal({
         // The Date object already represents the correct moment in time
         scheduleOptions.scheduled_for = scheduledFor;
         
-        logger.log('📅 Custom schedule:', {
+        logger.log('✅ Custom schedule validated:', {
           userInputDate: customDate,
           userInputTime: customTime,
           parsedLocalDate: scheduledFor.toString(), // Shows with timezone
@@ -451,10 +490,28 @@ export default function SmartScheduleModal({
                     <input
                       type="date"
                       value={customDate}
-                      onChange={(e) => setCustomDate(e.target.value)}
+                      onChange={(e) => {
+                        const selectedDate = e.target.value;
+                        logger.log('📅 Date input changed:', {
+                          selectedValue: selectedDate,
+                          currentValue: customDate,
+                          willSetTo: selectedDate,
+                        });
+                        setCustomDate(selectedDate);
+                      }}
                       min={new Date().toISOString().split('T')[0]}
                       className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl text-gray-900 focus:outline-none focus:border-orange-500 transition-colors"
                     />
+                    {customDate && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Selected: {new Date(customDate + 'T00:00:00').toLocaleDateString('nl-NL', { 
+                          weekday: 'long', 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        })}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-900 mb-2 block">Time</label>
