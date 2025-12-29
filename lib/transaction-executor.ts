@@ -164,6 +164,22 @@ export async function executeScheduledTransaction(req: ExecutionRequest): Promis
 }
 
 /**
+ * Check if chain supports EIP-1559
+ */
+function supportsEIP1559(chain: string): boolean {
+  const eip1559Chains = [
+    'ethereum',
+    'polygon',
+    'arbitrum',
+    'optimism',
+    'base',
+    'avalanche',
+    'linea',
+  ];
+  return eip1559Chains.includes(chain.toLowerCase());
+}
+
+/**
  * Execute EVM transaction (Ethereum, Polygon, Arbitrum, etc)
  */
 async function executeEVMTransaction(req: ExecutionRequest): Promise<ExecutionResult> {
@@ -191,6 +207,45 @@ async function executeEVMTransaction(req: ExecutionRequest): Promise<ExecutionRe
     
     logger.log(`🔑 EVM wallet derived: ${wallet.address}`);
 
+    // ✅ Get current fee data from provider to determine EIP-1559 support
+    const feeData = await provider.getFeeData();
+    const isEIP1559 = supportsEIP1559(req.chain) && feeData.maxFeePerGas !== null;
+    
+    // ✅ Prepare gas options based on EIP-1559 support
+    const gasPriceGwei = req.gasPrice || 0;
+    let gasOptions: any = {};
+    
+    if (isEIP1559 && feeData.maxFeePerGas) {
+      // EIP-1559: Use maxFeePerGas and maxPriorityFeePerGas
+      // Calculate priority fee (use provided gasPrice as maxFeePerGas, or use provider's estimate)
+      const baseFee = feeData.maxFeePerGas;
+      const priorityFee = gasPriceGwei > 0 
+        ? ethers.parseUnits((gasPriceGwei * 0.1).toString(), 'gwei') // 10% of maxFee as priority
+        : (feeData.maxPriorityFeePerGas || ethers.parseUnits('2', 'gwei'));
+      
+      const maxFeePerGas = gasPriceGwei > 0
+        ? ethers.parseUnits(gasPriceGwei.toString(), 'gwei')
+        : baseFee;
+      
+      gasOptions = {
+        maxFeePerGas,
+        maxPriorityFeePerGas: priorityFee,
+      };
+      
+      logger.log(`💰 Using EIP-1559: maxFeePerGas=${ethers.formatUnits(maxFeePerGas, 'gwei')} gwei, priorityFee=${ethers.formatUnits(priorityFee, 'gwei')} gwei`);
+    } else {
+      // Legacy: Use gasPrice
+      const gasPrice = gasPriceGwei > 0
+        ? ethers.parseUnits(gasPriceGwei.toString(), 'gwei')
+        : (feeData.gasPrice || ethers.parseUnits('20', 'gwei'));
+      
+      gasOptions = {
+        gasPrice,
+      };
+      
+      logger.log(`💰 Using legacy gasPrice: ${ethers.formatUnits(gasPrice, 'gwei')} gwei`);
+    }
+
     let tx: any;
     let receipt: any;
 
@@ -202,11 +257,34 @@ async function executeEVMTransaction(req: ExecutionRequest): Promise<ExecutionRe
       ];
       const tokenContract = new ethers.Contract(req.tokenAddress, erc20ABI, wallet);
 
-      const decimals = await tokenContract.decimals();
+      // ✅ PRIORITEIT 2: Token decimals with error handling
+      let decimals: number;
+      try {
+        decimals = await tokenContract.decimals();
+        logger.log(`📊 Token decimals: ${decimals}`);
+      } catch (error: any) {
+        logger.warn(`⚠️ Failed to fetch token decimals, using default 18: ${error.message}`);
+        decimals = 18; // Default to 18 decimals
+      }
+
       const amountWei = ethers.parseUnits(req.amount, decimals);
 
+      // ✅ PRIORITEIT 2: Dynamic gas limit estimation for token transfers
+      let gasLimit: bigint;
+      try {
+        // Try to estimate gas first
+        const estimatedGas = await tokenContract.transfer.estimateGas(req.toAddress, amountWei);
+        gasLimit = estimatedGas * BigInt(120) / BigInt(100); // Add 20% buffer
+        logger.log(`📊 Estimated gas: ${estimatedGas.toString()}, using: ${gasLimit.toString()}`);
+      } catch (error: any) {
+        // Fallback to safe default
+        gasLimit = BigInt(150000); // Safe default for most ERC20 tokens
+        logger.warn(`⚠️ Gas estimation failed, using default 150k: ${error.message}`);
+      }
+
       tx = await tokenContract.transfer(req.toAddress, amountWei, {
-        gasLimit: 100000,
+        ...gasOptions,
+        gasLimit,
       });
 
       receipt = await tx.wait();
@@ -218,7 +296,8 @@ async function executeEVMTransaction(req: ExecutionRequest): Promise<ExecutionRe
       tx = await wallet.sendTransaction({
         to: req.toAddress,
         value: amountWei,
-        gasLimit: 21000,
+        ...gasOptions,
+        gasLimit: 21000, // Standard for native transfers
       });
 
       receipt = await tx.wait();
