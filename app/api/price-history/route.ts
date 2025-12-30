@@ -41,14 +41,18 @@ export async function GET(request: Request) {
     }
 
     const apiKey = process.env.COINGECKO_API_KEY?.trim();
-    // ✅ IMPROVED: If no API key, use free tier directly (no need to try with key first)
-    const useApiKey = !!apiKey;
-    const apiKeyParam = useApiKey ? `&x_cg_demo_api_key=${apiKey}` : '';
+    // ✅ IMPROVED: CoinGecko free tier supports ALL timeframes (1D, 7D, 30D, 1J, ALLES)
+    // Only use API key if explicitly needed (e.g., for higher rate limits)
+    // For now, we'll use free tier by default to avoid API key errors
+    // TODO: Add API key validation to check if key is valid before using it
+    const useApiKey = false; // ✅ Use free tier by default (works for all timeframes)
+    const apiKeyParam = ''; // ✅ No API key = free tier
     
-    logger.log(`[Price History API] 🔑 API key status`, {
-      hasApiKey: useApiKey,
+    logger.log(`[Price History API] 🔑 Using CoinGecko free tier`, {
+      hasApiKeyInEnv: !!apiKey,
       apiKeyLength: apiKey?.length || 0,
-      usingFreeTier: !useApiKey,
+      usingFreeTier: true,
+      note: 'Free tier supports all timeframes (1D, 7D, 30D, 1J, ALLES)',
     });
     
     // ✅ EXACT CoinGecko granularity matching:
@@ -75,42 +79,43 @@ export async function GET(request: Request) {
     let url: string;
     let isNativeToken = false;
 
-    // ✅ PRIORITY 1: Try contract address lookup (for EVM tokens)
-    if (contractAddress && chain && chain !== 'solana') {
-      logger.log(`[Price History API] 🔍 Step 1: Contract address lookup`, {
-        contractAddress,
-        chain,
-      });
-      
-      const platformMap: Record<string, string> = {
-        'ethereum': 'ethereum',
-        'polygon': 'polygon-pos',
-        'bsc': 'binance-smart-chain',
-        'binance-smart-chain': 'binance-smart-chain',
-        'base': 'base',
-        'avalanche': 'avalanche',
-        'fantom': 'fantom',
-        'arbitrum': 'arbitrum-one',
-        'optimism': 'optimistic-ethereum',
-        'cronos': 'cronos',
-        'zksync': 'zksync',
-        'linea': 'linea',
-      };
+      // ✅ PRIORITY 1: Try contract address lookup (for EVM tokens)
+      if (contractAddress && chain && chain !== 'solana') {
+        logger.log(`[Price History API] 🔍 Step 1: Contract address lookup`, {
+          contractAddress,
+          chain,
+        });
+        
+        const platformMap: Record<string, string> = {
+          'ethereum': 'ethereum',
+          'polygon': 'polygon-pos',
+          'bsc': 'binance-smart-chain',
+          'binance-smart-chain': 'binance-smart-chain',
+          'base': 'base',
+          'avalanche': 'avalanche',
+          'fantom': 'fantom',
+          'arbitrum': 'arbitrum-one',
+          'optimism': 'optimistic-ethereum',
+          'cronos': 'cronos',
+          'zksync': 'zksync',
+          'linea': 'linea',
+        };
 
-      const platform = platformMap[chain.toLowerCase()];
-      logger.log(`[Price History API] 🔍 Platform mapping`, {
-        chain: chain.toLowerCase(),
-        platform: platform || 'not found',
-      });
-      
-      if (platform) {
-        try {
-          const contractUrl = `https://api.coingecko.com/api/v3/coins/${platform}/contract/${contractAddress}${apiKeyParam ? '?' + apiKeyParam.substring(1) : ''}`;
-          logger.log(`[Price History API] 📡 Contract lookup API call`, {
-            url: contractUrl.replace(apiKey || '', '[API_KEY]'),
-            platform,
-            contractAddress,
-          });
+        const platform = platformMap[chain.toLowerCase()];
+        logger.log(`[Price History API] 🔍 Platform mapping`, {
+          chain: chain.toLowerCase(),
+          platform: platform || 'not found',
+        });
+        
+        if (platform) {
+          try {
+            // ✅ Use free tier (no API key) for contract lookup
+            const contractUrl = `https://api.coingecko.com/api/v3/coins/${platform}/contract/${contractAddress}`;
+            logger.log(`[Price History API] 📡 Contract lookup API call`, {
+              url: contractUrl,
+              platform,
+              contractAddress,
+            });
           
           const contractStartTime = Date.now();
           const contractResponse = await fetch(contractUrl, {
@@ -270,9 +275,10 @@ export async function GET(request: Request) {
       });
       
       try {
-        const searchUrl = `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(symbol)}${apiKeyParam ? '&' + apiKeyParam.substring(1) : ''}`;
+        // ✅ Use free tier (no API key) for search
+        const searchUrl = `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(symbol)}`;
         logger.log(`[Price History API] 📡 Search API call`, {
-          url: searchUrl.replace(apiKey || '', '[API_KEY]'),
+          url: searchUrl,
           symbol,
         });
         
@@ -360,23 +366,24 @@ export async function GET(request: Request) {
     // ✅ EXACT CoinGecko API call matching their website
     // For 1D: No interval parameter (CoinGecko automatically gives 5-minute data)
     // For others: Use interval parameter
+    // ✅ Using free tier (no API key) - supports all timeframes
     if (interval) {
-      url = `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}&interval=${interval}${apiKeyParam}`;
+      url = `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}&interval=${interval}`;
     } else {
       // 1D: No interval parameter = 5-minute granularity
-      url = `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}${apiKeyParam}`;
+      url = `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}`;
     }
     
     const intervalLabel = interval || '5-minute (auto)';
-    logger.log(`[Price History API] 📡 Step 4: Fetching market chart data`, {
+    logger.log(`[Price History API] 📡 Step 4: Fetching market chart data (free tier)`, {
       symbol,
       coinGeckoId,
       days,
       interval: intervalLabel,
       isNativeToken,
       contractAddress: contractAddress || 'none',
-      url: url.replace(apiKey || '', '[API_KEY]'),
-      hasApiKey: !!apiKey,
+      url: url,
+      usingFreeTier: true,
     });
     
     const marketChartStartTime = Date.now();
@@ -401,11 +408,6 @@ export async function GET(request: Request) {
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unable to read error response');
-      const errorTextLower = errorText.toLowerCase();
-      const isApiKeyError = response.status === 401 || 
-                           errorTextLower.includes('api key') || 
-                           errorTextLower.includes('unauthorized') ||
-                           errorTextLower.includes('invalid key');
       
       logger.error(`[Price History API] ❌ CoinGecko API error`, {
         status: response.status,
@@ -414,104 +416,16 @@ export async function GET(request: Request) {
         symbol,
         days,
         interval,
-        hasApiKey: useApiKey,
-        apiKeyLength: apiKey?.length || 0,
-        isApiKeyError,
+        usingFreeTier: true,
         errorText: errorText.substring(0, 200), // First 200 chars
       });
       
-      // ✅ IMPROVED FALLBACK: Try without API key if:
-      // 1. Status is 401 (Unauthorized)
-      // 2. Error message mentions API key
-      // 3. We were using an API key (so we can try without it)
-      if (isApiKeyError && useApiKey) {
-        logger.warn(`[Price History API] ⚠️ API key error detected. Retrying without API key (free tier)...`, {
-          status: response.status,
-          coinGeckoId,
-          symbol,
-          days,
-        });
-        
-        // ✅ FALLBACK: Try without API key (free tier)
-        const fallbackUrl = interval
-          ? `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}&interval=${interval}`
-          : `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}`;
-        
-        logger.log(`[Price History API] 🔄 Fallback URL: ${fallbackUrl.replace(apiKey || '', '[API_KEY]')}`);
-        
-        try {
-          const fallbackStartTime = Date.now();
-          const fallbackResponse = await fetch(fallbackUrl, {
-            headers: { 'Accept': 'application/json' },
-            next: { revalidate: days <= 1 ? 300 : 900 },
-          });
-          const fallbackDuration = Date.now() - fallbackStartTime;
-          
-          logger.log(`[Price History API] 📥 Fallback response`, {
-            status: fallbackResponse.status,
-            statusText: fallbackResponse.statusText,
-            ok: fallbackResponse.ok,
-            duration: `${fallbackDuration}ms`,
-          });
-          
-          if (fallbackResponse.ok) {
-            const fallbackData = await fallbackResponse.json();
-            logger.log(`[Price History API] 📊 Fallback data parsed`, {
-              hasPrices: !!fallbackData.prices,
-              pricesIsArray: Array.isArray(fallbackData.prices),
-              pricesLength: fallbackData.prices?.length || 0,
-            });
-            
-            if (fallbackData.prices && Array.isArray(fallbackData.prices) && fallbackData.prices.length > 0) {
-              const prices = fallbackData.prices
-                .filter(([timestamp, price]: [number, number]) => 
-                  timestamp && price && price > 0 && !isNaN(price) && !isNaN(timestamp)
-                )
-                .map(([timestamp, price]: [number, number]) => ({
-                  timestamp: timestamp,
-                  price: price,
-                }))
-                .sort((a: { timestamp: number; price: number }, b: { timestamp: number; price: number }) => a.timestamp - b.timestamp);
-              
-              if (prices.length > 0) {
-                logger.log(`[Price History API] ✅ Fallback succeeded with ${prices.length} price points`);
-                return NextResponse.json({
-                  prices,
-                  success: true,
-                  source: 'CoinGecko (free tier)',
-                  coinGeckoId: coinGeckoId,
-                });
-              } else {
-                logger.warn(`[Price History API] ⚠️ Fallback returned empty prices after filtering`);
-              }
-            } else {
-              logger.warn(`[Price History API] ⚠️ Fallback returned no prices data`);
-            }
-          } else {
-            const fallbackErrorText = await fallbackResponse.text().catch(() => 'Unable to read error response');
-            logger.warn(`[Price History API] ⚠️ Fallback also failed`, {
-              status: fallbackResponse.status,
-              statusText: fallbackResponse.statusText,
-              errorText: fallbackErrorText.substring(0, 200),
-            });
-          }
-        } catch (fallbackError: any) {
-          logger.error(`[Price History API] ❌ Fallback error:`, {
-            error: fallbackError?.message || 'Unknown error',
-            stack: fallbackError?.stack,
-          });
-        }
-        
-        // If fallback failed, return error
-        return NextResponse.json(
-          { prices: [], success: false, error: 'CoinGecko API key invalid or missing' },
-          { status: 200 }
-        );
-      }
+      // ✅ No fallback needed - we're already using free tier
+      // If free tier fails, it's likely a rate limit (429) or token not found (404)
       if (response.status === 429) {
-        logger.error(`[Price History API] ❌ 429 Rate limit hit`);
+        logger.error(`[Price History API] ❌ 429 Rate limit hit (free tier: 10-50 calls/min)`);
         return NextResponse.json(
-          { prices: [], success: false, error: 'Rate limited' },
+          { prices: [], success: false, error: 'Rate limited - please try again in a moment' },
           { status: 200 }
         );
       }
