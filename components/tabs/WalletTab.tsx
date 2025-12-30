@@ -50,7 +50,7 @@ export default function WalletTab() {
   const [showBuyModal3, setShowBuyModal3] = useState(false);
   const [showTokenSelector, setShowTokenSelector] = useState(false);
   const [totalValueUSD, setTotalValueUSD] = useState(0);
-  const [nativeValueUSD, setNativeValueUSD] = useState(0); // ✅ NEW: Store native currency USD value
+  const [nativeValueUSD, setNativeValueUSD] = useState(0); // ✅ Store native currency USD value
   const [change24h, setChange24h] = useState(2.5);
 
   const chain = CHAINS[currentChain];
