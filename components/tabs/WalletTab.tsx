@@ -92,15 +92,27 @@ export default function WalletTab() {
         let erc20Tokens: any[] = [];
         
         try {
+          console.log('🔮 [WalletTab] Attempting to fetch ALL ERC20 tokens via Alchemy...');
+          console.log('📍 [WalletTab] Address:', address);
           logger.log(`[WalletTab] 🔮 Attempting to fetch ALL ERC20 tokens via Alchemy...`);
           erc20Tokens = await blockchain.getERC20TokenBalances(address);
           
           if (erc20Tokens.length > 0) {
+            console.log(`✅ [WalletTab] Alchemy found ${erc20Tokens.length} ERC20 tokens with balance`);
+            console.log('📊 [WalletTab] Tokens from Alchemy:', erc20Tokens.map(t => ({
+              symbol: t.symbol,
+              name: t.name,
+              address: t.address,
+              balance: t.balance,
+              logo: t.logo || 'MISSING'
+            })));
             logger.log(`[WalletTab] ✅ Alchemy found ${erc20Tokens.length} ERC20 tokens with balance`);
           } else {
+            console.log(`ℹ️ [WalletTab] No tokens found via Alchemy, falling back to POPULAR_TOKENS`);
             logger.log(`[WalletTab] ℹ️ No tokens found via Alchemy, falling back to POPULAR_TOKENS`);
           }
         } catch (error) {
+          console.error('⚠️ [WalletTab] Alchemy failed:', error);
           logger.warn(`[WalletTab] ⚠️ Alchemy failed, falling back to POPULAR_TOKENS:`, error);
         }
         
@@ -117,8 +129,16 @@ export default function WalletTab() {
         if (erc20Tokens.length > 0) {
           // ✅ Batch fetch prices by contract address (more accurate than symbol)
           const tokenAddresses = erc20Tokens.map(t => t.address);
+          console.log('💰 [WalletTab] Fetching prices for addresses:', tokenAddresses);
+          console.log('💰 [WalletTab] Chain:', currentChain);
           const pricesByAddress = await priceService.getPricesByAddresses(tokenAddresses, currentChain);
           
+          console.log(`💰 [WalletTab] Received prices for ${pricesByAddress.size}/${tokenAddresses.length} tokens`);
+          console.log('💰 [WalletTab] Prices map:', Array.from(pricesByAddress.entries()).map(([addr, data]) => ({
+            address: addr,
+            price: data.price,
+            change24h: data.change24h
+          })));
           logger.log(`[WalletTab] 💰 Received prices for ${pricesByAddress.size}/${tokenAddresses.length} tokens`);
           
           // ✅ Fetch missing logos from CoinGecko for tokens without logos
@@ -129,19 +149,33 @@ export default function WalletTab() {
             token.logo.trim() === ''
           );
           
+          console.log(`🖼️ [WalletTab] Tokens needing logos: ${tokensNeedingLogos.length}`);
+          console.log('🖼️ [WalletTab] Tokens needing logos:', tokensNeedingLogos.map(t => ({
+            symbol: t.symbol,
+            address: t.address,
+            currentLogo: t.logo || 'MISSING'
+          })));
+          
           if (tokensNeedingLogos.length > 0) {
+            console.log(`🖼️ [WalletTab] Fetching logos from CoinGecko for ${tokensNeedingLogos.length} tokens...`);
             logger.log(`[WalletTab] 🖼️ Fetching logos from CoinGecko for ${tokensNeedingLogos.length} tokens...`);
             
             // Fetch logos in parallel
             await Promise.all(
               tokensNeedingLogos.map(async (token: any) => {
                 try {
+                  console.log(`🖼️ [WalletTab] Fetching logo for ${token.symbol} (${token.address})...`);
                   const logo = await getCurrencyLogo(token.symbol, token.address);
+                  console.log(`🖼️ [WalletTab] Logo result for ${token.symbol}:`, logo);
                   if (logo && logo !== '/crypto-eth.png' && logo !== '/crypto-placeholder.png') {
                     token.logo = logo;
+                    console.log(`✅ [WalletTab] Set logo for ${token.symbol}: ${logo}`);
                     logger.log(`[WalletTab] ✅ Fetched logo for ${token.symbol}: ${logo}`);
+                  } else {
+                    console.log(`⚠️ [WalletTab] Invalid logo for ${token.symbol}: ${logo}`);
                   }
                 } catch (error) {
+                  console.error(`❌ [WalletTab] Failed to fetch logo for ${token.symbol}:`, error);
                   logger.warn(`[WalletTab] ⚠️ Failed to fetch logo for ${token.symbol}:`, error);
                 }
               })
@@ -153,6 +187,15 @@ export default function WalletTab() {
             const priceData = pricesByAddress.get(addressLower) || { price: 0, change24h: 0 };
             const balanceNum = parseFloat(token.balance || '0');
             const balanceUSD = balanceNum * priceData.price;
+            
+            console.log(`💰 [WalletTab] Token ${token.symbol}:`, {
+              address: addressLower,
+              balance: token.balance,
+              price: priceData.price,
+              balanceUSD: balanceUSD,
+              logo: token.logo || 'MISSING',
+              change24h: priceData.change24h
+            });
             
             return {
               ...token,
@@ -167,6 +210,16 @@ export default function WalletTab() {
             t => parseFloat(t.balance || '0') > 0
           );
           
+          console.log(`✅ [WalletTab] Final tokensWithValue: ${tokensWithValue.length} tokens`);
+          console.log('📊 [WalletTab] Final tokens:', tokensWithValue.map(t => ({
+            symbol: t.symbol,
+            name: t.name,
+            balance: t.balance,
+            balanceUSD: t.balanceUSD,
+            priceUSD: t.priceUSD,
+            logo: t.logo,
+            address: t.address
+          })));
           logger.log(`[WalletTab] ✅ Final tokensWithValue: ${tokensWithValue.length} tokens`);
         }
         
@@ -472,6 +525,8 @@ export default function WalletTab() {
                     {(() => {
                       const logoUrl = token.logo;
                       
+                      console.log(`🖼️ [WalletTab Render] Token ${token.symbol} logo:`, logoUrl);
+                      
                       // Check if logo is valid URL
                       if (logoUrl && 
                           (logoUrl.startsWith('http') || 
@@ -479,12 +534,17 @@ export default function WalletTab() {
                            logoUrl.startsWith('data:')) &&
                           logoUrl !== '/crypto-placeholder.png' &&
                           logoUrl !== '/crypto-eth.png') {
+                        console.log(`✅ [WalletTab Render] Rendering <img> for ${token.symbol} with logo:`, logoUrl);
                         return (
                           <img 
                             src={logoUrl} 
                             alt={token.symbol}
                             className="w-full h-full object-cover"
+                            onLoad={() => {
+                              console.log(`✅ [WalletTab Render] Logo loaded successfully for ${token.symbol}:`, logoUrl);
+                            }}
                             onError={(e) => {
+                              console.error(`❌ [WalletTab Render] Failed to load logo for ${token.symbol}:`, logoUrl);
                               // Fallback to symbol initial if image fails
                               e.currentTarget.style.display = 'none';
                               const parent = e.currentTarget.parentElement;
@@ -497,6 +557,7 @@ export default function WalletTab() {
                         );
                       }
                       
+                      console.log(`⚠️ [WalletTab Render] Using fallback initial for ${token.symbol} (logo: ${logoUrl})`);
                       // Fallback to symbol initial
                       return <span className="text-white font-bold">{token.symbol[0]}</span>;
                     })()}
