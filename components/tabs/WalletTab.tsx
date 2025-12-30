@@ -10,6 +10,7 @@ import {
 import { useWalletStore } from '@/lib/wallet-store';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { MultiChainService } from '@/lib/multi-chain-service';
+import { BlockchainService } from '@/lib/blockchain';
 import { PriceService } from '@/lib/price-service';
 import { CHAINS, POPULAR_TOKENS } from '@/lib/chains';
 import SendModal from '../SendModal';
