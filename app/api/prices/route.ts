@@ -2,23 +2,43 @@ import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { findCoinId } from '@/lib/coingecko-coins-cache';
 
-// Force dynamic rendering for this API route
+// ⚡ AGGRESSIVE CACHING: 60 seconds to prevent rate limiting
+export const revalidate = 60;
 export const dynamic = 'force-dynamic';
+
+// 💾 In-memory cache for price data (survives across requests in same instance)
+const priceCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 60 * 1000; // 60 seconds
 
 // Server-side price fetching (avoids CORS issues)
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const symbols = searchParams.get('symbols')?.split(',') || [];
-
-  if (symbols.length === 0) {
-    return NextResponse.json({ error: 'No symbols provided' }, { status: 400 });
-  }
-
+  let symbols: string[] = [];
+  
   try {
-    logger.log(`═══════════════════════════════════════════════════════════════`);
-    logger.log(`🔍 [Prices API] REQUEST START`);
-    logger.log(`   Symbols requested: ${symbols.join(', ')}`);
-    logger.log(`═══════════════════════════════════════════════════════════════`);
+    const { searchParams } = new URL(request.url);
+    symbols = searchParams.get('symbols')?.split(',') || [];
+
+    if (symbols.length === 0) {
+      return NextResponse.json({ error: 'No symbols provided' }, { status: 400 });
+    }
+    const isDev = process.env.NODE_ENV === 'development';
+    
+    if (isDev) {
+      logger.log(`═══════════════════════════════════════════════════════════════`);
+      logger.log(`🔍 [Prices API] REQUEST START`);
+      logger.log(`   Symbols requested: ${symbols.join(', ')}`);
+      logger.log(`═══════════════════════════════════════════════════════════════`);
+    }
+    
+    // ✅ Check in-memory cache first (prevents rate limiting)
+    const cacheKey = symbols.sort().join(',');
+    const cached = priceCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      if (isDev) logger.log(`✅ [Prices] CACHE HIT for ${cacheKey}`);
+      return NextResponse.json(cached.data, {
+        headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
+      });
+    }
     
     // ✅ FAST PATH: Hardcoded mapping for popular tokens (instant lookup)
     // This avoids cache lookup for common tokens like ETH, BTC, SOL, etc.
@@ -63,14 +83,14 @@ export async function GET(request: Request) {
     };
 
     // ✅ HYBRID APPROACH: Hardcoded first (fast), then cache lookup (auto-discovery)
-    logger.log(`📡 [Prices] Looking up CoinGecko IDs for: ${symbols.join(', ')}`);
+    if (isDev) logger.log(`📡 [Prices] Looking up CoinGecko IDs for: ${symbols.join(', ')}`);
     
     const coinIdMappings = await Promise.all(
       symbols.map(async (symbol) => {
         // Try hardcoded mapping first (fast path - no cache lookup needed)
         const hardcodedId = symbolToId[symbol.toUpperCase()];
         if (hardcodedId) {
-          logger.log(`✅ [Prices] ${symbol} → ${hardcodedId} (hardcoded)`);
+          if (isDev) logger.log(`✅ [Prices] ${symbol} → ${hardcodedId} (hardcoded)`);
           return { symbol, id: hardcodedId };
         }
         
@@ -78,14 +98,14 @@ export async function GET(request: Request) {
         try {
           const cacheId = await findCoinId(symbol, 'solana');
           if (cacheId) {
-            logger.log(`✅ [Prices] ${symbol} → ${cacheId} (cache - solana)`);
+            if (isDev) logger.log(`✅ [Prices] ${symbol} → ${cacheId} (cache - solana)`);
             return { symbol, id: cacheId };
           }
           
           // Try any platform if Solana didn't work
           const anyId = await findCoinId(symbol);
           if (anyId) {
-            logger.log(`✅ [Prices] ${symbol} → ${anyId} (cache - any platform)`);
+            if (isDev) logger.log(`✅ [Prices] ${symbol} → ${anyId} (cache - any platform)`);
             return { symbol, id: anyId };
           }
         } catch (error) {
@@ -93,7 +113,7 @@ export async function GET(request: Request) {
         }
         
         // Not found anywhere
-        logger.log(`ℹ️ [Prices] ${symbol} not found in mapping or cache`);
+        if (isDev) logger.log(`ℹ️ [Prices] ${symbol} not found in mapping or cache`);
         return { symbol, id: null };
       })
     );
@@ -122,56 +142,113 @@ export async function GET(request: Request) {
       logger.log(`ℹ️ [PriceAPI] Symbols not found (will use DexScreener fallback): ${notFoundSymbols.join(', ')}`);
     }
 
-    // Fetch from CoinGecko (server-side, no CORS issues!)
-    const apiKey = process.env.COINGECKO_API_KEY?.trim();
-    const apiKeyParam = apiKey ? `&x_cg_demo_api_key=${apiKey}` : '';
-    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coinIds.join(',')}&vs_currencies=usd&include_24hr_change=true${apiKeyParam}`;
-    
-    logger.log(`📡 [Prices] Fetching from CoinGecko for ${coinIds.length} coins (API key: ${apiKey ? 'Yes' : 'No'})`);
-    if (!apiKey) {
-      logger.warn('⚠️ [Prices] No CoinGecko API key - using free tier (rate limited to 10-50 calls/min)');
+    // ⚡ TRY 1: CoinGecko (primary source with 24h change data)
+    let data: any = null;
+    let coinGeckoFailed = false;
+
+    try {
+      const apiKey = process.env.COINGECKO_API_KEY?.trim();
+      const apiKeyParam = apiKey ? `&x_cg_demo_api_key=${apiKey}` : '';
+      const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coinIds.join(',')}&vs_currencies=usd&include_24hr_change=true${apiKeyParam}`;
+      
+      if (isDev) {
+        logger.log(`📡 [Prices] Fetching from CoinGecko for ${coinIds.length} coins (API key: ${apiKey ? 'Yes' : 'No'})`);
+        if (!apiKey) {
+          logger.warn('⚠️ [Prices] No CoinGecko API key - using free tier (rate limited to 10-50 calls/min)');
+        }
+        logger.log(`🌐 [Prices API] CoinGecko URL: ${url.substring(0, 150)}...`);
+      }
+      
+      const response = await fetch(url, {
+        headers: { 'Accept': 'application/json' },
+        next: { revalidate: 60 }, // Cache for 60 seconds
+        signal: AbortSignal.timeout(8000), // 8 second timeout (Vercel has 10s limit)
+      });
+
+      if (isDev) logger.log(`📊 [Prices API] CoinGecko response status: ${response.status}`);
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          logger.warn('⚠️ [Prices] CoinGecko 401 Unauthorized - will try Binance fallback');
+        } else if (response.status === 429) {
+          logger.warn('⚠️ [Prices] CoinGecko rate limit hit - will try Binance fallback');
+        } else {
+          logger.warn(`⚠️ [Prices] CoinGecko error ${response.status} - will try Binance fallback`);
+        }
+        coinGeckoFailed = true;
+      } else {
+        data = await response.json();
+        if (isDev) logger.log(`📦 [Prices API] CoinGecko data keys: ${Object.keys(data).join(', ')}`);
+      }
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        logger.warn('⚠️ [Prices] CoinGecko timeout (8s) - will try Binance fallback');
+      } else {
+        logger.warn(`⚠️ [Prices] CoinGecko fetch error: ${error.message} - will try Binance fallback`);
+      }
+      coinGeckoFailed = true;
+    }
+
+    // ⚡ TRY 2: Binance fallback for major tokens (SOL, BTC, ETH, BNB, MATIC)
+    if (coinGeckoFailed || !data) {
+      logger.log(`🔄 [Prices] Trying Binance fallback for major tokens...`);
+      
+      const binanceSymbols: Record<string, string> = {
+        'SOL': 'SOLUSDT',
+        'BTC': 'BTCUSDT',
+        'ETH': 'ETHUSDT',
+        'BNB': 'BNBUSDT',
+        'MATIC': 'MATICUSDT',
+        'AVAX': 'AVAXUSDT',
+        'FTM': 'FTMUSDT',
+        'LTC': 'LTCUSDT',
+        'DOGE': 'DOGEUSDT',
+      };
+
+      data = {};
+      
+      for (const [symbol, binanceSymbol] of Object.entries(binanceSymbols)) {
+        if (!symbols.includes(symbol)) continue;
+        
+        try {
+          const binanceUrl = `https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`;
+          const binanceResponse = await fetch(binanceUrl, {
+            signal: AbortSignal.timeout(5000), // 5 second timeout
+          });
+
+          if (binanceResponse.ok) {
+            const binanceData = await binanceResponse.json();
+            const coinId = symbolToId[symbol];
+            if (coinId) {
+              data[coinId] = {
+                usd: parseFloat(binanceData.lastPrice),
+                usd_24h_change: parseFloat(binanceData.priceChangePercent),
+              };
+              logger.log(`✅ [Prices] ${symbol} from Binance: $${data[coinId].usd} (${data[coinId].usd_24h_change >= 0 ? '+' : ''}${data[coinId].usd_24h_change.toFixed(2)}%)`);
+            }
+          }
+        } catch (binanceError: any) {
+          logger.warn(`⚠️ [Prices] Binance fallback failed for ${symbol}:`, binanceError.message);
+        }
+      }
+    }
+
+    // If both failed, return empty result (will trigger DexScreener fallback on client)
+    if (!data || Object.keys(data).length === 0) {
+      logger.warn('⚠️ [Prices] Both CoinGecko and Binance failed - returning empty result');
+      const emptyResult: Record<string, { price: number; change24h: number }> = {};
+      symbols.forEach(symbol => {
+        emptyResult[symbol] = { price: 0, change24h: 0 };
+      });
+      return NextResponse.json(emptyResult);
     }
     
-    logger.log(`🌐 [Prices API] CoinGecko URL: ${url.substring(0, 150)}...`);
-    
-    const response = await fetch(url, {
-      headers: {
-        'Accept': 'application/json',
-      },
-      next: { revalidate: 60 }, // ✅ Cache for 60 seconds (1 minute) for fresh change24h data
-    });
-
-    logger.log(`📊 [Prices API] CoinGecko response status: ${response.status}`);
-
-    if (!response.ok) {
-      if (response.status === 401) {
-        logger.warn('⚠️ [Prices] CoinGecko 401 Unauthorized - API key may be invalid or missing. Using free tier.');
-        // Return empty result to trigger fallback to Binance/DexScreener
-        const emptyResult: Record<string, { price: number; change24h: number }> = {};
-        symbols.forEach(symbol => {
-          emptyResult[symbol] = { price: 0, change24h: 0 };
-        });
-        return NextResponse.json(emptyResult);
-      }
-      if (response.status === 429) {
-        logger.warn('⚠️ [Prices] CoinGecko rate limit hit - returning empty result for fallback');
-        const emptyResult: Record<string, { price: number; change24h: number }> = {};
-        symbols.forEach(symbol => {
-          emptyResult[symbol] = { price: 0, change24h: 0 };
-        });
-        return NextResponse.json(emptyResult);
-      }
-      throw new Error(`CoinGecko API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    
-    logger.log(`📦 [Prices API] CoinGecko data keys: ${Object.keys(data).join(', ')}`);
+    if (isDev) logger.log(`📦 [Prices API] Processing data for ${Object.keys(data).length} coins...`);
 
     // Convert back to symbol-keyed format that PriceService expects
     const result: Record<string, { price: number; change24h: number }> = {};
     
-    // Map CoinGecko response back to original symbols
+    // Map CoinGecko/Binance response back to original symbols
     for (const mapping of coinIdMappings) {
       if (!mapping.id) {
         // Symbol not found - return 0 (will trigger DexScreener fallback)
@@ -185,50 +262,52 @@ export async function GET(request: Request) {
           price: coinData.usd || 0,
           change24h: coinData.usd_24h_change || 0,
         };
-        logger.log(`✅ [Prices] ${mapping.symbol} = $${result[mapping.symbol].price} (${mapping.id})`);
+        if (isDev) logger.log(`✅ [Prices] ${mapping.symbol} = $${result[mapping.symbol].price} (${mapping.id})`);
       } else {
-        // CoinGecko returned no data for this ID
+        // No data for this ID
         result[mapping.symbol] = { price: 0, change24h: 0 };
-        logger.warn(`⚠️ [Prices] CoinGecko returned no data for ${mapping.symbol} (${mapping.id}) - will fallback to Binance`);
+        logger.warn(`⚠️ [Prices] No data for ${mapping.symbol} (${mapping.id}) - will fallback`);
       }
     }
 
-    logger.log(`═══════════════════════════════════════════════════════════════`);
-    logger.log(`✅ [Prices API] SUCCESS - Returning ${Object.keys(result).length} prices`);
-    logger.log(`   Result:`, JSON.stringify(result, null, 2));
-    logger.log(`═══════════════════════════════════════════════════════════════`);
+    // ✅ Store in in-memory cache
+    priceCache.set(cacheKey, { data: result, timestamp: Date.now() });
+
+    if (isDev) {
+      logger.log(`═══════════════════════════════════════════════════════════════`);
+      logger.log(`✅ [Prices API] SUCCESS - Returning ${Object.keys(result).length} prices`);
+      logger.log(`   Result:`, JSON.stringify(result, null, 2));
+      logger.log(`═══════════════════════════════════════════════════════════════`);
+    }
     
     // ✅ Return flat format: { "SOL": { price: 202.5, change24h: 0.2 } }
     return NextResponse.json(result, {
       headers: {
-        // ⚡ NO SERVER-SIDE CACHE - Always fetch fresh data from CoinGecko
-        // User requirement: "Ik wil ALTIJD correcte data hebben in BLAZE wallet"
-        // Client-side cache (60s in price-service.ts) is still active for performance
-        'Cache-Control': 'public, s-maxage=0, must-revalidate',
+        // ✅ Cache for 60 seconds on CDN edge
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
       },
     });
 
   } catch (error: any) {
     logger.error(`═══════════════════════════════════════════════════════════════`);
-    logger.error(`❌ [Prices API] ERROR`);
+    logger.error(`❌ [Prices API] UNEXPECTED ERROR`);
     logger.error(`   Message: ${error.message}`);
-    logger.error(`   Stack: ${error.stack}`);
     logger.error(`   Name: ${error.name}`);
-    logger.error(`   Full error:`, JSON.stringify(error, Object.getOwnPropertyNames(error)));
     logger.error(`═══════════════════════════════════════════════════════════════`);
     
-    // Return detailed error in development/production for debugging
-    return NextResponse.json(
-      { 
-        error: 'Failed to fetch prices', 
-        details: error.message,
-        errorName: error.name,
-        errorStack: error.stack,
-        // Include all error properties
-        errorInfo: JSON.stringify(error, Object.getOwnPropertyNames(error))
+    // ⚠️ GRACEFUL DEGRADATION: Return empty result instead of 500 error
+    // This allows client-side DexScreener fallback to work
+    const emptyResult: Record<string, { price: number; change24h: number }> = {};
+    symbols.forEach(symbol => {
+      emptyResult[symbol] = { price: 0, change24h: 0 };
+    });
+    
+    return NextResponse.json(emptyResult, {
+      headers: {
+        // Don't cache errors
+        'Cache-Control': 'no-store',
       },
-      { status: 500 }
-    );
+    });
   }
 }
 
