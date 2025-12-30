@@ -1177,7 +1177,7 @@ export default function Dashboard() {
         totalTokens: tokensWithValue.length,
         validTokens: tokensForCalculation.length,
         nativeBalance: parseFloat(bal),
-        nativePrice,
+        nativePriceValue,
         nativeChange
       });
       
@@ -1205,7 +1205,7 @@ export default function Dashboard() {
       const weightedChange = calculateWeightedPortfolioChange(
         tokensForCalculation,
         parseFloat(bal),
-        nativePrice,
+        nativePriceValue,
         nativeChange
       );
       
@@ -1277,7 +1277,7 @@ export default function Dashboard() {
         displayAddress, 
         tokensWithValue, 
         bal,
-        nativePrice, // ✅ STORE native price in cache!
+        nativePriceValue, // ✅ STORE native price in cache!
         15 * 60 * 1000 // 15 minutes
       );
       logger.log('💾 Cached fresh token and balance data');
