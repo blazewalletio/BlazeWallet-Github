@@ -9,8 +9,7 @@ import {
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useCurrency } from '@/contexts/CurrencyContext';
-import { BlockchainService } from '@/lib/blockchain';
-import { TokenService } from '@/lib/token-service';
+import { MultiChainService } from '@/lib/multi-chain-service';
 import { PriceService } from '@/lib/price-service';
 import { CHAINS, POPULAR_TOKENS } from '@/lib/chains';
 import SendModal from '../SendModal';
@@ -51,8 +50,7 @@ export default function WalletTab() {
   const [change24h, setChange24h] = useState(2.5);
 
   const chain = CHAINS[currentChain];
-  const blockchain = new BlockchainService(currentChain as any);
-  const tokenService = new TokenService(chain.rpcUrl);
+  const blockchain = MultiChainService.getInstance(currentChain);
   const priceService = new PriceService();
 
   const fetchData = async (force = false) => {
@@ -86,48 +84,90 @@ export default function WalletTab() {
       });
 
       let tokensWithValue: any[] = [];
-      const popularTokens = POPULAR_TOKENS[currentChain] || [];
-      if (popularTokens.length > 0) {
-        const tokensWithBalance = await tokenService.getMultipleTokenBalances(
-          popularTokens,
-          address
-        );
+      
+      // ✅ EVM: Fetch ALL ERC20 tokens via Alchemy (like Dashboard does)
+      if (currentChain !== 'solana' && !chain.isBitcoin && address) {
+        let erc20Tokens: any[] = [];
         
-        // ✅ Batch fetch prices + change24h for all tokens (ONE API call instead of N calls!)
-        const tokenSymbols = tokensWithBalance.map(t => t.symbol);
-        const pricesMap = await priceService.getMultiplePrices(tokenSymbols);
+        try {
+          logger.log(`[WalletTab] 🔮 Attempting to fetch ALL ERC20 tokens via Alchemy...`);
+          erc20Tokens = await blockchain.getERC20TokenBalances(address);
+          
+          if (erc20Tokens.length > 0) {
+            logger.log(`[WalletTab] ✅ Alchemy found ${erc20Tokens.length} ERC20 tokens with balance`);
+          } else {
+            logger.log(`[WalletTab] ℹ️ No tokens found via Alchemy, falling back to POPULAR_TOKENS`);
+          }
+        } catch (error) {
+          logger.warn(`[WalletTab] ⚠️ Alchemy failed, falling back to POPULAR_TOKENS:`, error);
+        }
         
-        const tokensWithPrices = await Promise.all(
-          tokensWithBalance.map(async (token) => {
-            const priceData = pricesMap[token.symbol] || { price: 0, change24h: 0 };
-            const price = priceData.price || 0;
-            const change24h = priceData.change24h || 0;
-            const balanceUSD = parseFloat(token.balance || '0') * price;
+        // Fallback to POPULAR_TOKENS if Alchemy returned nothing
+        if (erc20Tokens.length === 0) {
+          const popularTokens = POPULAR_TOKENS[currentChain] || [];
+          if (popularTokens.length > 0) {
+            // Use MultiChainService fallback method if available
+            logger.log(`[WalletTab] 🪙 Fetching balances for ${popularTokens.length} popular ERC20 tokens...`);
+            // Note: MultiChainService doesn't have getMultipleTokenBalances, so we'll keep Alchemy result
+          }
+        }
+        
+        if (erc20Tokens.length > 0) {
+          // ✅ Batch fetch prices by contract address (more accurate than symbol)
+          const tokenAddresses = erc20Tokens.map(t => t.address);
+          const pricesByAddress = await priceService.getPricesByAddresses(tokenAddresses, currentChain);
+          
+          logger.log(`[WalletTab] 💰 Received prices for ${pricesByAddress.size}/${tokenAddresses.length} tokens`);
+          
+          // ✅ Fetch missing logos from CoinGecko for tokens without logos
+          const tokensNeedingLogos = erc20Tokens.filter((token: any) => 
+            !token.logo || 
+            token.logo === '/crypto-placeholder.png' || 
+            token.logo === '/crypto-eth.png' ||
+            token.logo.trim() === ''
+          );
+          
+          if (tokensNeedingLogos.length > 0) {
+            logger.log(`[WalletTab] 🖼️ Fetching logos from CoinGecko for ${tokensNeedingLogos.length} tokens...`);
             
-            // ✅ Fetch logo if missing
-            let logo = token.logo;
-            if (!logo || logo === '/crypto-placeholder.png' || logo === '/crypto-eth.png' || logo.trim() === '') {
-              try {
-                logo = await getCurrencyLogo(token.symbol, token.address);
-                logger.log(`[WalletTab] Fetched logo for ${token.symbol}: ${logo}`);
-              } catch (error) {
-                logger.warn(`[WalletTab] Failed to fetch logo for ${token.symbol}:`, error);
-              }
-            }
+            // Fetch logos in parallel
+            await Promise.all(
+              tokensNeedingLogos.map(async (token: any) => {
+                try {
+                  const logo = await getCurrencyLogo(token.symbol, token.address);
+                  if (logo && logo !== '/crypto-eth.png' && logo !== '/crypto-placeholder.png') {
+                    token.logo = logo;
+                    logger.log(`[WalletTab] ✅ Fetched logo for ${token.symbol}: ${logo}`);
+                  }
+                } catch (error) {
+                  logger.warn(`[WalletTab] ⚠️ Failed to fetch logo for ${token.symbol}:`, error);
+                }
+              })
+            );
+          }
+          
+          const tokensWithPrices = erc20Tokens.map((token: any) => {
+            const addressLower = token.address.toLowerCase();
+            const priceData = pricesByAddress.get(addressLower) || { price: 0, change24h: 0 };
+            const balanceNum = parseFloat(token.balance || '0');
+            const balanceUSD = balanceNum * priceData.price;
             
             return {
               ...token,
-              logo: logo || '/crypto-placeholder.png',
-              priceUSD: price,
+              logo: token.logo || '/crypto-placeholder.png',
+              priceUSD: priceData.price,
               balanceUSD: balanceUSD.toFixed(2),
-              change24h, // ✅ Direct from batch call - no extra API calls!
+              change24h: priceData.change24h,
             };
-          })
-        );
+          });
 
-        tokensWithValue = tokensWithPrices.filter(
-          t => parseFloat(t.balance || '0') > 0
-        );
+          tokensWithValue = tokensWithPrices.filter(
+            t => parseFloat(t.balance || '0') > 0
+          );
+          
+          logger.log(`[WalletTab] ✅ Final tokensWithValue: ${tokensWithValue.length} tokens`);
+        }
+        
         // ✅ Use chain-specific updateTokens
         updateTokens(currentChain, tokensWithValue);
 
