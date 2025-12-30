@@ -1187,7 +1187,7 @@ export default function Dashboard() {
         console.log(`   Tokens met valide change data: ${tokensForCalculation.length}`);
         console.log(`\n📊 Weighted Change Inputs:`);
         console.log(`   Native Balance: ${parseFloat(bal)} ETH`);
-        console.log(`   Native Price: $${nativePrice.toFixed(2)}`);
+        console.log(`   Native Price: $${nativePriceValue.toFixed(2)}`);
         console.log(`   Native Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
       }
       
