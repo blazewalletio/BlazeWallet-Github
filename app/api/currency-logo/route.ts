@@ -5,6 +5,11 @@ import { logger } from '@/lib/logger';
  * Server-side API route for fetching currency logos
  * This avoids CSP/CORS issues with direct client-side CoinGecko API calls
  */
+
+// ✅ Enable route-level caching to reduce API calls
+export const revalidate = 3600; // Cache for 1 hour
+export const runtime = 'nodejs'; // Use Node.js runtime for better caching
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const symbol = searchParams.get('symbol');
@@ -32,6 +37,7 @@ export async function GET(request: NextRequest) {
         headers: {
           'Accept': 'application/json',
         },
+        next: { revalidate: 3600 }, // Cache for 1 hour
       });
 
       logger.log(`[CurrencyLogo] 📊 CoinGecko status: ${response.status}`);
@@ -107,6 +113,7 @@ export async function GET(request: NextRequest) {
         headers: {
           'Accept': 'application/json',
         },
+        next: { revalidate: 3600 }, // Cache for 1 hour
       });
 
       logger.log(`[CurrencyLogo] 📊 CoinGecko ID lookup status: ${response.status}`);
@@ -147,6 +154,7 @@ export async function GET(request: NextRequest) {
       headers: {
         'Accept': 'application/json',
       },
+      next: { revalidate: 3600 }, // Cache for 1 hour
     });
 
     logger.log(`[CurrencyLogo] 📊 CoinGecko search status: ${searchResponse.status}`);
