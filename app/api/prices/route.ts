@@ -204,16 +204,27 @@ export async function GET(request: Request) {
     if (needsBinanceFallback) {
       logger.log(`🔄 [Prices] Trying Binance fallback for major tokens...`);
       
+      // ✅ COMPREHENSIVE: All native tokens supported by Binance
+      // Note: CRO (Cronos) is NOT on Binance - will rely on CoinGecko for that
       const binanceSymbols: Record<string, string> = {
-        'SOL': 'SOLUSDT',
-        'BTC': 'BTCUSDT',
-        'ETH': 'ETHUSDT',
-        'BNB': 'BNBUSDT',
-        'MATIC': 'MATICUSDT',
-        'AVAX': 'AVAXUSDT',
-        'FTM': 'FTMUSDT',
-        'LTC': 'LTCUSDT',
-        'DOGE': 'DOGEUSDT',
+        // Layer 1 Blockchains
+        'SOL': 'SOLUSDT',        // Solana
+        'BTC': 'BTCUSDT',        // Bitcoin
+        'ETH': 'ETHUSDT',        // Ethereum (also used by Arbitrum, Base, Optimism, zkSync, Linea)
+        'BNB': 'BNBUSDT',        // BNB Smart Chain
+        'tBNB': 'BNBUSDT',       // BSC Testnet (same price as mainnet)
+        'MATIC': 'MATICUSDT',    // Polygon
+        'AVAX': 'AVAXUSDT',      // Avalanche
+        'FTM': 'FTMUSDT',        // Fantom
+        
+        // Bitcoin Forks
+        'LTC': 'LTCUSDT',        // Litecoin
+        'DOGE': 'DOGEUSDT',      // Dogecoin
+        'BCH': 'BCHUSDT',        // Bitcoin Cash
+        
+        // Layer 2s (use ETH price)
+        'ARB': 'ARBUSDT',        // Arbitrum (has its own token)
+        'OP': 'OPUSDT',          // Optimism (has its own token)
       };
 
       if (!data) data = {}; // Initialize if CoinGecko completely failed
