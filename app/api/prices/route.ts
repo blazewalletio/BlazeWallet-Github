@@ -45,6 +45,7 @@ export async function GET(request: Request) {
       // Other popular tokens
       WBTC: 'wrapped-bitcoin',
       LINK: 'chainlink',
+      PENDLE: 'pendle',
       // Solana SPL Tokens
       RAY: 'raydium',
       BONK: 'bonk',

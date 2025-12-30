@@ -89,12 +89,56 @@ class DexScreenerService {
         return null;
       }
 
-      // Get the pair with highest liquidity (most reliable data)
-      const bestPair = data.pairs.reduce((best: any, current: any) => {
+      // ✅ FIX: First filter pairs where the requested token is the BASE token
+      // This prevents selecting pairs where our token is the quote token (e.g., LDO/PENDLE pair)
+      const mintLower = mint.toLowerCase();
+      const validPairs = data.pairs.filter((pair: any) => {
+        const baseAddress = pair.baseToken?.address?.toLowerCase();
+        return baseAddress === mintLower;
+      });
+
+      console.log(`   Total pairs: ${data.pairs.length}`);
+      console.log(`   Pairs with ${mint.substring(0, 10)}... as base: ${validPairs.length}`);
+
+      if (validPairs.length === 0) {
+        console.log(`   ⚠️ No pairs found where token is base token, trying all pairs...`);
+        // Fallback: if no pairs have our token as base, use all pairs (might be quote token)
+        const fallbackPair = data.pairs.reduce((best: any, current: any) => {
+          const bestLiq = best.liquidity?.usd || 0;
+          const currentLiq = current.liquidity?.usd || 0;
+          return currentLiq > bestLiq ? current : best;
+        }, data.pairs[0]);
+        
+        // Check if quote token matches
+        const quoteAddress = fallbackPair.quoteToken?.address?.toLowerCase();
+        if (quoteAddress === mintLower) {
+          console.log(`   ✅ Found as quote token, using reverse price`);
+          // If it's the quote token, we need to invert the price
+          const priceUsd = parseFloat(fallbackPair.priceUsd || '0');
+          const invertedPrice = priceUsd > 0 ? 1 / priceUsd : 0;
+          
+          return {
+            mint: mint,
+            name: fallbackPair.quoteToken?.name || 'Unknown Token',
+            symbol: fallbackPair.quoteToken?.symbol || 'UNKNOWN',
+            logoURI: fallbackPair.info?.imageUrl || fallbackPair.quoteToken?.imageUrl,
+            priceUsd: invertedPrice,
+            liquidity: fallbackPair.liquidity?.usd,
+            volume24h: fallbackPair.volume?.h24,
+            priceChange24h: fallbackPair.priceChange?.h24 ? -fallbackPair.priceChange.h24 : 0, // Invert change
+          };
+        }
+        
+        console.log(`   ❌ Token not found as base or quote token`);
+        return null;
+      }
+
+      // Get the pair with highest liquidity from valid pairs (where our token is base)
+      const bestPair = validPairs.reduce((best: any, current: any) => {
         const bestLiq = best.liquidity?.usd || 0;
         const currentLiq = current.liquidity?.usd || 0;
         return currentLiq > bestLiq ? current : best;
-      }, data.pairs[0]);
+      }, validPairs[0]);
 
       console.log(`   Best pair liquidity: $${bestPair.liquidity?.usd || 0}`);
       console.log(`   Best pair price: $${bestPair.priceUsd || 'N/A'}`);
@@ -102,14 +146,7 @@ class DexScreenerService {
       const token = bestPair.baseToken;
       console.log(`   Base token address: ${token.address}`);
       console.log(`   Base token symbol: ${token.symbol}`);
-      console.log(`   Image URL: ${bestPair.info?.imageUrl || 'N/A'}`);
-      
-      // Verify it's the correct token (sometimes DexScreener returns quote token)
-      if (token.address.toLowerCase() !== mint.toLowerCase()) {
-        console.log(`   ⚠️ Address mismatch! Expected ${mint}, got ${token.address}`);
-        logger.warn(`⚠️ [DexScreener] Token address mismatch for ${mint.substring(0, 8)}...`);
-        return null;
-      }
+      console.log(`   Image URL: ${bestPair.info?.imageUrl || bestPair.baseToken?.imageUrl || 'N/A'}`);
 
       const priceUsd = parseFloat(bestPair.priceUsd || '0');
       const result: DexScreenerToken = {

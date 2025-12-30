@@ -139,17 +139,31 @@ export async function GET(request: NextRequest) {
         if (dexScreenerResponse.ok) {
           const dexData = await dexScreenerResponse.json();
           if (dexData.pairs && dexData.pairs.length > 0) {
-            // Get the pair with highest liquidity
-            const bestPair = dexData.pairs.reduce((best: any, current: any) => {
+            const contractLower = contractAddress.toLowerCase();
+            
+            // ✅ FIX: First filter pairs where our token is the BASE token
+            const validPairs = dexData.pairs.filter((pair: any) => {
+              const baseAddress = pair.baseToken?.address?.toLowerCase();
+              return baseAddress === contractLower;
+            });
+
+            // Get the pair with highest liquidity from valid pairs
+            const pairsToSearch = validPairs.length > 0 ? validPairs : dexData.pairs;
+            const bestPair = pairsToSearch.reduce((best: any, current: any) => {
               const bestLiq = best.liquidity?.usd || 0;
               const currentLiq = current.liquidity?.usd || 0;
               return currentLiq > bestLiq ? current : best;
-            }, dexData.pairs[0]);
+            }, pairsToSearch[0]);
 
-            if (bestPair.info?.imageUrl) {
+            // Try multiple logo sources
+            const logoUrl = bestPair.info?.imageUrl || 
+                           bestPair.baseToken?.imageUrl || 
+                           bestPair.quoteToken?.imageUrl;
+
+            if (logoUrl) {
               logger.log(`[CurrencyLogo] Found logo via DexScreener for ${symbol}`);
               return NextResponse.json({
-                logo: bestPair.info.imageUrl,
+                logo: logoUrl,
                 source: 'dexscreener',
               });
             }
