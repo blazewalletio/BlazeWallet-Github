@@ -201,10 +201,10 @@ export async function GET(request: NextRequest) {
       try {
         logger.log(`[CurrencyLogo] Trying Uniswap token list for ${symbol} (${contractAddress.substring(0, 10)}...)`);
         
-        // Uniswap maintains multiple token lists - try the extended list first
+        // Uniswap token list endpoints
         const uniswapLists = [
-          'https://tokens.uniswap.org', // Default list
-          'https://raw.githubusercontent.com/uniswap/default-token-list/main/src/tokens/ethereum.json', // Extended list
+          'https://raw.githubusercontent.com/uniswap/default-token-list/main/src/tokens/ethereum.json',
+          'https://tokens.uniswap.org', // This might redirect or need different handling
         ];
 
         for (const listUrl of uniswapLists) {
@@ -216,7 +216,10 @@ export async function GET(request: NextRequest) {
 
             if (listResponse.ok) {
               const listData = await listResponse.json();
-              const tokens = listData.tokens || listData; // Handle different response formats
+              // Uniswap token list format: { tokens: [...] } or direct array
+              const tokens = Array.isArray(listData) ? listData : (listData.tokens || []);
+              
+              logger.log(`[CurrencyLogo] Uniswap list has ${tokens.length} tokens`);
               
               const contractLower = contractAddress.toLowerCase();
               const token = tokens.find((t: any) => 
@@ -229,11 +232,15 @@ export async function GET(request: NextRequest) {
                   logo: token.logoURI,
                   source: 'uniswap-list',
                 });
+              } else if (token) {
+                logger.warn(`[CurrencyLogo] Token found in Uniswap list but no logoURI for ${symbol}`);
               }
+            } else {
+              logger.warn(`[CurrencyLogo] Uniswap list ${listUrl} returned ${listResponse.status}`);
             }
-          } catch (listError) {
+          } catch (listError: any) {
             // Continue to next list
-            logger.warn(`[CurrencyLogo] Uniswap list ${listUrl} failed:`, listError);
+            logger.warn(`[CurrencyLogo] Uniswap list ${listUrl} failed:`, listError.message);
           }
         }
         
