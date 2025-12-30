@@ -52,6 +52,9 @@ export default function WalletTab() {
   const [totalValueUSD, setTotalValueUSD] = useState(0);
   const [nativeValueUSD, setNativeValueUSD] = useState(0); // ✅ Store native currency USD value
   const [change24h, setChange24h] = useState(2.5);
+  
+  // ✅ FIX: Track refreshing state PER CHAIN to prevent race conditions
+  const [refreshingChains, setRefreshingChains] = useState<Set<string>>(new Set());
 
   const chain = CHAINS[currentChain];
   const blockchain = MultiChainService.getInstance(currentChain);
@@ -66,17 +69,19 @@ export default function WalletTab() {
       return;
     }
     
-    // ✅ FIX: Check if we're ALREADY refreshing to prevent race conditions
-    if (isRefreshing && !force) {
-      console.log(`⚠️ [WalletTab] Already refreshing for ${currentChain}, skipping duplicate call`);
+    // ✅ FIX: Check if THIS SPECIFIC CHAIN is already refreshing (per-chain lock)
+    if (refreshingChains.has(currentChain) && !force) {
+      console.log(`⚠️ [WalletTab] Already refreshing ${currentChain}, skipping duplicate call`);
       return;
     }
     
     console.log(`\n🔄 [WalletTab] START fetchData() for ${currentChain}`);
     console.log(`   Address: ${displayAddress}`);
     console.log(`   Force: ${force}`);
-    console.log(`   isRefreshing before: ${isRefreshing}`);
+    console.log(`   Refreshing chains before: [${Array.from(refreshingChains).join(', ')}]`);
     
+    // ✅ Add current chain to refreshing set
+    setRefreshingChains(prev => new Set(prev).add(currentChain));
     setIsRefreshing(true);
     
     try {
@@ -422,7 +427,14 @@ export default function WalletTab() {
     } catch (error) {
       logger.error('Error fetching data:', error);
     } finally {
+      // ✅ Remove current chain from refreshing set
+      setRefreshingChains(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(currentChain);
+        return newSet;
+      });
       setIsRefreshing(false);
+      console.log(`\n✅ [WalletTab] fetchData() COMPLETED for ${currentChain}`);
     }
   };
 
