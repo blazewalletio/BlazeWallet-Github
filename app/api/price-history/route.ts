@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
-import { getCoinGeckoClient } from '@/lib/coingecko-sdk-service';
-import Coingecko from '@coingecko/coingecko-typescript';
 
 // Force dynamic rendering for this API route
 export const dynamic = 'force-dynamic';
@@ -43,13 +41,18 @@ export async function GET(request: Request) {
     }
 
     const apiKey = process.env.COINGECKO_API_KEY?.trim();
-    const isDemoKey = apiKey?.startsWith('CG-');
+    // ✅ IMPROVED: CoinGecko free tier supports ALL timeframes (1D, 7D, 30D, 1J, ALLES)
+    // Only use API key if explicitly needed (e.g., for higher rate limits)
+    // For now, we'll use free tier by default to avoid API key errors
+    // TODO: Add API key validation to check if key is valid before using it
+    const useApiKey = false; // ✅ Use free tier by default (works for all timeframes)
+    const apiKeyParam = ''; // ✅ No API key = free tier
     
-    logger.log(`[Price History API] 🔑 CoinGecko API configuration`, {
+    logger.log(`[Price History API] 🔑 Using CoinGecko free tier`, {
       hasApiKeyInEnv: !!apiKey,
-      keyType: isDemoKey ? 'demo' : apiKey ? 'pro' : 'none',
-      keyLength: apiKey?.length || 0,
-      note: 'SDK will handle API key automatically',
+      apiKeyLength: apiKey?.length || 0,
+      usingFreeTier: true,
+      note: 'Free tier supports all timeframes (1D, 7D, 30D, 1J, ALLES)',
     });
     
     // ✅ EXACT CoinGecko granularity matching:
@@ -360,111 +363,90 @@ export async function GET(request: Request) {
       );
     }
 
-    // ✅ Use CoinGecko SDK for market chart data
-    // SDK handles API key, retries, and error handling automatically
+    // ✅ EXACT CoinGecko API call matching their website
+    // For 1D: No interval parameter (CoinGecko automatically gives 5-minute data)
+    // For others: Use interval parameter
+    // ✅ Using free tier (no API key) - supports all timeframes
+    if (interval) {
+      url = `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}&interval=${interval}`;
+    } else {
+      // 1D: No interval parameter = 5-minute granularity
+      url = `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}`;
+    }
+    
     const intervalLabel = interval || '5-minute (auto)';
-    logger.log(`[Price History API] 📡 Step 4: Fetching market chart data via SDK`, {
+    logger.log(`[Price History API] 📡 Step 4: Fetching market chart data (free tier)`, {
       symbol,
       coinGeckoId,
       days,
       interval: intervalLabel,
       isNativeToken,
       contractAddress: contractAddress || 'none',
-      hasApiKey: !!apiKey,
-      keyType: isDemoKey ? 'demo' : apiKey ? 'pro' : 'free',
+      url: url,
+      usingFreeTier: true,
     });
     
     const marketChartStartTime = Date.now();
-    let data: Coingecko.Coins.MarketChartGetResponse;
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+      },
+      next: { revalidate: days <= 1 ? 300 : 900 }, // 5 min cache for 1D, 15 min for others
+    });
+    const marketChartDuration = Date.now() - marketChartStartTime;
     
-    try {
-      const client = getCoinGeckoClient();
+    logger.log(`[Price History API] 📥 Market chart API response`, {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      duration: `${marketChartDuration}ms`,
+      headers: {
+        'x-ratelimit-remaining': response.headers.get('x-ratelimit-remaining'),
+        'x-ratelimit-limit': response.headers.get('x-ratelimit-limit'),
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unable to read error response');
       
-      // ✅ Build SDK params
-      // SDK expects: get(id: string, query: MarketChartGetParams)
-      // days as string, interval as optional 'hourly' | 'daily'
-      const marketChartParams: Coingecko.Coins.MarketChartGetParams = {
-        vs_currency: 'usd',
-        days: days.toString(),
-        // Only add interval if not null (1D uses null for auto 5-minute)
-        ...(interval ? { interval: interval as 'hourly' | 'daily' } : {}),
-      };
-      
-      logger.log(`[Price History API] 🔧 SDK params`, {
-        coinId: coinGeckoId,
-        params: marketChartParams,
-      });
-      
-      // ✅ SDK call with automatic retries and error handling
-      // get(id: string, query: MarketChartGetParams)
-      data = await client.coins.marketChart.get(coinGeckoId, marketChartParams);
-      
-      const marketChartDuration = Date.now() - marketChartStartTime;
-      
-      logger.log(`[Price History API] 📥 SDK response received`, {
-        ok: true,
-        duration: `${marketChartDuration}ms`,
-        hasPrices: !!data.prices,
-        pricesLength: data.prices?.length || 0,
-        hasMarketCaps: !!data.market_caps,
-        hasTotalVolumes: !!data.total_volumes,
-      });
-      
-    } catch (error: any) {
-      const marketChartDuration = Date.now() - marketChartStartTime;
-      
-      // ✅ SDK provides typed errors
-      if (error instanceof Coingecko.APIError) {
-        logger.error(`[Price History API] ❌ SDK API Error`, {
-          status: error.status,
-          name: error.name,
-          message: error.message,
-          coinGeckoId,
-          symbol,
-          days,
-          interval,
-          duration: `${marketChartDuration}ms`,
-        });
-        
-        if (error.status === 429) {
-          logger.error(`[Price History API] ❌ 429 Rate limit hit`);
-          return NextResponse.json(
-            { prices: [], success: false, error: 'Rate limited - please try again in a moment' },
-            { status: 200 }
-          );
-        }
-        
-        if (error.status === 404) {
-          logger.error(`[Price History API] ❌ 404 Token not found`, {
-            coinGeckoId,
-            symbol,
-          });
-          return NextResponse.json(
-            { prices: [], success: false, error: 'Token not found on CoinGecko' },
-            { status: 200 }
-          );
-        }
-        
-        return NextResponse.json(
-          { prices: [], success: false, error: `CoinGecko API error: ${error.status} - ${error.message}` },
-          { status: 200 }
-        );
-      }
-      
-      // Re-throw for generic error handling
-      logger.error(`[Price History API] ❌ SDK call failed`, {
-        error: error?.message || 'Unknown error',
-        stack: error?.stack,
+      logger.error(`[Price History API] ❌ CoinGecko API error`, {
+        status: response.status,
+        statusText: response.statusText,
         coinGeckoId,
         symbol,
         days,
         interval,
-        duration: `${marketChartDuration}ms`,
+        usingFreeTier: true,
+        errorText: errorText.substring(0, 200), // First 200 chars
       });
-      throw error;
+      
+      // ✅ No fallback needed - we're already using free tier
+      // If free tier fails, it's likely a rate limit (429) or token not found (404)
+      if (response.status === 429) {
+        logger.error(`[Price History API] ❌ 429 Rate limit hit (free tier: 10-50 calls/min)`);
+        return NextResponse.json(
+          { prices: [], success: false, error: 'Rate limited - please try again in a moment' },
+          { status: 200 }
+        );
+      }
+      if (response.status === 404) {
+        logger.error(`[Price History API] ❌ 404 Token not found`, {
+          coinGeckoId,
+          symbol,
+        });
+        return NextResponse.json(
+          { prices: [], success: false, error: 'Token not found on CoinGecko' },
+          { status: 200 }
+        );
+      }
+      return NextResponse.json(
+        { prices: [], success: false, error: `CoinGecko API error: ${response.status}` },
+        { status: 200 }
+      );
     }
 
     const parseStartTime = Date.now();
+    const data = await response.json();
     const parseDuration = Date.now() - parseStartTime;
     
     logger.log(`[Price History API] 📊 Response parsed`, {
@@ -496,36 +478,29 @@ export async function GET(request: Request) {
     // Only filter out truly invalid data (null, NaN, negative)
     // Keep ALL valid data points to match CoinGecko's exact chart shape
     const filterStartTime = Date.now();
-    const rawPricesCount = data.prices?.length || 0;
-    
-    // ✅ SDK returns Array<Array<number>> where each inner array is [timestamp, price]
-    const pricesArray = (data.prices || []) as Array<[number, number]>;
+    const rawPricesCount = data.prices.length;
     
     logger.log(`[Price History API] 🔍 Filtering price data`, {
       rawDataPoints: rawPricesCount,
-      firstRawPoint: pricesArray[0] ? {
-        timestamp: pricesArray[0][0],
-        price: pricesArray[0][1],
+      firstRawPoint: data.prices[0] ? {
+        timestamp: data.prices[0][0],
+        price: data.prices[0][1],
       } : null,
-      lastRawPoint: pricesArray[pricesArray.length - 1] ? {
-        timestamp: pricesArray[pricesArray.length - 1][0],
-        price: pricesArray[pricesArray.length - 1][1],
+      lastRawPoint: data.prices[data.prices.length - 1] ? {
+        timestamp: data.prices[data.prices.length - 1][0],
+        price: data.prices[data.prices.length - 1][1],
       } : null,
     });
     
-    const prices = pricesArray
-      .filter((point) => {
-        const [timestamp, price] = point;
-        return timestamp && price && price > 0 && !isNaN(price) && !isNaN(timestamp);
-      })
-      .map((point) => {
-        const [timestamp, price] = point;
-        return {
-          timestamp: timestamp,
-          price: price,
-        };
-      })
-      .sort((a, b) => a.timestamp - b.timestamp);
+    const prices = data.prices
+      .filter(([timestamp, price]: [number, number]) => 
+        timestamp && price && price > 0 && !isNaN(price) && !isNaN(timestamp)
+      )
+      .map(([timestamp, price]: [number, number]) => ({
+        timestamp: timestamp,
+        price: price,
+      }))
+      .sort((a: { timestamp: number; price: number }, b: { timestamp: number; price: number }) => a.timestamp - b.timestamp);
     
     const filterDuration = Date.now() - filterStartTime;
     const filteredOut = rawPricesCount - prices.length;
@@ -582,7 +557,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       prices,
       success: true,
-      source: 'CoinGecko SDK',
+      source: 'CoinGecko',
       coinGeckoId: coinGeckoId,
     });
 
