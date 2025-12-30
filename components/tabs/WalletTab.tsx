@@ -50,6 +50,7 @@ export default function WalletTab() {
   const [showBuyModal3, setShowBuyModal3] = useState(false);
   const [showTokenSelector, setShowTokenSelector] = useState(false);
   const [totalValueUSD, setTotalValueUSD] = useState(0);
+  const [nativeValueUSD, setNativeValueUSD] = useState(0); // ✅ NEW: Store native currency USD value
   const [change24h, setChange24h] = useState(2.5);
 
   const chain = CHAINS[currentChain];
@@ -107,6 +108,9 @@ export default function WalletTab() {
       const nativePrice = nativePriceData.price || 0;
       const nativeChange = nativePriceData.change24h || 0;
       const nativeValueUSD = parseFloat(bal) * nativePrice;
+      
+      // ✅ Store native value in state for display in native currency card
+      setNativeValueUSD(nativeValueUSD);
       
       if (currentChain === 'ethereum') {
         console.log(`✅ ETH price: $${nativePrice.toFixed(2)}`);
@@ -643,7 +647,7 @@ export default function WalletTab() {
               </div>
               <div className="text-right">
                 <div className="font-semibold">
-                  {formatUSDSync(parseFloat(balance) * (totalValueUSD > 0 ? totalValueUSD / (parseFloat(balance) + tokens.reduce((sum, t) => sum + parseFloat(t.balance || '0'), 0)) : 0))}
+                  {formatUSDSync(nativeValueUSD)}
                 </div>
                 <div className={`text-sm ${isPositiveChange ? 'text-emerald-400' : 'text-rose-400'}`}>
                   {isPositiveChange ? '+' : ''}{change24h.toFixed(2)}%
