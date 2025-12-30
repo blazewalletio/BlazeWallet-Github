@@ -41,11 +41,14 @@ export async function GET(request: Request) {
     }
 
     const apiKey = process.env.COINGECKO_API_KEY?.trim();
-    const apiKeyParam = apiKey ? `&x_cg_demo_api_key=${apiKey}` : '';
+    // ✅ IMPROVED: If no API key, use free tier directly (no need to try with key first)
+    const useApiKey = !!apiKey;
+    const apiKeyParam = useApiKey ? `&x_cg_demo_api_key=${apiKey}` : '';
     
     logger.log(`[Price History API] 🔑 API key status`, {
-      hasApiKey: !!apiKey,
+      hasApiKey: useApiKey,
       apiKeyLength: apiKey?.length || 0,
+      usingFreeTier: !useApiKey,
     });
     
     // ✅ EXACT CoinGecko granularity matching:
@@ -398,6 +401,12 @@ export async function GET(request: Request) {
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unable to read error response');
+      const errorTextLower = errorText.toLowerCase();
+      const isApiKeyError = response.status === 401 || 
+                           errorTextLower.includes('api key') || 
+                           errorTextLower.includes('unauthorized') ||
+                           errorTextLower.includes('invalid key');
+      
       logger.error(`[Price History API] ❌ CoinGecko API error`, {
         status: response.status,
         statusText: response.statusText,
@@ -405,66 +414,95 @@ export async function GET(request: Request) {
         symbol,
         days,
         interval,
-        hasApiKey: !!apiKey,
+        hasApiKey: useApiKey,
         apiKeyLength: apiKey?.length || 0,
+        isApiKeyError,
         errorText: errorText.substring(0, 200), // First 200 chars
       });
       
-      if (response.status === 401) {
-        logger.error(`[Price History API] ❌ 401 Unauthorized`, {
-          hasApiKey: !!apiKey,
-          apiKeyLength: apiKey?.length || 0,
+      // ✅ IMPROVED FALLBACK: Try without API key if:
+      // 1. Status is 401 (Unauthorized)
+      // 2. Error message mentions API key
+      // 3. We were using an API key (so we can try without it)
+      if (isApiKeyError && useApiKey) {
+        logger.warn(`[Price History API] ⚠️ API key error detected. Retrying without API key (free tier)...`, {
+          status: response.status,
           coinGeckoId,
           symbol,
           days,
-          message: 'API key may be invalid, expired, or missing. Trying without API key as fallback...',
         });
         
         // ✅ FALLBACK: Try without API key (free tier)
-        if (apiKey) {
-          logger.log(`[Price History API] 🔄 Retrying without API key (free tier)`);
-          const fallbackUrl = interval
-            ? `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}&interval=${interval}`
-            : `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}`;
+        const fallbackUrl = interval
+          ? `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}&interval=${interval}`
+          : `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}`;
+        
+        logger.log(`[Price History API] 🔄 Fallback URL: ${fallbackUrl.replace(apiKey || '', '[API_KEY]')}`);
+        
+        try {
+          const fallbackStartTime = Date.now();
+          const fallbackResponse = await fetch(fallbackUrl, {
+            headers: { 'Accept': 'application/json' },
+            next: { revalidate: days <= 1 ? 300 : 900 },
+          });
+          const fallbackDuration = Date.now() - fallbackStartTime;
           
-          try {
-            const fallbackResponse = await fetch(fallbackUrl, {
-              headers: { 'Accept': 'application/json' },
-              next: { revalidate: days <= 1 ? 300 : 900 },
+          logger.log(`[Price History API] 📥 Fallback response`, {
+            status: fallbackResponse.status,
+            statusText: fallbackResponse.statusText,
+            ok: fallbackResponse.ok,
+            duration: `${fallbackDuration}ms`,
+          });
+          
+          if (fallbackResponse.ok) {
+            const fallbackData = await fallbackResponse.json();
+            logger.log(`[Price History API] 📊 Fallback data parsed`, {
+              hasPrices: !!fallbackData.prices,
+              pricesIsArray: Array.isArray(fallbackData.prices),
+              pricesLength: fallbackData.prices?.length || 0,
             });
             
-            if (fallbackResponse.ok) {
-              logger.log(`[Price History API] ✅ Fallback (no API key) succeeded`);
-              const fallbackData = await fallbackResponse.json();
-              if (fallbackData.prices && Array.isArray(fallbackData.prices) && fallbackData.prices.length > 0) {
-                const prices = fallbackData.prices
-                  .filter(([timestamp, price]: [number, number]) => 
-                    timestamp && price && price > 0 && !isNaN(price) && !isNaN(timestamp)
-                  )
-                  .map(([timestamp, price]: [number, number]) => ({
-                    timestamp: timestamp,
-                    price: price,
-                  }))
-                  .sort((a: { timestamp: number; price: number }, b: { timestamp: number; price: number }) => a.timestamp - b.timestamp);
-                
-                if (prices.length > 0) {
-                  logger.log(`[Price History API] ✅ Fallback returned ${prices.length} price points`);
-                  return NextResponse.json({
-                    prices,
-                    success: true,
-                    source: 'CoinGecko (free tier)',
-                    coinGeckoId: coinGeckoId,
-                  });
-                }
+            if (fallbackData.prices && Array.isArray(fallbackData.prices) && fallbackData.prices.length > 0) {
+              const prices = fallbackData.prices
+                .filter(([timestamp, price]: [number, number]) => 
+                  timestamp && price && price > 0 && !isNaN(price) && !isNaN(timestamp)
+                )
+                .map(([timestamp, price]: [number, number]) => ({
+                  timestamp: timestamp,
+                  price: price,
+                }))
+                .sort((a: { timestamp: number; price: number }, b: { timestamp: number; price: number }) => a.timestamp - b.timestamp);
+              
+              if (prices.length > 0) {
+                logger.log(`[Price History API] ✅ Fallback succeeded with ${prices.length} price points`);
+                return NextResponse.json({
+                  prices,
+                  success: true,
+                  source: 'CoinGecko (free tier)',
+                  coinGeckoId: coinGeckoId,
+                });
+              } else {
+                logger.warn(`[Price History API] ⚠️ Fallback returned empty prices after filtering`);
               }
             } else {
-              logger.warn(`[Price History API] ⚠️ Fallback also failed: ${fallbackResponse.status}`);
+              logger.warn(`[Price History API] ⚠️ Fallback returned no prices data`);
             }
-          } catch (fallbackError: any) {
-            logger.error(`[Price History API] ❌ Fallback error:`, fallbackError?.message);
+          } else {
+            const fallbackErrorText = await fallbackResponse.text().catch(() => 'Unable to read error response');
+            logger.warn(`[Price History API] ⚠️ Fallback also failed`, {
+              status: fallbackResponse.status,
+              statusText: fallbackResponse.statusText,
+              errorText: fallbackErrorText.substring(0, 200),
+            });
           }
+        } catch (fallbackError: any) {
+          logger.error(`[Price History API] ❌ Fallback error:`, {
+            error: fallbackError?.message || 'Unknown error',
+            stack: fallbackError?.stack,
+          });
         }
         
+        // If fallback failed, return error
         return NextResponse.json(
           { prices: [], success: false, error: 'CoinGecko API key invalid or missing' },
           { status: 200 }

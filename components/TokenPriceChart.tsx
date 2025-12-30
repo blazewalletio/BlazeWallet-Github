@@ -506,19 +506,17 @@ export default function TokenPriceChart({
     // Set up new interval
     if (selectedTimeframe === 'LIVE') {
       // ✅ LIVE: Update only price (no full history fetch)
+      // We only update the current price point incrementally to avoid redrawing the entire graph
       refreshIntervalRef.current = setInterval(() => {
         if (isMountedRef.current) {
           updateLivePrice();
         }
       }, refreshInterval);
       
-      // Also refresh full history every 30 seconds for LIVE (to get new data points)
-      const historyRefreshInterval = setInterval(() => {
-        if (isMountedRef.current) {
-          logger.log(`🔄 [TokenPriceChart] Refreshing LIVE history for ${tokenSymbol}`);
-          loadPriceHistory(false);
-        }
-      }, 30000);
+      // ✅ REMOVED: Full history refresh every 30 seconds
+      // This was causing the entire graph to redraw, which is not ideal for LIVE mode
+      // Instead, we rely on updateLivePrice() to incrementally add new points
+      // The initial history is loaded once when the component mounts or timeframe changes
       
       // Cleanup
       return () => {
@@ -526,7 +524,6 @@ export default function TokenPriceChart({
           clearInterval(refreshIntervalRef.current);
           refreshIntervalRef.current = null;
         }
-        clearInterval(historyRefreshInterval);
         isMountedRef.current = false;
       };
     } else {
