@@ -343,7 +343,7 @@ export default function WalletTab() {
 
   useEffect(() => {
     fetchData(true);
-  }, [address, currentChain]);
+  }, [address, solanaAddress, currentChain]);
 
   const formattedAddress = address ? BlockchainService.formatAddress(address) : '';
   const isPositiveChange = change24h >= 0;
