@@ -238,8 +238,9 @@ export default function TokenPriceChart({
           lastTimestamp: data[data.length - 1]?.timestamp,
         });
 
-        // ✅ Background refresh if cache is getting stale (but not for LIVE)
-        if (selectedTimeframe !== 'LIVE' && priceHistoryCache.needsRefresh(tokenSymbol, days, tokenAddress, chain)) {
+        // ✅ Background refresh if cache is getting stale
+        // Note: We're already in a block where selectedTimeframe !== 'LIVE', so no need to check again
+        if (priceHistoryCache.needsRefresh(tokenSymbol, days, tokenAddress, chain)) {
           logger.log(`[TokenPriceChart:${selectedTimeframe}] 🔄 Cache getting stale, refreshing in background...`);
           loadPriceHistory(true); // Refresh in background
         }
