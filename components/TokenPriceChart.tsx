@@ -147,13 +147,33 @@ export default function TokenPriceChart({
 
   // ✅ Load price history with smart caching
   const loadPriceHistory = useCallback(async (forceRefresh = false) => {
-    if (!tokenSymbol || !isMountedRef.current) return;
+    if (!tokenSymbol || !isMountedRef.current) {
+      logger.log(`[TokenPriceChart:${selectedTimeframe}] ⏭️ Skipping load - no symbol or unmounted`, {
+        hasSymbol: !!tokenSymbol,
+        isMounted: isMountedRef.current,
+      });
+      return;
+    }
 
     const days = getDaysForTimeframe(selectedTimeframe);
+    
+    logger.log(`[TokenPriceChart:${selectedTimeframe}] 🔄 Starting loadPriceHistory`, {
+      timeframe: selectedTimeframe,
+      days,
+      symbol: tokenSymbol,
+      tokenAddress: tokenAddress || 'native',
+      chain,
+      forceRefresh,
+    });
     
     // ✅ Check cache first (unless forced refresh)
     if (!forceRefresh) {
       const cached = priceHistoryCache.get(tokenSymbol, days, tokenAddress, chain);
+      logger.log(`[TokenPriceChart:${selectedTimeframe}] 📦 Cache check`, {
+        hasCache: !!cached,
+        cacheDataPoints: cached?.prices?.length || 0,
+      });
+      
       if (cached && cached.prices.length > 0) {
         // Use cached data immediately
         const formatTime = (timestamp: number) => {
@@ -188,9 +208,17 @@ export default function TokenPriceChart({
         setMaxValue(max + padding);
         setIsLoading(false);
 
+        logger.log(`[TokenPriceChart:${selectedTimeframe}] ✅ Using cached data`, {
+          dataPoints: data.length,
+          minPrice: min - padding,
+          maxPrice: max + padding,
+          firstTimestamp: data[0]?.timestamp,
+          lastTimestamp: data[data.length - 1]?.timestamp,
+        });
+
         // ✅ Background refresh if cache is getting stale
         if (priceHistoryCache.needsRefresh(tokenSymbol, days, tokenAddress, chain)) {
-          logger.log(`🔄 [TokenPriceChart] Cache getting stale, refreshing in background...`);
+          logger.log(`[TokenPriceChart:${selectedTimeframe}] 🔄 Cache getting stale, refreshing in background...`);
           loadPriceHistory(true); // Refresh in background
         }
         return;
@@ -198,23 +226,64 @@ export default function TokenPriceChart({
     }
 
     setIsLoading(true);
+    logger.log(`[TokenPriceChart:${selectedTimeframe}] 📡 Fetching from API`, {
+      symbol: tokenSymbol,
+      days,
+      tokenAddress: tokenAddress || 'native',
+      chain,
+    });
+    
+    const apiStartTime = Date.now();
+    
     try {
-
       const result = await getTokenPriceHistory(
         tokenSymbol,
         days,
         tokenAddress,
         chain
       );
+      
+      const apiDuration = Date.now() - apiStartTime;
+      
+      logger.log(`[TokenPriceChart:${selectedTimeframe}] 📥 API response received`, {
+        success: result.success,
+        dataPoints: result.prices?.length || 0,
+        error: result.error,
+        source: result.source,
+        coinGeckoId: result.coinGeckoId,
+        duration: `${apiDuration}ms`,
+      });
 
       if (result.success && result.prices && result.prices.length > 0) {
+        logger.log(`[TokenPriceChart:${selectedTimeframe}] 🔍 Processing raw data`, {
+          rawDataPoints: result.prices.length,
+          firstRawPoint: result.prices[0] ? {
+            timestamp: result.prices[0].timestamp,
+            price: result.prices[0].price,
+          } : null,
+          lastRawPoint: result.prices[result.prices.length - 1] ? {
+            timestamp: result.prices[result.prices.length - 1].timestamp,
+            price: result.prices[result.prices.length - 1].price,
+          } : null,
+        });
+        
         // ✅ IMPROVED: Filter and validate price data
         const validPrices = result.prices
           .filter(p => p && p.timestamp && p.price && p.price > 0 && !isNaN(p.price) && !isNaN(p.timestamp))
           .sort((a, b) => a.timestamp - b.timestamp); // Ensure chronological order
 
+        logger.log(`[TokenPriceChart:${selectedTimeframe}] ✅ Data validation complete`, {
+          rawPoints: result.prices.length,
+          validPoints: validPrices.length,
+          filteredOut: result.prices.length - validPrices.length,
+        });
+
         if (validPrices.length === 0) {
-          logger.warn(`⚠️ No valid price data after filtering for ${tokenSymbol}`);
+          logger.error(`[TokenPriceChart:${selectedTimeframe}] ❌ No valid price data after filtering`, {
+            symbol: tokenSymbol,
+            rawDataPoints: result.prices.length,
+            timeframe: selectedTimeframe,
+          });
           if (isMountedRef.current) {
             setPriceHistory([]);
             setIsLoading(false);
@@ -232,6 +301,11 @@ export default function TokenPriceChart({
           chain,
           result.source || 'CoinGecko'
         );
+        
+        logger.log(`[TokenPriceChart:${selectedTimeframe}] 💾 Data cached`, {
+          dataPoints: validPrices.length,
+          source: result.source || 'CoinGecko',
+        });
 
         // Format time labels based on timeframe (like Bitvavo)
         const formatTime = (timestamp: number) => {
@@ -250,6 +324,20 @@ export default function TokenPriceChart({
           price: p.price,
           time: formatTime(p.timestamp),
         }));
+        
+        logger.log(`[TokenPriceChart:${selectedTimeframe}] 📊 Data formatted`, {
+          formattedPoints: data.length,
+          firstFormatted: data[0] ? {
+            timestamp: data[0].timestamp,
+            price: data[0].price,
+            time: data[0].time,
+          } : null,
+          lastFormatted: data[data.length - 1] ? {
+            timestamp: data[data.length - 1].timestamp,
+            price: data[data.length - 1].price,
+            time: data[data.length - 1].time,
+          } : null,
+        });
 
         // ✅ EXACT CoinGecko data - NO manipulation!
         // CoinGecko already provides complete data, including the latest price point
@@ -262,24 +350,56 @@ export default function TokenPriceChart({
         const max = Math.max(...prices);
         const range = max - min;
         const padding = range > 0 ? range * 0.05 : max * 0.01;
+        
+        const finalMin = Math.max(0, min - padding);
+        const finalMax = max + padding;
+        
+        logger.log(`[TokenPriceChart:${selectedTimeframe}] 📈 Price range calculated`, {
+          minPrice: min,
+          maxPrice: max,
+          range,
+          padding,
+          finalMin,
+          finalMax,
+        });
 
         if (isMountedRef.current) {
           setPriceHistory(data);
-          setMinValue(Math.max(0, min - padding));
-          setMaxValue(max + padding);
+          setMinValue(finalMin);
+          setMaxValue(finalMax);
           setIsLoading(false);
 
           if (onPriceUpdate && data.length > 0) {
             onPriceUpdate(data[data.length - 1].price);
           }
+          
+          logger.log(`[TokenPriceChart:${selectedTimeframe}] ✅ State updated successfully`, {
+            dataPoints: data.length,
+            minValue: finalMin,
+            maxValue: finalMax,
+            isLoading: false,
+          });
+        } else {
+          logger.warn(`[TokenPriceChart:${selectedTimeframe}] ⚠️ Component unmounted, skipping state update`);
         }
 
-        logger.log(`✅ [TokenPriceChart] Loaded ${data.length} price points for ${tokenSymbol} (${days}d)`);
+        logger.log(`[TokenPriceChart:${selectedTimeframe}] ✅ Loaded ${data.length} price points for ${tokenSymbol} (${days}d)`);
       } else {
-        logger.warn(`⚠️ No price history available for ${tokenSymbol}: ${result.error || 'Unknown error'}`);
+        logger.error(`[TokenPriceChart:${selectedTimeframe}] ❌ No price history available`, {
+          symbol: tokenSymbol,
+          error: result.error || 'Unknown error',
+          success: result.success,
+          dataPoints: result.prices?.length || 0,
+          timeframe: selectedTimeframe,
+          days,
+        });
         
         // ✅ IMPROVED: If we have current price but no history, create a simple chart
         if (currentPrice > 0 && isMountedRef.current) {
+          logger.log(`[TokenPriceChart:${selectedTimeframe}] 🔄 Creating fallback chart`, {
+            currentPrice,
+            days,
+          });
           const now = Date.now();
           const pastTime = now - (days * 24 * 60 * 60 * 1000);
           
@@ -306,26 +426,47 @@ export default function TokenPriceChart({
           setIsLoading(false);
         }
       }
-    } catch (error) {
-      logger.error('❌ Failed to load price history:', error);
+    } catch (error: any) {
+      logger.error(`[TokenPriceChart:${selectedTimeframe}] ❌ Failed to load price history`, {
+        symbol: tokenSymbol,
+        timeframe: selectedTimeframe,
+        days,
+        error: error?.message || 'Unknown error',
+        stack: error?.stack,
+        tokenAddress: tokenAddress || 'native',
+        chain,
+      });
       if (isMountedRef.current) {
         setPriceHistory([]);
         setIsLoading(false);
+        logger.log(`[TokenPriceChart:${selectedTimeframe}] 🧹 State cleared due to error`);
       }
     }
   }, [tokenSymbol, tokenAddress, chain, selectedTimeframe, currentPrice, onPriceUpdate, getDaysForTimeframe]);
 
   // ✅ Main effect: Load data and set up refresh intervals
   useEffect(() => {
-    if (!tokenSymbol) return;
+    if (!tokenSymbol) {
+      logger.log(`[TokenPriceChart:${selectedTimeframe}] ⏭️ Skipping effect - no symbol`);
+      return;
+    }
+    
+    logger.log(`[TokenPriceChart:${selectedTimeframe}] 🎯 Effect triggered`, {
+      timeframe: selectedTimeframe,
+      symbol: tokenSymbol,
+      tokenAddress: tokenAddress || 'native',
+      chain,
+    });
     
     isMountedRef.current = true;
     
     // Initial load
     if (selectedTimeframe === 'LIVE') {
+      logger.log(`[TokenPriceChart:LIVE] 🚀 Loading initial history for LIVE mode`);
       // For LIVE, load initial history then update only price
       loadPriceHistory(false);
     } else {
+      logger.log(`[TokenPriceChart:${selectedTimeframe}] 🚀 Loading history for ${selectedTimeframe}`);
       loadPriceHistory(false);
     }
 
@@ -365,9 +506,12 @@ export default function TokenPriceChart({
       };
     } else {
       // Other timeframes: Full refresh
+      logger.log(`[TokenPriceChart:${selectedTimeframe}] 🔄 Setting up auto-refresh interval`, {
+        interval: `${refreshInterval}ms`,
+      });
       refreshIntervalRef.current = setInterval(() => {
         if (isMountedRef.current) {
-          logger.log(`🔄 [TokenPriceChart] Auto-refresh for ${tokenSymbol} (${selectedTimeframe})`);
+          logger.log(`[TokenPriceChart:${selectedTimeframe}] 🔄 Auto-refresh triggered for ${tokenSymbol}`);
           loadPriceHistory(false); // Use cache if available, refresh if stale
         }
       }, refreshInterval);
@@ -462,7 +606,19 @@ export default function TokenPriceChart({
           <motion.button
             key={timeframe}
             whileTap={{ scale: 0.95 }}
-            onClick={() => setSelectedTimeframe(timeframe)}
+            onClick={() => {
+              const previousTimeframe = selectedTimeframe;
+              const days = getDaysForTimeframe(timeframe);
+              logger.log(`[TokenPriceChart] 🎯 Timeframe selected`, {
+                previous: previousTimeframe,
+                new: timeframe,
+                days,
+                symbol: tokenSymbol,
+                tokenAddress: tokenAddress || 'native',
+                chain,
+              });
+              setSelectedTimeframe(timeframe);
+            }}
             className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
               selectedTimeframe === timeframe
                 ? `bg-gradient-to-r ${isPositiveChange ? 'from-green-500 to-emerald-500' : 'from-red-500 to-rose-500'} text-white shadow-sm`

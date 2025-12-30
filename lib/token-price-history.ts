@@ -36,10 +36,27 @@ export async function getTokenPriceHistory(
   contractAddress?: string,
   chain?: string
 ): Promise<PriceHistoryResult> {
+  logger.log(`[TokenPriceHistory] 🔄 getTokenPriceHistory called`, {
+    symbol,
+    days,
+    contractAddress: contractAddress || 'none',
+    chain: chain || 'none',
+  });
+  
   // ✅ Check smart cache first
   const cached = priceHistoryCache.get(symbol, days, contractAddress, chain);
+  logger.log(`[TokenPriceHistory] 📦 Cache check`, {
+    hasCache: !!cached,
+    cacheDataPoints: cached?.prices?.length || 0,
+  });
+  
   if (cached) {
-    logger.log(`📊 [TokenPriceHistory] Using cached data for ${symbol} (${days}d)`);
+    logger.log(`[TokenPriceHistory] ✅ Using cached data`, {
+      symbol,
+      days,
+      dataPoints: cached.prices.length,
+      source: cached.source,
+    });
     return {
       prices: cached.prices,
       success: true,
@@ -48,12 +65,27 @@ export async function getTokenPriceHistory(
     };
   }
 
-  logger.log(`📊 [TokenPriceHistory] Fetching fresh data for ${symbol} (${days}d)...`);
+  logger.log(`[TokenPriceHistory] 📡 Cache miss - fetching fresh data`, {
+    symbol,
+    days,
+    contractAddress: contractAddress || 'none',
+    chain: chain || 'none',
+  });
 
   // ✅ IMPROVED: CoinGecko is now PRIMARY for all tokens (including Solana native SOL)
   // TIER 1: CoinGecko API for ALL tokens (including native tokens on all chains)
   // This ensures we get real historical data, not synthetic data
+  const coinGeckoStartTime = Date.now();
   const coinGeckoResult = await fetchCoinGeckoPriceHistory(symbol, days, contractAddress, chain);
+  const coinGeckoDuration = Date.now() - coinGeckoStartTime;
+  
+  logger.log(`[TokenPriceHistory] 📥 CoinGecko result`, {
+    success: coinGeckoResult.success,
+    dataPoints: coinGeckoResult.prices?.length || 0,
+    error: coinGeckoResult.error,
+    source: coinGeckoResult.source,
+    duration: `${coinGeckoDuration}ms`,
+  });
   if (coinGeckoResult.success) {
     // ✅ Cache the result
     priceHistoryCache.set(
@@ -153,10 +185,24 @@ async function fetchCoinGeckoPriceHistory(
   chain?: string
 ): Promise<PriceHistoryResult> {
   try {
-    logger.log(`🦎 [CoinGecko] Fetching price history for ${symbol}...`);
+    logger.log(`[TokenPriceHistory:CoinGecko] 🦎 Fetching price history`, {
+      symbol,
+      days,
+      contractAddress: contractAddress || 'none',
+      chain: chain || 'none',
+    });
     
     // Use server-side API route instead of direct CoinGecko call
     // This ensures API key is available and errors are handled gracefully
+    const apiUrl = `/api/price-history?symbol=${encodeURIComponent(symbol)}&days=${days}${contractAddress ? `&contractAddress=${encodeURIComponent(contractAddress)}` : ''}${chain ? `&chain=${encodeURIComponent(chain)}` : ''}`;
+    
+    logger.log(`[TokenPriceHistory:CoinGecko] 📡 API call`, {
+      url: apiUrl,
+      symbol,
+      days,
+    });
+    
+    const fetchStartTime = Date.now();
     const params = new URLSearchParams({
       symbol,
       days: days.toString(),
