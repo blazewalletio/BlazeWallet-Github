@@ -250,7 +250,46 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // ✅ FALLBACK 3: Try 1inch Token List (another comprehensive token list)
+    if (contractAddress && platform === 'ethereum') {
+      try {
+        logger.log(`[CurrencyLogo] Trying 1inch token list for ${symbol} (${contractAddress.substring(0, 10)}...)`);
+        
+        const oneInchResponse = await fetch(
+          `https://tokens.1inch.io/v1.1/1`,
+          {
+            headers: { 'Accept': 'application/json' },
+            signal: AbortSignal.timeout(5000),
+          }
+        );
+
+        if (oneInchResponse.ok) {
+          const oneInchData = await oneInchResponse.json();
+          const tokens = Array.isArray(oneInchData) ? oneInchData : (oneInchData.tokens || []);
+          
+          logger.log(`[CurrencyLogo] 1inch list has ${tokens.length} tokens`);
+          
+          const contractLower = contractAddress.toLowerCase();
+          const token = tokens.find((t: any) => 
+            t.address?.toLowerCase() === contractLower
+          );
+
+          if (token?.logoURI || token?.logo) {
+            const logoUrl = token.logoURI || token.logo;
+            logger.log(`[CurrencyLogo] ✅ Found logo via 1inch list for ${symbol}: ${logoUrl}`);
+            return NextResponse.json({
+              logo: logoUrl,
+              source: '1inch-list',
+            });
+          }
+        }
+      } catch (error) {
+        logger.warn(`[CurrencyLogo] 1inch list fallback failed for ${symbol}:`, error);
+      }
+    }
+
     // No logo found
+    logger.warn(`[CurrencyLogo] ❌ No logo found for ${symbol} (${contractAddress?.substring(0, 10) || 'N/A'}...) after all fallbacks`);
     return NextResponse.json({
       logo: null,
       source: 'not-found',
