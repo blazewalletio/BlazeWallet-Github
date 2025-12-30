@@ -186,7 +186,48 @@ export async function GET(request: NextRequest) {
       logger.warn(`[CurrencyLogo] 429: CoinGecko rate limit exceeded`);
     }
 
-    // ✅ FALLBACK 1: Try DexScreener for token logo if we have contract address
+    // ✅ FALLBACK 1: Try TrustWallet Assets (no rate limit, extensive coverage)
+    if (contractAddress && platform === 'ethereum') {
+      try {
+        logger.log(`[CurrencyLogo] 💎 Trying TrustWallet Assets for ${symbol} (${contractAddress.substring(0, 10)}...)`);
+        
+        // TrustWallet requires checksummed addresses - try both original and checksummed
+        const addresses = [
+          contractAddress,
+          contractAddress.charAt(0) === '0' && contractAddress.charAt(1) === 'x' 
+            ? contractAddress.slice(2).toLowerCase()
+            : contractAddress.toLowerCase(),
+        ];
+        
+        // Try common checksum patterns
+        for (const addr of addresses) {
+          const trustWalletUrl = `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/${addr}/logo.png`;
+          
+          try {
+            const trustWalletResponse = await fetch(trustWalletUrl, { 
+              method: 'HEAD',
+              signal: AbortSignal.timeout(3000),
+            });
+            
+            if (trustWalletResponse.ok) {
+              logger.log(`[CurrencyLogo] ✅ Found logo via TrustWallet Assets: ${trustWalletUrl}`);
+              return NextResponse.json({
+                logo: trustWalletUrl,
+                source: 'trustwallet',
+              });
+            }
+          } catch (trustFetchError) {
+            // Continue to next address format
+          }
+        }
+        
+        logger.log(`[CurrencyLogo] ⚠️ Not found in TrustWallet Assets`);
+      } catch (trustError) {
+        logger.warn(`[CurrencyLogo] TrustWallet fetch failed:`, trustError);
+      }
+    }
+
+    // ✅ FALLBACK 2: Try DexScreener for token logo if we have contract address
     if (contractAddress && platform === 'ethereum') {
       try {
         logger.log(`[CurrencyLogo] 🔍 Trying DexScreener for ${symbol} (${contractAddress.substring(0, 10)}...)`);
@@ -284,7 +325,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ✅ FALLBACK 2: Try Uniswap Token List (extensive list with many token logos)
+    // ✅ FALLBACK 3: Try Uniswap Token List (extensive list with many token logos)
     if (contractAddress && platform === 'ethereum') {
       try {
         logger.log(`[CurrencyLogo] Trying Uniswap token list for ${symbol} (${contractAddress.substring(0, 10)}...)`);
@@ -338,7 +379,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ✅ FALLBACK 3: Try 1inch Token List (another comprehensive token list)
+    // ✅ FALLBACK 4: Try 1inch Token List (another comprehensive token list)
     if (contractAddress && platform === 'ethereum') {
       try {
         logger.log(`[CurrencyLogo] Trying 1inch token list for ${symbol} (${contractAddress.substring(0, 10)}...)`);
