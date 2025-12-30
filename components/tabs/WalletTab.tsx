@@ -23,6 +23,7 @@ import TokenSelector from '../TokenSelector';
 import AnimatedNumber from '../AnimatedNumber';
 import { logger } from '@/lib/logger';
 import { calculateWeightedPortfolioChange } from '@/lib/portfolio-change-calculator';
+import { getCurrencyLogo } from '@/lib/currency-logo-service';
 
 export default function WalletTab() {
   const { 
@@ -96,18 +97,33 @@ export default function WalletTab() {
         const tokenSymbols = tokensWithBalance.map(t => t.symbol);
         const pricesMap = await priceService.getMultiplePrices(tokenSymbols);
         
-        const tokensWithPrices = tokensWithBalance.map((token) => {
-          const priceData = pricesMap[token.symbol] || { price: 0, change24h: 0 };
-          const price = priceData.price || 0;
-          const change24h = priceData.change24h || 0;
-          const balanceUSD = parseFloat(token.balance || '0') * price;
-          return {
-            ...token,
-            priceUSD: price,
-            balanceUSD: balanceUSD.toFixed(2),
-            change24h, // ✅ Direct from batch call - no extra API calls!
-          };
-        });
+        const tokensWithPrices = await Promise.all(
+          tokensWithBalance.map(async (token) => {
+            const priceData = pricesMap[token.symbol] || { price: 0, change24h: 0 };
+            const price = priceData.price || 0;
+            const change24h = priceData.change24h || 0;
+            const balanceUSD = parseFloat(token.balance || '0') * price;
+            
+            // ✅ Fetch logo if missing
+            let logo = token.logo;
+            if (!logo || logo === '/crypto-placeholder.png' || logo === '/crypto-eth.png' || logo.trim() === '') {
+              try {
+                logo = await getCurrencyLogo(token.symbol, token.address);
+                logger.log(`[WalletTab] Fetched logo for ${token.symbol}: ${logo}`);
+              } catch (error) {
+                logger.warn(`[WalletTab] Failed to fetch logo for ${token.symbol}:`, error);
+              }
+            }
+            
+            return {
+              ...token,
+              logo: logo || '/crypto-placeholder.png',
+              priceUSD: price,
+              balanceUSD: balanceUSD.toFixed(2),
+              change24h, // ✅ Direct from batch call - no extra API calls!
+            };
+          })
+        );
 
         tokensWithValue = tokensWithPrices.filter(
           t => parseFloat(t.balance || '0') > 0
@@ -410,8 +426,38 @@ export default function WalletTab() {
                 className="glass p-4 rounded-xl flex items-center justify-between hover:bg-white/10 transition-colors cursor-pointer"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-slate-700 to-slate-600 rounded-full flex items-center justify-center text-xl">
-                    {token.logo || token.symbol[0]}
+                  <div className="w-12 h-12 bg-gradient-to-br from-slate-700 to-slate-600 rounded-full flex items-center justify-center text-xl overflow-hidden">
+                    {(() => {
+                      const logoUrl = token.logo;
+                      
+                      // Check if logo is valid URL
+                      if (logoUrl && 
+                          (logoUrl.startsWith('http') || 
+                           logoUrl.startsWith('/') || 
+                           logoUrl.startsWith('data:')) &&
+                          logoUrl !== '/crypto-placeholder.png' &&
+                          logoUrl !== '/crypto-eth.png') {
+                        return (
+                          <img 
+                            src={logoUrl} 
+                            alt={token.symbol}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Fallback to symbol initial if image fails
+                              e.currentTarget.style.display = 'none';
+                              const parent = e.currentTarget.parentElement;
+                              if (parent) {
+                                parent.textContent = token.symbol[0];
+                                parent.className = 'w-12 h-12 bg-gradient-to-br from-slate-700 to-slate-600 rounded-full flex items-center justify-center text-xl';
+                              }
+                            }}
+                          />
+                        );
+                      }
+                      
+                      // Fallback to symbol initial
+                      return <span className="text-white font-bold">{token.symbol[0]}</span>;
+                    })()}
                   </div>
                   <div>
                     <div className="font-semibold">{token.name}</div>
@@ -421,7 +467,16 @@ export default function WalletTab() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-semibold">{formatUSDSync(parseFloat(token.balanceUSD || '0'))}</div>
+                  <div className="font-semibold">
+                    {(() => {
+                      const balanceUSD = parseFloat(token.balanceUSD || '0');
+                      // Show more precision for very small values
+                      if (balanceUSD > 0 && balanceUSD < 0.01) {
+                        return `$${balanceUSD.toFixed(6)}`;
+                      }
+                      return formatUSDSync(balanceUSD);
+                    })()}
+                  </div>
                   <div className={`text-sm ${(token.change24h || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {(token.change24h || 0) >= 0 ? '+' : ''}{(token.change24h || 0).toFixed(2)}%
                   </div>
