@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
       logger.warn(`[CurrencyLogo] CoinGecko rate limit exceeded`);
     }
 
-    // ✅ FALLBACK: Try DexScreener for token logo if we have contract address
+    // ✅ FALLBACK 1: Try DexScreener for token logo if we have contract address
     if (contractAddress && platform === 'ethereum') {
       try {
         logger.log(`[CurrencyLogo] Trying DexScreener for ${symbol} (${contractAddress.substring(0, 10)}...)`);
@@ -193,6 +193,53 @@ export async function GET(request: NextRequest) {
         }
       } catch (error) {
         logger.warn(`[CurrencyLogo] DexScreener fallback failed for ${symbol}:`, error);
+      }
+    }
+
+    // ✅ FALLBACK 2: Try Uniswap Token List (extensive list with many token logos)
+    if (contractAddress && platform === 'ethereum') {
+      try {
+        logger.log(`[CurrencyLogo] Trying Uniswap token list for ${symbol} (${contractAddress.substring(0, 10)}...)`);
+        
+        // Uniswap maintains multiple token lists - try the extended list first
+        const uniswapLists = [
+          'https://tokens.uniswap.org', // Default list
+          'https://raw.githubusercontent.com/uniswap/default-token-list/main/src/tokens/ethereum.json', // Extended list
+        ];
+
+        for (const listUrl of uniswapLists) {
+          try {
+            const listResponse = await fetch(listUrl, {
+              headers: { 'Accept': 'application/json' },
+              signal: AbortSignal.timeout(5000),
+            });
+
+            if (listResponse.ok) {
+              const listData = await listResponse.json();
+              const tokens = listData.tokens || listData; // Handle different response formats
+              
+              const contractLower = contractAddress.toLowerCase();
+              const token = tokens.find((t: any) => 
+                t.address?.toLowerCase() === contractLower
+              );
+
+              if (token?.logoURI) {
+                logger.log(`[CurrencyLogo] ✅ Found logo via Uniswap list for ${symbol}: ${token.logoURI}`);
+                return NextResponse.json({
+                  logo: token.logoURI,
+                  source: 'uniswap-list',
+                });
+              }
+            }
+          } catch (listError) {
+            // Continue to next list
+            logger.warn(`[CurrencyLogo] Uniswap list ${listUrl} failed:`, listError);
+          }
+        }
+        
+        logger.warn(`[CurrencyLogo] Uniswap token list returned no logo for ${symbol}`);
+      } catch (error) {
+        logger.warn(`[CurrencyLogo] Uniswap list fallback failed for ${symbol}:`, error);
       }
     }
 
