@@ -712,16 +712,16 @@ export default function Dashboard() {
       
       logger.log(`[${timestamp}] 💰 Prices + change24h received:`, pricesMap);
       
-      // ✅ Extract native price AND change24h (both from batch call!)
-      let nativePrice = pricesMap[chain.nativeCurrency.symbol]?.price || 0;
-      let nativeChange = pricesMap[chain.nativeCurrency.symbol]?.change24h || 0;
+      // ✅ Extract native price AND change24h from the result
+      const nativePriceValue = nativePrice.price;
+      const nativeChange = nativePrice.change24h;
       
       if (currentChain === 'ethereum') {
         console.log('\n💰 ETH Prijs ontvangen:');
         console.log(`   ⏰ TIMESTAMP: ${new Date().toLocaleTimeString('nl-NL')} (${new Date().toISOString()})`);
-        console.log(`   Prijs: $${nativePrice}`);
+        console.log(`   Prijs: $${nativePriceValue}`);
         console.log(`   24h Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
-        console.log(`   Bron: ${pricesMap[chain.nativeCurrency.symbol] ? 'CoinGecko/Binance' : 'GEEN DATA'}`);
+        console.log(`   Bron: Binance (direct)`);
       }
       
       if (currentChain === 'solana') {
@@ -729,81 +729,33 @@ export default function Dashboard() {
         console.log(`   ⏰ TIMESTAMP: ${new Date().toLocaleTimeString('nl-NL')} (${new Date().toISOString()})`);
         console.log(`   Raw pricesMap:`, pricesMap);
         console.log(`   SOL entry:`, pricesMap['SOL']);
-        console.log(`   💰 Parsed Price: $${nativePrice}`);
+        console.log(`   💰 Parsed Price: $${nativePriceValue}`);
         console.log(`   📈 Parsed 24h Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
-      }
-      
-      // ✅ FALLBACK: If price is 0, try to use cached price or fetch again
-      if (nativePrice === 0) {
-        logger.warn(`⚠️ [Dashboard] Native price is 0 for ${chain.nativeCurrency.symbol}, trying fallback...`);
-        if (currentChain === 'ethereum') {
-          console.log('\n⚠️  ETH prijs is $0, proberen fallback...');
-        }
-        if (currentChain === 'solana') {
-          console.log('\n🔴⚠️  SOL prijs is $0, proberen fallback...');
-        }
-        
-        const cachedState = getCurrentChainState();
-        if (cachedState.nativePriceUSD > 0) {
-          logger.log(`✅ [Dashboard] Using cached price: $${cachedState.nativePriceUSD}`);
-          nativePrice = cachedState.nativePriceUSD;
-          
-          if (currentChain === 'ethereum') {
-            console.log(`✅ Cached prijs gebruikt: $${nativePrice}`);
-          }
-          if (currentChain === 'solana') {
-            console.log(`🔴✅ Cached prijs gebruikt: $${nativePrice}`);
-          }
-        } else {
-          // Try fetching price directly as fallback
-          try {
-            const fallbackPrice = await priceService.getPrice(chain.nativeCurrency.symbol);
-            if (fallbackPrice > 0) {
-              logger.log(`✅ [Dashboard] Fallback price fetch successful: $${fallbackPrice}`);
-              nativePrice = fallbackPrice;
-              
-              if (currentChain === 'ethereum') {
-                console.log(`✅ Fallback prijs fetch succesvol: $${fallbackPrice}`);
-              }
-              if (currentChain === 'solana') {
-                console.log(`🔴✅ Fallback prijs fetch succesvol: $${fallbackPrice}`);
-              }
-            }
-          } catch (error) {
-            logger.error(`❌ [Dashboard] Fallback price fetch failed:`, error);
-            if (currentChain === 'ethereum') {
-              console.log(`❌ Fallback fetch gefaald:`, error);
-            }
-            if (currentChain === 'solana') {
-              console.log(`🔴❌ Fallback fetch gefaald:`, error);
-            }
-          }
-        }
       }
       
       // ✅ Update chain-specific state instead of global state
       updateCurrentChainState({
-        nativePriceUSD: nativePrice,
+        nativePriceUSD: nativePriceValue,
         lastUpdate: new Date(),
       });
       
-      const nativeValueUSD = parseFloat(bal) * nativePrice;
+      const nativeValueUSD = parseFloat(bal) * nativePriceValue;
       logger.log(`[${timestamp}] 💵 Native token value:`, {
         balance: bal,
         symbol: chain.nativeCurrency.symbol,
-        priceUSD: nativePrice,
+        priceUSD: nativePriceValue,
         valueUSD: nativeValueUSD.toFixed(2)
       });
       
       if (currentChain === 'ethereum') {
         console.log('\n🧮 ETH Waarde Berekening:');
-        console.log(`   ${bal} ETH × $${nativePrice.toFixed(2)}`);
+        console.log(`   ${bal} ETH × $${nativePriceValue.toFixed(2)}`);
         console.log(`   💵 = $${nativeValueUSD.toFixed(2)}`);
       }
       
       if (currentChain === 'solana') {
         console.log('\n🔴🧮 SOL Waarde Berekening:');
-        console.log(`   ${bal} SOL × $${nativePrice.toFixed(2)}`);
+        console.log(`   ${bal} SOL × $${nativePriceValue.toFixed(2)}`);
         console.log(`   💵 = $${nativeValueUSD.toFixed(2)}`);
         console.log(`🔴══════════════════════════════════════════════════════════════════\n`);
       }
