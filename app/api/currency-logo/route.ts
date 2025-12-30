@@ -127,6 +127,7 @@ export async function GET(request: NextRequest) {
     // ✅ FALLBACK: Try DexScreener for token logo if we have contract address
     if (contractAddress && platform === 'ethereum') {
       try {
+        logger.log(`[CurrencyLogo] Trying DexScreener for ${symbol} (${contractAddress.substring(0, 10)}...)`);
         const dexScreenerResponse = await fetch(
           `https://api.dexscreener.com/latest/dex/tokens/${contractAddress}`,
           {
@@ -138,6 +139,8 @@ export async function GET(request: NextRequest) {
 
         if (dexScreenerResponse.ok) {
           const dexData = await dexScreenerResponse.json();
+          logger.log(`[CurrencyLogo] DexScreener returned ${dexData.pairs?.length || 0} pairs for ${symbol}`);
+          
           if (dexData.pairs && dexData.pairs.length > 0) {
             const contractLower = contractAddress.toLowerCase();
             
@@ -147,6 +150,8 @@ export async function GET(request: NextRequest) {
               return baseAddress === contractLower;
             });
 
+            logger.log(`[CurrencyLogo] Found ${validPairs.length} pairs with ${symbol} as base token`);
+
             // Get the pair with highest liquidity from valid pairs
             const pairsToSearch = validPairs.length > 0 ? validPairs : dexData.pairs;
             const bestPair = pairsToSearch.reduce((best: any, current: any) => {
@@ -155,22 +160,38 @@ export async function GET(request: NextRequest) {
               return currentLiq > bestLiq ? current : best;
             }, pairsToSearch[0]);
 
-            // Try multiple logo sources
+            // Try multiple logo sources - check all possible locations
             const logoUrl = bestPair.info?.imageUrl || 
                            bestPair.baseToken?.imageUrl || 
-                           bestPair.quoteToken?.imageUrl;
+                           bestPair.quoteToken?.imageUrl ||
+                           bestPair.baseToken?.logoURI ||
+                           bestPair.quoteToken?.logoURI;
+
+            logger.log(`[CurrencyLogo] DexScreener logo check for ${symbol}:`, {
+              infoImageUrl: bestPair.info?.imageUrl || 'none',
+              baseTokenImageUrl: bestPair.baseToken?.imageUrl || 'none',
+              quoteTokenImageUrl: bestPair.quoteToken?.imageUrl || 'none',
+              baseTokenLogoURI: bestPair.baseToken?.logoURI || 'none',
+              quoteTokenLogoURI: bestPair.quoteToken?.logoURI || 'none',
+              found: !!logoUrl
+            });
 
             if (logoUrl) {
-              logger.log(`[CurrencyLogo] Found logo via DexScreener for ${symbol}`);
+              logger.log(`[CurrencyLogo] ✅ Found logo via DexScreener for ${symbol}: ${logoUrl}`);
               return NextResponse.json({
                 logo: logoUrl,
                 source: 'dexscreener',
               });
+            } else {
+              logger.warn(`[CurrencyLogo] DexScreener returned pairs but no logo for ${symbol}`);
             }
+          } else {
+            logger.warn(`[CurrencyLogo] DexScreener returned no pairs for ${symbol}`);
           }
+        } else {
+          logger.warn(`[CurrencyLogo] DexScreener API returned ${dexScreenerResponse.status} for ${symbol}`);
         }
       } catch (error) {
-        // Silent fail - DexScreener is just a fallback
         logger.warn(`[CurrencyLogo] DexScreener fallback failed for ${symbol}:`, error);
       }
     }

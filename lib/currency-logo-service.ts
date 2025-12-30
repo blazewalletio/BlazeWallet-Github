@@ -109,58 +109,10 @@ export async function getCurrencyLogo(
     }
     console.log(`   ❌ CoinGecko returned no logo`);
 
-    // ✅ FALLBACK: Try DexScreener for Ethereum tokens with contract address
-    if (contractAddress && contractAddress.length === 42 && contractAddress.startsWith('0x')) {
-      console.log(`   📡 Trying DexScreener API...`);
-      try {
-        const dexScreenerResponse = await fetch(
-          `https://api.dexscreener.com/latest/dex/tokens/${contractAddress}`,
-          {
-            headers: {
-              'Accept': 'application/json',
-            },
-          }
-        );
-
-        if (dexScreenerResponse.ok) {
-          const dexData = await dexScreenerResponse.json();
-          if (dexData.pairs && dexData.pairs.length > 0) {
-            const contractLower = contractAddress.toLowerCase();
-            
-            // ✅ FIX: First filter pairs where our token is the BASE token
-            const validPairs = dexData.pairs.filter((pair: any) => {
-              const baseAddress = pair.baseToken?.address?.toLowerCase();
-              return baseAddress === contractLower;
-            });
-
-            // Get the pair with highest liquidity from valid pairs
-            const pairsToSearch = validPairs.length > 0 ? validPairs : dexData.pairs;
-            const bestPair = pairsToSearch.reduce((best: any, current: any) => {
-              const bestLiq = best.liquidity?.usd || 0;
-              const currentLiq = current.liquidity?.usd || 0;
-              return currentLiq > bestLiq ? current : best;
-            }, pairsToSearch[0]);
-
-            // Try multiple logo sources
-            const logoUrl = bestPair.info?.imageUrl || 
-                           bestPair.baseToken?.imageUrl || 
-                           bestPair.quoteToken?.imageUrl;
-
-            if (logoUrl) {
-              console.log(`   ✅ DexScreener logo: ${logoUrl}`);
-              logoCache[cacheKey] = {
-                logo: logoUrl,
-                timestamp: Date.now(),
-              };
-              return logoUrl;
-            }
-          }
-        }
-        console.log(`   ❌ DexScreener returned no logo`);
-      } catch (error) {
-        console.log(`   ❌ DexScreener error:`, error);
-      }
-    }
+    // ✅ FALLBACK: Server-side route already tries DexScreener, so we don't need to do it again
+    // The server-side route has better error handling and logging
+    // If CoinGecko failed, the server-side route would have already tried DexScreener
+    // So we skip client-side DexScreener to avoid duplicate calls
 
     // Try CryptoCompare API as fallback
     console.log(`   📡 Trying CryptoCompare API...`);
