@@ -74,6 +74,75 @@ export class PriceService {
   }
 
   /**
+   * 🔥 NEW: Get native token price DIRECTLY from Binance API
+   * This bypasses the broken /api/prices route but USES THE SAME CACHE as other tokens!
+   * So cache clearing works consistently for ALL tokens (native + ERC-20/SPL)
+   */
+  async getNativePriceDirectFromBinance(symbol: string): Promise<{ price: number; change24h: number }> {
+    // ✅ Check cache first (respects clearCache() calls!)
+    const cached = this.cache.get(symbol);
+    if (cached) {
+      logger.log(`💰 [PriceService] Cache hit for native ${symbol}: $${cached.price} (${cached.source})`);
+      return { price: cached.price, change24h: cached.change24h };
+    }
+
+    // Binance symbol mapping
+    const binanceSymbolMap: Record<string, string> = {
+      'SOL': 'SOLUSDT',
+      'ETH': 'ETHUSDT',
+      'BTC': 'BTCUSDT',
+      'BNB': 'BNBUSDT',
+      'MATIC': 'MATICUSDT',
+      'AVAX': 'AVAXUSDT',
+      'FTM': 'FTMUSDT',
+      'LTC': 'LTCUSDT',
+      'DOGE': 'DOGEUSDT',
+      'BCH': 'BCHUSDT',
+      'ARB': 'ARBUSDT',
+      'OP': 'OPUSDT',
+    };
+
+    const binanceSymbol = binanceSymbolMap[symbol];
+    
+    if (!binanceSymbol) {
+      logger.warn(`⚠️ [PriceService] ${symbol} not on Binance, falling back to CoinGecko`);
+      // Fallback to regular method for chains not on Binance (e.g., CRO)
+      return this.getMultiplePrices([symbol]).then(result => result[symbol] || { price: 0, change24h: 0 });
+    }
+
+    try {
+      logger.log(`📡 [PriceService] Fetching ${symbol} DIRECT from Binance (${binanceSymbol})`);
+      const binanceUrl = `https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`;
+      const binanceResponse = await fetch(binanceUrl, {
+        signal: AbortSignal.timeout(5000),
+      });
+      
+      if (binanceResponse.ok) {
+        const binanceData = await binanceResponse.json();
+        const price = parseFloat(binanceData.lastPrice);
+        const change24h = parseFloat(binanceData.priceChangePercent);
+        
+        // ✅ CRITICAL: Store in cache (respects clearCache()!)
+        this.cache.set(symbol, {
+          price,
+          change24h,
+          source: 'binance-direct',
+        }, this.cacheDuration);
+        
+        logger.log(`✅ [PriceService] Binance ${symbol}: $${price} (${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%)`);
+        return { price, change24h };
+      } else {
+        throw new Error(`Binance returned ${binanceResponse.status}`);
+      }
+    } catch (error) {
+      logger.warn(`⚠️ [PriceService] Binance failed for ${symbol}, trying CoinGecko fallback`);
+      // Fallback to CoinGecko
+      const cgPrices = await this.getMultiplePrices([symbol]);
+      return cgPrices[symbol] || { price: 0, change24h: 0 };
+    }
+  }
+
+  /**
    * Get 24h change with fallback
    * ✅ NOTE: This is now mainly used as fallback - prefer getMultiplePrices() for batch fetching!
    * For single symbol, use cached value if available, otherwise fetch fresh
