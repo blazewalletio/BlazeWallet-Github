@@ -213,11 +213,20 @@ export async function GET(request: Request) {
     logger.error(`❌ [Prices API] ERROR`);
     logger.error(`   Message: ${error.message}`);
     logger.error(`   Stack: ${error.stack}`);
-    logger.error(`   Full error:`, error);
+    logger.error(`   Name: ${error.name}`);
+    logger.error(`   Full error:`, JSON.stringify(error, Object.getOwnPropertyNames(error)));
     logger.error(`═══════════════════════════════════════════════════════════════`);
     
+    // Return detailed error in development/production for debugging
     return NextResponse.json(
-      { error: 'Failed to fetch prices', details: error.message },
+      { 
+        error: 'Failed to fetch prices', 
+        details: error.message,
+        errorName: error.name,
+        errorStack: error.stack,
+        // Include all error properties
+        errorInfo: JSON.stringify(error, Object.getOwnPropertyNames(error))
+      },
       { status: 500 }
     );
   }
