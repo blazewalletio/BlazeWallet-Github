@@ -1,196 +1,268 @@
-# 🔍 DEBUG PROPOSAL - Token Price Chart (LIVE, 7D, 30D, ALLES)
+# 📊 TOKEN PRICE CHART DEBUG & FIX PROPOSAL
 
-**Probleem**: LIVE, 7D, 30D en ALLES grafieken werken niet, maar 1D en 1J werken perfect.
-
-**Doel**: Perfecte debug logging toevoegen om exact te zien wat er mis gaat.
-
----
-
-## 📋 DEBUG PLAN
-
-### **STAP 1: Enhanced Logging in TokenPriceChart Component**
-
-**Toevoegen aan `components/TokenPriceChart.tsx`**:
-
-1. **Timeframe Selection Logging**
-   - Log wanneer gebruiker een timeframe selecteert
-   - Log de geselecteerde timeframe
-   - Log de berekende `days` waarde
-   - Log of het LIVE mode is
-
-2. **API Call Logging**
-   - Log VOOR elke API call: URL, parameters, timeframe
-   - Log NA elke API call: response status, data length, eerste/laatste data point
-   - Log errors met volledige details
-
-3. **Data Processing Logging**
-   - Log hoeveel data points binnenkomen
-   - Log na filtering hoeveel valid points overblijven
-   - Log min/max price berekening
-   - Log data formatting (timestamp conversion)
-
-4. **Cache Logging**
-   - Log cache hits/misses
-   - Log cache keys
-   - Log cache refresh status
-
-5. **State Updates Logging**
-   - Log wanneer `setPriceHistory` wordt aangeroepen
-   - Log hoeveel data points worden gezet
-   - Log wanneer `setIsLoading` wordt aangeroepen
-   - Log min/max value updates
-
-6. **Error Logging**
-   - Log alle errors met stack traces
-   - Log error context (timeframe, symbol, etc.)
+**Datum**: 29 december 2025  
+**Status**: Voorstel - Wacht op goedkeuring  
+**Focus**: ETH native token op Ethereum chain
 
 ---
 
-### **STAP 2: Enhanced Logging in API Route**
+## 🔍 HUIDIGE SITUATIE ANALYSE
 
-**Toevoegen aan `app/api/price-history/route.ts`**:
+### **Wat werkt:**
+- ✅ **1D**: Werkt perfect (geen interval parameter, 5-minute granularity)
+- ✅ **1J**: Werkt perfect (365 days, interval=daily)
 
-1. **Request Logging**
-   - Log alle query parameters
-   - Log symbol, days, contractAddress, chain
-   - Log interval berekening
-
-2. **CoinGecko ID Resolution Logging**
-   - Log elke stap van ID resolution
-   - Log contract lookup resultaten
-   - Log symbol-to-ID mapping resultaten
-   - Log search API resultaten
-
-3. **API Call Logging**
-   - Log exacte CoinGecko URL
-   - Log interval parameter (of null)
-   - Log API key status
-   - Log response status code
-   - Log response headers (rate limit info)
-
-4. **Data Processing Logging**
-   - Log raw data length van CoinGecko
-   - Log na filtering hoeveel points overblijven
-   - Log eerste en laatste timestamp
-   - Log eerste en laatste price
-   - Log data sorting resultaten
-
-5. **Error Logging**
-   - Log alle errors met volledige details
-   - Log HTTP status codes
-   - Log rate limit errors
-   - Log parsing errors
+### **Wat werkt NIET:**
+- ❌ **LIVE**: Werkt niet (gebruikt days=1 maar speciale update logica)
+- ❌ **7D**: Werkt niet (interval=hourly, mogelijk API key issue)
+- ❌ **30D**: Werkt niet (interval=hourly, mogelijk API key issue)
+- ❌ **ALLES**: Werkt niet (365 days, maar mogelijk andere issue)
 
 ---
 
-### **STAP 3: Visual Debug Panel (Optional)**
+## 🔎 HUIDIGE IMPLEMENTATIE FLOW
 
-**Toevoegen aan `components/TokenPriceChart.tsx`**:
-
-Een debug panel dat toont (alleen in development):
-- Huidige timeframe
-- Data points count
-- API call status
-- Cache status
-- Error messages
-- Last update time
-
----
-
-### **STAP 4: Network Request Tracking**
-
-**Toevoegen aan `components/TokenPriceChart.tsx`**:
-
-- Log alle fetch calls met timestamps
-- Log response times
-- Log response sizes
-- Log network errors
-
----
-
-## 🎯 IMPLEMENTATIE DETAILS
-
-### **Logging Format**
-
-```typescript
-logger.log(`[TokenPriceChart:${selectedTimeframe}] Action: Description`, {
-  timeframe: selectedTimeframe,
-  days: days,
-  symbol: tokenSymbol,
-  dataPoints: priceHistory.length,
-  minPrice: minValue,
-  maxPrice: maxValue,
-  // ... andere relevante data
-});
+### **1. Frontend: `TokenPriceChart.tsx`**
+```
+User selecteert timeframe (LIVE, 1D, 7D, 30D, 1J, ALLES)
+  ↓
+getDaysForTimeframe() → Converteert naar days (1, 7, 30, 365)
+  ↓
+loadPriceHistory() → Roept getTokenPriceHistory() aan
+  ↓
+getTokenPriceHistory() → Roept /api/price-history aan
 ```
 
-### **Error Logging Format**
-
-```typescript
-logger.error(`[TokenPriceChart:${selectedTimeframe}] Error: Description`, {
-  timeframe: selectedTimeframe,
-  symbol: tokenSymbol,
-  error: error.message,
-  stack: error.stack,
-  // ... context
-});
+### **2. API Route: `app/api/price-history/route.ts`**
 ```
+Ontvangt: symbol, days, contractAddress, chain
+  ↓
+Zoekt CoinGecko ID (contract lookup → symbol mapping → search API)
+  ↓
+Berekent interval:
+  - days === 1 → interval = null (5-minute auto)
+  - days <= 90 → interval = 'hourly'
+  - days > 90 → interval = 'daily'
+  ↓
+CoinGecko API call:
+  - ZONDER API KEY (free tier)
+  - URL: /market_chart?vs_currency=usd&days={days}&interval={interval}
+  ↓
+Parse response → Return prices array
+```
+
+### **3. Probleem Analyse**
+
+**Waarschijnlijke oorzaken:**
+
+1. **LIVE mode**:
+   - Gebruikt `days=1` maar heeft speciale `updateLivePrice()` logica
+   - Mogelijk conflict tussen LIVE update en normale history fetch
+
+2. **7D & 30D (interval=hourly)**:
+   - CoinGecko free tier heeft mogelijk beperkingen op `interval=hourly`
+   - Betaalde API key nodig voor hourly data
+   - Of: interval parameter syntax is incorrect
+
+3. **ALLES (365 days, interval=daily)**:
+   - Mogelijk te veel data points
+   - Of: CoinGecko API limiet voor free tier
+
+4. **API Key niet gebruikt**:
+   - Code gebruikt `useApiKey = false` (free tier)
+   - Betaalde key `CG-2zNxDeFXb8KJ2DSnpWMdKi7z` wordt niet gebruikt
 
 ---
 
-## 📊 VERWACHTE DEBUG OUTPUT
+## 🎯 VOORSTEL: DEBUGGING & FIX STRATEGIE
 
-**Voor elke timeframe selectie zou je moeten zien**:
+### **FASE 1: COMPREHENSIVE DEBUG LOGGING** 🔍
 
-```
-[TokenPriceChart:LIVE] Timeframe selected: LIVE
-[TokenPriceChart:LIVE] Calculated days: 1
-[TokenPriceChart:LIVE] Checking cache...
-[TokenPriceChart:LIVE] Cache miss, fetching from API
-[TokenPriceChart:LIVE] API call: /api/price-history?symbol=ETH&days=1&chain=ethereum
-[Price History API] Request: { symbol: 'ETH', days: 1, chain: 'ethereum' }
-[Price History API] CoinGecko ID: ethereum
-[Price History API] URL: https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&days=1
-[Price History API] Response: 200 OK, 288 data points
-[TokenPriceChart:LIVE] Received 288 data points
-[TokenPriceChart:LIVE] After filtering: 288 valid points
-[TokenPriceChart:LIVE] Min price: $2916.74, Max price: $2950.39
-[TokenPriceChart:LIVE] Setting price history: 288 points
-[TokenPriceChart:LIVE] Chart rendered successfully
-```
+**Doel**: Exact zien wat er mis gaat bij elke timeframe
 
-**Als er een error is**:
+**Implementatie**:
+1. **Enhanced logging in API route**:
+   - Log exact CoinGecko URL die wordt aangeroepen
+   - Log API response status, headers, body (truncated)
+   - Log rate limit headers (`x-ratelimit-remaining`)
+   - Log error messages volledig
 
-```
-[TokenPriceChart:7D] Timeframe selected: 7D
-[TokenPriceChart:7D] Calculated days: 7
-[TokenPriceChart:7D] API call failed: Error message
-[TokenPriceChart:7D] Error details: { status: 429, message: 'Rate limited' }
-```
+2. **Frontend logging**:
+   - Log welke timeframe wordt geselecteerd
+   - Log API call URL en parameters
+   - Log response data (success/error)
+   - Log data processing stappen
 
----
-
-## ✅ VOORDELEN
-
-1. **Perfecte zichtbaarheid**: Je ziet exact wat er gebeurt bij elke stap
-2. **Error tracking**: Alle errors worden gelogd met volledige context
-3. **Performance tracking**: Je ziet response times en data sizes
-4. **Cache debugging**: Je ziet wanneer cache wordt gebruikt vs API calls
-5. **Data validation**: Je ziet hoeveel data points worden gefilterd
-
----
-
-## 🚀 IMPLEMENTATIE
+3. **Debug panel (tijdelijk)**:
+   - Toon API call details in UI
+   - Toon response status en data points count
+   - Toon errors duidelijk
 
 **Files te wijzigen**:
-1. `components/TokenPriceChart.tsx` - Add comprehensive logging
-2. `app/api/price-history/route.ts` - Add detailed API logging
-
-**Tijd**: ~30 minuten
-
-**Risico**: **ZEER LAAG** - Alleen logging toegevoegd, geen functionaliteit verandert
+- `app/api/price-history/route.ts` - Enhanced logging
+- `components/TokenPriceChart.tsx` - Enhanced logging + debug panel
+- `lib/token-price-history.ts` - Enhanced logging
 
 ---
 
-**Klaar voor implementatie?** ✅ Ja - Dit geeft perfecte debug visibility zonder functionaliteit te veranderen.
+### **FASE 2: COINGECKO API KEY INTEGRATIE** 🔑
 
+**Doel**: Gebruik betaalde API key voor betere rate limits en data
+
+**Implementatie**:
+1. **API Key toevoegen aan Vercel**:
+   ```bash
+   vercel env add COINGECKO_API_KEY production
+   # Value: CG-2zNxDeFXb8KJ2DSnpWMdKi7z
+   ```
+
+2. **API route updaten**:
+   - Gebruik API key in alle CoinGecko calls
+   - Format: `?x_cg_demo_api_key={API_KEY}` (voor demo tier)
+   - Of: `x-cg-demo-api-key` header (check CoinGecko docs)
+
+3. **Rate limit monitoring**:
+   - Log rate limit headers
+   - Implement rate limit handling
+   - Fallback naar free tier als key faalt
+
+**Files te wijzigen**:
+- `app/api/price-history/route.ts` - API key integration
+- `.env.example` - Document COINGECKO_API_KEY
+
+---
+
+### **FASE 3: COINGECKO MCP SERVER INTEGRATIE** 🤖
+
+**Doel**: Gebruik CoinGecko MCP server voor betere data access
+
+**Voordelen**:
+- Directe integratie met CoinGecko data
+- Betere error handling
+- Geoptimaliseerde queries
+- AI-native approach
+
+**Implementatie**:
+1. **MCP Server connectie**:
+   - Configureer CoinGecko MCP server
+   - Test connectie
+
+2. **MCP Tools gebruiken**:
+   - `coin_market_chart_by_id` voor price history
+   - `coin_by_id` voor token details
+   - `simple_price` voor current price
+
+3. **Hybrid approach**:
+   - MCP voor primary data
+   - Direct API als fallback
+   - Best of both worlds
+
+**Files te wijzigen**:
+- `lib/coingecko-mcp-service.ts` - Nieuw bestand voor MCP integration
+- `app/api/price-history/route.ts` - Integreer MCP als primary source
+
+---
+
+### **FASE 4: INTERVAL & TIMEFRAME FIXES** ⚙️
+
+**Doel**: Fix interval parameter issues
+
+**Problemen te fixen**:
+1. **LIVE mode**:
+   - Gebruik `days=1` met `interval=null` (5-minute data)
+   - Update alleen laatste data point (niet hele history)
+   - Refresh interval: 1 seconde
+
+2. **7D & 30D (hourly)**:
+   - Verifieer `interval=hourly` syntax
+   - Test met API key (betaalde tier)
+   - Fallback naar daily als hourly faalt
+
+3. **ALLES (365 days)**:
+   - Gebruik `interval=daily` (correct)
+   - Verifieer data points count
+   - Check voor rate limits
+
+**Files te wijzigen**:
+- `app/api/price-history/route.ts` - Fix interval logic
+- `components/TokenPriceChart.tsx` - Fix LIVE mode logic
+
+---
+
+## 📋 IMPLEMENTATIE PLAN
+
+### **STAP 1: Debug Logging** (15 min)
+1. Add comprehensive logging in API route
+2. Add debug panel in frontend (tijdelijk)
+3. Test alle timeframes en log results
+
+### **STAP 2: API Key Integration** (10 min)
+1. Add API key to Vercel env vars
+2. Update API route to use key
+3. Test rate limits
+
+### **STAP 3: MCP Server Setup** (20 min)
+1. Configure CoinGecko MCP server
+2. Test connectie
+3. Create MCP service wrapper
+
+### **STAP 4: Fix Interval Issues** (15 min)
+1. Fix LIVE mode logic
+2. Fix 7D/30D hourly interval
+3. Test alle timeframes
+
+### **STAP 5: Testing & Validation** (10 min)
+1. Test alle timeframes met ETH
+2. Test met andere tokens
+3. Verify data quality
+
+**Totaal tijd**: ~70 minuten
+
+---
+
+## 🎯 VERWACHT RESULTAAT
+
+Na implementatie:
+- ✅ **LIVE**: Real-time price updates (1 seconde refresh)
+- ✅ **1D**: 5-minute granularity (288 points)
+- ✅ **7D**: Hourly data (~168 points)
+- ✅ **30D**: Hourly data (~720 points)
+- ✅ **1J**: Daily data (~365 points)
+- ✅ **ALLES**: Daily data (max available)
+
+---
+
+## 🔧 TECHNISCHE DETAILS
+
+### **CoinGecko API Endpoints**:
+```
+GET /api/v3/coins/{id}/market_chart
+  ?vs_currency=usd
+  &days={days}
+  &interval={interval}  // Optional: hourly, daily, or null (auto)
+  &x_cg_demo_api_key={API_KEY}  // For paid tier
+```
+
+### **Interval Rules**:
+- `days=1`: No interval → 5-minute data (auto)
+- `days=2-90`: `interval=hourly` → Hourly data
+- `days>90`: `interval=daily` → Daily data
+
+### **MCP Server Tools**:
+- `coin_market_chart_by_id`: Price history
+- `coin_by_id`: Token details
+- `simple_price`: Current price
+
+---
+
+## ✅ VOORDELEN VAN DIT VOORSTEL
+
+1. **Comprehensive debugging**: Exact zien wat er mis gaat
+2. **API key integration**: Betere rate limits en data access
+3. **MCP server**: AI-native approach, betere error handling
+4. **Structured approach**: Stap voor stap, testbaar
+5. **Backward compatible**: Geen breaking changes
+
+---
+
+**Klaar voor implementatie?** Wacht op goedkeuring van gebruiker.
