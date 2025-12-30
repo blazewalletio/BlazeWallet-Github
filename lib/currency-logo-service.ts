@@ -160,18 +160,38 @@ async function getCoinGeckoLogo(
     }
     params.append('platform', platform);
 
+    const apiUrl = `/api/currency-logo?${params.toString()}`;
+    console.log(`\n🌐 [CurrencyLogo] Calling server API...`);
+    console.log(`   URL: ${apiUrl}`);
+
     // Use server-side API route to avoid CSP/CORS issues
-    const response = await fetch(`/api/currency-logo?${params.toString()}`);
+    const response = await fetch(apiUrl);
+
+    console.log(`   📊 Response status: ${response.status}`);
 
     if (response.ok) {
       const data = await response.json();
+      console.log(`   📦 Response data:`, JSON.stringify(data, null, 2));
+      
       if (data.logo) {
+        console.log(`   ✅ Logo found via ${data.source}: ${data.logo}`);
         return data.logo;
+      } else {
+        console.log(`   ❌ No logo in response (source: ${data.source || 'unknown'})`);
       }
     } else {
+      console.warn(`   ⚠️ API route returned ${response.status}`);
+      // Try to get error details
+      try {
+        const errorData = await response.json();
+        console.warn(`   Error details:`, errorData);
+      } catch {
+        console.warn(`   Could not parse error response`);
+      }
       logger.warn(`[CurrencyLogo] API route returned ${response.status} for ${symbol}`);
     }
-  } catch (error) {
+  } catch (error: any) {
+    console.error(`   ❌ Fetch error:`, error.message);
     logger.warn(`[CurrencyLogo] Failed to fetch logo for ${symbol}:`, error);
   }
 
