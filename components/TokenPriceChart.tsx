@@ -186,8 +186,9 @@ export default function TokenPriceChart({
       forceRefresh,
     });
     
-    // ✅ Check cache first (unless forced refresh)
-    if (!forceRefresh) {
+    // ✅ Check cache first (unless forced refresh or LIVE mode)
+    // LIVE mode: No cache, always fresh data
+    if (!forceRefresh && selectedTimeframe !== 'LIVE') {
       const cached = priceHistoryCache.get(tokenSymbol, days, tokenAddress, chain);
       logger.log(`[TokenPriceChart:${selectedTimeframe}] 📦 Cache check`, {
         hasCache: !!cached,
@@ -236,13 +237,15 @@ export default function TokenPriceChart({
           lastTimestamp: data[data.length - 1]?.timestamp,
         });
 
-        // ✅ Background refresh if cache is getting stale
-        if (priceHistoryCache.needsRefresh(tokenSymbol, days, tokenAddress, chain)) {
+        // ✅ Background refresh if cache is getting stale (but not for LIVE)
+        if (selectedTimeframe !== 'LIVE' && priceHistoryCache.needsRefresh(tokenSymbol, days, tokenAddress, chain)) {
           logger.log(`[TokenPriceChart:${selectedTimeframe}] 🔄 Cache getting stale, refreshing in background...`);
           loadPriceHistory(true); // Refresh in background
         }
         return;
       }
+    } else if (selectedTimeframe === 'LIVE') {
+      logger.log(`[TokenPriceChart:LIVE] ⚡ Skipping cache - LIVE mode always uses fresh data`);
     }
 
     setIsLoading(true);

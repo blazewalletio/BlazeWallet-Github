@@ -34,13 +34,14 @@ class PriceHistoryCache {
   private cache = new Map<string, PriceHistoryCacheEntry>();
   
   // ✅ Timeframe-specifieke cache durations (in milliseconds)
+  // Strategie: Kortere cache voor timeframes waar data snel verandert
   private readonly CACHE_DURATIONS = {
-    LIVE: 2000,      // 2 seconden voor live data
-    '1D': 60000,     // 1 minuut voor 1D
-    '7D': 5 * 60000, // 5 minuten voor 7D
-    '30D': 10 * 60000, // 10 minuten voor 30D
-    '1J': 30 * 60000, // 30 minuten voor 1J
-    'ALLES': 30 * 60000, // 30 minuten voor ALLES
+    LIVE: 0,         // ❌ GEEN cache voor LIVE - altijd fresh data
+    '1D': 30000,     // ✅ 30 seconden voor 1D (data verandert snel)
+    '7D': 5 * 60000, // ✅ 5 minuten voor 7D (redelijk)
+    '30D': 10 * 60000, // ✅ 10 minuten voor 30D (prima)
+    '1J': 30 * 60000, // ✅ 30 minuten voor 1J (data verandert langzaam)
+    'ALLES': 30 * 60000, // ✅ 30 minuten voor ALLES (data verandert langzaam)
   };
 
   /**
