@@ -194,15 +194,6 @@ async function fetchCoinGeckoPriceHistory(
     
     // Use server-side API route instead of direct CoinGecko call
     // This ensures API key is available and errors are handled gracefully
-    const apiUrl = `/api/price-history?symbol=${encodeURIComponent(symbol)}&days=${days}${contractAddress ? `&contractAddress=${encodeURIComponent(contractAddress)}` : ''}${chain ? `&chain=${encodeURIComponent(chain)}` : ''}`;
-    
-    logger.log(`[TokenPriceHistory:CoinGecko] 📡 API call`, {
-      url: apiUrl,
-      symbol,
-      days,
-    });
-    
-    const fetchStartTime = Date.now();
     const params = new URLSearchParams({
       symbol,
       days: days.toString(),
@@ -211,27 +202,69 @@ async function fetchCoinGeckoPriceHistory(
     if (chain) params.append('chain', chain);
     
     const apiUrl = `/api/price-history?${params.toString()}`;
-    logger.log(`🦎 [CoinGecko] Using API route: ${apiUrl}`);
     
+    logger.log(`[TokenPriceHistory:CoinGecko] 📡 API call`, {
+      url: apiUrl,
+      symbol,
+      days,
+      contractAddress: contractAddress || 'none',
+      chain: chain || 'none',
+    });
+    
+    const fetchStartTime = Date.now();
     const response = await fetch(apiUrl, {
       headers: { 'Accept': 'application/json' },
       next: { revalidate: 900 } // 15 min cache
     });
+    const fetchDuration = Date.now() - fetchStartTime;
+
+    logger.log(`[TokenPriceHistory:CoinGecko] 📥 API response`, {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      duration: `${fetchDuration}ms`,
+    });
 
     if (!response.ok) {
       // API route returns 200 even on errors, but check just in case
-      logger.warn(`⚠️ [CoinGecko] API route returned ${response.status}`);
+      logger.error(`[TokenPriceHistory:CoinGecko] ❌ API route returned error status`, {
+        status: response.status,
+        statusText: response.statusText,
+      });
       return { prices: [], success: false, error: `API error: ${response.status}`, source: 'CoinGecko' };
     }
 
+    const parseStartTime = Date.now();
     const data = await response.json();
+    const parseDuration = Date.now() - parseStartTime;
+    
+    logger.log(`[TokenPriceHistory:CoinGecko] 📊 Response parsed`, {
+      success: data.success,
+      hasPrices: !!data.prices,
+      pricesLength: data.prices?.length || 0,
+      error: data.error,
+      coinGeckoId: data.coinGeckoId,
+      source: data.source,
+      parseDuration: `${parseDuration}ms`,
+    });
     
     if (!data.success || !data.prices || data.prices.length === 0) {
-      logger.warn(`⚠️ [CoinGecko] No price data: ${data.error || 'Unknown error'}`);
+      logger.error(`[TokenPriceHistory:CoinGecko] ❌ No price data`, {
+        error: data.error || 'Unknown error',
+        symbol,
+        days,
+      });
       return { prices: [], success: false, error: data.error || 'No price data available', source: 'CoinGecko' };
     }
 
-    logger.log(`✅ [CoinGecko] Got ${data.prices.length} price points`);
+    logger.log(`[TokenPriceHistory:CoinGecko] ✅ Successfully fetched price history`, {
+      dataPoints: data.prices.length,
+      symbol,
+      days,
+      coinGeckoId: data.coinGeckoId,
+      totalDuration: `${fetchDuration + parseDuration}ms`,
+    });
+    
     return { 
       prices: data.prices, 
       success: true, 
@@ -239,8 +272,13 @@ async function fetchCoinGeckoPriceHistory(
       coinGeckoId: data.coinGeckoId, // ✅ Pass through CoinGecko ID for caching
     };
     
-  } catch (error) {
-    logger.warn(`❌ [CoinGecko] Failed:`, error);
+  } catch (error: any) {
+    logger.error(`[TokenPriceHistory:CoinGecko] ❌ Failed`, {
+      error: error?.message || 'Unknown error',
+      stack: error?.stack,
+      symbol,
+      days,
+    });
     return { prices: [], success: false, error: String(error), source: 'CoinGecko' };
   }
 }
