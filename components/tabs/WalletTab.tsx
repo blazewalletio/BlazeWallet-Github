@@ -99,11 +99,13 @@ export default function WalletTab() {
       // ✅ Batch fetch native token price + change24h (ONE API call instead of 2!)
       const nativeSymbol = chain.nativeCurrency.symbol;
       
-      if (currentChain === 'ethereum') {
-        console.log(`\n📡 Fetching ETH price...`);
-      }
+      console.log(`\n📡 [WalletTab] Fetching native ${nativeSymbol} price...`);
+      console.log(`   API call: priceService.getMultiplePrices(['${nativeSymbol}'])`);
       
       const nativePrices = await priceService.getMultiplePrices([nativeSymbol]);
+      
+      console.log(`   Raw response:`, nativePrices);
+      
       const nativePriceData = nativePrices[nativeSymbol] || { price: 0, change24h: 0 };
       const nativePrice = nativePriceData.price || 0;
       const nativeChange = nativePriceData.change24h || 0;
@@ -112,12 +114,10 @@ export default function WalletTab() {
       // ✅ Store native value in state for display in native currency card
       setNativeValueUSD(nativeValueUSD);
       
-      if (currentChain === 'ethereum') {
-        console.log(`✅ ETH price: $${nativePrice.toFixed(2)}`);
-        console.log(`✅ ETH 24h change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
-        console.log(`✅ ETH value USD: $${nativeValueUSD.toFixed(2)}`);
-        console.log(`   Calculation: ${bal} ETH × $${nativePrice.toFixed(2)} = $${nativeValueUSD.toFixed(2)}`);
-      }
+      console.log(`✅ [WalletTab] ${nativeSymbol} price: $${nativePrice.toFixed(2)}`);
+      console.log(`✅ [WalletTab] ${nativeSymbol} 24h change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
+      console.log(`✅ [WalletTab] ${nativeSymbol} value USD: $${nativeValueUSD.toFixed(2)}`);
+      console.log(`   Calculation: ${bal} ${nativeSymbol} × $${nativePrice.toFixed(2)} = $${nativeValueUSD.toFixed(2)}`);
       
       logger.log(`[${timestamp}] Native balance details:`, {
         balance: bal,
