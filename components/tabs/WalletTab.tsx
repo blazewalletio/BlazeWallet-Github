@@ -71,19 +71,49 @@ export default function WalletTab() {
     
     try {
       const timestamp = Date.now();
+      
+      if (currentChain === 'ethereum') {
+        console.log('\n═══════════════════════════════════════════════════════════');
+        console.log('💰 [WalletTab] ETHEREUM NATIVE BALANCE FETCHING');
+        console.log('═══════════════════════════════════════════════════════════');
+        console.log(`📍 Address: ${displayAddress}`);
+        console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
+      }
+      
       logger.log(`[${timestamp}] Fetching balance for ${displayAddress} on ${currentChain}`);
       
+      if (currentChain === 'ethereum') {
+        console.log(`\n📡 Fetching native ETH balance...`);
+      }
+      
       const bal = await blockchain.getBalance(displayAddress);
+      
+      if (currentChain === 'ethereum') {
+        console.log(`✅ Native ETH balance: ${bal} ETH`);
+      }
+      
       logger.log(`[${timestamp}] Balance received: ${bal} ${chain.nativeCurrency.symbol}`);
       updateBalance(bal);
 
       // ✅ Batch fetch native token price + change24h (ONE API call instead of 2!)
       const nativeSymbol = chain.nativeCurrency.symbol;
+      
+      if (currentChain === 'ethereum') {
+        console.log(`\n📡 Fetching ETH price...`);
+      }
+      
       const nativePrices = await priceService.getMultiplePrices([nativeSymbol]);
       const nativePriceData = nativePrices[nativeSymbol] || { price: 0, change24h: 0 };
       const nativePrice = nativePriceData.price || 0;
       const nativeChange = nativePriceData.change24h || 0;
       const nativeValueUSD = parseFloat(bal) * nativePrice;
+      
+      if (currentChain === 'ethereum') {
+        console.log(`✅ ETH price: $${nativePrice.toFixed(2)}`);
+        console.log(`✅ ETH 24h change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
+        console.log(`✅ ETH value USD: $${nativeValueUSD.toFixed(2)}`);
+        console.log(`   Calculation: ${bal} ETH × $${nativePrice.toFixed(2)} = $${nativeValueUSD.toFixed(2)}`);
+      }
       
       logger.log(`[${timestamp}] Native balance details:`, {
         balance: bal,
@@ -172,28 +202,41 @@ export default function WalletTab() {
       else if (currentChain !== 'solana' && currentChain !== 'bitcoin' && currentChain !== 'bitcoincash' && currentChain !== 'litecoin' && currentChain !== 'doge' && displayAddress) {
         let erc20Tokens: any[] = [];
         
+        console.log('\n═══════════════════════════════════════════════════════════');
+        console.log('🔮 [WalletTab] ETHEREUM TOKEN FETCHING START');
+        console.log('═══════════════════════════════════════════════════════════');
+        console.log(`📍 Chain: ${currentChain}`);
+        console.log(`📍 Address: ${displayAddress}`);
+        console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
+        
         try {
-          console.log('🔮 [WalletTab] Attempting to fetch ALL ERC20 tokens via Alchemy...');
-          console.log('📍 [WalletTab] Address:', displayAddress);
+          console.log('\n📡 STEP 1: Fetching ERC20 tokens via Alchemy...');
           logger.log(`[WalletTab] 🔮 Attempting to fetch ALL ERC20 tokens via Alchemy...`);
           erc20Tokens = await blockchain.getERC20TokenBalances(displayAddress);
           
           if (erc20Tokens.length > 0) {
-            console.log(`✅ [WalletTab] Alchemy found ${erc20Tokens.length} ERC20 tokens with balance`);
-            console.log('📊 [WalletTab] Tokens from Alchemy:', erc20Tokens.map(t => ({
-              symbol: t.symbol,
-              name: t.name,
-              address: t.address,
-              balance: t.balance,
-              logo: t.logo || 'MISSING'
-            })));
+            console.log(`✅ STEP 1 SUCCESS: Alchemy found ${erc20Tokens.length} ERC20 tokens`);
+            console.log('\n📊 RAW TOKEN DATA FROM ALCHEMY:');
+            erc20Tokens.forEach((t, idx) => {
+              console.log(`\n   Token ${idx + 1}/${erc20Tokens.length}:`);
+              console.log(`   ├─ Symbol: ${t.symbol || 'MISSING'}`);
+              console.log(`   ├─ Name: ${t.name || 'MISSING'}`);
+              console.log(`   ├─ Address: ${t.address || 'MISSING'}`);
+              console.log(`   ├─ Balance: ${t.balance || '0'}`);
+              console.log(`   ├─ Decimals: ${t.decimals || 'MISSING'}`);
+              console.log(`   └─ Logo: ${t.logo || 'MISSING'}`);
+            });
             logger.log(`[WalletTab] ✅ Alchemy found ${erc20Tokens.length} ERC20 tokens with balance`);
           } else {
-            console.log(`ℹ️ [WalletTab] No tokens found via Alchemy, falling back to POPULAR_TOKENS`);
+            console.log(`⚠️ STEP 1: No tokens found via Alchemy`);
+            console.log(`   → Falling back to POPULAR_TOKENS`);
             logger.log(`[WalletTab] ℹ️ No tokens found via Alchemy, falling back to POPULAR_TOKENS`);
           }
         } catch (error) {
-          console.error('⚠️ [WalletTab] Alchemy failed:', error);
+          console.error('\n❌ STEP 1 FAILED: Alchemy error');
+          console.error('   Error:', error);
+          console.error('   Error message:', error instanceof Error ? error.message : 'Unknown error');
+          console.error('   Error stack:', error instanceof Error ? error.stack : 'No stack trace');
           logger.warn(`[WalletTab] ⚠️ Alchemy failed, falling back to POPULAR_TOKENS:`, error);
         }
         
@@ -210,16 +253,23 @@ export default function WalletTab() {
         if (erc20Tokens.length > 0) {
           // ✅ Batch fetch prices by contract address (more accurate than symbol)
           const tokenAddresses = erc20Tokens.map(t => t.address);
-          console.log('💰 [WalletTab] Fetching prices for addresses:', tokenAddresses);
-          console.log('💰 [WalletTab] Chain:', currentChain);
+          console.log('\n📡 STEP 2: Fetching prices by contract address...');
+          console.log(`   Chain: ${currentChain}`);
+          console.log(`   Token addresses (${tokenAddresses.length}):`);
+          tokenAddresses.forEach((addr, idx) => {
+            console.log(`   ${idx + 1}. ${addr}`);
+          });
+          
           const pricesByAddress = await priceService.getPricesByAddresses(tokenAddresses, currentChain);
           
-          console.log(`💰 [WalletTab] Received prices for ${pricesByAddress.size}/${tokenAddresses.length} tokens`);
-          console.log('💰 [WalletTab] Prices map:', Array.from(pricesByAddress.entries()).map(([addr, data]) => ({
-            address: addr,
-            price: data.price,
-            change24h: data.change24h
-          })));
+          console.log(`\n✅ STEP 2 COMPLETE: Received prices for ${pricesByAddress.size}/${tokenAddresses.length} tokens`);
+          console.log('\n💰 PRICE DATA:');
+          Array.from(pricesByAddress.entries()).forEach(([addr, data]) => {
+            const token = erc20Tokens.find(t => t.address.toLowerCase() === addr.toLowerCase());
+            console.log(`\n   ${token?.symbol || 'UNKNOWN'} (${addr.substring(0, 10)}...):`);
+            console.log(`   ├─ Price: $${data.price.toFixed(6)}`);
+            console.log(`   └─ 24h Change: ${data.change24h >= 0 ? '+' : ''}${data.change24h.toFixed(2)}%`);
+          });
           logger.log(`[WalletTab] 💰 Received prices for ${pricesByAddress.size}/${tokenAddresses.length} tokens`);
           
           // ✅ Fetch missing logos from CoinGecko for tokens without logos
@@ -230,53 +280,54 @@ export default function WalletTab() {
             token.logo.trim() === ''
           );
           
-          console.log(`🖼️ [WalletTab] Tokens needing logos: ${tokensNeedingLogos.length}`);
-          console.log('🖼️ [WalletTab] Tokens needing logos:', tokensNeedingLogos.map(t => ({
-            symbol: t.symbol,
-            address: t.address,
-            currentLogo: t.logo || 'MISSING'
-          })));
+          console.log(`\n📡 STEP 3: Fetching missing logos...`);
+          console.log(`   Tokens needing logos: ${tokensNeedingLogos.length}/${erc20Tokens.length}`);
           
           if (tokensNeedingLogos.length > 0) {
-            console.log(`🖼️ [WalletTab] Fetching logos from CoinGecko for ${tokensNeedingLogos.length} tokens...`);
+            console.log('\n🖼️ TOKENS NEEDING LOGOS:');
+            tokensNeedingLogos.forEach((t, idx) => {
+              console.log(`   ${idx + 1}. ${t.symbol || 'UNKNOWN'}`);
+              console.log(`      Address: ${t.address}`);
+              console.log(`      Current logo: ${t.logo || 'MISSING'}`);
+            });
+            
             logger.log(`[WalletTab] 🖼️ Fetching logos from CoinGecko for ${tokensNeedingLogos.length} tokens...`);
             
             // Fetch logos in parallel
             await Promise.all(
               tokensNeedingLogos.map(async (token: any) => {
                 try {
-                  console.log(`🖼️ [WalletTab] Fetching logo for ${token.symbol} (${token.address})...`);
+                  console.log(`\n   🔍 Fetching logo for ${token.symbol}...`);
+                  console.log(`      Address: ${token.address}`);
                   const logo = await getCurrencyLogo(token.symbol, token.address);
-                  console.log(`🖼️ [WalletTab] Logo result for ${token.symbol}:`, logo);
+                  console.log(`      Result: ${logo}`);
+                  
                   if (logo && logo !== '/crypto-eth.png' && logo !== '/crypto-placeholder.png') {
                     token.logo = logo;
-                    console.log(`✅ [WalletTab] Set logo for ${token.symbol}: ${logo}`);
+                    console.log(`      ✅ Logo set successfully`);
                     logger.log(`[WalletTab] ✅ Fetched logo for ${token.symbol}: ${logo}`);
                   } else {
-                    console.log(`⚠️ [WalletTab] Invalid logo for ${token.symbol}: ${logo}`);
+                    console.log(`      ⚠️ Invalid logo (using fallback)`);
                   }
                 } catch (error) {
-                  console.error(`❌ [WalletTab] Failed to fetch logo for ${token.symbol}:`, error);
+                  console.error(`      ❌ Failed to fetch logo`);
+                  console.error(`      Error:`, error);
                   logger.warn(`[WalletTab] ⚠️ Failed to fetch logo for ${token.symbol}:`, error);
                 }
               })
             );
+            
+            console.log(`\n✅ STEP 3 COMPLETE: Logo fetching finished`);
+          } else {
+            console.log(`✅ STEP 3 SKIPPED: All tokens already have logos`);
           }
           
+          console.log(`\n📡 STEP 4: Calculating final token values...`);
           const tokensWithPrices = erc20Tokens.map((token: any) => {
             const addressLower = token.address.toLowerCase();
             const priceData = pricesByAddress.get(addressLower) || { price: 0, change24h: 0 };
             const balanceNum = parseFloat(token.balance || '0');
             const balanceUSD = balanceNum * priceData.price;
-            
-            console.log(`💰 [WalletTab] Token ${token.symbol}:`, {
-              address: addressLower,
-              balance: token.balance,
-              price: priceData.price,
-              balanceUSD: balanceUSD,
-              logo: token.logo || 'MISSING',
-              change24h: priceData.change24h
-            });
             
             return {
               ...token,
@@ -291,16 +342,23 @@ export default function WalletTab() {
             t => parseFloat(t.balance || '0') > 0
           );
           
-          console.log(`✅ [WalletTab] Final tokensWithValue: ${tokensWithValue.length} tokens`);
-          console.log('📊 [WalletTab] Final tokens:', tokensWithValue.map(t => ({
-            symbol: t.symbol,
-            name: t.name,
-            balance: t.balance,
-            balanceUSD: t.balanceUSD,
-            priceUSD: t.priceUSD,
-            logo: t.logo,
-            address: t.address
-          })));
+          console.log(`\n✅ STEP 4 COMPLETE: Final token processing`);
+          console.log(`   Total tokens with balance: ${tokensWithValue.length}`);
+          console.log('\n📊 FINAL TOKEN SUMMARY:');
+          tokensWithValue.forEach((t, idx) => {
+            console.log(`\n   ${idx + 1}. ${t.symbol || 'UNKNOWN'}`);
+            console.log(`      ├─ Name: ${t.name || 'Unknown Token'}`);
+            console.log(`      ├─ Address: ${t.address}`);
+            console.log(`      ├─ Balance: ${t.balance} ${t.symbol}`);
+            console.log(`      ├─ Price: $${parseFloat(t.priceUSD || '0').toFixed(6)}`);
+            console.log(`      ├─ Value USD: $${t.balanceUSD}`);
+            console.log(`      ├─ 24h Change: ${(t.change24h || 0) >= 0 ? '+' : ''}${(t.change24h || 0).toFixed(2)}%`);
+            console.log(`      └─ Logo: ${t.logo || 'MISSING'}`);
+          });
+          
+          console.log('\n═══════════════════════════════════════════════════════════');
+          console.log('✅ [WalletTab] ETHEREUM TOKEN FETCHING COMPLETE');
+          console.log('═══════════════════════════════════════════════════════════\n');
           logger.log(`[WalletTab] ✅ Final tokensWithValue: ${tokensWithValue.length} tokens`);
         }
         

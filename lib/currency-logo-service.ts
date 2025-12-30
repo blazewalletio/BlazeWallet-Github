@@ -74,22 +74,32 @@ export async function getCurrencyLogo(
   symbol: string,
   contractAddress?: string
 ): Promise<string> {
-  // Check cache first
   const cacheKey = contractAddress || symbol;
+  console.log(`\n🖼️ [CurrencyLogoService] Fetching logo...`);
+  console.log(`   Symbol: ${symbol}`);
+  console.log(`   Contract Address: ${contractAddress || 'N/A'}`);
+  console.log(`   Cache Key: ${cacheKey}`);
+  
+  // Check cache first
   const cached = logoCache[cacheKey];
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log(`   ✅ CACHE HIT: ${cached.logo}`);
     return cached.logo;
   }
+  console.log(`   ❌ CACHE MISS`);
 
   // Return local logo if available (instant)
   if (LOCAL_LOGOS[symbol]) {
+    console.log(`   ✅ LOCAL LOGO: ${LOCAL_LOGOS[symbol]}`);
     return LOCAL_LOGOS[symbol];
   }
 
   try {
     // Try CoinGecko API
+    console.log(`   📡 Trying CoinGecko API...`);
     const coinGeckoLogo = await getCoinGeckoLogo(symbol, contractAddress);
     if (coinGeckoLogo) {
+      console.log(`   ✅ CoinGecko logo: ${coinGeckoLogo}`);
       // Cache the result
       logoCache[cacheKey] = {
         logo: coinGeckoLogo,
@@ -97,21 +107,27 @@ export async function getCurrencyLogo(
       };
       return coinGeckoLogo;
     }
+    console.log(`   ❌ CoinGecko returned no logo`);
 
     // Try CryptoCompare API as fallback
+    console.log(`   📡 Trying CryptoCompare API...`);
     const cryptoCompareLogo = await getCryptoCompareLogo(symbol);
     if (cryptoCompareLogo) {
+      console.log(`   ✅ CryptoCompare logo: ${cryptoCompareLogo}`);
       logoCache[cacheKey] = {
         logo: cryptoCompareLogo,
         timestamp: Date.now(),
       };
       return cryptoCompareLogo;
     }
+    console.log(`   ❌ CryptoCompare returned no logo`);
   } catch (error) {
+    console.error(`   ❌ Error:`, error);
     logger.warn(`[CurrencyLogoService] Failed to fetch logo for ${symbol}:`, error);
   }
 
   // Fallback to generic crypto logo
+  console.log(`   ⚠️ Using fallback logo: /crypto-eth.png`);
   return '/crypto-eth.png';
 }
 

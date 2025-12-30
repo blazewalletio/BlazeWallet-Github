@@ -439,6 +439,9 @@ export class PriceService {
       return new Map();
     }
 
+    console.log(`\n💰 [PriceService] Fetching prices by address...`);
+    console.log(`   Chain: ${chain}`);
+    console.log(`   Total addresses: ${addresses.length}`);
     logger.log(`\n🔍 [PriceService] Fetching prices for ${addresses.length} addresses on ${chain}`);
 
     const result = new Map<string, { price: number; change24h: number }>();
@@ -446,67 +449,68 @@ export class PriceService {
     const uncachedAddresses: string[] = [];
 
     // ✅ STEP 1: Check cache first (TTL handled internally by LRU)
+    console.log(`\n📡 STEP 1: Checking cache...`);
     addresses.forEach(address => {
       const addressLower = address.toLowerCase();
       const cached = this.addressCache.get(addressLower);
       if (cached) {
         result.set(addressLower, { price: cached.price, change24h: cached.change24h });
+        console.log(`   ✅ CACHE HIT: ${addressLower.substring(0, 10)}... = $${cached.price.toFixed(6)}`);
         logger.log(`💾 [PriceService] 🔴 CACHE HIT: ${addressLower.substring(0, 10)}... = $${cached.price.toFixed(6)}, change24h: ${cached.change24h.toFixed(2)}%`);
         logger.log(`   ⚠️ Using CACHED data - this may be up to 60 seconds old!`);
       } else {
         uncachedAddresses.push(addressLower);
+        console.log(`   ❌ CACHE MISS: ${addressLower.substring(0, 10)}...`);
       }
     });
 
     if (uncachedAddresses.length === 0) {
+      console.log(`✅ All addresses from cache (0 API calls!)`);
       logger.log(`✅ [PriceService] All ${addresses.length} addresses from cache (0 API calls!)`);
       return result;
     }
 
+    console.log(`\n📡 STEP 2: Fetching ${uncachedAddresses.length} uncached addresses from API...`);
     logger.log(`📡 [PriceService] Fetching ${uncachedAddresses.length}/${addresses.length} uncached addresses...`);
 
     // ✅ STEP 2: Fetch from CoinGecko by address (batch request = efficient!)
     try {
       // 🔥 CACHE BUSTING: Add timestamp to force Vercel to fetch fresh data
       const cacheBuster = Date.now();
-      const response = await fetch(
-        `${this.addressApiUrl}?addresses=${uncachedAddresses.join(',')}&chain=${chain}&_t=${cacheBuster}`,
-        { signal: AbortSignal.timeout(15000) }
-      );
+      const apiUrl = `${this.addressApiUrl}?addresses=${uncachedAddresses.join(',')}&chain=${chain}&_t=${cacheBuster}`;
+      console.log(`   API URL: ${apiUrl.substring(0, 100)}...`);
+      
+      const response = await fetch(apiUrl, { signal: AbortSignal.timeout(15000) });
 
+      console.log(`   Response status: ${response.status} ${response.statusText}`);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log(`   ✅ Response received, processing ${Object.keys(data).length} price entries...`);
 
-        uncachedAddresses.forEach(address => {
+        uncachedAddresses.forEach((address, idx) => {
+          console.log(`\n   [${idx + 1}/${uncachedAddresses.length}] Processing ${address.substring(0, 10)}...`);
+          
           // CoinGecko API route returns: { "0x...": { price: 5.42, change24h: -2.5 } }
           // (transformed from CoinGecko's { "0x...": { usd: 5.42, usd_24h_change: -2.5 } })
           const priceValue = data[address]?.price || data[address]?.usd || 0;
+          console.log(`      Raw data:`, data[address]);
+          console.log(`      Price value: ${priceValue}`);
           
           if (data[address] && priceValue > 0) {
             let price = priceValue;
             
             // 🛡️ SANITY CHECK: Detect abnormally high prices (>$10k per token)
-            // Lowered threshold from $100k to $10k to catch more errors
-            // This could indicate:
-            // 1. CoinGecko returning price in wrong unit (e.g., per 1e18 tokens instead of per token)
-            // 2. Cached stale data from when token was worth more
-            // 3. API error returning wrong format
-            // Most legitimate tokens are well below $10k per token
             if (price > 10000) {
+              console.log(`      ⚠️ SUSPICIOUS HIGH PRICE: $${price.toFixed(2)}`);
+              console.log(`      → Setting to 0 (will try DexScreener)`);
               logger.warn(`⚠️ [PriceService] SUSPICIOUS HIGH PRICE detected for ${address.substring(0, 10)}...: $${price.toFixed(2)}`);
-              logger.warn(`   This price seems abnormally high. Possible causes:`);
-              logger.warn(`   1. CoinGecko API error`);
-              logger.warn(`   2. Stale cached data`);
-              logger.warn(`   3. Price in wrong unit (e.g., per 1e18 tokens instead of per token)`);
-              logger.warn(`   Setting price to 0 to prevent incorrect value calculation.`);
-              
-              // Set price to 0 to prevent incorrect calculations
-              // The fallback to DexScreener will try to get correct price
               price = 0;
             }
             
             // Get change24h from either format
             const change24h = data[address].change24h || data[address].usd_24h_change || 0;
+            console.log(`      24h Change: ${change24h}%`);
             
             const priceData = {
               price,
@@ -516,6 +520,7 @@ export class PriceService {
             // Only cache and use if price is valid (not 0 after sanity check)
             if (price > 0) {
               result.set(address, priceData);
+              console.log(`      ✅ Price set: $${price.toFixed(6)}, change24h: ${change24h.toFixed(2)}%`);
               
               // Update cache with TTL
               this.addressCache.set(address, {
@@ -524,16 +529,20 @@ export class PriceService {
               }, this.cacheDuration);
               
               logger.log(`✅ [PriceService] CoinGecko: ${address.substring(0, 10)}... = $${priceData.price.toFixed(6)}`);
-              logger.log(`🔍 [PriceService] FRESH DATA from API: price=$${priceData.price.toFixed(6)}, change24h=${priceData.change24h.toFixed(2)}%`);
             } else {
+              console.log(`      ⚠️ Invalid price, skipping (will try DexScreener)`);
               logger.log(`⚠️ [PriceService] Skipping invalid price for ${address.substring(0, 10)}... (will try DexScreener)`);
             }
+          } else {
+            console.log(`      ❌ No price data in response`);
           }
         });
       } else {
+        console.error(`   ❌ API failed: ${response.status} ${response.statusText}`);
         logger.error(`❌ [PriceService] CoinGecko address API failed: ${response.status}`);
       }
     } catch (error) {
+      console.error(`   ❌ Fetch error:`, error);
       logger.error('❌ [PriceService] Error fetching prices by address:', error);
     }
 
@@ -620,6 +629,14 @@ export class PriceService {
       }
     });
 
+    console.log(`\n✅ [PriceService] Price fetching complete`);
+    console.log(`   Total addresses processed: ${result.size}/${addresses.length}`);
+    console.log(`\n💰 FINAL PRICE MAP:`);
+    Array.from(result.entries()).forEach(([addr, data]) => {
+      console.log(`   ${addr.substring(0, 10)}...: $${data.price.toFixed(6)} (${data.change24h >= 0 ? '+' : ''}${data.change24h.toFixed(2)}%)`);
+    });
+    console.log(`\n`);
+    
     logger.log(`✅ [PriceService] Final: ${result.size}/${addresses.length} addresses processed`);
     return result;
   }

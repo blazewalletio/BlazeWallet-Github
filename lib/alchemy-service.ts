@@ -59,11 +59,15 @@ export class AlchemyService {
    */
   async getAllTokenBalances(address: string): Promise<EnrichedToken[]> {
     try {
+      console.log(`\n🔮 [AlchemyService] Fetching all ERC20 tokens...`);
+      console.log(`   Address: ${address}`);
+      console.log(`   Chain: ${this.chainKey}`);
       logger.log(`\n🔮 [AlchemyService] Fetching all ERC20 tokens for ${address.substring(0, 8)}...`);
       
       // Get all token balances (includes zero balances initially)
       const balances = await this.alchemy.core.getTokenBalances(address);
       
+      console.log(`📊 [AlchemyService] Alchemy returned ${balances.tokenBalances.length} total tokens`);
       logger.log(`📊 [AlchemyService] Found ${balances.tokenBalances.length} total tokens`);
       
       // Filter out zero balances
@@ -71,6 +75,7 @@ export class AlchemyService {
         token => token.tokenBalance && token.tokenBalance !== '0x0' && token.tokenBalance !== '0x'
       );
 
+      console.log(`✅ [AlchemyService] ${nonZeroBalances.length} tokens with non-zero balance`);
       logger.log(`✅ [AlchemyService] ${nonZeroBalances.length} tokens with non-zero balance`);
 
       if (nonZeroBalances.length === 0) {
@@ -78,37 +83,54 @@ export class AlchemyService {
       }
 
       // Enrich with metadata in parallel (with error handling per token)
+      console.log(`\n📡 [AlchemyService] Fetching metadata for ${nonZeroBalances.length} tokens...`);
       const enrichedTokens = await Promise.all(
-        nonZeroBalances.map(async (token) => {
+        nonZeroBalances.map(async (token, idx) => {
           try {
+            console.log(`   [${idx + 1}/${nonZeroBalances.length}] Fetching metadata for ${token.contractAddress.substring(0, 10)}...`);
             const metadata = await this.alchemy.core.getTokenMetadata(token.contractAddress);
+            
+            console.log(`      ✅ Metadata received:`);
+            console.log(`         Symbol: ${metadata.symbol || 'MISSING'}`);
+            console.log(`         Name: ${metadata.name || 'MISSING'}`);
+            console.log(`         Decimals: ${metadata.decimals || 'MISSING'}`);
+            console.log(`         Logo from Alchemy: ${metadata.logo || 'MISSING'}`);
             
             // Parse balance using decimals
             const decimals = metadata.decimals || 18;
             const balance = this.formatTokenBalance(token.tokenBalance || '0x0', decimals);
+            console.log(`         Balance (formatted): ${balance}`);
 
             // Skip if balance is actually zero after formatting
             if (parseFloat(balance) === 0) {
+              console.log(`      ⚠️ Balance is 0 after formatting, skipping`);
               return null;
             }
 
             // ✅ FIX: If Alchemy doesn't provide logo, try CoinGecko/currency-logo-service
             let logo: string = metadata.logo || '/crypto-placeholder.png';
             if (!metadata.logo && metadata.symbol) {
+              console.log(`      🔍 Alchemy logo missing, trying CoinGecko...`);
               try {
                 const { getCurrencyLogo } = await import('./currency-logo-service');
                 const fetchedLogo = await getCurrencyLogo(metadata.symbol, token.contractAddress);
                 if (fetchedLogo) {
                   logo = fetchedLogo;
+                  console.log(`      ✅ Logo from CoinGecko: ${logo}`);
                   logger.log(`🦎 [AlchemyService] Fetched logo from CoinGecko for ${metadata.symbol}: ${logo}`);
+                } else {
+                  console.log(`      ⚠️ CoinGecko returned no logo`);
                 }
               } catch (error) {
+                console.log(`      ❌ CoinGecko failed:`, error);
                 logger.warn(`⚠️ [AlchemyService] Failed to fetch logo from CoinGecko for ${metadata.symbol}:`, error);
                 // Keep placeholder
               }
+            } else {
+              console.log(`      ✅ Using Alchemy logo: ${logo}`);
             }
 
-            return {
+            const result = {
               address: token.contractAddress,
               symbol: metadata.symbol || 'UNKNOWN',
               name: metadata.name || 'Unknown Token',
@@ -116,7 +138,17 @@ export class AlchemyService {
               balance,
               logo, // Always a string now
             };
+            
+            console.log(`      ✅ Final token data:`, {
+              symbol: result.symbol,
+              name: result.name,
+              balance: result.balance,
+              logo: result.logo
+            });
+            
+            return result;
           } catch (error) {
+            console.error(`      ❌ Failed to get metadata:`, error);
             logger.warn(`⚠️ [AlchemyService] Failed to get metadata for ${token.contractAddress}:`, error);
             return null;
           }
@@ -126,6 +158,16 @@ export class AlchemyService {
       // Filter out failed tokens and null values
       const validTokens = enrichedTokens.filter((token): token is EnrichedToken => token !== null);
 
+      console.log(`\n✅ [AlchemyService] Successfully enriched ${validTokens.length} tokens`);
+      console.log(`\n📊 FINAL ALCHEMY TOKEN LIST:`);
+      validTokens.forEach((token, idx) => {
+        console.log(`   ${idx + 1}. ${token.symbol}`);
+        console.log(`      Address: ${token.address}`);
+        console.log(`      Balance: ${token.balance}`);
+        console.log(`      Logo: ${token.logo}`);
+      });
+      console.log(`\n`);
+      
       logger.log(`✅ [AlchemyService] Successfully enriched ${validTokens.length} tokens`);
       
       return validTokens;
