@@ -104,7 +104,7 @@ export default function WalletTab() {
           const splTokens = await solanaService.getSPLTokenBalances(displayAddress);
           
           console.log(`✅ [WalletTab] Found ${splTokens.length} SPL tokens`);
-          console.log('📊 [WalletTab] SPL Tokens:', splTokens.map(t => ({
+          console.log('📊 [WalletTab] SPL Tokens:', splTokens.map((t: any) => ({
             symbol: t.symbol,
             name: t.name,
             address: t.address,
