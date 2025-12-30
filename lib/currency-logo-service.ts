@@ -221,10 +221,10 @@ async function getCryptoCompareLogo(symbol: string): Promise<string | null> {
  * Then call getCurrencyLogo() in background to get the real logo
  */
 export function getCurrencyLogoSync(symbol: string): string {
-  // Check cache
-  const cached = logoCache[symbol];
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.logo;
+  // Check LocalStorage cache
+  const cached = getCachedLogo(symbol);
+  if (cached) {
+    return cached;
   }
 
   // Return local logo if available
