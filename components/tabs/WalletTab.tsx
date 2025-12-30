@@ -28,12 +28,14 @@ import { getCurrencyLogo } from '@/lib/currency-logo-service';
 export default function WalletTab() {
   const { 
     address, 
+    solanaAddress,
     balance, 
     updateBalance, 
     currentChain, 
     tokens,
     updateTokens,
     updateActivity,
+    getCurrentAddress,
   } = useWalletStore();
   
   const { formatUSDSync, symbol } = useCurrency();
@@ -55,7 +57,13 @@ export default function WalletTab() {
   const priceService = new PriceService();
 
   const fetchData = async (force = false) => {
-    if (!address) return;
+    // ✅ Get correct address for current chain (Solana uses solanaAddress, EVM uses address)
+    const displayAddress = getCurrentAddress ? getCurrentAddress() : (currentChain === 'solana' ? solanaAddress : address);
+    
+    if (!displayAddress) {
+      console.log('⚠️ [WalletTab] No address available for chain:', currentChain);
+      return;
+    }
     
     if (isRefreshing) return;
     
@@ -63,9 +71,9 @@ export default function WalletTab() {
     
     try {
       const timestamp = Date.now();
-      logger.log(`[${timestamp}] Fetching balance for ${address} on ${currentChain}`);
+      logger.log(`[${timestamp}] Fetching balance for ${displayAddress} on ${currentChain}`);
       
-      const bal = await blockchain.getBalance(address);
+      const bal = await blockchain.getBalance(displayAddress);
       logger.log(`[${timestamp}] Balance received: ${bal} ${chain.nativeCurrency.symbol}`);
       updateBalance(bal);
 
@@ -86,16 +94,89 @@ export default function WalletTab() {
 
       let tokensWithValue: any[] = [];
       
+      // ✅ SOLANA: Fetch SPL tokens (like Dashboard does)
+      if (currentChain === 'solana' && displayAddress) {
+        console.log('🪙 [WalletTab] Fetching SPL tokens for Solana...');
+        console.log('📍 [WalletTab] Solana Address:', displayAddress);
+        
+        try {
+          const solanaService = blockchain as any; // Access Solana-specific methods
+          const splTokens = await solanaService.getSPLTokenBalances(displayAddress);
+          
+          console.log(`✅ [WalletTab] Found ${splTokens.length} SPL tokens`);
+          console.log('📊 [WalletTab] SPL Tokens:', splTokens.map(t => ({
+            symbol: t.symbol,
+            name: t.name,
+            address: t.address,
+            balance: t.balance,
+            logo: t.logo || 'MISSING'
+          })));
+          
+          if (splTokens.length > 0) {
+            // ✅ Fetch prices for SPL tokens
+            const splSymbols = splTokens.map((t: any) => t.symbol);
+            console.log('💰 [WalletTab] Fetching prices for SPL tokens:', splSymbols);
+            
+            const splPricesMap = await priceService.getMultiplePrices(splSymbols);
+            console.log('💰 [WalletTab] SPL prices received:', splPricesMap);
+            
+            // ✅ For tokens without a symbol price, try mint-based pricing (DexScreener)
+            const tokensNeedingMintPrice = splTokens.filter((t: any) => !splPricesMap[t.symbol] || splPricesMap[t.symbol]?.price === 0);
+            
+            if (tokensNeedingMintPrice.length > 0) {
+              console.log(`🔍 [WalletTab] Fetching DexScreener prices for ${tokensNeedingMintPrice.length} tokens...`);
+              const mints = tokensNeedingMintPrice.map((t: any) => t.address);
+              const mintPrices = await priceService.getPricesByMints(mints);
+              
+              // ✅ Merge mint prices into splPricesMap
+              tokensNeedingMintPrice.forEach((token: any) => {
+                const mintPrice = mintPrices.get(token.address);
+                if (mintPrice && mintPrice.price > 0) {
+                  splPricesMap[token.symbol] = { price: mintPrice.price, change24h: mintPrice.change24h };
+                  console.log(`✅ [WalletTab] DexScreener: ${token.symbol} = $${mintPrice.price}`);
+                }
+              });
+            }
+            
+            // ✅ Combine SPL tokens with prices
+            tokensWithValue = splTokens.map((token: any) => {
+              const priceData = splPricesMap[token.symbol] || { price: 0, change24h: 0 };
+              const balanceNum = parseFloat(token.balance || '0');
+              const balanceUSD = balanceNum * priceData.price;
+              
+              console.log(`💰 [WalletTab] Token ${token.symbol}:`, {
+                balance: token.balance,
+                price: priceData.price,
+                balanceUSD: balanceUSD,
+                logo: token.logo || 'MISSING'
+              });
+              
+              return {
+                ...token,
+                logo: token.logo || '/crypto-placeholder.png',
+                priceUSD: priceData.price,
+                balanceUSD: balanceUSD.toFixed(2),
+                change24h: priceData.change24h,
+              };
+            });
+            
+            console.log(`✅ [WalletTab] Final Solana tokensWithValue: ${tokensWithValue.length} tokens`);
+          }
+        } catch (error) {
+          console.error('❌ [WalletTab] Solana token fetch failed:', error);
+          logger.warn(`[WalletTab] ⚠️ Solana token fetch failed:`, error);
+        }
+      }
       // ✅ EVM: Fetch ALL ERC20 tokens via Alchemy (like Dashboard does)
       // Only fetch for EVM chains (not Solana, not Bitcoin chains)
-      if (currentChain !== 'solana' && currentChain !== 'bitcoin' && currentChain !== 'bitcoincash' && currentChain !== 'litecoin' && currentChain !== 'doge' && address) {
+      else if (currentChain !== 'solana' && currentChain !== 'bitcoin' && currentChain !== 'bitcoincash' && currentChain !== 'litecoin' && currentChain !== 'doge' && displayAddress) {
         let erc20Tokens: any[] = [];
         
         try {
           console.log('🔮 [WalletTab] Attempting to fetch ALL ERC20 tokens via Alchemy...');
-          console.log('📍 [WalletTab] Address:', address);
+          console.log('📍 [WalletTab] Address:', displayAddress);
           logger.log(`[WalletTab] 🔮 Attempting to fetch ALL ERC20 tokens via Alchemy...`);
-          erc20Tokens = await blockchain.getERC20TokenBalances(address);
+          erc20Tokens = await blockchain.getERC20TokenBalances(displayAddress);
           
           if (erc20Tokens.length > 0) {
             console.log(`✅ [WalletTab] Alchemy found ${erc20Tokens.length} ERC20 tokens with balance`);
