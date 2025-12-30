@@ -15,6 +15,11 @@ export async function GET(request: Request) {
   }
 
   try {
+    logger.log(`═══════════════════════════════════════════════════════════════`);
+    logger.log(`🔍 [Prices API] REQUEST START`);
+    logger.log(`   Symbols requested: ${symbols.join(', ')}`);
+    logger.log(`═══════════════════════════════════════════════════════════════`);
+    
     // ✅ FAST PATH: Hardcoded mapping for popular tokens (instant lookup)
     // This avoids cache lookup for common tokens like ETH, BTC, SOL, etc.
     const symbolToId: Record<string, string> = {
@@ -127,12 +132,16 @@ export async function GET(request: Request) {
       logger.warn('⚠️ [Prices] No CoinGecko API key - using free tier (rate limited to 10-50 calls/min)');
     }
     
+    logger.log(`🌐 [Prices API] CoinGecko URL: ${url.substring(0, 150)}...`);
+    
     const response = await fetch(url, {
       headers: {
         'Accept': 'application/json',
       },
       next: { revalidate: 60 }, // ✅ Cache for 60 seconds (1 minute) for fresh change24h data
     });
+
+    logger.log(`📊 [Prices API] CoinGecko response status: ${response.status}`);
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -156,6 +165,8 @@ export async function GET(request: Request) {
     }
 
     const data = await response.json();
+    
+    logger.log(`📦 [Prices API] CoinGecko data keys: ${Object.keys(data).join(', ')}`);
 
     // Convert back to symbol-keyed format that PriceService expects
     const result: Record<string, { price: number; change24h: number }> = {};
@@ -182,6 +193,11 @@ export async function GET(request: Request) {
       }
     }
 
+    logger.log(`═══════════════════════════════════════════════════════════════`);
+    logger.log(`✅ [Prices API] SUCCESS - Returning ${Object.keys(result).length} prices`);
+    logger.log(`   Result:`, JSON.stringify(result, null, 2));
+    logger.log(`═══════════════════════════════════════════════════════════════`);
+    
     // ✅ Return flat format: { "SOL": { price: 202.5, change24h: 0.2 } }
     return NextResponse.json(result, {
       headers: {
@@ -192,10 +208,16 @@ export async function GET(request: Request) {
       },
     });
 
-  } catch (error) {
-    logger.error('Error fetching prices:', error);
+  } catch (error: any) {
+    logger.error(`═══════════════════════════════════════════════════════════════`);
+    logger.error(`❌ [Prices API] ERROR`);
+    logger.error(`   Message: ${error.message}`);
+    logger.error(`   Stack: ${error.stack}`);
+    logger.error(`   Full error:`, error);
+    logger.error(`═══════════════════════════════════════════════════════════════`);
+    
     return NextResponse.json(
-      { error: 'Failed to fetch prices' },
+      { error: 'Failed to fetch prices', details: error.message },
       { status: 500 }
     );
   }
