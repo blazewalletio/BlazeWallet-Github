@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { findCoinId } from '@/lib/coingecko-coins-cache';
 
-// ⚡ AGGRESSIVE CACHING: 60 seconds to prevent rate limiting
-export const revalidate = 60;
+// ⚡ CACHING DISABLED: We use client-side cache + Binance fallback for reliability
+// Vercel edge caching was causing stale $0 responses to be served after fixes
+export const revalidate = 0; // No server-side caching
 export const dynamic = 'force-dynamic';
 
 // 💾 In-memory cache for price data (survives across requests in same instance)
