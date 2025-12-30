@@ -13,15 +13,47 @@
 import { logger } from '@/lib/logger';
 
 interface CurrencyLogoCache {
-  [key: string]: {
-    logo: string;
-    timestamp: number;
-  };
+  logo: string;
+  timestamp: number;
 }
 
-// In-memory cache (24 hour TTL)
-const logoCache: CurrencyLogoCache = {};
+// ⚡ LocalStorage-backed cache with 24 hour TTL (persists across page refreshes!)
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const CACHE_KEY_PREFIX = 'currency_logo_';
+
+// Helper functions for localStorage cache
+function getCachedLogo(key: string): string | null {
+  if (typeof window === 'undefined') return null;
+  
+  try {
+    const cached = localStorage.getItem(CACHE_KEY_PREFIX + key);
+    if (!cached) return null;
+    
+    const parsed: CurrencyLogoCache = JSON.parse(cached);
+    if (Date.now() - parsed.timestamp < CACHE_TTL) {
+      return parsed.logo;
+    }
+    
+    // Expired - remove from localStorage
+    localStorage.removeItem(CACHE_KEY_PREFIX + key);
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedLogo(key: string, logo: string): void {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    localStorage.setItem(
+      CACHE_KEY_PREFIX + key,
+      JSON.stringify({ logo, timestamp: Date.now() })
+    );
+  } catch {
+    // Silently fail if localStorage is full
+  }
+}
 
 // Local fallback logos for major currencies (instant loading)
 const LOCAL_LOGOS: Record<string, string> = {
@@ -75,65 +107,51 @@ export async function getCurrencyLogo(
   contractAddress?: string
 ): Promise<string> {
   const cacheKey = contractAddress || symbol;
-  console.log(`\n🖼️ [CurrencyLogoService] Fetching logo...`);
-  console.log(`   Symbol: ${symbol}`);
-  console.log(`   Contract Address: ${contractAddress || 'N/A'}`);
-  console.log(`   Cache Key: ${cacheKey}`);
+  const isDev = process.env.NODE_ENV === 'development';
   
-  // Check cache first
-  const cached = logoCache[cacheKey];
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    console.log(`   ✅ CACHE HIT: ${cached.logo}`);
-    return cached.logo;
+  if (isDev) {
+    console.log(`\n🖼️ [CurrencyLogo] ${symbol} ${contractAddress ? `(${contractAddress.substring(0, 10)}...)` : ''}`);
   }
-  console.log(`   ❌ CACHE MISS`);
+  
+  // ⚡ Check LocalStorage cache first (persists across reloads!)
+  const cached = getCachedLogo(cacheKey);
+  if (cached) {
+    if (isDev) console.log(`   ✅ CACHE HIT`);
+    return cached;
+  }
 
   // Return local logo if available (instant)
   if (LOCAL_LOGOS[symbol]) {
-    console.log(`   ✅ LOCAL LOGO: ${LOCAL_LOGOS[symbol]}`);
-    return LOCAL_LOGOS[symbol];
+    const logo = LOCAL_LOGOS[symbol];
+    setCachedLogo(cacheKey, logo);
+    return logo;
   }
 
   try {
-    // Try CoinGecko API
-    console.log(`   📡 Trying CoinGecko API...`);
+    // Try CoinGecko API (with server-side caching)
     const coinGeckoLogo = await getCoinGeckoLogo(symbol, contractAddress);
     if (coinGeckoLogo) {
-      console.log(`   ✅ CoinGecko logo: ${coinGeckoLogo}`);
-      // Cache the result
-      logoCache[cacheKey] = {
-        logo: coinGeckoLogo,
-        timestamp: Date.now(),
-      };
+      setCachedLogo(cacheKey, coinGeckoLogo);
       return coinGeckoLogo;
     }
-    console.log(`   ❌ CoinGecko returned no logo`);
-
-    // ✅ FALLBACK: Server-side route already tries DexScreener, so we don't need to do it again
-    // The server-side route has better error handling and logging
-    // If CoinGecko failed, the server-side route would have already tried DexScreener
-    // So we skip client-side DexScreener to avoid duplicate calls
 
     // Try CryptoCompare API as fallback
-    console.log(`   📡 Trying CryptoCompare API...`);
     const cryptoCompareLogo = await getCryptoCompareLogo(symbol);
     if (cryptoCompareLogo) {
-      console.log(`   ✅ CryptoCompare logo: ${cryptoCompareLogo}`);
-      logoCache[cacheKey] = {
-        logo: cryptoCompareLogo,
-        timestamp: Date.now(),
-      };
+      setCachedLogo(cacheKey, cryptoCompareLogo);
       return cryptoCompareLogo;
     }
-    console.log(`   ❌ CryptoCompare returned no logo`);
   } catch (error) {
-    console.error(`   ❌ Error:`, error);
-    logger.warn(`[CurrencyLogoService] Failed to fetch logo for ${symbol}:`, error);
+    // Silently fail in production, log in development
+    if (process.env.NODE_ENV === 'development') {
+      logger.warn(`⚠️ [CurrencyLogo] Error fetching logo for ${symbol}:`, error);
+    }
   }
 
-  // Fallback to generic crypto logo
-  console.log(`   ⚠️ Using fallback logo: /crypto-eth.png`);
-  return '/crypto-eth.png';
+  // ⚠️ Fallback to generic logo
+  const fallback = '/crypto-eth.png';
+  setCachedLogo(cacheKey, fallback);
+  return fallback;
 }
 
 /**
@@ -161,38 +179,26 @@ async function getCoinGeckoLogo(
     params.append('platform', platform);
 
     const apiUrl = `/api/currency-logo?${params.toString()}`;
-    console.log(`\n🌐 [CurrencyLogo] Calling server API...`);
-    console.log(`   URL: ${apiUrl}`);
+    const isDev = process.env.NODE_ENV === 'development';
 
     // Use server-side API route to avoid CSP/CORS issues
     const response = await fetch(apiUrl);
 
-    console.log(`   📊 Response status: ${response.status}`);
-
     if (response.ok) {
       const data = await response.json();
-      console.log(`   📦 Response data:`, JSON.stringify(data, null, 2));
       
       if (data.logo) {
-        console.log(`   ✅ Logo found via ${data.source}: ${data.logo}`);
+        if (isDev) console.log(`   ✅ ${data.source}: ${data.logo.substring(0, 50)}...`);
         return data.logo;
-      } else {
-        console.log(`   ❌ No logo in response (source: ${data.source || 'unknown'})`);
       }
-    } else {
-      console.warn(`   ⚠️ API route returned ${response.status}`);
-      // Try to get error details
-      try {
-        const errorData = await response.json();
-        console.warn(`   Error details:`, errorData);
-      } catch {
-        console.warn(`   Could not parse error response`);
-      }
-      logger.warn(`[CurrencyLogo] API route returned ${response.status} for ${symbol}`);
+    } else if (isDev) {
+      console.warn(`   ⚠️ API returned ${response.status}`);
     }
   } catch (error: any) {
-    console.error(`   ❌ Fetch error:`, error.message);
-    logger.warn(`[CurrencyLogo] Failed to fetch logo for ${symbol}:`, error);
+    // Silently fail in production
+    if (process.env.NODE_ENV === 'development') {
+      logger.warn(`[CurrencyLogo] Fetch failed for ${symbol}:`, error.message);
+    }
   }
 
   return null;

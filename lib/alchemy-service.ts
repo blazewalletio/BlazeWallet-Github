@@ -82,76 +82,74 @@ export class AlchemyService {
         return [];
       }
 
-      // Enrich with metadata in parallel (with error handling per token)
+      // ⚡ STEP 1: Fetch all metadata in parallel (fast)
       console.log(`\n📡 [AlchemyService] Fetching metadata for ${nonZeroBalances.length} tokens...`);
-      const enrichedTokens = await Promise.all(
+      const metadataResults = await Promise.all(
         nonZeroBalances.map(async (token, idx) => {
           try {
-            console.log(`   [${idx + 1}/${nonZeroBalances.length}] Fetching metadata for ${token.contractAddress.substring(0, 10)}...`);
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`   [${idx + 1}/${nonZeroBalances.length}] ${token.contractAddress.substring(0, 10)}...`);
+            }
             const metadata = await this.alchemy.core.getTokenMetadata(token.contractAddress);
-            
-            console.log(`      ✅ Metadata received:`);
-            console.log(`         Symbol: ${metadata.symbol || 'MISSING'}`);
-            console.log(`         Name: ${metadata.name || 'MISSING'}`);
-            console.log(`         Decimals: ${metadata.decimals || 'MISSING'}`);
-            console.log(`         Logo from Alchemy: ${metadata.logo || 'MISSING'}`);
             
             // Parse balance using decimals
             const decimals = metadata.decimals || 18;
             const balance = this.formatTokenBalance(token.tokenBalance || '0x0', decimals);
-            console.log(`         Balance (formatted): ${balance}`);
 
-            // Skip if balance is actually zero after formatting
+            // Skip if balance is zero after formatting
             if (parseFloat(balance) === 0) {
-              console.log(`      ⚠️ Balance is 0 after formatting, skipping`);
               return null;
             }
 
-            // ✅ FIX: If Alchemy doesn't provide logo, try CoinGecko/currency-logo-service
-            let logo: string = metadata.logo || '/crypto-placeholder.png';
-            if (!metadata.logo && metadata.symbol) {
-              console.log(`      🔍 Alchemy logo missing, trying CoinGecko...`);
-              try {
-                const { getCurrencyLogo } = await import('./currency-logo-service');
-                const fetchedLogo = await getCurrencyLogo(metadata.symbol, token.contractAddress);
-                if (fetchedLogo) {
-                  logo = fetchedLogo;
-                  console.log(`      ✅ Logo from CoinGecko: ${logo}`);
-                  logger.log(`🦎 [AlchemyService] Fetched logo from CoinGecko for ${metadata.symbol}: ${logo}`);
-                } else {
-                  console.log(`      ⚠️ CoinGecko returned no logo`);
-                }
-              } catch (error) {
-                console.log(`      ❌ CoinGecko failed:`, error);
-                logger.warn(`⚠️ [AlchemyService] Failed to fetch logo from CoinGecko for ${metadata.symbol}:`, error);
-                // Keep placeholder
-              }
-            } else {
-              console.log(`      ✅ Using Alchemy logo: ${logo}`);
-            }
-
-            const result = {
+            return {
               address: token.contractAddress,
               symbol: metadata.symbol || 'UNKNOWN',
               name: metadata.name || 'Unknown Token',
               decimals,
               balance,
-              logo, // Always a string now
+              alchemyLogo: metadata.logo,
             };
-            
-            console.log(`      ✅ Final token data:`, {
-              symbol: result.symbol,
-              name: result.name,
-              balance: result.balance,
-              logo: result.logo
-            });
-            
-            return result;
           } catch (error) {
-            console.error(`      ❌ Failed to get metadata:`, error);
             logger.warn(`⚠️ [AlchemyService] Failed to get metadata for ${token.contractAddress}:`, error);
             return null;
           }
+        })
+      );
+
+      // Filter out nulls
+      const tokensWithMetadata = metadataResults.filter((t): t is NonNullable<typeof t> => t !== null);
+      
+      // ⚡ STEP 2: Fetch all missing logos in parallel (6x faster!)
+      console.log(`\n🖼️ [AlchemyService] Fetching logos in parallel for ${tokensWithMetadata.length} tokens...`);
+      const { getCurrencyLogo } = await import('./currency-logo-service');
+      
+      const enrichedTokens = await Promise.all(
+        tokensWithMetadata.map(async (token) => {
+          let logo: string = token.alchemyLogo || '/crypto-placeholder.png';
+          
+          // If Alchemy doesn't provide logo, fetch from CoinGecko (with caching)
+          if (!token.alchemyLogo) {
+            try {
+              const fetchedLogo = await getCurrencyLogo(token.symbol, token.address);
+              if (fetchedLogo) {
+                logo = fetchedLogo;
+              }
+            } catch (error) {
+              // Silently fail, keep placeholder
+              if (process.env.NODE_ENV === 'development') {
+                console.warn(`⚠️ Logo fetch failed for ${token.symbol}:`, error);
+              }
+            }
+          }
+
+          return {
+            address: token.address,
+            symbol: token.symbol,
+            name: token.name,
+            decimals: token.decimals,
+            balance: token.balance,
+            logo,
+          };
         })
       );
 
@@ -159,14 +157,14 @@ export class AlchemyService {
       const validTokens = enrichedTokens.filter((token): token is EnrichedToken => token !== null);
 
       console.log(`\n✅ [AlchemyService] Successfully enriched ${validTokens.length} tokens`);
-      console.log(`\n📊 FINAL ALCHEMY TOKEN LIST:`);
-      validTokens.forEach((token, idx) => {
-        console.log(`   ${idx + 1}. ${token.symbol}`);
-        console.log(`      Address: ${token.address}`);
-        console.log(`      Balance: ${token.balance}`);
-        console.log(`      Logo: ${token.logo}`);
-      });
-      console.log(`\n`);
+      
+      // Only log full details in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`\n📊 FINAL ALCHEMY TOKEN LIST:`);
+        validTokens.forEach((token, idx) => {
+          console.log(`   ${idx + 1}. ${token.symbol} - Balance: ${token.balance}`);
+        });
+      }
       
       logger.log(`✅ [AlchemyService] Successfully enriched ${validTokens.length} tokens`);
       
