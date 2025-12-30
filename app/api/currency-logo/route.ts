@@ -124,6 +124,43 @@ export async function GET(request: NextRequest) {
       logger.warn(`[CurrencyLogo] CoinGecko rate limit exceeded`);
     }
 
+    // ✅ FALLBACK: Try DexScreener for token logo if we have contract address
+    if (contractAddress && platform === 'ethereum') {
+      try {
+        const dexScreenerResponse = await fetch(
+          `https://api.dexscreener.com/latest/dex/tokens/${contractAddress}`,
+          {
+            headers: {
+              'Accept': 'application/json',
+            },
+          }
+        );
+
+        if (dexScreenerResponse.ok) {
+          const dexData = await dexScreenerResponse.json();
+          if (dexData.pairs && dexData.pairs.length > 0) {
+            // Get the pair with highest liquidity
+            const bestPair = dexData.pairs.reduce((best: any, current: any) => {
+              const bestLiq = best.liquidity?.usd || 0;
+              const currentLiq = current.liquidity?.usd || 0;
+              return currentLiq > bestLiq ? current : best;
+            }, dexData.pairs[0]);
+
+            if (bestPair.info?.imageUrl) {
+              logger.log(`[CurrencyLogo] Found logo via DexScreener for ${symbol}`);
+              return NextResponse.json({
+                logo: bestPair.info.imageUrl,
+                source: 'dexscreener',
+              });
+            }
+          }
+        }
+      } catch (error) {
+        // Silent fail - DexScreener is just a fallback
+        logger.warn(`[CurrencyLogo] DexScreener fallback failed for ${symbol}:`, error);
+      }
+    }
+
     // No logo found
     return NextResponse.json({
       logo: null,

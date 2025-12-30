@@ -109,6 +109,45 @@ export async function getCurrencyLogo(
     }
     console.log(`   ❌ CoinGecko returned no logo`);
 
+    // ✅ FALLBACK: Try DexScreener for Ethereum tokens with contract address
+    if (contractAddress && contractAddress.length === 42 && contractAddress.startsWith('0x')) {
+      console.log(`   📡 Trying DexScreener API...`);
+      try {
+        const dexScreenerResponse = await fetch(
+          `https://api.dexscreener.com/latest/dex/tokens/${contractAddress}`,
+          {
+            headers: {
+              'Accept': 'application/json',
+            },
+          }
+        );
+
+        if (dexScreenerResponse.ok) {
+          const dexData = await dexScreenerResponse.json();
+          if (dexData.pairs && dexData.pairs.length > 0) {
+            // Get the pair with highest liquidity
+            const bestPair = dexData.pairs.reduce((best: any, current: any) => {
+              const bestLiq = best.liquidity?.usd || 0;
+              const currentLiq = current.liquidity?.usd || 0;
+              return currentLiq > bestLiq ? current : best;
+            }, dexData.pairs[0]);
+
+            if (bestPair.info?.imageUrl) {
+              console.log(`   ✅ DexScreener logo: ${bestPair.info.imageUrl}`);
+              logoCache[cacheKey] = {
+                logo: bestPair.info.imageUrl,
+                timestamp: Date.now(),
+              };
+              return bestPair.info.imageUrl;
+            }
+          }
+        }
+        console.log(`   ❌ DexScreener returned no logo`);
+      } catch (error) {
+        console.log(`   ❌ DexScreener error:`, error);
+      }
+    }
+
     // Try CryptoCompare API as fallback
     console.log(`   📡 Trying CryptoCompare API...`);
     const cryptoCompareLogo = await getCryptoCompareLogo(symbol);

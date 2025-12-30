@@ -546,27 +546,34 @@ export class PriceService {
       logger.error('❌ [PriceService] Error fetching prices by address:', error);
     }
 
-    // ✅ STEP 3: FALLBACK - Try DexScreener for addresses without prices (sequential with rate limit)
-    const missingAddresses = uncachedAddresses.filter(addr => !result.has(addr));
+    // ✅ STEP 3: FALLBACK - Try DexScreener for addresses without prices OR with price === 0
+    // This includes addresses that CoinGecko returned but with price: 0
+    const missingAddresses = uncachedAddresses.filter(addr => {
+      const existing = result.get(addr);
+      return !existing || existing.price === 0;
+    });
     
     if (missingAddresses.length > 0) {
+      console.log(`\n📡 STEP 3: Trying DexScreener fallback for ${missingAddresses.length} addresses...`);
       logger.log(`\n🔄 [PriceService] Trying DexScreener fallback for ${missingAddresses.length} missing...`);
       
-      // Limit to 5 DexScreener calls to avoid long waits (250ms * 5 = 1.25s max)
-      const maxDexScreenerCalls = Math.min(missingAddresses.length, 5);
+      // Limit to 10 DexScreener calls to avoid long waits (250ms * 10 = 2.5s max)
+      const maxDexScreenerCalls = Math.min(missingAddresses.length, 10);
       
       for (let i = 0; i < maxDexScreenerCalls; i++) {
         const address = missingAddresses[i];
+        console.log(`   [${i + 1}/${maxDexScreenerCalls}] Trying DexScreener for ${address.substring(0, 10)}...`);
         try {
           const tokenData = await dexScreenerService.getTokenMetadata(address);
           
           if (tokenData && tokenData.priceUsd && tokenData.priceUsd > 0) {
             let price = tokenData.priceUsd;
+            console.log(`      ✅ DexScreener found price: $${price.toFixed(6)}`);
             
             // 🛡️ SANITY CHECK: Also check DexScreener prices for abnormalities
             if (price > 10000) {
+              console.log(`      ⚠️ SUSPICIOUS HIGH PRICE, setting to 0`);
               logger.warn(`⚠️ [PriceService] SUSPICIOUS HIGH PRICE from DexScreener for ${address.substring(0, 10)}...: $${price.toFixed(2)}`);
-              logger.warn(`   Setting price to 0 to prevent incorrect calculation.`);
               price = 0;
             }
             
@@ -578,6 +585,7 @@ export class PriceService {
             // Only set if price is valid after sanity check
             if (price > 0) {
               result.set(address, priceData);
+              console.log(`      ✅ Price set: $${price.toFixed(6)}, change24h: ${priceData.change24h.toFixed(2)}%`);
               
               // Update cache with TTL
               this.addressCache.set(address, {
@@ -587,8 +595,11 @@ export class PriceService {
               
               logger.log(`✅ [PriceService] DexScreener: ${address.substring(0, 10)}... = $${priceData.price}`);
             } else {
+              console.log(`      ⚠️ Invalid price, skipping`);
               logger.log(`⚠️ [PriceService] Skipping invalid DexScreener price for ${address.substring(0, 10)}...`);
             }
+          } else {
+            console.log(`      ❌ No price data from DexScreener`);
           }
           
           // Rate limit: 250ms between requests (respects DexScreener 300/min limit)
@@ -596,9 +607,12 @@ export class PriceService {
             await new Promise(resolve => setTimeout(resolve, 250));
           }
         } catch (error) {
+          console.error(`      ❌ DexScreener error:`, error);
           logger.warn(`⚠️ [PriceService] DexScreener failed for ${address.substring(0, 10)}...:`, error);
         }
       }
+      
+      console.log(`\n✅ STEP 3 COMPLETE: DexScreener fallback finished`);
       
       if (missingAddresses.length > maxDexScreenerCalls) {
         logger.log(`ℹ️ [PriceService] Skipped ${missingAddresses.length - maxDexScreenerCalls} DexScreener lookups (performance optimization)`);

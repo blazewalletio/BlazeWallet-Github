@@ -714,7 +714,12 @@ export default function WalletTab() {
                       const balanceUSD = parseFloat(token.balanceUSD || '0');
                       // Show more precision for very small values
                       if (balanceUSD > 0 && balanceUSD < 0.01) {
-                        return `$${balanceUSD.toFixed(6)}`;
+                        // Show up to 6 decimals for very small values
+                        return `$${balanceUSD.toFixed(6).replace(/\.?0+$/, '')}`;
+                      }
+                      if (balanceUSD > 0 && balanceUSD < 1) {
+                        // Show 4 decimals for values between $0.01 and $1
+                        return `$${balanceUSD.toFixed(4)}`;
                       }
                       return formatUSDSync(balanceUSD);
                     })()}
