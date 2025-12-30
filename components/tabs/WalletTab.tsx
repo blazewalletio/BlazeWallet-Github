@@ -61,24 +61,32 @@ export default function WalletTab() {
   const priceService = new PriceService();
 
   const fetchData = async (force = false) => {
+    // 🔴 ULTRA-DEBUG: Log IMMEDIATELY at function entry
+    console.log(`\n🔴🔴🔴 [WalletTab] fetchData() CALLED - Chain: ${currentChain}, Force: ${force}`);
+    console.log(`   🔴 solanaAddress: ${solanaAddress ? solanaAddress.substring(0, 15) + '...' : 'NULL'}`);
+    console.log(`   🔴 address (EVM): ${address ? address.substring(0, 15) + '...' : 'NULL'}`);
+    console.log(`   🔴 getCurrentAddress exists: ${!!getCurrentAddress}`);
+    console.log(`   🔴 refreshingChains: [${Array.from(refreshingChains).join(', ')}]`);
+    
     // ✅ Get correct address for current chain (Solana uses solanaAddress, EVM uses address)
     const displayAddress = getCurrentAddress ? getCurrentAddress() : (currentChain === 'solana' ? solanaAddress : address);
     
+    console.log(`   🔴 Resolved displayAddress: ${displayAddress ? displayAddress.substring(0, 15) + '...' : 'NULL'}`);
+    
     if (!displayAddress) {
-      console.log('⚠️ [WalletTab] No address available for chain:', currentChain);
+      console.log('⚠️ [WalletTab] ❌ EARLY RETURN: No address available for chain:', currentChain);
       return;
     }
     
     // ✅ FIX: Check if THIS SPECIFIC CHAIN is already refreshing (per-chain lock)
     if (refreshingChains.has(currentChain) && !force) {
-      console.log(`⚠️ [WalletTab] Already refreshing ${currentChain}, skipping duplicate call`);
+      console.log(`⚠️ [WalletTab] ❌ EARLY RETURN: Already refreshing ${currentChain}, skipping duplicate call`);
       return;
     }
     
-    console.log(`\n🔄 [WalletTab] START fetchData() for ${currentChain}`);
+    console.log(`\n✅ [WalletTab] PASSED ALL CHECKS - Starting fetchData() for ${currentChain}`);
     console.log(`   Address: ${displayAddress}`);
     console.log(`   Force: ${force}`);
-    console.log(`   Refreshing chains before: [${Array.from(refreshingChains).join(', ')}]`);
     
     // ✅ Add current chain to refreshing set
     setRefreshingChains(prev => new Set(prev).add(currentChain));
