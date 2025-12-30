@@ -190,7 +190,18 @@ export async function GET(request: Request) {
     }
 
     // ⚡ TRY 2: Binance fallback for major tokens (SOL, BTC, ETH, BNB, MATIC)
-    if (coinGeckoFailed || !data) {
+    // Use Binance if:
+    // 1. CoinGecko completely failed (coinGeckoFailed = true)
+    // 2. CoinGecko returned 0 for any requested native token
+    const needsBinanceFallback = coinGeckoFailed || !data || 
+      symbols.some(symbol => {
+        const coinId = symbolToId[symbol.toUpperCase()];
+        if (!coinId) return false; // Not a major token, skip
+        const price = data[coinId]?.usd || 0;
+        return price === 0; // Need fallback if price is 0
+      });
+    
+    if (needsBinanceFallback) {
       logger.log(`🔄 [Prices] Trying Binance fallback for major tokens...`);
       
       const binanceSymbols: Record<string, string> = {
@@ -205,10 +216,17 @@ export async function GET(request: Request) {
         'DOGE': 'DOGEUSDT',
       };
 
-      data = {};
+      if (!data) data = {}; // Initialize if CoinGecko completely failed
       
       for (const [symbol, binanceSymbol] of Object.entries(binanceSymbols)) {
         if (!symbols.includes(symbol)) continue;
+        
+        // Check if we already have a valid price from CoinGecko
+        const coinId = symbolToId[symbol];
+        if (coinId && data[coinId]?.usd && data[coinId].usd > 0) {
+          logger.log(`✅ [Prices] ${symbol} already has valid CoinGecko price: $${data[coinId].usd}`);
+          continue; // Skip Binance if we have a valid price
+        }
         
         try {
           const binanceUrl = `https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`;
@@ -218,7 +236,6 @@ export async function GET(request: Request) {
 
           if (binanceResponse.ok) {
             const binanceData = await binanceResponse.json();
-            const coinId = symbolToId[symbol];
             if (coinId) {
               data[coinId] = {
                 usd: parseFloat(binanceData.lastPrice),
