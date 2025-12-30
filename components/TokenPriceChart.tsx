@@ -199,7 +199,8 @@ export default function TokenPriceChart({
         // Use cached data immediately
         const formatTime = (timestamp: number) => {
           const date = new Date(timestamp);
-          if (selectedTimeframe === 'LIVE' || selectedTimeframe === '1D') {
+          // Note: selectedTimeframe cannot be 'LIVE' here because we skip cache for LIVE
+          if (selectedTimeframe === '1D') {
             return date.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
           } else if (selectedTimeframe === '7D' || selectedTimeframe === '30D') {
             return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
