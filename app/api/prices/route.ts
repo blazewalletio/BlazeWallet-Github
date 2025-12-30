@@ -162,8 +162,7 @@ export async function GET(request: Request) {
       
       const response = await fetch(url, {
         headers: { 'Accept': 'application/json' },
-        // No caching - always fetch fresh data
-        cache: 'no-store',
+        next: { revalidate: 60 }, // Cache for 60 seconds
         signal: AbortSignal.timeout(8000), // 8 second timeout (Vercel has 10s limit)
       });
 

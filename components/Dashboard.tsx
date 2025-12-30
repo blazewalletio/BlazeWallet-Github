@@ -681,7 +681,78 @@ export default function Dashboard() {
       }
       
       logger.log(`[${timestamp}] 📡 Fetching prices + change24h for: ${allSymbols.join(', ')}`);
-      const pricesMap = await priceService.getMultiplePrices(allSymbols);
+      
+      // 🔥 CRITICAL FIX: Fetch native token price DIRECTLY from Binance (bypasses broken /api/prices)
+      const binanceSymbolMap: Record<string, string> = {
+        'SOL': 'SOLUSDT',
+        'ETH': 'ETHUSDT',
+        'BTC': 'BTCUSDT',
+        'BNB': 'BNBUSDT',
+        'MATIC': 'MATICUSDT',
+        'AVAX': 'AVAXUSDT',
+        'FTM': 'FTMUSDT',
+        'LTC': 'LTCUSDT',
+        'DOGE': 'DOGEUSDT',
+        'BCH': 'BCHUSDT',
+        'ARB': 'ARBUSDT',
+        'OP': 'OPUSDT',
+      };
+      
+      const nativeSymbol = chain.nativeCurrency.symbol;
+      const binanceSymbol = binanceSymbolMap[nativeSymbol];
+      
+      let pricesMap: Record<string, { price: number; change24h: number }> = {};
+      
+      // Try Binance FIRST for native token (most reliable)
+      if (binanceSymbol) {
+        try {
+          if (currentChain === 'ethereum') {
+            console.log(`📡 Fetching ${nativeSymbol} DIRECT from Binance (${binanceSymbol})`);
+          }
+          if (currentChain === 'solana') {
+            console.log(`🔴📡 Fetching ${nativeSymbol} DIRECT from Binance (${binanceSymbol})`);
+          }
+          
+          const binanceUrl = `https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`;
+          const binanceResponse = await fetch(binanceUrl, {
+            signal: AbortSignal.timeout(5000),
+          });
+          
+          if (binanceResponse.ok) {
+            const binanceData = await binanceResponse.json();
+            pricesMap[nativeSymbol] = {
+              price: parseFloat(binanceData.lastPrice),
+              change24h: parseFloat(binanceData.priceChangePercent),
+            };
+            logger.log(`✅ [Dashboard] Binance ${nativeSymbol}: $${pricesMap[nativeSymbol].price}`);
+            
+            if (currentChain === 'ethereum') {
+              console.log(`✅ SUCCESS! Binance ETH: $${pricesMap[nativeSymbol].price}`);
+            }
+            if (currentChain === 'solana') {
+              console.log(`🔴✅ SUCCESS! Binance SOL: $${pricesMap[nativeSymbol].price}`);
+            }
+          } else {
+            throw new Error(`Binance returned ${binanceResponse.status}`);
+          }
+        } catch (binanceError) {
+          logger.warn(`⚠️ [Dashboard] Binance failed for ${nativeSymbol}, trying CoinGecko...`);
+          if (currentChain === 'ethereum') {
+            console.log(`⚠️ Binance failed, trying CoinGecko...`);
+          }
+          if (currentChain === 'solana') {
+            console.log(`🔴⚠️ Binance failed, trying CoinGecko...`);
+          }
+          
+          // Fallback to CoinGecko
+          const cgPrices = await priceService.getMultiplePrices([nativeSymbol]);
+          pricesMap[nativeSymbol] = cgPrices[nativeSymbol] || { price: 0, change24h: 0 };
+        }
+      } else {
+        // For chains not on Binance, use CoinGecko only
+        const cgPrices = await priceService.getMultiplePrices([nativeSymbol]);
+        pricesMap[nativeSymbol] = cgPrices[nativeSymbol] || { price: 0, change24h: 0 };
+      }
       
       // ✅ Abort check after price fetch
       if (!isStillRelevant()) {
