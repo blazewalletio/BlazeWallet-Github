@@ -194,21 +194,6 @@ export async function GET(request: Request) {
     // Use Binance if:
     // 1. CoinGecko completely failed (coinGeckoFailed = true)
     // 2. CoinGecko returned 0 for any requested native token
-    
-    // 🔍 DEBUG: Log current state before Binance fallback decision
-    logger.log(`\n🔍 [Prices] BINANCE FALLBACK CHECK:`);
-    logger.log(`   coinGeckoFailed: ${coinGeckoFailed}`);
-    logger.log(`   data exists: ${!!data}`);
-    logger.log(`   data keys: ${data ? Object.keys(data).join(', ') : 'N/A'}`);
-    
-    symbols.forEach(symbol => {
-      const coinId = symbolToId[symbol.toUpperCase()];
-      if (coinId && data) {
-        const price = data[coinId]?.usd || 0;
-        logger.log(`   ${symbol} (${coinId}): price = $${price}, has zero price: ${price === 0}`);
-      }
-    });
-    
     const needsBinanceFallback = coinGeckoFailed || !data || 
       symbols.some(symbol => {
         const coinId = symbolToId[symbol.toUpperCase()];
@@ -216,8 +201,6 @@ export async function GET(request: Request) {
         const price = data[coinId]?.usd || 0;
         return price === 0; // Need fallback if price is 0
       });
-    
-    logger.log(`   🎯 DECISION: needsBinanceFallback = ${needsBinanceFallback}\n`);
     
     if (needsBinanceFallback) {
       logger.log(`🔄 [Prices] Trying Binance fallback for major tokens...`);
