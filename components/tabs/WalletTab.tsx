@@ -185,7 +185,7 @@ export default function WalletTab() {
                 ...token,
                 logo: token.logo || '/crypto-placeholder.png',
                 priceUSD: priceData.price,
-                balanceUSD: balanceUSD.toFixed(2),
+                balanceUSD: balanceUSD, // ✅ Store as number, not string
                 change24h: priceData.change24h,
               };
             });
@@ -329,11 +329,13 @@ export default function WalletTab() {
             const balanceNum = parseFloat(token.balance || '0');
             const balanceUSD = balanceNum * priceData.price;
             
+            console.log(`   ${token.symbol}: ${balanceNum} × $${priceData.price.toFixed(8)} = $${balanceUSD.toFixed(8)}`);
+            
             return {
               ...token,
               logo: token.logo || '/crypto-placeholder.png',
               priceUSD: priceData.price,
-              balanceUSD: balanceUSD.toFixed(2),
+              balanceUSD: balanceUSD, // ✅ Store as number, not string - formatting happens in render
               change24h: priceData.change24h,
             };
           });
@@ -351,7 +353,7 @@ export default function WalletTab() {
             console.log(`      ├─ Address: ${t.address}`);
             console.log(`      ├─ Balance: ${t.balance} ${t.symbol}`);
             console.log(`      ├─ Price: $${parseFloat(t.priceUSD || '0').toFixed(6)}`);
-            console.log(`      ├─ Value USD: $${t.balanceUSD}`);
+            console.log(`      ├─ Value USD: $${parseFloat(t.balanceUSD || '0').toFixed(8)}`);
             console.log(`      ├─ 24h Change: ${(t.change24h || 0) >= 0 ? '+' : ''}${(t.change24h || 0).toFixed(2)}%`);
             console.log(`      └─ Logo: ${t.logo || 'MISSING'}`);
           });
@@ -711,8 +713,12 @@ export default function WalletTab() {
                 <div className="text-right">
                   <div className="font-semibold">
                     {(() => {
-                      const balanceUSD = parseFloat(token.balanceUSD || '0');
+                      const balanceUSD = typeof token.balanceUSD === 'number' ? token.balanceUSD : parseFloat(token.balanceUSD || '0');
                       // Show more precision for very small values
+                      if (balanceUSD > 0 && balanceUSD < 0.0001) {
+                        // Show up to 8 decimals for extremely small values
+                        return `$${balanceUSD.toFixed(8).replace(/\.?0+$/, '')}`;
+                      }
                       if (balanceUSD > 0 && balanceUSD < 0.01) {
                         // Show up to 6 decimals for very small values
                         return `$${balanceUSD.toFixed(6).replace(/\.?0+$/, '')}`;

@@ -57,23 +57,34 @@ class DexScreenerService {
 
   private async fetchTokenMetadata(mint: string): Promise<DexScreenerToken | null> {
     try {
+      console.log(`\n🔍 [DexScreener] Fetching metadata...`);
+      console.log(`   Address: ${mint}`);
       logger.log(`🔍 [DexScreener] Fetching metadata for ${mint.substring(0, 8)}...`);
       
-      const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${mint}`, {
+      const url = `https://api.dexscreener.com/latest/dex/tokens/${mint}`;
+      console.log(`   URL: ${url}`);
+      
+      const response = await fetch(url, {
         headers: {
           'Accept': 'application/json',
         },
       });
 
+      console.log(`   Response status: ${response.status} ${response.statusText}`);
+
       if (!response.ok) {
+        console.error(`   ❌ API error: ${response.status}`);
         logger.warn(`⚠️ [DexScreener] API returned ${response.status} for ${mint.substring(0, 8)}...`);
         return null;
       }
 
       const data = await response.json();
+      console.log(`   ✅ Response received`);
+      console.log(`   Pairs found: ${data.pairs?.length || 0}`);
 
       // DexScreener returns pairs, we need to extract the base token
       if (!data.pairs || data.pairs.length === 0) {
+        console.log(`   ❌ No trading pairs found`);
         logger.log(`ℹ️ [DexScreener] No trading pairs found for ${mint.substring(0, 8)}...`);
         return null;
       }
@@ -85,29 +96,45 @@ class DexScreenerService {
         return currentLiq > bestLiq ? current : best;
       }, data.pairs[0]);
 
+      console.log(`   Best pair liquidity: $${bestPair.liquidity?.usd || 0}`);
+      console.log(`   Best pair price: $${bestPair.priceUsd || 'N/A'}`);
+
       const token = bestPair.baseToken;
+      console.log(`   Base token address: ${token.address}`);
+      console.log(`   Base token symbol: ${token.symbol}`);
+      console.log(`   Image URL: ${bestPair.info?.imageUrl || 'N/A'}`);
       
       // Verify it's the correct token (sometimes DexScreener returns quote token)
       if (token.address.toLowerCase() !== mint.toLowerCase()) {
+        console.log(`   ⚠️ Address mismatch! Expected ${mint}, got ${token.address}`);
         logger.warn(`⚠️ [DexScreener] Token address mismatch for ${mint.substring(0, 8)}...`);
         return null;
       }
 
+      const priceUsd = parseFloat(bestPair.priceUsd || '0');
       const result: DexScreenerToken = {
         mint: token.address,
         name: token.name || 'Unknown Token',
         symbol: token.symbol || 'UNKNOWN',
-        logoURI: bestPair.info?.imageUrl, // DexScreener has token images!
-        priceUsd: parseFloat(bestPair.priceUsd || '0'),
+        logoURI: bestPair.info?.imageUrl || bestPair.baseToken?.imageUrl, // Try both locations
+        priceUsd: priceUsd,
         liquidity: bestPair.liquidity?.usd,
         volume24h: bestPair.volume?.h24,
         priceChange24h: bestPair.priceChange?.h24,
       };
 
+      console.log(`   ✅ Result: ${result.symbol} = $${priceUsd.toFixed(8)}`);
+      if (result.logoURI) {
+        console.log(`   ✅ Logo: ${result.logoURI}`);
+      } else {
+        console.log(`   ❌ No logo found`);
+      }
+      
       logger.log(`✅ [DexScreener] Found ${result.symbol} (${result.name})`);
       
       return result;
     } catch (error) {
+      console.error(`   ❌ Error:`, error);
       logger.error(`❌ [DexScreener] Failed to fetch ${mint.substring(0, 8)}...:`, error);
       return null;
     }

@@ -619,7 +619,43 @@ export class PriceService {
       }
     }
 
-    // ✅ STEP 4: Fill in any remaining addresses with stale cache or 0
+    // ✅ STEP 4: Try symbol-based fallback for known tokens without prices
+    // This helps with tokens like PENDLE that might not be found by contract address
+    const stillMissing = uncachedAddresses.filter(addr => {
+      const existing = result.get(addr);
+      return !existing || existing.price === 0;
+    });
+    
+    if (stillMissing.length > 0) {
+      console.log(`\n📡 STEP 4: Trying symbol-based fallback for ${stillMissing.length} addresses...`);
+      
+      // Map known contract addresses to symbols for fallback lookup
+      const addressToSymbol: Record<string, string> = {
+        '0x808507121b80c02388fad14726482e061b8da827': 'PENDLE', // Pendle Finance
+      };
+      
+      for (const address of stillMissing) {
+        const symbol = addressToSymbol[address];
+        if (symbol) {
+          console.log(`   Trying symbol lookup for ${symbol} (${address.substring(0, 10)}...)...`);
+          try {
+            const symbolPrices = await this.getMultiplePrices([symbol]);
+            if (symbolPrices[symbol] && symbolPrices[symbol].price > 0) {
+              const priceData = symbolPrices[symbol];
+              result.set(address, priceData);
+              console.log(`   ✅ Found via symbol: $${priceData.price.toFixed(6)}`);
+              logger.log(`✅ [PriceService] Symbol fallback: ${symbol} = $${priceData.price}`);
+            } else {
+              console.log(`   ❌ No price found via symbol`);
+            }
+          } catch (error) {
+            console.error(`   ❌ Symbol lookup error:`, error);
+          }
+        }
+      }
+    }
+
+    // ✅ STEP 5: Fill in any remaining addresses with stale cache or 0
     // BUT: Apply sanity check to stale cache too!
     uncachedAddresses.forEach(address => {
       if (!result.has(address)) {
