@@ -86,7 +86,8 @@ export default function WalletTab() {
       let tokensWithValue: any[] = [];
       
       // ✅ EVM: Fetch ALL ERC20 tokens via Alchemy (like Dashboard does)
-      if (currentChain !== 'solana' && !chain.isBitcoin && address) {
+      // Only fetch for EVM chains (not Solana, not Bitcoin chains)
+      if (currentChain !== 'solana' && currentChain !== 'bitcoin' && currentChain !== 'bitcoincash' && currentChain !== 'litecoin' && currentChain !== 'doge' && address) {
         let erc20Tokens: any[] = [];
         
         try {
