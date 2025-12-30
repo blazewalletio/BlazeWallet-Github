@@ -66,7 +66,16 @@ export default function WalletTab() {
       return;
     }
     
-    if (isRefreshing) return;
+    // ✅ FIX: Check if we're ALREADY refreshing to prevent race conditions
+    if (isRefreshing && !force) {
+      console.log(`⚠️ [WalletTab] Already refreshing for ${currentChain}, skipping duplicate call`);
+      return;
+    }
+    
+    console.log(`\n🔄 [WalletTab] START fetchData() for ${currentChain}`);
+    console.log(`   Address: ${displayAddress}`);
+    console.log(`   Force: ${force}`);
+    console.log(`   isRefreshing before: ${isRefreshing}`);
     
     setIsRefreshing(true);
     
