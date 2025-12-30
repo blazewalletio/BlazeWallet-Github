@@ -81,7 +81,20 @@ export default function TokenPriceChart({
 
   // ✅ LIVE data: Update only the latest price point (no full history fetch)
   const updateLivePrice = useCallback(async () => {
-    if (!tokenSymbol || selectedTimeframe !== 'LIVE' || !isMountedRef.current) return;
+    if (!tokenSymbol || selectedTimeframe !== 'LIVE' || !isMountedRef.current) {
+      logger.log(`[TokenPriceChart:LIVE] ⏭️ Skipping updateLivePrice`, {
+        hasSymbol: !!tokenSymbol,
+        timeframe: selectedTimeframe,
+        isMounted: isMountedRef.current,
+      });
+      return;
+    }
+    
+    logger.log(`[TokenPriceChart:LIVE] 🔄 updateLivePrice called`, {
+      symbol: tokenSymbol,
+      currentPrice,
+      priceHistoryLength: priceHistory.length,
+    });
     
     // For LIVE, we only update the current price point
     // Use the existing price history and just update the last point
@@ -134,6 +147,13 @@ export default function TokenPriceChart({
         setMinValue(Math.max(0, min - padding));
         setMaxValue(max + padding);
         
+        logger.log(`[TokenPriceChart:LIVE] ✅ Price updated`, {
+          dataPoints: newData.length,
+          latestPrice: currentPrice,
+          minValue: min - padding,
+          maxValue: max + padding,
+        });
+        
         if (onPriceUpdate) {
           onPriceUpdate(currentPrice);
         }
@@ -143,7 +163,7 @@ export default function TokenPriceChart({
       
       return prev;
     });
-  }, [tokenSymbol, selectedTimeframe, currentPrice, onPriceUpdate]);
+  }, [tokenSymbol, selectedTimeframe, currentPrice, onPriceUpdate, priceHistory.length]);
 
   // ✅ Load price history with smart caching
   const loadPriceHistory = useCallback(async (forceRefresh = false) => {
