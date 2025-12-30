@@ -83,14 +83,19 @@ export default function WalletTab() {
       
       logger.log(`[${timestamp}] Fetching balance for ${displayAddress} on ${currentChain}`);
       
-      if (currentChain === 'ethereum') {
-        console.log(`\n📡 Fetching native ETH balance...`);
-      }
+      console.log(`\n📡 [WalletTab] Fetching native ${chain.nativeCurrency.symbol} balance...`);
+      console.log(`   Address: ${displayAddress}`);
+      console.log(`   Chain: ${currentChain}`);
       
-      const bal = await blockchain.getBalance(displayAddress);
-      
-      if (currentChain === 'ethereum') {
-        console.log(`✅ Native ETH balance: ${bal} ETH`);
+      let bal: string;
+      try {
+        bal = await blockchain.getBalance(displayAddress);
+        console.log(`✅ [WalletTab] Native balance: ${bal} ${chain.nativeCurrency.symbol}`);
+      } catch (balanceError) {
+        console.error(`❌ [WalletTab] FAILED to fetch native balance:`, balanceError);
+        console.error(`   Error message:`, balanceError instanceof Error ? balanceError.message : 'Unknown');
+        console.error(`   Error stack:`, balanceError instanceof Error ? balanceError.stack : 'No stack');
+        throw balanceError; // Re-throw to trigger main catch
       }
       
       logger.log(`[${timestamp}] Balance received: ${bal} ${chain.nativeCurrency.symbol}`);
@@ -102,9 +107,17 @@ export default function WalletTab() {
       console.log(`\n📡 [WalletTab] Fetching native ${nativeSymbol} price...`);
       console.log(`   API call: priceService.getMultiplePrices(['${nativeSymbol}'])`);
       
-      const nativePrices = await priceService.getMultiplePrices([nativeSymbol]);
-      
-      console.log(`   Raw response:`, nativePrices);
+      let nativePrices: Record<string, { price: number; change24h: number }>;
+      try {
+        nativePrices = await priceService.getMultiplePrices([nativeSymbol]);
+        console.log(`   Raw response:`, nativePrices);
+      } catch (priceError) {
+        console.error(`❌ [WalletTab] FAILED to fetch native price:`, priceError);
+        console.error(`   Error message:`, priceError instanceof Error ? priceError.message : 'Unknown');
+        console.error(`   Error stack:`, priceError instanceof Error ? priceError.stack : 'No stack');
+        // Don't re-throw, just use { price: 0, change24h: 0 } as fallback
+        nativePrices = { [nativeSymbol]: { price: 0, change24h: 0 } };
+      }
       
       const nativePriceData = nativePrices[nativeSymbol] || { price: 0, change24h: 0 };
       const nativePrice = nativePriceData.price || 0;
