@@ -62,8 +62,13 @@ export async function GET(req: NextRequest) {
     addLog('4. Fetching Supported Data', { status: 'starting' });
     let supportedData: any = null;
     try {
-      const supportedUrl = `https://api.onramper.com/supported?apiKey=${onramperApiKey}`;
-      const supportedResponse = await fetch(supportedUrl);
+      const supportedUrl = `https://api.onramper.com/supported`;
+      const supportedResponse = await fetch(supportedUrl, {
+        headers: {
+          'Authorization': `Bearer ${onramperApiKey}`,
+          'Accept': 'application/json',
+        },
+      });
       supportedData = await supportedResponse.json();
       
       addLog('4. Supported Data Response', {
@@ -87,11 +92,16 @@ export async function GET(req: NextRequest) {
     addLog('5. Fetching Quotes (WITH payment method)', { paymentMethod });
     let quotesWithMethod: any = null;
     try {
-      const quotesUrl = `https://api.onramper.com/quotes?apiKey=${onramperApiKey}&fiatAmount=${fiatAmount}&fiatCurrency=${fiatCurrency}&cryptoCurrency=${cryptoCurrency}&paymentMethod=${paymentMethod}${detectedCountry ? `&country=${detectedCountry}` : ''}`;
+      const quotesUrl = `https://api.onramper.com/quotes/${fiatCurrency.toLowerCase()}/${cryptoCurrency.toLowerCase()}?amount=${fiatAmount}${paymentMethod ? `&paymentMethod=${paymentMethod}` : ''}${detectedCountry ? `&country=${detectedCountry}` : ''}`;
       
-      addLog('5a. Quotes URL (WITH payment method)', { url: quotesUrl.replace(onramperApiKey, 'API_KEY_HIDDEN') });
+      addLog('5a. Quotes URL (WITH payment method)', { url: quotesUrl });
       
-      const quotesResponse = await fetch(quotesUrl);
+      const quotesResponse = await fetch(quotesUrl, {
+        headers: {
+          'Authorization': `Bearer ${onramperApiKey}`,
+          'Accept': 'application/json',
+        },
+      });
       quotesWithMethod = await quotesResponse.json();
       
       addLog('5b. Quotes Response (WITH payment method)', {
@@ -129,11 +139,16 @@ export async function GET(req: NextRequest) {
     addLog('6. Fetching Quotes (WITHOUT payment method)', { note: 'To see all available payment methods per provider' });
     let quotesWithoutMethod: any = null;
     try {
-      const quotesUrl = `https://api.onramper.com/quotes?apiKey=${onramperApiKey}&fiatAmount=${fiatAmount}&fiatCurrency=${fiatCurrency}&cryptoCurrency=${cryptoCurrency}${detectedCountry ? `&country=${detectedCountry}` : ''}`;
+      const quotesUrl = `https://api.onramper.com/quotes/${fiatCurrency.toLowerCase()}/${cryptoCurrency.toLowerCase()}?amount=${fiatAmount}${detectedCountry ? `&country=${detectedCountry}` : ''}`;
       
-      addLog('6a. Quotes URL (WITHOUT payment method)', { url: quotesUrl.replace(onramperApiKey, 'API_KEY_HIDDEN') });
+      addLog('6a. Quotes URL (WITHOUT payment method)', { url: quotesUrl });
       
-      const quotesResponse = await fetch(quotesUrl);
+      const quotesResponse = await fetch(quotesUrl, {
+        headers: {
+          'Authorization': `Bearer ${onramperApiKey}`,
+          'Accept': 'application/json',
+        },
+      });
       quotesWithoutMethod = await quotesResponse.json();
       
       addLog('6b. Quotes Response (WITHOUT payment method)', {
@@ -167,9 +182,14 @@ export async function GET(req: NextRequest) {
     addLog('7. Testing with NL/BE country codes', { note: 'iDEAL is only available in Netherlands/Belgium' });
     for (const testCountry of ['NL', 'BE']) {
       try {
-        const quotesUrl = `https://api.onramper.com/quotes?apiKey=${onramperApiKey}&fiatAmount=${fiatAmount}&fiatCurrency=${fiatCurrency}&cryptoCurrency=${cryptoCurrency}&paymentMethod=${paymentMethod}&country=${testCountry}`;
+        const quotesUrl = `https://api.onramper.com/quotes/${fiatCurrency.toLowerCase()}/${cryptoCurrency.toLowerCase()}?amount=${fiatAmount}&paymentMethod=${paymentMethod}&country=${testCountry}`;
         
-        const quotesResponse = await fetch(quotesUrl);
+        const quotesResponse = await fetch(quotesUrl, {
+          headers: {
+            'Authorization': `Bearer ${onramperApiKey}`,
+            'Accept': 'application/json',
+          },
+        });
         const testQuotes = await quotesResponse.json();
         
         const validQuotes = Array.isArray(testQuotes) ? testQuotes.filter((q: any) => !q.errors).length : 0;
