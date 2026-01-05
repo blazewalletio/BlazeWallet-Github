@@ -585,6 +585,91 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
     }
   };
 
+  // 🔍 Debug Onramper function - Diagnose iDEAL and payment method issues
+  const runOnramperDebug = async () => {
+    setIsTesting(true);
+    setTestLogs([]);
+    const logs: string[] = [];
+    
+    const addLog = (message: string, type: 'info' | 'success' | 'error' | 'warning' = 'info') => {
+      const timestamp = new Date().toISOString();
+      const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+      const logEntry = `[${timestamp}] ${prefix} ${message}`;
+      logs.push(logEntry);
+      setTestLogs([...logs]);
+      console.log(logEntry);
+    };
+
+    try {
+      addLog('🔍 Starting Onramper Debug Diagnostics...', 'info');
+      addLog('This will test country detection, payment methods, and iDEAL support', 'info');
+      addLog('', 'info');
+
+      // Call debug endpoint
+      addLog('Calling /api/onramper/debug endpoint...', 'info');
+      const debugUrl = `/api/onramper/debug?fiatAmount=${fiatAmount || 100}&fiatCurrency=${fiatCurrency || 'EUR'}&cryptoCurrency=${cryptoCurrency || 'ETH'}&paymentMethod=${paymentMethod || 'ideal'}`;
+      addLog(`URL: ${debugUrl}`, 'info');
+      
+      const debugResponse = await fetch(debugUrl);
+      const debugData = await debugResponse.json();
+
+      if (!debugResponse.ok || !debugData.success) {
+        addLog(`ERROR: Debug endpoint failed`, 'error');
+        addLog(`Response: ${JSON.stringify(debugData, null, 2)}`, 'error');
+        return;
+      }
+
+      addLog('', 'info');
+      addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+      addLog('📊 DEBUG RESULTS', 'success');
+      addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+      addLog('', 'info');
+
+      // Display summary
+      if (debugData.summary) {
+        addLog('SUMMARY:', 'info');
+        addLog(`  Detected Country: ${debugData.summary.detectedCountry || 'NOT DETECTED'}`, 
+          debugData.summary.detectedCountry ? 'success' : 'warning');
+        addLog(`  Valid Quotes (with ${paymentMethod || 'ideal'}): ${debugData.summary.validQuotesWithMethod} / ${debugData.summary.totalProviders}`,
+          debugData.summary.validQuotesWithMethod > 0 ? 'success' : 'error');
+        
+        if (debugData.summary.diagnosis && debugData.summary.diagnosis.length > 0) {
+          addLog('', 'info');
+          addLog('DIAGNOSIS:', 'warning');
+          debugData.summary.diagnosis.forEach((issue: string) => {
+            addLog(`  ${issue}`, issue.startsWith('✅') ? 'success' : issue.startsWith('❌') ? 'error' : 'warning');
+          });
+        }
+      }
+
+      addLog('', 'info');
+      addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+      addLog('📋 DETAILED LOGS', 'info');
+      addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+      addLog('', 'info');
+
+      // Display all debug logs
+      if (debugData.logs && Array.isArray(debugData.logs)) {
+        debugData.logs.forEach((log: any) => {
+          addLog(`[${log.section}]`, 'info');
+          addLog(JSON.stringify(log.data, null, 2), 'info');
+          addLog('', 'info');
+        });
+      }
+
+      addLog('', 'info');
+      addLog('✅ Debug diagnostics completed!', 'success');
+      addLog('', 'info');
+      addLog('📋 Copy these logs and share them for debugging', 'info');
+
+    } catch (error: any) {
+      addLog(`FATAL ERROR: ${error.message}`, 'error');
+      addLog(`Stack: ${error.stack}`, 'error');
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
   // Comprehensive test function
   const runComprehensiveTest = async () => {
     setIsTesting(true);
@@ -1069,6 +1154,23 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
                         <>
                           <Copy className="w-4 h-4" />
                           <span>Copy Logs</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={runOnramperDebug}
+                      disabled={isTesting}
+                      className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-semibold flex items-center gap-2 transition-all shadow-lg hover:shadow-xl"
+                    >
+                      {isTesting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Debugging...</span>
+                        </>
+                      ) : (
+                        <>
+                          <AlertCircle className="w-4 h-4" />
+                          <span>🔍 Debug Onramper</span>
                         </>
                       )}
                     </button>
