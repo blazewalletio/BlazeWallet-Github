@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
       email,
       country,
       onramp, // REQUIRED: Provider name (banxa, moonpay, etc.)
+      userId, // Optional: User ID for tracking
     } = await req.json();
 
     // Validate required fields
@@ -309,8 +310,10 @@ export async function POST(req: NextRequest) {
       requestBody.country = detectedCountry.toUpperCase();
     }
 
-    // Add partner context for tracking
-    requestBody.partnerContext = `blazewallet-${Date.now()}`;
+    // Add partner context for tracking (include userId if available)
+    requestBody.partnerContext = userId 
+      ? `userId:${userId}|blazewallet-${Date.now()}`
+      : `blazewallet-${Date.now()}`;
 
     // Add redirect URLs for payment completion (success and error)
     // This will redirect users back to Blaze Wallet after payment

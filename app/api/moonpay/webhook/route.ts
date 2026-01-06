@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MoonPayService } from '@/lib/moonpay-service';
 import { logger } from '@/lib/logger';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -52,10 +53,6 @@ export async function POST(request: NextRequest) {
         // Transaction status changed
         const transaction = data.data;
         
-        // TODO: Update transaction in database
-        // TODO: Notify user of status change
-        // TODO: Update wallet balance if completed
-        
         logger.log('Transaction updated:', {
           id: transaction.id,
           status: transaction.status,
@@ -65,12 +62,104 @@ export async function POST(request: NextRequest) {
           quoteCurrencyAmount: transaction.quoteCurrencyAmount,
         });
 
+        // Map MoonPay status to our status format
+        const statusMap: Record<string, string> = {
+          'pending': 'pending',
+          'waitingPayment': 'pending',
+          'waitingAuthorization': 'pending',
+          'processingPayment': 'processing',
+          'pendingRefund': 'processing',
+          'completed': 'completed',
+          'failed': 'failed',
+          'expired': 'failed',
+        };
+        
+        const normalizedStatus = statusMap[transaction.status] || transaction.status.toLowerCase();
+        
+        // Extract user ID from walletAddress or externalTransactionId if available
+        let userId: string | null = null;
+        if (transaction.walletAddress) {
+          // Try to find user by wallet address (you may need to adjust this based on your schema)
+          // For now, we'll try to extract from externalTransactionId if it contains userId
+          if (transaction.externalTransactionId) {
+            const contextMatch = transaction.externalTransactionId.match(/userId:([a-f0-9-]+)/i);
+            if (contextMatch) {
+              userId = contextMatch[1];
+            }
+          }
+        }
+        
+        // Update database with transaction status
+        try {
+          const transactionData: any = {
+            onramp_transaction_id: transaction.id,
+            provider: 'moonpay',
+            status: normalizedStatus,
+            status_updated_at: new Date().toISOString(),
+            provider_data: transaction,
+            updated_at: new Date().toISOString(),
+          };
+          
+          // Add optional fields if available
+          if (transaction.baseCurrencyAmount) transactionData.fiat_amount = transaction.baseCurrencyAmount;
+          if (transaction.baseCurrencyCode) transactionData.fiat_currency = transaction.baseCurrencyCode;
+          if (transaction.quoteCurrencyAmount) transactionData.crypto_amount = transaction.quoteCurrencyAmount;
+          if (transaction.currencyCode) transactionData.crypto_currency = transaction.currencyCode;
+          if (transaction.walletAddress) transactionData.wallet_address = transaction.walletAddress;
+          if (userId) transactionData.user_id = userId;
+          
+          // Try to find existing transaction
+          const { data: existingTx, error: findError } = await supabase
+            .from('onramp_transactions')
+            .select('id, user_id')
+            .eq('onramp_transaction_id', transaction.id)
+            .eq('provider', 'moonpay')
+            .maybeSingle();
+          
+          if (findError && findError.code !== 'PGRST116') {
+            logger.error('❌ Error finding MoonPay transaction:', findError);
+          }
+          
+          // If we found an existing transaction, use its user_id
+          if (existingTx && existingTx.user_id && !userId) {
+            transactionData.user_id = existingTx.user_id;
+          }
+          
+          // Only proceed if we have a user_id
+          if (transactionData.user_id) {
+            const { error: upsertError } = await supabase
+              .from('onramp_transactions')
+              .upsert(transactionData, {
+                onConflict: 'onramp_transaction_id,provider',
+              });
+            
+            if (upsertError) {
+              logger.error('❌ Error updating MoonPay transaction in database:', upsertError);
+            } else {
+              logger.log(`✅ MoonPay transaction ${transaction.id} updated in database with status: ${normalizedStatus}`);
+            }
+          } else {
+            logger.warn('⚠️ No user_id found for MoonPay transaction, skipping database update');
+          }
+        } catch (dbError: any) {
+          logger.error('❌ Database update error for MoonPay:', dbError);
+        }
+
         // Status can be: pending, waitingPayment, waitingAuthorization, 
         // processingPayment, pendingRefund, completed, failed, expired
         if (transaction.status === 'completed') {
           // Transaction completed successfully
           logger.log('✅ Transaction completed:', transaction.id);
-        } else if (transaction.status === 'failed') {
+          // Update user preferences if transaction completed
+          if (userId) {
+            try {
+              const { UserOnRampPreferencesService } = await import('@/lib/user-onramp-preferences');
+              await UserOnRampPreferencesService.updateAfterTransaction(userId, transaction.id);
+            } catch (prefError: any) {
+              logger.error('❌ Error updating user preferences:', prefError);
+            }
+          }
+        } else if (transaction.status === 'failed' || transaction.status === 'expired') {
           // Transaction failed
           logger.error('❌ Transaction failed:', transaction.id);
         }

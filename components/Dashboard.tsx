@@ -72,6 +72,9 @@ const ScheduledTransactionsPanel = dynamic(() => import('./ScheduledTransactions
 const SavingsTracker = dynamic(() => import('./SavingsTracker'), { ssr: false });
 const UpcomingTransactionsBanner = dynamic(() => import('./UpcomingTransactionsBanner'), { ssr: false });
 
+// Onramp components
+const OnrampTransactionsPanel = dynamic(() => import('./OnrampTransactionsPanel'), { ssr: false });
+
 export default function Dashboard() {
   const { 
     address, // EVM address (for backward compat)
@@ -220,6 +223,9 @@ export default function Dashboard() {
   // Smart Scheduler modals
   const [showScheduledTransactions, setShowScheduledTransactions] = useState(false);
   const [showSavingsTracker, setShowSavingsTracker] = useState(false);
+  
+  // Onramp modals
+  const [showOnrampTransactions, setShowOnrampTransactions] = useState(false);
 
   // Bottom navigation state
   const [activeTab, setActiveTab] = useState<TabType>('wallet');
@@ -2513,7 +2519,14 @@ export default function Dashboard() {
       {/* Modals */}
       <BuyModal isOpen={showBuyModal} onClose={() => setShowBuyModal(false)} />
       <BuyModal2 isOpen={showBuyModal2} onClose={() => setShowBuyModal2(false)} />
-      <BuyModal3 isOpen={showBuyModal3} onClose={() => setShowBuyModal3(false)} />
+      <BuyModal3 
+        isOpen={showBuyModal3} 
+        onClose={() => setShowBuyModal3(false)}
+        onOpenPurchaseHistory={() => {
+          setShowBuyModal3(false);
+          setShowOnrampTransactions(true);
+        }}
+      />
       <SendModal 
         isOpen={showSendModal} 
         onClose={() => {
@@ -2779,6 +2792,14 @@ export default function Dashboard() {
           isOpen={showScheduledTransactions}
           chain={currentChain}
           onClose={() => setShowScheduledTransactions(false)}
+        />
+      </AnimatePresence>
+
+      {/* Onramp Transactions Panel */}
+      <AnimatePresence>
+        <OnrampTransactionsPanel
+          isOpen={showOnrampTransactions}
+          onClose={() => setShowOnrampTransactions(false)}
         />
       </AnimatePresence>
 

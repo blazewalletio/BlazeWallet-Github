@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Loader2, AlertCircle, CheckCircle2, ArrowRight, Flame, CreditCard, TestTube, Copy, Check, TrendingUp, Shield, Star, Award, Info } from 'lucide-react';
+import { X, Loader2, AlertCircle, CheckCircle2, ArrowRight, Flame, CreditCard, TestTube, Copy, Check, TrendingUp, Shield, Star, Award, Info, History } from 'lucide-react';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { useWalletStore } from '@/lib/wallet-store';
 import { CHAINS } from '@/lib/chains';
@@ -17,6 +17,7 @@ import toast from 'react-hot-toast';
 interface BuyModal3Props {
   isOpen: boolean;
   onClose: () => void;
+  onOpenPurchaseHistory?: () => void; // Optional callback to open purchase history
 }
 
 interface Quote {
@@ -49,7 +50,7 @@ interface PaymentMethod {
   fee: string;
 }
 
-export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
+export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: BuyModal3Props) {
   useBlockBodyScroll(isOpen);
   const { currentChain, getCurrentAddress } = useWalletStore();
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -669,8 +670,15 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
   };
 
   const handleContinue = async () => {
-    if (!quote) {
+    // For iDEAL, allow proceeding even without quote (quote will be calculated during checkout)
+    if (!quote && paymentMethod?.toLowerCase() !== 'ideal') {
       toast.error('Please wait for quote to load');
+      return;
+    }
+    
+    // For iDEAL without quote, we still need a provider selected
+    if (paymentMethod?.toLowerCase() === 'ideal' && !selectedProvider) {
+      toast.error('Please select a provider');
       return;
     }
 
@@ -719,6 +727,17 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
       setLoading(true);
       setError(null);
 
+      // Get user ID for tracking
+      let currentUserId: string | null = null;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          currentUserId = user.id;
+        }
+      } catch (err) {
+        logger.warn('Could not get user ID for checkout intent');
+      }
+
       // Use new checkout-intent API with selected provider
       const response = await fetch('/api/onramper/checkout-intent', {
         method: 'POST',
@@ -732,6 +751,7 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
           walletAddress,
           paymentMethod,
           onramp: providerToUse, // REQUIRED: Selected provider
+          userId: currentUserId, // Include userId for webhook tracking
         }),
       });
 
@@ -1497,13 +1517,25 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
                     </p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setShowTestPanel(!showTestPanel)}
-                  className="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white rounded-xl font-semibold flex items-center gap-2 transition-all shadow-lg hover:shadow-xl"
-                >
-                  <TestTube className="w-4 h-4" />
-                  {showTestPanel ? 'Hide' : 'Show'} Test Panel
-                </button>
+                <div className="flex items-center gap-2">
+                  {onOpenPurchaseHistory && (
+                    <button
+                      onClick={onOpenPurchaseHistory}
+                      className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl font-semibold flex items-center gap-2 transition-all shadow-lg hover:shadow-xl"
+                      title="View purchase history"
+                    >
+                      <History className="w-4 h-4" />
+                      History
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowTestPanel(!showTestPanel)}
+                    className="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white rounded-xl font-semibold flex items-center gap-2 transition-all shadow-lg hover:shadow-xl"
+                  >
+                    <TestTube className="w-4 h-4" />
+                    {showTestPanel ? 'Hide' : 'Show'} Test Panel
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1924,9 +1956,18 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
                                     <div className="flex items-center justify-between">
                                       <div>
                                         <div className="font-semibold capitalize text-gray-900">{q.ramp}</div>
-                                        {q.payout && (
+                                        {q.payout ? (
                                           <div className="text-sm text-gray-600 mt-1">
                                             You'll receive: {parseFloat(q.payout.toString()).toFixed(6)} {cryptoCurrency}
+                                          </div>
+                                        ) : q.paymentMethod?.toLowerCase() === 'ideal' ? (
+                                          <div className="text-sm text-blue-600 mt-1 flex items-center gap-1">
+                                            <Info className="w-3.5 h-3.5" />
+                                            Quote will be calculated during checkout
+                                          </div>
+                                        ) : (
+                                          <div className="text-sm text-gray-500 mt-1">
+                                            Quote not available
                                           </div>
                                         )}
                                         {q.errors && q.errors.length > 0 && (
@@ -1969,9 +2010,22 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
                               <div className="space-y-2">
                                 <div className="flex justify-between items-center">
                                   <span className="text-sm text-gray-600">You'll receive:</span>
-                                  <span className="text-2xl font-bold text-gray-900">
-                                    {parseFloat(quote.cryptoAmount).toFixed(6)} {quote.quoteCurrency}
-                                  </span>
+                                  {parseFloat(quote.cryptoAmount) > 0 ? (
+                                    <span className="text-2xl font-bold text-gray-900">
+                                      {parseFloat(quote.cryptoAmount).toFixed(6)} {quote.quoteCurrency}
+                                    </span>
+                                  ) : paymentMethod?.toLowerCase() === 'ideal' ? (
+                                    <div className="flex items-center gap-2">
+                                      <Info className="w-4 h-4 text-blue-500" />
+                                      <span className="text-sm text-blue-600 font-medium">
+                                        Quote will be calculated during checkout
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-sm text-gray-500">
+                                      Quote not available
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="flex justify-between text-sm">
                                   <span className="text-gray-600">Exchange rate:</span>
@@ -2040,7 +2094,7 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
                           {/* Continue Button */}
                           <button
                             onClick={handleContinue}
-                            disabled={loading || !quote}
+                            disabled={loading || (!quote && paymentMethod?.toLowerCase() !== 'ideal') || (paymentMethod?.toLowerCase() === 'ideal' && !selectedProvider)}
                             className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl"
                           >
                             {loading ? (
