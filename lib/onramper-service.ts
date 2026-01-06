@@ -1331,8 +1331,34 @@ export class OnramperService {
       // ⚠️ CRITICAL: Quotes endpoint returns DIRECT ARRAY (not in message field!)
       let quotes = Array.isArray(data) ? data : (data.message || []);
       
-      // Filter out quotes with errors (but keep them for debugging)
-      let validQuotes = quotes.filter((q: any) => !q.errors || q.errors.length === 0);
+      // ⚠️ CRITICAL LOGGING: Log ALL quotes BEFORE any filtering
+      if (paymentMethod) {
+        logger.error(`🔍 [OnramperService] RAW QUOTES FROM ONRAMPER (${quotes.length} total):`, {
+          paymentMethod,
+          totalQuotes: quotes.length,
+          providers: quotes.map((q: any) => ({
+            ramp: q.ramp,
+            paymentMethod: q.paymentMethod,
+            hasErrors: !!(q.errors && q.errors.length > 0),
+            errorCount: q.errors?.length || 0,
+            errors: q.errors?.map((e: any) => e.message || e.type) || [],
+            availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || []
+          }))
+        });
+      }
+      
+      // ⚠️ CRITICAL: Don't filter out quotes with errors YET if they have the correct payment method
+      // Errors don't necessarily mean the payment method isn't supported
+      // We'll filter them later in the API route after checking payment method support
+      let validQuotes = quotes.filter((q: any) => {
+        // If quote has the requested payment method set, keep it even if it has errors
+        // (errors might be unrelated to payment method support)
+        if (paymentMethod && q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethod.toLowerCase()) {
+          return true;
+        }
+        // Otherwise, only keep quotes without errors
+        return !q.errors || q.errors.length === 0;
+      });
       
       // ⚠️ CRITICAL: Filter by payment method support if payment method is specified
       // This ensures we only return providers that actually support the selected payment method
