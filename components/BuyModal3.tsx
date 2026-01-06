@@ -221,11 +221,24 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
 
       const data = await quoteResponse.json();
 
+      console.log('🔍 [BUYMODAL] Quote fetch response:', {
+        success: data.success,
+        quoteCount: data.quotes?.length || 0,
+        paymentMethod,
+        quotes: data.quotes?.map((q: any) => ({
+          ramp: q.ramp,
+          paymentMethod: q.paymentMethod,
+          hasErrors: !!(q.errors && q.errors.length > 0),
+          availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || []
+        }))
+      });
+
       if (data.success && data.quotes) {
         // ⚠️ CRITICAL: Double-check payment method support (backup filtering)
         // Even though backend filters, we filter again here for 100% certainty
         let quotesToUse = data.quotes;
         if (paymentMethod) {
+          console.log(`🔍 [BUYMODAL] Filtering ${data.quotes.length} quotes for payment method: ${paymentMethod}`);
           const paymentMethodLower = paymentMethod.toLowerCase();
           const isIdeal = paymentMethodLower.includes('ideal');
           
@@ -260,30 +273,47 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
             });
           });
           
-          console.log(`🔍 Frontend filtered quotes: ${data.quotes.length} → ${quotesToUse.length} providers for ${paymentMethod}`);
+          console.log(`✅ [BUYMODAL] Filtered quotes: ${data.quotes.length} → ${quotesToUse.length} providers for ${paymentMethod}`);
+          console.log(`✅ [BUYMODAL] Providers after filtering:`, quotesToUse.map((q: ProviderQuote) => q.ramp));
+          
           if (quotesToUse.length === 0) {
-            console.error(`❌ NO providers support ${paymentMethod}! Available providers:`, 
+            console.error(`❌ [BUYMODAL] NO providers support ${paymentMethod}!`);
+            console.error(`❌ [BUYMODAL] Original quotes:`, 
               data.quotes.map((q: ProviderQuote) => ({
                 ramp: q.ramp,
                 paymentMethod: q.paymentMethod,
-                availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id)
+                availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || [],
+                hasErrors: !!(q.errors && q.errors.length > 0)
+              }))
+            );
+          } else {
+            console.log(`✅ [BUYMODAL] Filtered quotes details:`, 
+              quotesToUse.map((q: ProviderQuote) => ({
+                ramp: q.ramp,
+                paymentMethod: q.paymentMethod,
+                availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || []
               }))
             );
           }
+        } else {
+          console.log(`⚠️ [BUYMODAL] No payment method selected, using all ${quotesToUse.length} quotes`);
         }
         
         // Store filtered provider quotes
+        console.log(`💾 [BUYMODAL] Storing ${quotesToUse.length} quotes in state`);
         setProviderQuotes(quotesToUse);
         
         // Select best provider using smart selection (with user preferences)
         if (quotesToUse.length > 0 && paymentMethod) {
           try {
+            console.log(`🎯 [BUYMODAL] Selecting provider from ${quotesToUse.length} filtered quotes`);
             const selection = await ProviderSelector.selectProvider(
               quotesToUse, // Use filtered quotes, not all quotes!
               userId,
               paymentMethod
             );
             
+            console.log(`✅ [BUYMODAL] Selected provider: ${selection.quote.ramp} (reason: ${selection.reason})`);
             // Set selected provider
             setSelectedProvider(selection.quote.ramp);
             

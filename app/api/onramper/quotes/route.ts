@@ -113,6 +113,17 @@ export async function GET(req: NextRequest) {
     }
 
     logger.log(`✅ Onramper quotes received: ${quotes.length} providers`);
+    logger.log(`📊 Payment method requested: ${paymentMethod || 'none'}`);
+    
+    // Log all providers and their payment methods BEFORE filtering
+    if (paymentMethod) {
+      logger.log(`🔍 BEFORE FILTERING - All providers:`, quotes.map((q: any) => ({
+        ramp: q.ramp,
+        paymentMethod: q.paymentMethod,
+        hasErrors: !!(q.errors && q.errors.length > 0),
+        availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || []
+      })));
+    }
     
     // ⚠️ CRITICAL: Hard filter by payment method support if payment method is specified
     // This ensures frontend ONLY receives providers that actually support the payment method
@@ -120,6 +131,8 @@ export async function GET(req: NextRequest) {
     if (paymentMethod) {
       const paymentMethodLower = paymentMethod.toLowerCase();
       const isIdeal = paymentMethodLower.includes('ideal');
+      
+      logger.log(`🔍 Starting filter for payment method: ${paymentMethod} (isIdeal: ${isIdeal})`);
       
       filteredQuotes = quotes.filter((q: any) => {
         // Skip quotes with errors
@@ -151,18 +164,35 @@ export async function GET(req: NextRequest) {
           return false;
         });
         
-        return supportsMethod;
+        const result = supportsMethod;
+        if (!result) {
+          logger.log(`   ❌ Filtered out ${q.ramp}: paymentMethod=${q.paymentMethod}, availableMethods=${JSON.stringify(methods.map((pm: any) => pm.paymentTypeId || pm.id))}`);
+        }
+        return result;
       });
       
-      logger.log(`🔍 Filtered quotes by payment method "${paymentMethod}": ${quotes.length} → ${filteredQuotes.length} providers`);
+      logger.log(`🔍 AFTER FILTERING: ${quotes.length} → ${filteredQuotes.length} providers for "${paymentMethod}"`);
       
       // Log which providers were filtered out
       const filteredOut = quotes.filter(q => !filteredQuotes.includes(q));
       if (filteredOut.length > 0) {
-        logger.log(`   ❌ Filtered out providers: ${filteredOut.map((q: any) => q.ramp).join(', ')}`);
+        logger.log(`   ❌ Filtered out ${filteredOut.length} providers: ${filteredOut.map((q: any) => q.ramp).join(', ')}`);
       }
       if (filteredQuotes.length > 0) {
-        logger.log(`   ✅ Providers with ${paymentMethod} support: ${filteredQuotes.map((q: any) => q.ramp).join(', ')}`);
+        logger.log(`   ✅ Providers with ${paymentMethod} support (${filteredQuotes.length}): ${filteredQuotes.map((q: any) => q.ramp).join(', ')}`);
+        logger.log(`   ✅ Filtered quotes details:`, filteredQuotes.map((q: any) => ({
+          ramp: q.ramp,
+          paymentMethod: q.paymentMethod,
+          availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || []
+        })));
+      } else {
+        logger.error(`   ❌ NO PROVIDERS FOUND supporting ${paymentMethod}!`);
+        logger.error(`   ❌ All original quotes:`, quotes.map((q: any) => ({
+          ramp: q.ramp,
+          paymentMethod: q.paymentMethod,
+          availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || [],
+          hasErrors: !!(q.errors && q.errors.length > 0)
+        })));
       }
     }
     
