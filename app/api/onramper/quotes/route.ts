@@ -185,36 +185,42 @@ export async function GET(req: NextRequest) {
         // This is the most reliable check - if Onramper returned a quote with paymentMethod set,
         // it means the provider supports it (even if there are minor errors)
         if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower) {
-          // ⚠️ CRITICAL: If provider has availableMethods array with the payment method, accept it
-          // This is more reliable than error checking - if Onramper says it's available, trust it
-          const hasPaymentMethodInAvailable = q.availablePaymentMethods?.some((pm: any) => {
-            const id = (pm.paymentTypeId || pm.id || '').toLowerCase();
-            return id === paymentMethodLower || 
-                   (isIdeal && id.includes('ideal'));
-          });
-          
-          if (hasPaymentMethodInAvailable) {
-            logger.error(`   ✅ ${ramp}: PRIMARY CHECK PASSED - paymentMethod=${q.paymentMethod}, found in availableMethods`);
-            return true; // Provider explicitly lists this payment method as available
+          // ⚠️ CRITICAL: FIRST check if provider has availableMethods array with the payment method
+          // This is the MOST reliable check - if Onramper explicitly lists it in availableMethods,
+          // we should trust that over error messages (errors might be temporary or misleading)
+          if (q.availablePaymentMethods && Array.isArray(q.availablePaymentMethods) && q.availablePaymentMethods.length > 0) {
+            const hasPaymentMethodInAvailable = q.availablePaymentMethods.some((pm: any) => {
+              const id = (pm.paymentTypeId || pm.id || '').toLowerCase();
+              return id === paymentMethodLower || 
+                     (isIdeal && id.includes('ideal'));
+            });
+            
+            if (hasPaymentMethodInAvailable) {
+              logger.error(`   ✅ ${ramp}: PRIMARY CHECK PASSED - paymentMethod=${q.paymentMethod}, found in availableMethods (trusting this over errors)`);
+              return true; // Provider explicitly lists this payment method as available - trust this!
+            }
           }
           
-          // Only reject if there are errors that specifically indicate payment method incompatibility
+          // If not in availableMethods, check errors - but be lenient
+          // Only reject if errors EXPLICITLY say payment method not supported
           const hasPaymentMethodError = q.errors?.some((err: any) => {
             const errorMsg = (err.message || '').toLowerCase();
             const errorType = (err.type || '').toLowerCase();
-            return errorMsg.includes('does not support payment method') ||
-                   errorMsg.includes('payment method not supported') ||
-                   errorMsg.includes('payment type not supported') ||
-                   errorType === 'paymentmethodnotsupported';
+            // Only reject if error message explicitly says "does not support Payment Method to be X"
+            return (errorMsg.includes('does not support payment method to be') ||
+                   errorMsg.includes('does not support payment method') ||
+                   errorType === 'paymentmethodnotsupported') &&
+                   // But ONLY if the error message mentions the specific payment method
+                   (errorMsg.includes(paymentMethodLower) || errorMsg.includes('ideal'));
           });
           
           if (!hasPaymentMethodError) {
-            logger.error(`   ✅ ${ramp}: PRIMARY CHECK PASSED - paymentMethod=${q.paymentMethod}, no payment-method errors`);
-            return true; // Quote has correct paymentMethod and no payment-related errors
+            logger.error(`   ✅ ${ramp}: PRIMARY CHECK PASSED - paymentMethod=${q.paymentMethod}, no explicit payment-method errors`);
+            return true; // Quote has correct paymentMethod and no explicit payment-related errors
           }
           
           // Log the actual error for debugging
-          logger.error(`   ❌ ${ramp}: PRIMARY CHECK FAILED - paymentMethod=${q.paymentMethod}, has payment-method error`, {
+          logger.error(`   ❌ ${ramp}: PRIMARY CHECK FAILED - paymentMethod=${q.paymentMethod}, has explicit payment-method error`, {
             errors: q.errors?.map((e: any) => ({ message: e.message, type: e.type }))
           });
           return false;
