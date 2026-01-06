@@ -197,11 +197,24 @@ export async function GET(req: NextRequest) {
         }
         
         // ⚠️ CRITICAL: If quote has the payment method set AND no errors, it's supported
-        if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower && (!q.errors || q.errors.length === 0)) {
-          return true;
+        // This is the PRIMARY check - if Onramper returned a quote with paymentMethod set,
+        // it means the provider supports it (even if availablePaymentMethods is missing)
+        if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower) {
+          // Only reject if there are errors that specifically indicate payment method incompatibility
+          const hasPaymentMethodError = q.errors?.some((err: any) => {
+            const errorMsg = (err.message || '').toLowerCase();
+            const errorType = (err.type || '').toLowerCase();
+            return errorMsg.includes('payment method') || 
+                   errorMsg.includes('payment type') ||
+                   errorType.includes('payment');
+          });
+          
+          if (!hasPaymentMethodError) {
+            return true; // Quote has correct paymentMethod and no payment-related errors
+          }
         }
         
-        // ⚠️ CRITICAL: Check availablePaymentMethods array (this is the most reliable check)
+        // ⚠️ CRITICAL: Check availablePaymentMethods array (this is the fallback check)
         const methods = q.availablePaymentMethods || [];
         const methodIds = methods.map((pm: any) => (pm.paymentTypeId || pm.id || '').toLowerCase()).filter(Boolean);
         
