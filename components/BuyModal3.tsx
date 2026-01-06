@@ -1858,8 +1858,60 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
                       )}
 
                       {/* Quotes Display */}
-                      {!loading && !error && quote && (
+                      {!loading && !error && (quote || providerQuotes.length > 0) && (
                         <div className="space-y-4">
+                          {/* Provider Selection List */}
+                          {providerQuotes.length > 0 && !quote && (
+                            <div className="space-y-3">
+                              <p className="text-sm text-gray-600 mb-3">Select a provider:</p>
+                              {providerQuotes.map((q) => {
+                                const isSelected = selectedProvider === q.ramp;
+                                return (
+                                  <button
+                                    key={q.ramp}
+                                    onClick={() => {
+                                      setSelectedProvider(q.ramp);
+                                      if (q.payout) {
+                                        setQuote({
+                                          cryptoAmount: q.payout.toString(),
+                                          exchangeRate: q.rate?.toString() || '0',
+                                          fee: ((q.networkFee || 0) + (q.transactionFee || 0)).toString(),
+                                          totalAmount: fiatAmount,
+                                          baseCurrency: fiatCurrency,
+                                          quoteCurrency: cryptoCurrency,
+                                        });
+                                      }
+                                    }}
+                                    className={`w-full p-4 border-2 rounded-xl text-left transition-all ${
+                                      isSelected
+                                        ? 'border-indigo-500 bg-indigo-50'
+                                        : 'border-gray-200 hover:border-gray-300 bg-white'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <div className="font-semibold capitalize text-gray-900">{q.ramp}</div>
+                                        {q.payout && (
+                                          <div className="text-sm text-gray-600 mt-1">
+                                            You'll receive: {parseFloat(q.payout.toString()).toFixed(6)} {cryptoCurrency}
+                                          </div>
+                                        )}
+                                        {q.errors && q.errors.length > 0 && (
+                                          <div className="text-xs text-orange-600 mt-1">
+                                            ⚠️ This provider may have limitations
+                                          </div>
+                                        )}
+                                      </div>
+                                      {isSelected && (
+                                        <CheckCircle2 className="w-5 h-5 text-indigo-500" />
+                                      )}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+
                           {/* Selected Provider Badge */}
                           {selectedProvider && (
                             <div className="p-3 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl">
