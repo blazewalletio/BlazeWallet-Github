@@ -129,15 +129,20 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
     }
   }, [isOpen, step]);
 
-  // Fetch quote when amount/crypto changes
+  // Fetch quote ONLY when payment method is selected (better UX - no unnecessary API calls)
   useEffect(() => {
-    if (isOpen && step === 'select' && fiatAmount && parseFloat(fiatAmount) > 0 && cryptoCurrency) {
+    if (isOpen && step === 'select' && fiatAmount && parseFloat(fiatAmount) > 0 && cryptoCurrency && paymentMethod) {
       const debounceTimer = setTimeout(() => {
         fetchQuote();
       }, 500);
       return () => clearTimeout(debounceTimer);
+    } else if (paymentMethod === '') {
+      // Clear quotes when payment method is deselected
+      setProviderQuotes([]);
+      setQuote(null);
+      setSelectedProvider(null);
     }
-  }, [fiatAmount, fiatCurrency, cryptoCurrency, isOpen, step]);
+  }, [fiatAmount, fiatCurrency, cryptoCurrency, paymentMethod, isOpen, step]);
 
   // Listen for messages from Onramper widget
   useEffect(() => {
@@ -209,7 +214,15 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
   };
 
   const fetchQuote = async () => {
-    if (!fiatAmount || parseFloat(fiatAmount) <= 0 || !cryptoCurrency) return;
+    // ⚠️ CRITICAL: Only fetch quotes if payment method is selected
+    if (!fiatAmount || parseFloat(fiatAmount) <= 0 || !cryptoCurrency || !paymentMethod) {
+      console.log('⚠️ [BUYMODAL] Skipping quote fetch - missing required fields:', {
+        fiatAmount,
+        cryptoCurrency,
+        paymentMethod
+      });
+      return;
+    }
 
     try {
       setLoading(true);
@@ -234,6 +247,16 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
       });
 
       if (data.success && data.quotes) {
+        // Check if we got 0 quotes (no providers support this combination)
+        if (data.quotes.length === 0) {
+          console.error(`❌ [BUYMODAL] API returned 0 quotes for ${paymentMethod} + ${cryptoCurrency}`);
+          setError(`No providers available for ${paymentMethod} with ${cryptoCurrency}. Please try a different payment method or cryptocurrency.`);
+          setQuote(null);
+          setProviderQuotes([]);
+          setSelectedProvider(null);
+          return;
+        }
+        
         // ⚠️ CRITICAL: Double-check payment method support (backup filtering)
         // Even though backend filters, we filter again here for 100% certainty
         let quotesToUse = data.quotes;
@@ -277,7 +300,7 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
           console.log(`✅ [BUYMODAL] Providers after filtering:`, quotesToUse.map((q: ProviderQuote) => q.ramp));
           
           if (quotesToUse.length === 0) {
-            console.error(`❌ [BUYMODAL] NO providers support ${paymentMethod}!`);
+            console.error(`❌ [BUYMODAL] NO providers support ${paymentMethod} for ${cryptoCurrency}!`);
             console.error(`❌ [BUYMODAL] Original quotes:`, 
               data.quotes.map((q: ProviderQuote) => ({
                 ramp: q.ramp,
@@ -286,6 +309,13 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
                 hasErrors: !!(q.errors && q.errors.length > 0)
               }))
             );
+            
+            // Show user-friendly error message
+            setError(`No providers available for ${paymentMethod} with ${cryptoCurrency}. Please try a different payment method or cryptocurrency.`);
+            setQuote(null);
+            setProviderQuotes([]);
+            setSelectedProvider(null);
+            return; // Don't continue with empty quotes
           } else {
             console.log(`✅ [BUYMODAL] Filtered quotes details:`, 
               quotesToUse.map((q: ProviderQuote) => ({
@@ -295,8 +325,6 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
               }))
             );
           }
-        } else {
-          console.log(`⚠️ [BUYMODAL] No payment method selected, using all ${quotesToUse.length} quotes`);
         }
         
         // Store filtered provider quotes
@@ -304,6 +332,7 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
         setProviderQuotes(quotesToUse);
         
         // Select best provider using smart selection (with user preferences)
+        // ⚠️ CRITICAL: Only select provider if we have quotes AND payment method
         if (quotesToUse.length > 0 && paymentMethod) {
           try {
             console.log(`🎯 [BUYMODAL] Selecting provider from ${quotesToUse.length} filtered quotes`);
@@ -357,8 +386,11 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
             }
           }
         } else {
-          // No payment method selected yet - just store quotes
-          setProviderQuotes(data.quotes);
+          // No payment method selected - clear quotes (shouldn't happen due to useEffect check, but safety)
+          console.log('⚠️ [BUYMODAL] No payment method selected, clearing quotes');
+          setProviderQuotes([]);
+          setQuote(null);
+          setSelectedProvider(null);
         }
       } else {
         setError(data.error || 'Failed to fetch quotes');
