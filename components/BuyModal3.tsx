@@ -1986,10 +1986,12 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                       {/* Quotes Display */}
                       {!loading && !error && (quote || providerQuotes.length > 0) && (
                         <div className="space-y-4">
-                          {/* Provider Selection List */}
-                          {providerQuotes.length > 0 && !quote && (
+                          {/* Provider Selection List - Always show if there are providers */}
+                          {providerQuotes.length > 0 && (
                             <div className="space-y-3">
-                              <p className="text-sm text-gray-600 mb-3">Select a provider:</p>
+                              <p className="text-sm text-gray-600 mb-3">
+                                {providerQuotes.length > 1 ? 'Select a provider:' : 'Provider:'}
+                              </p>
                               {providerQuotes.map((q) => {
                                 const isSelected = selectedProvider === q.ramp;
                                 return (
