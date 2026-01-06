@@ -12,7 +12,6 @@ import { UserOnRampPreferencesService } from '@/lib/user-onramp-preferences';
 import { GeolocationService } from '@/lib/geolocation';
 import { logger } from '@/lib/logger';
 import { supabase } from '@/lib/supabase';
-import toast from 'react-hot-toast';
 
 interface BuyModal3Props {
   isOpen: boolean;
@@ -189,7 +188,6 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       if (event.data?.type === 'ONRAMPER_TRANSACTION_COMPLETED') {
         setStep('success');
         setShowWidget(false);
-        toast.success('Payment completed! Your crypto will arrive shortly.');
       } else if (event.data?.type === 'ONRAMPER_TRANSACTION_FAILED') {
         setError(event.data.message || 'Payment failed');
         setStep('error');
@@ -763,24 +761,20 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
   const handleContinue = async () => {
     // For iDEAL, allow proceeding even without quote (quote will be calculated during checkout)
     if (!quote && paymentMethod?.toLowerCase() !== 'ideal') {
-      toast.error('Please wait for quote to load');
       return;
     }
     
     // For iDEAL without quote, we still need a provider selected
     if (paymentMethod?.toLowerCase() === 'ideal' && !selectedProvider) {
-      toast.error('Please select a provider');
       return;
     }
 
     const walletAddress = getCurrentAddress();
     if (!walletAddress) {
-      toast.error('Wallet address not found');
       return;
     }
 
     if (!paymentMethod) {
-      toast.error('Please select a payment method');
       return;
     }
 
@@ -803,14 +797,12 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
           providerToUse = firstValid.ramp;
           setSelectedProvider(providerToUse);
         } else {
-          toast.error('No valid provider available');
           return;
         }
       }
     }
 
     if (!providerToUse) {
-      toast.error('No provider available. Please try again.');
       return;
     }
 
@@ -871,7 +863,6 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
           setWidgetUrl(transactionUrl);
           setShowWidget(true);
           setStep('widget');
-          toast.success('Opening payment widget...');
         } else if (transactionType === 'redirect' || transactionType === 'popup' || isMoonpay) {
           // Force popup/redirect for Moonpay (CSP blocks iframe)
           if (isMoonpay) {
@@ -999,7 +990,6 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                     window.dispatchEvent(new CustomEvent('balanceRefresh'));
                   }
                   
-                  toast.success('Payment completed! Redirecting...', { icon: '🎉' });
                   setStep('select');
                   
                   // Close modal after a short delay
@@ -1058,12 +1048,10 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
         }
       } else {
         setError(data.error || data.message || 'Failed to create transaction');
-        toast.error(data.error || data.message || 'Failed to create transaction');
       }
     } catch (err: any) {
       logger.error('Failed to create Onramper checkout intent:', err);
       setError('Failed to create transaction. Please try again.');
-      toast.error('Failed to create transaction. Please try again.');
     } finally {
       setLoading(false);
     }
