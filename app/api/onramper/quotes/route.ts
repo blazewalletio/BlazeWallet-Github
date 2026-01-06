@@ -196,11 +196,11 @@ export async function GET(req: NextRequest) {
           });
           
           if (!hasPaymentMethodError) {
-            logger.log(`   ✅ ${ramp}: PRIMARY CHECK PASSED - paymentMethod=${q.paymentMethod}, no payment-method errors`);
+            logger.error(`   ✅ ${ramp}: PRIMARY CHECK PASSED - paymentMethod=${q.paymentMethod}, no payment-method errors`);
             return true; // Quote has correct paymentMethod and no payment-related errors
           }
           // If there's a payment-method-specific error, reject it
-          logger.log(`   ❌ ${ramp}: PRIMARY CHECK FAILED - paymentMethod=${q.paymentMethod}, has payment-method error`);
+          logger.error(`   ❌ ${ramp}: PRIMARY CHECK FAILED - paymentMethod=${q.paymentMethod}, has payment-method error`);
           return false;
         }
         
@@ -217,11 +217,11 @@ export async function GET(req: NextRequest) {
           
           if (hasPaymentMethodError) {
             // This provider definitely doesn't support the payment method
-            logger.log(`   ❌ ${ramp}: Has payment-method-specific error, rejecting`);
+            logger.error(`   ❌ ${ramp}: Has payment-method-specific error, rejecting`);
             return false;
           }
           // Other errors (rate limits, temporary issues, etc.) are OK - continue checking
-          logger.log(`   ⚠️ ${ramp}: Has non-payment errors (${q.errors.length}), continuing to check availablePaymentMethods`);
+          logger.error(`   ⚠️ ${ramp}: Has non-payment errors (${q.errors.length}), continuing to check availablePaymentMethods`);
         }
         
         // ⚠️ CRITICAL: Check availablePaymentMethods array (this is the fallback check)
@@ -255,12 +255,12 @@ export async function GET(req: NextRequest) {
         const result = supportsMethod;
         if (!result) {
           try {
-            logger.log(`   ❌ ${ramp}: FALLBACK CHECK FAILED - paymentMethod=${q.paymentMethod || 'none'}, availableMethods=${methodIds.join(', ') || 'none'}`);
+            logger.error(`   ❌ ${ramp}: FALLBACK CHECK FAILED - paymentMethod=${q.paymentMethod || 'none'}, availableMethods=${methodIds.join(', ') || 'none'}`);
           } catch (logError: any) {
-            logger.log(`   ❌ ${ramp}: FALLBACK CHECK FAILED`);
+            logger.error(`   ❌ ${ramp}: FALLBACK CHECK FAILED`);
           }
         } else {
-          logger.log(`   ✅ ${ramp}: FALLBACK CHECK PASSED - paymentMethod=${q.paymentMethod || 'none'}, availableMethods=${methodIds.join(', ')}`);
+          logger.error(`   ✅ ${ramp}: FALLBACK CHECK PASSED - paymentMethod=${q.paymentMethod || 'none'}, availableMethods=${methodIds.join(', ')}`);
         }
         return result;
       });
