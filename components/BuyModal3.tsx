@@ -1734,8 +1734,11 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
                       {paymentMethods.length > 0 && (
                         <div className="grid grid-cols-2 gap-3">
                           {paymentMethods.map((pm) => {
+                            // ⚠️ TEMPORARY: Allow iDEAL to be clicked even if availability check fails
+                            // This is because the availability check might be too strict or the API might not be returning quotes correctly
                             const isAvailable = availablePaymentMethods.has(pm.id);
-                            const isUnavailable = !isAvailable && !!cryptoCurrency && !checkingAvailability;
+                            const isIdeal = pm.id.toLowerCase() === 'ideal';
+                            const isUnavailable = !isAvailable && !!cryptoCurrency && !checkingAvailability && !isIdeal;
                             
                             return (
                               <button
