@@ -179,22 +179,33 @@ export async function GET(req: NextRequest) {
         logger.log(`🔍 Starting filter for payment method: ${paymentMethod} (isIdeal: ${isIdeal})`);
         
         filteredQuotes = quotes.filter((q: any) => {
-        // Skip quotes with errors
+        // ⚠️ CRITICAL: Skip quotes with errors (provider doesn't support this payment method)
         if (q.errors && q.errors.length > 0) {
+          // Check if error is specifically about payment method not being supported
+          const hasPaymentMethodError = q.errors.some((err: any) => 
+            err.message?.toLowerCase().includes('does not support payment method') ||
+            err.message?.toLowerCase().includes('payment method') ||
+            err.type === 'PaymentMethodNotSupported'
+          );
+          
+          if (hasPaymentMethodError) {
+            // This provider definitely doesn't support the payment method
+            return false;
+          }
+          // Other errors might be temporary, but still skip for now
           return false;
         }
         
-        // If quote already has the payment method set, it's supported
-        if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower) {
+        // ⚠️ CRITICAL: If quote has the payment method set AND no errors, it's supported
+        if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower && (!q.errors || q.errors.length === 0)) {
           return true;
         }
         
-        // Check availablePaymentMethods array
+        // ⚠️ CRITICAL: Check availablePaymentMethods array (this is the most reliable check)
         const methods = q.availablePaymentMethods || [];
-        const supportsMethod = methods.some((pm: any) => {
-          const id = pm.paymentTypeId || pm.id || '';
-          const idLower = id.toLowerCase();
-          
+        const methodIds = methods.map((pm: any) => (pm.paymentTypeId || pm.id || '').toLowerCase()).filter(Boolean);
+        
+        const supportsMethod = methodIds.some((idLower: string) => {
           // Exact match
           if (idLower === paymentMethodLower) {
             return true;
@@ -205,17 +216,28 @@ export async function GET(req: NextRequest) {
             return true;
           }
           
+          // For SEPA, check for variants (sepa, sepabanktransfer, sepainstant)
+          if (paymentMethodLower === 'sepa' && (idLower.includes('sepa') || idLower === 'banktransfer')) {
+            return true;
+          }
+          
+          // For bancontact, check for variants
+          if (paymentMethodLower === 'bancontact' && idLower.includes('bancontact')) {
+            return true;
+          }
+          
           return false;
         });
         
         const result = supportsMethod;
         if (!result) {
           try {
-            const methodIds = methods.map((pm: any) => pm.paymentTypeId || pm.id).filter(Boolean);
-            logger.log(`   ❌ Filtered out ${q.ramp}: paymentMethod=${q.paymentMethod || 'none'}, availableMethods=${methodIds.join(', ')}`);
+            logger.log(`   ❌ Filtered out ${q.ramp}: paymentMethod=${q.paymentMethod || 'none'}, availableMethods=${methodIds.join(', ') || 'none'}`);
           } catch (logError: any) {
             logger.log(`   ❌ Filtered out ${q.ramp}`);
           }
+        } else {
+          logger.log(`   ✅ ${q.ramp} supports ${paymentMethod} (availableMethods: ${methodIds.join(', ')})`);
         }
         return result;
       });

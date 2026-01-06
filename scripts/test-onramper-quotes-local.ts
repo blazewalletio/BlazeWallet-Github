@@ -5,6 +5,12 @@
  * Run: npx tsx scripts/test-onramper-quotes-local.ts
  */
 
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+
+// Load .env.local file
+dotenv.config({ path: path.join(__dirname, '../.env.local') });
+
 const ONRAMPER_API_KEY = process.env.ONRAMPER_API_KEY || '';
 const BASE_URL = 'https://api.onramper.com';
 
