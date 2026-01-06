@@ -233,10 +233,30 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
       const data = await response.json();
 
       if (data.success) {
+        // Store detected country for filtering
+        if (data.detectedCountry) {
+          setUserCountry(data.detectedCountry);
+        }
+        
         if (data.paymentMethods) {
+          // ⚠️ FILTER: Bancontact only for Belgian users (BE country code)
           // ⚠️ NOTE: iDEAL is supported by BANXA (verified via Onramper API)
           // Availability checking will determine if iDEAL is available for selected crypto
-          setPaymentMethods(data.paymentMethods);
+          const filteredPaymentMethods = data.paymentMethods.filter((pm: PaymentMethod) => {
+            const pmId = pm.id.toLowerCase();
+            
+            // Bancontact only for Belgium (BE)
+            if (pmId === 'bancontact' || pmId.includes('bancontact')) {
+              const country = data.detectedCountry || GeolocationService.getSavedCountryPreference();
+              if (country?.toUpperCase() !== 'BE') {
+                return false; // Hide Bancontact for non-Belgian users
+              }
+            }
+            
+            return true;
+          });
+          
+          setPaymentMethods(filteredPaymentMethods);
         }
         if (data.fiatCurrencies) {
           setFiatCurrencies(data.fiatCurrencies);
