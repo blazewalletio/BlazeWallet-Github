@@ -1275,18 +1275,15 @@ export class OnramperService {
       const cryptoLower = cryptoCurrency.toLowerCase();
       let url = `https://api.onramper.com/quotes/${fiatLower}/${cryptoLower}?amount=${fiatAmount}`;
       
-      // ⚠️ CRITICAL: For iDEAL and other payment methods, we fetch ALL quotes first
-      // and then filter client-side by checking availablePaymentMethods.
-      // This is because Onramper's paymentMethod filter is too strict and excludes
-      // providers that support the method but don't have it as their primary method.
-      // 
-      // We only use paymentMethod filter for non-iDEAL methods that work reliably.
+      // ⚠️ CRITICAL: Always use paymentMethod filter when provided
+      // Testing shows that Onramper correctly returns quotes with paymentMethod set
+      // when we use the filter. For iDEAL, BANXA returns paymentMethod: "ideal" when
+      // we use paymentMethod=ideal, but returns paymentMethod: "creditcard" when we don't.
+      // Using the filter ensures quotes have the correct paymentMethod set.
       const paymentMethodLower = paymentMethod?.toLowerCase() || '';
-      const isIdeal = paymentMethodLower.includes('ideal');
       
-      // For iDEAL, don't use paymentMethod filter - we'll filter client-side
-      // For other methods, use the filter if it's reliable
-      if (paymentMethod && !isIdeal) {
+      // Always use paymentMethod filter if provided
+      if (paymentMethod) {
         url += `&paymentMethod=${paymentMethodLower}`;
       }
       
