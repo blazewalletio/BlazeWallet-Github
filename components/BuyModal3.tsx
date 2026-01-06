@@ -599,9 +599,12 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
               setUsingFallbackQuotes(true);
               setFallbackPaymentMethod(fallbackPaymentMethod);
               // Show info message that we're showing alternative quotes
-              toast.info(
+              toast(
                 `Showing quotes for ${fallbackPaymentMethod} (${paymentMethod} not available). You can still proceed with ${paymentMethod} if supported.`,
-                { duration: 5000 }
+                { 
+                  duration: 5000,
+                  icon: 'ℹ️'
+                }
               );
             } else {
               // No fallback quotes found either - show error but still try to show any available quotes
