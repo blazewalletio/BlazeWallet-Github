@@ -25,8 +25,9 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // CRITICAL: Trim API key to remove any whitespace/newlines
-    const onramperApiKey = process.env.ONRAMPER_API_KEY?.trim();
+    // CRITICAL: Clean API key - remove quotes, whitespace, and newlines
+    const rawApiKey = process.env.ONRAMPER_API_KEY || '';
+    const onramperApiKey = rawApiKey.trim().replace(/^["']|["']$/g, '').trim();
     
     // CRITICAL: No API key = error, we MUST use real Onramper rates
     if (!onramperApiKey) {
@@ -40,6 +41,16 @@ export async function GET(req: NextRequest) {
         { status: 503 }
       );
     }
+
+    // DEBUG: Log API key info (masked for security)
+    logger.log('🔑 Onramper API Key Status:', {
+      hasKey: !!onramperApiKey,
+      keyLength: onramperApiKey.length,
+      keyPrefix: onramperApiKey.substring(0, 10) + '...',
+      keySuffix: '...' + onramperApiKey.substring(onramperApiKey.length - 4),
+      rawLength: rawApiKey.length,
+      rawPrefix: rawApiKey.substring(0, 15) + '...',
+    });
 
     // Detect country if not provided
     let detectedCountry = country;

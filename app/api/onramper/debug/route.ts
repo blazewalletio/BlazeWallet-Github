@@ -31,12 +31,17 @@ export async function GET(req: NextRequest) {
       url: req.url,
     });
 
-    // Check API key
-    const onramperApiKey = process.env.ONRAMPER_API_KEY?.trim();
+    // Check API key - remove quotes, whitespace, and newlines
+    const rawApiKey = process.env.ONRAMPER_API_KEY || '';
+    const onramperApiKey = rawApiKey.trim().replace(/^["']|["']$/g, '').trim();
     addLog('2. API Key Check', {
       hasApiKey: !!onramperApiKey,
       keyLength: onramperApiKey?.length,
       keyPrefix: onramperApiKey ? onramperApiKey.substring(0, 10) + '...' : 'MISSING',
+      keySuffix: onramperApiKey ? '...' + onramperApiKey.substring(onramperApiKey.length - 4) : 'MISSING',
+      rawLength: rawApiKey.length,
+      rawPrefix: rawApiKey.substring(0, 15) + '...',
+      hasQuotes: rawApiKey.includes('"') || rawApiKey.includes("'"),
     });
 
     if (!onramperApiKey) {

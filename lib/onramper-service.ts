@@ -23,6 +23,15 @@ export class OnramperService {
   private static readonly WIDGET_URL = 'https://buy.onramper.com';
   private static readonly SANDBOX_URL = 'https://buy-staging.onramper.com';
 
+  /**
+   * Clean API key - remove quotes, whitespace, and newlines
+   * CRITICAL: Vercel environment variables sometimes include quotes
+   */
+  private static cleanApiKey(apiKey?: string): string {
+    if (!apiKey) return '';
+    return apiKey.trim().replace(/^["']|["']$/g, '').trim();
+  }
+
   // Get supported assets by chain
   static getSupportedAssets(chainId: number): string[] {
     const assetMap: Record<number, string[]> = {
