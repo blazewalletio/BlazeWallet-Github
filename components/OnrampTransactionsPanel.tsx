@@ -51,7 +51,7 @@ export default function OnrampTransactionsPanel({ isOpen, onClose }: OnrampTrans
   const [transactions, setTransactions] = useState<OnrampTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'completed' | 'failed' | 'cancelled'>('all');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled'>('all');
 
   // Get user ID from Supabase auth
   useEffect(() => {
