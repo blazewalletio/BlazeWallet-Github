@@ -576,6 +576,20 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
         
         // Store filtered provider quotes
         console.log(`💾 [BUYMODAL] Storing ${quotesToUse.length} quotes in state`);
+        // Log BANXA quote structure for debugging
+        const banxaQuote = quotesToUse.find((q: ProviderQuote) => q.ramp?.toLowerCase() === 'banxa');
+        if (banxaQuote) {
+          console.log(`🔍 [BUYMODAL] BANXA quote structure:`, {
+            ramp: banxaQuote.ramp,
+            paymentMethod: banxaQuote.paymentMethod,
+            payout: banxaQuote.payout,
+            rate: banxaQuote.rate,
+            networkFee: banxaQuote.networkFee,
+            transactionFee: banxaQuote.transactionFee,
+            hasErrors: !!(banxaQuote.errors && banxaQuote.errors.length > 0),
+            errors: banxaQuote.errors
+          });
+        }
         setProviderQuotes(quotesToUse);
         
         // Select best provider using smart selection (with user preferences)
