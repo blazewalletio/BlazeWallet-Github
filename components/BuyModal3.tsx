@@ -1743,9 +1743,6 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
                           })}
                         </div>
                       )}
-                      <p className="text-xs text-gray-500 mt-2">
-                        💡 iDEAL is not available (no providers support it)
-                      </p>
                     </div>
                     
                     <div className="flex gap-3">
