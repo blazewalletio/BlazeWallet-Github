@@ -181,39 +181,44 @@ export async function GET(req: NextRequest) {
         filteredQuotes = quotes.filter((q: any) => {
         const ramp = q.ramp || 'unknown';
         
-        // ⚠️ CRITICAL: PRIMARY CHECK - If quote has the payment method set, it's supported
-        // This is the most reliable check - if Onramper returned a quote with paymentMethod set,
-        // it means the provider supports it (even if there are minor errors)
-        if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower) {
-          // ⚠️ CRITICAL: If Onramper explicitly set paymentMethod to the requested method,
-          // we should trust that Onramper knows what it's doing, even if:
-          // 1. The payment method is not in availableMethods (might be incomplete data)
-          // 2. There are errors (might be temporary or misleading)
-          // 
-          // The fact that Onramper returned a quote with paymentMethod='ideal' means
-          // Onramper believes the provider supports it. We should trust Onramper's judgment.
-          logger.error(`   ✅ ${ramp}: PRIMARY CHECK PASSED - paymentMethod=${q.paymentMethod} matches requested ${paymentMethodLower} (trusting Onramper's paymentMethod field)`);
-          return true; // Onramper explicitly set paymentMethod - trust it!
-        }
-        
-        // ⚠️ CRITICAL: Skip quotes with payment-method-specific errors (provider doesn't support this payment method)
+        // ⚠️ CRITICAL: FIRST CHECK - Reject quotes with payment-method-specific errors
+        // This MUST come BEFORE the PRIMARY CHECK, because Onramper sometimes returns
+        // quotes with paymentMethod set BUT with errors saying the payment method isn't supported.
+        // Example: BANXA returns paymentMethod='ideal' but error says "banxa does not support Payment Method to be ideal"
         if (q.errors && q.errors.length > 0) {
           const hasPaymentMethodError = q.errors.some((err: any) => {
             const errorMsg = (err.message || '').toLowerCase();
             const errorType = (err.type || '').toLowerCase();
+            const errorParam = (err.parameter || '').toLowerCase();
+            
+            // Check for explicit payment method rejection errors
             return errorMsg.includes('does not support payment method') ||
+                   errorMsg.includes('does not support payment method to be') ||
                    errorMsg.includes('payment method not supported') ||
                    errorMsg.includes('payment type not supported') ||
+                   (errorType === 'quoteparametermismatch' && errorParam.includes('payment method')) ||
                    errorType === 'paymentmethodnotsupported';
           });
           
           if (hasPaymentMethodError) {
             // This provider definitely doesn't support the payment method
-            logger.error(`   ❌ ${ramp}: Has payment-method-specific error, rejecting`);
+            // Even if paymentMethod is set, the error takes precedence
+            logger.error(`   ❌ ${ramp}: Has payment-method-specific error, rejecting (error takes precedence over paymentMethod field)`);
             return false;
           }
           // Other errors (rate limits, temporary issues, etc.) are OK - continue checking
-          logger.error(`   ⚠️ ${ramp}: Has non-payment errors (${q.errors.length}), continuing to check availablePaymentMethods`);
+          logger.error(`   ⚠️ ${ramp}: Has non-payment errors (${q.errors.length}), continuing to check paymentMethod and availablePaymentMethods`);
+        }
+        
+        // ⚠️ CRITICAL: PRIMARY CHECK - If quote has the payment method set AND no payment-method errors, it's supported
+        // This is the most reliable check - if Onramper returned a quote with paymentMethod set
+        // AND no errors saying it's not supported, it means the provider supports it
+        if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower) {
+          // ⚠️ CRITICAL: If Onramper explicitly set paymentMethod to the requested method
+          // AND we've already checked that there are no payment-method-specific errors,
+          // we can trust that Onramper knows what it's doing
+          logger.error(`   ✅ ${ramp}: PRIMARY CHECK PASSED - paymentMethod=${q.paymentMethod} matches requested ${paymentMethodLower} (no payment-method errors, trusting Onramper's paymentMethod field)`);
+          return true; // Onramper explicitly set paymentMethod and no errors - trust it!
         }
         
         // ⚠️ CRITICAL: Check availablePaymentMethods array (this is the fallback check)
