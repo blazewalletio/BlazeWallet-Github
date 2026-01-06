@@ -626,9 +626,12 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                   quotesToUse = anyValidQuotes;
                   setUsingFallbackQuotes(true);
                   setFallbackPaymentMethod(null); // Unknown fallback
-                  toast.warning(
+                  toast(
                     `Showing available quotes. ${paymentMethod} may not be supported, but you can still try to proceed.`,
-                    { duration: 5000 }
+                    { 
+                      duration: 5000,
+                      icon: '⚠️'
+                    }
                   );
                 } else {
                   // Really no quotes available
