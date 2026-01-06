@@ -129,22 +129,26 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // ⚠️ CRITICAL: 0 quotes is a VALID response (no providers available for this combination)
+    // Return 200 with empty array instead of 500 error
+    // This allows the frontend to handle "no quotes" gracefully
     if (quotes.length === 0) {
-      // CRITICAL: No fallback - we MUST use real Onramper rates
-      logger.error('❌ Onramper API returned empty quotes array', {
+      logger.log('⚠️ Onramper API returned empty quotes array (valid - no providers available)', {
         quoteError: quoteError?.message,
         fiatAmount,
         fiatCurrency,
         cryptoCurrency,
+        paymentMethod: paymentMethod || 'any',
       });
-      return NextResponse.json(
-        { 
-          error: 'Failed to fetch quotes from Onramper',
-          message: quoteError?.message || 'No quotes available. Please try again or contact support.',
-          details: quoteError?.message,
-        },
-        { status: 500 }
-      );
+      return NextResponse.json({ 
+        success: true, 
+        quotes: [],
+        paymentMethod: paymentMethod || '',
+        quoteCount: 0,
+        message: paymentMethod 
+          ? `No providers available for ${paymentMethod} with ${cryptoCurrency}`
+          : `No quotes available for ${cryptoCurrency}`,
+      });
     }
 
     logger.log(`✅ Onramper quotes received: ${quotes.length} providers`);

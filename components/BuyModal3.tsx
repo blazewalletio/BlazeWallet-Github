@@ -265,19 +265,28 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
   // ⚠️ NEW: Check payment method availability for selected crypto
   const checkPaymentMethodAvailability = async (crypto: string, paymentMethodId: string): Promise<boolean> => {
     try {
-      setCheckingAvailability(true);
       const url = `/api/onramper/quotes?fiatAmount=250&fiatCurrency=${fiatCurrency}&cryptoCurrency=${crypto}&paymentMethod=${paymentMethodId}`;
       const response = await fetch(url);
+      
+      // ⚠️ CRITICAL: Check response status - 200 means API worked (even if 0 quotes)
+      if (!response.ok) {
+        console.log(`❌ [AVAILABILITY] ${paymentMethodId} with ${crypto}: API error ${response.status}`);
+        return false;
+      }
+      
       const data = await response.json();
       
-      if (data.success && data.quotes && data.quotes.length > 0) {
+      // ⚠️ CRITICAL: success=true means API worked, quotes.length > 0 means providers available
+      if (data.success && Array.isArray(data.quotes) && data.quotes.length > 0) {
+        console.log(`✅ [AVAILABILITY] ${paymentMethodId} with ${crypto}: ${data.quotes.length} providers available`);
         return true;
       }
+      
+      console.log(`⚠️ [AVAILABILITY] ${paymentMethodId} with ${crypto}: 0 providers (valid - not available)`);
       return false;
-    } catch (error) {
+    } catch (error: any) {
+      console.error(`❌ [AVAILABILITY] ${paymentMethodId} with ${crypto}: Error:`, error.message);
       return false;
-    } finally {
-      setCheckingAvailability(false);
     }
   };
 
@@ -302,24 +311,41 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
   useEffect(() => {
     if (cryptoCurrency && flowStep === 'payment' && paymentMethods.length > 0) {
       const updateAvailability = async () => {
+        console.log(`🔄 [AVAILABILITY] Starting availability check for ${cryptoCurrency}...`);
         setCheckingAvailability(true);
         const available = new Set<string>();
         const reasons: Record<string, string> = {};
         
-        // Check each payment method
-        for (const pm of paymentMethods) {
-          try {
-            const isAvailable = await checkPaymentMethodAvailability(cryptoCurrency, pm.id);
-            if (isAvailable) {
-              available.add(pm.id);
-            } else {
-              reasons[pm.id] = `No providers available for ${pm.name} with ${cryptoCurrency}`;
+        // ⚠️ OPTIMIZATION: Check payment methods in parallel (but with rate limiting)
+        // Process in batches of 3 to avoid overwhelming the API
+        const batchSize = 3;
+        for (let i = 0; i < paymentMethods.length; i += batchSize) {
+          const batch = paymentMethods.slice(i, i + batchSize);
+          const batchPromises = batch.map(async (pm) => {
+            try {
+              const isAvailable = await checkPaymentMethodAvailability(cryptoCurrency, pm.id);
+              if (isAvailable) {
+                available.add(pm.id);
+                console.log(`✅ [AVAILABILITY] ${pm.name} (${pm.id}): Available`);
+              } else {
+                reasons[pm.id] = `No providers available for ${pm.name} with ${cryptoCurrency}`;
+                console.log(`⚠️ [AVAILABILITY] ${pm.name} (${pm.id}): Not available`);
+              }
+            } catch (error: any) {
+              reasons[pm.id] = `Error checking availability for ${pm.name}`;
+              console.error(`❌ [AVAILABILITY] ${pm.name} (${pm.id}): Error:`, error.message);
             }
-          } catch (error) {
-            reasons[pm.id] = `Error checking availability for ${pm.name}`;
+          });
+          
+          await Promise.all(batchPromises);
+          
+          // Small delay between batches to avoid rate limiting
+          if (i + batchSize < paymentMethods.length) {
+            await new Promise(resolve => setTimeout(resolve, 200));
           }
         }
         
+        console.log(`✅ [AVAILABILITY] Check complete: ${available.size}/${paymentMethods.length} methods available`);
         setAvailablePaymentMethods(available);
         setUnavailableReasons(reasons);
         setCheckingAvailability(false);
