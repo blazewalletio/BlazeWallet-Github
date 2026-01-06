@@ -94,9 +94,8 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    if (!quotes || quotes.length === 0) {
-      // CRITICAL: No fallback - we MUST use real Onramper rates
-      logger.error('❌ Onramper API failed - cannot return quotes without real rates', {
+    if (!quotes) {
+      logger.error('❌ Onramper API returned null/undefined quotes', {
         quoteError: quoteError?.message,
         fiatAmount,
         fiatCurrency,
@@ -112,29 +111,70 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Ensure quotes is an array
+    if (!Array.isArray(quotes)) {
+      logger.error('❌ Onramper API returned non-array quotes:', {
+        quotesType: typeof quotes,
+        quotesValue: JSON.stringify(quotes).substring(0, 200),
+        fiatAmount,
+        fiatCurrency,
+        cryptoCurrency,
+      });
+      return NextResponse.json(
+        { 
+          error: 'Invalid quotes format from Onramper',
+          message: 'Received invalid data format from Onramper API.',
+        },
+        { status: 500 }
+      );
+    }
+
+    if (quotes.length === 0) {
+      // CRITICAL: No fallback - we MUST use real Onramper rates
+      logger.error('❌ Onramper API returned empty quotes array', {
+        quoteError: quoteError?.message,
+        fiatAmount,
+        fiatCurrency,
+        cryptoCurrency,
+      });
+      return NextResponse.json(
+        { 
+          error: 'Failed to fetch quotes from Onramper',
+          message: quoteError?.message || 'No quotes available. Please try again or contact support.',
+          details: quoteError?.message,
+        },
+        { status: 500 }
+      );
+    }
+
     logger.log(`✅ Onramper quotes received: ${quotes.length} providers`);
     logger.log(`📊 Payment method requested: ${paymentMethod || 'none'}`);
     
     // Log all providers and their payment methods BEFORE filtering
-    if (paymentMethod) {
-      logger.log(`🔍 BEFORE FILTERING - All providers:`, quotes.map((q: any) => ({
-        ramp: q.ramp,
-        paymentMethod: q.paymentMethod,
-        hasErrors: !!(q.errors && q.errors.length > 0),
-        availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || []
-      })));
+    if (paymentMethod && Array.isArray(quotes)) {
+      try {
+        logger.log(`🔍 BEFORE FILTERING - All providers:`, quotes.map((q: any) => ({
+          ramp: q.ramp,
+          paymentMethod: q.paymentMethod,
+          hasErrors: !!(q.errors && q.errors.length > 0),
+          availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || []
+        })));
+      } catch (logError: any) {
+        logger.error('Error logging before filtering:', logError.message);
+      }
     }
     
     // ⚠️ CRITICAL: Hard filter by payment method support if payment method is specified
     // This ensures frontend ONLY receives providers that actually support the payment method
     let filteredQuotes = quotes;
     if (paymentMethod) {
-      const paymentMethodLower = paymentMethod.toLowerCase();
-      const isIdeal = paymentMethodLower.includes('ideal');
-      
-      logger.log(`🔍 Starting filter for payment method: ${paymentMethod} (isIdeal: ${isIdeal})`);
-      
-      filteredQuotes = quotes.filter((q: any) => {
+      try {
+        const paymentMethodLower = paymentMethod.toLowerCase();
+        const isIdeal = paymentMethodLower.includes('ideal');
+        
+        logger.log(`🔍 Starting filter for payment method: ${paymentMethod} (isIdeal: ${isIdeal})`);
+        
+        filteredQuotes = quotes.filter((q: any) => {
         // Skip quotes with errors
         if (q.errors && q.errors.length > 0) {
           return false;
@@ -166,33 +206,63 @@ export async function GET(req: NextRequest) {
         
         const result = supportsMethod;
         if (!result) {
-          logger.log(`   ❌ Filtered out ${q.ramp}: paymentMethod=${q.paymentMethod}, availableMethods=${JSON.stringify(methods.map((pm: any) => pm.paymentTypeId || pm.id))}`);
+          try {
+            const methodIds = methods.map((pm: any) => pm.paymentTypeId || pm.id).filter(Boolean);
+            logger.log(`   ❌ Filtered out ${q.ramp}: paymentMethod=${q.paymentMethod || 'none'}, availableMethods=${methodIds.join(', ')}`);
+          } catch (logError: any) {
+            logger.log(`   ❌ Filtered out ${q.ramp}`);
+          }
         }
         return result;
       });
       
       logger.log(`🔍 AFTER FILTERING: ${quotes.length} → ${filteredQuotes.length} providers for "${paymentMethod}"`);
       
-      // Log which providers were filtered out
-      const filteredOut = quotes.filter(q => !filteredQuotes.includes(q));
-      if (filteredOut.length > 0) {
-        logger.log(`   ❌ Filtered out ${filteredOut.length} providers: ${filteredOut.map((q: any) => q.ramp).join(', ')}`);
+      // Log which providers were filtered out (using ramp comparison instead of object comparison)
+      try {
+        const filteredOutRamps = quotes
+          .map((q: any) => q.ramp)
+          .filter((ramp: string) => !filteredQuotes.some((fq: any) => fq.ramp === ramp));
+        
+        if (filteredOutRamps.length > 0) {
+          logger.log(`   ❌ Filtered out ${filteredOutRamps.length} providers: ${filteredOutRamps.join(', ')}`);
+        }
+        
+        if (filteredQuotes.length > 0) {
+          logger.log(`   ✅ Providers with ${paymentMethod} support (${filteredQuotes.length}): ${filteredQuotes.map((q: any) => q.ramp).join(', ')}`);
+          try {
+            logger.log(`   ✅ Filtered quotes details:`, filteredQuotes.map((q: any) => ({
+              ramp: q.ramp,
+              paymentMethod: q.paymentMethod,
+              availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || []
+            })));
+          } catch (logError: any) {
+            logger.log(`   ✅ Filtered quotes: ${filteredQuotes.map((q: any) => q.ramp).join(', ')}`);
+          }
+        } else {
+          logger.error(`   ❌ NO PROVIDERS FOUND supporting ${paymentMethod}!`);
+          try {
+            logger.error(`   ❌ All original quotes:`, quotes.map((q: any) => ({
+              ramp: q.ramp,
+              paymentMethod: q.paymentMethod,
+              availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || [],
+              hasErrors: !!(q.errors && q.errors.length > 0)
+            })));
+          } catch (logError: any) {
+            logger.error(`   ❌ All original quotes: ${quotes.map((q: any) => q.ramp).join(', ')}`);
+          }
+        }
+      } catch (logError: any) {
+        logger.error('Error in filtering logs:', logError.message);
       }
-      if (filteredQuotes.length > 0) {
-        logger.log(`   ✅ Providers with ${paymentMethod} support (${filteredQuotes.length}): ${filteredQuotes.map((q: any) => q.ramp).join(', ')}`);
-        logger.log(`   ✅ Filtered quotes details:`, filteredQuotes.map((q: any) => ({
-          ramp: q.ramp,
-          paymentMethod: q.paymentMethod,
-          availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || []
-        })));
-      } else {
-        logger.error(`   ❌ NO PROVIDERS FOUND supporting ${paymentMethod}!`);
-        logger.error(`   ❌ All original quotes:`, quotes.map((q: any) => ({
-          ramp: q.ramp,
-          paymentMethod: q.paymentMethod,
-          availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || [],
-          hasErrors: !!(q.errors && q.errors.length > 0)
-        })));
+      } catch (filterError: any) {
+        logger.error('❌ Error filtering quotes by payment method:', {
+          error: filterError.message,
+          stack: filterError.stack,
+          paymentMethod,
+        });
+        // Fallback: return all quotes if filtering fails (better than crashing)
+        filteredQuotes = quotes;
       }
     }
     
