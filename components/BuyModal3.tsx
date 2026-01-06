@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Loader2, AlertCircle, CheckCircle2, ArrowRight, Flame, CreditCard, TestTube, Copy, Check, TrendingUp, Shield, Star, Award, Info, History } from 'lucide-react';
+import { X, Loader2, AlertCircle, CheckCircle2, ArrowRight, CreditCard, Shield, Info, History } from 'lucide-react';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { useWalletStore } from '@/lib/wallet-store';
 import { CHAINS } from '@/lib/chains';
@@ -68,11 +68,6 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
   const [availableCryptosSet, setAvailableCryptosSet] = useState<Set<string>>(new Set());
   const [unavailableReasons, setUnavailableReasons] = useState<Record<string, string>>({});
   
-  // Test & Debug state
-  const [showTestPanel, setShowTestPanel] = useState(false);
-  const [testLogs, setTestLogs] = useState<string[]>([]);
-  const [isTesting, setIsTesting] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   // Form state
   const [fiatAmount, setFiatAmount] = useState('100');
@@ -1074,499 +1069,6 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
     }
   };
 
-  // 🔍 Debug Onramper function - Diagnose iDEAL and payment method issues
-  const runOnramperDebug = async () => {
-    setIsTesting(true);
-    setTestLogs([]);
-    const logs: string[] = [];
-    
-    const addLog = (message: string, type: 'info' | 'success' | 'error' | 'warning' = 'info') => {
-      const timestamp = new Date().toISOString();
-      const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
-      const logEntry = `[${timestamp}] ${prefix} ${message}`;
-      logs.push(logEntry);
-      setTestLogs([...logs]);
-      console.log(logEntry);
-    };
-
-    try {
-      addLog('🔍 Starting Onramper Debug Diagnostics...', 'info');
-      addLog('This will test country detection, payment methods, and iDEAL support', 'info');
-      addLog('', 'info');
-
-      // Call debug endpoint
-      addLog('Calling /api/onramper/debug endpoint...', 'info');
-      const debugUrl = `/api/onramper/debug?fiatAmount=${fiatAmount || 100}&fiatCurrency=${fiatCurrency || 'EUR'}&cryptoCurrency=${cryptoCurrency || 'ETH'}&paymentMethod=${paymentMethod || 'ideal'}`;
-      addLog(`URL: ${debugUrl}`, 'info');
-      
-      const debugResponse = await fetch(debugUrl);
-      const debugData = await debugResponse.json();
-
-      if (!debugResponse.ok || !debugData.success) {
-        addLog(`ERROR: Debug endpoint failed`, 'error');
-        addLog(`Response: ${JSON.stringify(debugData, null, 2)}`, 'error');
-        return;
-      }
-
-      addLog('', 'info');
-      addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
-      addLog('📊 DEBUG RESULTS', 'success');
-      addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
-      addLog('', 'info');
-
-      // Display summary
-      if (debugData.summary) {
-        addLog('SUMMARY:', 'info');
-        addLog(`  Detected Country: ${debugData.summary.detectedCountry || 'NOT DETECTED'}`, 
-          debugData.summary.detectedCountry ? 'success' : 'warning');
-        addLog(`  Valid Quotes (with ${paymentMethod || 'ideal'}): ${debugData.summary.validQuotesWithMethod} / ${debugData.summary.totalProviders}`,
-          debugData.summary.validQuotesWithMethod > 0 ? 'success' : 'error');
-        
-        if (debugData.summary.diagnosis && debugData.summary.diagnosis.length > 0) {
-          addLog('', 'info');
-          addLog('DIAGNOSIS:', 'warning');
-          debugData.summary.diagnosis.forEach((issue: string) => {
-            addLog(`  ${issue}`, issue.startsWith('✅') ? 'success' : issue.startsWith('❌') ? 'error' : 'warning');
-          });
-        }
-      }
-
-      addLog('', 'info');
-      addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
-      addLog('📋 DETAILED LOGS', 'info');
-      addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
-      addLog('', 'info');
-
-      // Display all debug logs
-      if (debugData.logs && Array.isArray(debugData.logs)) {
-        debugData.logs.forEach((log: any) => {
-          addLog(`[${log.section}]`, 'info');
-          addLog(JSON.stringify(log.data, null, 2), 'info');
-          addLog('', 'info');
-        });
-      }
-
-      addLog('', 'info');
-      addLog('✅ Debug diagnostics completed!', 'success');
-      addLog('', 'info');
-      addLog('📋 Copy these logs and share them for debugging', 'info');
-
-    } catch (error: any) {
-      addLog(`FATAL ERROR: ${error.message}`, 'error');
-      addLog(`Stack: ${error.stack}`, 'error');
-    } finally {
-      setIsTesting(false);
-    }
-  };
-
-  // Comprehensive test function
-  const runComprehensiveTest = async () => {
-    setIsTesting(true);
-    setTestLogs([]);
-    const logs: string[] = [];
-    
-    const addLog = (message: string, type: 'info' | 'success' | 'error' | 'warning' = 'info') => {
-      const timestamp = new Date().toISOString();
-      const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
-      const logEntry = `[${timestamp}] ${prefix} ${message}`;
-      logs.push(logEntry);
-      setTestLogs([...logs]);
-      console.log(logEntry);
-    };
-
-    try {
-      addLog('🚀 Starting comprehensive Onramper integration test...', 'info');
-      addLog('', 'info');
-
-      // Test 1: Check wallet address
-      addLog('Test 1: Checking wallet address...', 'info');
-      const walletAddress = getCurrentAddress();
-      if (!walletAddress) {
-        addLog('ERROR: No wallet address found!', 'error');
-        return;
-      }
-      addLog(`SUCCESS: Wallet address found: ${walletAddress.substring(0, 10)}...`, 'success');
-      addLog('', 'info');
-
-      // Test 2: Check current form values
-      addLog('Test 2: Checking form values...', 'info');
-      addLog(`  Fiat Amount: ${fiatAmount}`, 'info');
-      addLog(`  Fiat Currency: ${fiatCurrency}`, 'info');
-      addLog(`  Crypto Currency: ${cryptoCurrency || 'NOT SET'}`, cryptoCurrency ? 'success' : 'error');
-      addLog(`  Payment Method: ${paymentMethod || 'NOT SET'}`, paymentMethod ? 'success' : 'warning');
-      addLog('', 'info');
-
-      // Test 3: Test /api/onramper/supported-data
-      addLog('Test 3: Testing /api/onramper/supported-data endpoint...', 'info');
-      try {
-        const supportedDataResponse = await fetch('/api/onramper/supported-data');
-        const supportedData = await supportedDataResponse.json();
-        if (supportedDataResponse.ok && supportedData.success) {
-          addLog(`SUCCESS: Supported data fetched`, 'success');
-          // Response structure: paymentMethods, fiatCurrencies, cryptoCurrencies are direct properties
-          const paymentMethods = supportedData.paymentMethods || supportedData.data?.paymentMethods || [];
-          const fiatCurrencies = supportedData.fiatCurrencies || supportedData.data?.fiatCurrencies || [];
-          const cryptoCurrencies = supportedData.cryptoCurrencies || supportedData.data?.cryptoCurrencies || [];
-          addLog(`  Payment Methods: ${paymentMethods.length}`, 'info');
-          if (paymentMethods.length > 0) {
-            paymentMethods.forEach((pm: any, idx: number) => {
-              addLog(`    ${idx + 1}. ${pm.id} - ${pm.name} (${pm.processingTime}, ${pm.fee})`, 'info');
-            });
-          }
-          addLog(`  Fiat Currencies: ${fiatCurrencies.length}`, 'info');
-          if (fiatCurrencies.length > 0) {
-            addLog(`    ${fiatCurrencies.join(', ')}`, 'info');
-          }
-          addLog(`  Crypto Currencies: ${cryptoCurrencies.length}`, 'info');
-          if (cryptoCurrencies.length > 0) {
-            addLog(`    ${cryptoCurrencies.join(', ')}`, 'info');
-          }
-          addLog(`  Full Response: ${JSON.stringify(supportedData, null, 2)}`, 'info');
-        } else {
-          addLog(`ERROR: ${supportedData.error || 'Unknown error'}`, 'error');
-          addLog(`  Response: ${JSON.stringify(supportedData, null, 2)}`, 'error');
-        }
-      } catch (err: any) {
-        addLog(`ERROR: Failed to fetch supported data: ${err.message}`, 'error');
-        addLog(`  Stack: ${err.stack}`, 'error');
-      }
-      addLog('', 'info');
-
-      // Test 4: Test /api/onramper/quotes (MULTI-PROVIDER)
-      addLog('Test 4: Testing /api/onramper/quotes endpoint (MULTI-PROVIDER)...', 'info');
-      if (!cryptoCurrency) {
-        addLog('WARNING: Skipping quote test - no crypto currency selected', 'warning');
-      } else {
-        try {
-          const quoteUrl = `/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${fiatCurrency}&cryptoCurrency=${cryptoCurrency}${paymentMethod ? `&paymentMethod=${paymentMethod}` : ''}`;
-          addLog(`  URL: ${quoteUrl}`, 'info');
-          const quoteResponse = await fetch(quoteUrl);
-          const quoteData = await quoteResponse.json();
-          if (quoteResponse.ok && quoteData.success) {
-            addLog(`SUCCESS: Multi-provider quotes fetched`, 'success');
-            
-            // NEW: Response is now an array of quotes from all providers
-            const quotes = quoteData.quotes || [];
-            addLog(`  Total Providers: ${quotes.length}`, 'info');
-            
-            if (quotes.length > 0) {
-              const validQuotes = quotes.filter((q: any) => !q.errors || q.errors.length === 0);
-              const invalidQuotes = quotes.filter((q: any) => q.errors && q.errors.length > 0);
-              
-              addLog(`  Valid Quotes: ${validQuotes.length}`, validQuotes.length > 0 ? 'success' : 'warning');
-              addLog(`  Invalid Quotes (errors): ${invalidQuotes.length}`, invalidQuotes.length > 0 ? 'warning' : 'info');
-              
-              // Show each provider quote
-              quotes.forEach((q: any, idx: number) => {
-                if (q.errors && q.errors.length > 0) {
-                  addLog(`    ${idx + 1}. ${q.ramp} - ERROR: ${q.errors[0]?.message || 'Unknown error'}`, 'error');
-                } else {
-                  addLog(`    ${idx + 1}. ${q.ramp} - ${q.payout ? parseFloat(q.payout.toString()).toFixed(6) : 'N/A'} ${cryptoCurrency}`, 'success');
-                  if (q.recommendations && q.recommendations.length > 0) {
-                    addLog(`       Recommendations: ${q.recommendations.join(', ')}`, 'info');
-                  }
-                  if (q.rate) {
-                    addLog(`       Rate: ${q.rate}`, 'info');
-                  }
-                  if (q.networkFee || q.transactionFee) {
-                    addLog(`       Fees: Network ${q.networkFee || 0}, Transaction ${q.transactionFee || 0}`, 'info');
-                  }
-                }
-              });
-            } else {
-              addLog(`  WARNING: No quotes returned`, 'warning');
-            }
-            
-            addLog(`  Full Response: ${JSON.stringify(quoteData, null, 2)}`, 'info');
-          } else {
-            addLog(`ERROR: ${quoteData.error || 'Unknown error'}`, 'error');
-            addLog(`  Response: ${JSON.stringify(quoteData, null, 2)}`, 'error');
-          }
-        } catch (err: any) {
-          addLog(`ERROR: Failed to fetch quotes: ${err.message}`, 'error');
-          addLog(`  Stack: ${err.stack}`, 'error');
-        }
-      }
-      addLog('', 'info');
-
-      // Test 4.5: Test Provider Selection Logic
-      addLog('Test 4.5: Testing Provider Selection Logic...', 'info');
-      if (!cryptoCurrency) {
-        addLog('WARNING: Skipping - no crypto currency selected', 'warning');
-      } else if (!paymentMethod) {
-        addLog('WARNING: Skipping - no payment method selected', 'warning');
-      } else {
-        try {
-          // Get quotes first
-          const quotesUrl = `/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${fiatCurrency}&cryptoCurrency=${cryptoCurrency}&paymentMethod=${paymentMethod}`;
-          const quotesResponse = await fetch(quotesUrl);
-          const quotesData = await quotesResponse.json();
-          
-          if (quotesResponse.ok && quotesData.success && quotesData.quotes) {
-            const quotes = quotesData.quotes;
-            addLog(`  Fetched ${quotes.length} provider quotes`, 'success');
-            
-            // Test provider selection
-            if (userId) {
-              addLog(`  User ID: ${userId}`, 'info');
-              
-              // Get user preferences
-              const preferences = await UserOnRampPreferencesService.get(userId);
-              if (preferences) {
-                addLog(`  User Preferences:`, 'info');
-                addLog(`    Preferred Provider: ${preferences.preferredProvider || 'None'}`, 'info');
-                addLog(`    Verified Providers: ${preferences.verifiedProviders?.join(', ') || 'None'}`, 'info');
-                addLog(`    Last Used Provider: ${preferences.lastUsedProvider || 'None'}`, 'info');
-              } else {
-                addLog(`  No user preferences found (new user)`, 'info');
-              }
-              
-              // Test provider selection
-              try {
-                const selection = await ProviderSelector.selectProvider(quotes, userId, paymentMethod);
-                addLog(`  Provider Selection Result:`, 'success');
-                addLog(`    Selected Provider: ${selection.quote.ramp}`, 'success');
-                addLog(`    Reason: ${selection.reason}`, 'info');
-                addLog(`    Show Comparison: ${selection.showComparison ? 'Yes' : 'No'}`, 'info');
-                if (selection.comparisonQuotes) {
-                  addLog(`    Comparison Quotes: ${selection.comparisonQuotes.length}`, 'info');
-                }
-                if (selection.quote.payout) {
-                  addLog(`    Payout: ${parseFloat(selection.quote.payout.toString()).toFixed(6)} ${cryptoCurrency}`, 'info');
-                }
-              } catch (selectionError: any) {
-                addLog(`  ERROR: Provider selection failed: ${selectionError.message}`, 'error');
-              }
-            } else {
-              addLog(`  No user ID (guest user) - will select best rate`, 'info');
-              try {
-                const selection = await ProviderSelector.selectProvider(quotes, null, paymentMethod);
-                addLog(`  Provider Selection Result:`, 'success');
-                addLog(`    Selected Provider: ${selection.quote.ramp}`, 'success');
-                addLog(`    Reason: ${selection.reason}`, 'info');
-              } catch (selectionError: any) {
-                addLog(`  ERROR: Provider selection failed: ${selectionError.message}`, 'error');
-              }
-            }
-          } else {
-            addLog(`  ERROR: Could not fetch quotes for provider selection test`, 'error');
-          }
-        } catch (err: any) {
-          addLog(`  ERROR: ${err.message}`, 'error');
-          addLog(`  Stack: ${err.stack}`, 'error');
-        }
-      }
-      addLog('', 'info');
-
-      // Test 5: Test /api/onramper/checkout-intent (REQUIRES onramp parameter)
-      addLog('Test 5: Testing /api/onramper/checkout-intent endpoint (NEW: requires onramp)...', 'info');
-      if (!paymentMethod) {
-        addLog('WARNING: Skipping checkout-intent test - no payment method selected', 'warning');
-      } else if (!cryptoCurrency) {
-        addLog('WARNING: Skipping checkout-intent test - no crypto currency selected', 'warning');
-      } else {
-        try {
-          // First, get quotes and select a provider
-          addLog(`  Step 1: Fetching quotes to select provider...`, 'info');
-          const quotesUrl = `/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${fiatCurrency}&cryptoCurrency=${cryptoCurrency}&paymentMethod=${paymentMethod}`;
-          const quotesResponse = await fetch(quotesUrl);
-          const quotesData = await quotesResponse.json();
-          
-          let selectedProvider = 'banxa'; // Fallback
-          
-          if (quotesResponse.ok && quotesData.success && quotesData.quotes) {
-            const quotes = quotesData.quotes;
-            const validQuotes = quotes.filter((q: any) => !q.errors || q.errors.length === 0);
-            
-            if (validQuotes.length > 0) {
-              // Select provider using ProviderSelector
-              try {
-                const selection = await ProviderSelector.selectProvider(quotes, userId, paymentMethod);
-                selectedProvider = selection.quote.ramp;
-                addLog(`  ✅ Selected Provider: ${selectedProvider} (Reason: ${selection.reason})`, 'success');
-              } catch (selectionError: any) {
-                // Fallback: use first valid quote
-                selectedProvider = validQuotes[0].ramp;
-                addLog(`  ⚠️ Provider selection failed, using first valid: ${selectedProvider}`, 'warning');
-              }
-            } else {
-              addLog(`  ⚠️ No valid quotes, using fallback provider: ${selectedProvider}`, 'warning');
-            }
-          } else {
-            addLog(`  ⚠️ Could not fetch quotes, using fallback provider: ${selectedProvider}`, 'warning');
-          }
-          
-          // Now test checkout-intent with selected provider
-          addLog(`  Step 2: Testing checkout-intent with provider "${selectedProvider}"...`, 'info');
-          const checkoutIntentBody = {
-            fiatAmount: parseFloat(fiatAmount),
-            fiatCurrency,
-            cryptoCurrency,
-            walletAddress,
-            paymentMethod,
-            onramp: selectedProvider, // REQUIRED: Provider name
-          };
-          addLog(`  Request Body: ${JSON.stringify(checkoutIntentBody, null, 2)}`, 'info');
-          addLog(`  ⚠️ IMPORTANT: onramp parameter is now REQUIRED (was optional before)`, 'warning');
-          
-          const checkoutResponse = await fetch('/api/onramper/checkout-intent', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(checkoutIntentBody),
-          });
-          
-          const checkoutData = await checkoutResponse.json();
-          if (checkoutResponse.ok && checkoutData.success) {
-            addLog(`SUCCESS: Checkout intent created`, 'success');
-            addLog(`  Transaction ID: ${checkoutData.transactionInformation?.transactionId}`, 'info');
-            addLog(`  Type: ${checkoutData.transactionInformation?.type}`, 'info');
-            addLog(`  Provider: ${selectedProvider}`, 'info');
-            addLog(`  URL: ${checkoutData.transactionInformation?.url?.substring(0, 100)}...`, 'info');
-            addLog(`  Full Response: ${JSON.stringify(checkoutData, null, 2)}`, 'info');
-          } else {
-            addLog(`ERROR: ${checkoutData.error || checkoutData.message || 'Unknown error'}`, 'error');
-            addLog(`  Status: ${checkoutResponse.status}`, 'error');
-            addLog(`  Full Response: ${JSON.stringify(checkoutData, null, 2)}`, 'error');
-            addLog(`  ⚠️ This error usually means:`, 'warning');
-            addLog(`    1. Provider "${selectedProvider}" doesn't support "${paymentMethod}"`, 'warning');
-            addLog(`    2. Missing onramp parameter (now REQUIRED)`, 'warning');
-            addLog(`    3. API key or secret key missing`, 'warning');
-            addLog(`    4. Check Vercel logs for detailed error info`, 'warning');
-          }
-        } catch (err: any) {
-          addLog(`ERROR: Failed to create checkout intent: ${err.message}`, 'error');
-          addLog(`  Stack: ${err.stack}`, 'error');
-        }
-      }
-      addLog('', 'info');
-
-      // Test 6: Test User Preferences System
-      addLog('Test 6: Testing User Preferences System...', 'info');
-      if (userId) {
-        try {
-          addLog(`  User ID: ${userId}`, 'info');
-          
-          // Get current preferences
-          const preferences = await UserOnRampPreferencesService.get(userId);
-          if (preferences) {
-            addLog(`  ✅ User preferences found:`, 'success');
-            addLog(`    Preferred Provider: ${preferences.preferredProvider || 'None'}`, 'info');
-            addLog(`    Verified Providers: ${preferences.verifiedProviders?.join(', ') || 'None'}`, 'info');
-            addLog(`    Last Used Provider: ${preferences.lastUsedProvider || 'None'}`, 'info');
-            addLog(`    Preferred Payment Method: ${preferences.preferredPaymentMethod || 'None'}`, 'info');
-            addLog(`    Last Transaction Date: ${preferences.lastTransactionDate ? new Date(preferences.lastTransactionDate).toISOString() : 'None'}`, 'info');
-          } else {
-            addLog(`  ℹ️ No preferences found (new user - will be created on first transaction)`, 'info');
-          }
-          
-          // Test isProviderVerified
-          if (preferences && preferences.verifiedProviders && preferences.verifiedProviders.length > 0) {
-            const testProvider = preferences.verifiedProviders[0];
-            const isVerified = await UserOnRampPreferencesService.isProviderVerified(userId, testProvider);
-            addLog(`  Test isProviderVerified("${testProvider}"): ${isVerified ? '✅ Verified' : '❌ Not verified'}`, isVerified ? 'success' : 'error');
-          }
-          
-          // Test getPreferredProvider
-          const preferred = await UserOnRampPreferencesService.getPreferredProvider(userId);
-          addLog(`  Preferred Provider: ${preferred || 'None'}`, preferred ? 'success' : 'info');
-        } catch (err: any) {
-          addLog(`  ERROR: ${err.message}`, 'error');
-          addLog(`  Stack: ${err.stack}`, 'error');
-        }
-      } else {
-        addLog(`  ℹ️ No user ID (guest user) - preferences not available`, 'info');
-      }
-      addLog('', 'info');
-
-      // Test 7: Test Country Detection
-      addLog('Test 7: Testing Country Detection...', 'info');
-      try {
-        // Test GeolocationService (client-side)
-        if (typeof window !== 'undefined') {
-          const savedCountry = localStorage.getItem('user_country');
-          addLog(`  Saved Country Preference: ${savedCountry || 'None'}`, 'info');
-          
-          // Note: detectCountry requires server-side request object, so we can't fully test it here
-          addLog(`  Note: Full country detection requires server-side request headers`, 'info');
-          addLog(`  Client-side: Will use saved preference or let Onramper auto-detect`, 'info');
-        }
-      } catch (err: any) {
-        addLog(`  ERROR: ${err.message}`, 'error');
-      }
-      addLog('', 'info');
-
-      // Test 8: Test Payment Method Matching
-      addLog('Test 8: Testing payment method matching logic...', 'info');
-      if (paymentMethod) {
-        addLog(`  Selected Payment Method: ${paymentMethod}`, 'info');
-        addLog(`  Payment Method Lowercase: ${paymentMethod.toLowerCase()}`, 'info');
-        addLog(`  Available Payment Methods: ${paymentMethods.length}`, 'info');
-        paymentMethods.forEach((pm, idx) => {
-          addLog(`    ${idx + 1}. ${pm.id} - ${pm.name}`, 'info');
-        });
-      } else {
-        addLog('  WARNING: No payment method selected', 'warning');
-      }
-      addLog('', 'info');
-
-      // Test 9: Network and Chain Info
-      addLog('Test 9: Checking network and chain information...', 'info');
-      if (currentChain) {
-        const chain = CHAINS[currentChain];
-        if (chain) {
-          addLog(`  Chain: ${chain.name} (ID: ${chain.id})`, 'success');
-          addLog(`  Network Code: ${OnramperService.getNetworkCode(chain.id)}`, 'info');
-          addLog(`  Default Crypto: ${OnramperService.getDefaultCrypto(chain.id)}`, 'info');
-          addLog(`  Supported Assets: ${OnramperService.getSupportedAssets(chain.id).join(', ')}`, 'info');
-        }
-      }
-      addLog('', 'info');
-
-      // Test 10: Summary of New Features
-      addLog('Test 10: Summary of New Multi-Provider Features...', 'info');
-      addLog('  ✅ Multi-Provider Quotes: Quotes endpoint now returns array of all providers', 'success');
-      addLog('  ✅ Smart Provider Selection: Selects provider based on user preferences', 'success');
-      addLog('  ✅ User Preferences: Tracks verified and preferred providers', 'success');
-      addLog('  ✅ KYC Reuse: Verified providers are prioritized to avoid repeated KYC', 'success');
-      addLog('  ✅ Country Auto-Detection: Automatically detects user country', 'success');
-      addLog('  ✅ Provider Comparison UI: Shows all providers with badges', 'success');
-      addLog('  ✅ Transaction Tracking: Updates preferences after successful transactions', 'success');
-      addLog('  ✅ Checkout Intent: Now requires onramp parameter (provider selection)', 'success');
-      addLog('', 'info');
-
-      addLog('✅ Comprehensive test completed!', 'success');
-      addLog('', 'info');
-      addLog('📋 All logs above. Copy to clipboard for debugging.', 'info');
-      addLog('', 'info');
-      addLog('🎯 NEW FEATURES TESTED:', 'info');
-      addLog('  • Multi-provider quote comparison', 'info');
-      addLog('  • Smart provider selection with preferences', 'info');
-      addLog('  • User preference tracking', 'info');
-      addLog('  • Country auto-detection', 'info');
-      addLog('  • Checkout intent with provider selection', 'info');
-
-    } catch (err: any) {
-      addLog(`FATAL ERROR: ${err.message}`, 'error');
-      addLog(`  Stack: ${err.stack}`, 'error');
-    } finally {
-      setIsTesting(false);
-    }
-  };
-
-  const copyLogsToClipboard = async () => {
-    const logsText = testLogs.join('\n');
-    try {
-      await navigator.clipboard.writeText(logsText);
-      setCopied(true);
-      toast.success('Logs copied to clipboard!');
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      toast.error('Failed to copy logs');
-    }
-  };
-
   const quickAmounts = ['50', '100', '250', '500'];
   const chain = CHAINS[currentChain];
   const supportedAssets = chain ? OnramperService.getSupportedAssets(chain.id) : [];
@@ -1594,7 +1096,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
             <div className="pt-4 pb-2">
               <button
                 onClick={onClose}
-                className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 ← Back
               </button>
@@ -1603,7 +1105,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
             <div className="mb-6">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0">
                     <CreditCard className="w-6 h-6 text-white" />
                   </div>
                   <div>
@@ -1617,116 +1119,17 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                   {onOpenPurchaseHistory && (
                     <button
                       onClick={onOpenPurchaseHistory}
-                      className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl font-semibold flex items-center gap-2 transition-all shadow-lg hover:shadow-xl"
+                      className="px-4 py-2 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-xl font-semibold flex items-center gap-2 transition-all shadow-lg hover:shadow-xl"
                       title="View purchase history"
                     >
                       <History className="w-4 h-4" />
                       History
                     </button>
                   )}
-                  <button
-                    onClick={() => setShowTestPanel(!showTestPanel)}
-                    className="px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white rounded-xl font-semibold flex items-center gap-2 transition-all shadow-lg hover:shadow-xl"
-                  >
-                    <TestTube className="w-4 h-4" />
-                    {showTestPanel ? 'Hide' : 'Show'} Test Panel
-                  </button>
                 </div>
               </div>
             </div>
 
-            {/* Test Panel */}
-            {showTestPanel && (
-              <div className="mb-6 glass-card p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-gray-900">🧪 Comprehensive Test Panel</h3>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={copyLogsToClipboard}
-                      disabled={testLogs.length === 0}
-                      className="px-3 py-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
-                    >
-                      {copied ? (
-                        <>
-                          <Check className="w-4 h-4 text-green-500" />
-                          <span>Copied!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4" />
-                          <span>Copy Logs</span>
-                        </>
-                      )}
-                    </button>
-                    <button
-                      onClick={runOnramperDebug}
-                      disabled={isTesting}
-                      className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-semibold flex items-center gap-2 transition-all shadow-lg hover:shadow-xl"
-                    >
-                      {isTesting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Debugging...</span>
-                        </>
-                      ) : (
-                        <>
-                          <AlertCircle className="w-4 h-4" />
-                          <span>🔍 Debug Onramper</span>
-                        </>
-                      )}
-                    </button>
-                    <button
-                      onClick={runComprehensiveTest}
-                      disabled={isTesting}
-                      className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-semibold flex items-center gap-2 transition-all shadow-lg hover:shadow-xl"
-                    >
-                      {isTesting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Testing...</span>
-                        </>
-                      ) : (
-                        <>
-                          <TestTube className="w-4 h-4" />
-                          <span>Run Full Test</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-                <div className="bg-gray-900 rounded-lg p-4 max-h-96 overflow-y-auto font-mono text-xs">
-                  {testLogs.length === 0 ? (
-                    <div className="text-gray-500 text-center py-8">
-                      Click "Run Full Test" to start comprehensive testing...
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      {testLogs.map((log, idx) => {
-                        const isError = log.includes('❌') || log.includes('ERROR');
-                        const isSuccess = log.includes('✅') || log.includes('SUCCESS');
-                        const isWarning = log.includes('⚠️') || log.includes('WARNING');
-                        return (
-                          <div
-                            key={idx}
-                            className={`${
-                              isError
-                                ? 'text-red-400'
-                                : isSuccess
-                                ? 'text-green-400'
-                                : isWarning
-                                ? 'text-yellow-400'
-                                : 'text-gray-300'
-                            } whitespace-pre-wrap break-words`}
-                          >
-                            {log}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
 
             {/* Content */}
             {step === 'select' && (
@@ -1746,7 +1149,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                             <div
                               className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${
                                 isActive
-                                  ? 'bg-indigo-500 text-white scale-110'
+                                  ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white scale-110'
                                   : isCompleted
                                   ? 'bg-green-500 text-white'
                                   : 'bg-gray-200 text-gray-500'
@@ -1755,7 +1158,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                               {isCompleted ? '✓' : idx + 1}
                             </div>
                             <span className={`text-xs mt-2 font-medium ${
-                              isActive ? 'text-indigo-600' : isCompleted ? 'text-green-600' : 'text-gray-500'
+                              isActive ? 'text-orange-600' : isCompleted ? 'text-green-600' : 'text-gray-500'
                             }`}>
                               {stepName === 'amount' ? 'Amount' : 
                                stepName === 'crypto' ? 'Crypto' :
@@ -1796,7 +1199,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                         <select
                           value={fiatCurrency}
                           onChange={(e) => setFiatCurrency(e.target.value)}
-                          className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+                          className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white"
                         >
                           {fiatCurrencies.map((fiat) => (
                             <option key={fiat} value={fiat}>{fiat}</option>
@@ -1819,7 +1222,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                     <button
                       onClick={handleAmountNext}
                       disabled={!fiatAmount || parseFloat(fiatAmount) <= 0}
-                      className="w-full py-4 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl"
+                      className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl"
                     >
                       Continue
                       <ArrowRight className="w-5 h-5" />
@@ -1838,7 +1241,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                       <select
                         value={cryptoCurrency}
                         onChange={(e) => setCryptoCurrency(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white"
                       >
                         <option value="">Select cryptocurrency</option>
                         {availableCryptos.map((crypto) => (
@@ -1862,7 +1265,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                       <button
                         onClick={handleCryptoNext}
                         disabled={!cryptoCurrency}
-                        className="flex-1 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl"
+                        className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl"
                       >
                         Continue
                         <ArrowRight className="w-5 h-5" />
@@ -1898,7 +1301,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                                 disabled={isUnavailable}
                                 className={`p-3 border-2 rounded-xl transition-all text-left ${
                                   paymentMethod === pm.id
-                                    ? 'border-indigo-500 bg-indigo-50'
+                                    ? 'border-orange-500 bg-orange-50'
                                     : isUnavailable
                                     ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
                                     : 'border-gray-200 hover:border-gray-300'
@@ -1931,7 +1334,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                       <button
                         onClick={handlePaymentNext}
                         disabled={!paymentMethod || checkingAvailability}
-                        className="flex-1 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl"
+                        className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl"
                       >
                         {checkingAvailability ? (
                           <>
@@ -1958,7 +1361,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                       {/* Loading State */}
                       {loading && (
                         <div className="flex items-center justify-center py-8">
-                          <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                          <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
                           <span className="ml-2 text-gray-600">Fetching quotes...</span>
                         </div>
                       )}
@@ -2047,7 +1450,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                                     }}
                                     className={`w-full p-4 border-2 rounded-xl text-left transition-all ${
                                       isSelected
-                                        ? 'border-indigo-500 bg-indigo-50'
+                                        ? 'border-orange-500 bg-orange-50'
                                         : 'border-gray-200 hover:border-gray-300 bg-white'
                                     }`}
                                   >
@@ -2075,7 +1478,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                                         )}
                                       </div>
                                       {isSelected && (
-                                        <CheckCircle2 className="w-5 h-5 text-indigo-500" />
+                                        <CheckCircle2 className="w-5 h-5 text-orange-500" />
                                       )}
                                     </div>
                                   </button>
@@ -2086,11 +1489,11 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
 
                           {/* Selected Provider Badge */}
                           {selectedProvider && (
-                            <div className="p-3 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl">
+                            <div className="p-3 bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200 rounded-xl">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                   <span className="text-sm font-medium text-gray-700">Provider:</span>
-                                  <span className="text-sm font-semibold capitalize text-indigo-900">{selectedProvider}</span>
+                                  <span className="text-sm font-semibold capitalize text-orange-900">{selectedProvider}</span>
                                   {userPreferences?.verifiedProviders?.includes(selectedProvider) && (
                                     <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
                                       <Shield className="w-3 h-3" />
@@ -2104,7 +1507,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
 
                           {/* Quote Summary */}
                           {quote && (
-                            <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-xl">
+                            <div className="p-4 bg-gradient-to-br from-orange-50 to-yellow-50 border border-orange-200 rounded-xl">
                               <div className="space-y-2">
                                 <div className="flex justify-between items-center">
                                   <span className="text-sm text-gray-600">You'll receive:</span>
@@ -2135,7 +1538,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                                   <span className="text-gray-600">Service fee:</span>
                                   <span className="text-gray-900 font-medium">{quote.baseCurrency} {quote.fee}</span>
                                 </div>
-                                <div className="pt-2 border-t border-purple-200 flex justify-between">
+                                <div className="pt-2 border-t border-orange-200 flex justify-between">
                                   <span className="text-sm font-medium text-gray-700">Total:</span>
                                   <span className="text-sm font-bold text-gray-900">
                                     {quote.baseCurrency} {quote.totalAmount}
@@ -2170,7 +1573,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                                       }}
                                       className={`w-full p-3 rounded-lg border-2 transition-all text-left ${
                                         isSelected
-                                          ? 'border-indigo-500 bg-indigo-50'
+                                          ? 'border-orange-500 bg-orange-50'
                                           : 'border-gray-200 hover:border-gray-300 bg-white'
                                       }`}
                                     >
@@ -2193,7 +1596,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                           <button
                             onClick={handleContinue}
                             disabled={loading || (!quote && paymentMethod?.toLowerCase() !== 'ideal') || (paymentMethod?.toLowerCase() === 'ideal' && !selectedProvider)}
-                            className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl"
+                            className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl"
                           >
                             {loading ? (
                               <>
@@ -2217,7 +1620,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                           <p className="text-gray-600 mb-4">No quotes available</p>
                           <button
                             onClick={() => setFlowStep('payment')}
-                            className="text-indigo-600 hover:text-indigo-700 font-medium"
+                            className="text-orange-600 hover:text-orange-700 font-medium"
                           >
                             Try a different payment method
                           </button>
@@ -2269,7 +1672,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
 
             {step === 'processing' && (
               <div className="glass-card p-12 text-center">
-                <Loader2 className="w-12 h-12 animate-spin text-purple-500 mx-auto mb-4" />
+                <Loader2 className="w-12 h-12 animate-spin text-orange-500 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">Processing Payment</h3>
                 <p className="text-gray-600">
                   Please complete your payment. We'll update you when the transaction is confirmed.
@@ -2286,7 +1689,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                 </p>
                 <button
                   onClick={onClose}
-                  className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-pink-600 transition-colors"
+                  className="px-6 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-yellow-600 transition-colors"
                 >
                   Close
                 </button>
@@ -2310,7 +1713,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                   </button>
                   <button
                     onClick={onClose}
-                    className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-pink-600 transition-colors"
+                    className="px-6 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 text-white font-semibold rounded-xl hover:from-orange-600 hover:to-yellow-600 transition-colors"
                   >
                     Close
                   </button>

@@ -47,9 +47,9 @@ function BuySuccessContent() {
       setLoading(false);
     }, 1000);
 
-    // Auto-redirect to dashboard after 5 seconds
+    // Auto-redirect to home after 5 seconds
     const redirectTimer = setTimeout(() => {
-      router.push('/dashboard');
+      router.push('/');
     }, 5000);
 
     return () => clearTimeout(redirectTimer);
@@ -97,7 +97,7 @@ function BuySuccessContent() {
 
             <div className="space-y-3">
               <button
-                onClick={() => router.push('/dashboard')}
+                onClick={() => router.push('/')}
                 className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-lg transition-colors"
               >
                 View Wallet
@@ -105,7 +105,7 @@ function BuySuccessContent() {
             </div>
 
             <p className="text-xs text-gray-500 mt-6">
-              Redirecting to dashboard in a few seconds...
+              Redirecting to wallet in a few seconds...
             </p>
           </>
         )}
