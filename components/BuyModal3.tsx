@@ -504,28 +504,12 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
           const isIdeal = paymentMethodLower.includes('ideal');
           
           quotesToUse = data.quotes.filter((q: ProviderQuote) => {
-            // ⚠️ CRITICAL: If quote has the correct paymentMethod, accept it even if it has errors
-            // The backend already filtered these, so we should trust them
-            // Errors don't necessarily mean payment method isn't supported
+            // ⚠️ CRITICAL: If quote has the correct paymentMethod, accept it immediately
+            // This matches the backend logic - if Onramper set paymentMethod to the requested method,
+            // we trust that Onramper knows what it's doing, even if there are errors
             if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower) {
-              // Only reject if there are errors that specifically indicate payment method incompatibility
-              if (q.errors && q.errors.length > 0) {
-                const hasPaymentMethodError = q.errors.some((err: any) => {
-                  const errorMsg = (err.message || '').toLowerCase();
-                  const errorType = (err.type || '').toLowerCase();
-                  return errorMsg.includes('does not support payment method') ||
-                         errorMsg.includes('payment method not supported') ||
-                         errorMsg.includes('payment type not supported') ||
-                         errorType === 'paymentmethodnotsupported';
-                });
-                
-                if (hasPaymentMethodError) {
-                  console.log(`❌ [BUYMODAL] Rejecting ${q.ramp}: has payment-method-specific error`);
-                  return false;
-                }
-              }
-              // Quote has correct paymentMethod and no payment-method-specific errors - accept it
-              return true;
+              console.log(`✅ [BUYMODAL] Accepting ${q.ramp}: paymentMethod=${q.paymentMethod} matches requested ${paymentMethodLower}`);
+              return true; // Trust Onramper's paymentMethod field
             }
             
             // If quote doesn't have the payment method set, check for errors
