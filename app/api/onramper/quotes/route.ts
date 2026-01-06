@@ -72,6 +72,20 @@ export async function GET(req: NextRequest) {
     // Get quotes from ALL providers (multi-provider comparison)
     let quotes = null;
     let quoteError: any = null;
+    
+    logger.error('🔍 [API Route] ============================================');
+    logger.error('🔍 [API Route] CALLING getAllProviderQuotes');
+    logger.error('🔍 [API Route] ============================================');
+    logger.error('🔍 [API Route] Parameters:', {
+      fiatAmount,
+      fiatCurrency,
+      cryptoCurrency,
+      paymentMethod: paymentMethod || 'NONE',
+      country: detectedCountry || 'NONE',
+      hasApiKey: !!onramperApiKey,
+      apiKeyLength: onramperApiKey?.length || 0,
+    });
+    
     try {
       quotes = await OnramperService.getAllProviderQuotes(
         fiatAmount,
@@ -81,8 +95,35 @@ export async function GET(req: NextRequest) {
         detectedCountry || undefined,
         onramperApiKey
       );
+      
+      logger.error('🔍 [API Route] ============================================');
+      logger.error('🔍 [API Route] getAllProviderQuotes RETURNED');
+      logger.error('🔍 [API Route] ============================================');
+      logger.error('🔍 [API Route] Quotes received:', quotes?.length || 0);
+      logger.error('🔍 [API Route] Quotes type:', Array.isArray(quotes) ? 'ARRAY' : typeof quotes);
+      
+      // Log BANXA in API route
+      if (quotes && Array.isArray(quotes)) {
+        const banxaInRoute = quotes.find((q: any) => q.ramp?.toLowerCase() === 'banxa');
+        if (banxaInRoute) {
+          logger.error('🔍 [API Route] BANXA quote in API route:', {
+            ramp: banxaInRoute.ramp,
+            paymentMethod: banxaInRoute.paymentMethod,
+            payout: banxaInRoute.payout,
+            rate: banxaInRoute.rate,
+            hasErrors: !!(banxaInRoute.errors && banxaInRoute.errors.length > 0),
+            fullQuote: JSON.stringify(banxaInRoute, null, 2),
+          });
+        } else {
+          logger.error('🔍 [API Route] ❌ BANXA NOT FOUND IN QUOTES');
+          logger.error('🔍 [API Route] Available providers:', quotes.map((q: any) => q.ramp));
+        }
+      }
     } catch (err: any) {
       quoteError = err;
+      logger.error('🔍 [API Route] ============================================');
+      logger.error('🔍 [API Route] ERROR IN getAllProviderQuotes');
+      logger.error('🔍 [API Route] ============================================');
       logger.error('❌ Onramper quotes API call failed:', {
         error: err.message,
         stack: err.stack,
@@ -257,7 +298,42 @@ export async function GET(req: NextRequest) {
         return result;
       });
       
-      logger.log(`🔍 AFTER FILTERING: ${quotes.length} → ${filteredQuotes.length} providers for "${paymentMethod}"`);
+      logger.error('🔍 [API Route] ============================================');
+      logger.error('🔍 [API Route] FILTERING QUOTES IN API ROUTE');
+      logger.error('🔍 [API Route] ============================================');
+      logger.error(`🔍 [API Route] BEFORE FILTERING: ${quotes.length} quotes`);
+      logger.error(`🔍 [API Route] AFTER FILTERING: ${filteredQuotes.length} quotes for "${paymentMethod}"`);
+      
+      // Log BANXA before and after filtering in API route
+      const banxaBeforeFilter = quotes.find((q: any) => q.ramp?.toLowerCase() === 'banxa');
+      const banxaAfterFilter = filteredQuotes.find((q: any) => q.ramp?.toLowerCase() === 'banxa');
+      
+      if (banxaBeforeFilter) {
+        logger.error('🔍 [API Route] BANXA BEFORE API ROUTE FILTER:', {
+          ramp: banxaBeforeFilter.ramp,
+          paymentMethod: banxaBeforeFilter.paymentMethod,
+          payout: banxaBeforeFilter.payout,
+          rate: banxaBeforeFilter.rate,
+          hasErrors: !!(banxaBeforeFilter.errors && banxaBeforeFilter.errors.length > 0),
+          errors: banxaBeforeFilter.errors,
+          availableMethods: banxaBeforeFilter.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || [],
+        });
+      }
+      
+      if (banxaAfterFilter) {
+        logger.error('🔍 [API Route] BANXA AFTER API ROUTE FILTER:', {
+          ramp: banxaAfterFilter.ramp,
+          paymentMethod: banxaAfterFilter.paymentMethod,
+          payout: banxaAfterFilter.payout,
+          rate: banxaAfterFilter.rate,
+          hasErrors: !!(banxaAfterFilter.errors && banxaAfterFilter.errors.length > 0),
+          errors: banxaAfterFilter.errors,
+          availableMethods: banxaAfterFilter.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || [],
+          fullQuote: JSON.stringify(banxaAfterFilter, null, 2),
+        });
+      } else {
+        logger.error('🔍 [API Route] ❌ BANXA REMOVED BY API ROUTE FILTER');
+      }
       
       // Log which providers were filtered out (using ramp comparison instead of object comparison)
       try {
@@ -266,24 +342,27 @@ export async function GET(req: NextRequest) {
           .filter((ramp: string) => !filteredQuotes.some((fq: any) => fq.ramp === ramp));
         
         if (filteredOutRamps.length > 0) {
-          logger.log(`   ❌ Filtered out ${filteredOutRamps.length} providers: ${filteredOutRamps.join(', ')}`);
+          logger.error(`🔍 [API Route] ❌ Filtered out ${filteredOutRamps.length} providers: ${filteredOutRamps.join(', ')}`);
         }
         
         if (filteredQuotes.length > 0) {
-          logger.log(`   ✅ Providers with ${paymentMethod} support (${filteredQuotes.length}): ${filteredQuotes.map((q: any) => q.ramp).join(', ')}`);
+          logger.error(`🔍 [API Route] ✅ Providers with ${paymentMethod} support (${filteredQuotes.length}): ${filteredQuotes.map((q: any) => q.ramp).join(', ')}`);
           try {
-            logger.log(`   ✅ Filtered quotes details:`, filteredQuotes.map((q: any) => ({
+            logger.error(`🔍 [API Route] ✅ Filtered quotes details:`, filteredQuotes.map((q: any) => ({
               ramp: q.ramp,
               paymentMethod: q.paymentMethod,
+              payout: q.payout,
+              rate: q.rate,
+              hasErrors: !!(q.errors && q.errors.length > 0),
               availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || []
             })));
           } catch (logError: any) {
-            logger.log(`   ✅ Filtered quotes: ${filteredQuotes.map((q: any) => q.ramp).join(', ')}`);
+            logger.error(`🔍 [API Route] ✅ Filtered quotes: ${filteredQuotes.map((q: any) => q.ramp).join(', ')}`);
           }
         } else {
-          logger.error(`   ❌ NO PROVIDERS FOUND supporting ${paymentMethod}!`);
+          logger.error(`🔍 [API Route] ❌ NO PROVIDERS FOUND supporting ${paymentMethod}!`);
           try {
-            logger.error(`   ❌ All original quotes:`, quotes.map((q: any) => ({
+            logger.error(`🔍 [API Route] ❌ All original quotes:`, quotes.map((q: any) => ({
               ramp: q.ramp,
               paymentMethod: q.paymentMethod,
               availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || [],
@@ -306,6 +385,44 @@ export async function GET(req: NextRequest) {
         filteredQuotes = quotes;
       }
     }
+    
+    logger.error('🔍 [API Route] ============================================');
+    logger.error('🔍 [API Route] RETURNING RESPONSE TO FRONTEND');
+    logger.error('🔍 [API Route] ============================================');
+    logger.error('🔍 [API Route] Final quotes count:', filteredQuotes.length);
+    logger.error('🔍 [API Route] Payment method:', paymentMethod || 'NONE');
+    
+    // Log BANXA in final response
+    const banxaFinal = filteredQuotes.find((q: any) => q.ramp?.toLowerCase() === 'banxa');
+    if (banxaFinal) {
+      logger.error('🔍 [API Route] ============================================');
+      logger.error('🔍 [API Route] BANXA IN FINAL RESPONSE');
+      logger.error('🔍 [API Route] ============================================');
+      logger.error('🔍 [API Route] BANXA Final Response:', JSON.stringify({
+        ramp: banxaFinal.ramp,
+        paymentMethod: banxaFinal.paymentMethod,
+        payout: banxaFinal.payout,
+        rate: banxaFinal.rate,
+        networkFee: banxaFinal.networkFee,
+        transactionFee: banxaFinal.transactionFee,
+        hasErrors: !!(banxaFinal.errors && banxaFinal.errors.length > 0),
+        errors: banxaFinal.errors,
+        availableMethods: banxaFinal.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || [],
+      }, null, 2));
+      logger.error('🔍 [API Route] BANXA Full Quote JSON:', JSON.stringify(banxaFinal, null, 2));
+    } else {
+      logger.error('🔍 [API Route] ❌ BANXA NOT IN FINAL RESPONSE');
+      logger.error('🔍 [API Route] Final providers:', filteredQuotes.map((q: any) => q.ramp));
+    }
+    
+    // Log all final quotes summary
+    logger.error('🔍 [API Route] All final quotes summary:', filteredQuotes.map((q: any) => ({
+      ramp: q.ramp,
+      paymentMethod: q.paymentMethod,
+      payout: q.payout,
+      rate: q.rate,
+      hasErrors: !!(q.errors && q.errors.length > 0),
+    })));
     
     return NextResponse.json({ 
       success: true, 

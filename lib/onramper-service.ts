@@ -1292,12 +1292,19 @@ export class OnramperService {
         url += `&country=${country.toLowerCase()}`;
       }
 
-      logger.log('📊 Fetching all provider quotes:', { 
+      logger.error('🔍 [OnramperService] ============================================');
+      logger.error('🔍 [OnramperService] FETCHING ALL PROVIDER QUOTES');
+      logger.error('🔍 [OnramperService] ============================================');
+      logger.error('🔍 [OnramperService] Request Parameters:', {
         fiatAmount, 
         fiatCurrency, 
         cryptoCurrency, 
-        paymentMethod: paymentMethod || 'any',
+        paymentMethod: paymentMethod || 'NONE',
         country: country || 'auto-detect',
+        url: url,
+        hasApiKey: !!apiKey,
+        apiKeyLength: apiKey?.length || 0,
+        apiKeyPrefix: apiKey ? apiKey.substring(0, 10) + '...' : 'MISSING',
       });
 
       // Try multiple authentication methods
@@ -1328,8 +1335,23 @@ export class OnramperService {
 
       const data = await response.json();
       
+      logger.error('🔍 [OnramperService] ============================================');
+      logger.error('🔍 [OnramperService] ONRAMPER API RESPONSE RECEIVED');
+      logger.error('🔍 [OnramperService] ============================================');
+      logger.error('🔍 [OnramperService] Response Status:', response.status, response.statusText);
+      logger.error('🔍 [OnramperService] Response Type:', typeof data);
+      logger.error('🔍 [OnramperService] Is Array:', Array.isArray(data));
+      logger.error('🔍 [OnramperService] Response Keys:', data && typeof data === 'object' ? Object.keys(data) : 'N/A');
+      logger.error('🔍 [OnramperService] Full Response (first 2000 chars):', JSON.stringify(data).substring(0, 2000));
+      
       // ⚠️ CRITICAL: Quotes endpoint returns DIRECT ARRAY (not in message field!)
       let quotes = Array.isArray(data) ? data : (data.message || []);
+      
+      logger.error('🔍 [OnramperService] ============================================');
+      logger.error('🔍 [OnramperService] PARSED QUOTES');
+      logger.error('🔍 [OnramperService] ============================================');
+      logger.error('🔍 [OnramperService] Total Quotes:', quotes.length);
+      logger.error('🔍 [OnramperService] Quotes Type:', Array.isArray(quotes) ? 'ARRAY' : typeof quotes);
       
       // ⚠️ CRITICAL LOGGING: Log ALL quotes BEFORE any filtering, including payout/rate
       if (paymentMethod) {
@@ -1353,20 +1375,33 @@ export class OnramperService {
         // Log BANXA specifically for debugging
         const banxaQuote = quotes.find((q: any) => q.ramp?.toLowerCase() === 'banxa');
         if (banxaQuote) {
-          logger.error(`🔍 [OnramperService] BANXA RAW QUOTE:`, {
+          logger.error('🔍 [OnramperService] ============================================');
+          logger.error('🔍 [OnramperService] BANXA RAW QUOTE (BEFORE ANY FILTERING)');
+          logger.error('🔍 [OnramperService] ============================================');
+          logger.error('🔍 [OnramperService] BANXA Quote Summary:', {
             ramp: banxaQuote.ramp,
             paymentMethod: banxaQuote.paymentMethod,
             payout: banxaQuote.payout,
+            payoutType: typeof banxaQuote.payout,
+            payoutIsUndefined: banxaQuote.payout === undefined,
+            payoutIsNull: banxaQuote.payout === null,
             rate: banxaQuote.rate,
+            rateType: typeof banxaQuote.rate,
+            rateIsUndefined: banxaQuote.rate === undefined,
+            rateIsNull: banxaQuote.rate === null,
             networkFee: banxaQuote.networkFee,
             transactionFee: banxaQuote.transactionFee,
             hasErrors: !!(banxaQuote.errors && banxaQuote.errors.length > 0),
+            errorCount: banxaQuote.errors?.length || 0,
             errors: banxaQuote.errors,
             availableMethods: banxaQuote.availablePaymentMethods,
+            availableMethodsCount: banxaQuote.availablePaymentMethods?.length || 0,
             allKeys: Object.keys(banxaQuote),
-            // ⚠️ CRITICAL: Log the FULL raw quote to see what Onramper actually returns
-            fullQuote: JSON.stringify(banxaQuote)
           });
+          logger.error('🔍 [OnramperService] BANXA Full Quote JSON:', JSON.stringify(banxaQuote, null, 2));
+        } else {
+          logger.error('🔍 [OnramperService] ❌ BANXA QUOTE NOT FOUND IN RESPONSE');
+          logger.error('🔍 [OnramperService] Available providers:', quotes.map((q: any) => q.ramp));
         }
       }
       
@@ -1403,21 +1438,29 @@ export class OnramperService {
       // ⚠️ CRITICAL: Filter by payment method support if payment method is specified
       // This ensures we only return providers that actually support the selected payment method
       if (paymentMethod) {
+        logger.error('🔍 [OnramperService] ============================================');
+        logger.error('🔍 [OnramperService] FILTERING QUOTES (STEP 2: PAYMENT METHOD)');
+        logger.error('🔍 [OnramperService] ============================================');
+        logger.error('🔍 [OnramperService] Requested payment method:', paymentMethod);
+        logger.error('🔍 [OnramperService] Starting with', validQuotes.length, 'valid quotes');
+        
         const paymentMethodLower = paymentMethod.toLowerCase();
         const isIdeal = paymentMethodLower.includes('ideal');
         
         const filteredQuotes = validQuotes.filter((q: any) => {
+          const ramp = q.ramp || 'unknown';
+          
           // If quote already has the payment method set, it's supported
           if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower) {
+            logger.error(`🔍 [OnramperService] ✅ ${ramp}: KEEPING (paymentMethod=${q.paymentMethod} matches ${paymentMethodLower})`);
             return true;
           }
           
           // Check availablePaymentMethods array
           const methods = q.availablePaymentMethods || [];
-          return methods.some((pm: any) => {
-            const id = pm.paymentTypeId || pm.id || '';
-            const idLower = id.toLowerCase();
-            
+          const methodIds = methods.map((pm: any) => (pm.paymentTypeId || pm.id || '').toLowerCase()).filter(Boolean);
+          
+          const supportsMethod = methodIds.some((idLower: string) => {
             // Exact match
             if (idLower === paymentMethodLower) {
               return true;
@@ -1430,17 +1473,80 @@ export class OnramperService {
             
             return false;
           });
+          
+          if (supportsMethod) {
+            logger.error(`🔍 [OnramperService] ✅ ${ramp}: KEEPING (availablePaymentMethods contains ${paymentMethodLower})`);
+            logger.error(`🔍 [OnramperService]    Available methods:`, methodIds);
+            return true;
+          }
+          
+          logger.error(`🔍 [OnramperService] ❌ ${ramp}: REJECTING (paymentMethod=${q.paymentMethod}, availableMethods=${methodIds.join(', ')})`);
+          return false;
         });
         
+        logger.error('🔍 [OnramperService] After Step 2 (payment method filter):', filteredQuotes.length, 'quotes');
+        
+        // Log BANXA after second filter
+        const banxaAfterFilter2 = filteredQuotes.find((q: any) => q.ramp?.toLowerCase() === 'banxa');
+        if (banxaAfterFilter2) {
+          logger.error('🔍 [OnramperService] BANXA after Step 2:', {
+            ramp: banxaAfterFilter2.ramp,
+            paymentMethod: banxaAfterFilter2.paymentMethod,
+            payout: banxaAfterFilter2.payout,
+            rate: banxaAfterFilter2.rate,
+            hasErrors: !!(banxaAfterFilter2.errors && banxaAfterFilter2.errors.length > 0),
+            availableMethods: banxaAfterFilter2.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || [],
+          });
+        } else {
+          logger.error('🔍 [OnramperService] ❌ BANXA REMOVED IN STEP 2');
+        }
+        
         if (filteredQuotes.length > 0) {
-          logger.log(`✅ Found ${filteredQuotes.length} providers supporting ${paymentMethod} (client-side filtered from ${validQuotes.length} total)`);
+          logger.error(`🔍 [OnramperService] ✅ Found ${filteredQuotes.length} providers supporting ${paymentMethod} (filtered from ${validQuotes.length} total)`);
           validQuotes = filteredQuotes;
         } else {
-          logger.warn(`⚠️ No providers found supporting ${paymentMethod} in availablePaymentMethods, using Onramper filter result`);
+          logger.error(`🔍 [OnramperService] ⚠️ No providers found supporting ${paymentMethod} in availablePaymentMethods, using Onramper filter result`);
         }
       }
       
-      logger.log(`✅ Found ${quotes.length} provider quotes (${validQuotes.length} valid after filtering)`);
+      logger.error('🔍 [OnramperService] ============================================');
+      logger.error('🔍 [OnramperService] FINAL RESULT');
+      logger.error('🔍 [OnramperService] ============================================');
+      logger.error('🔍 [OnramperService] Original quotes:', quotes.length);
+      logger.error('🔍 [OnramperService] Valid quotes after filtering:', validQuotes.length);
+      logger.error('🔍 [OnramperService] Returning quotes:', validQuotes.length);
+      
+      // Log all final quotes
+      validQuotes.forEach((q: any) => {
+        logger.error(`🔍 [OnramperService] Final quote: ${q.ramp}`, {
+          ramp: q.ramp,
+          paymentMethod: q.paymentMethod,
+          payout: q.payout,
+          rate: q.rate,
+          hasErrors: !!(q.errors && q.errors.length > 0),
+        });
+      });
+      
+      // Log BANXA in final result
+      const banxaFinal = validQuotes.find((q: any) => q.ramp?.toLowerCase() === 'banxa');
+      if (banxaFinal) {
+        logger.error('🔍 [OnramperService] ============================================');
+        logger.error('🔍 [OnramperService] BANXA FINAL QUOTE (RETURNING TO API ROUTE)');
+        logger.error('🔍 [OnramperService] ============================================');
+        logger.error('🔍 [OnramperService] BANXA Final:', JSON.stringify({
+          ramp: banxaFinal.ramp,
+          paymentMethod: banxaFinal.paymentMethod,
+          payout: banxaFinal.payout,
+          rate: banxaFinal.rate,
+          networkFee: banxaFinal.networkFee,
+          transactionFee: banxaFinal.transactionFee,
+          hasErrors: !!(banxaFinal.errors && banxaFinal.errors.length > 0),
+          errors: banxaFinal.errors,
+          availableMethods: banxaFinal.availablePaymentMethods,
+        }, null, 2));
+      } else {
+        logger.error('🔍 [OnramperService] ❌ BANXA NOT IN FINAL RESULT');
+      }
       
       // ⚠️ CRITICAL: Always return filtered quotes when payment method is specified
       // This ensures frontend only sees providers that actually support the payment method
