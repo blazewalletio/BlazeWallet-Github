@@ -179,39 +179,43 @@ export async function GET(req: NextRequest) {
         logger.log(`🔍 Starting filter for payment method: ${paymentMethod} (isIdeal: ${isIdeal})`);
         
         filteredQuotes = quotes.filter((q: any) => {
-        // ⚠️ CRITICAL: Skip quotes with errors (provider doesn't support this payment method)
-        if (q.errors && q.errors.length > 0) {
-          // Check if error is specifically about payment method not being supported
-          const hasPaymentMethodError = q.errors.some((err: any) => 
-            err.message?.toLowerCase().includes('does not support payment method') ||
-            err.message?.toLowerCase().includes('payment method') ||
-            err.type === 'PaymentMethodNotSupported'
-          );
-          
-          if (hasPaymentMethodError) {
-            // This provider definitely doesn't support the payment method
-            return false;
-          }
-          // Other errors might be temporary, but still skip for now
-          return false;
-        }
-        
-        // ⚠️ CRITICAL: If quote has the payment method set AND no errors, it's supported
-        // This is the PRIMARY check - if Onramper returned a quote with paymentMethod set,
-        // it means the provider supports it (even if availablePaymentMethods is missing)
+        // ⚠️ CRITICAL: PRIMARY CHECK - If quote has the payment method set, it's supported
+        // This is the most reliable check - if Onramper returned a quote with paymentMethod set,
+        // it means the provider supports it (even if there are minor errors)
         if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower) {
           // Only reject if there are errors that specifically indicate payment method incompatibility
           const hasPaymentMethodError = q.errors?.some((err: any) => {
             const errorMsg = (err.message || '').toLowerCase();
             const errorType = (err.type || '').toLowerCase();
-            return errorMsg.includes('payment method') || 
-                   errorMsg.includes('payment type') ||
-                   errorType.includes('payment');
+            return errorMsg.includes('does not support payment method') ||
+                   errorMsg.includes('payment method not supported') ||
+                   errorMsg.includes('payment type not supported') ||
+                   errorType === 'paymentmethodnotsupported';
           });
           
           if (!hasPaymentMethodError) {
             return true; // Quote has correct paymentMethod and no payment-related errors
           }
+          // If there's a payment-method-specific error, reject it
+          return false;
+        }
+        
+        // ⚠️ CRITICAL: Skip quotes with payment-method-specific errors (provider doesn't support this payment method)
+        if (q.errors && q.errors.length > 0) {
+          const hasPaymentMethodError = q.errors.some((err: any) => {
+            const errorMsg = (err.message || '').toLowerCase();
+            const errorType = (err.type || '').toLowerCase();
+            return errorMsg.includes('does not support payment method') ||
+                   errorMsg.includes('payment method not supported') ||
+                   errorMsg.includes('payment type not supported') ||
+                   errorType === 'paymentmethodnotsupported';
+          });
+          
+          if (hasPaymentMethodError) {
+            // This provider definitely doesn't support the payment method
+            return false;
+          }
+          // Other errors (rate limits, temporary issues, etc.) are OK - continue checking
         }
         
         // ⚠️ CRITICAL: Check availablePaymentMethods array (this is the fallback check)
