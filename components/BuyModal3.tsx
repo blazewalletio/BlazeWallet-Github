@@ -85,6 +85,8 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
   const [quote, setQuote] = useState<Quote | null>(null);
   const [providerQuotes, setProviderQuotes] = useState<ProviderQuote[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+  const [usingFallbackQuotes, setUsingFallbackQuotes] = useState(false);
+  const [fallbackPaymentMethod, setFallbackPaymentMethod] = useState<string | null>(null);
   const [showProviderComparison, setShowProviderComparison] = useState(false);
   const [comparisonQuotes, setComparisonQuotes] = useState<ProviderQuote[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -151,6 +153,8 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       setSelectedProvider(null);
       setShowProviderComparison(false);
       setComparisonQuotes([]);
+      setUsingFallbackQuotes(false);
+      setFallbackPaymentMethod(null);
       return;
     }
     
@@ -548,22 +552,97 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
           console.log(`✅ [BUYMODAL] Providers after filtering:`, quotesToUse.map((q: ProviderQuote) => q.ramp));
           
           if (quotesToUse.length === 0) {
-            console.error(`❌ [BUYMODAL] NO providers support ${paymentMethod} for ${cryptoCurrency}!`);
-            console.error(`❌ [BUYMODAL] Original quotes:`, 
-              data.quotes.map((q: ProviderQuote) => ({
-                ramp: q.ramp,
-                paymentMethod: q.paymentMethod,
-                availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || [],
-                hasErrors: !!(q.errors && q.errors.length > 0)
-              }))
-            );
+            console.warn(`⚠️ [BUYMODAL] NO providers support ${paymentMethod} for ${cryptoCurrency}!`);
+            console.warn(`⚠️ [BUYMODAL] Attempting to fetch fallback quotes from alternative payment methods...`);
             
-            // Show user-friendly error message
-            setError(`No providers available for ${paymentMethod} with ${cryptoCurrency}. Please try a different payment method or cryptocurrency.`);
-            setQuote(null);
-            setProviderQuotes([]);
-            setSelectedProvider(null);
-            return; // Don't continue with empty quotes
+            // Try alternative payment methods in order of preference
+            const fallbackPaymentMethods = ['creditcard', 'applepay', 'googlepay', 'debitcard', 'paypal'];
+            let fallbackQuotes: ProviderQuote[] = [];
+            let fallbackPaymentMethod: string | null = null;
+            
+            for (const fallbackPm of fallbackPaymentMethods) {
+              // Skip if it's the same as the requested payment method
+              if (fallbackPm.toLowerCase() === paymentMethod.toLowerCase()) {
+                continue;
+              }
+              
+              try {
+                console.log(`🔄 [BUYMODAL] Trying fallback payment method: ${fallbackPm}`);
+                const fallbackUrl = `/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${fiatCurrency}&cryptoCurrency=${cryptoCurrency}&paymentMethod=${fallbackPm}`;
+                const fallbackResponse = await fetch(fallbackUrl);
+                const fallbackData = await fallbackResponse.json();
+                
+                if (fallbackResponse.ok && fallbackData.success && fallbackData.quotes && fallbackData.quotes.length > 0) {
+                  // Filter for valid quotes with payout/rate
+                  const validFallbackQuotes = fallbackData.quotes.filter((q: ProviderQuote) => 
+                    q.payout || q.rate
+                  );
+                  
+                  if (validFallbackQuotes.length > 0) {
+                    console.log(`✅ [BUYMODAL] Found ${validFallbackQuotes.length} fallback quotes for ${fallbackPm}`);
+                    fallbackQuotes = validFallbackQuotes;
+                    fallbackPaymentMethod = fallbackPm;
+                    break; // Use first successful fallback
+                  }
+                }
+              } catch (fallbackError: any) {
+                console.warn(`⚠️ [BUYMODAL] Fallback ${fallbackPm} failed:`, fallbackError.message);
+                continue;
+              }
+            }
+            
+            if (fallbackQuotes.length > 0 && fallbackPaymentMethod) {
+              console.log(`✅ [BUYMODAL] Using ${fallbackQuotes.length} fallback quotes from ${fallbackPaymentMethod}`);
+              // Use fallback quotes but keep the original payment method selected
+              // This allows user to see quotes while still being able to proceed with original payment method
+              quotesToUse = fallbackQuotes;
+              setUsingFallbackQuotes(true);
+              setFallbackPaymentMethod(fallbackPaymentMethod);
+              // Show info message that we're showing alternative quotes
+              toast.info(
+                `Showing quotes for ${fallbackPaymentMethod} (${paymentMethod} not available). You can still proceed with ${paymentMethod} if supported.`,
+                { duration: 5000 }
+              );
+            } else {
+              // No fallback quotes found either - show error but still try to show any available quotes
+              console.error(`❌ [BUYMODAL] No fallback quotes found either!`);
+              console.error(`❌ [BUYMODAL] Original quotes:`, 
+                data.quotes.map((q: ProviderQuote) => ({
+                  ramp: q.ramp,
+                  paymentMethod: q.paymentMethod,
+                  availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || [],
+                  hasErrors: !!(q.errors && q.errors.length > 0)
+                }))
+              );
+              
+              // Try to show ANY quotes from the original response (without payment method filter)
+              if (data.quotes && data.quotes.length > 0) {
+                const anyValidQuotes = data.quotes.filter((q: ProviderQuote) => q.payout || q.rate);
+                if (anyValidQuotes.length > 0) {
+                  console.log(`⚠️ [BUYMODAL] Showing ${anyValidQuotes.length} quotes without payment method filter as last resort`);
+                  quotesToUse = anyValidQuotes;
+                  setUsingFallbackQuotes(true);
+                  setFallbackPaymentMethod(null); // Unknown fallback
+                  toast.warning(
+                    `Showing available quotes. ${paymentMethod} may not be supported, but you can still try to proceed.`,
+                    { duration: 5000 }
+                  );
+                } else {
+                  // Really no quotes available
+                  setError(`No quotes available for ${cryptoCurrency}. Please try a different cryptocurrency.`);
+                  setQuote(null);
+                  setProviderQuotes([]);
+                  setSelectedProvider(null);
+                  return;
+                }
+              } else {
+                setError(`No quotes available for ${cryptoCurrency}. Please try a different cryptocurrency.`);
+                setQuote(null);
+                setProviderQuotes([]);
+                setSelectedProvider(null);
+                return;
+              }
+            }
           } else {
             console.log(`✅ [BUYMODAL] Filtered quotes details:`, 
               quotesToUse.map((q: ProviderQuote) => ({
@@ -572,6 +651,9 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                 availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || []
               }))
             );
+            // Reset fallback flags when we have quotes for the requested payment method
+            setUsingFallbackQuotes(false);
+            setFallbackPaymentMethod(null);
           }
         }
         
