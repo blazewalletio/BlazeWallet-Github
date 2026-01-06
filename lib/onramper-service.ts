@@ -1331,7 +1331,7 @@ export class OnramperService {
       // ⚠️ CRITICAL: Quotes endpoint returns DIRECT ARRAY (not in message field!)
       let quotes = Array.isArray(data) ? data : (data.message || []);
       
-      // ⚠️ CRITICAL LOGGING: Log ALL quotes BEFORE any filtering
+      // ⚠️ CRITICAL LOGGING: Log ALL quotes BEFORE any filtering, including payout/rate
       if (paymentMethod) {
         logger.error(`🔍 [OnramperService] RAW QUOTES FROM ONRAMPER (${quotes.length} total):`, {
           paymentMethod,
@@ -1339,12 +1339,33 @@ export class OnramperService {
           providers: quotes.map((q: any) => ({
             ramp: q.ramp,
             paymentMethod: q.paymentMethod,
+            payout: q.payout,
+            rate: q.rate,
+            networkFee: q.networkFee,
+            transactionFee: q.transactionFee,
             hasErrors: !!(q.errors && q.errors.length > 0),
             errorCount: q.errors?.length || 0,
             errors: q.errors?.map((e: any) => e.message || e.type) || [],
             availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || []
           }))
         });
+        
+        // Log BANXA specifically for debugging
+        const banxaQuote = quotes.find((q: any) => q.ramp?.toLowerCase() === 'banxa');
+        if (banxaQuote) {
+          logger.error(`🔍 [OnramperService] BANXA RAW QUOTE:`, {
+            ramp: banxaQuote.ramp,
+            paymentMethod: banxaQuote.paymentMethod,
+            payout: banxaQuote.payout,
+            rate: banxaQuote.rate,
+            networkFee: banxaQuote.networkFee,
+            transactionFee: banxaQuote.transactionFee,
+            hasErrors: !!(banxaQuote.errors && banxaQuote.errors.length > 0),
+            errors: banxaQuote.errors,
+            availableMethods: banxaQuote.availablePaymentMethods,
+            allKeys: Object.keys(banxaQuote)
+          });
+        }
       }
       
       // ⚠️ CRITICAL: Don't filter out quotes with errors YET if they have the correct payment method
