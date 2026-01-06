@@ -232,15 +232,9 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
 
       if (data.success) {
         if (data.paymentMethods) {
-          // ⚠️ FILTER: Remove iDEAL (test results show 0 providers support it)
-          const filteredPaymentMethods = data.paymentMethods.filter((pm: PaymentMethod) => {
-            // iDEAL is not actually supported (0 providers)
-            if (pm.id.toLowerCase() === 'ideal') {
-              return false;
-            }
-            return true;
-          });
-          setPaymentMethods(filteredPaymentMethods);
+          // ⚠️ NOTE: iDEAL is supported by BANXA (verified via Onramper API)
+          // Availability checking will determine if iDEAL is available for selected crypto
+          setPaymentMethods(data.paymentMethods);
         }
         if (data.fiatCurrencies) {
           setFiatCurrencies(data.fiatCurrencies);
