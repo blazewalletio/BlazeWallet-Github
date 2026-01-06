@@ -1363,20 +1363,39 @@ export class OnramperService {
             hasErrors: !!(banxaQuote.errors && banxaQuote.errors.length > 0),
             errors: banxaQuote.errors,
             availableMethods: banxaQuote.availablePaymentMethods,
-            allKeys: Object.keys(banxaQuote)
+            allKeys: Object.keys(banxaQuote),
+            // ⚠️ CRITICAL: Log the FULL raw quote to see what Onramper actually returns
+            fullQuote: JSON.stringify(banxaQuote)
           });
         }
       }
       
-      // ⚠️ CRITICAL: Don't filter out quotes with errors YET if they have the correct payment method
-      // Errors don't necessarily mean the payment method isn't supported
-      // We'll filter them later in the API route after checking payment method support
+      // ⚠️ CRITICAL FIX: Onramper sometimes returns quotes with errors but STILL has payout/rate
+      // We need to preserve the FULL quote object, including payout/rate even if there are errors
+      // The errors might be warnings or non-critical issues that don't prevent quote calculation
+      // We'll filter by payment method support, but keep quotes with payout/rate even if they have errors
+      
+      // ⚠️ CRITICAL: Don't filter out quotes with errors if they have payout/rate
+      // Onramper sometimes returns quotes with errors BUT STILL includes payout/rate
+      // This means the quote is valid and can be used, even if there are warnings/errors
+      // We'll filter by payment method support, but keep quotes with payout/rate even if they have errors
       let validQuotes = quotes.filter((q: any) => {
+        // ⚠️ CRITICAL: If quote has payout/rate, it's a valid quote (even with errors)
+        // This is the key fix - quotes with payout/rate are usable, errors might just be warnings
+        const hasPayoutOrRate = (q.payout !== undefined && q.payout !== null) || 
+                                (q.rate !== undefined && q.rate !== null);
+        
+        if (hasPayoutOrRate) {
+          // Quote has payout/rate - it's valid, keep it (even if it has errors)
+          return true;
+        }
+        
         // If quote has the requested payment method set, keep it even if it has errors
         // (errors might be unrelated to payment method support)
         if (paymentMethod && q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethod.toLowerCase()) {
           return true;
         }
+        
         // Otherwise, only keep quotes without errors
         return !q.errors || q.errors.length === 0;
       });
