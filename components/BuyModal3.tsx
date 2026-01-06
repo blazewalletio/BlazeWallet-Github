@@ -551,8 +551,16 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
           console.log(`✅ [BUYMODAL] Filtered quotes: ${data.quotes.length} → ${quotesToUse.length} providers for ${paymentMethod}`);
           console.log(`✅ [BUYMODAL] Providers after filtering:`, quotesToUse.map((q: ProviderQuote) => q.ramp));
           
-          if (quotesToUse.length === 0) {
-            console.warn(`⚠️ [BUYMODAL] NO providers support ${paymentMethod} for ${cryptoCurrency}!`);
+          // Check if we have quotes but none have payout/rate (invalid quotes)
+          const validQuotes = quotesToUse.filter((q: ProviderQuote) => q.payout || q.rate);
+          const hasQuotesButNoValid = quotesToUse.length > 0 && validQuotes.length === 0;
+          
+          if (quotesToUse.length === 0 || hasQuotesButNoValid) {
+            if (hasQuotesButNoValid) {
+              console.warn(`⚠️ [BUYMODAL] Found ${quotesToUse.length} quotes but none have payout/rate for ${paymentMethod} + ${cryptoCurrency}!`);
+            } else {
+              console.warn(`⚠️ [BUYMODAL] NO providers support ${paymentMethod} for ${cryptoCurrency}!`);
+            }
             console.warn(`⚠️ [BUYMODAL] Attempting to fetch fallback quotes from alternative payment methods...`);
             
             // Try alternative payment methods in order of preference

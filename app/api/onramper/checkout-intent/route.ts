@@ -381,6 +381,10 @@ export async function POST(req: NextRequest) {
     // 3. X-Onramper-Secret header is NOT needed (secret key is only used to generate signature)
     let response;
     try {
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
       response = await fetch('https://api.onramper.com/checkout/intent', {
         method: 'POST',
         headers: {
@@ -389,19 +393,39 @@ export async function POST(req: NextRequest) {
           'Accept': 'application/json',
         },
         body: JSON.stringify(requestBody), // Include signature and signContent in body
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
     } catch (fetchError: any) {
       logger.error('❌ Failed to call Onramper /checkout/intent API:', {
         error: fetchError.message,
         stack: fetchError.stack,
+        name: fetchError.name,
+        isAbort: fetchError.name === 'AbortError',
       });
+      
+      // Handle timeout specifically
+      if (fetchError.name === 'AbortError') {
+        return NextResponse.json(
+          { 
+            success: false,
+            error: 'Request timeout',
+            message: 'Onramper API request timed out. Please try again.',
+            details: 'The request took longer than 30 seconds to complete.'
+          },
+          { status: 504 } // Gateway Timeout
+        );
+      }
+      
       return NextResponse.json(
         { 
           success: false,
           error: 'Failed to connect to Onramper API',
+          message: fetchError.message || 'Unable to reach Onramper API',
           details: fetchError.message 
         },
-        { status: 500 }
+        { status: 502 } // Bad Gateway
       );
     }
 
