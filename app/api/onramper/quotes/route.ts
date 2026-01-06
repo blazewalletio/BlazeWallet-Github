@@ -113,7 +113,60 @@ export async function GET(req: NextRequest) {
     }
 
     logger.log(`✅ Onramper quotes received: ${quotes.length} providers`);
-    return NextResponse.json({ success: true, quotes });
+    
+    // ⚠️ CRITICAL: Hard filter by payment method support if payment method is specified
+    // This ensures frontend ONLY receives providers that actually support the payment method
+    let filteredQuotes = quotes;
+    if (paymentMethod) {
+      const paymentMethodLower = paymentMethod.toLowerCase();
+      const isIdeal = paymentMethodLower.includes('ideal');
+      
+      filteredQuotes = quotes.filter((q: any) => {
+        // Skip quotes with errors
+        if (q.errors && q.errors.length > 0) {
+          return false;
+        }
+        
+        // If quote already has the payment method set, it's supported
+        if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower) {
+          return true;
+        }
+        
+        // Check availablePaymentMethods array
+        const methods = q.availablePaymentMethods || [];
+        const supportsMethod = methods.some((pm: any) => {
+          const id = pm.paymentTypeId || pm.id || '';
+          const idLower = id.toLowerCase();
+          
+          // Exact match
+          if (idLower === paymentMethodLower) {
+            return true;
+          }
+          
+          // For iDEAL, also check for variants (ideal, idealbanktransfer, etc.)
+          if (isIdeal && idLower.includes('ideal')) {
+            return true;
+          }
+          
+          return false;
+        });
+        
+        return supportsMethod;
+      });
+      
+      logger.log(`🔍 Filtered quotes by payment method "${paymentMethod}": ${quotes.length} → ${filteredQuotes.length} providers`);
+      
+      // Log which providers were filtered out
+      const filteredOut = quotes.filter(q => !filteredQuotes.includes(q));
+      if (filteredOut.length > 0) {
+        logger.log(`   ❌ Filtered out providers: ${filteredOut.map((q: any) => q.ramp).join(', ')}`);
+      }
+      if (filteredQuotes.length > 0) {
+        logger.log(`   ✅ Providers with ${paymentMethod} support: ${filteredQuotes.map((q: any) => q.ramp).join(', ')}`);
+      }
+    }
+    
+    return NextResponse.json({ success: true, quotes: filteredQuotes });
 
   } catch (error: any) {
     logger.error('Onramper quotes error:', error);

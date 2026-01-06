@@ -222,14 +222,64 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
       const data = await quoteResponse.json();
 
       if (data.success && data.quotes) {
-        // Store all provider quotes
-        setProviderQuotes(data.quotes);
+        // ⚠️ CRITICAL: Double-check payment method support (backup filtering)
+        // Even though backend filters, we filter again here for 100% certainty
+        let quotesToUse = data.quotes;
+        if (paymentMethod) {
+          const paymentMethodLower = paymentMethod.toLowerCase();
+          const isIdeal = paymentMethodLower.includes('ideal');
+          
+          quotesToUse = data.quotes.filter((q: ProviderQuote) => {
+            // Skip quotes with errors
+            if (q.errors && q.errors.length > 0) {
+              return false;
+            }
+            
+            // If quote already has the payment method set, it's supported
+            if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower) {
+              return true;
+            }
+            
+            // Check availablePaymentMethods array
+            const methods = q.availablePaymentMethods || [];
+            return methods.some((pm: any) => {
+              const id = pm.paymentTypeId || pm.id || '';
+              const idLower = id.toLowerCase();
+              
+              // Exact match
+              if (idLower === paymentMethodLower) {
+                return true;
+              }
+              
+              // For iDEAL, also check for variants
+              if (isIdeal && idLower.includes('ideal')) {
+                return true;
+              }
+              
+              return false;
+            });
+          });
+          
+          console.log(`🔍 Frontend filtered quotes: ${data.quotes.length} → ${quotesToUse.length} providers for ${paymentMethod}`);
+          if (quotesToUse.length === 0) {
+            console.error(`❌ NO providers support ${paymentMethod}! Available providers:`, 
+              data.quotes.map((q: ProviderQuote) => ({
+                ramp: q.ramp,
+                paymentMethod: q.paymentMethod,
+                availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id)
+              }))
+            );
+          }
+        }
+        
+        // Store filtered provider quotes
+        setProviderQuotes(quotesToUse);
         
         // Select best provider using smart selection (with user preferences)
-        if (data.quotes.length > 0 && paymentMethod) {
+        if (quotesToUse.length > 0 && paymentMethod) {
           try {
             const selection = await ProviderSelector.selectProvider(
-              data.quotes,
+              quotesToUse, // Use filtered quotes, not all quotes!
               userId,
               paymentMethod
             );
@@ -260,8 +310,8 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
             }
           } catch (selectionError: any) {
             logger.error('Failed to select provider:', selectionError);
-            // Fallback: use first valid quote
-            const firstValid = data.quotes.find((q: ProviderQuote) => !q.errors || q.errors.length === 0);
+            // Fallback: use first valid quote from FILTERED quotes
+            const firstValid = quotesToUse.find((q: ProviderQuote) => !q.errors || q.errors.length === 0);
             if (firstValid) {
               setSelectedProvider(firstValid.ramp);
               if (firstValid.payout) {
