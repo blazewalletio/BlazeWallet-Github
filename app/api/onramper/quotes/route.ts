@@ -189,16 +189,38 @@ export async function GET(req: NextRequest) {
           // This is the MOST reliable check - if Onramper explicitly lists it in availableMethods,
           // we should trust that over error messages (errors might be temporary or misleading)
           if (q.availablePaymentMethods && Array.isArray(q.availablePaymentMethods) && q.availablePaymentMethods.length > 0) {
+            // Log what's in availableMethods for debugging
+            const availableMethodIds = q.availablePaymentMethods.map((pm: any) => 
+              (pm.paymentTypeId || pm.id || '').toLowerCase()
+            ).filter(Boolean);
+            
+            logger.error(`   🔍 ${ramp}: Checking availableMethods (${q.availablePaymentMethods.length} methods):`, {
+              availableMethodIds,
+              lookingFor: paymentMethodLower,
+              isIdeal: isIdeal
+            });
+            
             const hasPaymentMethodInAvailable = q.availablePaymentMethods.some((pm: any) => {
               const id = (pm.paymentTypeId || pm.id || '').toLowerCase();
-              return id === paymentMethodLower || 
-                     (isIdeal && id.includes('ideal'));
+              const exactMatch = id === paymentMethodLower;
+              const idealMatch = isIdeal && id.includes('ideal');
+              const matches = exactMatch || idealMatch;
+              
+              if (matches) {
+                logger.error(`   ✅ ${ramp}: Found match in availableMethods: id="${id}" matches paymentMethod="${paymentMethodLower}"`);
+              }
+              
+              return matches;
             });
             
             if (hasPaymentMethodInAvailable) {
               logger.error(`   ✅ ${ramp}: PRIMARY CHECK PASSED - paymentMethod=${q.paymentMethod}, found in availableMethods (trusting this over errors)`);
               return true; // Provider explicitly lists this payment method as available - trust this!
+            } else {
+              logger.error(`   ⚠️ ${ramp}: Payment method NOT found in availableMethods, checking errors...`);
             }
+          } else {
+            logger.error(`   ⚠️ ${ramp}: No availableMethods array or empty, checking errors...`);
           }
           
           // If not in availableMethods, check errors - but be lenient
