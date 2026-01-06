@@ -1337,35 +1337,56 @@ export class OnramperService {
       // Filter out quotes with errors (but keep them for debugging)
       let validQuotes = quotes.filter((q: any) => !q.errors || q.errors.length === 0);
       
-      // ⚠️ CRITICAL: For iDEAL, filter client-side by checking availablePaymentMethods
-      // This allows us to find providers that support iDEAL even if Onramper's
-      // paymentMethod filter doesn't include them
-      if (paymentMethod && paymentMethod.toLowerCase().includes('ideal')) {
-        const idealQuotes = validQuotes.filter((q: any) => {
+      // ⚠️ CRITICAL: Filter by payment method support if payment method is specified
+      // This ensures we only return providers that actually support the selected payment method
+      if (paymentMethod) {
+        const paymentMethodLower = paymentMethod.toLowerCase();
+        const isIdeal = paymentMethodLower.includes('ideal');
+        
+        const filteredQuotes = validQuotes.filter((q: any) => {
+          // If quote already has the payment method set, it's supported
+          if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower) {
+            return true;
+          }
+          
+          // Check availablePaymentMethods array
           const methods = q.availablePaymentMethods || [];
           return methods.some((pm: any) => {
             const id = pm.paymentTypeId || pm.id || '';
-            return id.toLowerCase().includes('ideal');
+            const idLower = id.toLowerCase();
+            
+            // Exact match
+            if (idLower === paymentMethodLower) {
+              return true;
+            }
+            
+            // For iDEAL, also check for variants (ideal, idealbanktransfer, etc.)
+            if (isIdeal && idLower.includes('ideal')) {
+              return true;
+            }
+            
+            return false;
           });
         });
         
-        if (idealQuotes.length > 0) {
-          logger.log(`✅ Found ${idealQuotes.length} providers supporting iDEAL (client-side filtered)`);
-          validQuotes = idealQuotes;
+        if (filteredQuotes.length > 0) {
+          logger.log(`✅ Found ${filteredQuotes.length} providers supporting ${paymentMethod} (client-side filtered from ${validQuotes.length} total)`);
+          validQuotes = filteredQuotes;
         } else {
-          logger.warn('⚠️ No providers found with iDEAL in availablePaymentMethods, using Onramper filter result');
+          logger.warn(`⚠️ No providers found supporting ${paymentMethod} in availablePaymentMethods, using Onramper filter result`);
         }
       }
       
       logger.log(`✅ Found ${quotes.length} provider quotes (${validQuotes.length} valid after filtering)`);
       
-      // If we filtered by payment method, return only the filtered quotes
-      // Otherwise return all quotes for comparison
-      if (paymentMethod && paymentMethod.toLowerCase().includes('ideal')) {
+      // ⚠️ CRITICAL: Always return filtered quotes when payment method is specified
+      // This ensures frontend only sees providers that actually support the payment method
+      if (paymentMethod) {
         return validQuotes;
       }
       
-      return quotes; // Return all quotes (including errors) for comparison
+      // If no payment method specified, return all quotes (including errors) for comparison
+      return quotes;
     } catch (error: any) {
       logger.error('❌ Error fetching all provider quotes:', error);
       return [];

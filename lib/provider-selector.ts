@@ -37,7 +37,43 @@ export class ProviderSelector {
     paymentMethod: string
   ): Promise<ProviderSelection> {
     // Filter valid quotes (remove quotes with errors)
-    const validQuotes = quotes.filter(q => !q.errors || q.errors.length === 0);
+    let validQuotes = quotes.filter(q => !q.errors || q.errors.length === 0);
+
+    // ⚠️ CRITICAL: Filter by payment method support if payment method is specified
+    // Check if provider actually supports the selected payment method in their availablePaymentMethods
+    if (paymentMethod) {
+      const paymentMethodLower = paymentMethod.toLowerCase();
+      const isIdeal = paymentMethodLower.includes('ideal');
+      
+      // For iDEAL and other specific payment methods, verify the provider supports it
+      validQuotes = validQuotes.filter(q => {
+        // If quote already has the payment method set, it's supported
+        if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower) {
+          return true;
+        }
+        
+        // Check availablePaymentMethods array
+        const methods = q.availablePaymentMethods || [];
+        const supportsMethod = methods.some((pm: any) => {
+          const id = pm.paymentTypeId || pm.id || '';
+          return id.toLowerCase() === paymentMethodLower || 
+                 (isIdeal && id.toLowerCase().includes('ideal'));
+        });
+        
+        return supportsMethod;
+      });
+
+      if (validQuotes.length === 0) {
+        logger.warn(`⚠️ No providers found supporting payment method: ${paymentMethod}`);
+        // Fallback: return quotes with errors so user can see the issue
+        if (quotes.length > 0) {
+          return {
+            quote: quotes[0],
+            reason: 'best_rate',
+          };
+        }
+      }
+    }
 
     if (validQuotes.length === 0) {
       logger.warn('⚠️ No valid quotes available, using first quote with errors');
@@ -70,7 +106,13 @@ export class ProviderSelector {
       
       const preferredQuote = validQuotes.find(
         q => q.ramp === preferences.preferredProvider &&
-        q.paymentMethod === paymentMethod
+        (q.paymentMethod?.toLowerCase() === paymentMethod.toLowerCase() ||
+         // Also check availablePaymentMethods
+         (q.availablePaymentMethods || []).some((pm: any) => {
+           const id = pm.paymentTypeId || pm.id || '';
+           return id.toLowerCase() === paymentMethod.toLowerCase() ||
+                  (paymentMethod.toLowerCase().includes('ideal') && id.toLowerCase().includes('ideal'));
+         }))
       );
 
       if (preferredQuote) {
@@ -103,7 +145,13 @@ export class ProviderSelector {
       for (const verifiedProvider of preferences.verifiedProviders) {
         const verifiedQuote = validQuotes.find(
           q => q.ramp === verifiedProvider &&
-          q.paymentMethod === paymentMethod
+          (q.paymentMethod?.toLowerCase() === paymentMethod.toLowerCase() ||
+           // Also check availablePaymentMethods
+           (q.availablePaymentMethods || []).some((pm: any) => {
+             const id = pm.paymentTypeId || pm.id || '';
+             return id.toLowerCase() === paymentMethod.toLowerCase() ||
+                    (paymentMethod.toLowerCase().includes('ideal') && id.toLowerCase().includes('ideal'));
+           }))
         );
 
         if (verifiedQuote) {
