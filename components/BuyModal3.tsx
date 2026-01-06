@@ -1931,32 +1931,34 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
                           )}
 
                           {/* Quote Summary */}
-                          <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-xl">
-                            <div className="space-y-2">
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm text-gray-600">You'll receive:</span>
-                                <span className="text-2xl font-bold text-gray-900">
-                                  {parseFloat(quote.cryptoAmount).toFixed(6)} {quote.quoteCurrency}
-                                </span>
-                              </div>
-                              <div className="flex justify-between text-sm">
-                                <span className="text-gray-600">Exchange rate:</span>
-                                <span className="text-gray-900 font-medium">
-                                  1 {quote.quoteCurrency} = {quote.baseCurrency} {parseFloat(quote.exchangeRate).toFixed(2)}
-                                </span>
-                              </div>
-                              <div className="flex justify-between text-sm">
-                                <span className="text-gray-600">Service fee:</span>
-                                <span className="text-gray-900 font-medium">{quote.baseCurrency} {quote.fee}</span>
-                              </div>
-                              <div className="pt-2 border-t border-purple-200 flex justify-between">
-                                <span className="text-sm font-medium text-gray-700">Total:</span>
-                                <span className="text-sm font-bold text-gray-900">
-                                  {quote.baseCurrency} {quote.totalAmount}
-                                </span>
+                          {quote && (
+                            <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-xl">
+                              <div className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-sm text-gray-600">You'll receive:</span>
+                                  <span className="text-2xl font-bold text-gray-900">
+                                    {parseFloat(quote.cryptoAmount).toFixed(6)} {quote.quoteCurrency}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-600">Exchange rate:</span>
+                                  <span className="text-gray-900 font-medium">
+                                    1 {quote.quoteCurrency} = {quote.baseCurrency} {parseFloat(quote.exchangeRate).toFixed(2)}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-600">Service fee:</span>
+                                  <span className="text-gray-900 font-medium">{quote.baseCurrency} {quote.fee}</span>
+                                </div>
+                                <div className="pt-2 border-t border-purple-200 flex justify-between">
+                                  <span className="text-sm font-medium text-gray-700">Total:</span>
+                                  <span className="text-sm font-bold text-gray-900">
+                                    {quote.baseCurrency} {quote.totalAmount}
+                                  </span>
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          )}
 
                           {/* Provider Comparison */}
                           {showProviderComparison && comparisonQuotes.length > 0 && (
