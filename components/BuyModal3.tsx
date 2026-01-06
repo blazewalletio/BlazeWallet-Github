@@ -504,7 +504,32 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
           const isIdeal = paymentMethodLower.includes('ideal');
           
           quotesToUse = data.quotes.filter((q: ProviderQuote) => {
-            // Skip quotes with errors
+            // ⚠️ CRITICAL: If quote has the correct paymentMethod, accept it even if it has errors
+            // The backend already filtered these, so we should trust them
+            // Errors don't necessarily mean payment method isn't supported
+            if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower) {
+              // Only reject if there are errors that specifically indicate payment method incompatibility
+              if (q.errors && q.errors.length > 0) {
+                const hasPaymentMethodError = q.errors.some((err: any) => {
+                  const errorMsg = (err.message || '').toLowerCase();
+                  const errorType = (err.type || '').toLowerCase();
+                  return errorMsg.includes('does not support payment method') ||
+                         errorMsg.includes('payment method not supported') ||
+                         errorMsg.includes('payment type not supported') ||
+                         errorType === 'paymentmethodnotsupported';
+                });
+                
+                if (hasPaymentMethodError) {
+                  console.log(`❌ [BUYMODAL] Rejecting ${q.ramp}: has payment-method-specific error`);
+                  return false;
+                }
+              }
+              // Quote has correct paymentMethod and no payment-method-specific errors - accept it
+              return true;
+            }
+            
+            // If quote doesn't have the payment method set, check for errors
+            // (but backend should have already filtered these, so this is just a safety check)
             if (q.errors && q.errors.length > 0) {
               return false;
             }
