@@ -1855,9 +1855,22 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
                                     key={q.ramp}
                                     onClick={() => {
                                       setSelectedProvider(q.ramp);
+                                      // Always set quote when provider is selected, even if payout is missing
+                                      // This allows users to proceed even if provider has errors
                                       if (q.payout) {
                                         setQuote({
                                           cryptoAmount: q.payout.toString(),
+                                          exchangeRate: q.rate?.toString() || '0',
+                                          fee: ((q.networkFee || 0) + (q.transactionFee || 0)).toString(),
+                                          totalAmount: fiatAmount,
+                                          baseCurrency: fiatCurrency,
+                                          quoteCurrency: cryptoCurrency,
+                                        });
+                                      } else {
+                                        // Create a minimal quote structure even without payout
+                                        // This allows the user to proceed - the actual quote will be fetched during checkout
+                                        setQuote({
+                                          cryptoAmount: '0', // Will be calculated during checkout
                                           exchangeRate: q.rate?.toString() || '0',
                                           fee: ((q.networkFee || 0) + (q.transactionFee || 0)).toString(),
                                           totalAmount: fiatAmount,
