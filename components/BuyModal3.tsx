@@ -9,6 +9,7 @@ import { CHAINS } from '@/lib/chains';
 import { OnramperService } from '@/lib/onramper-service';
 import { ProviderSelector } from '@/lib/provider-selector';
 import { UserOnRampPreferencesService } from '@/lib/user-onramp-preferences';
+import { GeolocationService } from '@/lib/geolocation';
 import { logger } from '@/lib/logger';
 import { supabase } from '@/lib/supabase';
 import toast from 'react-hot-toast';
@@ -77,6 +78,7 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
   const [fiatCurrency, setFiatCurrency] = useState('EUR');
   const [cryptoCurrency, setCryptoCurrency] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<string>('');
+  const [userCountry, setUserCountry] = useState<string | null>(null);
 
   // Data state
   const [quote, setQuote] = useState<Quote | null>(null);

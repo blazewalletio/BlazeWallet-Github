@@ -67,7 +67,13 @@ export async function GET(req: NextRequest) {
     }
 
     logger.log('✅ Onramper supported data received');
-    return NextResponse.json({ success: true, ...supportedData });
+    
+    // Include detected country in response for client-side filtering
+    return NextResponse.json({ 
+      success: true, 
+      ...supportedData,
+      detectedCountry: countryForApi || null, // Include detected country
+    });
 
   } catch (error: any) {
     logger.error('Onramper supported-data error:', error);
