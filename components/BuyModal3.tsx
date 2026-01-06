@@ -1868,10 +1868,19 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
                                   <button
                                     key={q.ramp}
                                     onClick={() => {
+                                      console.log(`🔍 [BUYMODAL] Provider ${q.ramp} clicked:`, {
+                                        payout: q.payout,
+                                        rate: q.rate,
+                                        networkFee: q.networkFee,
+                                        transactionFee: q.transactionFee,
+                                        hasErrors: !!(q.errors && q.errors.length > 0),
+                                        errors: q.errors
+                                      });
                                       setSelectedProvider(q.ramp);
-                                      // Always set quote when provider is selected, even if payout is missing
-                                      // This allows users to proceed even if provider has errors
+                                      // Always set quote when provider is selected
+                                      // Use payout if available, otherwise calculate from rate or use 0
                                       if (q.payout) {
+                                        console.log(`✅ [BUYMODAL] Setting quote with payout: ${q.payout}`);
                                         setQuote({
                                           cryptoAmount: q.payout.toString(),
                                           exchangeRate: q.rate?.toString() || '0',
@@ -1880,9 +1889,22 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
                                           baseCurrency: fiatCurrency,
                                           quoteCurrency: cryptoCurrency,
                                         });
+                                      } else if (q.rate && parseFloat(fiatAmount) > 0) {
+                                        // Calculate payout from rate if payout is missing
+                                        const calculatedPayout = parseFloat(fiatAmount) / parseFloat(q.rate.toString());
+                                        console.log(`⚠️ [BUYMODAL] No payout, calculating from rate: ${calculatedPayout}`);
+                                        setQuote({
+                                          cryptoAmount: calculatedPayout.toString(),
+                                          exchangeRate: q.rate.toString(),
+                                          fee: ((q.networkFee || 0) + (q.transactionFee || 0)).toString(),
+                                          totalAmount: fiatAmount,
+                                          baseCurrency: fiatCurrency,
+                                          quoteCurrency: cryptoCurrency,
+                                        });
                                       } else {
                                         // Create a minimal quote structure even without payout
                                         // This allows the user to proceed - the actual quote will be fetched during checkout
+                                        console.log(`⚠️ [BUYMODAL] No payout or rate, creating minimal quote`);
                                         setQuote({
                                           cryptoAmount: '0', // Will be calculated during checkout
                                           exchangeRate: q.rate?.toString() || '0',
