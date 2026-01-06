@@ -274,31 +274,19 @@ export class OnramperService {
       });
 
       // Try multiple authentication methods
-      // Method 1: Authorization header with Bearer token
+      // Method 1: Authorization header with direct API key (CORRECT per docs!)
       let url = `${baseUrl}?${params.toString()}`;
       let response = await fetch(url, {
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': apiKey,
           'Accept': 'application/json',
         },
       });
 
       if (!response.ok && (response.status === 401 || response.status === 403)) {
-        logger.log('🔄 Method 1 failed (Bearer token), trying Method 2...');
+        logger.log('🔄 Method 1 failed (direct API key), trying Method 2...');
         
-        // Method 2: Authorization header with direct API key
-        response = await fetch(url, {
-          headers: {
-            'Authorization': apiKey,
-            'Accept': 'application/json',
-          },
-        });
-      }
-
-      if (!response.ok && (response.status === 401 || response.status === 403)) {
-        logger.log('🔄 Method 2 failed (direct API key), trying Method 3...');
-        
-        // Method 3: API key as query parameter (no Authorization header)
+        // Method 2: API key as query parameter (no Authorization header)
         params.append('apiKey', apiKey);
         url = `${baseUrl}?${params.toString()}`;
         response = await fetch(url, {
@@ -309,12 +297,12 @@ export class OnramperService {
       }
 
       if (!response.ok && (response.status === 401 || response.status === 403)) {
-        logger.log('🔄 Method 3 failed (query param), trying Method 4...');
+        logger.log('🔄 Method 2 failed (query param), trying Method 3...');
         
-        // Method 4: API key as query parameter + Bearer Authorization header
+        // Method 3: API key as query parameter + Authorization header (legacy fallback)
         response = await fetch(url, {
           headers: {
-            'Authorization': `Bearer ${apiKey}`,
+            'Authorization': apiKey,
             'Accept': 'application/json',
           },
         });
@@ -539,16 +527,15 @@ export class OnramperService {
       // Docs: https://docs.onramper.com/reference/get_supported-payment-types
       let paymentTypesResponse = await fetch(`https://api.onramper.com/supported/payment-types?type=buy&country=${country}`, {
         headers: {
-          'Authorization': `Bearer ${apiKey}`, // Try Bearer first
+          'Authorization': apiKey,
           'Accept': 'application/json',
         },
       });
 
       if (!paymentTypesResponse.ok && (paymentTypesResponse.status === 401 || paymentTypesResponse.status === 403)) {
-        logger.log('🔄 Payment types: Bearer failed, trying direct API key...');
-        paymentTypesResponse = await fetch(`https://api.onramper.com/supported/payment-types?type=buy&country=${country}`, {
+        logger.log('🔄 Payment types: Failed with direct key, trying query param...');
+        paymentTypesResponse = await fetch(`https://api.onramper.com/supported/payment-types?type=buy&country=${country}&apiKey=${apiKey}`, {
           headers: {
-            'Authorization': apiKey, // Direct API key
             'Accept': 'application/json',
           },
         });
@@ -557,16 +544,15 @@ export class OnramperService {
       // Fetch general supported data
       let supportedResponse = await fetch('https://api.onramper.com/supported', {
         headers: {
-          'Authorization': `Bearer ${apiKey}`, // Try Bearer first
+          'Authorization': apiKey,
           'Accept': 'application/json',
         },
       });
 
       if (!supportedResponse.ok && (supportedResponse.status === 401 || supportedResponse.status === 403)) {
-        logger.log('🔄 Supported data: Bearer failed, trying direct API key...');
-        supportedResponse = await fetch('https://api.onramper.com/supported', {
+        logger.log('🔄 Supported data: Failed with direct key, trying query param...');
+        supportedResponse = await fetch(`https://api.onramper.com/supported?apiKey=${apiKey}`, {
           headers: {
-            'Authorization': apiKey, // Direct API key
             'Accept': 'application/json',
           },
         });
@@ -1051,15 +1037,16 @@ export class OnramperService {
       // Try multiple authentication methods
       let response = await fetch(url, {
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': apiKey,
           'Accept': 'application/json',
         },
       });
 
       if (!response.ok && (response.status === 401 || response.status === 403)) {
-        response = await fetch(url, {
+        // Fallback to query param
+        const urlWithKey = `${url}${url.includes('?') ? '&' : '?'}apiKey=${apiKey}`;
+        response = await fetch(urlWithKey, {
           headers: {
-            'Authorization': apiKey,
             'Accept': 'application/json',
           },
         });
@@ -1125,15 +1112,16 @@ export class OnramperService {
       // Try multiple authentication methods
       let response = await fetch(url, {
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': apiKey,
           'Accept': 'application/json',
         },
       });
 
       if (!response.ok && (response.status === 401 || response.status === 403)) {
-        response = await fetch(url, {
+        // Fallback to query param
+        const urlWithKey = `${url}${url.includes('?') ? '&' : '?'}apiKey=${apiKey}`;
+        response = await fetch(urlWithKey, {
           headers: {
-            'Authorization': apiKey,
             'Accept': 'application/json',
           },
         });
@@ -1203,15 +1191,16 @@ export class OnramperService {
       // Try multiple authentication methods
       let response = await fetch(url, {
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': apiKey,
           'Accept': 'application/json',
         },
       });
 
       if (!response.ok && (response.status === 401 || response.status === 403)) {
-        response = await fetch(url, {
+        // Fallback to query param
+        const urlWithKey = `${url}${url.includes('?') ? '&' : '?'}apiKey=${apiKey}`;
+        response = await fetch(urlWithKey, {
           headers: {
-            'Authorization': apiKey,
             'Accept': 'application/json',
           },
         });
@@ -1298,15 +1287,16 @@ export class OnramperService {
       // Try multiple authentication methods
       let response = await fetch(url, {
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': apiKey,
           'Accept': 'application/json',
         },
       });
 
       if (!response.ok && (response.status === 401 || response.status === 403)) {
-        response = await fetch(url, {
+        // Fallback to query param
+        const urlWithKey = `${url}${url.includes('?') ? '&' : '?'}apiKey=${apiKey}`;
+        response = await fetch(urlWithKey, {
           headers: {
-            'Authorization': apiKey,
             'Accept': 'application/json',
           },
         });

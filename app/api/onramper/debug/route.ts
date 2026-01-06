@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
       const supportedUrl = `https://api.onramper.com/supported`;
       const supportedResponse = await fetch(supportedUrl, {
         headers: {
-          'Authorization': `Bearer ${onramperApiKey}`,
+          'Authorization': onramperApiKey,
           'Accept': 'application/json',
         },
       });
@@ -98,7 +98,7 @@ export async function GET(req: NextRequest) {
       
       const quotesResponse = await fetch(quotesUrl, {
         headers: {
-          'Authorization': `Bearer ${onramperApiKey}`,
+          'Authorization': onramperApiKey,
           'Accept': 'application/json',
         },
       });
@@ -145,7 +145,7 @@ export async function GET(req: NextRequest) {
       
       const quotesResponse = await fetch(quotesUrl, {
         headers: {
-          'Authorization': `Bearer ${onramperApiKey}`,
+          'Authorization': onramperApiKey,
           'Accept': 'application/json',
         },
       });
@@ -186,7 +186,7 @@ export async function GET(req: NextRequest) {
         
         const quotesResponse = await fetch(quotesUrl, {
           headers: {
-            'Authorization': `Bearer ${onramperApiKey}`,
+            'Authorization': onramperApiKey,
             'Accept': 'application/json',
           },
         });
