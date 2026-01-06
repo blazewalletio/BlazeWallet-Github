@@ -1275,9 +1275,19 @@ export class OnramperService {
       const cryptoLower = cryptoCurrency.toLowerCase();
       let url = `https://api.onramper.com/quotes/${fiatLower}/${cryptoLower}?amount=${fiatAmount}`;
       
-      // Add payment method if provided
-      if (paymentMethod) {
-        url += `&paymentMethod=${paymentMethod.toLowerCase()}`;
+      // ⚠️ CRITICAL: For iDEAL and other payment methods, we fetch ALL quotes first
+      // and then filter client-side by checking availablePaymentMethods.
+      // This is because Onramper's paymentMethod filter is too strict and excludes
+      // providers that support the method but don't have it as their primary method.
+      // 
+      // We only use paymentMethod filter for non-iDEAL methods that work reliably.
+      const paymentMethodLower = paymentMethod?.toLowerCase() || '';
+      const isIdeal = paymentMethodLower.includes('ideal');
+      
+      // For iDEAL, don't use paymentMethod filter - we'll filter client-side
+      // For other methods, use the filter if it's reliable
+      if (paymentMethod && !isIdeal) {
+        url += `&paymentMethod=${paymentMethodLower}`;
       }
       
       // Add country if provided (otherwise Onramper auto-detects via IP)
@@ -1322,12 +1332,39 @@ export class OnramperService {
       const data = await response.json();
       
       // ⚠️ CRITICAL: Quotes endpoint returns DIRECT ARRAY (not in message field!)
-      const quotes = Array.isArray(data) ? data : (data.message || []);
+      let quotes = Array.isArray(data) ? data : (data.message || []);
       
       // Filter out quotes with errors (but keep them for debugging)
-      const validQuotes = quotes.filter((q: any) => !q.errors || q.errors.length === 0);
+      let validQuotes = quotes.filter((q: any) => !q.errors || q.errors.length === 0);
       
-      logger.log(`✅ Found ${quotes.length} provider quotes (${validQuotes.length} valid)`);
+      // ⚠️ CRITICAL: For iDEAL, filter client-side by checking availablePaymentMethods
+      // This allows us to find providers that support iDEAL even if Onramper's
+      // paymentMethod filter doesn't include them
+      if (paymentMethod && paymentMethod.toLowerCase().includes('ideal')) {
+        const idealQuotes = validQuotes.filter((q: any) => {
+          const methods = q.availablePaymentMethods || [];
+          return methods.some((pm: any) => {
+            const id = pm.paymentTypeId || pm.id || '';
+            return id.toLowerCase().includes('ideal');
+          });
+        });
+        
+        if (idealQuotes.length > 0) {
+          logger.log(`✅ Found ${idealQuotes.length} providers supporting iDEAL (client-side filtered)`);
+          validQuotes = idealQuotes;
+        } else {
+          logger.warn('⚠️ No providers found with iDEAL in availablePaymentMethods, using Onramper filter result');
+        }
+      }
+      
+      logger.log(`✅ Found ${quotes.length} provider quotes (${validQuotes.length} valid after filtering)`);
+      
+      // If we filtered by payment method, return only the filtered quotes
+      // Otherwise return all quotes for comparison
+      if (paymentMethod && paymentMethod.toLowerCase().includes('ideal')) {
+        return validQuotes;
+      }
+      
       return quotes; // Return all quotes (including errors) for comparison
     } catch (error: any) {
       logger.error('❌ Error fetching all provider quotes:', error);
