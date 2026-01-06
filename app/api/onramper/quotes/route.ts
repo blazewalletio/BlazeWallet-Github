@@ -266,7 +266,12 @@ export async function GET(req: NextRequest) {
       }
     }
     
-    return NextResponse.json({ success: true, quotes: filteredQuotes });
+    return NextResponse.json({ 
+      success: true, 
+      quotes: filteredQuotes,
+      paymentMethod: paymentMethod || '', // ⚠️ CRITICAL: Include paymentMethod in response for frontend validation
+      quoteCount: filteredQuotes.length
+    });
 
   } catch (error: any) {
     logger.error('Onramper quotes error:', error);
