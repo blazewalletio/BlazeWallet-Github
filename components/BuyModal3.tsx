@@ -1693,7 +1693,7 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
                         <div className="grid grid-cols-2 gap-3">
                           {paymentMethods.map((pm) => {
                             const isAvailable = availablePaymentMethods.has(pm.id);
-                            const isUnavailable = !isAvailable && cryptoCurrency && !checkingAvailability;
+                            const isUnavailable = !isAvailable && !!cryptoCurrency && !checkingAvailability;
                             
                             return (
                               <button
