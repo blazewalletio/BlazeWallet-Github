@@ -179,6 +179,8 @@ export async function GET(req: NextRequest) {
         logger.log(`🔍 Starting filter for payment method: ${paymentMethod} (isIdeal: ${isIdeal})`);
         
         filteredQuotes = quotes.filter((q: any) => {
+        const ramp = q.ramp || 'unknown';
+        
         // ⚠️ CRITICAL: PRIMARY CHECK - If quote has the payment method set, it's supported
         // This is the most reliable check - if Onramper returned a quote with paymentMethod set,
         // it means the provider supports it (even if there are minor errors)
@@ -194,9 +196,11 @@ export async function GET(req: NextRequest) {
           });
           
           if (!hasPaymentMethodError) {
+            logger.log(`   ✅ ${ramp}: PRIMARY CHECK PASSED - paymentMethod=${q.paymentMethod}, no payment-method errors`);
             return true; // Quote has correct paymentMethod and no payment-related errors
           }
           // If there's a payment-method-specific error, reject it
+          logger.log(`   ❌ ${ramp}: PRIMARY CHECK FAILED - paymentMethod=${q.paymentMethod}, has payment-method error`);
           return false;
         }
         
@@ -213,9 +217,11 @@ export async function GET(req: NextRequest) {
           
           if (hasPaymentMethodError) {
             // This provider definitely doesn't support the payment method
+            logger.log(`   ❌ ${ramp}: Has payment-method-specific error, rejecting`);
             return false;
           }
           // Other errors (rate limits, temporary issues, etc.) are OK - continue checking
+          logger.log(`   ⚠️ ${ramp}: Has non-payment errors (${q.errors.length}), continuing to check availablePaymentMethods`);
         }
         
         // ⚠️ CRITICAL: Check availablePaymentMethods array (this is the fallback check)
@@ -249,12 +255,12 @@ export async function GET(req: NextRequest) {
         const result = supportsMethod;
         if (!result) {
           try {
-            logger.log(`   ❌ Filtered out ${q.ramp}: paymentMethod=${q.paymentMethod || 'none'}, availableMethods=${methodIds.join(', ') || 'none'}`);
+            logger.log(`   ❌ ${ramp}: FALLBACK CHECK FAILED - paymentMethod=${q.paymentMethod || 'none'}, availableMethods=${methodIds.join(', ') || 'none'}`);
           } catch (logError: any) {
-            logger.log(`   ❌ Filtered out ${q.ramp}`);
+            logger.log(`   ❌ ${ramp}: FALLBACK CHECK FAILED`);
           }
         } else {
-          logger.log(`   ✅ ${q.ramp} supports ${paymentMethod} (availableMethods: ${methodIds.join(', ')})`);
+          logger.log(`   ✅ ${ramp}: FALLBACK CHECK PASSED - paymentMethod=${q.paymentMethod || 'none'}, availableMethods=${methodIds.join(', ')}`);
         }
         return result;
       });
