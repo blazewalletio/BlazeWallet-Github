@@ -185,6 +185,19 @@ export async function GET(req: NextRequest) {
         // This is the most reliable check - if Onramper returned a quote with paymentMethod set,
         // it means the provider supports it (even if there are minor errors)
         if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower) {
+          // ⚠️ CRITICAL: If provider has availableMethods array with the payment method, accept it
+          // This is more reliable than error checking - if Onramper says it's available, trust it
+          const hasPaymentMethodInAvailable = q.availablePaymentMethods?.some((pm: any) => {
+            const id = (pm.paymentTypeId || pm.id || '').toLowerCase();
+            return id === paymentMethodLower || 
+                   (isIdeal && id.includes('ideal'));
+          });
+          
+          if (hasPaymentMethodInAvailable) {
+            logger.error(`   ✅ ${ramp}: PRIMARY CHECK PASSED - paymentMethod=${q.paymentMethod}, found in availableMethods`);
+            return true; // Provider explicitly lists this payment method as available
+          }
+          
           // Only reject if there are errors that specifically indicate payment method incompatibility
           const hasPaymentMethodError = q.errors?.some((err: any) => {
             const errorMsg = (err.message || '').toLowerCase();
@@ -199,8 +212,11 @@ export async function GET(req: NextRequest) {
             logger.error(`   ✅ ${ramp}: PRIMARY CHECK PASSED - paymentMethod=${q.paymentMethod}, no payment-method errors`);
             return true; // Quote has correct paymentMethod and no payment-related errors
           }
-          // If there's a payment-method-specific error, reject it
-          logger.error(`   ❌ ${ramp}: PRIMARY CHECK FAILED - paymentMethod=${q.paymentMethod}, has payment-method error`);
+          
+          // Log the actual error for debugging
+          logger.error(`   ❌ ${ramp}: PRIMARY CHECK FAILED - paymentMethod=${q.paymentMethod}, has payment-method error`, {
+            errors: q.errors?.map((e: any) => ({ message: e.message, type: e.type }))
+          });
           return false;
         }
         
