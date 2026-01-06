@@ -63,7 +63,7 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
   // ⚠️ NEW: Availability checking state
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [availablePaymentMethods, setAvailablePaymentMethods] = useState<Set<string>>(new Set());
-  const [availableCryptos, setAvailableCryptos] = useState<Set<string>>(new Set());
+  const [availableCryptosSet, setAvailableCryptosSet] = useState<Set<string>>(new Set());
   const [unavailableReasons, setUnavailableReasons] = useState<Record<string, string>>({});
   
   // Test & Debug state
@@ -219,7 +219,7 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
       setShowProviderComparison(false);
       setComparisonQuotes([]);
       setAvailablePaymentMethods(new Set());
-      setAvailableCryptos(new Set());
+      setAvailableCryptosSet(new Set());
       setUnavailableReasons({});
     }
   }, [isOpen]);
@@ -329,6 +329,7 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
     } else if (!cryptoCurrency || flowStep !== 'payment') {
       // Clear availability when not on payment step
       setAvailablePaymentMethods(new Set());
+      setAvailableCryptosSet(new Set());
       setUnavailableReasons({});
     }
   }, [cryptoCurrency, flowStep, paymentMethods.length, fiatCurrency]); // ⚠️ Use length to avoid infinite loop
