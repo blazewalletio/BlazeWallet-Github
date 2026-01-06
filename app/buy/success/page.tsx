@@ -98,13 +98,6 @@ function BuySuccessContent() {
             <div className="space-y-3">
               <button
                 onClick={() => router.push('/dashboard')}
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-              >
-                Go to Dashboard
-              </button>
-              
-              <button
-                onClick={() => router.push('/wallet')}
                 className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-lg transition-colors"
               >
                 View Wallet
