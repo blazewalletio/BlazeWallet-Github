@@ -1,0 +1,652 @@
+{
+  "summary": {
+    "passed": 25,
+    "failed": 11,
+    "total": 36,
+    "duration": "22.83s",
+    "timestamp": "2026-01-06T10:20:53.205Z"
+  },
+  "results": [
+    {
+      "name": "API Key Check",
+      "passed": false,
+      "error": "ONRAMPER_API_KEY not set",
+      "timestamp": "2026-01-06T10:20:30.372Z"
+    },
+    {
+      "name": "Supported Data - Payment Methods",
+      "passed": true,
+      "data": {
+        "total": 6,
+        "idealCount": 1,
+        "idealIds": [
+          "ideal"
+        ],
+        "sample": [
+          {
+            "id": "creditcard",
+            "name": "Credit/Debit Card"
+          },
+          {
+            "id": "applepay",
+            "name": "Apple Pay"
+          },
+          {
+            "id": "googlepay",
+            "name": "Google Pay"
+          },
+          {
+            "id": "ideal",
+            "name": "iDEAL"
+          },
+          {
+            "id": "bancontact",
+            "name": "Bancontact"
+          }
+        ]
+      },
+      "timestamp": "2026-01-06T10:20:30.799Z"
+    },
+    {
+      "name": "Supported Data - Fiat Currencies",
+      "passed": true,
+      "data": {
+        "total": 3,
+        "currencies": [
+          "EUR",
+          "USD",
+          "GBP"
+        ]
+      },
+      "timestamp": "2026-01-06T10:20:30.799Z"
+    },
+    {
+      "name": "Supported Data - Crypto Currencies",
+      "passed": true,
+      "data": {
+        "total": 5,
+        "sample": [
+          "ETH",
+          "USDT",
+          "USDC",
+          "BTC",
+          "SOL"
+        ]
+      },
+      "timestamp": "2026-01-06T10:20:30.799Z"
+    },
+    {
+      "name": "Direct Onramper API - /supported",
+      "passed": false,
+      "error": "ONRAMPER_API_KEY not set",
+      "timestamp": "2026-01-06T10:20:30.799Z"
+    },
+    {
+      "name": "Quotes WITHOUT Payment Method - EUR/ETH",
+      "passed": true,
+      "data": {
+        "totalQuotes": 19,
+        "validQuotes": 9,
+        "providers": [
+          "sardine",
+          "moonpay",
+          "topper",
+          "gatefi",
+          "stripe",
+          "swapped",
+          "banxa",
+          "coinify",
+          "guardarian"
+        ],
+        "hasBanxa": true,
+        "hasMoonpay": true,
+        "idealSupport": 0,
+        "topPaymentMethods": [
+          {
+            "id": "creditcard",
+            "count": 9
+          },
+          {
+            "id": "debitcard",
+            "count": 8
+          },
+          {
+            "id": "applepay",
+            "count": 7
+          },
+          {
+            "id": "googlepay",
+            "count": 5
+          },
+          {
+            "id": "paypal",
+            "count": 2
+          }
+        ]
+      },
+      "timestamp": "2026-01-06T10:20:31.139Z"
+    },
+    {
+      "name": "Quotes WITHOUT Payment Method - EUR/USDC",
+      "passed": true,
+      "data": {
+        "totalQuotes": 19,
+        "validQuotes": 0,
+        "providers": [],
+        "hasBanxa": false,
+        "hasMoonpay": false,
+        "idealSupport": 0,
+        "topPaymentMethods": []
+      },
+      "timestamp": "2026-01-06T10:20:31.782Z"
+    },
+    {
+      "name": "Quotes WITHOUT Payment Method - EUR/BTC",
+      "passed": true,
+      "data": {
+        "totalQuotes": 19,
+        "validQuotes": 9,
+        "providers": [
+          "moonpay",
+          "sardine",
+          "topper",
+          "stripe",
+          "guardarian",
+          "swapped",
+          "gatefi",
+          "coinify",
+          "banxa"
+        ],
+        "hasBanxa": true,
+        "hasMoonpay": true,
+        "idealSupport": 0,
+        "topPaymentMethods": [
+          {
+            "id": "creditcard",
+            "count": 9
+          },
+          {
+            "id": "debitcard",
+            "count": 8
+          },
+          {
+            "id": "applepay",
+            "count": 7
+          },
+          {
+            "id": "googlepay",
+            "count": 5
+          },
+          {
+            "id": "paypal",
+            "count": 2
+          }
+        ]
+      },
+      "timestamp": "2026-01-06T10:20:33.476Z"
+    },
+    {
+      "name": "Quotes WITHOUT Payment Method - USD/ETH",
+      "passed": true,
+      "data": {
+        "totalQuotes": 19,
+        "validQuotes": 9,
+        "providers": [
+          "moonpay",
+          "sardine",
+          "topper",
+          "stripe",
+          "gatefi",
+          "swapped",
+          "guardarian",
+          "coinify",
+          "banxa"
+        ],
+        "hasBanxa": true,
+        "hasMoonpay": true,
+        "idealSupport": 0,
+        "topPaymentMethods": [
+          {
+            "id": "creditcard",
+            "count": 9
+          },
+          {
+            "id": "debitcard",
+            "count": 8
+          },
+          {
+            "id": "applepay",
+            "count": 7
+          },
+          {
+            "id": "googlepay",
+            "count": 5
+          },
+          {
+            "id": "paypal",
+            "count": 2
+          }
+        ]
+      },
+      "timestamp": "2026-01-06T10:20:35.238Z"
+    },
+    {
+      "name": "Quotes WITHOUT Payment Method - GBP/ETH",
+      "passed": true,
+      "data": {
+        "totalQuotes": 19,
+        "validQuotes": 7,
+        "providers": [
+          "moonpay",
+          "topper",
+          "swapped",
+          "gatefi",
+          "guardarian",
+          "banxa",
+          "sardine"
+        ],
+        "hasBanxa": true,
+        "hasMoonpay": true,
+        "idealSupport": 0,
+        "topPaymentMethods": [
+          {
+            "id": "debitcard",
+            "count": 7
+          },
+          {
+            "id": "creditcard",
+            "count": 7
+          },
+          {
+            "id": "applepay",
+            "count": 5
+          },
+          {
+            "id": "googlepay",
+            "count": 5
+          },
+          {
+            "id": "paypal",
+            "count": 2
+          }
+        ]
+      },
+      "timestamp": "2026-01-06T10:20:37.205Z"
+    },
+    {
+      "name": "Quotes WITH IDEAL - ETH",
+      "passed": true,
+      "data": {
+        "totalQuotes": 0,
+        "validQuotes": 0,
+        "verifiedQuotes": 0,
+        "providers": [],
+        "hasBanxa": false,
+        "hasMoonpay": false,
+        "responsePaymentMethod": "none"
+      },
+      "timestamp": "2026-01-06T10:20:37.376Z"
+    },
+    {
+      "name": "Quotes WITH IDEAL - USDC",
+      "passed": false,
+      "error": "Failed to fetch quotes from Onramper",
+      "data": {
+        "error": "Failed to fetch quotes from Onramper",
+        "message": "No quotes available. Please try again or contact support."
+      },
+      "timestamp": "2026-01-06T10:20:37.550Z"
+    },
+    {
+      "name": "Quotes WITH IDEAL - BTC",
+      "passed": true,
+      "data": {
+        "totalQuotes": 0,
+        "validQuotes": 0,
+        "verifiedQuotes": 0,
+        "providers": [],
+        "hasBanxa": false,
+        "hasMoonpay": false,
+        "responsePaymentMethod": "none"
+      },
+      "timestamp": "2026-01-06T10:20:37.715Z"
+    },
+    {
+      "name": "Quotes WITH CREDITCARD - ETH",
+      "passed": true,
+      "data": {
+        "totalQuotes": 9,
+        "validQuotes": 9,
+        "verifiedQuotes": 9,
+        "providers": [
+          "banxa",
+          "sardine",
+          "gatefi",
+          "stripe",
+          "topper",
+          "guardarian",
+          "moonpay",
+          "swapped",
+          "coinify"
+        ],
+        "hasBanxa": true,
+        "hasMoonpay": true,
+        "responsePaymentMethod": "none"
+      },
+      "timestamp": "2026-01-06T10:20:39.501Z"
+    },
+    {
+      "name": "Quotes WITH CREDITCARD - USDC",
+      "passed": false,
+      "error": "Failed to fetch quotes from Onramper",
+      "data": {
+        "error": "Failed to fetch quotes from Onramper",
+        "message": "No quotes available. Please try again or contact support."
+      },
+      "timestamp": "2026-01-06T10:20:39.869Z"
+    },
+    {
+      "name": "Quotes WITH CREDITCARD - BTC",
+      "passed": true,
+      "data": {
+        "totalQuotes": 9,
+        "validQuotes": 9,
+        "verifiedQuotes": 9,
+        "providers": [
+          "moonpay",
+          "sardine",
+          "topper",
+          "stripe",
+          "guardarian",
+          "swapped",
+          "gatefi",
+          "coinify",
+          "banxa"
+        ],
+        "hasBanxa": true,
+        "hasMoonpay": true,
+        "responsePaymentMethod": "none"
+      },
+      "timestamp": "2026-01-06T10:20:40.731Z"
+    },
+    {
+      "name": "Quotes WITH BANKTRANSFER - ETH",
+      "passed": true,
+      "data": {
+        "totalQuotes": 1,
+        "validQuotes": 1,
+        "verifiedQuotes": 1,
+        "providers": [
+          "coinify"
+        ],
+        "hasBanxa": false,
+        "hasMoonpay": false,
+        "responsePaymentMethod": "none"
+      },
+      "timestamp": "2026-01-06T10:20:41.604Z"
+    },
+    {
+      "name": "Quotes WITH BANKTRANSFER - USDC",
+      "passed": false,
+      "error": "Failed to fetch quotes from Onramper",
+      "data": {
+        "error": "Failed to fetch quotes from Onramper",
+        "message": "No quotes available. Please try again or contact support."
+      },
+      "timestamp": "2026-01-06T10:20:42.276Z"
+    },
+    {
+      "name": "Quotes WITH BANKTRANSFER - BTC",
+      "passed": true,
+      "data": {
+        "totalQuotes": 1,
+        "validQuotes": 1,
+        "verifiedQuotes": 1,
+        "providers": [
+          "coinify"
+        ],
+        "hasBanxa": false,
+        "hasMoonpay": false,
+        "responsePaymentMethod": "none"
+      },
+      "timestamp": "2026-01-06T10:20:43.161Z"
+    },
+    {
+      "name": "Quotes WITH APPLEPAY - ETH",
+      "passed": true,
+      "data": {
+        "totalQuotes": 7,
+        "validQuotes": 7,
+        "verifiedQuotes": 7,
+        "providers": [
+          "topper",
+          "moonpay",
+          "sardine",
+          "stripe",
+          "swapped",
+          "gatefi",
+          "banxa"
+        ],
+        "hasBanxa": true,
+        "hasMoonpay": true,
+        "responsePaymentMethod": "none"
+      },
+      "timestamp": "2026-01-06T10:20:44.493Z"
+    },
+    {
+      "name": "Quotes WITH APPLEPAY - USDC",
+      "passed": false,
+      "error": "Failed to fetch quotes from Onramper",
+      "data": {
+        "error": "Failed to fetch quotes from Onramper",
+        "message": "No quotes available. Please try again or contact support."
+      },
+      "timestamp": "2026-01-06T10:20:45.062Z"
+    },
+    {
+      "name": "Quotes WITH APPLEPAY - BTC",
+      "passed": true,
+      "data": {
+        "totalQuotes": 7,
+        "validQuotes": 7,
+        "verifiedQuotes": 7,
+        "providers": [
+          "topper",
+          "moonpay",
+          "sardine",
+          "stripe",
+          "swapped",
+          "gatefi",
+          "banxa"
+        ],
+        "hasBanxa": true,
+        "hasMoonpay": true,
+        "responsePaymentMethod": "none"
+      },
+      "timestamp": "2026-01-06T10:20:46.443Z"
+    },
+    {
+      "name": "Quotes WITH GOOGLEPAY - ETH",
+      "passed": true,
+      "data": {
+        "totalQuotes": 5,
+        "validQuotes": 5,
+        "verifiedQuotes": 5,
+        "providers": [
+          "topper",
+          "sardine",
+          "moonpay",
+          "swapped",
+          "banxa"
+        ],
+        "hasBanxa": true,
+        "hasMoonpay": true,
+        "responsePaymentMethod": "none"
+      },
+      "timestamp": "2026-01-06T10:20:46.607Z"
+    },
+    {
+      "name": "Quotes WITH GOOGLEPAY - USDC",
+      "passed": false,
+      "error": "Failed to fetch quotes from Onramper",
+      "data": {
+        "error": "Failed to fetch quotes from Onramper",
+        "message": "No quotes available. Please try again or contact support."
+      },
+      "timestamp": "2026-01-06T10:20:47.199Z"
+    },
+    {
+      "name": "Quotes WITH GOOGLEPAY - BTC",
+      "passed": true,
+      "data": {
+        "totalQuotes": 5,
+        "validQuotes": 5,
+        "verifiedQuotes": 5,
+        "providers": [
+          "topper",
+          "moonpay",
+          "sardine",
+          "swapped",
+          "banxa"
+        ],
+        "hasBanxa": true,
+        "hasMoonpay": true,
+        "responsePaymentMethod": "none"
+      },
+      "timestamp": "2026-01-06T10:20:48.435Z"
+    },
+    {
+      "name": "Backend Filtering - IDEAL for ETH",
+      "passed": true,
+      "data": {
+        "allQuotes": 19,
+        "filteredQuotes": 0,
+        "providersWithMethod": 0,
+        "providersWithMethodList": [],
+        "filteredProviders": [],
+        "filteringWorks": true,
+        "filteringCorrect": true
+      },
+      "timestamp": "2026-01-06T10:20:48.768Z"
+    },
+    {
+      "name": "Backend Filtering - IDEAL for USDC",
+      "passed": false,
+      "error": "Could not fetch quotes",
+      "timestamp": "2026-01-06T10:20:49.090Z"
+    },
+    {
+      "name": "Backend Filtering - CREDITCARD for ETH",
+      "passed": true,
+      "data": {
+        "allQuotes": 19,
+        "filteredQuotes": 9,
+        "providersWithMethod": 10,
+        "providersWithMethodList": [
+          "sardine",
+          "moonpay",
+          "topper",
+          "gatefi",
+          "stripe",
+          "swapped",
+          "banxa",
+          "coinify",
+          "guardarian",
+          "paybis"
+        ],
+        "filteredProviders": [
+          "banxa",
+          "sardine",
+          "gatefi",
+          "stripe",
+          "topper",
+          "guardarian",
+          "moonpay",
+          "swapped",
+          "coinify"
+        ],
+        "filteringWorks": true,
+        "filteringCorrect": true
+      },
+      "timestamp": "2026-01-06T10:20:49.424Z"
+    },
+    {
+      "name": "Edge Case - Very Small Amount (10 EUR)",
+      "passed": true,
+      "data": {
+        "quotesCount": 19
+      },
+      "timestamp": "2026-01-06T10:20:50.431Z"
+    },
+    {
+      "name": "Edge Case - Very Large Amount (10000 EUR)",
+      "passed": true,
+      "data": {
+        "quotesCount": 19
+      },
+      "timestamp": "2026-01-06T10:20:51.820Z"
+    },
+    {
+      "name": "Edge Case - Invalid Amount (0)",
+      "passed": true,
+      "data": {
+        "error": "Invalid fiat amount"
+      },
+      "timestamp": "2026-01-06T10:20:51.998Z"
+    },
+    {
+      "name": "Edge Case - Missing Parameters",
+      "passed": false,
+      "data": {},
+      "timestamp": "2026-01-06T10:20:52.190Z"
+    },
+    {
+      "name": "Edge Case - Invalid Payment Method",
+      "data": {
+        "quotesCount": 0,
+        "shouldBeEmpty": false
+      },
+      "timestamp": "2026-01-06T10:20:52.678Z"
+    },
+    {
+      "name": "Payment Method Matching - All Methods",
+      "passed": true,
+      "data": {
+        "totalMethods": 6,
+        "idealMethods": 1,
+        "idealIds": [
+          "ideal"
+        ],
+        "allIds": [
+          "creditcard",
+          "applepay",
+          "googlepay",
+          "ideal",
+          "bancontact",
+          "sepa"
+        ]
+      },
+      "timestamp": "2026-01-06T10:20:52.866Z"
+    },
+    {
+      "name": "Payment Method Matching - ideal",
+      "passed": true,
+      "data": {
+        "quotesCount": 0,
+        "responsePaymentMethod": "none"
+      },
+      "timestamp": "2026-01-06T10:20:53.036Z"
+    },
+    {
+      "name": "Response Validation - Structure",
+      "passed": false,
+      "data": {
+        "hasQuotes": true,
+        "hasPaymentMethod": false,
+        "hasQuoteCount": false,
+        "quotesLength": 0
+      },
+      "timestamp": "2026-01-06T10:20:53.204Z"
+    }
+  ]
+}

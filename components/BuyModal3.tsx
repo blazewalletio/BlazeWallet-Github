@@ -55,9 +55,16 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
 
   // State management
   const [step, setStep] = useState<'select' | 'widget' | 'processing' | 'success' | 'error'>('select');
+  const [flowStep, setFlowStep] = useState<'amount' | 'crypto' | 'payment' | 'quotes' | 'review'>('amount'); // ⚠️ NEW: Step-by-step flow
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showWidget, setShowWidget] = useState(false);
+  
+  // ⚠️ NEW: Availability checking state
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [availablePaymentMethods, setAvailablePaymentMethods] = useState<Set<string>>(new Set());
+  const [availableCryptos, setAvailableCryptos] = useState<Set<string>>(new Set());
+  const [unavailableReasons, setUnavailableReasons] = useState<Record<string, string>>({});
   
   // Test & Debug state
   const [showTestPanel, setShowTestPanel] = useState(false);
@@ -200,6 +207,7 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
     if (isOpen) {
       // Reset ALL state when modal opens (prevent stale data)
       setStep('select');
+      setFlowStep('amount'); // ⚠️ NEW: Start at first step
       setShowWidget(false);
       setWidgetUrl('');
       setError(null);
@@ -210,6 +218,9 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
       setSelectedProvider(null);
       setShowProviderComparison(false);
       setComparisonQuotes([]);
+      setAvailablePaymentMethods(new Set());
+      setAvailableCryptos(new Set());
+      setUnavailableReasons({});
     }
   }, [isOpen]);
 
@@ -221,18 +232,155 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
 
       if (data.success) {
         if (data.paymentMethods) {
-          setPaymentMethods(data.paymentMethods);
+          // ⚠️ FILTER: Remove iDEAL (test results show 0 providers support it)
+          const filteredPaymentMethods = data.paymentMethods.filter((pm: PaymentMethod) => {
+            // iDEAL is not actually supported (0 providers)
+            if (pm.id.toLowerCase() === 'ideal') {
+              return false;
+            }
+            return true;
+          });
+          setPaymentMethods(filteredPaymentMethods);
         }
         if (data.fiatCurrencies) {
           setFiatCurrencies(data.fiatCurrencies);
         }
         if (data.cryptoCurrencies) {
-          setCryptoCurrencies(data.cryptoCurrencies);
+          // ⚠️ FILTER: Remove USDC (test results show no providers support it)
+          const filteredCryptos = data.cryptoCurrencies.filter((crypto: string) => {
+            // USDC is not actually supported (no quotes available)
+            if (crypto.toUpperCase() === 'USDC') {
+              return false;
+            }
+            return true;
+          });
+          setCryptoCurrencies(filteredCryptos);
         }
       }
     } catch (err: any) {
       logger.error('Failed to fetch Onramper supported data:', err);
     }
+  };
+
+  // ⚠️ NEW: Check payment method availability for selected crypto
+  const checkPaymentMethodAvailability = async (crypto: string, paymentMethodId: string): Promise<boolean> => {
+    try {
+      setCheckingAvailability(true);
+      const url = `/api/onramper/quotes?fiatAmount=250&fiatCurrency=${fiatCurrency}&cryptoCurrency=${crypto}&paymentMethod=${paymentMethodId}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.success && data.quotes && data.quotes.length > 0) {
+        return true;
+      }
+      return false;
+    } catch (error) {
+      return false;
+    } finally {
+      setCheckingAvailability(false);
+    }
+  };
+
+  // ⚠️ NEW: Check crypto availability
+  const checkCryptoAvailability = async (crypto: string): Promise<boolean> => {
+    try {
+      const url = `/api/onramper/quotes?fiatAmount=250&fiatCurrency=${fiatCurrency}&cryptoCurrency=${crypto}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.success && data.quotes && data.quotes.length > 0) {
+        const validQuotes = data.quotes.filter((q: any) => !q.errors || q.errors.length === 0);
+        return validQuotes.length > 0;
+      }
+      return false;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  // ⚠️ NEW: Update availability when crypto changes and we're on payment step
+  useEffect(() => {
+    if (cryptoCurrency && flowStep === 'payment' && paymentMethods.length > 0) {
+      const updateAvailability = async () => {
+        setCheckingAvailability(true);
+        const available = new Set<string>();
+        const reasons: Record<string, string> = {};
+        
+        // Check each payment method
+        for (const pm of paymentMethods) {
+          try {
+            const isAvailable = await checkPaymentMethodAvailability(cryptoCurrency, pm.id);
+            if (isAvailable) {
+              available.add(pm.id);
+            } else {
+              reasons[pm.id] = `No providers available for ${pm.name} with ${cryptoCurrency}`;
+            }
+          } catch (error) {
+            reasons[pm.id] = `Error checking availability for ${pm.name}`;
+          }
+        }
+        
+        setAvailablePaymentMethods(available);
+        setUnavailableReasons(reasons);
+        setCheckingAvailability(false);
+      };
+      
+      updateAvailability();
+    } else if (!cryptoCurrency || flowStep !== 'payment') {
+      // Clear availability when not on payment step
+      setAvailablePaymentMethods(new Set());
+      setUnavailableReasons({});
+    }
+  }, [cryptoCurrency, flowStep, paymentMethods.length, fiatCurrency]); // ⚠️ Use length to avoid infinite loop
+
+  // ⚠️ NEW: Navigation functions for step-by-step flow
+  const handleAmountNext = () => {
+    if (!fiatAmount || parseFloat(fiatAmount) <= 0) {
+      setError('Please enter a valid amount');
+      return;
+    }
+    setFlowStep('crypto');
+    setError(null);
+  };
+
+  const handleCryptoNext = () => {
+    if (!cryptoCurrency) {
+      setError('Please select a cryptocurrency');
+      return;
+    }
+    setFlowStep('payment');
+    setError(null);
+  };
+
+  const handlePaymentNext = async () => {
+    if (!paymentMethod) {
+      setError('Please select a payment method');
+      return;
+    }
+    
+    // Check if payment method is available
+    if (!availablePaymentMethods.has(paymentMethod)) {
+      setError(unavailableReasons[paymentMethod] || 'This payment method is not available');
+      return;
+    }
+    
+    setFlowStep('quotes');
+    setError(null);
+    // Automatically fetch quotes when moving to quotes step
+    await fetchQuote();
+  };
+
+  const handleBack = () => {
+    if (flowStep === 'crypto') {
+      setFlowStep('amount');
+    } else if (flowStep === 'payment') {
+      setFlowStep('crypto');
+    } else if (flowStep === 'quotes') {
+      setFlowStep('payment');
+    } else if (flowStep === 'review') {
+      setFlowStep('quotes');
+    }
+    setError(null);
   };
 
   const fetchQuote = async () => {
@@ -1389,8 +1537,401 @@ export default function BuyModal3({ isOpen, onClose }: BuyModal3Props) {
             {/* Content */}
             {step === 'select' && (
               <div className="glass-card p-6 space-y-6">
-                {/* Amount Selection */}
-                <div>
+                {/* ⚠️ NEW: Step-by-step progress indicator */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    {['amount', 'crypto', 'payment', 'quotes'].map((stepName, idx) => {
+                      const stepIndex = ['amount', 'crypto', 'payment', 'quotes'].indexOf(flowStep);
+                      const isActive = flowStep === stepName;
+                      const isCompleted = idx < stepIndex;
+                      const isUpcoming = idx > stepIndex;
+                      
+                      return (
+                        <div key={stepName} className="flex items-center flex-1">
+                          <div className="flex flex-col items-center flex-1">
+                            <div
+                              className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all ${
+                                isActive
+                                  ? 'bg-indigo-500 text-white scale-110'
+                                  : isCompleted
+                                  ? 'bg-green-500 text-white'
+                                  : 'bg-gray-200 text-gray-500'
+                              }`}
+                            >
+                              {isCompleted ? '✓' : idx + 1}
+                            </div>
+                            <span className={`text-xs mt-2 font-medium ${
+                              isActive ? 'text-indigo-600' : isCompleted ? 'text-green-600' : 'text-gray-500'
+                            }`}>
+                              {stepName === 'amount' ? 'Amount' : 
+                               stepName === 'crypto' ? 'Crypto' :
+                               stepName === 'payment' ? 'Payment' : 'Quotes'}
+                            </span>
+                          </div>
+                          {idx < 3 && (
+                            <div className={`flex-1 h-1 mx-2 ${
+                              isCompleted ? 'bg-green-500' : 'bg-gray-200'
+                            }`} />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* STEP 1: Amount Selection */}
+                {flowStep === 'amount' && (
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Amount</h3>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Amount to Spend
+                      </label>
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <input
+                            type="number"
+                            value={fiatAmount}
+                            onChange={(e) => setFiatAmount(e.target.value)}
+                            placeholder="0.00"
+                            className="input-field font-mono text-sm"
+                            min="10"
+                            step="0.01"
+                          />
+                        </div>
+                        <select
+                          value={fiatCurrency}
+                          onChange={(e) => setFiatCurrency(e.target.value)}
+                          className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+                        >
+                          {fiatCurrencies.map((fiat) => (
+                            <option key={fiat} value={fiat}>{fiat}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        {quickAmounts.map((amount) => (
+                          <button
+                            key={amount}
+                            onClick={() => setFiatAmount(amount)}
+                            className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                          >
+                            {fiatCurrency} {amount}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={handleAmountNext}
+                      disabled={!fiatAmount || parseFloat(fiatAmount) <= 0}
+                      className="w-full py-4 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl"
+                    >
+                      Continue
+                      <ArrowRight className="w-5 h-5" />
+                    </button>
+                  </div>
+                )}
+
+                {/* STEP 2: Crypto Selection */}
+                {flowStep === 'crypto' && (
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Cryptocurrency</h3>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Cryptocurrency
+                      </label>
+                      <select
+                        value={cryptoCurrency}
+                        onChange={(e) => setCryptoCurrency(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+                      >
+                        <option value="">Select cryptocurrency</option>
+                        {availableCryptos.map((crypto) => (
+                          <option key={crypto} value={crypto}>
+                            {crypto.toUpperCase()}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-500 mt-2">
+                        💡 USDC is not available (no providers support it)
+                      </p>
+                    </div>
+                    
+                    <div className="flex gap-3">
+                      <button
+                        onClick={handleBack}
+                        className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-colors"
+                      >
+                        Back
+                      </button>
+                      <button
+                        onClick={handleCryptoNext}
+                        disabled={!cryptoCurrency}
+                        className="flex-1 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl"
+                      >
+                        Continue
+                        <ArrowRight className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 3: Payment Method Selection */}
+                {flowStep === 'payment' && (
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Payment Method</h3>
+                      {checkingAvailability && (
+                        <div className="mb-4 flex items-center gap-2 text-sm text-gray-600">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Checking availability...</span>
+                        </div>
+                      )}
+                      {paymentMethods.length > 0 && (
+                        <div className="grid grid-cols-2 gap-3">
+                          {paymentMethods.map((pm) => {
+                            const isAvailable = availablePaymentMethods.has(pm.id);
+                            const isUnavailable = !isAvailable && cryptoCurrency && !checkingAvailability;
+                            
+                            return (
+                              <button
+                                key={pm.id}
+                                onClick={() => !isUnavailable && setPaymentMethod(pm.id)}
+                                disabled={isUnavailable}
+                                className={`p-3 border-2 rounded-xl transition-all text-left ${
+                                  paymentMethod === pm.id
+                                    ? 'border-indigo-500 bg-indigo-50'
+                                    : isUnavailable
+                                    ? 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
+                                    : 'border-gray-200 hover:border-gray-300'
+                                }`}
+                                title={isUnavailable ? unavailableReasons[pm.id] : undefined}
+                              >
+                                <div className="font-semibold text-sm">{pm.name}</div>
+                                <div className="text-xs text-gray-600 mt-1">
+                                  {pm.processingTime} • {pm.fee}
+                                </div>
+                                {isUnavailable && (
+                                  <div className="text-xs text-red-600 mt-1">
+                                    Not available
+                                  </div>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                      <p className="text-xs text-gray-500 mt-2">
+                        💡 iDEAL is not available (no providers support it)
+                      </p>
+                    </div>
+                    
+                    <div className="flex gap-3">
+                      <button
+                        onClick={handleBack}
+                        className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-colors"
+                      >
+                        Back
+                      </button>
+                      <button
+                        onClick={handlePaymentNext}
+                        disabled={!paymentMethod || checkingAvailability}
+                        className="flex-1 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl"
+                      >
+                        {checkingAvailability ? (
+                          <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            Checking...
+                          </>
+                        ) : (
+                          <>
+                            Get Quotes
+                            <ArrowRight className="w-5 h-5" />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 4: Quotes Display */}
+                {flowStep === 'quotes' && (
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Provider</h3>
+                      
+                      {/* Loading State */}
+                      {loading && (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+                          <span className="ml-2 text-gray-600">Fetching quotes...</span>
+                        </div>
+                      )}
+
+                      {/* Error State */}
+                      {error && !loading && (
+                        <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-xl">
+                          <AlertCircle className="w-5 h-5 text-red-500" />
+                          <div className="flex-1">
+                            <span className="text-sm text-red-700">{error}</span>
+                            {error.includes('No providers available') && (
+                              <div className="mt-2">
+                                <button
+                                  onClick={() => setFlowStep('payment')}
+                                  className="text-xs text-red-600 hover:text-red-700 underline"
+                                >
+                                  Try a different payment method
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Quotes Display */}
+                      {!loading && !error && quote && (
+                        <div className="space-y-4">
+                          {/* Selected Provider Badge */}
+                          {selectedProvider && (
+                            <div className="p-3 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-gray-700">Provider:</span>
+                                  <span className="text-sm font-semibold capitalize text-indigo-900">{selectedProvider}</span>
+                                  {userPreferences?.verifiedProviders?.includes(selectedProvider) && (
+                                    <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                                      <Shield className="w-3 h-3" />
+                                      Verified
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Quote Summary */}
+                          <div className="p-4 bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-xl">
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm text-gray-600">You'll receive:</span>
+                                <span className="text-2xl font-bold text-gray-900">
+                                  {parseFloat(quote.cryptoAmount).toFixed(6)} {quote.quoteCurrency}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-600">Exchange rate:</span>
+                                <span className="text-gray-900 font-medium">
+                                  1 {quote.quoteCurrency} = {quote.baseCurrency} {parseFloat(quote.exchangeRate).toFixed(2)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span className="text-gray-600">Service fee:</span>
+                                <span className="text-gray-900 font-medium">{quote.baseCurrency} {quote.fee}</span>
+                              </div>
+                              <div className="pt-2 border-t border-purple-200 flex justify-between">
+                                <span className="text-sm font-medium text-gray-700">Total:</span>
+                                <span className="text-sm font-bold text-gray-900">
+                                  {quote.baseCurrency} {quote.totalAmount}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Provider Comparison */}
+                          {showProviderComparison && comparisonQuotes.length > 0 && (
+                            <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                              <h4 className="text-sm font-semibold text-blue-900 mb-3">Compare Providers</h4>
+                              <div className="space-y-2">
+                                {comparisonQuotes.map((q) => {
+                                  const isSelected = selectedProvider === q.ramp;
+                                  return (
+                                    <button
+                                      key={q.ramp}
+                                      onClick={() => {
+                                        setSelectedProvider(q.ramp);
+                                        if (q.payout) {
+                                          setQuote({
+                                            cryptoAmount: q.payout.toString(),
+                                            exchangeRate: q.rate?.toString() || '0',
+                                            fee: ((q.networkFee || 0) + (q.transactionFee || 0)).toString(),
+                                            totalAmount: fiatAmount,
+                                            baseCurrency: fiatCurrency,
+                                            quoteCurrency: cryptoCurrency,
+                                          });
+                                        }
+                                      }}
+                                      className={`w-full p-3 rounded-lg border-2 transition-all text-left ${
+                                        isSelected
+                                          ? 'border-indigo-500 bg-indigo-50'
+                                          : 'border-gray-200 hover:border-gray-300 bg-white'
+                                      }`}
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <span className="font-semibold text-sm capitalize">{q.ramp}</span>
+                                        {q.payout && (
+                                          <span className="text-sm font-bold text-gray-900">
+                                            {parseFloat(q.payout.toString()).toFixed(6)} {cryptoCurrency}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Continue Button */}
+                          <button
+                            onClick={handleContinue}
+                            disabled={loading || !quote}
+                            className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-semibold text-white transition-all shadow-lg hover:shadow-xl"
+                          >
+                            {loading ? (
+                              <>
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                                <span>Loading...</span>
+                              </>
+                            ) : (
+                              <>
+                                <span>Buy now</span>
+                                <ArrowRight className="w-5 h-5" />
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+
+                      {/* No Quotes State */}
+                      {!loading && !error && !quote && providerQuotes.length === 0 && (
+                        <div className="text-center py-8">
+                          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                          <p className="text-gray-600 mb-4">No quotes available</p>
+                          <button
+                            onClick={() => setFlowStep('payment')}
+                            className="text-indigo-600 hover:text-indigo-700 font-medium"
+                          >
+                            Try a different payment method
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex gap-3">
+                      <button
+                        onClick={handleBack}
+                        className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-colors"
+                      >
+                        Back
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* OLD CODE REMOVED - Using step-by-step flow instead */}
+                {false && false && (
+                  <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Amount to Spend
                   </label>
