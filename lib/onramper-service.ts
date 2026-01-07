@@ -174,6 +174,14 @@ export class OnramperService {
       8453: 'ETH',
       43114: 'AVAX',
       101: 'SOL',
+      250: 'FTM',
+      25: 'CRO',
+      324: 'ETH',
+      59144: 'ETH',
+      0: 'BTC',
+      2: 'LTC',
+      3: 'DOGE',
+      145: 'BCH',
     };
 
     return defaultMap[chainId] || 'ETH';
@@ -190,6 +198,14 @@ export class OnramperService {
       8453: 'base',
       43114: 'avalanche',
       101: 'solana',
+      250: 'fantom',
+      25: 'cronos',
+      324: 'zksync',
+      59144: 'linea',
+      0: 'bitcoin',
+      2: 'litecoin',
+      3: 'dogecoin',
+      145: 'bitcoincash',
     };
 
     return networkMap[chainId] || 'ethereum';
