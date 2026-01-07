@@ -12,7 +12,6 @@ import { UserOnRampPreferencesService } from '@/lib/user-onramp-preferences';
 import { GeolocationService } from '@/lib/geolocation';
 import { logger } from '@/lib/logger';
 import { supabase } from '@/lib/supabase';
-import { EstimatedQuoteService } from '@/lib/estimated-quote-service';
 
 interface BuyModal3Props {
   isOpen: boolean;
@@ -27,7 +26,6 @@ interface Quote {
   totalAmount: string;
   baseCurrency: string;
   quoteCurrency: string;
-  isEstimated?: boolean;
 }
 
 interface ProviderQuote {
@@ -41,8 +39,6 @@ interface ProviderQuote {
   quoteId?: string;
   recommendations?: string[];
   errors?: Array<{ type: string; errorId: number; message: string }>;
-  estimatedQuote?: Quote & { isEstimated: true };
-  isEstimated?: boolean;
 }
 
 interface PaymentMethod {
@@ -71,10 +67,6 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
   const [availableCryptosSet, setAvailableCryptosSet] = useState<Set<string>>(new Set());
   const [unavailableReasons, setUnavailableReasons] = useState<Record<string, string>>({});
   
-  // ⚠️ NEW: Verified available cryptos for current chain (from API)
-  const [availableCryptosForChain, setAvailableCryptosForChain] = useState<string[]>([]);
-  const [isVerifyingCryptos, setIsVerifyingCryptos] = useState(false);
-  const [cryptoVerificationError, setCryptoVerificationError] = useState<string | null>(null);
 
   // Form state
   const [fiatAmount, setFiatAmount] = useState('100');
@@ -142,53 +134,6 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       fetchSupportedData();
     }
   }, [isOpen, step]);
-
-  // ⚠️ NEW: Fetch verified available cryptos for current chain when crypto step is shown
-  const fetchAvailableCryptos = async () => {
-    if (!currentChain) return;
-    
-    const chain = CHAINS[currentChain];
-    if (!chain) return;
-    
-    setIsVerifyingCryptos(true);
-    setCryptoVerificationError(null);
-    setAvailableCryptosForChain([]); // Clear previous list
-    
-    try {
-      const response = await fetch(`/api/onramper/available-cryptos?chainId=${chain.id}`);
-      const data = await response.json();
-      
-      if (data.success) {
-        if (data.cryptos && data.cryptos.length > 0) {
-          setAvailableCryptosForChain(data.cryptos);
-          // Auto-select first available crypto if none selected
-          if (!cryptoCurrency && data.cryptos.length > 0) {
-            setCryptoCurrency(data.cryptos[0]);
-          }
-        } else {
-          // No cryptos available - this is OK, just show empty state
-          setAvailableCryptosForChain([]);
-          setCryptoVerificationError('No cryptocurrencies are currently available for this chain.');
-        }
-      } else {
-        setCryptoVerificationError(data.error || 'Failed to verify available cryptocurrencies');
-      }
-    } catch (error: any) {
-      logger.error('Failed to fetch available cryptos:', error);
-      setCryptoVerificationError('Failed to load available cryptocurrencies. Please try again.');
-      setAvailableCryptosForChain([]);
-    } finally {
-      setIsVerifyingCryptos(false);
-    }
-  };
-
-  // Call when crypto step is shown
-  useEffect(() => {
-    if (flowStep === 'crypto' && currentChain) {
-      fetchAvailableCryptos();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [flowStep, currentChain]);
 
   // ⚠️ CRITICAL: NO automatic quote fetching - quotes are ONLY fetched when:
   // 1. User explicitly clicks "Get Quotes" button, OR
@@ -278,6 +223,61 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       setUnavailableReasons({});
     }
   }, [isOpen]);
+
+  // Fetch available cryptos for current chain when modal opens or chain changes
+  useEffect(() => {
+    if (isOpen && currentChain) {
+      const fetchAvailableCryptos = async () => {
+        try {
+          const chain = CHAINS[currentChain];
+          if (!chain) return;
+
+          logger.log(`📊 Fetching available cryptos for chain: ${chain.name} (${chain.id})`);
+
+          const response = await fetch(
+            `/api/onramper/available-cryptos?chainId=${chain.id}&fiatCurrency=${fiatCurrency}${userCountry ? `&country=${userCountry}` : ''}`
+          );
+          
+          const data = await response.json();
+          
+          if (data.success && data.availableCryptos && Array.isArray(data.availableCryptos)) {
+            // Filter cryptoCurrencies to only show available ones
+            const filtered = cryptoCurrencies.filter(crypto =>
+              data.availableCryptos.some((available: string) =>
+                available.toLowerCase() === crypto.toLowerCase()
+              )
+            );
+            
+            // Also include any available cryptos that might not be in cryptoCurrencies yet
+            const allAvailable = Array.from(new Set([
+              ...filtered,
+              ...data.availableCryptos.filter((c: string) => 
+                !filtered.some(f => f.toLowerCase() === c.toLowerCase())
+              )
+            ]));
+
+            setAvailableCryptosSet(new Set(allAvailable));
+            logger.log(`✅ Available cryptos for ${chain.name}:`, allAvailable);
+          } else {
+            // Fallback to supported assets
+            const supported = OnramperService.getSupportedAssets(chain.id);
+            setAvailableCryptosSet(new Set(supported));
+            logger.warn(`⚠️ Failed to fetch available cryptos, using fallback for ${chain.name}:`, supported);
+          }
+        } catch (error: any) {
+          logger.error('Failed to fetch available cryptos:', error);
+          // Fallback to supported assets
+          const chain = CHAINS[currentChain];
+          if (chain) {
+            const supported = OnramperService.getSupportedAssets(chain.id);
+            setAvailableCryptosSet(new Set(supported));
+          }
+        }
+      };
+
+      fetchAvailableCryptos();
+    }
+  }, [isOpen, currentChain, fiatCurrency, userCountry, cryptoCurrencies]);
 
   const fetchSupportedData = async () => {
     try {
@@ -560,27 +560,20 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
             // ⚠️ CRITICAL: If quote has the correct paymentMethod, accept it immediately
             // This matches the backend logic - if Onramper set paymentMethod to the requested method,
             // we trust that Onramper knows what it's doing, even if there are errors
-            // This is important because quotes without payout/rate can still be used with estimated quotes
             if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower) {
               console.log(`✅ [BUYMODAL] Accepting ${q.ramp}: paymentMethod=${q.paymentMethod} matches requested ${paymentMethodLower}`);
-              return true; // Trust Onramper's paymentMethod field, even with errors
+              return true; // Trust Onramper's paymentMethod field
             }
             
             // If quote doesn't have the payment method set, check for errors
-            // Only reject if errors indicate payment method incompatibility
+            // (but backend should have already filtered these, so this is just a safety check)
             if (q.errors && q.errors.length > 0) {
-              // Check if error is specifically about payment method not supported
-              const hasPaymentMethodError = q.errors.some((err: any) => 
-                err.type === 'NoSupportedPaymentFound' || 
-                err.message?.toLowerCase().includes('payment') ||
-                err.errorId === 6103
-              );
-              
-              // If error is about payment method, reject it
-              if (hasPaymentMethodError) {
-                return false;
-              }
-              // Otherwise, keep it (might have other errors but payment method might still work)
+              return false;
+            }
+            
+            // If quote already has the payment method set, it's supported
+            if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower) {
+              return true;
             }
             
             // Check availablePaymentMethods array
@@ -612,151 +605,90 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
           
           if (quotesToUse.length === 0 || hasQuotesButNoValid) {
             if (hasQuotesButNoValid) {
-              // ⚠️ NEW: Calculate estimated quotes for providers without payout/rate
               console.warn(`⚠️ [BUYMODAL] Found ${quotesToUse.length} quotes but none have payout/rate for ${paymentMethod} + ${cryptoCurrency}!`);
-              console.log(`📊 [BUYMODAL] Calculating estimated quotes based on market rates...`);
-              
-              try {
-                // Calculate estimated quotes for all providers
-                const estimatedQuotesData = await EstimatedQuoteService.calculateForProviders(
-                  parseFloat(fiatAmount),
-                  fiatCurrency,
-                  cryptoCurrency,
-                  quotesToUse
-                );
-                
-                if (estimatedQuotesData.length > 0) {
-                  console.log(`✅ [BUYMODAL] Calculated ${estimatedQuotesData.length} estimated quotes`);
-                  
-                  // Merge estimated quotes with provider quotes
-                  const quotesWithEstimated = quotesToUse.map((q: ProviderQuote) => {
-                    const estimated = estimatedQuotesData.find(eq => eq.provider === q.ramp);
-                    if (estimated) {
-                      return {
-                        ...q,
-                        estimatedQuote: estimated,
-                        isEstimated: true,
-                      };
-                    }
-                    return q;
-                  });
-                  
-                  // Use estimated quotes
-                  quotesToUse = quotesWithEstimated;
-                  
-                  // Store quotes with estimated quotes immediately
-                  setProviderQuotes(quotesWithEstimated);
-                  
-                  // Select first provider and set estimated quote
-                  const firstProvider = quotesWithEstimated[0];
-                  if (firstProvider.estimatedQuote) {
-                    setSelectedProvider(firstProvider.ramp);
-                    setQuote(firstProvider.estimatedQuote);
-                    console.log(`✅ [BUYMODAL] Using estimated quote for ${firstProvider.ramp}`);
-                    // Skip fallback logic since we have estimated quotes
-                    return; // Exit early, don't continue to fallback
-                  }
-                } else {
-                  console.warn(`⚠️ [BUYMODAL] Failed to calculate estimated quotes, trying fallback payment methods...`);
-                  // Fall through to fallback logic below
-                }
-              } catch (estimateError: any) {
-                console.error(`❌ [BUYMODAL] Error calculating estimated quotes:`, estimateError);
-                console.warn(`⚠️ [BUYMODAL] Falling back to alternative payment methods...`);
-                // Fall through to fallback logic below
-              }
-              
-              // If estimated quotes failed, try fallback payment methods
-              if (quotesToUse.length === 0 || !quotesToUse[0]?.estimatedQuote) {
-                console.warn(`⚠️ [BUYMODAL] Attempting to fetch fallback quotes from alternative payment methods...`);
-                
-                // Try alternative payment methods in order of preference
-                const fallbackPaymentMethods = ['creditcard', 'applepay', 'googlepay', 'debitcard', 'paypal'];
-                let fallbackQuotes: ProviderQuote[] = [];
-                let fallbackPaymentMethod: string | null = null;
-                
-                for (const fallbackPm of fallbackPaymentMethods) {
-                  // Skip if it's the same as the requested payment method
-                  if (fallbackPm.toLowerCase() === paymentMethod.toLowerCase()) {
-                    continue;
-                  }
-                  
-                  try {
-                    console.log(`🔄 [BUYMODAL] Trying fallback payment method: ${fallbackPm}`);
-                    const fallbackUrl = `/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${fiatCurrency}&cryptoCurrency=${cryptoCurrency}&paymentMethod=${fallbackPm}`;
-                    const fallbackResponse = await fetch(fallbackUrl);
-                    const fallbackData = await fallbackResponse.json();
-                    
-                    if (fallbackResponse.ok && fallbackData.success && fallbackData.quotes && fallbackData.quotes.length > 0) {
-                      // Filter for valid quotes with payout/rate
-                      const validFallbackQuotes = fallbackData.quotes.filter((q: ProviderQuote) => 
-                        q.payout || q.rate
-                      );
-                      
-                      if (validFallbackQuotes.length > 0) {
-                        console.log(`✅ [BUYMODAL] Found ${validFallbackQuotes.length} fallback quotes for ${fallbackPm}`);
-                        fallbackQuotes = validFallbackQuotes;
-                        fallbackPaymentMethod = fallbackPm;
-                        break; // Use first successful fallback
-                      }
-                    }
-                  } catch (fallbackError: any) {
-                    console.warn(`⚠️ [BUYMODAL] Fallback ${fallbackPm} failed:`, fallbackError.message);
-                    continue;
-                  }
-                }
-                
-                if (fallbackQuotes.length > 0 && fallbackPaymentMethod) {
-                  console.log(`✅ [BUYMODAL] Using ${fallbackQuotes.length} fallback quotes from ${fallbackPaymentMethod}`);
-                  // Use fallback quotes but keep the original payment method selected
-                  // This allows user to see quotes while still being able to proceed with original payment method
-                  quotesToUse = fallbackQuotes;
-                  setUsingFallbackQuotes(true);
-                  setFallbackPaymentMethod(fallbackPaymentMethod);
-                } else {
-                  // No fallback quotes found either - show error but still try to show any available quotes
-                  console.error(`❌ [BUYMODAL] No fallback quotes found either!`);
-                  console.error(`❌ [BUYMODAL] Original quotes:`, 
-                    data.quotes.map((q: ProviderQuote) => ({
-                      ramp: q.ramp,
-                      paymentMethod: q.paymentMethod,
-                      availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || [],
-                      hasErrors: !!(q.errors && q.errors.length > 0)
-                    }))
-                  );
-                  
-                  // Try to show ANY quotes from the original response (without payment method filter)
-                  if (data.quotes && data.quotes.length > 0) {
-                    const anyValidQuotes = data.quotes.filter((q: ProviderQuote) => q.payout || q.rate);
-                    if (anyValidQuotes.length > 0) {
-                      console.log(`⚠️ [BUYMODAL] Showing ${anyValidQuotes.length} quotes without payment method filter as last resort`);
-                      quotesToUse = anyValidQuotes;
-                      setUsingFallbackQuotes(true);
-                      setFallbackPaymentMethod(null); // Unknown fallback
-                    } else {
-                      // Really no quotes available
-                      setError(`No quotes available for ${cryptoCurrency}. Please try a different cryptocurrency.`);
-                      setQuote(null);
-                      setProviderQuotes([]);
-                      setSelectedProvider(null);
-                      return;
-                    }
-                  } else {
-                    setError(`No quotes available for ${cryptoCurrency}. Please try a different cryptocurrency.`);
-                    setQuote(null);
-                    setProviderQuotes([]);
-                    setSelectedProvider(null);
-                    return;
-                  }
-                }
-              }
             } else {
               console.warn(`⚠️ [BUYMODAL] NO providers support ${paymentMethod} for ${cryptoCurrency}!`);
-              setError(`No providers support ${paymentMethod} for ${cryptoCurrency}. Please try a different payment method or cryptocurrency.`);
-              setQuote(null);
-              setProviderQuotes([]);
-              setSelectedProvider(null);
-              return;
+            }
+            console.warn(`⚠️ [BUYMODAL] Attempting to fetch fallback quotes from alternative payment methods...`);
+            
+            // Try alternative payment methods in order of preference
+            const fallbackPaymentMethods = ['creditcard', 'applepay', 'googlepay', 'debitcard', 'paypal'];
+            let fallbackQuotes: ProviderQuote[] = [];
+            let fallbackPaymentMethod: string | null = null;
+            
+            for (const fallbackPm of fallbackPaymentMethods) {
+              // Skip if it's the same as the requested payment method
+              if (fallbackPm.toLowerCase() === paymentMethod.toLowerCase()) {
+                continue;
+              }
+              
+              try {
+                console.log(`🔄 [BUYMODAL] Trying fallback payment method: ${fallbackPm}`);
+                const fallbackUrl = `/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${fiatCurrency}&cryptoCurrency=${cryptoCurrency}&paymentMethod=${fallbackPm}`;
+                const fallbackResponse = await fetch(fallbackUrl);
+                const fallbackData = await fallbackResponse.json();
+                
+                if (fallbackResponse.ok && fallbackData.success && fallbackData.quotes && fallbackData.quotes.length > 0) {
+                  // Filter for valid quotes with payout/rate
+                  const validFallbackQuotes = fallbackData.quotes.filter((q: ProviderQuote) => 
+                    q.payout || q.rate
+                  );
+                  
+                  if (validFallbackQuotes.length > 0) {
+                    console.log(`✅ [BUYMODAL] Found ${validFallbackQuotes.length} fallback quotes for ${fallbackPm}`);
+                    fallbackQuotes = validFallbackQuotes;
+                    fallbackPaymentMethod = fallbackPm;
+                    break; // Use first successful fallback
+                  }
+                }
+              } catch (fallbackError: any) {
+                console.warn(`⚠️ [BUYMODAL] Fallback ${fallbackPm} failed:`, fallbackError.message);
+                continue;
+              }
+            }
+            
+            if (fallbackQuotes.length > 0 && fallbackPaymentMethod) {
+              console.log(`✅ [BUYMODAL] Using ${fallbackQuotes.length} fallback quotes from ${fallbackPaymentMethod}`);
+              // Use fallback quotes but keep the original payment method selected
+              // This allows user to see quotes while still being able to proceed with original payment method
+              quotesToUse = fallbackQuotes;
+              setUsingFallbackQuotes(true);
+              setFallbackPaymentMethod(fallbackPaymentMethod);
+            } else {
+              // No fallback quotes found either - show error but still try to show any available quotes
+              console.error(`❌ [BUYMODAL] No fallback quotes found either!`);
+              console.error(`❌ [BUYMODAL] Original quotes:`, 
+                data.quotes.map((q: ProviderQuote) => ({
+                  ramp: q.ramp,
+                  paymentMethod: q.paymentMethod,
+                  availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || [],
+                  hasErrors: !!(q.errors && q.errors.length > 0)
+                }))
+              );
+              
+              // Try to show ANY quotes from the original response (without payment method filter)
+              if (data.quotes && data.quotes.length > 0) {
+                const anyValidQuotes = data.quotes.filter((q: ProviderQuote) => q.payout || q.rate);
+                if (anyValidQuotes.length > 0) {
+                  console.log(`⚠️ [BUYMODAL] Showing ${anyValidQuotes.length} quotes without payment method filter as last resort`);
+                  quotesToUse = anyValidQuotes;
+                  setUsingFallbackQuotes(true);
+                  setFallbackPaymentMethod(null); // Unknown fallback
+                } else {
+                  // Really no quotes available
+                  setError(`No quotes available for ${cryptoCurrency}. Please try a different cryptocurrency.`);
+                  setQuote(null);
+                  setProviderQuotes([]);
+                  setSelectedProvider(null);
+                  return;
+                }
+              } else {
+                setError(`No quotes available for ${cryptoCurrency}. Please try a different cryptocurrency.`);
+                setQuote(null);
+                setProviderQuotes([]);
+                setSelectedProvider(null);
+                return;
+              }
             }
           } else {
             console.log(`✅ [BUYMODAL] Filtered quotes details:`, 
@@ -790,20 +722,9 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
         }
         setProviderQuotes(quotesToUse);
         
-        // Check if we have estimated quotes - if so, skip ProviderSelector (it filters out quotes with errors)
-        const hasEstimatedQuotes = quotesToUse.some((q: ProviderQuote) => q.estimatedQuote);
-        
-        if (hasEstimatedQuotes) {
-          // We have estimated quotes - select the first one with an estimated quote
-          console.log(`✅ [BUYMODAL] Found estimated quotes, selecting first provider with estimated quote`);
-          const firstWithEstimated = quotesToUse.find((q: ProviderQuote) => q.estimatedQuote);
-          if (firstWithEstimated && firstWithEstimated.estimatedQuote) {
-            setSelectedProvider(firstWithEstimated.ramp);
-            setQuote(firstWithEstimated.estimatedQuote);
-            console.log(`✅ [BUYMODAL] Selected ${firstWithEstimated.ramp} with estimated quote`);
-          }
-        } else if (quotesToUse.length > 0 && paymentMethod) {
-          // No estimated quotes - use ProviderSelector for normal quotes
+        // Select best provider using smart selection (with user preferences)
+        // ⚠️ CRITICAL: Only select provider if we have quotes AND payment method
+        if (quotesToUse.length > 0 && paymentMethod) {
           try {
             console.log(`🎯 [BUYMODAL] Selecting provider from ${quotesToUse.length} filtered quotes`);
             const selection = await ProviderSelector.selectProvider(
@@ -827,16 +748,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
             
             // Convert selected quote to old format for backward compatibility
             const selectedQuote = selection.quote;
-            
-            // Find the full quote object from quotesToUse to get estimatedQuote if it exists
-            const fullQuote = quotesToUse.find((q: ProviderQuote) => q.ramp === selectedQuote.ramp);
-            
-            // Check if this is an estimated quote
-            if (fullQuote?.estimatedQuote) {
-              // Use estimated quote
-              setQuote(fullQuote.estimatedQuote);
-            } else if (selectedQuote.payout) {
-              // Use real quote with payout
+            if (selectedQuote.payout) {
               setQuote({
                 cryptoAmount: selectedQuote.payout.toString(),
                 exchangeRate: selectedQuote.rate?.toString() || '0',
@@ -852,11 +764,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
             const firstValid = quotesToUse.find((q: ProviderQuote) => !q.errors || q.errors.length === 0);
             if (firstValid) {
               setSelectedProvider(firstValid.ramp);
-              
-              // Check if this is an estimated quote
-              if (firstValid.estimatedQuote) {
-                setQuote(firstValid.estimatedQuote);
-              } else if (firstValid.payout) {
+              if (firstValid.payout) {
                 setQuote({
                   cryptoAmount: firstValid.payout.toString(),
                   exchangeRate: firstValid.rate?.toString() || '0',
@@ -913,32 +821,23 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
     // Select provider if not already selected
     let providerToUse = selectedProvider;
     if (!providerToUse && providerQuotes.length > 0) {
-      // Check if we have estimated quotes - if so, use first one with estimated quote
-      const firstWithEstimated = providerQuotes.find((q: ProviderQuote) => q.estimatedQuote);
-      if (firstWithEstimated) {
-        providerToUse = firstWithEstimated.ramp;
+      try {
+        const selection = await ProviderSelector.selectProvider(
+          providerQuotes,
+          userId,
+          paymentMethod
+        );
+        providerToUse = selection.quote.ramp;
         setSelectedProvider(providerToUse);
-        console.log(`✅ [BUYMODAL] Using provider with estimated quote: ${providerToUse}`);
-      } else {
-        // No estimated quotes - use ProviderSelector for normal quotes
-        try {
-          const selection = await ProviderSelector.selectProvider(
-            providerQuotes,
-            userId,
-            paymentMethod
-          );
-          providerToUse = selection.quote.ramp;
+      } catch (selectionError: any) {
+        logger.error('Failed to select provider:', selectionError);
+        // Fallback: use first valid quote
+        const firstValid = providerQuotes.find((q: ProviderQuote) => !q.errors || q.errors.length === 0);
+        if (firstValid) {
+          providerToUse = firstValid.ramp;
           setSelectedProvider(providerToUse);
-        } catch (selectionError: any) {
-          logger.error('Failed to select provider:', selectionError);
-          // Fallback: use first valid quote
-          const firstValid = providerQuotes.find((q: ProviderQuote) => !q.errors || q.errors.length === 0);
-          if (firstValid) {
-            providerToUse = firstValid.ramp;
-            setSelectedProvider(providerToUse);
-          } else {
-            return;
-          }
+        } else {
+          return;
         }
       }
     }
@@ -1197,9 +1096,14 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
 
   const quickAmounts = ['50', '100', '250', '500'];
   const chain = CHAINS[currentChain];
+  const supportedAssets = chain ? OnramperService.getSupportedAssets(chain.id) : [];
 
-  // ⚠️ Use verified available cryptos from API (no hardcoded fallback)
-  const availableCryptos = availableCryptosForChain;
+  // Filter crypto currencies based on supported assets for current chain
+  const availableCryptos = cryptoCurrencies.length > 0
+    ? cryptoCurrencies.filter(crypto => 
+        supportedAssets.some(asset => asset.toLowerCase() === crypto.toLowerCase())
+      )
+    : supportedAssets;
 
   if (!isOpen) return null;
 
@@ -1359,45 +1263,31 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Cryptocurrency
                       </label>
-                      
-                      {isVerifyingCryptos ? (
-                        <div className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 flex items-center gap-2">
-                          <Loader2 className="w-4 h-4 animate-spin text-orange-500" />
-                          <span className="text-sm text-gray-600">Verifying available cryptocurrencies...</span>
-                        </div>
-                      ) : (
-                        <>
-                          <select
-                            value={cryptoCurrency}
-                            onChange={(e) => setCryptoCurrency(e.target.value)}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white disabled:opacity-50 disabled:cursor-not-allowed"
-                            disabled={availableCryptos.length === 0}
-                          >
-                            <option value="">Select cryptocurrency</option>
-                            {availableCryptos.length === 0 ? (
-                              <option disabled>No cryptocurrencies available</option>
-                            ) : (
-                              availableCryptos.map((crypto) => (
-                                <option key={crypto} value={crypto}>
-                                  {crypto.toUpperCase()}
-                                </option>
-                              ))
-                            )}
-                          </select>
-                          
-                          {cryptoVerificationError && (
-                            <p className="text-xs text-red-500 mt-2 flex items-center gap-1">
-                              <AlertCircle className="w-3 h-3" />
-                              {cryptoVerificationError}
-                            </p>
-                          )}
-                          
-                          {!cryptoVerificationError && availableCryptos.length === 0 && !isVerifyingCryptos && (
-                            <p className="text-xs text-gray-500 mt-2">
-                              💡 No cryptocurrencies are currently available for this chain.
-                            </p>
-                          )}
-                        </>
+                      <select
+                        value={cryptoCurrency}
+                        onChange={(e) => setCryptoCurrency(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white"
+                      >
+                        <option value="">Select cryptocurrency</option>
+                        {availableCryptos.length > 0 ? (
+                          availableCryptos.map((crypto) => (
+                            <option key={crypto} value={crypto}>
+                              {crypto.toUpperCase()}
+                            </option>
+                          ))
+                        ) : (
+                          <option value="" disabled>Loading available cryptocurrencies...</option>
+                        )}
+                      </select>
+                      {availableCryptos.length === 0 && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          ⏳ Loading available cryptocurrencies for this chain...
+                        </p>
+                      )}
+                      {availableCryptos.length > 0 && availableCryptos.length < cryptoCurrencies.length && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          💡 Showing only cryptocurrencies with available providers for {chain?.name || 'this chain'}
+                        </p>
                       )}
                     </div>
                     
@@ -1536,28 +1426,12 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                         {quote && (
                           <div className="sticky top-4 z-10 glass-card p-6 bg-gradient-to-br from-orange-50 to-yellow-50 border-2 border-orange-200 shadow-lg">
                             <div className="space-y-4">
-                              {/* Estimated Quote Warning */}
-                              {quote.isEstimated && (
-                                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
-                                  <div className="flex items-start gap-2">
-                                    <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
-                                    <div className="text-sm text-yellow-800">
-                                      <p className="font-semibold mb-1">Estimated Quote</p>
-                                      <p>This quote is estimated based on current market rates. The final amount will be calculated by the provider during checkout and may vary slightly.</p>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                              
                               {/* Main Quote Display */}
                               <div className="text-center pb-4 border-b border-orange-200">
                                 <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">You'll receive</div>
                                 {parseFloat(quote.cryptoAmount) > 0 ? (
                                   <div className="text-4xl md:text-5xl font-bold text-gray-900 mb-1">
                                     {parseFloat(quote.cryptoAmount).toFixed(6)} {quote.quoteCurrency}
-                                    {quote.isEstimated && (
-                                      <span className="text-lg text-yellow-600 ml-2">*</span>
-                                    )}
                                   </div>
                                 ) : paymentMethod?.toLowerCase() === 'ideal' ? (
                                   <div className="flex items-center justify-center gap-2 py-2">
@@ -1645,7 +1519,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                               {providerQuotes.map((q) => {
                                 const isSelected = selectedProvider === q.ramp;
-                                const hasQuote = (q.payout && parseFloat(q.payout.toString()) > 0) || q.estimatedQuote;
+                                const hasQuote = q.payout && parseFloat(q.payout.toString()) > 0;
                                 
                                 return (
                                   <button
@@ -1653,10 +1527,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                                     onClick={() => {
                                       setSelectedProvider(q.ramp);
                                       // Always set quote when provider is selected
-                                      // Check if this is an estimated quote first
-                                      if (q.estimatedQuote) {
-                                        setQuote(q.estimatedQuote);
-                                      } else if (q.payout) {
+                                      if (q.payout) {
                                         setQuote({
                                           cryptoAmount: q.payout.toString(),
                                           exchangeRate: q.rate?.toString() || '0',
@@ -1709,20 +1580,8 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                                       <div className="space-y-1">
                                         <div className="text-xs text-gray-500">You'll receive</div>
                                         <div className="text-lg font-bold text-gray-900">
-                                          {q.estimatedQuote ? (
-                                            <>
-                                              {parseFloat(q.estimatedQuote.cryptoAmount).toFixed(6)} {cryptoCurrency}
-                                              <span className="text-xs text-yellow-600 ml-1">*</span>
-                                            </>
-                                          ) : (
-                                            <>
-                                              {parseFloat(q.payout!.toString()).toFixed(6)} {cryptoCurrency}
-                                            </>
-                                          )}
+                                          {parseFloat(q.payout!.toString()).toFixed(6)} {cryptoCurrency}
                                         </div>
-                                        {q.estimatedQuote && (
-                                          <div className="text-xs text-yellow-600 italic">Estimated</div>
-                                        )}
                                       </div>
                                     ) : q.paymentMethod?.toLowerCase() === 'ideal' ? (
                                       <div className="flex items-start gap-2 text-sm text-blue-600">

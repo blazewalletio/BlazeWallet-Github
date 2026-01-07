@@ -32,7 +32,7 @@ export class OnramperService {
     return apiKey.trim().replace(/^["']|["']$/g, '').trim();
   }
 
-  // Get supported assets by chain
+  // Get supported assets by chain (hardcoded fallback)
   static getSupportedAssets(chainId: number): string[] {
     const assetMap: Record<number, string[]> = {
       1: ['ETH', 'USDT', 'USDC', 'DAI', 'WBTC', 'LINK', 'UNI', 'AAVE'], // Ethereum
@@ -43,9 +43,124 @@ export class OnramperService {
       8453: ['ETH', 'USDC'], // Base
       43114: ['AVAX', 'USDT', 'USDC'], // Avalanche
       101: ['SOL', 'USDC', 'USDT'], // Solana
+      250: ['FTM', 'USDT', 'USDC'], // Fantom
+      25: ['CRO', 'USDT', 'USDC'], // Cronos
+      324: ['ETH', 'USDT', 'USDC'], // zkSync Era
+      59144: ['ETH', 'USDT', 'USDC'], // Linea
+      0: ['BTC'], // Bitcoin
+      2: ['LTC'], // Litecoin
+      3: ['DOGE'], // Dogecoin
+      145: ['BCH'], // Bitcoin Cash
     };
 
     return assetMap[chainId] || ['ETH'];
+  }
+
+  /**
+   * Get available cryptocurrencies for a specific chain via Onramper API
+   * Uses /supported/assets endpoint which returns crypto's that have actual providers
+   * This is the dynamic, accurate way to determine which crypto's are available
+   */
+  static async getAvailableCryptosForChain(
+    chainId: number,
+    fiatCurrency: string = 'EUR',
+    country?: string,
+    apiKey?: string
+  ): Promise<string[]> {
+    try {
+      if (!apiKey) {
+        // Fallback to hardcoded list if no API key
+        logger.warn(`No API key provided for getAvailableCryptosForChain, using fallback for chain ${chainId}`);
+        return this.getSupportedAssets(chainId);
+      }
+
+      const networkCode = this.getNetworkCode(chainId);
+      const cleanApiKey = this.cleanApiKey(apiKey);
+      
+      // Call Onramper /supported/assets endpoint
+      // This returns crypto's that actually have providers available
+      const url = `https://api.onramper.com/supported/assets?source=${fiatCurrency}&type=buy${country ? `&country=${country}` : ''}`;
+      
+      logger.log(`📊 Fetching available cryptos for chain ${chainId} (${networkCode}) from Onramper...`);
+
+      let response = await fetch(url, {
+        headers: {
+          'Authorization': cleanApiKey,
+          'Accept': 'application/json',
+        },
+      });
+
+      // Fallback: try with API key as query parameter
+      if (!response.ok && (response.status === 401 || response.status === 403)) {
+        logger.log('🔄 Trying API key as query parameter...');
+        response = await fetch(`${url}&apiKey=${cleanApiKey}`, {
+          headers: {
+            'Accept': 'application/json',
+          },
+        });
+      }
+
+      if (!response.ok) {
+        logger.warn(`Onramper /supported/assets failed for chain ${chainId} (${response.status}), using fallback`);
+        return this.getSupportedAssets(chainId);
+      }
+
+      const data = await response.json();
+      
+      // Parse response structure:
+      // { message: { assets: [{ fiat: "eur", crypto: ["eth", "btc", "eth_arbitrum"], paymentMethods: [...] }] } }
+      const assets = data?.message?.assets || [];
+      
+      // Filter crypto's for this specific network
+      const availableCryptos: string[] = [];
+      const nativeToken = this.getDefaultCrypto(chainId);
+      
+      for (const asset of assets) {
+        const cryptos = asset.crypto || [];
+        for (const crypto of cryptos) {
+          // Parse crypto format: "eth", "btc", "eth_arbitrum", "sol_solana", "usdc_polygon"
+          const parts = crypto.split('_');
+          const cryptoSymbol = parts[0].toUpperCase();
+          const cryptoNetwork = parts.length > 1 ? parts[1] : null;
+          
+          // Match network or native token
+          // Examples:
+          // - "eth" matches Ethereum (chainId 1) native token
+          // - "eth_arbitrum" matches Arbitrum (chainId 42161)
+          // - "sol_solana" matches Solana (chainId 101)
+          // - "usdc_polygon" matches Polygon (chainId 137)
+          if (cryptoNetwork === networkCode) {
+            // Network-specific crypto (e.g., "eth_arbitrum", "usdc_polygon")
+            if (!availableCryptos.includes(cryptoSymbol)) {
+              availableCryptos.push(cryptoSymbol);
+            }
+          } else if (!cryptoNetwork && cryptoSymbol === nativeToken) {
+            // Native token without network suffix (e.g., "eth" for Ethereum, "sol" for Solana)
+            if (!availableCryptos.includes(cryptoSymbol)) {
+              availableCryptos.push(cryptoSymbol);
+            }
+          }
+        }
+      }
+
+      // Always include native token if not already present (fallback)
+      if (!availableCryptos.includes(nativeToken)) {
+        availableCryptos.unshift(nativeToken);
+      }
+
+      // If no crypto's found, use fallback
+      if (availableCryptos.length === 0) {
+        logger.warn(`No available cryptos found for chain ${chainId}, using fallback`);
+        return this.getSupportedAssets(chainId);
+      }
+
+      logger.log(`✅ Available cryptos for chain ${chainId} (${networkCode}):`, availableCryptos);
+      
+      return availableCryptos;
+    } catch (error: any) {
+      logger.error(`Error fetching available cryptos for chain ${chainId}:`, error);
+      return this.getSupportedAssets(chainId);
+    }
   }
 
   // Get default crypto currency for chain
