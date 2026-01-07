@@ -74,6 +74,7 @@ const UpcomingTransactionsBanner = dynamic(() => import('./UpcomingTransactionsB
 
 // Onramp components
 const OnrampTransactionsPanel = dynamic(() => import('./OnrampTransactionsPanel'), { ssr: false });
+const PurchaseHistorySidebar = dynamic(() => import('./PurchaseHistorySidebar'), { ssr: false });
 
 export default function Dashboard() {
   const { 
@@ -225,7 +226,8 @@ export default function Dashboard() {
   const [showSavingsTracker, setShowSavingsTracker] = useState(false);
   
   // Onramp modals
-  const [showOnrampTransactions, setShowOnrampTransactions] = useState(false);
+  const [showOnrampTransactions, setShowOnrampTransactions] = useState(false); // Full modal (legacy)
+  const [showPurchaseHistory, setShowPurchaseHistory] = useState(false); // NEW: Sidebar (recommended)
 
   // Bottom navigation state
   const [activeTab, setActiveTab] = useState<TabType>('wallet');
@@ -2524,7 +2526,7 @@ export default function Dashboard() {
         onClose={() => setShowBuyModal3(false)}
         onOpenPurchaseHistory={() => {
           setShowBuyModal3(false);
-          setShowOnrampTransactions(true);
+          setShowPurchaseHistory(true); // NEW: Open sidebar instead of modal
         }}
       />
       <SendModal 
@@ -2795,13 +2797,19 @@ export default function Dashboard() {
         />
       </AnimatePresence>
 
-      {/* Onramp Transactions Panel */}
+      {/* Onramp Transactions Panel (Legacy Full Modal) */}
       <AnimatePresence>
         <OnrampTransactionsPanel
           isOpen={showOnrampTransactions}
           onClose={() => setShowOnrampTransactions(false)}
         />
       </AnimatePresence>
+
+      {/* Purchase History Sidebar (NEW - Recommended) */}
+      <PurchaseHistorySidebar
+        isOpen={showPurchaseHistory}
+        onClose={() => setShowPurchaseHistory(false)}
+      />
 
       <AnimatePresence>
         {showSavingsTracker && (
