@@ -7,7 +7,8 @@ export const dynamic = 'force-dynamic';
 
 /**
  * API route to get available cryptocurrencies for a specific chain
- * Uses Onramper's /supported/assets endpoint to get crypto's that actually have providers
+ * NATIVE TOKENS ONLY - ensures 100% reliability across all providers
+ * Returns only the native token for the requested chain (ETH, BNB, MATIC, etc.)
  */
 export async function GET(req: NextRequest) {
   try {
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
     const fiatCurrency = searchParams.get('fiatCurrency') || 'EUR';
     const countryParam = searchParams.get('country');
     
-    // Detect country if not provided
+    // Detect country if not provided (for logging purposes)
     let country: string | undefined = countryParam || undefined;
     if (!country) {
       const detected = await GeolocationService.detectCountry(req);
@@ -26,22 +27,18 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // CRITICAL: Clean API key - remove quotes, whitespace, and newlines
-    const rawApiKey = process.env.ONRAMPER_API_KEY || '';
-    const onramperApiKey = rawApiKey.trim().replace(/^["']|["']$/g, '').trim();
-    
-    logger.log('📊 Fetching available cryptos:', {
+    logger.log('📊 Fetching available cryptos (native only):', {
       chainId,
       fiatCurrency,
       country: country || 'auto-detect',
-      hasApiKey: !!onramperApiKey,
     });
 
+    // Get native token only - no API key needed, no external API call
     const availableCryptos = await OnramperService.getAvailableCryptosForChain(
       chainId,
       fiatCurrency,
       country,
-      onramperApiKey || undefined
+      undefined // API key not needed for native-only approach
     );
 
     return NextResponse.json({
@@ -50,6 +47,7 @@ export async function GET(req: NextRequest) {
       fiatCurrency,
       country: country || null,
       availableCryptos,
+      nativeOnly: true, // Flag to indicate this is native-only mode
     });
   } catch (error: any) {
     logger.error('Error in /api/onramper/available-cryptos:', error);

@@ -165,7 +165,7 @@ export class AlchemyService {
           console.log(`   ${idx + 1}. ${token.symbol} - Balance: ${token.balance}`);
         });
       }
-      
+
       logger.log(`✅ [AlchemyService] Successfully enriched ${validTokens.length} tokens`);
       
       return validTokens;

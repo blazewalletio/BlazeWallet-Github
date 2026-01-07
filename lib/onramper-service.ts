@@ -32,38 +32,18 @@ export class OnramperService {
     return apiKey.trim().replace(/^["']|["']$/g, '').trim();
   }
 
-  // Get supported assets by chain (hardcoded fallback)
+  // Get supported assets by chain - NATIVE TOKENS ONLY
+  // This ensures 100% reliability - native tokens always work via all providers
   static getSupportedAssets(chainId: number): string[] {
-    const assetMap: Record<number, string[]> = {
-      1: ['ETH', 'USDT', 'USDC', 'DAI', 'WBTC', 'LINK', 'UNI', 'AAVE'], // Ethereum
-      137: ['MATIC', 'USDT', 'USDC'], // Polygon
-      56: ['BNB', 'USDT', 'BUSD'], // BSC
-      42161: ['ETH', 'USDT', 'USDC'], // Arbitrum
-      10: ['ETH', 'USDT'], // Optimism
-      8453: ['ETH', 'USDC'], // Base
-      43114: ['AVAX', 'USDT', 'USDC'], // Avalanche
-      101: ['SOL', 'USDC', 'USDT'], // Solana
-      250: ['FTM', 'USDT', 'USDC'], // Fantom
-      25: ['CRO', 'USDT', 'USDC'], // Cronos
-      324: ['ETH', 'USDT', 'USDC'], // zkSync Era
-      59144: ['ETH', 'USDT', 'USDC'], // Linea
-      0: ['BTC'], // Bitcoin
-      2: ['LTC'], // Litecoin
-      3: ['DOGE'], // Dogecoin
-      145: ['BCH'], // Bitcoin Cash
-    };
-
-    return assetMap[chainId] || ['ETH'];
+    // Only return the native token for each chain
+    const nativeToken = this.getDefaultCrypto(chainId);
+    return [nativeToken];
   }
 
-  // Server-side cache for available cryptos (5 minutes TTL)
-  private static cryptoCache = new Map<string, { data: string[]; timestamp: number }>();
-  private static readonly SERVER_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
   /**
-   * Get available cryptocurrencies for a specific chain via Onramper API
-   * Uses /supported/assets endpoint + quote validation to ensure 100% accuracy
-   * Implements aggressive caching for maximum speed
+   * Get available cryptocurrencies for a specific chain
+   * NATIVE TOKENS ONLY - ensures 100% reliability across all providers
+   * This prevents showing tokens that have no quotes or don't work
    */
   static async getAvailableCryptosForChain(
     chainId: number,
@@ -71,163 +51,13 @@ export class OnramperService {
     country?: string,
     apiKey?: string
   ): Promise<string[]> {
-    try {
-      if (!apiKey) {
-        // Fallback to hardcoded list if no API key
-        logger.warn(`No API key provided for getAvailableCryptosForChain, using fallback for chain ${chainId}`);
-        return this.getSupportedAssets(chainId);
-      }
-
-      // Check server-side cache first
-      const cacheKey = `${chainId}_${fiatCurrency}_${country || 'any'}`;
-      const cached = this.cryptoCache.get(cacheKey);
-      if (cached && Date.now() - cached.timestamp < this.SERVER_CACHE_TTL) {
-        logger.log(`✅ Using server-cached available cryptos for chain ${chainId}`);
-        return cached.data;
-      }
-
-      const networkCode = this.getNetworkCode(chainId);
-      const cleanApiKey = this.cleanApiKey(apiKey);
-      const nativeToken = this.getDefaultCrypto(chainId);
-      
-      // Step 1: Get potential crypto's from /supported/assets endpoint
-      const url = `https://api.onramper.com/supported/assets?source=${fiatCurrency}&type=buy${country ? `&country=${country}` : ''}`;
-      
-      logger.log(`📊 Fetching available cryptos for chain ${chainId} (${networkCode}) from Onramper...`);
-
-      let response = await fetch(url, {
-        headers: {
-          'Authorization': cleanApiKey,
-          'Accept': 'application/json',
-        },
-      });
-
-      // Fallback: try with API key as query parameter
-      if (!response.ok && (response.status === 401 || response.status === 403)) {
-        logger.log('🔄 Trying API key as query parameter...');
-        response = await fetch(`${url}&apiKey=${cleanApiKey}`, {
-          headers: {
-            'Accept': 'application/json',
-          },
-        });
-      }
-
-      if (!response.ok) {
-        logger.warn(`Onramper /supported/assets failed for chain ${chainId} (${response.status}), using fallback`);
-        return this.getSupportedAssets(chainId);
-      }
-
-      const data = await response.json();
-      
-      // Parse response structure:
-      // { message: { assets: [{ fiat: "eur", crypto: ["eth", "btc", "eth_arbitrum"], paymentMethods: [...] }] } }
-      const assets = data?.message?.assets || [];
-      
-      // Step 2: Extract potential crypto's for this specific network
-      const potentialCryptos: string[] = [];
-      
-      for (const asset of assets) {
-        const cryptos = asset.crypto || [];
-        for (const crypto of cryptos) {
-          // Parse crypto format: "eth", "btc", "eth_arbitrum", "sol_solana", "usdc_polygon"
-          const parts = crypto.split('_');
-          const cryptoSymbol = parts[0].toUpperCase();
-          const cryptoNetwork = parts.length > 1 ? parts[1] : null;
-          
-          // Match network or native token
-          if (cryptoNetwork === networkCode) {
-            // Network-specific crypto (e.g., "eth_arbitrum", "usdc_polygon")
-            if (!potentialCryptos.includes(cryptoSymbol)) {
-              potentialCryptos.push(cryptoSymbol);
-            }
-          } else if (!cryptoNetwork && cryptoSymbol === nativeToken) {
-            // Native token without network suffix (e.g., "eth" for Ethereum, "sol" for Solana)
-            if (!potentialCryptos.includes(cryptoSymbol)) {
-              potentialCryptos.push(cryptoSymbol);
-            }
-          }
-        }
-      }
-
-      // Always include native token (most likely to work)
-      if (!potentialCryptos.includes(nativeToken)) {
-        potentialCryptos.unshift(nativeToken);
-      }
-
-      // Step 3: Validate each crypto with a quick quote check (max 5 crypto's to keep it fast)
-      const cryptosToValidate = potentialCryptos.slice(0, 5);
-      const availableCryptos: string[] = [];
-      
-      // Validate in parallel with timeout
-      const validationPromises = cryptosToValidate.map(async (crypto) => {
-        try {
-          const quoteUrl = `https://api.onramper.com/quotes?apiKey=${cleanApiKey}&fiatAmount=100&fiatCurrency=${fiatCurrency}&cryptoCurrency=${crypto}&network=${networkCode}`;
-          
-          // Use AbortController for timeout (2 seconds)
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 2000);
-          
-          const quoteResponse = await fetch(quoteUrl, {
-            headers: { 'Authorization': cleanApiKey },
-            signal: controller.signal,
-          });
-
-          clearTimeout(timeoutId);
-
-          if (!quoteResponse.ok) return null;
-
-          const quoteData = await quoteResponse.json();
-          const quotes = quoteData.quotes || [];
-          
-          // CRITICAL: Check if we have at least one valid quote with payout, rate, and no errors
-          // This ensures we only show crypto's that actually have working quotes
-          const hasValidQuote = quotes.some((q: any) => {
-            const hasPayout = q.payout && parseFloat(q.payout.toString()) > 0;
-            const hasRate = q.rate && parseFloat(q.rate.toString()) > 0;
-            const hasNoErrors = !q.errors || (Array.isArray(q.errors) && q.errors.length === 0);
-            
-            return hasPayout && hasRate && hasNoErrors;
-          });
-
-          return hasValidQuote ? crypto : null;
-        } catch (error: any) {
-          // Timeout or error - skip this crypto (but always include native token)
-          if (crypto === nativeToken) {
-            // Native token is most likely to work, include it even on error
-            return nativeToken;
-          }
-          return null;
-        }
-      });
-
-      const validated = await Promise.all(validationPromises);
-      const validCryptos = validated.filter(Boolean) as string[];
-
-      // Always include native token as fallback (most likely to work)
-      if (!validCryptos.includes(nativeToken)) {
-        validCryptos.unshift(nativeToken);
-      }
-
-      // Store in server-side cache
-      this.cryptoCache.set(cacheKey, { data: validCryptos, timestamp: Date.now() });
-
-      // Cleanup old cache entries (keep cache size manageable)
-      if (this.cryptoCache.size > 100) {
-        const now = Date.now();
-        for (const [key, value] of this.cryptoCache.entries()) {
-          if (now - value.timestamp > this.SERVER_CACHE_TTL) {
-            this.cryptoCache.delete(key);
-          }
-        }
-      }
-
-      logger.log(`✅ Available cryptos for chain ${chainId} (${networkCode}):`, validCryptos);
-      
-      return validCryptos.length > 0 ? validCryptos : [nativeToken];
-    } catch (error: any) {
-      logger.error(`Error fetching available cryptos for chain ${chainId}:`, error);
-      return this.getSupportedAssets(chainId);
-    }
+    // NATIVE ONLY STRATEGY: Always return only the native token
+    // This is the most reliable approach - native tokens work with all providers
+    const nativeToken = this.getDefaultCrypto(chainId);
+    
+    logger.log(`✅ Available cryptos for chain ${chainId}: [${nativeToken}] (native only)`);
+    
+    return [nativeToken];
   }
 
   // Get default crypto currency for chain

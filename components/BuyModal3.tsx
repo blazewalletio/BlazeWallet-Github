@@ -224,71 +224,14 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
     }
   }, [isOpen]);
 
-  // Client-side cache helpers (localStorage with 1 hour TTL)
-  const CACHE_KEY_PREFIX = 'onramper_available_cryptos';
-  const CACHE_TTL = 60 * 60 * 1000; // 1 hour
-
-  const getCachedCryptos = (chainId: number, fiatCurrency: string, country?: string): string[] | null => {
-    if (typeof window === 'undefined') return null;
-    
-    try {
-      const cacheKey = `${CACHE_KEY_PREFIX}_${chainId}_${fiatCurrency}_${country || 'any'}`;
-      const cached = localStorage.getItem(cacheKey);
-      if (!cached) return null;
-      
-      const { data, timestamp } = JSON.parse(cached);
-      const age = Date.now() - timestamp;
-      
-      if (age < CACHE_TTL) {
-        logger.log(`✅ Using cached available cryptos (age: ${Math.round(age / 1000)}s)`);
-        return data;
-      }
-      
-      // Expired - remove from localStorage
-      localStorage.removeItem(cacheKey);
-      return null;
-    } catch {
-      return null;
-    }
-  };
-
-  const setCachedCryptos = (chainId: number, fiatCurrency: string, country: string | undefined, cryptos: string[]) => {
-    if (typeof window === 'undefined') return;
-    
-    try {
-      const cacheKey = `${CACHE_KEY_PREFIX}_${chainId}_${fiatCurrency}_${country || 'any'}`;
-      localStorage.setItem(cacheKey, JSON.stringify({
-        data: cryptos,
-        timestamp: Date.now(),
-      }));
-    } catch {
-      // Ignore localStorage errors (quota exceeded, etc.)
-    }
-  };
-
   // Fetch available cryptos for current chain when modal opens or chain changes
-  // Implements aggressive caching + progressive loading for maximum speed
   useEffect(() => {
     if (isOpen && currentChain) {
-      const chain = CHAINS[currentChain];
-      if (!chain) return;
-
-      // Step 1: Check client-side cache first (instant - 0ms)
-      const cached = getCachedCryptos(chain.id, fiatCurrency, userCountry || undefined);
-      if (cached) {
-        setAvailableCryptosSet(new Set(cached));
-        logger.log(`✅ Loaded from cache: ${cached.join(', ')}`);
-        return; // Done! No API call needed
-      }
-
-      // Step 2: Show native token immediately (progressive loading - no wait)
-      const nativeToken = OnramperService.getDefaultCrypto(chain.id);
-      setAvailableCryptosSet(new Set([nativeToken]));
-      logger.log(`⚡ Showing native token immediately: ${nativeToken}`);
-
-      // Step 3: Fetch and validate in background (non-blocking)
       const fetchAvailableCryptos = async () => {
         try {
+          const chain = CHAINS[currentChain];
+          if (!chain) return;
+
           logger.log(`📊 Fetching available cryptos for chain: ${chain.name} (${chain.id})`);
 
           const response = await fetch(
@@ -298,47 +241,23 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
           const data = await response.json();
           
           if (data.success && data.availableCryptos && Array.isArray(data.availableCryptos)) {
-            // CRITICAL: Strictly filter cryptoCurrencies to ONLY show validated available ones
-            // This ensures USDT (or any crypto) is only shown if it passed quote validation
-            const filtered = cryptoCurrencies.filter(crypto =>
-              data.availableCryptos.some((available: string) =>
-                available.toLowerCase() === crypto.toLowerCase()
-              )
-            );
-            
-            // Also include any available cryptos that might not be in cryptoCurrencies yet
-            // But ONLY if they passed validation (they're already in data.availableCryptos)
-            const allAvailable = Array.from(new Set([
-              ...filtered,
-              ...data.availableCryptos.filter((c: string) => 
-                !filtered.some(f => f.toLowerCase() === c.toLowerCase())
-              )
-            ]));
-
-            // CRITICAL: Only set available cryptos if we have validated ones
-            // If validation failed and we only have native token, that's fine
-            // But don't show crypto's that didn't pass validation
-            if (allAvailable.length > 0) {
-              setAvailableCryptosSet(new Set(allAvailable));
-              setCachedCryptos(chain.id, fiatCurrency, userCountry || undefined, allAvailable);
-              logger.log(`✅ Updated available cryptos (validated): ${allAvailable.join(', ')}`);
-            } else {
-              // Fallback: at least show native token
-              const nativeToken = OnramperService.getDefaultCrypto(chain.id);
-              setAvailableCryptosSet(new Set([nativeToken]));
-              logger.warn(`⚠️ No validated cryptos found, showing only native token: ${nativeToken}`);
-            }
+            // NATIVE ONLY: Available cryptos will always be just the native token
+            setAvailableCryptosSet(new Set(data.availableCryptos));
+            logger.log(`✅ Available cryptos for ${chain.name}:`, data.availableCryptos);
           } else {
-            // Fallback to supported assets
+            // Fallback to supported assets (which is also native only now)
             const supported = OnramperService.getSupportedAssets(chain.id);
             setAvailableCryptosSet(new Set(supported));
-            logger.warn(`⚠️ Failed to fetch available cryptos, using fallback for ${chain.name}:`, supported);
+            logger.log(`✅ Using fallback (native only) for ${chain.name}:`, supported);
           }
         } catch (error: any) {
           logger.error('Failed to fetch available cryptos:', error);
           // Fallback to supported assets
-          const supported = OnramperService.getSupportedAssets(chain.id);
-          setAvailableCryptosSet(new Set(supported));
+          const chain = CHAINS[currentChain];
+          if (chain) {
+            const supported = OnramperService.getSupportedAssets(chain.id);
+            setAvailableCryptosSet(new Set(supported));
+          }
         }
       };
 
@@ -382,15 +301,14 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
           setFiatCurrencies(data.fiatCurrencies);
         }
         if (data.cryptoCurrencies) {
-          // ⚠️ FILTER: Remove USDC (test results show no providers support it)
+          // NATIVE ONLY: Filter out all non-native tokens
+          // We only show native tokens per chain (ETH, BNB, MATIC, SOL, etc.)
+          const nativeTokens = ['ETH', 'BTC', 'BNB', 'MATIC', 'SOL', 'AVAX', 'FTM', 'CRO', 'LTC', 'DOGE', 'BCH', 'OP', 'ARB'];
           const filteredCryptos = data.cryptoCurrencies.filter((crypto: string) => {
-            // USDC is not actually supported (no quotes available)
-            if (crypto.toUpperCase() === 'USDC') {
-              return false;
-            }
-            return true;
+            return nativeTokens.includes(crypto.toUpperCase());
           });
           setCryptoCurrencies(filteredCryptos);
+          logger.log('✅ Native tokens only:', filteredCryptos);
         }
       }
     } catch (err: any) {
@@ -412,28 +330,10 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       
       const data = await response.json();
       
-      // ⚠️ CRITICAL: Check not only if quotes exist, but if they have valid payout/rate
-      // This ensures we only mark payment methods as available if they actually work
+      // ⚠️ CRITICAL: success=true means API worked, quotes.length > 0 means providers available
       if (data.success && Array.isArray(data.quotes) && data.quotes.length > 0) {
-        // Check if at least one quote has valid payout and rate (no errors)
-        const hasValidQuote = data.quotes.some((q: any) => {
-          const hasPayout = q.payout && parseFloat(q.payout.toString()) > 0;
-          const hasRate = q.rate && parseFloat(q.rate.toString()) > 0;
-          const hasNoErrors = !q.errors || (Array.isArray(q.errors) && q.errors.length === 0);
-          return hasPayout && hasRate && hasNoErrors;
-        });
-        
-        if (hasValidQuote) {
-          const validCount = data.quotes.filter((q: any) => 
-            q.payout && parseFloat(q.payout.toString()) > 0 && 
-            q.rate && parseFloat(q.rate.toString()) > 0
-          ).length;
-          console.log(`✅ [AVAILABILITY] ${paymentMethodId} with ${crypto}: ${data.quotes.length} providers, ${validCount} with valid quotes`);
-          return true;
-        } else {
-          console.log(`⚠️ [AVAILABILITY] ${paymentMethodId} with ${crypto}: ${data.quotes.length} providers but none have valid payout/rate`);
-          return false;
-        }
+        console.log(`✅ [AVAILABILITY] ${paymentMethodId} with ${crypto}: ${data.quotes.length} providers available`);
+        return true;
       }
       
       console.log(`⚠️ [AVAILABILITY] ${paymentMethodId} with ${crypto}: 0 providers (valid - not available)`);
@@ -1183,11 +1083,10 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
   const chain = CHAINS[currentChain];
   const supportedAssets = chain ? OnramperService.getSupportedAssets(chain.id) : [];
 
-  // Filter crypto currencies based on supported assets for current chain
-  const availableCryptos = cryptoCurrencies.length > 0
-    ? cryptoCurrencies.filter(crypto => 
-        supportedAssets.some(asset => asset.toLowerCase() === crypto.toLowerCase())
-      )
+  // Use availableCryptosSet if available, otherwise use supportedAssets
+  // Both are now native-only, so this ensures consistency
+  const availableCryptos = availableCryptosSet.size > 0 
+    ? Array.from(availableCryptosSet)
     : supportedAssets;
 
   if (!isOpen) return null;

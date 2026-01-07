@@ -552,14 +552,14 @@ export class PriceService {
       const response = await fetch(apiUrl, { signal: AbortSignal.timeout(15000) });
 
       console.log(`   Response status: ${response.status} ${response.statusText}`);
-      
+
       if (response.ok) {
         const data = await response.json();
         console.log(`   ✅ Response received, processing ${Object.keys(data).length} price entries...`);
 
         uncachedAddresses.forEach((address, idx) => {
           console.log(`\n   [${idx + 1}/${uncachedAddresses.length}] Processing ${address.substring(0, 10)}...`);
-          
+
           // CoinGecko API route returns: { "0x...": { price: 5.42, change24h: -2.5 } }
           // (transformed from CoinGecko's { "0x...": { usd: 5.42, usd_24h_change: -2.5 } })
           const priceValue = data[address]?.price || data[address]?.usd || 0;
@@ -755,7 +755,7 @@ export class PriceService {
       console.log(`   ${addr.substring(0, 10)}...: $${data.price.toFixed(6)} (${data.change24h >= 0 ? '+' : ''}${data.change24h.toFixed(2)}%)`);
     });
     console.log(`\n`);
-    
+
     logger.log(`✅ [PriceService] Final: ${result.size}/${addresses.length} addresses processed`);
     return result;
   }
