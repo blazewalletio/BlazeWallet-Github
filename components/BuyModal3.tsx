@@ -67,6 +67,10 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
   const [availableCryptosSet, setAvailableCryptosSet] = useState<Set<string>>(new Set());
   const [unavailableReasons, setUnavailableReasons] = useState<Record<string, string>>({});
   
+  // ⚠️ NEW: Verified available cryptos for current chain (from API)
+  const [availableCryptosForChain, setAvailableCryptosForChain] = useState<string[]>([]);
+  const [isVerifyingCryptos, setIsVerifyingCryptos] = useState(false);
+  const [cryptoVerificationError, setCryptoVerificationError] = useState<string | null>(null);
 
   // Form state
   const [fiatAmount, setFiatAmount] = useState('100');
@@ -134,6 +138,53 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       fetchSupportedData();
     }
   }, [isOpen, step]);
+
+  // ⚠️ NEW: Fetch verified available cryptos for current chain when crypto step is shown
+  const fetchAvailableCryptos = async () => {
+    if (!currentChain) return;
+    
+    const chain = CHAINS[currentChain];
+    if (!chain) return;
+    
+    setIsVerifyingCryptos(true);
+    setCryptoVerificationError(null);
+    setAvailableCryptosForChain([]); // Clear previous list
+    
+    try {
+      const response = await fetch(`/api/onramper/available-cryptos?chainId=${chain.id}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        if (data.cryptos && data.cryptos.length > 0) {
+          setAvailableCryptosForChain(data.cryptos);
+          // Auto-select first available crypto if none selected
+          if (!cryptoCurrency && data.cryptos.length > 0) {
+            setCryptoCurrency(data.cryptos[0]);
+          }
+        } else {
+          // No cryptos available - this is OK, just show empty state
+          setAvailableCryptosForChain([]);
+          setCryptoVerificationError('No cryptocurrencies are currently available for this chain.');
+        }
+      } else {
+        setCryptoVerificationError(data.error || 'Failed to verify available cryptocurrencies');
+      }
+    } catch (error: any) {
+      logger.error('Failed to fetch available cryptos:', error);
+      setCryptoVerificationError('Failed to load available cryptocurrencies. Please try again.');
+      setAvailableCryptosForChain([]);
+    } finally {
+      setIsVerifyingCryptos(false);
+    }
+  };
+
+  // Call when crypto step is shown
+  useEffect(() => {
+    if (flowStep === 'crypto' && currentChain) {
+      fetchAvailableCryptos();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flowStep, currentChain]);
 
   // ⚠️ CRITICAL: NO automatic quote fetching - quotes are ONLY fetched when:
   // 1. User explicitly clicks "Get Quotes" button, OR
@@ -1041,14 +1092,9 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
 
   const quickAmounts = ['50', '100', '250', '500'];
   const chain = CHAINS[currentChain];
-  const supportedAssets = chain ? OnramperService.getSupportedAssets(chain.id) : [];
 
-  // Filter crypto currencies based on supported assets for current chain
-  const availableCryptos = cryptoCurrencies.length > 0
-    ? cryptoCurrencies.filter(crypto => 
-        supportedAssets.some(asset => asset.toLowerCase() === crypto.toLowerCase())
-      )
-    : supportedAssets;
+  // ⚠️ Use verified available cryptos from API (no hardcoded fallback)
+  const availableCryptos = availableCryptosForChain;
 
   if (!isOpen) return null;
 
@@ -1208,21 +1254,46 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Cryptocurrency
                       </label>
-                      <select
-                        value={cryptoCurrency}
-                        onChange={(e) => setCryptoCurrency(e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white"
-                      >
-                        <option value="">Select cryptocurrency</option>
-                        {availableCryptos.map((crypto) => (
-                          <option key={crypto} value={crypto}>
-                            {crypto.toUpperCase()}
-                          </option>
-                        ))}
-                      </select>
-                      <p className="text-xs text-gray-500 mt-2">
-                        💡 USDC is not available (no providers support it)
-                      </p>
+                      
+                      {isVerifyingCryptos ? (
+                        <div className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin text-orange-500" />
+                          <span className="text-sm text-gray-600">Verifying available cryptocurrencies...</span>
+                        </div>
+                      ) : (
+                        <>
+                          <select
+                            value={cryptoCurrency}
+                            onChange={(e) => setCryptoCurrency(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={availableCryptos.length === 0}
+                          >
+                            <option value="">Select cryptocurrency</option>
+                            {availableCryptos.length === 0 ? (
+                              <option disabled>No cryptocurrencies available</option>
+                            ) : (
+                              availableCryptos.map((crypto) => (
+                                <option key={crypto} value={crypto}>
+                                  {crypto.toUpperCase()}
+                                </option>
+                              ))
+                            )}
+                          </select>
+                          
+                          {cryptoVerificationError && (
+                            <p className="text-xs text-red-500 mt-2 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" />
+                              {cryptoVerificationError}
+                            </p>
+                          )}
+                          
+                          {!cryptoVerificationError && availableCryptos.length === 0 && !isVerifyingCryptos && (
+                            <p className="text-xs text-gray-500 mt-2">
+                              💡 No cryptocurrencies are currently available for this chain.
+                            </p>
+                          )}
+                        </>
+                      )}
                     </div>
                     
                     <div className="flex gap-3">
