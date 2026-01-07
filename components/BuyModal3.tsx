@@ -560,20 +560,27 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
             // ⚠️ CRITICAL: If quote has the correct paymentMethod, accept it immediately
             // This matches the backend logic - if Onramper set paymentMethod to the requested method,
             // we trust that Onramper knows what it's doing, even if there are errors
+            // This is important because quotes without payout/rate can still be used with estimated quotes
             if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower) {
               console.log(`✅ [BUYMODAL] Accepting ${q.ramp}: paymentMethod=${q.paymentMethod} matches requested ${paymentMethodLower}`);
-              return true; // Trust Onramper's paymentMethod field
+              return true; // Trust Onramper's paymentMethod field, even with errors
             }
             
             // If quote doesn't have the payment method set, check for errors
-            // (but backend should have already filtered these, so this is just a safety check)
+            // Only reject if errors indicate payment method incompatibility
             if (q.errors && q.errors.length > 0) {
-              return false;
-            }
-            
-            // If quote already has the payment method set, it's supported
-            if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower) {
-              return true;
+              // Check if error is specifically about payment method not supported
+              const hasPaymentMethodError = q.errors.some((err: any) => 
+                err.type === 'NoSupportedPaymentFound' || 
+                err.message?.toLowerCase().includes('payment') ||
+                err.errorId === 6103
+              );
+              
+              // If error is about payment method, reject it
+              if (hasPaymentMethodError) {
+                return false;
+              }
+              // Otherwise, keep it (might have other errors but payment method might still work)
             }
             
             // Check availablePaymentMethods array
