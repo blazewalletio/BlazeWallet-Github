@@ -599,14 +599,6 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
               quotesToUse = fallbackQuotes;
               setUsingFallbackQuotes(true);
               setFallbackPaymentMethod(fallbackPaymentMethod);
-              // Show info message that we're showing alternative quotes
-              toast(
-                `Showing quotes for ${fallbackPaymentMethod} (${paymentMethod} not available). You can still proceed with ${paymentMethod} if supported.`,
-                { 
-                  duration: 5000,
-                  icon: 'ℹ️'
-                }
-              );
             } else {
               // No fallback quotes found either - show error but still try to show any available quotes
               console.error(`❌ [BUYMODAL] No fallback quotes found either!`);
@@ -627,13 +619,6 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                   quotesToUse = anyValidQuotes;
                   setUsingFallbackQuotes(true);
                   setFallbackPaymentMethod(null); // Unknown fallback
-                  toast(
-                    `Showing available quotes. ${paymentMethod} may not be supported, but you can still try to proceed.`,
-                    { 
-                      duration: 5000,
-                      icon: '⚠️'
-                    }
-                  );
                 } else {
                   // Really no quotes available
                   setError(`No quotes available for ${cryptoCurrency}. Please try a different cryptocurrency.`);
@@ -878,7 +863,6 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
             logger.log('📱 Mobile device detected - using direct redirect instead of popup');
             
             // Show message to user
-            toast('Redirecting to payment page...', { icon: '💳', duration: 2000 });
             
             // Store transaction info in sessionStorage so we can track it
             if (typeof window !== 'undefined') {
@@ -925,7 +909,6 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
             if (!popup) {
               // Popup blocked - fallback to direct redirect (same as mobile)
               logger.warn('⚠️ Popup blocked - falling back to direct redirect');
-              toast('Popup blocked. Redirecting to payment page...', { icon: '💳' });
               
               // Store transaction info
               if (typeof window !== 'undefined') {
@@ -958,7 +941,6 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
               
               // Monitor popup for completion
               setStep('processing');
-              toast('Complete payment in the popup window', { icon: '💳' });
 
               // Monitor popup for completion and redirect
               const checkPopup = setInterval(async () => {
