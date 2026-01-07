@@ -805,10 +805,13 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
             // Convert selected quote to old format for backward compatibility
             const selectedQuote = selection.quote;
             
+            // Find the full quote object from quotesToUse to get estimatedQuote if it exists
+            const fullQuote = quotesToUse.find((q: ProviderQuote) => q.ramp === selectedQuote.ramp);
+            
             // Check if this is an estimated quote
-            if (selectedQuote.estimatedQuote) {
+            if (fullQuote?.estimatedQuote) {
               // Use estimated quote
-              setQuote(selectedQuote.estimatedQuote);
+              setQuote(fullQuote.estimatedQuote);
             } else if (selectedQuote.payout) {
               // Use real quote with payout
               setQuote({
