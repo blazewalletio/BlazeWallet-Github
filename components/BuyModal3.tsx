@@ -298,7 +298,8 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
           const data = await response.json();
           
           if (data.success && data.availableCryptos && Array.isArray(data.availableCryptos)) {
-            // Filter cryptoCurrencies to only show available ones
+            // CRITICAL: Strictly filter cryptoCurrencies to ONLY show validated available ones
+            // This ensures USDT (or any crypto) is only shown if it passed quote validation
             const filtered = cryptoCurrencies.filter(crypto =>
               data.availableCryptos.some((available: string) =>
                 available.toLowerCase() === crypto.toLowerCase()
@@ -306,6 +307,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
             );
             
             // Also include any available cryptos that might not be in cryptoCurrencies yet
+            // But ONLY if they passed validation (they're already in data.availableCryptos)
             const allAvailable = Array.from(new Set([
               ...filtered,
               ...data.availableCryptos.filter((c: string) => 
@@ -313,9 +315,19 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
               )
             ]));
 
-            setAvailableCryptosSet(new Set(allAvailable));
-            setCachedCryptos(chain.id, fiatCurrency, userCountry || undefined, allAvailable);
-            logger.log(`✅ Updated available cryptos: ${allAvailable.join(', ')}`);
+            // CRITICAL: Only set available cryptos if we have validated ones
+            // If validation failed and we only have native token, that's fine
+            // But don't show crypto's that didn't pass validation
+            if (allAvailable.length > 0) {
+              setAvailableCryptosSet(new Set(allAvailable));
+              setCachedCryptos(chain.id, fiatCurrency, userCountry || undefined, allAvailable);
+              logger.log(`✅ Updated available cryptos (validated): ${allAvailable.join(', ')}`);
+            } else {
+              // Fallback: at least show native token
+              const nativeToken = OnramperService.getDefaultCrypto(chain.id);
+              setAvailableCryptosSet(new Set([nativeToken]));
+              logger.warn(`⚠️ No validated cryptos found, showing only native token: ${nativeToken}`);
+            }
           } else {
             // Fallback to supported assets
             const supported = OnramperService.getSupportedAssets(chain.id);

@@ -179,11 +179,15 @@ export class OnramperService {
           const quoteData = await quoteResponse.json();
           const quotes = quoteData.quotes || [];
           
-          // Check if we have at least one valid quote with payout and rate
-          const hasValidQuote = quotes.some((q: any) => 
-            q.payout && parseFloat(q.payout.toString()) > 0 && 
-            q.rate && parseFloat(q.rate.toString()) > 0
-          );
+          // CRITICAL: Check if we have at least one valid quote with payout, rate, and no errors
+          // This ensures we only show crypto's that actually have working quotes
+          const hasValidQuote = quotes.some((q: any) => {
+            const hasPayout = q.payout && parseFloat(q.payout.toString()) > 0;
+            const hasRate = q.rate && parseFloat(q.rate.toString()) > 0;
+            const hasNoErrors = !q.errors || (Array.isArray(q.errors) && q.errors.length === 0);
+            
+            return hasPayout && hasRate && hasNoErrors;
+          });
 
           return hasValidQuote ? crypto : null;
         } catch (error: any) {
