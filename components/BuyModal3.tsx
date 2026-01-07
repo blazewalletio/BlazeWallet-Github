@@ -274,7 +274,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       if (!chain) return;
 
       // Step 1: Check client-side cache first (instant - 0ms)
-      const cached = getCachedCryptos(chain.id, fiatCurrency, userCountry);
+      const cached = getCachedCryptos(chain.id, fiatCurrency, userCountry || undefined);
       if (cached) {
         setAvailableCryptosSet(new Set(cached));
         logger.log(`✅ Loaded from cache: ${cached.join(', ')}`);
