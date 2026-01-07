@@ -412,10 +412,28 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       
       const data = await response.json();
       
-      // ⚠️ CRITICAL: success=true means API worked, quotes.length > 0 means providers available
+      // ⚠️ CRITICAL: Check not only if quotes exist, but if they have valid payout/rate
+      // This ensures we only mark payment methods as available if they actually work
       if (data.success && Array.isArray(data.quotes) && data.quotes.length > 0) {
-        console.log(`✅ [AVAILABILITY] ${paymentMethodId} with ${crypto}: ${data.quotes.length} providers available`);
-        return true;
+        // Check if at least one quote has valid payout and rate (no errors)
+        const hasValidQuote = data.quotes.some((q: any) => {
+          const hasPayout = q.payout && parseFloat(q.payout.toString()) > 0;
+          const hasRate = q.rate && parseFloat(q.rate.toString()) > 0;
+          const hasNoErrors = !q.errors || (Array.isArray(q.errors) && q.errors.length === 0);
+          return hasPayout && hasRate && hasNoErrors;
+        });
+        
+        if (hasValidQuote) {
+          const validCount = data.quotes.filter((q: any) => 
+            q.payout && parseFloat(q.payout.toString()) > 0 && 
+            q.rate && parseFloat(q.rate.toString()) > 0
+          ).length;
+          console.log(`✅ [AVAILABILITY] ${paymentMethodId} with ${crypto}: ${data.quotes.length} providers, ${validCount} with valid quotes`);
+          return true;
+        } else {
+          console.log(`⚠️ [AVAILABILITY] ${paymentMethodId} with ${crypto}: ${data.quotes.length} providers but none have valid payout/rate`);
+          return false;
+        }
       }
       
       console.log(`⚠️ [AVAILABILITY] ${paymentMethodId} with ${crypto}: 0 providers (valid - not available)`);
