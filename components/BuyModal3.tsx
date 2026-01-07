@@ -12,6 +12,7 @@ import { UserOnRampPreferencesService } from '@/lib/user-onramp-preferences';
 import { GeolocationService } from '@/lib/geolocation';
 import { logger } from '@/lib/logger';
 import { supabase } from '@/lib/supabase';
+import { EstimatedQuoteService } from '@/lib/estimated-quote-service';
 
 interface BuyModal3Props {
   isOpen: boolean;
@@ -26,6 +27,7 @@ interface Quote {
   totalAmount: string;
   baseCurrency: string;
   quoteCurrency: string;
+  isEstimated?: boolean;
 }
 
 interface ProviderQuote {
@@ -39,6 +41,8 @@ interface ProviderQuote {
   quoteId?: string;
   recommendations?: string[];
   errors?: Array<{ type: string; errorId: number; message: string }>;
+  estimatedQuote?: Quote & { isEstimated: true };
+  isEstimated?: boolean;
 }
 
 interface PaymentMethod {
@@ -601,11 +605,58 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
           
           if (quotesToUse.length === 0 || hasQuotesButNoValid) {
             if (hasQuotesButNoValid) {
+              // ⚠️ NEW: Calculate estimated quotes for providers without payout/rate
               console.warn(`⚠️ [BUYMODAL] Found ${quotesToUse.length} quotes but none have payout/rate for ${paymentMethod} + ${cryptoCurrency}!`);
-            } else {
-              console.warn(`⚠️ [BUYMODAL] NO providers support ${paymentMethod} for ${cryptoCurrency}!`);
-            }
-            console.warn(`⚠️ [BUYMODAL] Attempting to fetch fallback quotes from alternative payment methods...`);
+              console.log(`📊 [BUYMODAL] Calculating estimated quotes based on market rates...`);
+              
+              try {
+                // Calculate estimated quotes for all providers
+                const estimatedQuotesData = await EstimatedQuoteService.calculateForProviders(
+                  parseFloat(fiatAmount),
+                  fiatCurrency,
+                  cryptoCurrency,
+                  quotesToUse
+                );
+                
+                if (estimatedQuotesData.length > 0) {
+                  console.log(`✅ [BUYMODAL] Calculated ${estimatedQuotesData.length} estimated quotes`);
+                  
+                  // Merge estimated quotes with provider quotes
+                  const quotesWithEstimated = quotesToUse.map((q: ProviderQuote) => {
+                    const estimated = estimatedQuotesData.find(eq => eq.provider === q.ramp);
+                    if (estimated) {
+                      return {
+                        ...q,
+                        estimatedQuote: estimated,
+                        isEstimated: true,
+                      };
+                    }
+                    return q;
+                  });
+                  
+                  // Use estimated quotes
+                  quotesToUse = quotesWithEstimated;
+                  
+                  // Select first provider and set estimated quote
+                  const firstProvider = quotesWithEstimated[0];
+                  if (firstProvider.estimatedQuote) {
+                    setSelectedProvider(firstProvider.ramp);
+                    setQuote(firstProvider.estimatedQuote);
+                    console.log(`✅ [BUYMODAL] Using estimated quote for ${firstProvider.ramp}`);
+                  }
+                } else {
+                  console.warn(`⚠️ [BUYMODAL] Failed to calculate estimated quotes, trying fallback payment methods...`);
+                  // Fall through to fallback logic below
+                }
+              } catch (estimateError: any) {
+                console.error(`❌ [BUYMODAL] Error calculating estimated quotes:`, estimateError);
+                console.warn(`⚠️ [BUYMODAL] Falling back to alternative payment methods...`);
+                // Fall through to fallback logic below
+              }
+              
+              // If estimated quotes failed, try fallback payment methods
+              if (quotesToUse.length === 0 || !quotesToUse[0]?.estimatedQuote) {
+                console.warn(`⚠️ [BUYMODAL] Attempting to fetch fallback quotes from alternative payment methods...`);
             
             // Try alternative payment methods in order of preference
             const fallbackPaymentMethods = ['creditcard', 'applepay', 'googlepay', 'debitcard', 'paypal'];
@@ -744,7 +795,13 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
             
             // Convert selected quote to old format for backward compatibility
             const selectedQuote = selection.quote;
-            if (selectedQuote.payout) {
+            
+            // Check if this is an estimated quote
+            if (selectedQuote.estimatedQuote) {
+              // Use estimated quote
+              setQuote(selectedQuote.estimatedQuote);
+            } else if (selectedQuote.payout) {
+              // Use real quote with payout
               setQuote({
                 cryptoAmount: selectedQuote.payout.toString(),
                 exchangeRate: selectedQuote.rate?.toString() || '0',
@@ -760,7 +817,11 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
             const firstValid = quotesToUse.find((q: ProviderQuote) => !q.errors || q.errors.length === 0);
             if (firstValid) {
               setSelectedProvider(firstValid.ramp);
-              if (firstValid.payout) {
+              
+              // Check if this is an estimated quote
+              if (firstValid.estimatedQuote) {
+                setQuote(firstValid.estimatedQuote);
+              } else if (firstValid.payout) {
                 setQuote({
                   cryptoAmount: firstValid.payout.toString(),
                   exchangeRate: firstValid.rate?.toString() || '0',
@@ -1431,12 +1492,28 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                         {quote && (
                           <div className="sticky top-4 z-10 glass-card p-6 bg-gradient-to-br from-orange-50 to-yellow-50 border-2 border-orange-200 shadow-lg">
                             <div className="space-y-4">
+                              {/* Estimated Quote Warning */}
+                              {quote.isEstimated && (
+                                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
+                                  <div className="flex items-start gap-2">
+                                    <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                                    <div className="text-sm text-yellow-800">
+                                      <p className="font-semibold mb-1">Estimated Quote</p>
+                                      <p>This quote is estimated based on current market rates. The final amount will be calculated by the provider during checkout and may vary slightly.</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                              
                               {/* Main Quote Display */}
                               <div className="text-center pb-4 border-b border-orange-200">
                                 <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">You'll receive</div>
                                 {parseFloat(quote.cryptoAmount) > 0 ? (
                                   <div className="text-4xl md:text-5xl font-bold text-gray-900 mb-1">
                                     {parseFloat(quote.cryptoAmount).toFixed(6)} {quote.quoteCurrency}
+                                    {quote.isEstimated && (
+                                      <span className="text-lg text-yellow-600 ml-2">*</span>
+                                    )}
                                   </div>
                                 ) : paymentMethod?.toLowerCase() === 'ideal' ? (
                                   <div className="flex items-center justify-center gap-2 py-2">
@@ -1524,7 +1601,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                               {providerQuotes.map((q) => {
                                 const isSelected = selectedProvider === q.ramp;
-                                const hasQuote = q.payout && parseFloat(q.payout.toString()) > 0;
+                                const hasQuote = (q.payout && parseFloat(q.payout.toString()) > 0) || q.estimatedQuote;
                                 
                                 return (
                                   <button
@@ -1532,7 +1609,10 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                                     onClick={() => {
                                       setSelectedProvider(q.ramp);
                                       // Always set quote when provider is selected
-                                      if (q.payout) {
+                                      // Check if this is an estimated quote first
+                                      if (q.estimatedQuote) {
+                                        setQuote(q.estimatedQuote);
+                                      } else if (q.payout) {
                                         setQuote({
                                           cryptoAmount: q.payout.toString(),
                                           exchangeRate: q.rate?.toString() || '0',
@@ -1585,8 +1665,20 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                                       <div className="space-y-1">
                                         <div className="text-xs text-gray-500">You'll receive</div>
                                         <div className="text-lg font-bold text-gray-900">
-                                          {parseFloat(q.payout!.toString()).toFixed(6)} {cryptoCurrency}
+                                          {q.estimatedQuote ? (
+                                            <>
+                                              {parseFloat(q.estimatedQuote.cryptoAmount).toFixed(6)} {cryptoCurrency}
+                                              <span className="text-xs text-yellow-600 ml-1">*</span>
+                                            </>
+                                          ) : (
+                                            <>
+                                              {parseFloat(q.payout!.toString()).toFixed(6)} {cryptoCurrency}
+                                            </>
+                                          )}
                                         </div>
+                                        {q.estimatedQuote && (
+                                          <div className="text-xs text-yellow-600 italic">Estimated</div>
+                                        )}
                                       </div>
                                     ) : q.paymentMethod?.toLowerCase() === 'ideal' ? (
                                       <div className="flex items-start gap-2 text-sm text-blue-600">
