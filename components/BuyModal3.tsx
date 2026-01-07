@@ -224,14 +224,71 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
     }
   }, [isOpen]);
 
+  // Client-side cache helpers (localStorage with 1 hour TTL)
+  const CACHE_KEY_PREFIX = 'onramper_available_cryptos';
+  const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+  const getCachedCryptos = (chainId: number, fiatCurrency: string, country?: string): string[] | null => {
+    if (typeof window === 'undefined') return null;
+    
+    try {
+      const cacheKey = `${CACHE_KEY_PREFIX}_${chainId}_${fiatCurrency}_${country || 'any'}`;
+      const cached = localStorage.getItem(cacheKey);
+      if (!cached) return null;
+      
+      const { data, timestamp } = JSON.parse(cached);
+      const age = Date.now() - timestamp;
+      
+      if (age < CACHE_TTL) {
+        logger.log(`✅ Using cached available cryptos (age: ${Math.round(age / 1000)}s)`);
+        return data;
+      }
+      
+      // Expired - remove from localStorage
+      localStorage.removeItem(cacheKey);
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const setCachedCryptos = (chainId: number, fiatCurrency: string, country: string | undefined, cryptos: string[]) => {
+    if (typeof window === 'undefined') return;
+    
+    try {
+      const cacheKey = `${CACHE_KEY_PREFIX}_${chainId}_${fiatCurrency}_${country || 'any'}`;
+      localStorage.setItem(cacheKey, JSON.stringify({
+        data: cryptos,
+        timestamp: Date.now(),
+      }));
+    } catch {
+      // Ignore localStorage errors (quota exceeded, etc.)
+    }
+  };
+
   // Fetch available cryptos for current chain when modal opens or chain changes
+  // Implements aggressive caching + progressive loading for maximum speed
   useEffect(() => {
     if (isOpen && currentChain) {
+      const chain = CHAINS[currentChain];
+      if (!chain) return;
+
+      // Step 1: Check client-side cache first (instant - 0ms)
+      const cached = getCachedCryptos(chain.id, fiatCurrency, userCountry);
+      if (cached) {
+        setAvailableCryptosSet(new Set(cached));
+        logger.log(`✅ Loaded from cache: ${cached.join(', ')}`);
+        return; // Done! No API call needed
+      }
+
+      // Step 2: Show native token immediately (progressive loading - no wait)
+      const nativeToken = OnramperService.getDefaultCrypto(chain.id);
+      setAvailableCryptosSet(new Set([nativeToken]));
+      logger.log(`⚡ Showing native token immediately: ${nativeToken}`);
+
+      // Step 3: Fetch and validate in background (non-blocking)
       const fetchAvailableCryptos = async () => {
         try {
-          const chain = CHAINS[currentChain];
-          if (!chain) return;
-
           logger.log(`📊 Fetching available cryptos for chain: ${chain.name} (${chain.id})`);
 
           const response = await fetch(
@@ -257,7 +314,8 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
             ]));
 
             setAvailableCryptosSet(new Set(allAvailable));
-            logger.log(`✅ Available cryptos for ${chain.name}:`, allAvailable);
+            setCachedCryptos(chain.id, fiatCurrency, userCountry, allAvailable);
+            logger.log(`✅ Updated available cryptos: ${allAvailable.join(', ')}`);
           } else {
             // Fallback to supported assets
             const supported = OnramperService.getSupportedAssets(chain.id);
@@ -267,11 +325,8 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
         } catch (error: any) {
           logger.error('Failed to fetch available cryptos:', error);
           // Fallback to supported assets
-          const chain = CHAINS[currentChain];
-          if (chain) {
-            const supported = OnramperService.getSupportedAssets(chain.id);
-            setAvailableCryptosSet(new Set(supported));
-          }
+          const supported = OnramperService.getSupportedAssets(chain.id);
+          setAvailableCryptosSet(new Set(supported));
         }
       };
 
