@@ -32,17 +32,47 @@ async function verifyCryptoAvailability(
     
     clearTimeout(timeout);
     
-    if (!response.ok) return false;
+    if (!response.ok) {
+      logger.warn(`⚠️ ${crypto}: HTTP ${response.status}`);
+      return false;
+    }
     
     const data = await response.json();
     
-    // Check if we got valid quotes with payout
+    // Check if we got valid quotes
     if (Array.isArray(data) && data.length > 0) {
-      return data.some((quote: any) => 
-        quote.payout && parseFloat(quote.payout.toString()) > 0
-      );
+      // A crypto is available if we have at least one provider quote
+      // Even if payout is missing, if we have a provider (ramp) and available payment methods, it's available
+      const hasValidQuote = data.some((quote: any) => {
+        // Best case: has payout > 0
+        if (quote.payout && parseFloat(quote.payout.toString()) > 0) {
+          return true;
+        }
+        // Good case: has rate > 0
+        if (quote.rate && parseFloat(quote.rate.toString()) > 0) {
+          return true;
+        }
+        // Acceptable case: has provider and available payment methods (quote might be metadata-only but provider exists)
+        if (quote.ramp && quote.availablePaymentMethods && quote.availablePaymentMethods.length > 0) {
+          return true;
+        }
+        // Minimum case: has provider name (means provider exists, even if quote details are missing)
+        if (quote.ramp) {
+          return true;
+        }
+        return false;
+      });
+      
+      if (hasValidQuote) {
+        logger.log(`✅ ${crypto}: Available (${data.length} providers)`);
+        return true;
+      } else {
+        logger.warn(`⚠️ ${crypto}: No valid quotes (${data.length} providers, but no valid data)`);
+        return false;
+      }
     }
     
+    logger.warn(`⚠️ ${crypto}: No quotes returned`);
     return false;
   } catch (error: any) {
     if (error.name === 'AbortError') {
@@ -55,39 +85,56 @@ async function verifyCryptoAvailability(
 }
 
 /**
- * Get potential cryptos for a chain from Onramper API
- * This is NOT hardcoded - it comes from Onramper's /supported endpoint
+ * Get potential cryptos for a chain
+ * Uses chain-specific filter to determine which cryptos to test
+ * This is a smart filter based on chain capabilities, not a hardcoded list
  */
 async function getPotentialCryptosForChain(
   chainId: number,
   apiKey: string
 ): Promise<string[]> {
   try {
-    // Get supported data from Onramper
-    const supportedData = await OnramperService.getSupportedData(apiKey);
-    
-    if (!supportedData || !supportedData.cryptoCurrencies) {
-      logger.warn('⚠️ Could not fetch potential cryptos from Onramper');
-      return [];
-    }
-    
-    // Get chain-specific filter (this is just a smart filter, not hardcoded list)
+    // Get chain-specific filter (this tells us which cryptos are typically available on this chain)
     const chainFilter = OnramperService.getSupportedAssets(chainId);
     
-    // Filter: only include cryptos that are:
-    // 1. In Onramper's supported list, AND
-    // 2. Potentially available for this chain (based on chain filter)
-    const potentialCryptos = supportedData.cryptoCurrencies.filter((crypto: string) => {
-      return chainFilter.some(asset => 
-        asset.toLowerCase() === crypto.toLowerCase()
-      );
-    });
+    // Also try to get from Onramper's /supported endpoint to see what they support
+    let onramperCryptos: string[] = [];
+    try {
+      const supportedData = await OnramperService.getSupportedData(apiKey);
+      if (supportedData && supportedData.cryptoCurrencies) {
+        onramperCryptos = supportedData.cryptoCurrencies;
+      }
+    } catch (error: any) {
+      logger.warn('⚠️ Could not fetch from Onramper /supported, using chain filter only');
+    }
     
-    logger.log(`📊 Potential cryptos for chain ${chainId}:`, potentialCryptos);
-    return potentialCryptos;
+    // Combine both sources: use chain filter as primary, but also include any from Onramper
+    // that match the chain filter
+    const potentialCryptos = new Set<string>();
+    
+    // Add all from chain filter (these are the cryptos that should work on this chain)
+    chainFilter.forEach(crypto => potentialCryptos.add(crypto.toUpperCase()));
+    
+    // Also add any from Onramper that match the chain filter
+    if (onramperCryptos.length > 0) {
+      onramperCryptos.forEach((crypto: string) => {
+        const cryptoUpper = crypto.toUpperCase();
+        // If it's in the chain filter, add it
+        if (chainFilter.some(asset => asset.toUpperCase() === cryptoUpper)) {
+          potentialCryptos.add(cryptoUpper);
+        }
+      });
+    }
+    
+    const result = Array.from(potentialCryptos);
+    logger.log(`📊 Potential cryptos for chain ${chainId}:`, result);
+    return result;
   } catch (error: any) {
     logger.error('❌ Error getting potential cryptos:', error);
-    return [];
+    // Fallback: use chain filter only
+    const chainFilter = OnramperService.getSupportedAssets(chainId);
+    logger.log(`📊 Using chain filter fallback for chain ${chainId}:`, chainFilter);
+    return chainFilter.map(c => c.toUpperCase());
   }
 }
 
