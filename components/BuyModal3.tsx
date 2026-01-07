@@ -790,9 +790,20 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
         }
         setProviderQuotes(quotesToUse);
         
-        // Select best provider using smart selection (with user preferences)
-        // ⚠️ CRITICAL: Only select provider if we have quotes AND payment method
-        if (quotesToUse.length > 0 && paymentMethod) {
+        // Check if we have estimated quotes - if so, skip ProviderSelector (it filters out quotes with errors)
+        const hasEstimatedQuotes = quotesToUse.some((q: ProviderQuote) => q.estimatedQuote);
+        
+        if (hasEstimatedQuotes) {
+          // We have estimated quotes - select the first one with an estimated quote
+          console.log(`✅ [BUYMODAL] Found estimated quotes, selecting first provider with estimated quote`);
+          const firstWithEstimated = quotesToUse.find((q: ProviderQuote) => q.estimatedQuote);
+          if (firstWithEstimated && firstWithEstimated.estimatedQuote) {
+            setSelectedProvider(firstWithEstimated.ramp);
+            setQuote(firstWithEstimated.estimatedQuote);
+            console.log(`✅ [BUYMODAL] Selected ${firstWithEstimated.ramp} with estimated quote`);
+          }
+        } else if (quotesToUse.length > 0 && paymentMethod) {
+          // No estimated quotes - use ProviderSelector for normal quotes
           try {
             console.log(`🎯 [BUYMODAL] Selecting provider from ${quotesToUse.length} filtered quotes`);
             const selection = await ProviderSelector.selectProvider(
@@ -902,23 +913,32 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
     // Select provider if not already selected
     let providerToUse = selectedProvider;
     if (!providerToUse && providerQuotes.length > 0) {
-      try {
-        const selection = await ProviderSelector.selectProvider(
-          providerQuotes,
-          userId,
-          paymentMethod
-        );
-        providerToUse = selection.quote.ramp;
+      // Check if we have estimated quotes - if so, use first one with estimated quote
+      const firstWithEstimated = providerQuotes.find((q: ProviderQuote) => q.estimatedQuote);
+      if (firstWithEstimated) {
+        providerToUse = firstWithEstimated.ramp;
         setSelectedProvider(providerToUse);
-      } catch (selectionError: any) {
-        logger.error('Failed to select provider:', selectionError);
-        // Fallback: use first valid quote
-        const firstValid = providerQuotes.find((q: ProviderQuote) => !q.errors || q.errors.length === 0);
-        if (firstValid) {
-          providerToUse = firstValid.ramp;
+        console.log(`✅ [BUYMODAL] Using provider with estimated quote: ${providerToUse}`);
+      } else {
+        // No estimated quotes - use ProviderSelector for normal quotes
+        try {
+          const selection = await ProviderSelector.selectProvider(
+            providerQuotes,
+            userId,
+            paymentMethod
+          );
+          providerToUse = selection.quote.ramp;
           setSelectedProvider(providerToUse);
-        } else {
-          return;
+        } catch (selectionError: any) {
+          logger.error('Failed to select provider:', selectionError);
+          // Fallback: use first valid quote
+          const firstValid = providerQuotes.find((q: ProviderQuote) => !q.errors || q.errors.length === 0);
+          if (firstValid) {
+            providerToUse = firstValid.ramp;
+            setSelectedProvider(providerToUse);
+          } else {
+            return;
+          }
         }
       }
     }
