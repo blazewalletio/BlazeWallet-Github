@@ -314,7 +314,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
             ]));
 
             setAvailableCryptosSet(new Set(allAvailable));
-            setCachedCryptos(chain.id, fiatCurrency, userCountry, allAvailable);
+            setCachedCryptos(chain.id, fiatCurrency, userCountry || undefined, allAvailable);
             logger.log(`✅ Updated available cryptos: ${allAvailable.join(', ')}`);
           } else {
             // Fallback to supported assets
