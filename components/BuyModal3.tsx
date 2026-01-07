@@ -637,12 +637,17 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                   // Use estimated quotes
                   quotesToUse = quotesWithEstimated;
                   
+                  // Store quotes with estimated quotes immediately
+                  setProviderQuotes(quotesWithEstimated);
+                  
                   // Select first provider and set estimated quote
                   const firstProvider = quotesWithEstimated[0];
                   if (firstProvider.estimatedQuote) {
                     setSelectedProvider(firstProvider.ramp);
                     setQuote(firstProvider.estimatedQuote);
                     console.log(`✅ [BUYMODAL] Using estimated quote for ${firstProvider.ramp}`);
+                    // Skip fallback logic since we have estimated quotes
+                    return; // Exit early, don't continue to fallback
                   }
                 } else {
                   console.warn(`⚠️ [BUYMODAL] Failed to calculate estimated quotes, trying fallback payment methods...`);
