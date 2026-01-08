@@ -117,6 +117,50 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
     getUser();
   }, []);
 
+  // 🌍 NEW: Detect user's country for accurate Onramper quotes
+  // CRITICAL: This ensures we get quotes that work for the USER's location,
+  // not Vercel's server location (which may be different)
+  useEffect(() => {
+    const detectCountry = async () => {
+      try {
+        // Check if already saved in localStorage
+        const saved = localStorage.getItem('user_country');
+        if (saved) {
+          console.log('✅ [GEOLOCATION] Using saved country:', saved);
+          setUserCountry(saved);
+          return;
+        }
+
+        // Detect via Cloudflare trace (free, fast, reliable)
+        console.log('🌍 [GEOLOCATION] Detecting user country...');
+        const response = await fetch('https://www.cloudflare.com/cdn-cgi/trace');
+        const data = await response.text();
+        
+        // Parse trace data (format: key=value\n)
+        const lines = data.split('\n');
+        const country = lines
+          .find(line => line.startsWith('loc='))
+          ?.split('=')[1]
+          ?.trim()
+          ?.toUpperCase();
+        
+        if (country && country.length === 2) {
+          console.log('✅ [GEOLOCATION] Detected country:', country);
+          setUserCountry(country);
+          localStorage.setItem('user_country', country);
+        } else {
+          console.warn('⚠️ [GEOLOCATION] Could not detect country, using default (NL)');
+          setUserCountry('NL'); // Default to Netherlands
+        }
+      } catch (error: any) {
+        console.error('❌ [GEOLOCATION] Error detecting country:', error.message);
+        setUserCountry('NL'); // Fallback to Netherlands
+      }
+    };
+
+    detectCountry();
+  }, []);
+
   // Initialize default crypto based on current chain
   useEffect(() => {
     if (isOpen && currentChain) {
@@ -319,7 +363,8 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
   // ⚠️ NEW: Check payment method availability for selected crypto
   const checkPaymentMethodAvailability = async (crypto: string, paymentMethodId: string): Promise<boolean> => {
     try {
-      const url = `/api/onramper/quotes?fiatAmount=250&fiatCurrency=${fiatCurrency}&cryptoCurrency=${crypto}&paymentMethod=${paymentMethodId}`;
+      const countryParam = userCountry ? `&country=${userCountry}` : '';
+      const url = `/api/onramper/quotes?fiatAmount=250&fiatCurrency=${fiatCurrency}&cryptoCurrency=${crypto}&paymentMethod=${paymentMethodId}${countryParam}`;
       const response = await fetch(url);
       
       // ⚠️ CRITICAL: Check response status - 200 means API worked (even if 0 quotes)
@@ -347,7 +392,8 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
   // ⚠️ NEW: Check crypto availability
   const checkCryptoAvailability = async (crypto: string): Promise<boolean> => {
     try {
-      const url = `/api/onramper/quotes?fiatAmount=250&fiatCurrency=${fiatCurrency}&cryptoCurrency=${crypto}`;
+      const countryParam = userCountry ? `&country=${userCountry}` : '';
+      const url = `/api/onramper/quotes?fiatAmount=250&fiatCurrency=${fiatCurrency}&cryptoCurrency=${crypto}${countryParam}`;
       const response = await fetch(url);
       const data = await response.json();
       
@@ -496,8 +542,11 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       setError(null);
 
       // Fetch quotes from ALL providers
-      const quoteUrl = `/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${fiatCurrency}&cryptoCurrency=${cryptoCurrency}${paymentMethod ? `&paymentMethod=${paymentMethod}` : ''}`;
+      const countryParam = userCountry ? `&country=${userCountry}` : '';
+      const quoteUrl = `/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${fiatCurrency}&cryptoCurrency=${cryptoCurrency}${paymentMethod ? `&paymentMethod=${paymentMethod}` : ''}${countryParam}`;
       const quoteResponse = await fetch(quoteUrl);
+
+      console.log('🔍 [BUYMODAL] Fetching quotes with country:', userCountry || 'auto-detect');
 
       const data = await quoteResponse.json();
 
@@ -609,7 +658,8 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
               
               try {
                 console.log(`🔄 [BUYMODAL] Trying fallback payment method: ${fallbackPm}`);
-                const fallbackUrl = `/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${fiatCurrency}&cryptoCurrency=${cryptoCurrency}&paymentMethod=${fallbackPm}`;
+                const countryParam = userCountry ? `&country=${userCountry}` : '';
+                const fallbackUrl = `/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${fiatCurrency}&cryptoCurrency=${cryptoCurrency}&paymentMethod=${fallbackPm}${countryParam}`;
                 const fallbackResponse = await fetch(fallbackUrl);
                 const fallbackData = await fallbackResponse.json();
                 
