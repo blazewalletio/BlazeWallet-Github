@@ -846,7 +846,11 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
         logger.warn('Could not get user ID for checkout intent');
       }
 
-      // Use new checkout-intent API with selected provider
+      // Use new checkout-intent API - let Onramper choose best provider
+      // Onramper's Ranking Engine will automatically select a provider that:
+      // 1. Supports the payment method
+      // 2. Is available/online (avoids 502 errors)
+      // 3. Offers the best rates
       const response = await fetch('/api/onramper/checkout-intent', {
         method: 'POST',
         headers: {
@@ -858,7 +862,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
           cryptoCurrency,
           walletAddress,
           paymentMethod,
-          onramp: providerToUse, // REQUIRED: Selected provider
+          // onramp: providerToUse, // REMOVED: Let Onramper choose automatically
           userId: currentUserId, // Include userId for webhook tracking
         }),
       });

@@ -45,16 +45,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate provider (REQUIRED for /checkout/intent)
+    // Validate provider (OPTIONAL - let Onramper's Ranking Engine choose if not provided)
+    // If provider is specified, it will be used. Otherwise, Onramper chooses the best one.
     if (!onramp) {
-      return NextResponse.json(
-        { 
-          success: false,
-          error: 'Missing required field',
-          message: 'onramp (provider name) is required. Please select a provider first.'
-        },
-        { status: 400 }
-      );
+      logger.log('ℹ️ No provider specified - Onramper will automatically select best provider via Ranking Engine');
     }
 
     // Get API key
@@ -107,13 +101,17 @@ export async function POST(req: NextRequest) {
       country: detectedCountry || 'auto-detect',
     });
 
-    // Use provided provider (selected by smart provider selection)
-    let onrampProvider = onramp.toLowerCase();
+    // Use provided provider if specified, otherwise let Onramper choose
+    let onrampProvider = onramp ? onramp.toLowerCase() : null;
     
-    logger.log('✅ Using selected onramp provider:', {
-      provider: onrampProvider,
-      paymentMethod: paymentMethod || 'none',
-    });
+    if (onrampProvider) {
+      logger.log('✅ Using specified onramp provider:', {
+        provider: onrampProvider,
+        paymentMethod: paymentMethod || 'none',
+      });
+    } else {
+      logger.log('🎯 No provider specified - Onramper will use Ranking Engine to select best provider');
+    }
     
     // Optional: Check if provider supports the payment method (for logging/debugging)
     if (paymentMethod && false) { // Disabled for now - provider already selected
@@ -291,12 +289,20 @@ export async function POST(req: NextRequest) {
       logger.warn('⚠️ Could not determine network code for crypto:', cryptoCurrency);
     }
 
-    // Add selected provider (REQUIRED for /checkout/intent)
-    requestBody.onramp = onrampProvider;
-    logger.log('✅ Added selected onramp provider to request:', {
-      provider: onrampProvider,
-      paymentMethod: paymentMethod || 'none',
-    });
+    // Add selected provider ONLY if specified (otherwise Onramper's Ranking Engine chooses)
+    // This allows Onramper to automatically select a provider that:
+    // 1. Supports the payment method
+    // 2. Is available/online
+    // 3. Offers the best rates
+    if (onrampProvider) {
+      requestBody.onramp = onrampProvider;
+      logger.log('✅ Added specified onramp provider to request:', {
+        provider: onrampProvider,
+        paymentMethod: paymentMethod || 'none',
+      });
+    } else {
+      logger.log('🎯 Onramp provider not specified - Ranking Engine will select automatically');
+    }
 
     // Add optional fields
     if (paymentMethod) {
