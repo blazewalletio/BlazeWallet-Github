@@ -1101,7 +1101,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       >
         <div className="min-h-full flex flex-col">
           <div className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 pt-safe pb-safe">
-            {/* Header */}
+            {/* Header - Clean like SendModal */}
             <div className="pt-4 pb-2">
               <button
                 onClick={onClose}
@@ -1111,31 +1111,30 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
               </button>
             </div>
 
+            {/* Title Section - Compact & Clean */}
             <div className="mb-6">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0">
                     <CreditCard className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Buy crypto (Onramper)</h2>
+                    <h2 className="text-2xl font-bold text-gray-900">Buy crypto</h2>
                     <p className="text-sm text-gray-600">
-                      Purchase crypto with credit card, bank transfer or Apple Pay via Onramper
+                      Fast & secure with card or bank transfer
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {onOpenPurchaseHistory && (
-                    <button
-                      onClick={onOpenPurchaseHistory}
-                      className="px-4 py-2 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-xl font-semibold flex items-center gap-2 transition-all shadow-lg hover:shadow-xl"
-                      title="View purchase history"
-                    >
-                      <History className="w-4 h-4" />
-                      History
-                    </button>
-                  )}
-                </div>
+                {onOpenPurchaseHistory && (
+                  <button
+                    onClick={onOpenPurchaseHistory}
+                    className="px-3 py-2 sm:px-4 sm:py-2 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-xl font-semibold flex items-center gap-2 transition-all shadow-lg hover:shadow-xl text-sm"
+                    title="View purchase history"
+                  >
+                    <History className="w-4 h-4" />
+                    <span className="hidden sm:inline">History</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1358,15 +1357,14 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                           <option value="" disabled>Loading available cryptocurrencies...</option>
                         )}
                       </select>
-                      {availableCryptos.length === 0 && (
-                        <p className="text-xs text-gray-500 mt-2">
-                          ⏳ Loading available cryptocurrencies for this chain...
-                        </p>
-                      )}
-                      {availableCryptos.length > 0 && availableCryptos.length < cryptoCurrencies.length && (
-                        <p className="text-xs text-gray-500 mt-2">
-                          💡 Showing only cryptocurrencies with available providers for {chain?.name || 'this chain'}
-                        </p>
+                      {/* Smart, converting hint text */}
+                      {availableCryptos.length > 0 && (
+                        <div className="mt-3 p-3 bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200 rounded-lg">
+                          <p className="text-xs font-medium text-orange-800 flex items-center gap-2">
+                            <span className="text-base">⚡</span>
+                            <span>Native token for {chain?.name} - instant delivery, lowest fees</span>
+                          </p>
+                        </div>
                       )}
                     </div>
                     
