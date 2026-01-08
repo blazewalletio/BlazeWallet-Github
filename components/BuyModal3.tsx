@@ -1143,47 +1143,88 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
             {/* Content */}
             {step === 'select' && (
               <div className="glass-card p-6 space-y-6">
-                {/* 🎨 GLASSMORPHISM PROGRESS BAR - Modern & Elegant */}
-                <div className="mb-6">
-                  <div className="relative flex items-center justify-between">
-                    {/* Connecting Line Background */}
-                    <div className="absolute top-5 left-0 right-0 h-0.5 bg-gradient-to-r from-gray-200 via-gray-200 to-gray-200 -z-10" />
-                    
+                {/* 🎨 SEGMENTED PROGRESS BAR - Clean & Modern */}
+                <div className="mb-8">
+                  {/* Step Labels */}
+                  <div className="flex items-center justify-between mb-3 px-1">
                     {['amount', 'crypto', 'payment', 'quotes'].map((stepName, idx) => {
                       const stepIndex = ['amount', 'crypto', 'payment', 'quotes'].indexOf(flowStep);
                       const isActive = flowStep === stepName;
                       const isCompleted = idx < stepIndex;
-                      const isUpcoming = idx > stepIndex;
                       
                       return (
-                        <div key={stepName} className="flex items-center flex-1 relative">
-                          <div className="flex flex-col items-center flex-1 relative z-10">
-                            {/* Glassmorphism Circle */}
+                        <div key={stepName} className="flex-1 flex flex-col items-center">
+                          <motion.div
+                            initial={false}
+                            animate={{
+                              scale: isActive ? [1, 1.05, 1] : 1,
+                            }}
+                            transition={{
+                              duration: 1.5,
+                              repeat: isActive ? Infinity : 0,
+                              ease: "easeInOut"
+                            }}
+                            className={`text-xs sm:text-sm font-bold transition-all duration-300 ${
+                              isActive
+                                ? 'bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent'
+                                : isCompleted
+                                ? 'text-green-600'
+                                : 'text-gray-400'
+                            }`}
+                          >
+                            {isCompleted && '✓ '}
+                            {stepName === 'amount' ? 'Amount' : 
+                             stepName === 'crypto' ? 'Crypto' :
+                             stepName === 'payment' ? 'Payment' : 'Quotes'}
+                          </motion.div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Segmented Progress Bar */}
+                  <div className="relative h-3 bg-gray-100 rounded-full overflow-hidden shadow-inner">
+                    {/* Background gradient for depth */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-gray-200/50 to-transparent" />
+                    
+                    {/* Segments */}
+                    <div className="relative h-full flex">
+                      {['amount', 'crypto', 'payment', 'quotes'].map((stepName, idx) => {
+                        const stepIndex = ['amount', 'crypto', 'payment', 'quotes'].indexOf(flowStep);
+                        const isActive = flowStep === stepName;
+                        const isCompleted = idx < stepIndex;
+                        
+                        return (
+                          <div
+                            key={stepName}
+                            className="flex-1 relative"
+                            style={{ 
+                              marginRight: idx < 3 ? '2px' : '0' // Tiny gap between segments
+                            }}
+                          >
+                            {/* Segment fill */}
                             <motion.div
                               initial={false}
                               animate={{
-                                scale: isActive ? [1, 1.1, 1] : 1,
+                                opacity: isActive || isCompleted ? 1 : 0,
                               }}
-                              transition={{
-                                duration: 2,
-                                repeat: isActive ? Infinity : 0,
-                                ease: "easeInOut"
-                              }}
-                              className={`relative w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-500 ${
+                              transition={{ duration: 0.5, ease: "easeOut" }}
+                              className={`absolute inset-0 ${
                                 isActive
-                                  ? 'bg-gradient-to-br from-orange-400 via-orange-500 to-yellow-500 text-white shadow-lg shadow-orange-500/50 backdrop-blur-xl'
+                                  ? 'bg-gradient-to-r from-orange-500 via-orange-400 to-yellow-500'
                                   : isCompleted
-                                  ? 'bg-gradient-to-br from-green-400 to-green-600 text-white shadow-md shadow-green-500/30'
-                                  : 'bg-white/80 backdrop-blur-md text-gray-400 border-2 border-gray-200/50 shadow-sm'
+                                  ? 'bg-gradient-to-r from-green-500 to-green-400'
+                                  : ''
                               }`}
-                            >
-                              {/* Glow effect for active step */}
-                              {isActive && (
+                            />
+                            
+                            {/* Active segment glow effect */}
+                            {isActive && (
+                              <>
                                 <motion.div
-                                  className="absolute inset-0 rounded-full bg-gradient-to-r from-orange-400 to-yellow-500 opacity-60 blur-md"
+                                  className="absolute inset-0 bg-gradient-to-r from-orange-400 to-yellow-400"
                                   animate={{
-                                    opacity: [0.4, 0.7, 0.4],
-                                    scale: [1, 1.2, 1],
+                                    opacity: [0.6, 1, 0.6],
                                   }}
                                   transition={{
                                     duration: 2,
@@ -1191,50 +1232,51 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                                     ease: "easeInOut"
                                   }}
                                 />
-                              )}
-                              <span className="relative z-10">
-                                {isCompleted ? '✓' : idx + 1}
-                              </span>
-                            </motion.div>
-                            
-                            {/* Label with gradient text for active */}
-                            <motion.span 
-                              className={`text-xs mt-2.5 font-semibold transition-all duration-300 whitespace-nowrap ${
-                                isActive 
-                                  ? 'bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent' 
-                                  : isCompleted 
-                                  ? 'text-green-600' 
-                                  : 'text-gray-400'
-                              }`}
-                            >
-                              {stepName === 'amount' ? 'Amount' : 
-                               stepName === 'crypto' ? 'Crypto' :
-                               stepName === 'payment' ? 'Payment' : 'Quotes'}
-                            </motion.span>
-                          </div>
-                          
-                          {/* Animated connecting line */}
-                          {idx < 3 && (
-                            <div className="flex-1 h-0.5 mx-3 relative">
-                              <div className={`absolute inset-0 transition-all duration-500 rounded-full ${
-                                isCompleted 
-                                  ? 'bg-gradient-to-r from-green-500 to-green-400' 
-                                  : 'bg-gray-200'
-                              }`} />
-                              {isCompleted && (
                                 <motion.div
-                                  className="absolute inset-0 bg-gradient-to-r from-green-400 to-green-300 rounded-full"
-                                  initial={{ scaleX: 0 }}
-                                  animate={{ scaleX: 1 }}
-                                  transition={{ duration: 0.5, delay: 0.2 }}
-                                  style={{ transformOrigin: 'left' }}
+                                  className="absolute -inset-y-1 inset-x-0 bg-gradient-to-r from-orange-500 to-yellow-500 blur-sm opacity-60"
+                                  animate={{
+                                    opacity: [0.4, 0.8, 0.4],
+                                  }}
+                                  transition={{
+                                    duration: 2,
+                                    repeat: Infinity,
+                                    ease: "easeInOut"
+                                  }}
                                 />
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                              </>
+                            )}
+
+                            {/* Shine effect for completed */}
+                            {isCompleted && (
+                              <motion.div
+                                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                                initial={{ x: '-100%' }}
+                                animate={{ x: '200%' }}
+                                transition={{
+                                  duration: 1.5,
+                                  ease: "easeInOut",
+                                }}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Progress Percentage */}
+                  <div className="mt-2 text-center">
+                    <motion.span
+                      key={flowStep}
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-xs font-semibold text-gray-500"
+                    >
+                      {flowStep === 'amount' && '25% complete'}
+                      {flowStep === 'crypto' && '50% complete'}
+                      {flowStep === 'payment' && '75% complete'}
+                      {flowStep === 'quotes' && '100% complete'}
+                    </motion.span>
                   </div>
                 </div>
 
