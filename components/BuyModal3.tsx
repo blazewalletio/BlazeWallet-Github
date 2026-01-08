@@ -851,6 +851,14 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       // 1. Supports the payment method
       // 2. Is available/online (avoids 502 errors)
       // 3. Offers the best rates
+      
+      // 🔥 FIX: If a provider is selected from fallback quotes (e.g. creditcard when ideal fails),
+      // use the payment method from the selected quote, NOT the original user selection
+      const selectedQuote = providerToUse ? providerQuotes.find(q => q.ramp === providerToUse) : null;
+      const actualPaymentMethod = selectedQuote?.paymentMethod || paymentMethod;
+      
+      logger.log(`💳 [BUYMODAL] Using payment method for checkout: ${actualPaymentMethod} (original: ${paymentMethod}, provider: ${providerToUse})`);
+      
       const response = await fetch('/api/onramper/checkout-intent', {
         method: 'POST',
         headers: {
@@ -861,7 +869,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
           fiatCurrency,
           cryptoCurrency,
           walletAddress,
-          paymentMethod,
+          paymentMethod: actualPaymentMethod,
           // onramp: providerToUse, // REMOVED: Let Onramper choose automatically
           userId: currentUserId, // Include userId for webhook tracking
         }),
