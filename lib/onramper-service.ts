@@ -1453,11 +1453,9 @@ export class OnramperService {
           return true;
         }
         
-        // If quote has the requested payment method set, keep it even if it has errors
-        // (errors might be unrelated to payment method support)
-        if (paymentMethod && q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethod.toLowerCase()) {
-          return true;
-        }
+        // ❌ REMOVED: Don't keep quotes with paymentMethod set if they have errors AND no payout/rate
+        // These are broken quotes - the provider claims to support the payment method but doesn't work
+        // Old logic: if (paymentMethod && q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethod.toLowerCase()) return true;
         
         // Otherwise, only keep quotes without errors
         return !q.errors || q.errors.length === 0;
