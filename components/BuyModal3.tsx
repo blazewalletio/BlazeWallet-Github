@@ -909,6 +909,8 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       
       logger.log(`💳 [BUYMODAL] Using payment method for checkout: ${actualPaymentMethod} (original: ${paymentMethod}, provider: ${providerToUse})`);
       
+      // 🌍 CRITICAL: Include userCountry to ensure Onramper returns providers available in user's location
+      // Without this, Onramper uses server's location (Vercel datacenter) which may not have same providers
       const response = await fetch('/api/onramper/checkout-intent', {
         method: 'POST',
         headers: {
@@ -920,7 +922,8 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
           cryptoCurrency,
           walletAddress,
           paymentMethod: actualPaymentMethod,
-          // onramp: providerToUse, // REMOVED: Let Onramper choose automatically
+          country: userCountry, // 🌍 USER'S country, not server's country
+          onramp: providerToUse, // 🏢 Use selected provider (if any) for more specific error messages
           userId: currentUserId, // Include userId for webhook tracking
         }),
       });
