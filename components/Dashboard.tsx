@@ -109,6 +109,22 @@ export default function Dashboard() {
   const isFounder = address && founderAddresses.includes(address.toLowerCase());
   
   const [showBalance, setShowBalance] = useState(true);
+  const [hideDust, setHideDust] = useState(() => {
+    // Load from localStorage, default to TRUE (dust filter ON by default)
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('blaze_hide_dust');
+      return saved !== null ? saved === 'true' : true; // Default TRUE
+    }
+    return true;
+  });
+  const [dustThreshold, setDustThreshold] = useState(() => {
+    // Load threshold from localStorage, default to $1
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('blaze_dust_threshold');
+      return saved ? parseFloat(saved) : 1;
+    }
+    return 1;
+  });
   // ✅ isRefreshing removed - now derived from chain-specific state
   const [showSendModal, setShowSendModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
@@ -1692,7 +1708,26 @@ export default function Dashboard() {
             <div className="relative z-10">
               <div className="flex justify-between items-start mb-4">
                 <div className="flex-1">
-                  <div className="text-sm text-gray-600 mb-2">Portfolio value</div>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="text-sm text-gray-600">Portfolio value</div>
+                    {/* Dust Filter Toggle */}
+                    <button
+                      onClick={() => {
+                        const newValue = !hideDust;
+                        setHideDust(newValue);
+                        localStorage.setItem('blaze_hide_dust', String(newValue));
+                      }}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        hideDust
+                          ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-md'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                      title={hideDust ? `Hiding tokens < $${dustThreshold}` : 'Show all tokens'}
+                    >
+                      <Eye className={`w-3.5 h-3.5 ${hideDust ? '' : 'opacity-50'}`} />
+                      <span>Hide &lt; ${dustThreshold}</span>
+                    </button>
+                  </div>
                   <div className="flex items-center gap-3 mb-2">
                     {showBalance ? (
                       <>
@@ -1969,6 +2004,12 @@ export default function Dashboard() {
       >
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-semibold">Assets</h3>
+          {hideDust && tokens.filter(t => parseFloat(t.balanceUSD || '0') < dustThreshold).length > 0 && (
+            <div className="text-xs text-gray-500 flex items-center gap-1.5">
+              <Eye className="w-3.5 h-3.5" />
+              <span>{tokens.filter(t => parseFloat(t.balanceUSD || '0') < dustThreshold).length} hidden</span>
+            </div>
+          )}
         </div>
         
         <div className="space-y-3">
@@ -2023,7 +2064,14 @@ export default function Dashboard() {
 
           {/* ERC-20 Tokens / SPL Tokens */}
           <AnimatePresence>
-            {tokens.map((token, index) => {
+            {tokens
+              .filter(token => {
+                // Apply dust filter if enabled
+                if (!hideDust) return true;
+                const balanceUSD = parseFloat(token.balanceUSD || '0');
+                return balanceUSD >= dustThreshold;
+              })
+              .map((token, index) => {
               const isUnknownToken = token.name === 'Unknown Token' && currentChain === 'solana';
               const isRefreshing = refreshingToken === token.address;
               
