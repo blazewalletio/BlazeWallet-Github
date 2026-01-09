@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Search, Loader2, Check, AlertCircle } from 'lucide-react';
 import { CHAINS } from '@/lib/chains';
 import { LiFiService, LiFiToken } from '@/lib/lifi-service';
+import { getLiFiChainId } from '@/lib/lifi-chain-ids';
 import { logger } from '@/lib/logger';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { supabase } from '@/lib/supabase';
@@ -38,6 +39,7 @@ export default function TokenSearchModal({
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [popularTokens, setPopularTokens] = useState<LiFiToken[]>([]);
+  const [tokenLogosCache, setTokenLogosCache] = useState<Record<string, string>>({}); // ✅ Cache for token logos from Li.Fi
 
   const chainConfig = CHAINS[chainKey];
   const chainId = chainConfig?.id;
@@ -60,6 +62,7 @@ export default function TokenSearchModal({
       setSearchQuery('');
       setTokens([]);
       setError(null);
+      setTokenLogosCache({}); // Clear cache when modal closes or chain changes
     }
   }, [isOpen, chainId]);
 
@@ -79,6 +82,59 @@ export default function TokenSearchModal({
 
     return () => clearTimeout(timeoutId);
   }, [searchQuery, isOpen, chainId]);
+
+  // ✅ Fetch token logos from Li.Fi API
+  const fetchTokenLogosFromLiFi = async (chainId: number, addresses: string[]): Promise<Record<string, string>> => {
+    if (addresses.length === 0) return {};
+    
+    try {
+      logger.log(`🎨 [TokenSearchModal] Fetching logos from Li.Fi for ${addresses.length} tokens on chain ${chainId}...`);
+      
+      // Li.Fi API endpoint for tokens
+      const lifiChainId = getLiFiChainId(chainKey);
+      const response = await fetch(`https://li.quest/v1/tokens?chains=${lifiChainId}`);
+      
+      if (!response.ok) {
+        throw new Error(`Li.Fi API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const tokensData = data.tokens?.[lifiChainId] || [];
+      
+      // Create a map of address -> logoURI
+      const logoMap: Record<string, string> = {};
+      
+      addresses.forEach(address => {
+        const normalizedAddress = address.toLowerCase();
+        const token = tokensData.find((t: any) => 
+          t.address.toLowerCase() === normalizedAddress
+        );
+        
+        if (token?.logoURI) {
+          logoMap[normalizedAddress] = token.logoURI;
+        } else {
+          // Fallback to TrustWallet CDN
+          const trustWalletUrl = `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/${address}/logo.png`;
+          logoMap[normalizedAddress] = trustWalletUrl;
+        }
+      });
+      
+      logger.log(`✅ [TokenSearchModal] Fetched ${Object.keys(logoMap).length} logos from Li.Fi`);
+      return logoMap;
+      
+    } catch (error) {
+      logger.warn('⚠️ [TokenSearchModal] Failed to fetch logos from Li.Fi:', error);
+      
+      // Fallback: Return TrustWallet CDN URLs for all addresses
+      const fallbackMap: Record<string, string> = {};
+      addresses.forEach(address => {
+        const trustWalletUrl = `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/${address}/logo.png`;
+        fallbackMap[address.toLowerCase()] = trustWalletUrl;
+      });
+      
+      return fallbackMap;
+    }
+  };
 
   const fetchTokens = async () => {
     if (!chainId) return;
@@ -198,18 +254,40 @@ export default function TokenSearchModal({
       // Get curated popular tokens (INSTANT - no API call!)
       const curatedTokens = getPopularTokens(chainKey);
       
-      // Convert to LiFiToken format
+      // ✅ Fetch logos from Li.Fi API (cached after first fetch)
+      const tokenAddresses = curatedTokens.map(t => t.address).filter(addr => addr !== '0x0000000000000000000000000000000000000000');
+      
+      let logosFromLiFi: Record<string, string> = {};
+      if (tokenAddresses.length > 0 && Object.keys(tokenLogosCache).length === 0) {
+        // Only fetch if cache is empty (first load)
+        logosFromLiFi = await fetchTokenLogosFromLiFi(chainId, tokenAddresses);
+        setTokenLogosCache(logosFromLiFi); // Cache for subsequent loads
+      } else {
+        // Use cached logos
+        logosFromLiFi = tokenLogosCache;
+      }
+      
+      // Convert to LiFiToken format with logos from Li.Fi
       const tokensList: LiFiToken[] = curatedTokens
         .filter(t => !excludeTokens.includes(t.address))
-        .map(t => ({
-          address: t.address,
-          symbol: t.symbol,
-          name: t.name,
-          decimals: t.decimals,
-          chainId: chainId,
-          logoURI: t.logoURI || chainConfig?.logoUrl || '',
-          priceUSD: '0', // Price will be fetched from Li.Fi on search if needed
-        }));
+        .map(t => {
+          const normalizedAddress = t.address.toLowerCase();
+          const logoFromLiFi = logosFromLiFi[normalizedAddress];
+          
+          // Priority: Li.Fi logo > curated logoURI > chain logo
+          const finalLogoURI = logoFromLiFi || t.logoURI || 
+            (t.isNative ? chainConfig?.logoUrl : '') || '';
+          
+          return {
+            address: t.address,
+            symbol: t.symbol,
+            name: t.name,
+            decimals: t.decimals,
+            chainId: chainId,
+            logoURI: finalLogoURI,
+            priceUSD: '0', // Price will be fetched from Li.Fi on search if needed
+          };
+        });
 
       // Separate native token and stablecoins for better UX
       const nativeToken = tokensList.filter(t => t.address === '0x0000000000000000000000000000000000000000');
@@ -227,7 +305,7 @@ export default function TokenSearchModal({
       setPopularTokens(sortedTokens);
       setTokens(sortedTokens);
       
-      logger.log(`✅ [TokenSearchModal] Loaded ${sortedTokens.length} curated tokens for ${chainKey} (INSTANT)`);
+      logger.log(`✅ [TokenSearchModal] Loaded ${sortedTokens.length} curated tokens for ${chainKey} with Li.Fi logos`);
       setIsLoading(false);
 
     } catch (error: any) {

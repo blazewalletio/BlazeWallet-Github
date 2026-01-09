@@ -368,6 +368,13 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           // ✅ EVM transaction execution
           logger.log('⚡ Executing EVM transaction...');
           
+          // ✅ CRITICAL FIX: Only initialize EVM provider for EVM chains!
+          // This was causing "eth_chainId is not available on SOLANA_MAINNET" error
+          // because ethers.JsonRpcProvider was being initialized with Solana RPC URL
+          if (!CHAINS[fromChain] || !CHAINS[fromChain].rpcUrl) {
+            throw new Error(`Invalid chain configuration for ${fromChain}`);
+          }
+          
           const provider = new ethers.JsonRpcProvider(CHAINS[fromChain].rpcUrl);
           const connectedWallet = new ethers.Wallet(
             ethers.Wallet.fromPhrase(mnemonic).privateKey,
