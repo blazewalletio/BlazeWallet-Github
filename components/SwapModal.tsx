@@ -309,6 +309,10 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         // Execute based on chain type
         let stepTxHash: string | null = null;
 
+        // ✅ CRITICAL FIX: Check BOTH step.action.fromChainId AND fromChain
+        // Some Li.Fi responses might have unexpected chain ID formats
+        const isFromSolana = isSolanaChainId(step.action?.fromChainId) || fromChain === 'solana';
+        
         // ✅ CRITICAL DEBUG: Log step details to identify Solana vs EVM
         logger.log('🔍 [SwapModal] Executing step:', {
           fromChainId: step.action?.fromChainId,
@@ -316,9 +320,10 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           fromChain,
           toChain,
           isSolanaCheck: isSolanaChainId(step.action?.fromChainId),
+          isFromSolana,
         });
 
-        if (isSolanaChainId(step.action?.fromChainId)) {
+        if (isFromSolana) {
           // ✅ Solana transaction execution
           logger.log('🔵 Executing Solana transaction...');
           
