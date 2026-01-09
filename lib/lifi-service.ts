@@ -1,5 +1,6 @@
 import { logger } from '@/lib/logger';
 import { getLiFiChainId, isSolanaChainId } from '@/lib/lifi-chain-ids';
+import { getChecksumAddress, isValidEthereumAddress } from '@/lib/address-utils';
 
 // Li.Fi Native Token Addresses
 // EVM chains use: 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
@@ -172,6 +173,30 @@ export class LiFiService {
     toAddress?: string // ✅ Optional: destination address for cross-chain swaps
   ): Promise<LiFiQuote | null> {
     try {
+      // ✅ CRITICAL: Validate and checksum addresses for EVM chains
+      // Li.Fi requires proper EIP-55 checksum addresses for EVM chains
+      const isFromChainEVM = !isSolanaChainId(fromChain);
+      const isToChainEVM = !isSolanaChainId(toChain);
+      
+      let checksummedFromAddress = fromAddress;
+      let checksummedToAddress = toAddress;
+      
+      if (isFromChainEVM && isValidEthereumAddress(fromAddress)) {
+        checksummedFromAddress = getChecksumAddress(fromAddress);
+        logger.log('✅ Checksummed fromAddress:', {
+          original: fromAddress,
+          checksummed: checksummedFromAddress,
+        });
+      }
+      
+      if (toAddress && isToChainEVM && isValidEthereumAddress(toAddress)) {
+        checksummedToAddress = getChecksumAddress(toAddress);
+        logger.log('✅ Checksummed toAddress:', {
+          original: toAddress,
+          checksummed: checksummedToAddress,
+        });
+      }
+      
       // Determine native token address based on chain
       const getNativeTokenAddress = (chainId: string | number): string => {
         // Solana chain ID in Li.Fi is "1151111081099710" (string)
@@ -201,7 +226,7 @@ export class LiFiService {
         fromToken: fromTokenAddress,
         toToken: toTokenAddress,
         fromAmount: fromAmount,
-        fromAddress: fromAddress,
+        fromAddress: checksummedFromAddress, // ✅ Use checksummed address
         slippage: slippage.toString(),
         order: order,
       });
@@ -209,11 +234,11 @@ export class LiFiService {
       // ✅ Add toAddress if provided (for cross-chain swaps)
       // This is the destination address on the target chain
       // If not provided, LI.FI will use fromAddress, but explicit toAddress is better for cross-chain
-      if (toAddress && toAddress !== fromAddress) {
-        params.append('toAddress', toAddress);
+      if (checksummedToAddress && checksummedToAddress !== checksummedFromAddress) {
+        params.append('toAddress', checksummedToAddress); // ✅ Use checksummed address
         logger.log('🌉 Cross-chain swap: using explicit toAddress:', {
-          fromAddress: fromAddress.substring(0, 10) + '...',
-          toAddress: toAddress.substring(0, 10) + '...',
+          fromAddress: checksummedFromAddress.substring(0, 10) + '...',
+          toAddress: checksummedToAddress.substring(0, 10) + '...',
         });
       }
 
