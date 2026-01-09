@@ -551,9 +551,21 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     const chainTokens = getChainTokens(chain);
     
     if (token === 'native') {
-      // For native tokens, try to get from chainTokens or return placeholder
+      // For native tokens, get from wallet store or chainTokens
+      const { balance: evmBalance } = useWalletStore.getState();
+      
+      // First try chainTokens (most accurate for current chain)
       const nativeToken = chainTokens.find(t => t.address === 'native');
-      return nativeToken?.balance || '0';
+      if (nativeToken?.balance && parseFloat(nativeToken.balance) > 0) {
+        return nativeToken.balance;
+      }
+      
+      // Fallback to wallet store balance if on current chain
+      if (chain === currentChain && evmBalance) {
+        return evmBalance;
+      }
+      
+      return '0';
     } else {
       // For ERC20/SPL tokens
       const tokenData = chainTokens.find(t => t.address === token.address);
@@ -1159,6 +1171,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       )}
 
       {/* Token Selection Modals */}
+      {/* FROM Token Modal - Only show tokens with balance */}
       <TokenSearchModal
         isOpen={showFromTokenModal}
         onClose={() => setShowFromTokenModal(false)}
@@ -1177,17 +1190,29 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
             name?: string; 
             logo?: string; 
             decimals?: number 
-          }> = [
-            { address: 'native', balance: '1' }
-          ];
+          }> = [];
           
+          // Get actual balance for native token
+          const nativeBalance = getTokenBalance('native', fromChain);
+          if (parseFloat(nativeBalance) > 0) {
+            walletTokensList.push({ 
+              address: 'native', 
+              balance: nativeBalance,
+              symbol: CHAINS[fromChain]?.nativeCurrency?.symbol,
+              name: CHAINS[fromChain]?.nativeCurrency?.name,
+              logo: CHAINS[fromChain]?.logoUrl,
+              decimals: CHAINS[fromChain]?.nativeCurrency?.decimals
+            });
+          }
+          
+          // Get ERC20/SPL tokens from wallet
           const chainTokens = getChainTokens(fromChain);
           const tokensToUse = chainTokens.length > 0 
             ? chainTokens 
             : (fromChain === currentChain ? tokens : []);
           
           tokensToUse.forEach(t => {
-            if (t.address && t.balance && parseFloat(t.balance || '0') > 0) {
+            if (t.address && t.address !== 'native' && t.balance && parseFloat(t.balance || '0') > 0) {
               walletTokensList.push({
                 address: t.address,
                 balance: t.balance,
@@ -1201,8 +1226,10 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           
           return walletTokensList;
         })()}
+        onlyShowTokensWithBalance={true}
       />
 
+      {/* TO Token Modal - Show all popular tokens (MetaMask style) */}
       <TokenSearchModal
         isOpen={showToTokenModal}
         onClose={() => setShowToTokenModal(false)}
@@ -1213,38 +1240,8 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           setShowToTokenModal(false);
         }}
         excludeTokens={fromToken === 'native' ? [] : fromToken ? [(fromToken as LiFiToken).address] : []}
-        walletTokens={(() => {
-          const walletTokensList: Array<{ 
-            address: string; 
-            balance: string; 
-            symbol?: string; 
-            name?: string; 
-            logo?: string; 
-            decimals?: number 
-          }> = [
-            { address: 'native', balance: '1' }
-          ];
-          
-          const chainTokens = getChainTokens(toChain);
-          const tokensToUse = chainTokens.length > 0 
-            ? chainTokens 
-            : (toChain === currentChain ? tokens : []);
-          
-          tokensToUse.forEach(t => {
-            if (t.address && t.balance && parseFloat(t.balance || '0') > 0) {
-              walletTokensList.push({
-                address: t.address,
-                balance: t.balance,
-                symbol: t.symbol,
-                name: t.name,
-                logo: t.logo,
-                decimals: t.decimals
-              });
-            }
-          });
-          
-          return walletTokensList;
-        })()}
+        walletTokens={[]}
+        onlyShowTokensWithBalance={false}
       />
     </AnimatePresence>
   );
