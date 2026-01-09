@@ -309,6 +309,15 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         // Execute based on chain type
         let stepTxHash: string | null = null;
 
+        // ✅ CRITICAL DEBUG: Log step details to identify Solana vs EVM
+        logger.log('🔍 [SwapModal] Executing step:', {
+          fromChainId: step.action?.fromChainId,
+          toChainId: step.action?.toChainId,
+          fromChain,
+          toChain,
+          isSolanaCheck: isSolanaChainId(step.action?.fromChainId),
+        });
+
         if (isSolanaChainId(step.action?.fromChainId)) {
           // ✅ Solana transaction execution
           logger.log('🔵 Executing Solana transaction...');
