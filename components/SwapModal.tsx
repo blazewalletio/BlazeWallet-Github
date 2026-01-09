@@ -11,7 +11,10 @@ import {
   ExternalLink,
   RefreshCw,
   ChevronDown,
-  Info
+  Info,
+  Zap,
+  TrendingDown,
+  Clock
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { CHAINS } from '@/lib/chains';
@@ -300,301 +303,84 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
             throw new Error('Failed to get transaction data');
           }
 
-          // ✅ executeData.transaction is a Step object with transactionRequest populated
-          const populatedStep = executeData.transaction;
-          txRequest = populatedStep.transactionRequest;
-
-          if (!txRequest) {
-            throw new Error('No transaction request in response');
-          }
-        } else {
-          logger.log('✅ Step already has transactionRequest, using directly');
+          txRequest = executeData.transaction;
         }
 
-        // Store transaction hash for status polling (used for both EVM and Solana)
+        // Execute based on chain type
         let stepTxHash: string | null = null;
 
-        // Get provider for the chain
-        // For cross-chain, use the chain of the current step
-        const stepChainId = step.action?.fromChainId;
-        
-        // ✅ CRITICAL: Map LI.FI chain IDs to our chain keys
-        // Solana: LI.FI uses "1151111081099710" (string), our CHAINS uses 101 (number)
-        let stepChainKey: string | undefined;
-        
-        // ✅ Use helper function for Solana detection
-        if (isSolanaChainId(stepChainId)) {
-          stepChainKey = 'solana';
-        } else {
-          // For EVM chains, find by numeric ID
-          const numericChainId = typeof stepChainId === 'number' 
-            ? stepChainId 
-            : parseInt(stepChainId.toString());
+        if (isSolanaChainId(step.action?.fromChainId)) {
+          // ✅ Solana transaction execution
+          logger.log('🔵 Executing Solana transaction...');
           
-          stepChainKey = Object.keys(CHAINS).find(
-            key => CHAINS[key].id === numericChainId || CHAINS[key].id === stepChainId
-          );
-        }
-        
-        // Fallback to fromChain if not found
-        if (!stepChainKey) {
-          logger.warn(`⚠️ Chain ID ${stepChainId} not found in CHAINS, using fromChain: ${fromChain}`);
-          stepChainKey = fromChain;
-        }
-        
-        const chainConfig = CHAINS[stepChainKey];
-        if (!chainConfig) {
-          throw new Error(`Chain ${stepChainKey} (ID: ${stepChainId}) not supported. Available chains: ${Object.keys(CHAINS).join(', ')}`);
-        }
-        
-        logger.log(`🔗 Executing step on chain: ${stepChainKey} (ID: ${stepChainId})`);
-
-        // ✅ CRITICAL: Solana requires different handling
-        // LI.FI returns quotes for Solana, but transaction execution requires Solana web3.js, not ethers.js
-        const isSolanaStep = stepChainKey === 'solana' || isSolanaChainId(stepChainId);
-        
-        if (isSolanaStep) {
-          // ✅ Execute Solana transaction using @solana/web3.js
-          if (!mnemonic) {
-            throw new Error('Mnemonic required for Solana transaction execution');
+          if (!solanaAddress) {
+            throw new Error('Solana address not found');
           }
 
-          logger.log('🪐 Executing Solana transaction via LI.FI...');
-          
-          // Create Solana connection
-          const solanaService = new SolanaService(chainConfig.rpcUrl);
-          const connection = new Connection(chainConfig.rpcUrl, 'confirmed');
-          
-          // Derive Solana keypair from mnemonic
-          const keypair = solanaService.deriveKeypairFromMnemonic(mnemonic, 0);
-          
-          // ✅ LI.FI returns base64-encoded Solana transaction in transactionRequest.data
-          // Deserialize and sign the transaction
-          if (!txRequest.data) {
-            throw new Error('No transaction data in Solana transactionRequest');
-          }
+          // Get Solana service and connection
+          const solanaService = new SolanaService();
+          const connection = new Connection(CHAINS['solana'].rpcUrl, 'confirmed');
 
+          // Get keypair from mnemonic
+          const keypair = solanaService.deriveKeypairFromMnemonic(mnemonic);
+
+          // Parse and send transaction
+          const txData = txRequest.data;
+          
           try {
-            // ✅ LI.FI returns Solana transaction in transactionRequest.data
-            // It could be base64-encoded or hex-encoded
-            let transactionBuffer: Buffer;
-            
+            let transaction: Transaction | VersionedTransaction;
+
+            // Try to deserialize as VersionedTransaction first
             try {
-              // Try base64 first (most common for Solana)
-              transactionBuffer = Buffer.from(txRequest.data, 'base64');
-            } catch {
-              // Fallback to hex if base64 fails
-              try {
-                transactionBuffer = Buffer.from(txRequest.data.replace('0x', ''), 'hex');
-              } catch {
-                throw new Error('Invalid transaction data format. Expected base64 or hex.');
-              }
+              const buffer = Buffer.from(txData, 'base64');
+              transaction = VersionedTransaction.deserialize(buffer);
+              
+              // Sign versioned transaction
+              (transaction as VersionedTransaction).sign([keypair]);
+              
+              // Send versioned transaction
+              const signature = await connection.sendTransaction(transaction as VersionedTransaction);
+              await connection.confirmTransaction(signature, 'confirmed');
+              
+              stepTxHash = signature;
+              setTxHash(signature);
+            } catch (versionedError) {
+              // Fall back to legacy transaction
+              logger.log('Trying legacy transaction format...');
+              const buffer = Buffer.from(txData, 'base64');
+              transaction = Transaction.from(buffer);
+              
+              // Sign legacy transaction
+              transaction.sign(keypair);
+              
+              // Send legacy transaction
+              const signature = await connection.sendRawTransaction(transaction.serialize());
+              await connection.confirmTransaction(signature, 'confirmed');
+              
+              stepTxHash = signature;
+              setTxHash(signature);
             }
-
-            // Try to deserialize as VersionedTransaction (newer format, preferred)
-            let solanaTransaction: Transaction | VersionedTransaction;
-            let isVersioned = false;
-            
-            try {
-              solanaTransaction = VersionedTransaction.deserialize(transactionBuffer);
-              isVersioned = true;
-              logger.log('✅ Deserialized as VersionedTransaction');
-            } catch {
-              // Fallback to legacy Transaction format
-              try {
-                solanaTransaction = Transaction.from(transactionBuffer);
-                logger.log('✅ Deserialized as legacy Transaction');
-              } catch (error: any) {
-                logger.error('❌ Failed to deserialize Solana transaction:', error);
-                throw new Error(`Failed to deserialize Solana transaction: ${error.message || 'Unknown error'}`);
-              }
-            }
-
-            // ✅ CRITICAL: Get fresh blockhash before sending
-            // Solana blockhashes expire quickly (~1 minute), so we need a fresh one
-            logger.log('🔄 Fetching fresh blockhash...');
-            const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-            logger.log(`✅ Got fresh blockhash: ${blockhash.substring(0, 16)}...`);
-
-            // ✅ Update blockhash for legacy Transaction
-            if (!isVersioned && solanaTransaction instanceof Transaction) {
-              solanaTransaction.recentBlockhash = blockhash;
-              solanaTransaction.lastValidBlockHeight = lastValidBlockHeight;
-              logger.log('✅ Updated legacy Transaction with fresh blockhash');
-            } else if (isVersioned && solanaTransaction instanceof VersionedTransaction) {
-              // ⚠️ VersionedTransaction blockhash is embedded in the compiled message
-              // We cannot easily update it without rebuilding the entire transaction
-              // The transaction from LI.FI should have a recent blockhash, but if it's expired,
-              // we'll get an error and handle it below
-              logger.log('⚠️ VersionedTransaction - blockhash update requires full rebuild (will retry if needed)');
-            }
-
-            // Sign the transaction with our keypair
-            if (solanaTransaction instanceof VersionedTransaction) {
-              solanaTransaction.sign([keypair]);
-              logger.log('✅ Signed VersionedTransaction');
-            } else {
-              solanaTransaction.sign(keypair);
-              logger.log('✅ Signed legacy Transaction');
-            }
-
-            logger.log('📤 Sending Solana transaction...');
-            
-            // Send transaction with retry logic for expired blockhash
-            let signature: string | null = null;
-            let sendAttempts = 0;
-            const maxSendAttempts = 2;
-            
-            while (sendAttempts < maxSendAttempts) {
-              try {
-                if (solanaTransaction instanceof VersionedTransaction) {
-                  // VersionedTransaction is already signed, just send
-                  signature = await connection.sendTransaction(solanaTransaction, {
-                    skipPreflight: false,
-                    maxRetries: 3,
-                  });
-                  logger.log('✅ VersionedTransaction sent');
-                  break;
-                } else {
-                  // Legacy Transaction - send with signers
-                  signature = await connection.sendTransaction(solanaTransaction, [keypair], {
-                    skipPreflight: false,
-                    maxRetries: 3,
-                  });
-                  logger.log('✅ Legacy Transaction sent');
-                  break;
-                }
-              } catch (error: any) {
-                sendAttempts++;
-                const errorMessage = error.message || error.toString();
-                
-                // Check if error is due to expired blockhash
-                if (errorMessage.includes('Blockhash not found') || errorMessage.includes('blockhash')) {
-                  if (sendAttempts < maxSendAttempts) {
-                    logger.log(`⚠️ Blockhash expired, fetching new one (attempt ${sendAttempts}/${maxSendAttempts})...`);
-                    const { blockhash: newBlockhash, lastValidBlockHeight: newLastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-                    
-                    if (solanaTransaction instanceof Transaction) {
-                      solanaTransaction.recentBlockhash = newBlockhash;
-                      solanaTransaction.lastValidBlockHeight = newLastValidBlockHeight;
-                      logger.log('✅ Updated Transaction with fresh blockhash, retrying...');
-                      // Re-sign with new blockhash
-                      solanaTransaction.sign(keypair);
-                    } else if (solanaTransaction instanceof VersionedTransaction) {
-                      // ✅ For VersionedTransaction, rebuild with fresh blockhash
-                      logger.log('🔄 Rebuilding VersionedTransaction with fresh blockhash...');
-                      
-                      // Extract message from original transaction
-                      const originalMessage = solanaTransaction.message;
-                      
-                      // Rebuild MessageV0 with fresh blockhash
-                      const newMessage = new MessageV0({
-                        header: originalMessage.header,
-                        staticAccountKeys: originalMessage.staticAccountKeys,
-                        recentBlockhash: newBlockhash,
-                        compiledInstructions: originalMessage.compiledInstructions,
-                        addressTableLookups: originalMessage.addressTableLookups || [],
-                      });
-                      
-                      // Create new VersionedTransaction with fresh blockhash
-                      solanaTransaction = new VersionedTransaction(newMessage);
-                      
-                      // Re-sign the transaction
-                      solanaTransaction.sign([keypair]);
-                      logger.log('✅ Rebuilt and re-signed VersionedTransaction with fresh blockhash');
-                    }
-                  } else {
-                    throw error;
-                  }
-                } else {
-                  // Other errors, throw immediately
-                  throw error;
-                }
-              }
-            }
-
-            if (!signature) {
-              throw new Error('Failed to send Solana transaction after retries');
-            }
-            
-            logger.log(`⏳ Waiting for Solana confirmation: ${signature}...`);
-            
-            // ✅ Use polling instead of WebSocket to avoid CSP issues
-            // Poll for transaction status instead of using confirmTransaction (which uses WebSocket)
-            const maxAttempts = 60; // 60 attempts = 60 seconds max
-            let confirmed = false;
-            let transactionError: any = null;
-            
-            for (let attempt = 0; attempt < maxAttempts; attempt++) {
-              try {
-                const status = await connection.getSignatureStatus(signature);
-                
-                if (status?.value) {
-                  if (status.value.err) {
-                    transactionError = status.value.err;
-                    throw new Error(`Solana transaction failed: ${JSON.stringify(status.value.err)}`);
-                  }
-                  
-                  if (status.value.confirmationStatus === 'confirmed' || status.value.confirmationStatus === 'finalized') {
-                    confirmed = true;
-                    logger.log(`✅ Solana transaction confirmed (attempt ${attempt + 1})`);
-                    break;
-                  }
-                }
-                
-                // Wait 1 second before next poll
-                await new Promise(resolve => setTimeout(resolve, 1000));
-              } catch (error: any) {
-                if (transactionError) {
-                  throw error; // Re-throw transaction errors immediately
-                }
-                // Continue polling on network errors
-                logger.log(`⏳ Polling attempt ${attempt + 1}/${maxAttempts}...`);
-              }
-            }
-            
-            if (!confirmed && !transactionError) {
-              // Transaction might still be pending, but we'll consider it sent
-              // User can check the signature on Solana Explorer
-              logger.warn(`⚠️ Solana transaction not confirmed after ${maxAttempts} seconds, but signature is: ${signature}`);
-              // Don't throw error - transaction might still succeed
-            }
-
-            logger.log('✅ Solana transaction confirmed');
-            stepTxHash = signature;
-            setTxHash(signature);
-          } catch (error: any) {
-            logger.error('❌ Solana transaction error:', error);
-            
-            // ✅ Better error handling for slippage errors
-            const errorMessage = error.message || error.toString() || '';
-            if (errorMessage.includes('MinReturnNotReached') || 
-                errorMessage.includes('0x177a') || 
-                errorMessage.includes('6010') ||
-                errorMessage.includes('min return not reached')) {
-              throw new Error(
-                `Slippage tolerance exceeded. The price moved too much between quote and execution. ` +
-                `Try increasing slippage tolerance (current: ${slippage}%) or try again in a moment.`
-              );
-            }
-            
-            throw new Error(`Solana transaction failed: ${error.message || 'Unknown error'}`);
+          } catch (sendError: any) {
+            logger.error('Solana transaction error:', sendError);
+            throw new Error(`Failed to send Solana transaction: ${sendError.message}`);
           }
         } else {
-          // ✅ EVM chains: Use ethers.js
-          const provider = new ethers.JsonRpcProvider(chainConfig.rpcUrl);
+          // ✅ EVM transaction execution
+          logger.log('⚡ Executing EVM transaction...');
           
-          // Connect wallet to provider
-          const connectedWallet = wallet.connect(provider);
+          const provider = new ethers.JsonRpcProvider(CHAINS[fromChain].rpcUrl);
+          const connectedWallet = new ethers.Wallet(
+            ethers.Wallet.fromPhrase(mnemonic).privateKey,
+            provider
+          );
 
           // Check if approval is needed
-          const approvalAddress = step.estimate?.approvalAddress;
-          if (approvalAddress && approvalAddress !== '0x0000000000000000000000000000000000000000') {
-            logger.log('🔐 Approval needed, checking current allowance...');
-            
-            // Check current allowance
+          if (step.estimate?.approvalAddress) {
             const tokenAddress = step.action?.fromToken?.address;
-            if (tokenAddress && tokenAddress !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE') {
+            const approvalAddress = step.estimate.approvalAddress;
+
+            if (tokenAddress && tokenAddress !== ethers.ZeroAddress) {
+              // Check current allowance
               const erc20ABI = [
                 'function allowance(address owner, address spender) view returns (uint256)',
                 'function approve(address spender, uint256 amount) returns (bool)',
@@ -726,6 +512,55 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     };
   };
 
+  const handleMaxAmount = () => {
+    const balance = getTokenBalance(fromToken, fromChain);
+    if (!balance || parseFloat(balance) === 0) return;
+    
+    // For native tokens, reserve gas (0.01 ETH / 0.1 BNB / etc.)
+    if (fromToken === 'native') {
+      const balanceNum = parseFloat(balance);
+      const gasReserve = fromChain === 'ethereum' ? 0.01 : 0.05; // More reserve for Ethereum
+      const maxAmount = Math.max(0, balanceNum - gasReserve);
+      setAmount(maxAmount.toFixed(6));
+    } else {
+      // For ERC20/SPL tokens, use full balance
+      setAmount(parseFloat(balance).toFixed(6));
+    }
+  };
+
+  const getExchangeRate = (): string => {
+    if (!quote || !amount || parseFloat(amount) === 0) return '';
+    
+    const fromAmount = parseFloat(amount);
+    const toAmount = parseFloat(formatAmount(
+      quote.estimate?.toAmount || '0',
+      toToken === 'native' 
+        ? CHAINS[toChain]?.nativeCurrency?.decimals || 18
+        : (toToken as LiFiToken)?.decimals || 18
+    ));
+    
+    if (toAmount === 0) return '';
+    
+    const rate = toAmount / fromAmount;
+    return `1 ${fromTokenDisplay.symbol} ≈ ${rate.toFixed(6)} ${toTokenDisplay.symbol}`;
+  };
+
+  const getTokenBalance = (token: LiFiToken | 'native' | null, chain: string): string => {
+    if (!token) return '0';
+    
+    const chainTokens = getChainTokens(chain);
+    
+    if (token === 'native') {
+      // For native tokens, try to get from chainTokens or return placeholder
+      const nativeToken = chainTokens.find(t => t.address === 'native');
+      return nativeToken?.balance || '0';
+    } else {
+      // For ERC20/SPL tokens
+      const tokenData = chainTokens.find(t => t.address === token.address);
+      return tokenData?.balance || '0';
+    }
+  };
+
   const fromTokenDisplay = getTokenDisplay(fromToken, fromChain);
   const toTokenDisplay = getTokenDisplay(toToken, toChain);
 
@@ -740,6 +575,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       >
         <div className="min-h-full flex flex-col">
           <div className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 pt-safe pb-safe">
+            {/* Header */}
             <div className="pt-4 pb-2">
               <button
                 onClick={onClose}
@@ -749,53 +585,62 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
               </button>
             </div>
 
+            {/* Title Section - Blaze Style */}
             <div className="mb-6">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
                   <ArrowUpDown className="w-6 h-6 text-white" />
                 </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Swap</h2>
+                <div className="flex-1">
+                  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Swap</h2>
                   <p className="text-sm text-gray-600">
-                    {isCrossChain ? 'Cross-chain swap with automatic bridging' : 'Swap tokens instantly'}
+                    {isCrossChain ? 'Cross-chain swap with bridge' : 'Best rates, instant execution'}
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="space-y-6 pb-6">
-              <div className="glass-card p-6 space-y-6">
+              <div className="glass-card p-4 sm:p-6 space-y-6">
               {step === 'input' && (
-                <div className="space-y-6">
-                  {/* From Token */}
+                <div className="space-y-4 sm:space-y-6">
+                  {/* From Token Section */}
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-700">From</label>
-                    <div className="flex gap-3">
+                    <label className="text-sm font-semibold text-gray-700 flex items-center justify-between">
+                      <span>From</span>
+                      {fromToken && (
+                        <span className="text-xs text-gray-500">
+                          Balance: {parseFloat(getTokenBalance(fromToken, fromChain)).toFixed(6)} {fromTokenDisplay.symbol}
+                        </span>
+                      )}
+                    </label>
+                    
+                    <div className="flex gap-2 sm:gap-3">
                       {/* Chain Selector */}
                       <div className="relative chain-dropdown-container">
                         <button
                           onClick={() => {
                             setShowFromChainDropdown(!showFromChainDropdown);
-                            setShowToChainDropdown(false); // Close other dropdown
+                            setShowToChainDropdown(false);
                           }}
-                          className="px-4 py-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors flex items-center gap-2 min-w-[120px]"
+                          className="px-3 sm:px-4 py-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors flex items-center gap-2 min-w-[100px] sm:min-w-[120px]"
                         >
-                          <span className="text-sm font-semibold text-gray-900">
+                          <span className="text-sm font-semibold text-gray-900 truncate">
                             {CHAINS[fromChain]?.shortName || fromChain}
                           </span>
-                          <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${showFromChainDropdown ? 'rotate-180' : ''}`} />
+                          <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform flex-shrink-0 ${showFromChainDropdown ? 'rotate-180' : ''}`} />
                         </button>
                         
                         {showFromChainDropdown && (
                           <motion.div
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="absolute z-20 w-full mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-xl overflow-hidden"
+                            className="absolute z-20 w-48 sm:w-56 mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-[300px] overflow-y-auto"
                           >
                             {Object.keys(CHAINS)
                               .filter(c => 
                                 !CHAINS[c].isTestnet && 
-                                ['ethereum', 'polygon', 'arbitrum', 'base', 'bsc', 'optimism', 'avalanche', 'solana'].includes(c)
+                                ['ethereum', 'polygon', 'arbitrum', 'base', 'bsc', 'optimism', 'avalanche', 'cronos', 'zksync', 'linea'].includes(c)
                               )
                               .map((chainKey) => {
                                 const chain = CHAINS[chainKey];
@@ -805,7 +650,6 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                                     onClick={() => {
                                       setFromChain(chainKey);
                                       setShowFromChainDropdown(false);
-                                      // Reset token when chain changes
                                       setFromToken(null);
                                     }}
                                     className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors ${
@@ -822,7 +666,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                                       ) : (
                                         <span className="text-xl">{chain.icon}</span>
                                       )}
-                                      <span className="font-medium text-gray-900">{chain.name}</span>
+                                      <span className="font-medium text-gray-900 text-sm">{chain.name}</span>
                                     </div>
                                     {fromChain === chainKey && (
                                       <Check className="w-5 h-5 text-orange-500" />
@@ -837,94 +681,102 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                       {/* Token Selector */}
                       <button
                         onClick={() => setShowFromTokenModal(true)}
-                        className="flex-1 px-4 py-3 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl hover:from-purple-100 hover:to-pink-100 transition-all flex items-center justify-between"
+                        className="flex-1 px-3 sm:px-4 py-3 bg-gradient-to-br from-orange-50 to-yellow-50 rounded-xl hover:from-orange-100 hover:to-yellow-100 transition-all flex items-center justify-between border-2 border-orange-200"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center overflow-hidden border border-gray-200">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center overflow-hidden border border-orange-200 flex-shrink-0">
                             {fromTokenDisplay.logo && (fromTokenDisplay.logo.startsWith('http') || fromTokenDisplay.logo.startsWith('/')) ? (
                               <img 
                                 src={isIPFSUrl(fromTokenDisplay.logo) ? getIPFSGatewayUrl(fromTokenDisplay.logo) : fromTokenDisplay.logo} 
                                 alt={fromTokenDisplay.symbol}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
-                                  // ✅ Silently handle image load errors (prevents console spam)
                                   e.currentTarget.style.display = 'none';
                                   if (e.currentTarget.parentElement) {
                                     e.currentTarget.parentElement.textContent = fromTokenDisplay.symbol[0];
                                   }
                                 }}
-                                onLoad={(e) => {
-                                  // ✅ Image loaded successfully - ensure it's visible
-                                  e.currentTarget.style.display = 'block';
-                                }}
                               />
                             ) : (
-                              <span className="text-sm font-bold text-gray-700">{fromTokenDisplay.symbol[0]}</span>
+                              <span className="text-sm font-bold text-orange-700">{fromTokenDisplay.symbol[0]}</span>
                             )}
                           </div>
-                          <div className="text-left">
-                            <div className="font-semibold text-gray-900">{fromTokenDisplay.symbol}</div>
-                            <div className="text-xs text-gray-500">{fromTokenDisplay.name}</div>
+                          <div className="text-left min-w-0">
+                            <div className="font-semibold text-gray-900 text-sm sm:text-base truncate">{fromTokenDisplay.symbol}</div>
+                            <div className="text-xs text-gray-500 truncate hidden sm:block">{fromTokenDisplay.name}</div>
                           </div>
                         </div>
-                        <ChevronDown className="w-5 h-5 text-gray-500" />
+                        <ChevronDown className="w-5 h-5 text-gray-500 flex-shrink-0" />
                       </button>
                     </div>
 
-                    {/* Amount Input */}
-                    <input
-                      type="number"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      placeholder="0.0"
-                      className="w-full px-4 py-4 text-2xl font-bold text-gray-900 bg-gray-50 rounded-xl border-2 border-transparent focus:border-purple-500 focus:outline-none transition-colors"
-                    />
+                    {/* Amount Input with MAX button */}
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        placeholder="0.0"
+                        className="w-full px-4 py-4 pr-20 text-xl sm:text-2xl font-bold text-gray-900 bg-gray-50 rounded-xl border-2 border-transparent focus:border-orange-500 focus:outline-none transition-colors"
+                      />
+                      <button
+                        onClick={handleMaxAmount}
+                        disabled={!fromToken || parseFloat(getTokenBalance(fromToken, fromChain)) === 0}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-xs sm:text-sm font-bold rounded-lg hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+                      >
+                        MAX
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Swap Button */}
-                  <button
-                    onClick={() => {
-                      const tempChain = fromChain;
-                      const tempToken = fromToken;
-                      setFromChain(toChain);
-                      setToChain(tempChain);
-                      setFromToken(toToken);
-                      setToToken(tempToken);
-                    }}
-                    className="mx-auto -my-3 relative z-10 p-3 bg-white rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-110"
-                  >
-                    <ArrowUpDown className="w-5 h-5 text-purple-600" />
-                  </button>
+                  {/* Swap Direction Button */}
+                  <div className="flex justify-center -my-2 relative z-10">
+                    <motion.button
+                      whileHover={{ scale: 1.1, rotate: 180 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => {
+                        const tempChain = fromChain;
+                        const tempToken = fromToken;
+                        setFromChain(toChain);
+                        setToChain(tempChain);
+                        setFromToken(toToken);
+                        setToToken(tempToken);
+                      }}
+                      className="p-3 bg-white rounded-full shadow-lg hover:shadow-xl transition-all border-2 border-orange-200"
+                    >
+                      <ArrowUpDown className="w-5 h-5 text-orange-600" />
+                    </motion.button>
+                  </div>
 
-                  {/* To Token */}
+                  {/* To Token Section */}
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-700">To</label>
-                    <div className="flex gap-3">
+                    <label className="text-sm font-semibold text-gray-700">To (estimated)</label>
+                    <div className="flex gap-2 sm:gap-3">
                       {/* Chain Selector */}
                       <div className="relative chain-dropdown-container">
                         <button
                           onClick={() => {
                             setShowToChainDropdown(!showToChainDropdown);
-                            setShowFromChainDropdown(false); // Close other dropdown
+                            setShowFromChainDropdown(false);
                           }}
-                          className="px-4 py-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors flex items-center gap-2 min-w-[120px]"
+                          className="px-3 sm:px-4 py-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors flex items-center gap-2 min-w-[100px] sm:min-w-[120px]"
                         >
-                          <span className="text-sm font-semibold text-gray-900">
+                          <span className="text-sm font-semibold text-gray-900 truncate">
                             {CHAINS[toChain]?.shortName || toChain}
                           </span>
-                          <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${showToChainDropdown ? 'rotate-180' : ''}`} />
+                          <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform flex-shrink-0 ${showToChainDropdown ? 'rotate-180' : ''}`} />
                         </button>
                         
                         {showToChainDropdown && (
                           <motion.div
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="absolute z-20 w-full mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-xl overflow-hidden"
+                            className="absolute z-20 w-48 sm:w-56 mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-[300px] overflow-y-auto"
                           >
                             {Object.keys(CHAINS)
                               .filter(c => 
                                 !CHAINS[c].isTestnet && 
-                                ['ethereum', 'polygon', 'arbitrum', 'base', 'bsc', 'optimism', 'avalanche', 'solana'].includes(c)
+                                ['ethereum', 'polygon', 'arbitrum', 'base', 'bsc', 'optimism', 'avalanche', 'cronos', 'zksync', 'linea'].includes(c)
                               )
                               .map((chainKey) => {
                                 const chain = CHAINS[chainKey];
@@ -934,7 +786,6 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                                     onClick={() => {
                                       setToChain(chainKey);
                                       setShowToChainDropdown(false);
-                                      // Reset token when chain changes
                                       setToToken(null);
                                     }}
                                     className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors ${
@@ -951,7 +802,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                                       ) : (
                                         <span className="text-xl">{chain.icon}</span>
                                       )}
-                                      <span className="font-medium text-gray-900">{chain.name}</span>
+                                      <span className="font-medium text-gray-900 text-sm">{chain.name}</span>
                                     </div>
                                     {toChain === chainKey && (
                                       <Check className="w-5 h-5 text-orange-500" />
@@ -966,110 +817,136 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                       {/* Token Selector */}
                       <button
                         onClick={() => setShowToTokenModal(true)}
-                        className="flex-1 px-4 py-3 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl hover:from-emerald-100 hover:to-teal-100 transition-all flex items-center justify-between"
+                        className="flex-1 px-3 sm:px-4 py-3 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl hover:from-emerald-100 hover:to-teal-100 transition-all flex items-center justify-between border-2 border-emerald-200"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center overflow-hidden border border-gray-200">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center overflow-hidden border border-emerald-200 flex-shrink-0">
                             {toTokenDisplay.logo && (toTokenDisplay.logo.startsWith('http') || toTokenDisplay.logo.startsWith('/')) ? (
                               <img 
                                 src={isIPFSUrl(toTokenDisplay.logo) ? getIPFSGatewayUrl(toTokenDisplay.logo) : toTokenDisplay.logo} 
                                 alt={toTokenDisplay.symbol}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
-                                  // ✅ Silently handle image load errors (prevents console spam)
                                   e.currentTarget.style.display = 'none';
                                   if (e.currentTarget.parentElement) {
                                     e.currentTarget.parentElement.textContent = toTokenDisplay.symbol[0];
                                   }
                                 }}
-                                onLoad={(e) => {
-                                  // ✅ Image loaded successfully - ensure it's visible
-                                  e.currentTarget.style.display = 'block';
-                                }}
                               />
                             ) : (
-                              <span className="text-sm font-bold text-gray-700">{toTokenDisplay.symbol[0]}</span>
+                              <span className="text-sm font-bold text-emerald-700">{toTokenDisplay.symbol[0]}</span>
                             )}
                           </div>
-                          <div className="text-left">
-                            <div className="font-semibold text-gray-900">{toTokenDisplay.symbol}</div>
-                            <div className="text-xs text-gray-500">{toTokenDisplay.name}</div>
+                          <div className="text-left min-w-0">
+                            <div className="font-semibold text-gray-900 text-sm sm:text-base truncate">{toTokenDisplay.symbol}</div>
+                            <div className="text-xs text-gray-500 truncate hidden sm:block">{toTokenDisplay.name}</div>
                           </div>
                         </div>
-                        <ChevronDown className="w-5 h-5 text-gray-500" />
+                        <ChevronDown className="w-5 h-5 text-gray-500 flex-shrink-0" />
                       </button>
                     </div>
 
-                    {/* Quote Display */}
+                    {/* Quote Display - Enhanced */}
                     {isLoadingQuote && (
-                      <div className="px-4 py-3 bg-gray-50 rounded-xl flex items-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin text-purple-600" />
-                        <span className="text-sm text-gray-600">Fetching best rate...</span>
-                      </div>
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="px-4 py-3 bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl flex items-center gap-2 border-2 border-orange-200"
+                      >
+                        <Loader2 className="w-4 h-4 animate-spin text-orange-600" />
+                        <span className="text-sm text-gray-700 font-medium">Finding best rate...</span>
+                      </motion.div>
                     )}
 
                     {quote && !isLoadingQuote && (
-                      <div className="px-4 py-3 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl">
-                        <div className="text-sm text-gray-600 mb-1">You will receive</div>
-                        <div className="text-2xl font-bold text-gray-900">
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="px-4 py-3 bg-gradient-to-br from-orange-50 via-yellow-50 to-orange-50 rounded-xl border-2 border-orange-200 space-y-2"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-600">You receive</span>
+                          {isCrossChain && (
+                            <div className="flex items-center gap-1 text-xs text-orange-600 font-medium">
+                              <Zap className="w-3 h-3" />
+                              <span>Bridge</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-xl sm:text-2xl font-bold text-gray-900">
                           {formatAmount(
                             quote.estimate?.toAmount || '0',
                             toToken === 'native' 
                               ? CHAINS[toChain]?.nativeCurrency?.decimals || 18
-                              : toToken?.decimals || 18
+                              : (toToken as LiFiToken)?.decimals || 18
                           )} {toTokenDisplay.symbol}
                         </div>
                         {quote.estimate?.toAmountUSD && parseFloat(quote.estimate.toAmountUSD) > 0 && (
-                          <div className="text-sm text-gray-500 mt-1">
-                            ≈ ${parseFloat(quote.estimate.toAmountUSD).toFixed(2)}
+                          <div className="text-sm text-gray-600">
+                            ≈ ${parseFloat(quote.estimate.toAmountUSD).toFixed(2)} USD
                           </div>
                         )}
-                        {isCrossChain && (
-                          <div className="mt-2 pt-2 border-t border-purple-200">
-                            <div className="flex items-center gap-2 text-xs text-purple-600">
-                              <Info className="w-3 h-3" />
-                              <span>Cross-chain swap via {quote.tool || 'bridge'}</span>
+                        <div className="pt-2 mt-2 border-t border-orange-200 space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-600">Rate</span>
+                            <span className="text-gray-900 font-medium">{getExchangeRate()}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-gray-600">DEX</span>
+                            <span className="text-orange-600 font-semibold capitalize">{quote.tool || 'Auto'}</span>
+                          </div>
+                          {quote.estimate?.executionDuration && (
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-gray-600">Time</span>
+                              <span className="text-gray-900 font-medium flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                ~{Math.ceil(quote.estimate.executionDuration / 60)}min
+                              </span>
                             </div>
-                          </div>
-                        )}
-                      </div>
+                          )}
+                        </div>
+                      </motion.div>
                     )}
 
                     {quoteError && !isLoadingQuote && (
-                      <div className="px-4 py-3 bg-red-50 rounded-xl flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 text-red-600" />
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="px-4 py-3 bg-red-50 rounded-xl flex items-center gap-2 border-2 border-red-200"
+                      >
+                        <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
                         <span className="text-sm text-red-600">{quoteError}</span>
-                      </div>
+                      </motion.div>
                     )}
+                  </div>
 
-                    {/* Slippage Settings */}
-                    <div className="pt-2">
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="text-xs text-gray-600 flex items-center gap-1">
-                          Slippage Tolerance
-                          <Info className="w-3 h-3" />
-                        </label>
-                        <span className="text-xs font-semibold text-gray-900">{slippage}%</span>
-                      </div>
-                      <div className="flex gap-2">
-                        {[0.1, 0.5, 1.0, 3.0].map((val) => (
-                          <button
-                            key={val}
-                            onClick={() => setSlippage(val)}
-                            className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                              slippage === val
-                                ? 'bg-purple-600 text-white'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                          >
-                            {val}%
-                          </button>
-                        ))}
-                      </div>
+                  {/* Slippage Settings - Top Priority UI */}
+                  <div className="pt-2">
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                        Slippage Tolerance
+                        <Info className="w-3 h-3 text-gray-400" />
+                      </label>
+                      <span className="text-sm font-bold text-orange-600">{slippage}%</span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {[0.1, 0.5, 1.0, 3.0].map((val) => (
+                        <button
+                          key={val}
+                          onClick={() => setSlippage(val)}
+                          className={`px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                            slippage === val
+                              ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-lg'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {val}%
+                        </button>
+                      ))}
                     </div>
                   </div>
 
-                  {/* Swap Button */}
+                  {/* Swap Button - Blaze Orange Theme */}
                   <button
                     onClick={() => {
                       if (quote) {
@@ -1077,7 +954,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                       }
                     }}
                     disabled={!quote || isLoadingQuote || !amount || parseFloat(amount) <= 0}
-                    className="w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl hover:from-purple-700 hover:to-pink-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
+                    className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 text-white font-bold rounded-xl hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl text-base sm:text-lg"
                   >
                     {isLoadingQuote ? (
                       <span className="flex items-center justify-center gap-2">
@@ -1101,7 +978,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                   </div>
 
                   {/* Swap Details */}
-                  <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 space-y-3 border-2 border-gray-200">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-600">From</span>
                       <span className="text-sm font-semibold text-gray-900">
@@ -1115,18 +992,23 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                           quote.estimate?.toAmount || '0',
                           toToken === 'native' 
                             ? CHAINS[toChain]?.nativeCurrency?.decimals || 18
-                            : toToken?.decimals || 18
+                            : (toToken as LiFiToken)?.decimals || 18
                         )} {toTokenDisplay.symbol}
                       </span>
                     </div>
                     {isCrossChain && (
                       <div className="flex items-center justify-between pt-2 border-t border-gray-200">
                         <span className="text-sm text-gray-600">Route</span>
-                        <span className="text-sm font-semibold text-purple-600">
-                          {fromChain} → {toChain}
+                        <span className="text-sm font-semibold text-orange-600 flex items-center gap-1">
+                          <Zap className="w-3 h-3" />
+                          {CHAINS[fromChain]?.shortName} → {CHAINS[toChain]?.shortName}
                         </span>
                       </div>
                     )}
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+                      <span className="text-sm text-gray-600">Rate</span>
+                      <span className="text-sm font-semibold text-gray-900">{getExchangeRate()}</span>
+                    </div>
                     <div className="flex items-center justify-between pt-2 border-t border-gray-200">
                       <span className="text-sm text-gray-600">Slippage</span>
                       <span className="text-sm font-semibold text-gray-900">{slippage}%</span>
@@ -1154,7 +1036,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                     </button>
                     <button
                       onClick={handleSwap}
-                      className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all shadow-lg hover:shadow-xl"
+                      className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 text-white font-bold rounded-xl hover:from-orange-600 hover:to-yellow-600 transition-all shadow-lg hover:shadow-xl"
                     >
                       Confirm Swap
                     </button>
@@ -1163,15 +1045,20 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
               )}
 
               {step === 'executing' && (
-                <div className="space-y-6 text-center">
+                <div className="space-y-6 text-center py-6">
                   <div className="flex justify-center">
-                    <Loader2 className="w-16 h-16 animate-spin text-purple-600" />
+                    <div className="relative">
+                      <Loader2 className="w-16 h-16 animate-spin text-orange-500" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-full opacity-20 animate-ping" />
+                      </div>
+                    </div>
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-gray-900 mb-2">Processing Swap</h3>
                     <p className="text-sm text-gray-600">
                       {isCrossChain 
-                        ? `Step ${executionStep} of ${totalSteps}: Bridging to ${toChain}...`
+                        ? `Step ${executionStep} of ${totalSteps}: Bridging to ${CHAINS[toChain]?.name}...`
                         : 'Executing swap transaction...'
                       }
                     </p>
@@ -1181,7 +1068,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                           <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${(executionStep / totalSteps) * 100}%` }}
-                            className="bg-purple-600 h-2 rounded-full"
+                            className="bg-gradient-to-r from-orange-500 to-yellow-500 h-2 rounded-full"
                           />
                         </div>
                       </div>
@@ -1191,12 +1078,17 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
               )}
 
               {step === 'success' && (
-                <div className="space-y-6 text-center">
-                  <div className="flex justify-center">
-                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                <div className="space-y-6 text-center py-6">
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 200 }}
+                    className="flex justify-center"
+                  >
+                    <div className="w-16 h-16 bg-gradient-to-r from-green-100 to-emerald-100 rounded-full flex items-center justify-center">
                       <Check className="w-8 h-8 text-green-600" />
                     </div>
-                  </div>
+                  </motion.div>
                   <div>
                     <h3 className="text-xl font-bold text-gray-900 mb-2">Swap Successful!</h3>
                     <p className="text-sm text-gray-600 mb-4">
@@ -1207,7 +1099,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                         href={`${CHAINS[fromChain]?.explorerUrl}/tx/${txHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 text-sm text-purple-600 hover:text-purple-700 font-semibold"
+                        className="inline-flex items-center gap-2 text-sm text-orange-600 hover:text-orange-700 font-semibold"
                       >
                         View on Explorer <ExternalLink className="w-4 h-4" />
                       </a>
@@ -1216,12 +1108,11 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                   <button
                     onClick={() => {
                       onClose();
-                      // Reset state
                       setStep('input');
                       setAmount('');
                       setQuote(null);
                     }}
-                    className="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all"
+                    className="w-full py-3 bg-gradient-to-r from-orange-500 to-yellow-500 text-white font-bold rounded-xl hover:from-orange-600 hover:to-yellow-600 transition-all"
                   >
                     Done
                   </button>
@@ -1229,12 +1120,17 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
               )}
 
               {step === 'error' && (
-                <div className="space-y-6 text-center">
-                  <div className="flex justify-center">
+                <div className="space-y-6 text-center py-6">
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 200 }}
+                    className="flex justify-center"
+                  >
                     <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
                       <AlertCircle className="w-8 h-8 text-red-600" />
                     </div>
-                  </div>
+                  </motion.div>
                   <div>
                     <h3 className="text-xl font-bold text-gray-900 mb-2">Swap Failed</h3>
                     <p className="text-sm text-red-600 mb-4">{error || 'An unknown error occurred'}</p>
@@ -1248,7 +1144,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                     </button>
                     <button
                       onClick={onClose}
-                      className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all"
+                      className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 text-white font-bold rounded-xl hover:from-orange-600 hover:to-yellow-600 transition-all"
                     >
                       Close
                     </button>
@@ -1267,14 +1163,13 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         isOpen={showFromTokenModal}
         onClose={() => setShowFromTokenModal(false)}
         chainKey={fromChain}
-        selectedToken={fromToken === 'native' ? 'native' : fromToken?.address}
+        selectedToken={fromToken === 'native' ? 'native' : (fromToken as LiFiToken)?.address}
         onSelectToken={(token) => {
           setFromToken(token);
           setShowFromTokenModal(false);
         }}
-        excludeTokens={toToken === 'native' ? [] : toToken ? [toToken.address] : []}
+        excludeTokens={toToken === 'native' ? [] : toToken ? [(toToken as LiFiToken).address] : []}
         walletTokens={(() => {
-          // ✅ Always include native token (SOL, ETH, etc.) - user always has native balance
           const walletTokensList: Array<{ 
             address: string; 
             balance: string; 
@@ -1286,57 +1181,39 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
             { address: 'native', balance: '1' }
           ];
           
-          // Get tokens from chain-specific storage
           const chainTokens = getChainTokens(fromChain);
-          
-          // If chainTokens is empty, fallback to tokens array (for backward compatibility)
           const tokensToUse = chainTokens.length > 0 
             ? chainTokens 
             : (fromChain === currentChain ? tokens : []);
           
-          // ✅ Add all tokens with their FULL data (symbol, name, logo, decimals, balance)
           tokensToUse.forEach(t => {
             if (t.address && t.balance && parseFloat(t.balance || '0') > 0) {
               walletTokensList.push({
                 address: t.address,
-                balance: t.balance || '0',
-                symbol: t.symbol, // ✅ Include symbol from wallet store
-                name: t.name, // ✅ Include name from wallet store
-                logo: t.logo, // ✅ Include logo from wallet store (CRITICAL!)
-                decimals: t.decimals, // ✅ Include decimals from wallet store
+                balance: t.balance,
+                symbol: t.symbol,
+                name: t.name,
+                logo: t.logo,
+                decimals: t.decimals
               });
             }
           });
           
-          logger.log(`🔍 [SwapModal] Wallet tokens for ${fromChain}:`, {
-            chainTokensCount: chainTokens.length,
-            tokensCount: tokens.length,
-            finalCount: walletTokensList.length,
-            tokens: walletTokensList.map(t => ({ 
-              address: t.address.substring(0, 20) + '...', 
-              balance: t.balance,
-              symbol: t.symbol,
-              hasLogo: !!t.logo
-            }))
-          });
-          
           return walletTokensList;
         })()}
-        onlyShowTokensWithBalance={true} // ✅ Only show tokens where user has balance (for "from" token)
       />
 
       <TokenSearchModal
         isOpen={showToTokenModal}
         onClose={() => setShowToTokenModal(false)}
         chainKey={toChain}
-        selectedToken={toToken === 'native' ? 'native' : toToken?.address}
+        selectedToken={toToken === 'native' ? 'native' : (toToken as LiFiToken)?.address}
         onSelectToken={(token) => {
           setToToken(token);
           setShowToTokenModal(false);
         }}
-        excludeTokens={fromToken === 'native' ? [] : fromToken ? [fromToken.address] : []}
+        excludeTokens={fromToken === 'native' ? [] : fromToken ? [(fromToken as LiFiToken).address] : []}
         walletTokens={(() => {
-          // ✅ Include wallet tokens for "to" token selection (for search functionality)
           const walletTokensList: Array<{ 
             address: string; 
             balance: string; 
@@ -1348,31 +1225,26 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
             { address: 'native', balance: '1' }
           ];
           
-          // Get tokens from chain-specific storage for TO chain
           const chainTokens = getChainTokens(toChain);
-          
-          // If chainTokens is empty, fallback to tokens array (for backward compatibility)
           const tokensToUse = chainTokens.length > 0 
             ? chainTokens 
             : (toChain === currentChain ? tokens : []);
           
-          // ✅ Add all tokens with their FULL data (for search)
           tokensToUse.forEach(t => {
             if (t.address && t.balance && parseFloat(t.balance || '0') > 0) {
               walletTokensList.push({
                 address: t.address,
-                balance: t.balance || '0',
+                balance: t.balance,
                 symbol: t.symbol,
                 name: t.name,
                 logo: t.logo,
-                decimals: t.decimals,
+                decimals: t.decimals
               });
             }
           });
           
           return walletTokensList;
         })()}
-        onlyShowTokensWithBalance={false} // ✅ Show all tokens for "to" selection (user can swap to any token)
       />
     </AnimatePresence>
   );
