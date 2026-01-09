@@ -237,6 +237,55 @@ export default function TokenSearchModal({
     }
   };
 
+      // Convert Supabase tokens to LiFiToken format
+      const chainTokens: LiFiToken[] = (allTokensData || []).map((t: any) => ({
+        address: chainKey === 'ethereum' || chainKey !== 'solana' ? t.address.toLowerCase() : t.address,
+        symbol: t.symbol,
+        name: t.name || t.symbol,
+        decimals: t.decimals || (chainKey === 'ethereum' ? 18 : 9),
+        chainId: chainId,
+        logoURI: t.logo_uri || '',
+        priceUSD: t.price_usd?.toString() || '0',
+      }));
+      
+      // Filter out excluded tokens
+      const filteredTokens = chainTokens.filter(token => 
+        !excludeTokens.some(excluded => excluded.toLowerCase() === token.address.toLowerCase())
+      );
+
+      // Popular tokens (from RPC function or filter)
+      const popular = filteredTokens.filter(t => 
+        (popularData || []).some((p: any) => p.address.toLowerCase() === t.address.toLowerCase()) ||
+        ['USDC', 'USDT', 'WETH', 'WBTC', 'DAI', 'MATIC', 'BNB', 'AVAX'].includes(t.symbol.toUpperCase())
+      ).sort((a, b) => {
+        const popularSymbols = ['USDC', 'USDT', 'WETH', 'WBTC', 'DAI', 'MATIC', 'BNB', 'AVAX'];
+        const aIndex = popularSymbols.indexOf(a.symbol.toUpperCase());
+        const bIndex = popularSymbols.indexOf(b.symbol.toUpperCase());
+        if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
+        if (aIndex !== -1) return -1;
+        if (bIndex !== -1) return 1;
+        return a.symbol.localeCompare(b.symbol);
+      });
+      
+      const others = filteredTokens.filter(t => 
+        !popular.some(p => p.address.toLowerCase() === t.address.toLowerCase())
+      ).sort((a, b) => a.symbol.localeCompare(b.symbol));
+
+      setPopularTokens(popular);
+      setTokens([...popular, ...others]);
+
+      logger.log(`✅ [TokenSearchModal] Loaded ${filteredTokens.length} tokens from Supabase for ${chainKey}`);
+    } catch (err: any) {
+      logger.error('❌ [TokenSearchModal] Failed to fetch tokens:', err);
+      setError(err.message || 'Failed to load tokens. Please try again.');
+      setTokens([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ✅ NEW: Search tokens directly from Supabase (instant full-text search!)
+  // ✅ ALSO searches wallet tokens to ensure user's tokens are always found!
   const searchTokens = async (query: string) => {
     if (!chainId || !query || query.length < 2) return;
 
