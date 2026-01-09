@@ -582,26 +582,28 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   const getTokenBalance = (token: LiFiToken | 'native' | null, chain: string): string => {
     if (!token) return '0';
     
-    const chainTokens = getChainTokens(chain);
-    
     if (token === 'native') {
-      // For native tokens, get from wallet store or chainTokens
-      const { balance: evmBalance } = useWalletStore.getState();
+      // ✅ CRITICAL FIX: Native tokens are NOT stored in chainTokens!
+      // They are stored separately in wallet store's `balance` field
       
-      // First try chainTokens (most accurate for current chain)
+      // First check chainTokens (in case it WAS added there)
+      const chainTokens = getChainTokens(chain);
       const nativeToken = chainTokens.find(t => t.address === 'native');
       if (nativeToken?.balance && parseFloat(nativeToken.balance) > 0) {
         return nativeToken.balance;
       }
       
-      // Fallback to wallet store balance if on current chain
-      if (chain === currentChain && evmBalance) {
-        return evmBalance;
+      // Main path: Use wallet store balance if on current chain
+      if (chain === currentChain) {
+        const { balance: walletBalance } = useWalletStore.getState();
+        return walletBalance || '0';
       }
       
+      // Different chain: can't show balance (not current)
       return '0';
     } else {
-      // For ERC20/SPL tokens
+      // For ERC20/SPL tokens - these ARE in chainTokens
+      const chainTokens = getChainTokens(chain);
       const tokenData = chainTokens.find(t => t.address === token.address);
       return tokenData?.balance || '0';
     }
