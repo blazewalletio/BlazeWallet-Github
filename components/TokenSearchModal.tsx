@@ -274,7 +274,7 @@ export default function TokenSearchModal({
           const normalizedAddress = t.address.toLowerCase();
           const logoFromLiFi = logosFromLiFi[normalizedAddress];
           
-          // Priority: Li.Fi logo > curated logoURI > chain logo
+          // Priority: Li.Fi logo > curated logoURI > chain logo (for native only)
           const finalLogoURI = logoFromLiFi || t.logoURI || 
             (t.isNative ? chainConfig?.logoUrl : '') || '';
           
@@ -289,14 +289,19 @@ export default function TokenSearchModal({
           };
         });
 
-      // Separate native token and stablecoins for better UX
-      const nativeToken = tokensList.filter(t => t.address === '0x0000000000000000000000000000000000000000');
+      // ✅ FIX: Separate tokens by type (native, stablecoins, others)
+      // Native token markers: '0x0000000000000000000000000000000000000000' (EVM) or check isNative flag
+      const isNativeAddress = (addr: string) => 
+        addr === '0x0000000000000000000000000000000000000000' || 
+        curatedTokens.find(ct => ct.address === addr)?.isNative;
+      
+      const nativeToken = tokensList.filter(t => isNativeAddress(t.address));
       const stablecoins = tokensList.filter(t => {
         const popularToken = curatedTokens.find(ct => ct.address === t.address);
-        return popularToken?.isStablecoin && t.address !== '0x0000000000000000000000000000000000000000';
+        return popularToken?.isStablecoin && !isNativeAddress(t.address);
       });
       const others = tokensList.filter(t => 
-        t.address !== '0x0000000000000000000000000000000000000000' &&
+        !isNativeAddress(t.address) &&
         !curatedTokens.find(ct => ct.address === t.address)?.isStablecoin
       );
 

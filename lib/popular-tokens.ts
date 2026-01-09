@@ -571,6 +571,104 @@ export const POPULAR_TOKENS: Record<string, PopularToken[]> = {
       decimals: 18,
     },
   ],
+  
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // SOLANA (solana) - SPL tokens
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  solana: [
+    // Native
+    {
+      symbol: 'SOL',
+      name: 'Solana',
+      address: '0x0000000000000000000000000000000000000000', // Special marker for native
+      decimals: 9,
+      isNative: true,
+    },
+    // Stablecoins (most traded)
+    {
+      symbol: 'USDC',
+      name: 'USD Coin',
+      address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+      decimals: 6,
+      isStablecoin: true,
+    },
+    {
+      symbol: 'USDT',
+      name: 'Tether USD',
+      address: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB',
+      decimals: 6,
+      isStablecoin: true,
+    },
+    {
+      symbol: 'PYUSD',
+      name: 'PayPal USD',
+      address: '2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo',
+      decimals: 6,
+      isStablecoin: true,
+    },
+    // Wrapped assets
+    {
+      symbol: 'WETH',
+      name: 'Wrapped Ether',
+      address: '7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs',
+      decimals: 8,
+    },
+    {
+      symbol: 'WBTC',
+      name: 'Wrapped Bitcoin',
+      address: '3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh',
+      decimals: 8,
+    },
+    {
+      symbol: 'WBNB',
+      name: 'Wrapped BNB',
+      address: '9gP2kCy3wA1ctvYWQk75guqXuHfrEomqydHLtcTCqiLa',
+      decimals: 8,
+    },
+    // Major Solana DeFi tokens
+    {
+      symbol: 'JUP',
+      name: 'Jupiter',
+      address: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
+      decimals: 6,
+    },
+    {
+      symbol: 'RAY',
+      name: 'Raydium',
+      address: '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R',
+      decimals: 6,
+    },
+    {
+      symbol: 'BONK',
+      name: 'Bonk',
+      address: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
+      decimals: 5,
+    },
+    {
+      symbol: 'WIF',
+      name: 'dogwifhat',
+      address: 'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm',
+      decimals: 6,
+    },
+    {
+      symbol: 'TRUMP',
+      name: 'OFFICIAL TRUMP',
+      address: '6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN',
+      decimals: 6,
+    },
+    {
+      symbol: 'POPCAT',
+      name: 'Popcat',
+      address: '7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr',
+      decimals: 9,
+    },
+    {
+      symbol: 'BOME',
+      name: 'BOOK OF MEME',
+      address: 'ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82',
+      decimals: 6,
+    },
+  ],
 };
 
 /**
