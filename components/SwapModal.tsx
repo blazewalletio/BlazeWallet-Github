@@ -516,14 +516,41 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     const balance = getTokenBalance(fromToken, fromChain);
     if (!balance || parseFloat(balance) === 0) return;
     
-    // For native tokens, reserve gas (0.01 ETH / 0.1 BNB / etc.)
+    // For native tokens, reserve gas
     if (fromToken === 'native') {
       const balanceNum = parseFloat(balance);
-      const gasReserve = fromChain === 'ethereum' ? 0.01 : 0.05; // More reserve for Ethereum
+      
+      // ✅ SMART GAS RESERVE: Use percentage-based reserve for small balances
+      // This ensures users can swap even with tiny amounts like 0.002812 ETH
+      let gasReserve: number;
+      
+      if (balanceNum < 0.01) {
+        // For very small balances (< 0.01 ETH), reserve 5% for gas
+        gasReserve = balanceNum * 0.05;
+      } else if (balanceNum < 0.1) {
+        // For small balances (< 0.1 ETH), reserve 0.003 ETH
+        gasReserve = 0.003;
+      } else {
+        // For larger balances, use fixed reserves by chain
+        gasReserve = fromChain === 'ethereum' ? 0.005 : 
+                     fromChain === 'bsc' ? 0.01 :
+                     fromChain === 'polygon' ? 0.05 :
+                     fromChain === 'avalanche' ? 0.1 :
+                     0.01; // Default
+      }
+      
       const maxAmount = Math.max(0, balanceNum - gasReserve);
+      
+      // Ensure we don't set a too small amount (dust)
+      if (maxAmount < 0.000001) {
+        logger.warn('⚠️ [SwapModal] Balance too small after gas reserve');
+        return;
+      }
+      
       setAmount(maxAmount.toFixed(6));
+      logger.log(`💰 [SwapModal] MAX: ${balanceNum} - ${gasReserve} gas = ${maxAmount.toFixed(6)}`);
     } else {
-      // For ERC20/SPL tokens, use full balance
+      // For ERC20/SPL tokens, use full balance (no gas reserve needed)
       setAmount(parseFloat(balance).toFixed(6));
     }
   };
