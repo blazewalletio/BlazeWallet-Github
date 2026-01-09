@@ -166,6 +166,12 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     setQuoteError(null);
 
     try {
+      // ⚠️ FANTOM CHECK: Li.Fi doesn't support Fantom (Chain ID 250)
+      // See COMPLETE_CHAIN_ANALYSIS.md for details
+      if (fromChain === 'fantom' || toChain === 'fantom') {
+        throw new Error('Fantom swaps are temporarily unavailable. We\'re working on adding support!');
+      }
+
       const fromChainId = getLiFiChainId(fromChain);
       const toChainId = getLiFiChainId(toChain);
       
