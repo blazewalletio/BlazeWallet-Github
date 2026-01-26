@@ -86,6 +86,18 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   const [error, setError] = useState<string | null>(null);
   const [isCrossChain, setIsCrossChain] = useState(false);
 
+  // ✅ CRITICAL FIX: Reset toToken when toChain changes
+  // This prevents using wrong token address (e.g. Ethereum USDC on BSC)
+  useEffect(() => {
+    if (toToken && toToken !== 'native') {
+      // Clear toToken when chain changes to force reselection
+      // This ensures user selects the correct chain-specific token
+      setToToken(null);
+      setQuote(null);
+      setQuoteError(null);
+    }
+  }, [toChain]);
+
   // Initialize with prefill data
   useEffect(() => {
     if (isOpen && prefillData) {
