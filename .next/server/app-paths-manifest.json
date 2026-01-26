@@ -1,8 +1,6 @@
 {
+  "/api/jupiter-tokens/route": "app/api/jupiter-tokens/route.js",
   "/page": "app/page.js",
   "/api/moonpay/config/route": "app/api/moonpay/config/route.js",
-  "/api/smart-scheduler/list/route": "app/api/smart-scheduler/list/route.js",
-  "/api/priority-list/route": "app/api/priority-list/route.js",
-  "/api/csrf-token/route": "app/api/csrf-token/route.js",
-  "/api/prices-by-address/route": "app/api/prices-by-address/route.js"
+  "/api/csrf-token/route": "app/api/csrf-token/route.js"
 }
