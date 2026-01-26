@@ -11,8 +11,8 @@ import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { supabase } from '@/lib/supabase';
 import { getIPFSGatewayUrl, isIPFSUrl, initIPFSErrorSuppression } from '@/lib/ipfs-utils';
 import { getPopularTokens, isLiFiSupported, PopularToken } from '@/lib/popular-tokens';
-import { JupiterService } from '@/lib/jupiter-service'; // NEW: For Solana token logos
-import { TokenLogoService } from '@/lib/token-logo-service'; // NEW: Dynamic logo loading
+import { JupiterService } from '@/lib/jupiter-service';
+import { TokenLogo } from '@/components/TokenLogo';
 
 interface TokenSearchModalProps {
   isOpen: boolean;

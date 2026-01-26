@@ -646,7 +646,7 @@ export const POPULAR_TOKENS: Record<string, PopularToken[]> = {
       name: 'Jupiter',
       address: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
       decimals: 6,
-      logoURI: 'https://assets.coingecko.com/coins/images/10351/standard/J6JZ2kMF_400x400.png',
+      logoURI: 'https://assets.coingecko.com/coins/images/32875/standard/jup.png',
     },
     {
       symbol: 'RAY',

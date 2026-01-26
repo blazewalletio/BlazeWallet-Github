@@ -169,13 +169,13 @@ export default function BiometricAuthModal({
               </div>
               
               <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                {mode === 'register' ? 'Biometrie instellen' : 'Biometrische toegang'}
+                {mode === 'register' ? 'Setup Biometrics' : 'Biometric Access'}
               </h2>
               
               <p className="text-gray-600">
                 {mode === 'register' 
-                  ? 'Stel vingerafdruk of Face ID in voor snelle toegang'
-                  : 'Gebruik je vingerafdruk of Face ID om toegang te krijgen'
+                  ? 'Set up fingerprint or Face ID for quick access'
+                  : 'Use your fingerprint or Face ID to access'
                 }
               </p>
             </div>
@@ -237,8 +237,8 @@ export default function BiometricAuthModal({
                     <Fingerprint className="w-5 h-5" />
                     <span>
                       {mode === 'register' 
-                        ? 'Biometrie instellen' 
-                        : 'Vingerafdruk / Face ID'
+                        ? 'Setup Biometrics' 
+                        : 'Fingerprint / Face ID'
                       }
                     </span>
                   </>
