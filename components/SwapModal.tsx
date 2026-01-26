@@ -371,43 +371,101 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
 
           // Parse and send transaction
           const txData = txRequest.data;
+          let transaction: Transaction | VersionedTransaction;
           
           try {
-            let transaction: Transaction | VersionedTransaction;
-
-            // Try to deserialize as VersionedTransaction first
+            // ✅ FIX: Try VersionedTransaction with proper error handling
+            logger.log('📦 Parsing Solana transaction data...');
+            const buffer = Buffer.from(txData, 'base64');
+            
             try {
-              const buffer = Buffer.from(txData, 'base64');
+              // Attempt VersionedTransaction deserialization
               transaction = VersionedTransaction.deserialize(buffer);
+              logger.log('✅ Deserialized as VersionedTransaction');
               
               // Sign versioned transaction
               (transaction as VersionedTransaction).sign([keypair]);
+              logger.log('✅ Transaction signed');
               
               // Send versioned transaction
-              const signature = await connection.sendTransaction(transaction as VersionedTransaction);
+              const signature = await connection.sendTransaction(transaction as VersionedTransaction, {
+                skipPreflight: false,
+                maxRetries: 3,
+              });
+              logger.log(`✅ Transaction sent: ${signature}`);
+              
               await connection.confirmTransaction(signature, 'confirmed');
+              logger.log(`✅ Transaction confirmed: ${signature}`);
               
               stepTxHash = signature;
               setTxHash(signature);
-            } catch (versionedError) {
-              // Fall back to legacy transaction
-              logger.log('Trying legacy transaction format...');
+            } catch (versionedError: any) {
+              // Check if it's a VersionedMessage error specifically
+              if (versionedError.message?.includes('VersionedMessage')) {
+                logger.warn('⚠️ Received VersionedMessage - attempting to construct VersionedTransaction manually');
+                
+                try {
+                  // Parse as MessageV0 and create VersionedTransaction
+                  const message = MessageV0.deserialize(buffer);
+                  transaction = new VersionedTransaction(message);
+                  
+                  // Sign the constructed transaction
+                  transaction.sign([keypair]);
+                  logger.log('✅ VersionedTransaction constructed and signed from MessageV0');
+                  
+                  // Send transaction
+                  const signature = await connection.sendTransaction(transaction, {
+                    skipPreflight: false,
+                    maxRetries: 3,
+                  });
+                  logger.log(`✅ Transaction sent: ${signature}`);
+                  
+                  await connection.confirmTransaction(signature, 'confirmed');
+                  logger.log(`✅ Transaction confirmed: ${signature}`);
+                  
+                  stepTxHash = signature;
+                  setTxHash(signature);
+                } catch (messageError: any) {
+                  logger.warn(`⚠️ MessageV0 approach failed: ${messageError.message}`);
+                  // Fall through to legacy transaction attempt
+                  throw versionedError;
+                }
+              } else {
+                // Not a VersionedMessage error - try legacy transaction
+                throw versionedError;
+              }
+            }
+          } catch (finalError: any) {
+            // Final fallback: Legacy Transaction
+            try {
+              logger.log('📦 Attempting legacy Transaction format...');
               const buffer = Buffer.from(txData, 'base64');
               transaction = Transaction.from(buffer);
+              logger.log('✅ Deserialized as legacy Transaction');
               
               // Sign legacy transaction
               transaction.sign(keypair);
+              logger.log('✅ Legacy transaction signed');
               
               // Send legacy transaction
-              const signature = await connection.sendRawTransaction(transaction.serialize());
+              const signature = await connection.sendRawTransaction(transaction.serialize(), {
+                skipPreflight: false,
+                maxRetries: 3,
+              });
+              logger.log(`✅ Legacy transaction sent: ${signature}`);
+              
               await connection.confirmTransaction(signature, 'confirmed');
+              logger.log(`✅ Legacy transaction confirmed: ${signature}`);
               
               stepTxHash = signature;
               setTxHash(signature);
+            } catch (legacyError: any) {
+              logger.error('❌ All transaction formats failed:', {
+                versionedError: finalError.message,
+                legacyError: legacyError.message,
+              });
+              throw new Error(`Failed to send Solana transaction: ${legacyError.message || finalError.message}`);
             }
-          } catch (sendError: any) {
-            logger.error('Solana transaction error:', sendError);
-            throw new Error(`Failed to send Solana transaction: ${sendError.message}`);
           }
         } else {
           // ✅ EVM transaction execution
