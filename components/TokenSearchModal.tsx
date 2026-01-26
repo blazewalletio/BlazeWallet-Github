@@ -901,34 +901,13 @@ export default function TokenSearchModal({
                               }`}
                             >
                               <div className="flex items-center gap-3 flex-1 min-w-0">
-                              {token.logoURI && token.logoURI.trim() ? (
-                                  <img 
-                                    src={isIPFSUrl(token.logoURI) ? getIPFSGatewayUrl(token.logoURI) : token.logoURI} 
-                                    alt={token.symbol}
-                                  className="w-10 h-10 rounded-full flex-shrink-0 object-cover"
-                                    onError={(e) => {
-                                    // ✅ Silently handle image load errors (prevents console spam)
-                                    const target = e.currentTarget;
-                                    target.style.display = 'none';
-                                    if (target.parentElement) {
-                                      const fallback = document.createElement('div');
-                                      fallback.className = 'w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center flex-shrink-0';
-                                      fallback.innerHTML = `<span class="text-white font-bold text-sm">${token.symbol[0]}</span>`;
-                                      target.parentElement.insertBefore(fallback, target);
-                                    }
-                                    }}
-                                    onLoad={(e) => {
-                                      // ✅ Image loaded successfully - ensure it's visible
-                                      e.currentTarget.style.display = 'block';
-                                    }}
-                                  />
-                                ) : (
-                                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center flex-shrink-0">
-                                    <span className="text-white font-bold text-sm">
-                                      {token.symbol[0]}
-                                    </span>
-                                  </div>
-                                )}
+                                <TokenLogo
+                                  symbol={token.symbol}
+                                  address={token.address}
+                                  chainKey={chainKey}
+                                  logoURI={token.logoURI}
+                                  size="md"
+                                />
                                 <div className="text-left flex-1 min-w-0">
                                   <div className="font-semibold text-gray-900">
                                     {token.symbol}
