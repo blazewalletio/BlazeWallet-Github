@@ -373,6 +373,11 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           const txData = txRequest.data;
           let transaction: Transaction | VersionedTransaction;
           
+          // ✅ DEBUG: Log what Li.Fi actually returns
+          logger.log('🔍 DEBUG: Li.Fi txData type:', typeof txData);
+          logger.log('🔍 DEBUG: Li.Fi txData sample:', JSON.stringify(txData).substring(0, 200));
+          logger.log('🔍 DEBUG: Full txRequest:', txRequest);
+          
           try {
             // ✅ FIX: Try VersionedTransaction with proper error handling
             logger.log('📦 Parsing Solana transaction data...');

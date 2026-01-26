@@ -12,7 +12,6 @@
 
 import { useState, useEffect } from 'react';
 import { TokenLogoService } from '@/lib/token-logo-service';
-import { logger } from '@/lib/logger';
 
 interface TokenLogoProps {
   symbol: string;
@@ -36,8 +35,8 @@ export function TokenLogo({
   const [hasError, setHasError] = useState(false);
 
   const sizeClasses = {
-    sm: 'w-6 h-6',
-    md: 'w-10 h-10',
+    sm: 'w-6 h-6 text-xs',
+    md: 'w-10 h-10 text-sm',
     lg: 'w-16 h-16',
   };
 
@@ -63,8 +62,7 @@ export function TokenLogo({
             }
           }
         })
-        .catch((error) => {
-          logger.warn('TokenLogo fetch failed', { symbol, error });
+        .catch(() => {
           if (isMounted) {
             setHasError(true);
             setIsLoading(false);
