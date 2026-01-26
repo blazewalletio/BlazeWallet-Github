@@ -1,5 +1,7 @@
 {
   "/page": "app/page.js",
   "/api/priority-list/route": "app/api/priority-list/route.js",
-  "/api/smart-scheduler/list/route": "app/api/smart-scheduler/list/route.js"
+  "/api/smart-scheduler/list/route": "app/api/smart-scheduler/list/route.js",
+  "/api/moonpay/config/route": "app/api/moonpay/config/route.js",
+  "/api/csrf-token/route": "app/api/csrf-token/route.js"
 }
