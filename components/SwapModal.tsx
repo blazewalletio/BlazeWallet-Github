@@ -66,7 +66,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   const [step, setStep] = useState<SwapStep>('input');
   const [fromChain, setFromChain] = useState<string>(currentChain);
   const [toChain, setToChain] = useState<string>(currentChain);
-  const [fromToken, setFromToken] = useState<LiFiToken | 'native' | null>(null);
+  const [fromToken, setFromToken] = useState<LiFiToken | 'native' | null>('native'); // ✅ FIX: Default to native token
   const [toToken, setToToken] = useState<LiFiToken | 'native' | null>(null);
   const [amount, setAmount] = useState<string>('');
   const [slippage, setSlippage] = useState<number>(1.0); // 1.0% default (increased for better success rate)
