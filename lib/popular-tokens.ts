@@ -332,6 +332,7 @@ export const POPULAR_TOKENS: Record<string, PopularToken[]> = {
       address: '0x0000000000000000000000000000000000000000',
       decimals: 18,
       isNative: true,
+      logoURI: 'https://assets.coingecko.com/coins/images/825/standard/bnb-icon2_2x.png',
     },
     {
       symbol: 'USDT',
@@ -339,6 +340,7 @@ export const POPULAR_TOKENS: Record<string, PopularToken[]> = {
       address: '0x55d398326f99059fF775485246999027B3197955',
       decimals: 18,
       isStablecoin: true,
+      logoURI: 'https://assets.coingecko.com/coins/images/325/standard/Tether.png',
     },
     {
       symbol: 'USDC',
@@ -346,6 +348,7 @@ export const POPULAR_TOKENS: Record<string, PopularToken[]> = {
       address: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
       decimals: 18,
       isStablecoin: true,
+      logoURI: 'https://assets.coingecko.com/coins/images/6319/standard/usdc.png',
     },
     {
       symbol: 'BUSD',
@@ -353,30 +356,35 @@ export const POPULAR_TOKENS: Record<string, PopularToken[]> = {
       address: '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56',
       decimals: 18,
       isStablecoin: true,
+      logoURI: 'https://assets.coingecko.com/coins/images/9576/standard/BUSD.png',
     },
     {
       symbol: 'WBNB',
       name: 'Wrapped BNB',
       address: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c',
       decimals: 18,
+      logoURI: 'https://assets.coingecko.com/coins/images/12591/standard/binance-coin-logo.png',
     },
     {
       symbol: 'ETH',
       name: 'Ethereum Token',
       address: '0x2170Ed0880ac9A755fd29B2688956BD959F933F8',
       decimals: 18,
+      logoURI: 'https://assets.coingecko.com/coins/images/279/standard/ethereum.png',
     },
     {
       symbol: 'BTCB',
       name: 'BTCB Token',
       address: '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c',
       decimals: 18,
+      logoURI: 'https://assets.coingecko.com/coins/images/14108/standard/Binance-bitcoin.png',
     },
     {
       symbol: 'CAKE',
       name: 'PancakeSwap Token',
       address: '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82',
       decimals: 18,
+      logoURI: 'https://assets.coingecko.com/coins/images/12632/standard/pancakeswap-cake-logo.png',
     },
   ],
 
