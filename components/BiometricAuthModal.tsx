@@ -96,7 +96,7 @@ export default function BiometricAuthModal({
             onSuccess();
           }, 1000);
         } else {
-          setError(result.error || 'Registratie mislukt');
+          setError(result.error || 'Registration failed');
         }
       } else {
         // Authenticate with existing credential
@@ -124,10 +124,10 @@ export default function BiometricAuthModal({
               onSuccess();
             }, 1000);
           } catch (unlockError: any) {
-            setError(unlockError.message || 'Wallet unlock mislukt');
+            setError(unlockError.message || 'Wallet unlock failed');
           }
         } else {
-          setError(result.error || 'Authenticatie mislukt');
+          setError(result.error || 'Authentication failed');
         }
       }
     } catch (error: any) {
@@ -251,7 +251,7 @@ export default function BiometricAuthModal({
               >
                 <X className="w-4 h-4" />
                 <span>
-                  {mode === 'register' ? 'Overslaan' : 'Annuleren'}
+                  {mode === 'register' ? 'Skip' : 'Cancel'}
                 </span>
               </button>
             </div>

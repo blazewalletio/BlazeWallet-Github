@@ -494,7 +494,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
     } catch (error: any) {
       secureLog.error('Biometric unlock error:', error);
-      throw new Error(error.message || 'Biometrische authenticatie mislukt');
+      throw new Error(error.message || 'Biometric authentication failed');
     }
   },
 
@@ -531,11 +531,11 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           lastActivity: Date.now(),
         });
       } else {
-        throw new Error(result.error || 'Biometrie setup mislukt');
+        throw new Error(result.error || 'Biometric setup failed');
       }
 
     } catch (error: any) {
-      throw new Error(error.message || 'Biometrie setup mislukt');
+      throw new Error(error.message || 'Biometric setup failed');
     }
   },
 

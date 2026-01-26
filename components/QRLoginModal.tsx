@@ -230,7 +230,7 @@ export default function QRLoginModal({ isOpen, onSuccess, onCancel }: QRLoginMod
                 onClick={handleCancel}
                 className="flex-1 bg-slate-800 hover:bg-theme-bg-card border border-slate-600 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200"
               >
-                Annuleren
+                Cancel
               </button>
             )}
           </div>

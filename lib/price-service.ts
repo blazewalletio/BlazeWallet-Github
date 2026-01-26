@@ -212,7 +212,7 @@ export class PriceService {
       // Try DexScreener (best for DEX-traded tokens)
       const dexToken = await dexScreenerService.getTokenMetadata(mint);
       
-      console.log(`   📦 Response ontvangen:`, {
+      console.log(`   📦 Response received:`, {
         hasData: !!dexToken,
         priceUsd: dexToken?.priceUsd,
         priceChange24h: dexToken?.priceChange24h,

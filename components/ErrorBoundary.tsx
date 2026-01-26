@@ -112,12 +112,12 @@ export default class ErrorBoundary extends Component<Props, State> {
                 className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
               >
                 <RefreshCw className="w-5 h-5" />
-                Herstart de app
+                Restart the app
               </button>
 
               {/* Security Note */}
               <p className="text-xs text-gray-500 text-center mt-4">
-                🔒 Je wallet blijft veilig en encrypted
+                🔒 Your wallet remains safe and encrypted
               </p>
             </div>
           </motion.div>
