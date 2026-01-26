@@ -52,13 +52,15 @@ export class JupiterService {
     }
 
     try {
-      const response = await fetch('https://token.jup.ag/strict');
+      // Using official Solana Token List Registry (maintained by Solana Labs)
+      const response = await fetch('https://raw.githubusercontent.com/solana-labs/token-list/main/src/tokens/solana.tokenlist.json');
       
       if (!response.ok) {
-        throw new Error(`Jupiter API error: ${response.status}`);
+        throw new Error(`Solana Token List API error: ${response.status}`);
       }
 
-      const tokens: JupiterToken[] = await response.json();
+      const data = await response.json();
+      const tokens: JupiterToken[] = data.tokens || [];
       
       // Update cache
       this.tokenListCache = tokens;
