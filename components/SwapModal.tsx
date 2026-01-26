@@ -309,9 +309,14 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         // Execute based on chain type
         let stepTxHash: string | null = null;
 
-        // ✅ CRITICAL FIX: Check BOTH step.action.fromChainId AND fromChain
-        // Some Li.Fi responses might have unexpected chain ID formats
-        const isFromSolana = isSolanaChainId(step.action?.fromChainId) || fromChain === 'solana';
+        // ✅ CRITICAL FIX: TRIPLE check for Solana to prevent ethers.js initialization
+        // Check 1: Li.Fi response chain ID
+        // Check 2: User-selected fromChain
+        // Check 3: CHAINS config chainType (NEW!)
+        const isFromSolana = 
+          isSolanaChainId(step.action?.fromChainId) || 
+          fromChain === 'solana' ||
+          (CHAINS[fromChain] && CHAINS[fromChain].chainType === 'SOL');
         
         // ✅ CRITICAL DEBUG: Log step details to identify Solana vs EVM
         logger.log('🔍 [SwapModal] Executing step:', {
@@ -319,9 +324,23 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           toChainId: step.action?.toChainId,
           fromChain,
           toChain,
-          isSolanaCheck: isSolanaChainId(step.action?.fromChainId),
+          chainType: CHAINS[fromChain]?.chainType,
+          check1_lifiChainId: isSolanaChainId(step.action?.fromChainId),
+          check2_userChain: fromChain === 'solana',
+          check3_chainType: CHAINS[fromChain]?.chainType === 'SOL',
           isFromSolana,
         });
+        
+        // ✅ CRITICAL ASSERTION: Ensure Solana is NEVER treated as EVM
+        if (fromChain === 'solana' && !isFromSolana) {
+          const errorMsg = '🚨 CRITICAL: Solana chain detection FAILED! This would cause ethers.js to initialize with Solana RPC!';
+          logger.error(errorMsg, {
+            fromChain,
+            stepChainId: step.action?.fromChainId,
+            chainType: CHAINS[fromChain]?.chainType
+          });
+          throw new Error(errorMsg);
+        }
 
         if (isFromSolana) {
           // ✅ Solana transaction execution

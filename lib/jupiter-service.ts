@@ -1,203 +1,257 @@
-import { logger } from '@/lib/logger';
-
 /**
- * Jupiter Aggregator Service for Solana Swaps
+ * Jupiter Token List Service
  * 
- * Jupiter is the best DEX aggregator for Solana same-chain swaps.
- * Li.Fi is used for cross-chain swaps, but for Solana → Solana, we use Jupiter.
+ * Fetches Solana SPL token metadata including logos from Jupiter aggregator
+ * Jupiter maintains a curated list of verified Solana tokens
  */
 
-const JUPITER_BASE_URL = 'https://quote-api.jup.ag/v6';
-
-export interface JupiterQuote {
-  inputMint: string;
-  inAmount: string;
-  outputMint: string;
-  outAmount: string;
-  otherAmountThreshold: string;
-  swapMode: string;
-  slippageBps: number;
-  platformFee?: {
-    amount: string;
-    feeBps: number;
+export interface JupiterToken {
+  address: string;
+  chainId: number;
+  decimals: number;
+  name: string;
+  symbol: string;
+  logoURI?: string;
+  tags?: string[];
+  extensions?: {
+    coingeckoId?: string;
   };
-  priceImpactPct: string;
-  routePlan: Array<{
-    swapInfo: {
-      ammKey: string;
-      label: string;
-      inputMint: string;
-      outputMint: string;
-      inAmount: string;
-      outAmount: string;
-      feeAmount: string;
-      feeMint: string;
-    };
-    percent: number;
-  }>;
-  contextSlot: number;
-  timeTaken: number;
-}
-
-export interface JupiterSwapTransaction {
-  swapTransaction: string; // Base64 encoded transaction
-  lastValidBlockHeight: number;
-  prioritizationFeeLamports: number;
 }
 
 export class JupiterService {
+  private static tokenListCache: JupiterToken[] | null = null;
+  private static cacheTimestamp: number = 0;
+  private static CACHE_DURATION = 60 * 60 * 1000; // 1 hour
+
+  // Solana native token address (wrapped SOL)
+  private static NATIVE_SOL_ADDRESS = 'So11111111111111111111111111111111111111112';
+
   /**
-   * Get swap quote from Jupiter
+   * Check if address is native SOL (wrapped)
+   */
+  static isNativeSOL(address: string): boolean {
+    return address === this.NATIVE_SOL_ADDRESS || address.toLowerCase() === 'native' || address === 'sol';
+  }
+
+  /**
+   * Get native SOL address (wrapped)
+   */
+  static getNativeSOLAddress(): string {
+    return this.NATIVE_SOL_ADDRESS;
+  }
+
+  /**
+   * Fetch all Solana tokens from Jupiter
+   * Uses 'strict' list (verified tokens only)
+   */
+  static async getTokenList(): Promise<JupiterToken[]> {
+    // Check cache
+    const now = Date.now();
+    if (this.tokenListCache && (now - this.cacheTimestamp < this.CACHE_DURATION)) {
+      return this.tokenListCache;
+    }
+
+    try {
+      const response = await fetch('https://token.jup.ag/strict');
+      
+      if (!response.ok) {
+        throw new Error(`Jupiter API error: ${response.status}`);
+      }
+
+      const tokens: JupiterToken[] = await response.json();
+      
+      // Update cache
+      this.tokenListCache = tokens;
+      this.cacheTimestamp = now;
+      
+      return tokens;
+    } catch (error) {
+      console.error('[JupiterService] Failed to fetch token list:', error);
+      
+      // Return cached data if available, even if expired
+      if (this.tokenListCache) {
+        return this.tokenListCache;
+      }
+      
+      return [];
+    }
+  }
+
+  /**
+   * Get a specific token by address
+   */
+  static async getToken(address: string): Promise<JupiterToken | null> {
+    const tokens = await this.getTokenList();
+    return tokens.find(t => t.address === address) || null;
+  }
+
+  /**
+   * Get token logo URL by address
+   * Returns null if token not found or no logo available
+   */
+  static async getTokenLogo(address: string): Promise<string | null> {
+    const token = await this.getToken(address);
+    return token?.logoURI || null;
+  }
+
+  /**
+   * Get logos for multiple tokens (batch)
+   * Returns a map of address -> logoURI
+   */
+  static async getTokenLogos(addresses: string[]): Promise<Record<string, string>> {
+    const tokens = await this.getTokenList();
+    const logoMap: Record<string, string> = {};
+
+    const tokensByAddress = new Map(tokens.map(t => [t.address, t]));
+
+    addresses.forEach(address => {
+      const token = tokensByAddress.get(address);
+      if (token?.logoURI) {
+        logoMap[address] = token.logoURI;
+      }
+    });
+
+    return logoMap;
+  }
+
+  /**
+   * Search tokens by symbol or name
+   */
+  static async searchTokens(query: string): Promise<JupiterToken[]> {
+    const tokens = await this.getTokenList();
+    const lowerQuery = query.toLowerCase();
+
+    return tokens.filter(t => 
+      t.symbol.toLowerCase().includes(lowerQuery) ||
+      t.name.toLowerCase().includes(lowerQuery)
+    );
+  }
+
+  /**
+   * Get popular Solana tokens (by tags)
+   */
+  static async getPopularTokens(): Promise<JupiterToken[]> {
+    const tokens = await this.getTokenList();
+    
+    // Filter for tokens with 'verified' or 'community' tags
+    return tokens.filter(t => 
+      t.tags?.includes('verified') || 
+      t.tags?.includes('community') ||
+      t.tags?.includes('lst') // Liquid staking tokens
+    );
+  }
+
+  /**
+   * Clear cache (useful for testing or force refresh)
+   */
+  static clearCache(): void {
+    this.tokenListCache = null;
+    this.cacheTimestamp = 0;
+  }
+
+  /**
+   * Get swap quote from Jupiter API
    * 
-   * @param inputMint - Input token mint address (native SOL: So11111111111111111111111111111111111111112)
+   * @param inputMint - Input token mint address
    * @param outputMint - Output token mint address
-   * @param amount - Amount in smallest unit (lamports for SOL)
-   * @param slippageBps - Slippage in basis points (e.g., 50 = 0.5%)
-   * @param onlyDirectRoutes - Only use direct routes (faster, but may have worse rates)
+   * @param amount - Amount in smallest unit (lamports)
+   * @param slippageBps - Slippage in basis points (50 = 0.5%)
+   * @param onlyDirectRoutes - Only use direct routes (faster but may have worse rates)
    */
   static async getQuote(
     inputMint: string,
     outputMint: string,
     amount: string,
-    slippageBps: number = 50, // 0.5% default slippage
+    slippageBps: number = 50,
     onlyDirectRoutes: boolean = false
-  ): Promise<JupiterQuote | null> {
+  ): Promise<any> {
     try {
-      const params = new URLSearchParams({
-        inputMint,
-        outputMint,
-        amount,
-        slippageBps: slippageBps.toString(),
-        onlyDirectRoutes: onlyDirectRoutes.toString(),
-      });
-
-      const url = `${JUPITER_BASE_URL}/quote?${params.toString()}`;
-      logger.log('🪐 Fetching Jupiter quote:', {
-        inputMint: inputMint.substring(0, 10) + '...',
-        outputMint: outputMint.substring(0, 10) + '...',
-        amount,
-        slippageBps,
-      });
-
-      const response = await fetch(url, {
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorData: any;
-        try {
-          errorData = JSON.parse(errorText);
-        } catch {
-          errorData = { message: errorText };
-        }
-
-        logger.error('❌ Jupiter quote API error:', {
-          httpStatus: response.status,
-          httpStatusText: response.statusText,
-          errorMessage: errorData.message || errorText,
-          errorDetails: errorData,
-          url,
-        });
-        return null;
+      const url = new URL('https://quote-api.jup.ag/v6/quote');
+      url.searchParams.append('inputMint', inputMint);
+      url.searchParams.append('outputMint', outputMint);
+      url.searchParams.append('amount', amount);
+      url.searchParams.append('slippageBps', slippageBps.toString());
+      if (onlyDirectRoutes) {
+        url.searchParams.append('onlyDirectRoutes', 'true');
       }
 
-      const data = await response.json();
-      logger.log('✅ Jupiter quote received:', {
-        inAmount: data.inAmount,
-        outAmount: data.outAmount,
-        priceImpact: data.priceImpactPct,
-        routes: data.routePlan?.length || 0,
-      });
+      const response = await fetch(url.toString());
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Jupiter API error: ${response.status} - ${errorText}`);
+      }
 
-      return data;
+      return await response.json();
     } catch (error) {
-      logger.error('❌ Error fetching Jupiter quote:', error);
-      return null;
+      console.error('[JupiterService] Failed to get quote:', error);
+      throw error;
     }
   }
 
   /**
-   * Get swap transaction from Jupiter
+   * Get swap transaction from Jupiter API
    * 
-   * @param quote - Quote from getQuote()
-   * @param userPublicKey - User's Solana public key (base58)
-   * @param wrapUnwrapSOL - Automatically wrap/unwrap SOL if needed
-   * @param feeAccount - Optional fee account for platform fees
-   * @param asLegacyTransaction - Use legacy transaction format
+   * @param quoteResponse - Quote response from getQuote()
+   * @param userPublicKey - User's Solana public key
+   * @param wrapUnwrapSOL - Wrap/unwrap SOL automatically (default: true)
+   * @param feeAccount - Fee account for referral fees (optional)
+   * @param asLegacyTransaction - Return legacy transaction format (optional)
+   * @param prioritizationFeeLamports - Priority fee in lamports (optional)
    */
   static async getSwapTransaction(
-    quote: JupiterQuote,
+    quoteResponse: any,
     userPublicKey: string,
     wrapUnwrapSOL: boolean = true,
     feeAccount?: string,
-    asLegacyTransaction: boolean = false
-  ): Promise<JupiterSwapTransaction | null> {
+    asLegacyTransaction?: boolean,
+    prioritizationFeeLamports?: number
+  ): Promise<any> {
     try {
-      const body = {
-        quoteResponse: quote,
+      const body: any = {
+        quoteResponse,
         userPublicKey,
         wrapUnwrapSOL,
-        feeAccount,
-        asLegacyTransaction,
-        dynamicComputeUnitLimit: true,
-        prioritizationFeeLamports: 'auto',
       };
 
-      logger.log('🪐 Getting Jupiter swap transaction...');
+      if (feeAccount) {
+        body.feeAccount = feeAccount;
+      }
 
-      const response = await fetch(`${JUPITER_BASE_URL}/swap`, {
+      if (asLegacyTransaction !== undefined) {
+        body.asLegacyTransaction = asLegacyTransaction;
+      }
+
+      if (prioritizationFeeLamports !== undefined) {
+        body.prioritizationFeeLamports = prioritizationFeeLamports;
+      }
+
+      const response = await fetch('https://quote-api.jup.ag/v6/swap', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
         },
         body: JSON.stringify(body),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        let errorData: any;
-        try {
-          errorData = JSON.parse(errorText);
-        } catch {
-          errorData = { message: errorText };
-        }
-
-        logger.error('❌ Jupiter swap transaction API error:', {
-          httpStatus: response.status,
-          httpStatusText: response.statusText,
-          errorMessage: errorData.message || errorText,
-          errorDetails: errorData,
-        });
-        return null;
+        throw new Error(`Jupiter API error: ${response.status} - ${errorText}`);
       }
 
-      const data = await response.json();
-      logger.log('✅ Jupiter swap transaction received');
-      return data;
+      return await response.json();
     } catch (error) {
-      logger.error('❌ Error getting Jupiter swap transaction:', error);
-      return null;
+      console.error('[JupiterService] Failed to get swap transaction:', error);
+      throw error;
     }
-  }
-
-  /**
-   * Get native SOL address for Jupiter
-   */
-  static getNativeSOLAddress(): string {
-    return 'So11111111111111111111111111111111111111112'; // Wrapped SOL
-  }
-
-  /**
-   * Check if address is native SOL
-   */
-  static isNativeSOL(address: string): boolean {
-    return address === 'So11111111111111111111111111111111111111112' ||
-           address === '11111111111111111111111111111111' ||
-           address === 'native';
   }
 }
 
+// Export for convenience
+export async function getSolanaTokenLogo(address: string): Promise<string | null> {
+  return JupiterService.getTokenLogo(address);
+}
+
+export async function getSolanaTokenLogos(addresses: string[]): Promise<Record<string, string>> {
+  return JupiterService.getTokenLogos(addresses);
+}

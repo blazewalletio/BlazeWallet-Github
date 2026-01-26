@@ -28,6 +28,7 @@ export interface Chain {
   icon: string;
   logoUrl?: string;
   isTestnet?: boolean;
+  chainType?: 'EVM' | 'SOL' | 'UTXO'; // Chain type for better detection
 }
 
 export interface Transaction {

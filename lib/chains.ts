@@ -123,6 +123,7 @@ export const CHAINS: Record<string, Chain> = {
     color: '#9945FF',
     icon: '◎',
     logoUrl: '/crypto-solana.png',
+    chainType: 'SOL', // ✅ Solana chain type for detection
   },
   optimism: {
     id: 10,

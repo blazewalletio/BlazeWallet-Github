@@ -11,6 +11,7 @@ import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { supabase } from '@/lib/supabase';
 import { getIPFSGatewayUrl, isIPFSUrl, initIPFSErrorSuppression } from '@/lib/ipfs-utils';
 import { getPopularTokens, isLiFiSupported, PopularToken } from '@/lib/popular-tokens';
+import { JupiterService } from '@/lib/jupiter-service'; // NEW: For Solana token logos
 
 interface TokenSearchModalProps {
   isOpen: boolean;
@@ -83,14 +84,32 @@ export default function TokenSearchModal({
     return () => clearTimeout(timeoutId);
   }, [searchQuery, isOpen, chainId]);
 
-  // ✅ Fetch token logos from Li.Fi API
+  // ✅ Fetch token logos from Li.Fi API (EVM) or Jupiter (Solana)
   const fetchTokenLogosFromLiFi = async (chainId: number, addresses: string[]): Promise<Record<string, string>> => {
     if (addresses.length === 0) return {};
     
     try {
+      // ✅ SOLANA: Use Jupiter API for logos
+      if (chainKey === 'solana') {
+        logger.log(`🎨 [TokenSearchModal] Fetching Solana logos from Jupiter for ${addresses.length} tokens...`);
+        
+        const logoMap = await JupiterService.getTokenLogos(addresses);
+        
+        logger.log(`✅ [TokenSearchModal] Fetched ${Object.keys(logoMap).length} Solana logos from Jupiter`);
+        
+        // Add TrustWallet fallback for tokens without logos
+        addresses.forEach(address => {
+          if (!logoMap[address]) {
+            logoMap[address] = `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/solana/assets/${address}/logo.png`;
+          }
+        });
+        
+        return logoMap;
+      }
+      
+      // ✅ EVM CHAINS: Use Li.Fi API for logos
       logger.log(`🎨 [TokenSearchModal] Fetching logos from Li.Fi for ${addresses.length} tokens on chain ${chainId}...`);
       
-      // Li.Fi API endpoint for tokens
       const lifiChainId = getLiFiChainId(chainKey);
       const response = await fetch(`https://li.quest/v1/tokens?chains=${lifiChainId}`);
       
@@ -123,12 +142,13 @@ export default function TokenSearchModal({
       return logoMap;
       
     } catch (error) {
-      logger.warn('⚠️ [TokenSearchModal] Failed to fetch logos from Li.Fi:', error);
+      logger.warn('⚠️ [TokenSearchModal] Failed to fetch logos:', error);
       
       // Fallback: Return TrustWallet CDN URLs for all addresses
       const fallbackMap: Record<string, string> = {};
+      const blockchain = chainKey === 'solana' ? 'solana' : 'ethereum';
       addresses.forEach(address => {
-        const trustWalletUrl = `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/${address}/logo.png`;
+        const trustWalletUrl = `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${blockchain}/assets/${address}/logo.png`;
         fallbackMap[address.toLowerCase()] = trustWalletUrl;
       });
       
