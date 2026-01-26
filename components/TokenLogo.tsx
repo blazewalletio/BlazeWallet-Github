@@ -42,38 +42,37 @@ export function TokenLogo({
 
   const sizeClass = sizeClasses[size];
 
-  // Fetch logo dynamically if not provided
+  // Fetch logo dynamically - ALWAYS use API proxy for CORS-free loading!
   useEffect(() => {
     let isMounted = true;
 
-    if (!logoURI && !hasError) {
-      setIsLoading(true);
-      
-      TokenLogoService.getTokenLogo(
-        { symbol, address, chainKey },
-        logoURI
-      )
-        .then((url) => {
-          if (isMounted) {
-            setLogoUrl(url);
-            setIsLoading(false);
-            if (!url) {
-              setHasError(true);
-            }
-          }
-        })
-        .catch(() => {
-          if (isMounted) {
+    // ✅ ALWAYS fetch via API proxy (bypasses CORS issues!)
+    setIsLoading(true);
+    
+    TokenLogoService.getTokenLogo(
+      { symbol, address, chainKey },
+      logoURI
+    )
+      .then((url) => {
+        if (isMounted) {
+          setLogoUrl(url);
+          setIsLoading(false);
+          if (!url) {
             setHasError(true);
-            setIsLoading(false);
           }
-        });
-    }
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setHasError(true);
+          setIsLoading(false);
+        }
+      });
 
     return () => {
       isMounted = false;
     };
-  }, [symbol, address, chainKey, logoURI, hasError]);
+  }, [symbol, address, chainKey, logoURI]);
 
   // Handle image load error
   const handleError = () => {
