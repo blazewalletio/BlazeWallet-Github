@@ -92,34 +92,12 @@ export default function Home() {
                 // Update activity timestamp
                 sessionStorage.setItem('last_activity', now.toString());
                 
-                // Attempt auto-unlock based on user's preferred method
-                if (biometricEnabled && isMobile) {
-                  // Biometric is enabled on mobile - try direct biometric unlock
-                  logger.log('👤 Biometric enabled - attempting direct Face ID/Touch ID unlock');
-                  
-                  try {
-                    const { unlockWithBiometric } = useWalletStore.getState();
-                    await unlockWithBiometric();
-                    
-                    logger.log('✅ Wallet unlocked with biometrics successfully');
-                    setShowPasswordUnlock(false);
-                    return;
-                    
-                  } catch (error: any) {
-                    logger.log('⚠️ Biometric unlock failed, showing password modal:', error.message);
-                    const stillEnabled = localStorage.getItem('biometric_enabled') === 'true';
-                    logger.log('🔍 Biometric still enabled after error?', stillEnabled);
-                    
-                    // Fall back to password unlock modal
-                    setShowPasswordUnlock(true);
-                    return;
-                  }
-                } else {
-                  // No biometric or desktop - show password unlock modal
-                  logger.log('🔑 Showing password unlock modal (session active)');
-                  setShowPasswordUnlock(true);
-                  return;
-                }
+                // ✅ FIX: Don't auto-trigger biometric on session resume
+                // Let PasswordUnlockModal handle biometric authentication
+                // This prevents double biometric prompts on mobile
+                logger.log('🔑 Session active - showing unlock modal (biometric button available if enabled)');
+                setShowPasswordUnlock(true);
+                return;
               }
             } else {
               // No last_activity timestamp - set it and continue with normal flow
@@ -133,38 +111,15 @@ export default function Home() {
             }
           }
           
-          // Check if biometric is enabled AND device is mobile
+          // ✅ FIX: Don't auto-trigger biometric on initial load
+          // Let PasswordUnlockModal handle biometric authentication via its button
+          // This prevents automatic Face ID popup before user can see the UI
           logger.log('🔍 Auth flow decision:', { biometricEnabled, isMobile });
           
-          if (biometricEnabled && isMobile) {
-            // Biometric is enabled on mobile - try direct biometric unlock
-            logger.log('👤 Biometric enabled - attempting direct Face ID/Touch ID unlock');
-            
-            try {
-              const { unlockWithBiometric } = useWalletStore.getState();
-              await unlockWithBiometric();
-              
-              logger.log('✅ Wallet unlocked with biometrics successfully');
-              // Wallet is now unlocked, explicitly prevent password modal from showing
-              setShowPasswordUnlock(false); // ✅ FIX: Explicitly prevent modal
-              // No need to call setHasWallet(true) - wallet is already loaded
-              return;
-              
-            } catch (error: any) {
-              logger.log('⚠️ Biometric unlock failed, showing password modal:', error.message);
-              // Check if biometric is still enabled after the error
-              // (it might have been auto-cleared if data was corrupt)
-              const stillEnabled = localStorage.getItem('biometric_enabled') === 'true';
-              logger.log('🔍 Biometric still enabled after error?', stillEnabled);
-              
-              // Fall back to password unlock modal
-              setShowPasswordUnlock(true);
-            }
-          } else {
-            // No biometric or desktop - show password unlock modal
-            logger.log('🔑 Showing password unlock modal');
-            setShowPasswordUnlock(true);
-          }
+          // Always show password unlock modal with biometric button (if enabled)
+          // This gives user control over when to trigger Face ID
+          logger.log('🔑 Showing password unlock modal (biometric button available if enabled)');
+          setShowPasswordUnlock(true);
         } else {
           // Wallet exists but no password set - check for old unencrypted mnemonic
           const storedMnemonic = localStorage.getItem('wallet_mnemonic');
