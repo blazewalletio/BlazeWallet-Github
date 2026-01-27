@@ -237,9 +237,9 @@ function getDeviceVerificationEmailHTML(
         </p>
         
         <div class="code-box">
-          <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">Your Verification Code</div>
-          <div class="code">${code}</div>
-          <div style="font-size: 14px; opacity: 0.9; margin-top: 5px;">Valid for 15 minutes</div>
+          <div style="font-size: 14px; color: white; opacity: 0.9; margin-bottom: 5px;">Your Verification Code</div>
+          <div style="font-size: 48px; font-weight: 700; letter-spacing: 8px; margin: 10px 0; font-family: 'Courier New', monospace; color: white;">${code}</div>
+          <div style="font-size: 14px; color: white; opacity: 0.9; margin-top: 5px;">Valid for 15 minutes</div>
         </div>
         
         <p style="font-size: 16px; color: #374151; line-height: 1.6;">

@@ -140,11 +140,18 @@ export default function DeviceVerificationModal({
         throw new Error(data.error || 'Invalid verification code');
       }
       
-      logger.log('✅ Verification code accepted, moving to 2FA');
+      logger.log('✅ Verification code accepted');
       
-      // Move to 2FA step
-      setStep('2fa');
-      setTimeout(() => twoFactorInputRefs.current[0]?.focus(), 100);
+      // Check if 2FA is required
+      if (data.requires2FA) {
+        logger.log('🔐 2FA is enabled, moving to 2FA step');
+        setStep('2fa');
+        setTimeout(() => twoFactorInputRefs.current[0]?.focus(), 100);
+      } else {
+        logger.log('✅ No 2FA required, completing verification');
+        // No 2FA - complete verification immediately
+        onSuccess();
+      }
       
     } catch (error: any) {
       logger.error('❌ Code verification failed:', error);

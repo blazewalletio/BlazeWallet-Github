@@ -137,8 +137,15 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      logger.log('✅ Verification code accepted');
-      return NextResponse.json({ success: true });
+      // Check if user has 2FA enabled
+      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(device.user_id);
+      const has2FA = userData?.user?.app_metadata?.two_factor_enabled === true;
+      
+      logger.log('✅ Verification code accepted', { has2FA });
+      return NextResponse.json({ 
+        success: true,
+        requires2FA: has2FA 
+      });
     }
     
     // Handle initial email send
