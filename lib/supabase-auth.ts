@@ -167,21 +167,29 @@ export async function signUpWithEmail(
     const hdNode = ethers.HDNodeWallet.fromPhrase(mnemonic);
     const walletAddress = hdNode.address;
 
-    // 5. Upload encrypted wallet to Supabase
+    // 5. Upload encrypted wallet to Supabase (via secure server endpoint)
     // ⚠️ NOTE: wallet_address is stored for convenience/analytics only
     // ⚠️ On unlock, addresses are ALWAYS derived fresh from encrypted mnemonic
-    const { error: walletError } = await supabase
-      .from('wallets')
-      .insert({
-        user_id: authData.user.id,
-        encrypted_wallet: encryptedWallet,
-        wallet_address: walletAddress, // For analytics/display only
+    try {
+      const walletResponse = await fetch('/api/wallet/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: authData.user.id,
+          encryptedMnemonic: encryptedWallet,
+        }),
       });
-
-    if (walletError) {
+      
+      const walletData = await walletResponse.json();
+      
+      if (!walletData.success) {
+        logger.error('Failed to save encrypted wallet:', walletData.error);
+        // User is created but wallet save failed - still return success
+        // User can always recover with mnemonic
+      }
+    } catch (walletError: any) {
       logger.error('Failed to save encrypted wallet:', walletError);
       // User is created but wallet save failed - still return success
-      // User can always recover with mnemonic
     }
 
     // 6. Store wallet flags locally (NOT addresses - they're derived on unlock)
@@ -258,25 +266,27 @@ export async function signInWithEmail(
       return { success: false, error: 'Failed to sign in' };
     }
 
-    // 2. Download encrypted wallet
-    const { data: walletData, error: walletError } = await supabase
-      .from('wallets')
-      .select('encrypted_wallet, wallet_address')
-      .eq('user_id', authData.user.id)
-      .single();
-
-    if (walletError || !walletData) {
+    // 2. Download encrypted wallet (via secure server endpoint)
+    const walletResponse = await fetch('/api/get-wallet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: authData.user.id }),
+    });
+    
+    const walletData = await walletResponse.json();
+    
+    if (!walletData.success || !walletData.encrypted_mnemonic) {
       return { success: false, error: 'Wallet not found. Please use recovery phrase.' };
     }
 
     // 3. Decrypt wallet
-    const mnemonic = await decryptMnemonic(walletData.encrypted_wallet, password);
+    const mnemonic = await decryptMnemonic(walletData.encrypted_mnemonic, password);
 
     // 4. Store wallet flags locally (NOT addresses - they're derived on unlock)
     if (typeof window !== 'undefined') {
       localStorage.setItem('wallet_email', email);
       localStorage.setItem('has_password', 'true'); // Password is verified
-      localStorage.setItem('encrypted_wallet', walletData.encrypted_wallet);
+      localStorage.setItem('encrypted_wallet', walletData.encrypted_mnemonic);
       localStorage.setItem('wallet_created_with_email', 'true'); // Flag to skip password setup modal
       localStorage.setItem('supabase_user_id', authData.user!.id); // ✅ NEW: Store Supabase user ID for biometric binding
       // Session flag to skip unlock modal in same session
@@ -385,20 +395,26 @@ export async function getCurrentUser() {
 }
 
 /**
- * Check if user has wallet in Supabase
+ * Check if user has wallet in Supabase (via secure server endpoint)
  */
 export async function hasCloudWallet(userId: string): Promise<boolean> {
-  const { data } = await supabase
-    .from('wallets')
-    .select('id')
-    .eq('user_id', userId)
-    .single();
-
-  return !!data;
+  try {
+    const response = await fetch('/api/wallet/exists', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    });
+    
+    const data = await response.json();
+    return data.success && data.exists;
+  } catch (error) {
+    logger.error('Failed to check cloud wallet:', error);
+    return false;
+  }
 }
 
 /**
- * Update encrypted wallet in cloud
+ * Update encrypted wallet in cloud (via secure server endpoint)
  * (e.g., if user changes password or wants to backup existing wallet)
  */
 export async function updateCloudWallet(
@@ -409,16 +425,19 @@ export async function updateCloudWallet(
   try {
     const encryptedWallet = await encryptMnemonic(mnemonic, password);
 
-    const { error } = await supabase
-      .from('wallets')
-      .upsert({
-        user_id: userId,
-        encrypted_wallet: encryptedWallet,
-        last_synced_at: new Date().toISOString(),
-      });
-
-    if (error) {
-      return { success: false, error: error.message };
+    const response = await fetch('/api/wallet/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId,
+        encryptedMnemonic: encryptedWallet,
+      }),
+    });
+    
+    const data = await response.json();
+    
+    if (!data.success) {
+      return { success: false, error: data.error };
     }
 
     return { success: true };
@@ -481,26 +500,34 @@ export async function upgradeToEmailAccount(
 
     logger.log('📦 Wallet address (for display only):', walletAddress);
 
-    // 5. Upload encrypted wallet to Supabase
-    const { error: walletError } = await supabase
-      .from('wallets')
-      .insert({
-        user_id: authData.user.id,
-        encrypted_wallet: encryptedWallet,
-        wallet_address: walletAddress, // For analytics/display only
+    // 5. Upload encrypted wallet to Supabase (via secure server endpoint)
+    try {
+      const walletResponse = await fetch('/api/wallet/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: authData.user.id,
+          encryptedMnemonic: encryptedWallet,
+        }),
       });
-
-    if (walletError) {
-      logger.error('❌ Failed to save encrypted wallet:', walletError);
       
-      // Rollback: Delete created user if wallet save fails
-      try {
-        await supabase.auth.admin.deleteUser(authData.user.id);
-        logger.log('🔄 Rolled back: User deleted after wallet save failure');
-      } catch (rollbackError) {
-        logger.error('Failed to rollback user creation:', rollbackError);
+      const walletData = await walletResponse.json();
+      
+      if (!walletData.success) {
+        logger.error('❌ Failed to save encrypted wallet:', walletData.error);
+        
+        // Rollback: Delete created user if wallet save fails
+        try {
+          await supabase.auth.admin.deleteUser(authData.user.id);
+          logger.log('🔄 Rolled back: User deleted after wallet save failure');
+        } catch (rollbackError) {
+          logger.error('Failed to rollback user creation:', rollbackError);
+        }
+        
+        return { success: false, error: 'Failed to save wallet. Please try again.' };
       }
-      
+    } catch (walletError: any) {
+      logger.error('❌ Failed to save encrypted wallet:', walletError);
       return { success: false, error: 'Failed to save wallet. Please try again.' };
     }
 
