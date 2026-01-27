@@ -370,10 +370,8 @@ export async function verifyDeviceAndSignIn(
     
     // 4. Update security score
     try {
-      await supabase.rpc('update_security_score', {
+      await supabase.rpc('calculate_security_score', {
         p_user_id: device.user_id,
-        p_field: 'trusted_device_added',
-        p_value: true,
       });
     } catch (scoreError) {
       logger.warn('Failed to update security score:', scoreError);
@@ -386,18 +384,29 @@ export async function verifyDeviceAndSignIn(
     });
     
     if (authError || !authData.user) {
+      logger.error('❌ [StrictAuth] Sign in failed:', authError);
       return {
         success: false,
         error: 'Failed to complete sign-in',
       };
     }
     
+    logger.log('✅ [StrictAuth] User signed in:', authData.user.id);
+    
     // 6. Decrypt wallet
-    const { data: wallet } = await supabase
+    const { data: wallet, error: walletError } = await supabase
       .from('wallets')
       .select('encrypted_mnemonic')
       .eq('user_id', authData.user.id)
       .single();
+    
+    if (walletError) {
+      logger.error('❌ [StrictAuth] Wallet query error:', walletError);
+      return {
+        success: false,
+        error: `Wallet query failed: ${walletError.message}`,
+      };
+    }
     
     if (!wallet) {
       return {
