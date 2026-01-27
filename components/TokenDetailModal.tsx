@@ -246,7 +246,7 @@ export default function TokenDetailModal({
           <div className="mb-6">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden">
-                {token.logo && (token.logo.startsWith('http') || token.logo.startsWith('/')) ? (
+                {token.logo && (token.logo.startsWith('http') || token.logo.startsWith('/') || token.logo.startsWith('data:') || token.logo.startsWith('blob:')) ? (
                   <img 
                     src={token.logo} 
                     alt={token.symbol}
@@ -276,7 +276,7 @@ export default function TokenDetailModal({
             {/* Balance Overview */}
             <div className="glass-card p-6 text-center">
               <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-orange-100 to-orange-50 mb-4 overflow-hidden border-2 border-white shadow-lg">
-                {token.logo && (token.logo.startsWith('http') || token.logo.startsWith('/')) ? (
+                {token.logo && (token.logo.startsWith('http') || token.logo.startsWith('/') || token.logo.startsWith('data:') || token.logo.startsWith('blob:')) ? (
                   <img 
                     src={token.logo} 
                     alt={token.symbol}

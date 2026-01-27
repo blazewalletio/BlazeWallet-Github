@@ -269,22 +269,22 @@ function getDeviceVerificationEmailHTML(
             <div class="device-value">${deviceInfo.ipAddress}</div>
           </div>
         </div>
-        
+
         <div class="warning">
           <div class="warning-title">⚠️ Didn't try to log in?</div>
           <p class="warning-text">
             If you didn't attempt to access your wallet from this device, someone may be trying to access your account. Please change your password immediately and enable additional security measures.
-          </p>
+                    </p>
         </div>
       </div>
-      
+
       <div class="footer">
         <p style="margin: 0 0 10px 0;">
           This is an automated security email from BLAZE Wallet.
         </p>
         <p style="margin: 0;">
           © ${new Date().getFullYear()} BLAZE Wallet. All rights reserved.
-        </p>
+              </p>
       </div>
     </div>
   </div>

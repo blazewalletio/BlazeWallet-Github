@@ -666,9 +666,9 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                       {selectedAsset && (
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center overflow-hidden border border-gray-200">
-                            {selectedAsset.logo ? (
+                            {selectedAsset.logo && (selectedAsset.logo.startsWith('http') || selectedAsset.logo.startsWith('/') || selectedAsset.logo.startsWith('data:') || selectedAsset.logo.startsWith('blob:')) ? (
                               <img 
-                                src={selectedAsset.logo.startsWith('/') ? selectedAsset.logo : selectedAsset.logo} 
+                                src={selectedAsset.logo} 
                                 alt={selectedAsset.symbol}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
@@ -710,9 +710,9 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                           >
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center overflow-hidden border border-gray-200">
-                                {asset.logo ? (
+                                {asset.logo && (asset.logo.startsWith('http') || asset.logo.startsWith('/') || asset.logo.startsWith('data:') || asset.logo.startsWith('blob:')) ? (
                                   <img 
-                                    src={asset.logo.startsWith('/') ? asset.logo : asset.logo} 
+                                    src={asset.logo} 
                                     alt={asset.symbol}
                                     className="w-full h-full object-cover"
                                     onError={(e) => {

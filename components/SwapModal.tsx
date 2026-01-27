@@ -853,7 +853,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                       >
                         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                           <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center overflow-hidden border border-orange-200 flex-shrink-0">
-                            {fromTokenDisplay.logo && (fromTokenDisplay.logo.startsWith('http') || fromTokenDisplay.logo.startsWith('/')) ? (
+                            {fromTokenDisplay.logo && (fromTokenDisplay.logo.startsWith('http') || fromTokenDisplay.logo.startsWith('/') || fromTokenDisplay.logo.startsWith('data:') || fromTokenDisplay.logo.startsWith('blob:')) ? (
                               <img 
                                 src={isIPFSUrl(fromTokenDisplay.logo) ? getIPFSGatewayUrl(fromTokenDisplay.logo) : fromTokenDisplay.logo} 
                                 alt={fromTokenDisplay.symbol}
@@ -1000,7 +1000,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                       >
                         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                           <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center overflow-hidden border border-emerald-200 flex-shrink-0">
-                            {toTokenDisplay.logo && (toTokenDisplay.logo.startsWith('http') || toTokenDisplay.logo.startsWith('/')) ? (
+                            {toTokenDisplay.logo && (toTokenDisplay.logo.startsWith('http') || toTokenDisplay.logo.startsWith('/') || toTokenDisplay.logo.startsWith('data:') || toTokenDisplay.logo.startsWith('blob:')) ? (
                               <img 
                                 src={isIPFSUrl(toTokenDisplay.logo) ? getIPFSGatewayUrl(toTokenDisplay.logo) : toTokenDisplay.logo} 
                                 alt={toTokenDisplay.symbol}
