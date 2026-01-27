@@ -1,110 +1,107 @@
 /**
- * TokenLogo Component - Smart token logo rendering with fallback
- * 
- * Features:
- * - Dynamic logo loading via TokenLogoService
- * - Automatic fallback to placeholder
- * - Loading states
- * - Error handling
+ * TokenLogo Component
+ * Displays token logos with multi-layer caching for optimal performance
  */
 
-'use client';
-
-import { useState, useEffect } from 'react';
-import { TokenLogoService } from '@/lib/token-logo-service';
+import React, { useState, useEffect } from 'react';
+import { TokenLogoCache } from '@/lib/token-logo-cache';
 
 interface TokenLogoProps {
   symbol: string;
   address: string;
   chainKey: string;
   logoURI?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
 }
 
-export function TokenLogo({ 
-  symbol, 
-  address, 
-  chainKey, 
-  logoURI, 
+const sizeClasses = {
+  sm: 'w-6 h-6 text-xs',
+  md: 'w-8 h-8 text-sm',
+  lg: 'w-10 h-10 text-base',
+  xl: 'w-12 h-12 text-lg',
+};
+
+export const TokenLogo: React.FC<TokenLogoProps> = ({
+  symbol,
+  address,
+  chainKey,
+  logoURI,
   size = 'md',
-  className = ''
-}: TokenLogoProps) {
-  const [logoUrl, setLogoUrl] = useState<string | null>(logoURI || null);
-  const [isLoading, setIsLoading] = useState(!logoURI);
+  className = '',
+}) => {
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
 
-  const sizeClasses = {
-    sm: 'w-6 h-6 text-xs',
-    md: 'w-10 h-10 text-sm',
-    lg: 'w-16 h-16',
-  };
-
-  const sizeClass = sizeClasses[size];
-
-  // Fetch logo dynamically - ALWAYS use API proxy for CORS-free loading!
   useEffect(() => {
     let isMounted = true;
 
-    // ✅ ALWAYS fetch via API proxy (bypasses CORS issues!)
-    setIsLoading(true);
-    
-    TokenLogoService.getTokenLogo(
-      { symbol, address, chainKey },
-      logoURI
-    )
-      .then((url) => {
+    const loadLogo = async () => {
+      try {
+        setIsLoading(true);
+        setHasError(false);
+
+        // Fetch via multi-layer cache
+        const url = await TokenLogoCache.getTokenLogo(
+          { symbol, address, chainKey },
+          logoURI
+        );
+
         if (isMounted) {
-          setLogoUrl(url);
-          setIsLoading(false);
-          if (!url) {
+          if (url) {
+            setLogoUrl(url);
+          } else {
             setHasError(true);
           }
+          setIsLoading(false);
         }
-      })
-      .catch(() => {
+      } catch (error) {
+        console.error('TokenLogo: Failed to load logo', error);
         if (isMounted) {
           setHasError(true);
           setIsLoading(false);
         }
-      });
+      }
+    };
+
+    loadLogo();
 
     return () => {
       isMounted = false;
     };
   }, [symbol, address, chainKey, logoURI]);
 
-  // Handle image load error
-  const handleError = () => {
-    setHasError(true);
-    setLogoUrl(null);
-  };
+  const sizeClass = sizeClasses[size];
 
-  // Show placeholder if loading, error, or no logo
-  if (isLoading || hasError || !logoUrl) {
+  // Loading state
+  if (isLoading) {
     return (
-      <div 
-        className={`${sizeClass} rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center flex-shrink-0 ${className}`}
+      <div
+        className={`${sizeClass} ${className} rounded-full bg-gradient-to-br from-gray-600 to-gray-700 animate-pulse`}
+      />
+    );
+  }
+
+  // Error state or no logo - show letter placeholder
+  if (hasError || !logoUrl) {
+    const firstLetter = symbol.charAt(0).toUpperCase();
+    return (
+      <div
+        className={`${sizeClass} ${className} rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center font-bold text-white`}
       >
-        {isLoading ? (
-          <div className="w-1/2 h-1/2 border-2 border-white border-t-transparent rounded-full animate-spin" />
-        ) : (
-          <span className="text-white font-bold" style={{ fontSize: size === 'sm' ? '10px' : size === 'md' ? '14px' : '20px' }}>
-            {symbol[0]}
-          </span>
-        )}
+        {firstLetter}
       </div>
     );
   }
 
-  // Render image
+  // Success - show logo
   return (
     <img
       src={logoUrl}
-      alt={symbol}
-      className={`${sizeClass} rounded-full flex-shrink-0 object-cover ${className}`}
-      onError={handleError}
+      alt={`${symbol} logo`}
+      className={`${sizeClass} ${className} rounded-full object-cover`}
+      onError={() => setHasError(true)}
     />
   );
-}
-
+};

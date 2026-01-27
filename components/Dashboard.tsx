@@ -1019,7 +1019,7 @@ export default function Dashboard() {
               tokensNeedingLogos.map(async (token: any) => {
                 try {
                   const { getCurrencyLogo } = await import('@/lib/currency-logo-service');
-                  const logo = await getCurrencyLogo(token.symbol, token.address);
+                  const logo = await getCurrencyLogo(token.symbol, token.address, currentChain);
                   if (logo && logo !== '/crypto-eth.png' && logo !== '/crypto-placeholder.png') {
                     token.logo = logo;
                     logger.log(`[${timestamp}] ✅ Fetched logo for ${token.symbol}: ${logo}`);

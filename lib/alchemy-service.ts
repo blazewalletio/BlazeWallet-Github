@@ -127,10 +127,10 @@ export class AlchemyService {
         tokensWithMetadata.map(async (token) => {
           let logo: string = token.alchemyLogo || '/crypto-placeholder.png';
           
-          // If Alchemy doesn't provide logo, fetch from CoinGecko (with caching)
+          // If Alchemy doesn't provide logo, fetch from CoinGecko Pro API (with caching)
           if (!token.alchemyLogo) {
             try {
-              const fetchedLogo = await getCurrencyLogo(token.symbol, token.address);
+              const fetchedLogo = await getCurrencyLogo(token.symbol, token.address, this.chainKey);
               if (fetchedLogo) {
                 logo = fetchedLogo;
               }

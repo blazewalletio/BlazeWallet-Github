@@ -44,6 +44,9 @@ export async function middleware(request: NextRequest) {
     '/api/auth/verify-email', // Email verification endpoint
     '/api/2fa', // 2FA setup/verification
     '/api/verify-device', // Device verification
+    '/api/device-verification-code', // Device verification email sending
+    '/api/verify-device-code', // Device verification code validation
+    '/api/security-alert', // Security alert emails
     '/api/export-csv', // Transaction export (has auth check)
     '/api/onramper', // Onramper endpoints (quotes, create-transaction, supported-data, checkout-intent)
     '/api/moonpay', // MoonPay endpoints

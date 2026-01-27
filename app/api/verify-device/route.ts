@@ -177,14 +177,14 @@ export async function POST(request: NextRequest) {
       deviceInfo.location
     );
     
-    const emailResult = await sendEmail({
-      to: email,
-      subject: '🔐 New Device Login - BLAZE Wallet',
-      html: emailHtml
-    });
-    
-    if (!emailResult.success) {
-      logger.error('Failed to send device verification email:', emailResult.error);
+    try {
+      await sendEmail({
+        to: email,
+        subject: '🔐 New Device Login - BLAZE Wallet',
+        html: emailHtml
+      });
+    } catch (error: any) {
+      logger.error('Failed to send device verification email:', error);
       return NextResponse.json(
         { success: false, error: 'Failed to send verification email' },
         { status: 500 }

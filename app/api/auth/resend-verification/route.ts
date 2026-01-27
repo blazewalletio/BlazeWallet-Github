@@ -25,14 +25,14 @@ export async function POST(request: NextRequest) {
     });
 
     // Send email
-    const result = await sendEmail({
-      to: email,
-      subject: '🔥 Welcome to BLAZE Wallet - Verify & Start Trading!',
-      html: emailHtml,
-    });
-
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to send email');
+    try {
+      await sendEmail({
+        to: email,
+        subject: '🔥 Welcome to BLAZE Wallet - Verify & Start Trading!',
+        html: emailHtml,
+      });
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to send email');
     }
 
     logger.log('✅ Verification email resent to:', email);

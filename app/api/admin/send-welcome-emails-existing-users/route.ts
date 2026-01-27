@@ -91,19 +91,18 @@ export async function POST(request: NextRequest) {
         });
 
         // Send email
-        const emailResult = await sendEmail({
-          to: user.email,
-          subject: '🔥 Welcome to BLAZE Wallet - Verify & Start Trading!',
-          html: emailHtml,
-        });
-
-        if (emailResult.success) {
+        try {
+          await sendEmail({
+            to: user.email,
+            subject: '🔥 Welcome to BLAZE Wallet - Verify & Start Trading!',
+            html: emailHtml,
+          });
           logger.log(`✅ Sent to: ${user.email}`);
           results.sent++;
-        } else {
-          logger.error(`❌ Failed to send to: ${user.email}`, emailResult.error);
+        } catch (error: any) {
+          logger.error(`❌ Failed to send to: ${user.email}`, error);
           results.failed++;
-          results.errors.push(`${user.email}: ${emailResult.error}`);
+          results.errors.push(`${user.email}: ${error.message}`);
         }
 
         // Rate limit: Wait 100ms between emails to avoid spam flags

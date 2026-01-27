@@ -81,22 +81,22 @@ export async function POST(request: NextRequest) {
     });
 
     // Send email
-    const result = await sendEmail({
-      to: email,
-      subject: '🔥 Welcome to BLAZE Wallet - Verify Your Email',
-      html: emailHtml,
-    });
-
-    if (!result.success) {
-      logger.error('Failed to send welcome email:', result.error);
+    try {
+      await sendEmail({
+        to: email,
+        subject: '🔥 Welcome to BLAZE Wallet - Verify Your Email',
+        html: emailHtml,
+      });
+    } catch (error: any) {
+      logger.error('Failed to send welcome email:', error);
       return NextResponse.json(
-        { success: false, error: result.error },
+        { success: false, error: error.message },
         { status: 500 }
       );
     }
 
     logger.log('✅ Welcome email sent to:', email);
-    return NextResponse.json({ success: true, messageId: result.messageId });
+    return NextResponse.json({ success: true });
   } catch (error) {
     logger.error('Error in send-welcome-email API:', error);
     return NextResponse.json(

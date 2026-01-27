@@ -8,8 +8,10 @@ import { getCurrentAccount, switchToEmailAccount, switchToSeedWallet, WalletAcco
 import AccountSelectorDropdown from './AccountSelectorDropdown';
 import NewEmailModal from './NewEmailModal';
 import WalletRecoveryFlow from './WalletRecoveryFlow';
+import DeviceVerificationModal from './DeviceVerificationModal';
 import { logger } from '@/lib/logger';
 import { rateLimitService } from '@/lib/rate-limit-service';
+import { EnhancedDeviceInfo } from '@/lib/device-fingerprint-pro';
 
 interface PasswordUnlockModalProps {
   isOpen: boolean;
@@ -29,6 +31,15 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   const [pendingNewEmail, setPendingNewEmail] = useState<string | null>(null);
   const [isSwitching, setIsSwitching] = useState(false); // ✅ NEW: Loading state for switching
   const [showRecoveryFlow, setShowRecoveryFlow] = useState(false); // ✅ NEW: Recovery flow state
+  
+  // Device Verification State
+  const [showDeviceVerification, setShowDeviceVerification] = useState(false);
+  const [deviceVerificationData, setDeviceVerificationData] = useState<{
+    deviceInfo: EnhancedDeviceInfo;
+    deviceToken: string;
+    email: string;
+    password: string;
+  } | null>(null);
 
   // Load current account
   useEffect(() => {
@@ -90,11 +101,26 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     try {
       // Check if this is a new email login
       if (pendingNewEmail) {
-        // For new email wallets, decrypt using Supabase auth method
-        const { signInWithEmail } = await import('@/lib/supabase-auth');
-        const result = await signInWithEmail(pendingNewEmail, password);
+        // ✅ FORT KNOX: Use strict authentication for new email accounts too
+        const { strictSignInWithEmail } = await import('@/lib/supabase-auth-strict');
+        const result = await strictSignInWithEmail(pendingNewEmail, password);
         
         if (!result.success) {
+          // Check if device verification is required
+          if (result.requiresDeviceVerification && result.deviceVerificationToken && result.deviceInfo) {
+            logger.log('🚫 Device verification required for new email');
+            
+            // Show device verification modal
+            setDeviceVerificationData({
+              deviceInfo: result.deviceInfo,
+              deviceToken: result.deviceVerificationToken,
+              email: pendingNewEmail,
+              password,
+            });
+            setShowDeviceVerification(true);
+            return;
+          }
+          
           throw new Error(result.error || 'Invalid password');
         }
 
@@ -120,11 +146,26 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       const email = localStorage.getItem('wallet_email');
 
       if (createdWithEmail && email) {
-        // For email wallets, decrypt using Supabase auth method
-        const { signInWithEmail } = await import('@/lib/supabase-auth');
-        const result = await signInWithEmail(email, password);
+        // ✅ FORT KNOX: Use strict authentication with device verification
+        const { strictSignInWithEmail } = await import('@/lib/supabase-auth-strict');
+        const result = await strictSignInWithEmail(email, password);
         
         if (!result.success) {
+          // Check if device verification is required
+          if (result.requiresDeviceVerification && result.deviceVerificationToken && result.deviceInfo) {
+            logger.log('🚫 Device verification required');
+            
+            // Show device verification modal
+            setDeviceVerificationData({
+              deviceInfo: result.deviceInfo,
+              deviceToken: result.deviceVerificationToken,
+              email,
+              password,
+            });
+            setShowDeviceVerification(true);
+            return;
+          }
+          
           throw new Error(result.error || 'Invalid password');
         }
 
@@ -378,6 +419,35 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
             </div>
           </div>
         </div>
+
+        {/* Device Verification Modal */}
+        {deviceVerificationData && (
+          <DeviceVerificationModal
+            isOpen={showDeviceVerification}
+            deviceInfo={deviceVerificationData.deviceInfo}
+            deviceToken={deviceVerificationData.deviceToken}
+            email={deviceVerificationData.email}
+            password={deviceVerificationData.password}
+            onSuccess={async (mnemonic) => {
+              // Wallet successfully verified and unlocked
+              const { importWallet } = useWalletStore.getState();
+              await importWallet(mnemonic);
+              
+              // Save to recent and complete
+              saveCurrentAccountToRecent();
+              sessionStorage.setItem('wallet_unlocked_this_session', 'true');
+              
+              setShowDeviceVerification(false);
+              setDeviceVerificationData(null);
+              onComplete();
+            }}
+            onCancel={() => {
+              setShowDeviceVerification(false);
+              setDeviceVerificationData(null);
+              setError('Device verification cancelled');
+            }}
+          />
+        )}
 
         {/* New Email Modal */}
         <NewEmailModal

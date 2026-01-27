@@ -705,6 +705,7 @@ export const getPopularTokens = (chainKey: string): PopularToken[] => {
  */
 export const isLiFiSupported = (chainKey: string): boolean => {
   const lifiChains = [
+    'solana',      // ✅ Li.Fi supports Solana (chain ID: "1151111081099710")
     'ethereum',
     'polygon',
     'arbitrum',
@@ -715,6 +716,7 @@ export const isLiFiSupported = (chainKey: string): boolean => {
     'cronos',
     'zksync',
     'linea',
+    'fantom',      // ✅ Li.Fi supports Fantom
   ];
   return lifiChains.includes(chainKey);
 };

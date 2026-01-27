@@ -1,12 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { logger } from '@/lib/logger';
-import { generateWalletStyleEmail, WalletWelcomeEmailParams } from '@/lib/email-template';
+/**
+ * Email Service for BLAZE Wallet
+ * Handles sending transactional emails via Resend
+ */
 
-const RESEND_API_KEY = 're_GSrnNH5V_NDNNHf7dDeFjEqJ2xR6CZeSx';
-const RESEND_API_URL = 'https://api.resend.com/emails';
+import { logger } from './logger';
 
-export interface SendEmailParams {
-  to: string | string[];
+// Re-export email template functions for backwards compatibility
+export { generateWalletStyleEmail as generateWelcomeVerificationEmail } from './email-template';
+
+// Stub functions for priority list (these were never implemented)
+export function generateUserConfirmationEmail(params: any): string {
+  return `<html><body><h1>Thank you for registering!</h1><p>Wallet: ${params.walletAddress}</p></body></html>`;
+}
+
+export function generateAdminNotificationEmail(params: any): string {
+  return `<html><body><h1>New Registration</h1><p>Wallet: ${params.walletAddress}</p></body></html>`;
+}
+
+interface EmailOptions {
+  to: string;
   subject: string;
   html: string;
   from?: string;
@@ -15,347 +27,268 @@ export interface SendEmailParams {
 /**
  * Send email via Resend API
  */
-export async function sendEmail(params: SendEmailParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
+export async function sendEmail(options: EmailOptions): Promise<boolean> {
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  
+  // Development mode: just log the email
+  if (!RESEND_API_KEY || process.env.NODE_ENV === 'development') {
+    logger.log('📧 [DEV MODE] Email would be sent:', {
+      to: options.to,
+      subject: options.subject,
+      from: options.from || 'BLAZE Wallet <noreply@blazewallet.io>',
+    });
+    logger.log('Email HTML length:', options.html.length, 'characters');
+    return true;
+  }
+
   try {
-    const response = await fetch(RESEND_API_URL, {
+    const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: params.from || 'BLAZE Wallet <noreply@blazewallet.io>',
-        to: params.to,
-        subject: params.subject,
-        html: params.html,
+        from: options.from || 'BLAZE Wallet <noreply@blazewallet.io>',
+        to: options.to,
+        subject: options.subject,
+        html: options.html,
       }),
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      const error = await response.text();
-      logger.error('Resend API error:', error);
-      return { success: false, error: `Failed to send email: ${error}` };
+      throw new Error(`Resend API error: ${data.message || response.statusText}`);
     }
 
-    const data = await response.json();
-    return { success: true, messageId: data.id };
-  } catch (error) {
-    logger.error('Error sending email:', error);
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    logger.log('✅ Email sent successfully via Resend:', {
+      id: data.id,
+      to: options.to,
+    });
+
+    return true;
+  } catch (error: any) {
+    logger.error('❌ Failed to send email via Resend:', error);
+    
+    // In production, you might want to:
+    // 1. Log to error monitoring service (Sentry, etc.)
+    // 2. Queue for retry
+    // 3. Send alert to ops team
+    
+    throw error;
   }
 }
 
 /**
- * Generate welcome + verification email HTML
- * NEW WALLET-CONSISTENT DESIGN - NO EMOJIS, ONLY SVG ICONS
- * Matches exact styling from BLAZE Wallet dashboard
+ * Send device verification email
  */
-export function generateWelcomeVerificationEmail(data: WalletWelcomeEmailParams): string {
-  return generateWalletStyleEmail(data);
+export async function sendDeviceVerificationEmail(
+  email: string,
+  code: string,
+  deviceInfo: {
+    deviceName: string;
+    location: string;
+    ipAddress: string;
+    browser: string;
+    os: string;
+  }
+): Promise<boolean> {
+  const formattedCode = `${code.slice(0, 3)}-${code.slice(3)}`;
+  
+  const html = getDeviceVerificationEmailHTML(formattedCode, deviceInfo);
+  
+  return sendEmail({
+    to: email,
+    subject: '🔐 Verify Your New Device - BLAZE Wallet',
+    html,
+  });
 }
 
-
 /**
- * Generate user confirmation email HTML (for Priority List)
+ * HTML template for device verification email
  */
-export function generateUserConfirmationEmail(data: {
-  walletAddress: string;
-  registeredAt: Date;
-  referralCode?: string;
-}): string {
-  const { walletAddress, registeredAt, referralCode } = data;
-  const shortAddress = `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
-  const formattedDate = registeredAt.toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-
+function getDeviceVerificationEmailHTML(
+  code: string,
+  deviceInfo: {
+    deviceName: string;
+    location: string;
+    ipAddress: string;
+    browser: string;
+    os: string;
+  }
+): string {
   return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Welcome to BLAZE Priority List</title>
+  <title>Verify Your Device - BLAZE Wallet</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f9fafb;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 24px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #f97316 0%, #eab308 100%);
+      padding: 40px 30px;
+      text-align: center;
+      color: white;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 700;
+    }
+    .content {
+      padding: 40px 30px;
+    }
+    .code-box {
+      background: linear-gradient(135deg, #f97316 0%, #eab308 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 16px;
+      text-align: center;
+      margin: 30px 0;
+    }
+    .code {
+      font-size: 48px;
+      font-weight: 700;
+      letter-spacing: 8px;
+      margin: 10px 0;
+      font-family: 'Courier New', monospace;
+    }
+    .device-info {
+      background: #f9fafb;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    .device-row {
+      display: flex;
+      padding: 8px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .device-row:last-child {
+      border-bottom: none;
+    }
+    .device-label {
+      font-weight: 600;
+      color: #6b7280;
+      min-width: 100px;
+    }
+    .device-value {
+      color: #111827;
+    }
+    .warning {
+      background: #fef3c7;
+      border: 2px solid #fbbf24;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    .warning-title {
+      font-weight: 700;
+      color: #92400e;
+      margin: 0 0 10px 0;
+    }
+    .warning-text {
+      color: #92400e;
+      margin: 0;
+    }
+    .footer {
+      text-align: center;
+      padding: 30px;
+      color: #6b7280;
+      font-size: 14px;
+    }
+    @media (max-width: 600px) {
+      .code {
+        font-size: 36px;
+        letter-spacing: 4px;
+      }
+    }
+  </style>
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f9fafb;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; padding: 40px 20px;">
-    <tr>
-      <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          
-          <!-- Header with gradient -->
-          <tr>
-            <td style="background: linear-gradient(135deg, #f97316 0%, #ef4444 100%); padding: 40px 30px; text-align: center;">
-              <div style="font-size: 48px; margin-bottom: 16px;">🔥</div>
-              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;">Welcome to BLAZE Priority List!</h1>
-            </td>
-          </tr>
-
-          <!-- Content -->
-          <tr>
-            <td style="padding: 40px 30px;">
-              <h2 style="margin: 0 0 20px 0; color: #111827; font-size: 24px; font-weight: bold;">You're In! 🎉</h2>
-              
-              <p style="margin: 0 0 20px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                Congratulations! You've successfully registered for the BLAZE Token Presale Priority List.
-              </p>
-
-              <!-- Info Box -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px; margin: 24px 0;">
-                <tr>
-                  <td style="padding: 20px;">
-                    <p style="margin: 0 0 12px 0; color: #92400e; font-size: 14px; font-weight: bold;">Your Priority List Benefits:</p>
-                    <ul style="margin: 0; padding-left: 20px; color: #92400e; font-size: 14px; line-height: 1.8;">
-                      <li>1 week exclusive early access to the presale</li>
-                      <li>Guaranteed allocation (first come, first served)</li>
-                      <li>2.4x gain potential at launch ($0.008333 → $0.02)</li>
-                      <li>Referral rewards program</li>
-                    </ul>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Registration Details -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border-radius: 12px; margin: 24px 0;">
-                <tr>
-                  <td style="padding: 24px;">
-                    <h3 style="margin: 0 0 16px 0; color: #111827; font-size: 18px; font-weight: bold;">Registration Details</h3>
-                    
-                    <table width="100%" cellpadding="8" cellspacing="0">
-                      <tr>
-                        <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Wallet Address:</td>
-                        <td style="color: #111827; font-size: 14px; font-weight: 600; text-align: right; padding: 8px 0;">${shortAddress}</td>
-                      </tr>
-                      <tr>
-                        <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Registered:</td>
-                        <td style="color: #111827; font-size: 14px; font-weight: 600; text-align: right; padding: 8px 0;">${formattedDate}</td>
-                      </tr>
-                      ${referralCode ? `
-                      <tr>
-                        <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Your Referral Code:</td>
-                        <td style="color: #f97316; font-size: 14px; font-weight: 600; text-align: right; padding: 8px 0;">${referralCode}</td>
-                      </tr>
-                      ` : ''}
-                    </table>
-                  </td>
-                </tr>
-              </table>
-
-              ${referralCode ? `
-              <!-- Referral Box -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%); border-radius: 12px; margin: 24px 0;">
-                <tr>
-                  <td style="padding: 24px; text-align: center;">
-                    <div style="font-size: 32px; margin-bottom: 12px;">🎁</div>
-                    <h3 style="margin: 0 0 12px 0; color: #92400e; font-size: 18px; font-weight: bold;">Share & Earn Rewards</h3>
-                    <p style="margin: 0 0 16px 0; color: #92400e; font-size: 14px;">
-                      Share your referral code with friends and earn rewards when they join!
-                    </p>
-                    <div style="background-color: #ffffff; padding: 12px 24px; border-radius: 8px; display: inline-block;">
-                      <code style="color: #f97316; font-size: 20px; font-weight: bold; letter-spacing: 1px;">${referralCode}</code>
-                    </div>
-                  </td>
-                </tr>
-              </table>
-              ` : ''}
-
-              <!-- Timeline -->
-              <h3 style="margin: 32px 0 20px 0; color: #111827; font-size: 18px; font-weight: bold;">What's Next?</h3>
-              
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td style="padding: 12px 0; border-left: 3px solid #f97316; padding-left: 16px;">
-                    <div style="color: #f97316; font-size: 14px; font-weight: bold; margin-bottom: 4px;">October 30, 2025</div>
-                    <div style="color: #4b5563; font-size: 14px;">Presale opens exclusively for Priority List members</div>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding: 12px 0; border-left: 3px solid #10b981; padding-left: 16px;">
-                    <div style="color: #10b981; font-size: 14px; font-weight: bold; margin-bottom: 4px;">November 1, 2025</div>
-                    <div style="color: #4b5563; font-size: 14px;">Presale opens to the public</div>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- CTA Button -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin: 32px 0;">
-                <tr>
-                  <td align="center">
-                    <a href="https://my.blazewallet.io" style="display: inline-block; background: linear-gradient(135deg, #f97316 0%, #ef4444 100%); color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: bold; font-size: 16px;">
-                      Open BLAZE Wallet
-                    </a>
-                  </td>
-                </tr>
-              </table>
-
-              <p style="margin: 24px 0 0 0; color: #6b7280; font-size: 14px; line-height: 1.6;">
-                We'll send you another email when the presale goes live. Keep an eye on your inbox!
-              </p>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="background-color: #f9fafb; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
-              <p style="margin: 0 0 8px 0; color: #6b7280; font-size: 14px;">
-                <strong style="color: #111827;">BLAZE Wallet</strong> - The Future of Crypto Payments
-              </p>
-              <p style="margin: 0 0 16px 0; color: #9ca3af; font-size: 12px;">
-                This email was sent to confirm your Priority List registration.
-              </p>
-              <p style="margin: 0; color: #9ca3af; font-size: 12px;">
-                <a href="https://blazewallet.io" style="color: #f97316; text-decoration: none;">Visit Website</a> •
-                <a href="https://twitter.com/blazewallet" style="color: #f97316; text-decoration: none;">Twitter</a> •
-                <a href="https://t.me/blazewallet" style="color: #f97316; text-decoration: none;">Telegram</a>
-              </p>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="header">
+        <h1>🔐 Verify Your Device</h1>
+      </div>
+      
+      <div class="content">
+        <p style="font-size: 16px; color: #374151; line-height: 1.6;">
+          We detected a login attempt from a new device. To keep your wallet secure, please verify this device with the code below:
+        </p>
+        
+        <div class="code-box">
+          <div style="font-size: 14px; opacity: 0.9; margin-bottom: 5px;">Your Verification Code</div>
+          <div class="code">${code}</div>
+          <div style="font-size: 14px; opacity: 0.9; margin-top: 5px;">Valid for 15 minutes</div>
+        </div>
+        
+        <p style="font-size: 16px; color: #374151; line-height: 1.6;">
+          After entering this code, you'll be asked to provide your 2FA code from your authenticator app.
+        </p>
+        
+        <div class="device-info">
+          <div style="font-weight: 700; color: #111827; margin-bottom: 12px;">📱 Device Details</div>
+          <div class="device-row">
+            <div class="device-label">Device:</div>
+            <div class="device-value">${deviceInfo.deviceName}</div>
+          </div>
+          <div class="device-row">
+            <div class="device-label">Browser:</div>
+            <div class="device-value">${deviceInfo.browser}</div>
+          </div>
+          <div class="device-row">
+            <div class="device-label">OS:</div>
+            <div class="device-value">${deviceInfo.os}</div>
+          </div>
+          <div class="device-row">
+            <div class="device-label">Location:</div>
+            <div class="device-value">${deviceInfo.location}</div>
+          </div>
+          <div class="device-row">
+            <div class="device-label">IP Address:</div>
+            <div class="device-value">${deviceInfo.ipAddress}</div>
+          </div>
+        </div>
+        
+        <div class="warning">
+          <div class="warning-title">⚠️ Didn't try to log in?</div>
+          <p class="warning-text">
+            If you didn't attempt to access your wallet from this device, someone may be trying to access your account. Please change your password immediately and enable additional security measures.
+          </p>
+        </div>
+      </div>
+      
+      <div class="footer">
+        <p style="margin: 0 0 10px 0;">
+          This is an automated security email from BLAZE Wallet.
+        </p>
+        <p style="margin: 0;">
+          © ${new Date().getFullYear()} BLAZE Wallet. All rights reserved.
+        </p>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
   `;
 }
-
-/**
- * Generate admin notification email HTML
- */
-export function generateAdminNotificationEmail(data: {
-  walletAddress: string;
-  email?: string;
-  telegram?: string;
-  twitter?: string;
-  registeredAt: Date;
-  referralCode?: string;
-  referredBy?: string;
-}): string {
-  const { walletAddress, email, telegram, twitter, registeredAt, referralCode, referredBy } = data;
-  const formattedDate = registeredAt.toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZoneName: 'short'
-  });
-
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>New Priority List Registration</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f9fafb;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; padding: 40px 20px;">
-    <tr>
-      <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-          
-          <!-- Header -->
-          <tr>
-            <td style="background-color: #111827; padding: 30px; text-align: center;">
-              <div style="font-size: 36px; margin-bottom: 12px;">🔥</div>
-              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: bold;">New Priority List Registration</h1>
-            </td>
-          </tr>
-
-          <!-- Content -->
-          <tr>
-            <td style="padding: 40px 30px;">
-              <p style="margin: 0 0 24px 0; color: #4b5563; font-size: 16px;">
-                A new user has registered for the BLAZE Priority List!
-              </p>
-
-              <!-- User Details -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border-radius: 12px; margin: 24px 0;">
-                <tr>
-                  <td style="padding: 24px;">
-                    <h3 style="margin: 0 0 16px 0; color: #111827; font-size: 18px; font-weight: bold;">Registration Details</h3>
-                    
-                    <table width="100%" cellpadding="8" cellspacing="0">
-                      <tr>
-                        <td style="color: #6b7280; font-size: 14px; padding: 8px 0; width: 40%;">Wallet Address:</td>
-                        <td style="color: #111827; font-size: 14px; font-weight: 600; padding: 8px 0;"><code>${walletAddress}</code></td>
-                      </tr>
-                      ${email ? `
-                      <tr>
-                        <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Email:</td>
-                        <td style="color: #111827; font-size: 14px; font-weight: 600; padding: 8px 0;">${email}</td>
-                      </tr>
-                      ` : ''}
-                      ${telegram ? `
-                      <tr>
-                        <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Telegram:</td>
-                        <td style="color: #111827; font-size: 14px; font-weight: 600; padding: 8px 0;">${telegram}</td>
-                      </tr>
-                      ` : ''}
-                      ${twitter ? `
-                      <tr>
-                        <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Twitter:</td>
-                        <td style="color: #111827; font-size: 14px; font-weight: 600; padding: 8px 0;">${twitter}</td>
-                      </tr>
-                      ` : ''}
-                      <tr>
-                        <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Registered At:</td>
-                        <td style="color: #111827; font-size: 14px; font-weight: 600; padding: 8px 0;">${formattedDate}</td>
-                      </tr>
-                      ${referralCode ? `
-                      <tr>
-                        <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Referral Code:</td>
-                        <td style="color: #f97316; font-size: 14px; font-weight: 600; padding: 8px 0;">${referralCode}</td>
-                      </tr>
-                      ` : ''}
-                      ${referredBy ? `
-                      <tr>
-                        <td style="color: #6b7280; font-size: 14px; padding: 8px 0;">Referred By:</td>
-                        <td style="color: #10b981; font-size: 14px; font-weight: 600; padding: 8px 0;"><code>${referredBy}</code></td>
-                      </tr>
-                      ` : ''}
-                    </table>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Action Required -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #dbeafe; border-left: 4px solid #3b82f6; border-radius: 8px; margin: 24px 0;">
-                <tr>
-                  <td style="padding: 20px;">
-                    <p style="margin: 0; color: #1e40af; font-size: 14px; line-height: 1.6;">
-                      <strong>Next Steps:</strong><br>
-                      • Verify the registration in your admin dashboard<br>
-                      • Check wallet address validity<br>
-                      • Monitor for presale participation
-                    </p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td style="background-color: #f9fafb; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
-              <p style="margin: 0; color: #9ca3af; font-size: 12px;">
-                This is an automated notification from BLAZE Wallet Priority List System
-              </p>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>
-  `;
-}
-

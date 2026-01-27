@@ -20,6 +20,7 @@ import { useWalletStore } from '@/lib/wallet-store';
 import { CHAINS } from '@/lib/chains';
 import { getLiFiChainId, isSolanaChainId } from '@/lib/lifi-chain-ids';
 import { LiFiService, LiFiToken, LiFiQuote } from '@/lib/lifi-service';
+import { isLiFiSupported } from '@/lib/popular-tokens';
 import { logger } from '@/lib/logger';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { apiPost } from '@/lib/api-client';
@@ -794,10 +795,21 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                             className="absolute z-20 w-48 sm:w-56 mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-[300px] overflow-y-auto"
                           >
                             {Object.keys(CHAINS)
-                              .filter(c => 
-                                !CHAINS[c].isTestnet && 
-                                ['ethereum', 'polygon', 'arbitrum', 'base', 'bsc', 'optimism', 'avalanche', 'cronos', 'zksync', 'linea'].includes(c)
-                              )
+                              .filter(c => {
+                                const chain = CHAINS[c];
+                                // ✅ FIX: Include ALL supported chains (EVM + Solana)
+                                // Exclude UTXO chains (Bitcoin, Litecoin, Dogecoin, Bitcoin Cash) as Li.Fi doesn't support them
+                                // Exclude testnets
+                                return !chain.isTestnet && 
+                                       chain.chainType !== 'UTXO' &&
+                                       isLiFiSupported(c);
+                              })
+                              .sort((a, b) => {
+                                // Sort: Solana first, then EVM chains alphabetically
+                                if (a === 'solana') return -1;
+                                if (b === 'solana') return 1;
+                                return CHAINS[a].name.localeCompare(CHAINS[b].name);
+                              })
                               .map((chainKey) => {
                                 const chain = CHAINS[chainKey];
                                 return (
@@ -930,10 +942,21 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                             className="absolute z-20 w-48 sm:w-56 mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-[300px] overflow-y-auto"
                           >
                             {Object.keys(CHAINS)
-                              .filter(c => 
-                                !CHAINS[c].isTestnet && 
-                                ['ethereum', 'polygon', 'arbitrum', 'base', 'bsc', 'optimism', 'avalanche', 'cronos', 'zksync', 'linea'].includes(c)
-                              )
+                              .filter(c => {
+                                const chain = CHAINS[c];
+                                // ✅ FIX: Include ALL supported chains (EVM + Solana)
+                                // Exclude UTXO chains (Bitcoin, Litecoin, Dogecoin, Bitcoin Cash) as Li.Fi doesn't support them
+                                // Exclude testnets
+                                return !chain.isTestnet && 
+                                       chain.chainType !== 'UTXO' &&
+                                       isLiFiSupported(c);
+                              })
+                              .sort((a, b) => {
+                                // Sort: Solana first, then EVM chains alphabetically
+                                if (a === 'solana') return -1;
+                                if (b === 'solana') return 1;
+                                return CHAINS[a].name.localeCompare(CHAINS[b].name);
+                              })
                               .map((chainKey) => {
                                 const chain = CHAINS[chainKey];
                                 return (

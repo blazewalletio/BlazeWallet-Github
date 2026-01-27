@@ -231,13 +231,16 @@ export default function TokenSearchModal({
             
             const metadata = metadataMap.get(chainKey === 'solana' ? wt.address : wt.address.toLowerCase());
             
+            // ✅ FIX: Only use logoURI if it's a valid token logo (not chain logo)
+            const validLogoURI = metadata?.logo_uri && metadata.logo_uri.trim() !== '' ? metadata.logo_uri : undefined;
+            
             walletTokensList.push({
               address: chainKey === 'solana' ? wt.address : wt.address.toLowerCase(),
               symbol: wt.symbol || metadata?.symbol || 'UNKNOWN',
               name: wt.name || metadata?.name || 'Unknown Token',
               decimals: wt.decimals || metadata?.decimals || (chainKey === 'ethereum' ? 18 : 9),
               chainId: chainId,
-              logoURI: wt.logo || metadata?.logo_uri || '',
+              logoURI: validLogoURI,
               priceUSD: metadata?.price_usd?.toString() || '0',
             });
           });

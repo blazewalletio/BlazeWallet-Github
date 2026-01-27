@@ -24,6 +24,7 @@ import AnimatedNumber from '../AnimatedNumber';
 import { logger } from '@/lib/logger';
 import { calculateWeightedPortfolioChange } from '@/lib/portfolio-change-calculator';
 import { getCurrencyLogo } from '@/lib/currency-logo-service';
+import { TokenLogo } from '../TokenLogo';
 
 export default function WalletTab() {
   const { 
@@ -338,7 +339,7 @@ export default function WalletTab() {
                 try {
                   console.log(`\n   🔍 Fetching logo for ${token.symbol}...`);
                   console.log(`      Address: ${token.address}`);
-                  const logo = await getCurrencyLogo(token.symbol, token.address);
+                  const logo = await getCurrencyLogo(token.symbol, token.address, currentChain);
                   console.log(`      Result: ${logo}`);
                   
                   if (logo && logo !== '/crypto-eth.png' && logo !== '/crypto-placeholder.png') {
@@ -709,45 +710,13 @@ export default function WalletTab() {
               >
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-slate-700 to-slate-600 rounded-full flex items-center justify-center text-xl overflow-hidden">
-                    {(() => {
-                      const logoUrl = token.logo;
-                      
-                      console.log(`🖼️ [WalletTab Render] Token ${token.symbol} logo:`, logoUrl);
-                      
-                      // Check if logo is valid URL
-                      if (logoUrl && 
-                          (logoUrl.startsWith('http') || 
-                           logoUrl.startsWith('/') || 
-                           logoUrl.startsWith('data:')) &&
-                          logoUrl !== '/crypto-placeholder.png' &&
-                          logoUrl !== '/crypto-eth.png') {
-                        console.log(`✅ [WalletTab Render] Rendering <img> for ${token.symbol} with logo:`, logoUrl);
-                        return (
-                          <img 
-                            src={logoUrl} 
-                            alt={token.symbol}
-                            className="w-full h-full object-cover"
-                            onLoad={() => {
-                              console.log(`✅ [WalletTab Render] Logo loaded successfully for ${token.symbol}:`, logoUrl);
-                            }}
-                            onError={(e) => {
-                              console.error(`❌ [WalletTab Render] Failed to load logo for ${token.symbol}:`, logoUrl);
-                              // Fallback to symbol initial if image fails
-                              e.currentTarget.style.display = 'none';
-                              const parent = e.currentTarget.parentElement;
-                              if (parent) {
-                                parent.textContent = token.symbol[0];
-                                parent.className = 'w-12 h-12 bg-gradient-to-br from-slate-700 to-slate-600 rounded-full flex items-center justify-center text-xl';
-                              }
-                            }}
-                          />
-                        );
-                      }
-                      
-                      console.log(`⚠️ [WalletTab Render] Using fallback initial for ${token.symbol} (logo: ${logoUrl})`);
-                      // Fallback to symbol initial
-                      return <span className="text-white font-bold">{token.symbol[0]}</span>;
-                    })()}
+                    <TokenLogo
+                      symbol={token.symbol}
+                      address={token.address || '0x0'}
+                      chainKey={currentChain}
+                      logoURI={token.logo}
+                      size="lg"
+                    />
                   </div>
                   <div>
                     <div className="font-semibold">{token.name}</div>
