@@ -19,7 +19,9 @@ const supabaseAdmin = createClient(
 // Generate 2FA secret and QR code
 export async function POST(request: NextRequest) {
   try {
-    const { userId, email, action } = await request.json();
+    // ✅ FIX: Read request body ONCE at the start
+    const body = await request.json();
+    const { userId, email, action, token } = body;
 
     if (!userId || !email) {
       return NextResponse.json(
@@ -68,7 +70,7 @@ export async function POST(request: NextRequest) {
     }
     
     if (action === 'verify') {
-      const { token } = await request.json();
+      // ✅ FIX: Use token from body parsed at the start
       
       if (!token) {
         return NextResponse.json(
@@ -154,7 +156,7 @@ export async function POST(request: NextRequest) {
     }
     
     if (action === 'disable') {
-      const { token } = await request.json();
+      // ✅ FIX: Use token from body parsed at the start
       
       if (!token) {
         return NextResponse.json(
