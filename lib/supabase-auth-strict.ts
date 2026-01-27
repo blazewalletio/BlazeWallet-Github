@@ -8,15 +8,72 @@ import { supabase } from './supabase';
 import { generateEnhancedFingerprint, EnhancedDeviceInfo } from './device-fingerprint-pro';
 import { logger } from './logger';
 
-// Helper to decrypt mnemonic - uses decryptWallet from crypto-utils
+// Helper to decrypt mnemonic - supports BOTH old (WebCrypto) and new (crypto-utils) formats
 async function decryptMnemonic(encryptedData: string, password: string): Promise<string> {
   try {
+    // Try to parse as JSON (new format with {encryptedData, salt, iv})
     const encryptedWallet = JSON.parse(encryptedData);
     const { decryptWallet } = await import('./crypto-utils');
     return decryptWallet(encryptedWallet, password);
-  } catch (error) {
-    logger.error('Failed to decrypt mnemonic:', error);
-    throw new Error('Failed to decrypt wallet');
+  } catch (jsonError) {
+    // Not JSON - must be old format (plain base64 WebCrypto)
+    // Use the same decryption as supabase-auth.ts
+    try {
+      const encoder = new TextEncoder();
+      const decoder = new TextDecoder();
+      
+      // Decode base64
+      const combined = Uint8Array.from(atob(encryptedData), c => c.charCodeAt(0));
+      
+      // Extract salt, iv, and encrypted data
+      const salt = combined.slice(0, 16);
+      const iv = combined.slice(16, 28);
+      const encrypted = combined.slice(28);
+      
+      // Derive key from password
+      const passwordKey = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(password),
+        'PBKDF2',
+        false,
+        ['deriveBits', 'deriveKey']
+      );
+      
+      const key = await crypto.subtle.deriveKey(
+        {
+          name: 'PBKDF2',
+          salt: salt,
+          iterations: 100000,
+          hash: 'SHA-256'
+        },
+        passwordKey,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['decrypt']
+      );
+      
+      // Decrypt
+      const decrypted = await crypto.subtle.decrypt(
+        {
+          name: 'AES-GCM',
+          iv: iv
+        },
+        key,
+        encrypted
+      );
+      
+      const mnemonic = decoder.decode(decrypted);
+      
+      if (!mnemonic) {
+        throw new Error('Decryption resulted in empty mnemonic');
+      }
+      
+      logger.log('✅ Decrypted using legacy WebCrypto format');
+      return mnemonic;
+    } catch (decryptError) {
+      logger.error('Failed to decrypt mnemonic:', decryptError);
+      throw new Error('Failed to decrypt wallet');
+    }
   }
 }
 
