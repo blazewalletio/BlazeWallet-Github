@@ -13,16 +13,18 @@ interface TwoFactorModalProps {
   onSuccess: () => void;
 }
 
-type Step = 'info' | 'setup' | 'verify' | 'disable';
+type Step = 'info' | 'setup' | 'verify' | 'backup_codes' | 'disable';
 
 export default function TwoFactorModal({ isOpen, onClose, isEnabled, onSuccess }: TwoFactorModalProps) {
   const [step, setStep] = useState<Step>(isEnabled ? 'disable' : 'info');
   const [qrCode, setQrCode] = useState('');
   const [secret, setSecret] = useState('');
+  const [backupCodes, setBackupCodes] = useState<string[]>([]);
   const [verificationCode, setVerificationCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [copiedSecret, setCopiedSecret] = useState(false);
+  const [copiedBackupCodes, setCopiedBackupCodes] = useState(false);
 
   const handleSetup = async () => {
     setIsLoading(true);
@@ -89,11 +91,18 @@ export default function TwoFactorModal({ isOpen, onClose, isEnabled, onSuccess }
         throw new Error(data.error || 'Invalid verification code');
       }
 
-      setStep('verify');
-      setTimeout(() => {
-        onSuccess();
-        onClose();
-      }, 2000);
+      // Store backup codes
+      if (data.backupCodes) {
+        setBackupCodes(data.backupCodes);
+        setStep('backup_codes');
+      } else {
+        // Old flow without backup codes
+        setStep('verify');
+        setTimeout(() => {
+          onSuccess();
+          onClose();
+        }, 2000);
+      }
     } catch (err: any) {
       logger.error('2FA verification error:', err);
       setError(err.message || 'Invalid verification code');
@@ -359,6 +368,70 @@ export default function TwoFactorModal({ isOpen, onClose, isEnabled, onSuccess }
                     )}
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* BACKUP CODES STEP */}
+            {step === 'backup_codes' && (
+              <div className="space-y-4">
+                <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-orange-600 mt-0.5" />
+                    <div>
+                      <h3 className="font-semibold text-orange-900 mb-1">Save Your Backup Codes</h3>
+                      <p className="text-sm text-orange-800">
+                        These codes can be used to access your account if you lose your authenticator app. 
+                        Each code can only be used once. Store them securely!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 rounded-xl p-4 font-mono text-sm">
+                  <div className="grid grid-cols-2 gap-2">
+                    {backupCodes.map((code, index) => (
+                      <div key={index} className="bg-white px-3 py-2 rounded border border-gray-200 text-center">
+                        {code}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const codesText = backupCodes.join('\n');
+                    navigator.clipboard.writeText(codesText);
+                    setCopiedBackupCodes(true);
+                    setTimeout(() => setCopiedBackupCodes(false), 2000);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-xl transition-colors"
+                >
+                  {copiedBackupCodes ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" />
+                      Copy All Codes
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => {
+                    onSuccess();
+                    onClose();
+                  }}
+                  className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 text-white rounded-xl font-semibold hover:from-orange-600 hover:to-yellow-600 transition-all"
+                >
+                  I've Saved My Backup Codes
+                </button>
+
+                <p className="text-xs text-center text-gray-500">
+                  ⚠️ You won't be able to see these codes again. Make sure to save them!
+                </p>
               </div>
             )}
 

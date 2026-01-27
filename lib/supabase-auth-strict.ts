@@ -330,16 +330,21 @@ export async function verifyDeviceAndSignIn(
     
     logger.log('✅ [StrictAuth] Verification code valid');
     
-    // 2. Verify 2FA code (placeholder - implement with actual 2FA service)
-    // TODO: Implement actual 2FA verification
-    if (twoFactorCode.length !== 6) {
-      return {
-        success: false,
-        error: 'Invalid 2FA code format',
-      };
+    // 2. Verify 2FA code if provided
+    if (twoFactorCode) {
+      const { verify2FACode } = await import('./2fa-service');
+      const result = await verify2FACode(device.user_id, twoFactorCode);
+      
+      if (!result.success) {
+        logger.error('❌ [StrictAuth] 2FA verification failed:', result.error);
+        return {
+          success: false,
+          error: result.error || 'Invalid 2FA code',
+        };
+      }
+      
+      logger.log('✅ [StrictAuth] 2FA verified successfully');
     }
-    
-    logger.log('✅ [StrictAuth] 2FA verified (placeholder)');
     
     // 3. Mark device as verified
     const { error: updateError } = await supabase

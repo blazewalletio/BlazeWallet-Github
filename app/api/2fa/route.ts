@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { authenticator } from 'otplib';
 import QRCode from 'qrcode';
 import { logger } from '@/lib/logger';
+import { generateBackupCodes, hashBackupCodes } from '@/lib/2fa-service';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
@@ -117,12 +118,27 @@ export async function POST(request: NextRequest) {
         );
       }
       
+      // Generate backup codes
+      const backupCodes = generateBackupCodes(10);
+      const hashedCodes = hashBackupCodes(backupCodes);
+      
+      // Store hashed backup codes
+      const { error: backupError } = await supabaseAdmin
+        .from('user_profiles')
+        .update({ two_factor_backup_codes: hashedCodes })
+        .eq('user_id', userId);
+      
+      if (backupError) {
+        logger.error('Failed to store backup codes:', backupError);
+        // Don't fail the whole operation if backup codes fail
+      }
+      
       // Log activity
       await supabaseAdmin.rpc('log_user_activity', {
         p_user_id: userId,
         p_activity_type: 'security_alert',
         p_description: 'Two-factor authentication enabled',
-        p_metadata: JSON.stringify({ method: 'authenticator' })
+        p_metadata: JSON.stringify({ method: 'authenticator', backup_codes_generated: backupCodes.length })
       });
       
       // Recalculate security score
@@ -132,7 +148,8 @@ export async function POST(request: NextRequest) {
       
       return NextResponse.json({
         success: true,
-        message: '2FA enabled successfully'
+        message: '2FA enabled successfully',
+        backupCodes, // Return plaintext codes ONCE for user to save
       });
     }
     
