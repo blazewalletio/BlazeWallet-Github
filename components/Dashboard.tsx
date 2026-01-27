@@ -2115,7 +2115,8 @@ export default function Dashboard() {
                         if (
                           logoUrl.startsWith('http') ||
                           logoUrl.startsWith('/') || // ✅ Support local files (e.g. /crypto-wif.png)
-                          logoUrl.startsWith('data:')
+                          logoUrl.startsWith('data:') ||
+                          logoUrl.startsWith('blob:') // ✅ Support blob URLs from IndexedDB cache
                         ) {
                           return (
                             <img 
@@ -2137,7 +2138,7 @@ export default function Dashboard() {
                         }
                         
                         // Invalid logo format - use symbol initial
-                        logger.log(`⚠️ [Dashboard] Invalid logo format for ${token.symbol}:`, logoUrl);
+                        logger.warn(`⚠️ [Dashboard] Invalid logo format for ${token.symbol}:`, logoUrl);
                         return <span className="text-gray-600 font-bold">{token.symbol[0]}</span>;
                       })()}
                     </div>
