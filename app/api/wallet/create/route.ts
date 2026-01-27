@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       .from('wallets')
       .insert({
         user_id: userId,
-        encrypted_mnemonic: encryptedMnemonic,
+        encrypted_wallet: encryptedMnemonic,
         created_at: new Date().toISOString(),
       })
       .select()

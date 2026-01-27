@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       .from('wallets')
       .upsert({
         user_id: userId,
-        encrypted_mnemonic: encryptedMnemonic,
+        encrypted_wallet: encryptedMnemonic,
         updated_at: new Date().toISOString(),
       }, {
         onConflict: 'user_id'

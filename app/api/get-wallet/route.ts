@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     // Fetch wallet with detailed error logging (using admin client)
     const { data: wallet, error: walletError } = await supabaseAdmin
       .from('wallets')
-      .select('encrypted_mnemonic')
+      .select('encrypted_wallet')
       .eq('user_id', userId)
       .single();
     
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({
       success: true,
-      encrypted_mnemonic: wallet.encrypted_mnemonic,
+      encrypted_mnemonic: wallet.encrypted_wallet,
     });
     
   } catch (error: any) {
