@@ -113,7 +113,43 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      // Validate code
+      logger.log('🔍 [DEBUG] Validating code:', {
+        deviceToken: deviceToken?.substring(0, 16) + '...',
+        verificationCode,
+      });
+      
+      // First, check if device exists with this token
+      const { data: deviceByToken, error: tokenError } = await supabaseAdmin
+        .from('trusted_devices')
+        .select('*')
+        .eq('verification_token', deviceToken)
+        .maybeSingle();
+      
+      if (tokenError) {
+        logger.error('❌ Database error checking device:', tokenError);
+        return NextResponse.json(
+          { error: 'Database error' },
+          { status: 500 }
+        );
+      }
+      
+      if (!deviceByToken) {
+        logger.warn('❌ No device found with this token');
+        return NextResponse.json(
+          { error: 'Invalid device token' },
+          { status: 401 }
+        );
+      }
+      
+      logger.log('✅ [DEBUG] Device found:', {
+        id: deviceByToken.id,
+        stored_code: deviceByToken.verification_code,
+        input_code: verificationCode,
+        codes_match: deviceByToken.verification_code === verificationCode,
+        expires_at: deviceByToken.verification_expires_at,
+      });
+      
+      // Now validate the code
       const { data: device, error } = await supabaseAdmin
         .from('trusted_devices')
         .select('*')
@@ -122,7 +158,9 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
       
       if (error || !device) {
-        logger.warn('❌ Invalid verification code attempt');
+        logger.warn('❌ Invalid verification code attempt - code mismatch');
+        logger.warn('Expected code in DB:', deviceByToken.verification_code);
+        logger.warn('Received code:', verificationCode);
         return NextResponse.json(
           { error: 'Invalid verification code' },
           { status: 401 }
