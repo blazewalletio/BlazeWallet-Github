@@ -150,7 +150,25 @@ export default function DeviceVerificationModal({
       } else {
         logger.log('✅ No 2FA required, completing verification');
         // No 2FA - complete verification immediately
-        onSuccess();
+        const { verifyDeviceAndSignIn } = await import('@/lib/supabase-auth-strict');
+        
+        const result = await verifyDeviceAndSignIn(
+          deviceToken,
+          code,
+          '', // Empty 2FA code (no 2FA enabled)
+          email,
+          password
+        );
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Verification failed');
+        }
+        
+        if (result.mnemonic) {
+          onSuccess(result.mnemonic);
+        } else {
+          throw new Error('Failed to decrypt wallet');
+        }
       }
       
     } catch (error: any) {
