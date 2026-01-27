@@ -378,9 +378,9 @@ export default function TwoFactorModal({ isOpen, onClose, isEnabled, onSuccess }
                   <div className="flex items-start gap-3">
                     <AlertTriangle className="w-5 h-5 text-orange-600 mt-0.5" />
                     <div>
-                      <h3 className="font-semibold text-orange-900 mb-1">Save Your Backup Codes</h3>
+                      <h3 className="font-semibold text-orange-900 mb-1">Save Your 8 Backup Codes</h3>
                       <p className="text-sm text-orange-800">
-                        These codes can be used to access your account if you lose your authenticator app. 
+                        These 8 codes can be used to access your account if you lose your authenticator app. 
                         Each code can only be used once. Store them securely!
                       </p>
                     </div>

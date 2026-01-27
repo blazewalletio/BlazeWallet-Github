@@ -197,10 +197,10 @@ export async function verifyBackupCode(
 
 /**
  * Generate backup codes for 2FA recovery
- * @param count Number of codes to generate (default 10)
+ * @param count Number of codes to generate (default 8 - optimized for crypto wallets)
  * @returns Array of backup codes (not hashed)
  */
-export function generateBackupCodes(count: number = 10): string[] {
+export function generateBackupCodes(count: number = 8): string[] {
   const codes: string[] = [];
 
   for (let i = 0; i < count; i++) {

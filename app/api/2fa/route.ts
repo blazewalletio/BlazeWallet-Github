@@ -118,8 +118,8 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      // Generate backup codes
-      const backupCodes = generateBackupCodes(10);
+      // Generate backup codes (8 codes - optimal for crypto wallet)
+      const backupCodes = generateBackupCodes(8);
       const hashedCodes = hashBackupCodes(backupCodes);
       
       // Store hashed backup codes
