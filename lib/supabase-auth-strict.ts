@@ -123,19 +123,21 @@ export async function strictSignInWithEmail(
         })
         .eq('id', existingDevice.id);
       
-      // Fetch and decrypt wallet
-      const { data: wallet } = await supabase
-        .from('wallets')
-        .select('encrypted_mnemonic')
-        .eq('user_id', data.user.id)
-        .single();
+      // Fetch and decrypt wallet (via secure server endpoint)
+      const walletResponse = await fetch('/api/get-wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: data.user.id }),
+      });
       
-      if (!wallet) {
+      const walletData = await walletResponse.json();
+      
+      if (!walletData.success || !walletData.encrypted_mnemonic) {
         throw new Error('Wallet not found');
       }
       
       const decryptedMnemonic = await decryptMnemonic(
-        wallet.encrypted_mnemonic,
+        walletData.encrypted_mnemonic,
         password
       );
       
