@@ -124,9 +124,16 @@ export async function strictSignInWithEmail(
         .eq('id', existingDevice.id);
       
       // Fetch and decrypt wallet (via secure server endpoint)
+      // Get CSRF token first
+      const csrfResponse = await fetch('/api/csrf-token');
+      const { token: csrfToken } = await csrfResponse.json();
+      
       const walletResponse = await fetch('/api/get-wallet', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
         body: JSON.stringify({ userId: data.user.id }),
       });
       
@@ -397,9 +404,16 @@ export async function verifyDeviceAndSignIn(
     
     // 6. Decrypt wallet (using server-side endpoint to bypass RLS issues)
     try {
+      // Get CSRF token first
+      const csrfResponse = await fetch('/api/csrf-token');
+      const { token: csrfToken } = await csrfResponse.json();
+      
       const walletResponse = await fetch('/api/get-wallet', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
         body: JSON.stringify({ userId: authData.user.id }),
       });
       
