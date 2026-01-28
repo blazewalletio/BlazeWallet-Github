@@ -233,16 +233,18 @@ EXECUTE FUNCTION update_updated_at_column();
 -- =====================================================
 -- INSERT INITIAL ADMIN USER (YOU!)
 -- =====================================================
--- Note: Password will be set via API endpoint with proper bcrypt hashing
--- This is just a placeholder that requires password setup on first use
+-- Email: info@blazewallet.io
+-- Password: Ab49n805!
+-- This account is immediately active and ready to use
 
-INSERT INTO public.admin_users (email, password_hash, role, is_active, must_change_password)
+INSERT INTO public.admin_users (email, password_hash, role, is_active, totp_enabled, must_change_password)
 VALUES (
-    'ricks_@live.nl',
-    '$2b$10$placeholder.this.will.be.replaced.on.first.login',
+    'info@blazewallet.io',
+    '$2b$10$Ug5FGf8yprLZnuxQRPMeOu/ygQRhjYbaZgE4NroGtVeSRCv/COyGe',
     'super_admin',
     true,
-    true
+    false,
+    false
 )
 ON CONFLICT (email) DO NOTHING;
 
@@ -260,8 +262,8 @@ GRANT ALL ON public.admin_audit_log TO service_role;
 DO $$
 BEGIN
     RAISE NOTICE '✅ Admin authentication system created successfully!';
-    RAISE NOTICE '📧 Initial admin: ricks_@live.nl';
-    RAISE NOTICE '🔐 Password must be set on first login';
-    RAISE NOTICE '🔒 2FA will be enforced after setup';
+    RAISE NOTICE '📧 Admin email: info@blazewallet.io';
+    RAISE NOTICE '🔑 Password: Ab49n805!';
+    RAISE NOTICE '🔒 2FA will be enforced on first login';
 END $$;
 
