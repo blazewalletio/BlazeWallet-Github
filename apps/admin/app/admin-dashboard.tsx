@@ -73,8 +73,8 @@ export default function AdminDashboard() {
     const sessionToken = localStorage.getItem('admin_session');
     if (!sessionToken) {
       router.push('/login');
-      return;
-    }
+        return;
+      }
 
     try {
       const response = await fetch('/api/admin-auth/verify', {

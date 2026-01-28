@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
-import * as OTPAuth from 'otplib';
+import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
 import { nanoid } from 'nanoid';
-
-// Get authenticator from otplib
-const authenticator = OTPAuth.authenticator;
 
 // Admin Supabase client with service role (bypasses RLS)
 const supabaseAdmin = createClient(
@@ -276,9 +273,11 @@ async function handleVerify2FA(request: NextRequest, data: any) {
   const adminUser = (tempSession as any).admin_users;
 
   // Verify TOTP code
-  const isValid = authenticator.verify({
-    token: code,
+  const isValid = speakeasy.totp.verify({
     secret: adminUser.totp_secret,
+    encoding: 'base32',
+    token: code,
+    window: 2,
   });
 
   if (!isValid) {
@@ -357,28 +356,25 @@ async function handleSetup2FA(request: NextRequest, data: any) {
   }
 
   // Generate TOTP secret
-  const secret = authenticator.generateSecret();
+  const secret = speakeasy.generateSecret({
+    name: `BLAZE Admin (${adminUser.email})`,
+    issuer: 'BLAZE Wallet',
+  });
 
-  // Generate QR code
-  const otpauth = authenticator.keyuri(
-    adminUser.email,
-    'BLAZE Admin',
-    secret
-  );
-
-  const qrCode = await QRCode.toDataURL(otpauth);
+  // Generate QR code using the otpauth URL
+  const qrCode = await QRCode.toDataURL(secret.otpauth_url!);
 
   // Store secret temporarily (not enabled yet)
   await supabaseAdmin
     .from('admin_users')
-    .update({ totp_secret: secret })
+    .update({ totp_secret: secret.base32 })
     .eq('id', adminUser.id);
 
   await logAuditAction(adminUser.id, 'setup_2fa_start', 'admin_user', adminUser.id, null, null, {}, 'success');
 
   return NextResponse.json({
     success: true,
-    secret,
+    secret: secret.base32,
     qrCode,
   });
 }
@@ -412,9 +408,11 @@ async function handleConfirm2FA(request: NextRequest, data: any) {
   }
 
   // Verify code
-  const isValid = authenticator.verify({
-    token: code,
+  const isValid = speakeasy.totp.verify({
     secret: adminUser.totp_secret,
+    encoding: 'base32',
+    token: code,
+    window: 2,
   });
 
   if (!isValid) {
