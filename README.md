@@ -1,6 +1,22 @@
-# 🔥 BLAZE Wallet - Ignite Your Crypto Journey - GitHub Auto-Deploy Fixed
+# 🔥 BLAZE Wallet - Ignite Your Crypto Journey
 
 **Set your finances ablaze.** Lightning fast crypto wallet with revolutionary design and DeFi features.
+
+---
+
+## 🛠️ Development Quick Start
+
+```bash
+# Start both wallet + admin dashboard locally
+npm run dev:all
+
+# Wallet runs on: http://localhost:3000
+# Admin runs on:  http://localhost:3002
+```
+
+**📖 Full development guide:** [DEV_GUIDE.md](./DEV_GUIDE.md)
+
+**🎯 Quick help:** Run `./dev-help.sh`
 
 ---
 

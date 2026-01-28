@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# 🔥 BLAZE Wallet Development Quick Start
+
+echo "🔥 BLAZE Wallet - Local Development"
+echo ""
+echo "📋 Available Commands:"
+echo ""
+echo "  🚀 npm run dev:all        - Start wallet + admin (RECOMMENDED)"
+echo "  🌐 npm run dev            - Start wallet only (port 3000)"
+echo "  👨‍💼 npm run dev:admin      - Start admin only (port 3002)"
+echo ""
+echo "  🏗️  npm run build:all      - Build both apps"
+echo "  🏗️  npm run build          - Build wallet"
+echo "  🏗️  npm run build:admin    - Build admin"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "🎯 Testing Workflow:"
+echo ""
+echo "  1️⃣  npm run dev:all"
+echo "  2️⃣  Open localhost:3000 (wallet)"
+echo "  3️⃣  Open localhost:3002 (admin)"
+echo "  4️⃣  Test features + check logs"
+echo "  5️⃣  npm run build:all"
+echo "  6️⃣  git commit + push"
+echo "  7️⃣  vercel --prod"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "📖 Full guide: DEV_GUIDE.md"
+echo ""
+
