@@ -17,6 +17,7 @@ import { MultiChainService } from '@/lib/multi-chain-service';
 import { BlockchainService } from '@/lib/blockchain';
 import { TokenService } from '@/lib/token-service';
 import { PriceService } from '@/lib/price-service';
+import { incomingTransactionMonitor } from '@/lib/incoming-transaction-monitor';
 import { CHAINS, POPULAR_TOKENS } from '@/lib/chains';
 import { Token } from '@/lib/types';
 import { tokenBalanceCache } from '@/lib/token-balance-cache';
@@ -1670,6 +1671,31 @@ export default function Dashboard() {
 
     return () => clearInterval(autoLockInterval);
   }, [checkAutoLock]);
+
+  // ✅ Start monitoring for incoming transactions
+  useEffect(() => {
+    if (!displayAddress) return;
+
+    // Build addresses object for all chains we support
+    const addresses: { [chain: string]: string } = {};
+    const chainsToMonitor: string[] = [];
+
+    // Add current chain
+    addresses[currentChain] = displayAddress;
+    chainsToMonitor.push(currentChain);
+
+    // Optionally add other chains if we have multiple addresses loaded
+    // (for now, just monitor the current active chain)
+
+    logger.log('📥 [Dashboard] Starting incoming transaction monitor');
+    incomingTransactionMonitor.startMonitoring(chainsToMonitor, addresses);
+
+    // Cleanup: stop monitoring when component unmounts
+    return () => {
+      logger.log('📥 [Dashboard] Stopping incoming transaction monitor');
+      incomingTransactionMonitor.stopMonitoring();
+    };
+  }, [displayAddress, currentChain]);
 
   // Update chart when time range changes
 
