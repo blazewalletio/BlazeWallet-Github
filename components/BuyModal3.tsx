@@ -12,6 +12,7 @@ import { UserOnRampPreferencesService } from '@/lib/user-onramp-preferences';
 import { GeolocationService } from '@/lib/geolocation';
 import { logger } from '@/lib/logger';
 import { logTransactionEvent } from '@/lib/analytics-tracker';
+import { trackEvent } from '@/lib/analytics';
 import { supabase } from '@/lib/supabase';
 
 interface BuyModal3Props {
@@ -932,6 +933,18 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       const data = await response.json();
 
       if (data.success && data.transactionInformation) {
+        // Track onramp purchase initiated
+        if (currentUserId) {
+          await trackEvent(currentUserId, 'onramp_purchase_initiated', {
+            fiat_amount: parseFloat(fiatAmount),
+            fiat_currency: fiatCurrency,
+            crypto_currency: cryptoCurrency,
+            payment_method: actualPaymentMethod,
+            provider: providerToUse,
+            country: userCountry,
+          });
+        }
+        
         const { transactionInformation } = data;
         const transactionType = transactionInformation.type; // "iframe" or "redirect"
         const transactionUrl = transactionInformation.url;

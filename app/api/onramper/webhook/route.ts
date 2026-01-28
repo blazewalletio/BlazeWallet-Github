@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { supabase } from '@/lib/supabase';
 import crypto from 'crypto';
+import { trackEvent } from '@/lib/analytics';
 
 export const dynamic = 'force-dynamic';
 
@@ -231,10 +232,34 @@ export async function POST(req: NextRequest) {
     switch (normalizedStatus) {
       case 'PENDING':
         logger.log('📝 Transaction pending:', transactionId);
+        // Track pending onramp purchase
+        if (userId) {
+          await trackEvent(userId, 'onramp_purchase_pending', {
+            transaction_id: transactionId,
+            provider,
+            fiat_amount: payload.inAmount,
+            fiat_currency: payload.sourceCurrency,
+            crypto_amount: payload.outAmount,
+            crypto_currency: payload.targetCurrency,
+            payment_method: payload.paymentMethod,
+          });
+        }
         break;
         
       case 'PROCESSING':
         logger.log('⏳ Transaction processing:', transactionId);
+        // Track processing onramp purchase
+        if (userId) {
+          await trackEvent(userId, 'onramp_purchase_processing', {
+            transaction_id: transactionId,
+            provider,
+            fiat_amount: payload.inAmount,
+            fiat_currency: payload.sourceCurrency,
+            crypto_amount: payload.outAmount,
+            crypto_currency: payload.targetCurrency,
+            payment_method: payload.paymentMethod,
+          });
+        }
         break;
         
       case 'COMPLETED':
@@ -245,6 +270,19 @@ export async function POST(req: NextRequest) {
           outAmount: payload.outAmount,
           targetCurrency: payload.targetCurrency,
         });
+        // Track successful onramp purchase
+        if (userId) {
+          await trackEvent(userId, 'onramp_purchase_completed', {
+            transaction_id: transactionId,
+            provider,
+            fiat_amount: payload.inAmount,
+            fiat_currency: payload.sourceCurrency,
+            crypto_amount: payload.outAmount,
+            crypto_currency: payload.targetCurrency,
+            payment_method: payload.paymentMethod,
+            wallet_address: payload.walletAddress,
+          });
+        }
         // Update user preferences if transaction completed
         if (userId && provider) {
           try {
@@ -258,14 +296,44 @@ export async function POST(req: NextRequest) {
         
       case 'FAILED':
         logger.log('❌ Transaction failed:', transactionId);
+        // Track failed onramp purchase
+        if (userId) {
+          await trackEvent(userId, 'onramp_purchase_failed', {
+            transaction_id: transactionId,
+            provider,
+            fiat_amount: payload.inAmount,
+            fiat_currency: payload.sourceCurrency,
+            crypto_currency: payload.targetCurrency,
+            payment_method: payload.paymentMethod,
+            failure_reason: payload.failureReason || 'unknown',
+          });
+        }
         break;
         
       case 'REFUNDED':
         logger.log('💰 Transaction refunded:', transactionId);
+        // Track refunded onramp purchase
+        if (userId) {
+          await trackEvent(userId, 'onramp_purchase_refunded', {
+            transaction_id: transactionId,
+            provider,
+            fiat_amount: payload.inAmount,
+            fiat_currency: payload.sourceCurrency,
+          });
+        }
         break;
         
       case 'CANCELLED':
         logger.log('🚫 Transaction cancelled:', transactionId);
+        // Track cancelled onramp purchase
+        if (userId) {
+          await trackEvent(userId, 'onramp_purchase_cancelled', {
+            transaction_id: transactionId,
+            provider,
+            fiat_amount: payload.inAmount,
+            fiat_currency: payload.sourceCurrency,
+          });
+        }
         break;
         
       default:
