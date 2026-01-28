@@ -83,13 +83,15 @@ export default function AdminDashboard() {
 
       if (error || !user || !user.email) {
         logger.warn('[Admin] Not authenticated');
-        router.push('/');
+        // Redirect to main app for login
+        window.location.href = 'https://my.blazewallet.io';
         return;
       }
 
       if (!ALLOWED_ADMINS.includes(user.email)) {
         logger.warn(`[Admin] Unauthorized access attempt: ${user.email}`);
-        router.push('/');
+        // Redirect to main app - not authorized
+        window.location.href = 'https://my.blazewallet.io';
         return;
       }
 
@@ -98,7 +100,7 @@ export default function AdminDashboard() {
       fetchDashboardData();
     } catch (error) {
       logger.error('[Admin] Auth check failed:', error);
-      router.push('/');
+      window.location.href = 'https://my.blazewallet.io';
     }
   }
 
@@ -109,7 +111,7 @@ export default function AdminDashboard() {
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        router.push('/');
+        window.location.href = 'https://my.blazewallet.io';
         return;
       }
 
