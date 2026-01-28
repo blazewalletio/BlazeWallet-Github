@@ -10,6 +10,7 @@
 
 interface CachedLogo {
   url: string | null;
+  blob?: Blob; // Store actual blob data for persistence
   timestamp: number;
   isFailed?: boolean; // Mark failed lookups for shorter TTL
 }
@@ -83,6 +84,11 @@ class TokenLogoCacheService {
   private getFromMemory(key: string): string | null {
     const cached = this.memoryCache.get(key);
     if (cached && this.isValid(cached)) {
+      // If we have a blob but the URL became invalid, recreate it
+      if (cached.blob && (!cached.url || !cached.url.startsWith('blob:'))) {
+        cached.url = URL.createObjectURL(cached.blob);
+        this.memoryCache.set(key, cached); // Update with new URL
+      }
       return cached.url;
     }
     return null;
@@ -103,9 +109,20 @@ class TokenLogoCacheService {
         request.onsuccess = () => {
           const result = request.result;
           if (result && this.isValid(result)) {
-            // Also update memory cache
-            this.memoryCache.set(key, { url: result.url, timestamp: result.timestamp });
-            resolve(result.url);
+            // Recreate blob URL from stored blob data
+            let url = result.url;
+            if (result.blob) {
+              // Always recreate the URL from the blob to ensure it's valid for this session
+              url = URL.createObjectURL(result.blob);
+            }
+            
+            // Update memory cache with the blob and new URL
+            this.memoryCache.set(key, { 
+              url, 
+              blob: result.blob,
+              timestamp: result.timestamp 
+            });
+            resolve(url);
           } else {
             resolve(null);
           }
@@ -124,18 +141,19 @@ class TokenLogoCacheService {
    * Store logo in both memory and IndexedDB
    * Can store both successful and failed lookups
    */
-  private async store(key: string, url: string | null, isFailed: boolean = false): Promise<void> {
-    const cached: CachedLogo = { url, timestamp: Date.now(), isFailed };
+  private async store(key: string, url: string | null, blob: Blob | null = null, isFailed: boolean = false): Promise<void> {
+    const cached: CachedLogo = { url, blob: blob || undefined, timestamp: Date.now(), isFailed };
 
     // Store in memory
     this.memoryCache.set(key, cached);
 
-    // Store in IndexedDB (only if successful or we want to cache the failure)
-    if (this.db && url) { // Only cache successful lookups in IndexedDB
+    // Store in IndexedDB (only if successful and we have a blob)
+    if (this.db && blob) {
       try {
         const transaction = this.db.transaction([this.STORE_NAME], 'readwrite');
         const store = transaction.objectStore(this.STORE_NAME);
-        store.put({ key, ...cached });
+        // Store the blob data, not the temporary URL
+        store.put({ key, url, blob, timestamp: cached.timestamp, isFailed });
       } catch (error) {
         console.warn('Failed to store in IndexedDB:', error);
       }
@@ -145,7 +163,7 @@ class TokenLogoCacheService {
   /**
    * Fetch logo from server API proxy (CoinGecko Pro API)
    */
-  private async fetchFromAPI(token: TokenIdentifier, logoURI?: string): Promise<string | null> {
+  private async fetchFromAPI(token: TokenIdentifier, logoURI?: string): Promise<{ url: string; blob: Blob } | null> {
     try {
       const params = new URLSearchParams({
         address: token.address,
@@ -162,7 +180,7 @@ class TokenLogoCacheService {
       if (response.ok) {
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
-        return url;
+        return { url, blob };
       }
 
       return null;
@@ -201,16 +219,16 @@ class TokenLogoCacheService {
     }
 
     // Layer 3: Fetch from API
-    const apiUrl = await this.fetchFromAPI(token, logoURI);
+    const apiResult = await this.fetchFromAPI(token, logoURI);
     
     // Store the result (success or failure)
-    if (apiUrl) {
-      // Successful lookup - cache for 7 days
-      await this.store(cacheKey, apiUrl, false);
-      return apiUrl;
+    if (apiResult) {
+      // Successful lookup - cache blob for 7 days
+      await this.store(cacheKey, apiResult.url, apiResult.blob, false);
+      return apiResult.url;
     } else {
       // Failed lookup - cache for 5 minutes only (in memory only)
-      await this.store(cacheKey, null, true);
+      await this.store(cacheKey, null, null, true);
       return null;
     }
   }
