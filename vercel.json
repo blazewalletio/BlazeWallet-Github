@@ -10,6 +10,7 @@
     "enabled": true,
     "silent": false
   },
+  "ignoreCommand": "bash scripts/check-main-changes.sh",
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "framework": "nextjs",
