@@ -2,18 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
 import { 
   BarChart3, Users, TrendingUp, AlertTriangle, 
   CheckCircle2, XCircle, Clock, RefreshCw,
   DollarSign, Activity, Zap, Shield
 } from 'lucide-react';
 import { logger } from '@/lib/logger';
-
-// Whitelisted admin emails
-const ALLOWED_ADMINS = [
-  'ricks_@live.nl',
-];
 
 interface Metrics {
   activeUsers24h: number;
@@ -55,53 +49,72 @@ interface DashboardData {
 export default function AdminDashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [authorized, setAuthorized] = useState(false);
   const [userEmail, setUserEmail] = useState<string>('');
   const [data, setData] = useState<DashboardData | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
-  // Check authentication and authorization
+  // Load user info from session
   useEffect(() => {
-    checkAuth();
+    loadUserInfo();
+    fetchDashboardData();
   }, []);
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
-    if (!authorized) return;
-
     const interval = setInterval(() => {
       fetchDashboardData(true);
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [authorized]);
+  }, []);
 
-  async function checkAuth() {
-    try {
-      const { data: { user }, error } = await supabase.auth.getUser();
-
-      if (error || !user || !user.email) {
-        logger.warn('[Admin] Not authenticated');
-        // Redirect to main app for login
-        window.location.href = 'https://my.blazewallet.io';
-        return;
-      }
-
-      if (!ALLOWED_ADMINS.includes(user.email)) {
-        logger.warn(`[Admin] Unauthorized access attempt: ${user.email}`);
-        // Redirect to main app - not authorized
-        window.location.href = 'https://my.blazewallet.io';
-        return;
-      }
-
-      setUserEmail(user.email);
-      setAuthorized(true);
-      fetchDashboardData();
-    } catch (error) {
-      logger.error('[Admin] Auth check failed:', error);
-      window.location.href = 'https://my.blazewallet.io';
+  async function loadUserInfo() {
+    const sessionToken = localStorage.getItem('admin_session');
+    if (!sessionToken) {
+      router.push('/login');
+      return;
     }
+
+    try {
+      const response = await fetch('/api/admin-auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionToken }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Session invalid');
+      }
+
+      const result = await response.json();
+      setUserEmail(result.user.email);
+    } catch (error) {
+      localStorage.removeItem('admin_session');
+      router.push('/login');
+    }
+  }
+
+  async function handleLogout() {
+    const sessionToken = localStorage.getItem('admin_session');
+    
+    if (sessionToken) {
+      try {
+        await fetch('/api/admin-auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'logout',
+            sessionToken,
+          }),
+        });
+      } catch (error) {
+        console.error('Logout error:', error);
+      }
+    }
+
+    localStorage.removeItem('admin_session');
+    router.push('/login');
   }
 
   async function fetchDashboardData(silent = false) {
@@ -109,15 +122,15 @@ export default function AdminDashboard() {
       if (!silent) setLoading(true);
       setRefreshing(true);
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        window.location.href = 'https://my.blazewallet.io';
+      const sessionToken = localStorage.getItem('admin_session');
+      if (!sessionToken) {
+        router.push('/login');
         return;
       }
 
       const response = await fetch('/api/admin/analytics/overview', {
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${sessionToken}`,
         },
       });
 
@@ -136,7 +149,7 @@ export default function AdminDashboard() {
     }
   }
 
-  if (loading || !authorized) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
@@ -172,8 +185,16 @@ export default function AdminDashboard() {
                 className={`p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors ${
                   refreshing ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
+                title="Refresh data"
               >
                 <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+              </button>
+
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-200 hover:text-red-100 transition-colors text-sm font-medium"
+              >
+                Logout
               </button>
             </div>
           </div>
