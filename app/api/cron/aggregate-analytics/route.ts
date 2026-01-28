@@ -93,26 +93,42 @@ async function updateUserCohorts() {
   logger.log('[Analytics Cron] Task 1: Updating user cohorts...');
 
   // Get all users with activity in last 90 days
-  const { data: activeUsers, error } = await supabaseAdmin
+  const { data: events, error } = await supabaseAdmin
     .from('transaction_events')
-    .select('user_id, COUNT(*) as event_count, MAX(created_at) as last_event')
-    .gte('created_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
-    .group('user_id');
+    .select('user_id, created_at')
+    .gte('created_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString());
 
   if (error) {
     logger.error('[Analytics Cron] Failed to fetch active users:', error);
     return;
   }
 
+  // Manually group events by user_id
+  const userActivity: Record<string, { eventCount: number; lastEvent: Date }> = {};
+  events?.forEach((event) => {
+    const userId = event.user_id;
+    const eventDate = new Date(event.created_at);
+
+    if (!userActivity[userId]) {
+      userActivity[userId] = { eventCount: 0, lastEvent: eventDate };
+    }
+
+    userActivity[userId].eventCount++;
+    if (eventDate > userActivity[userId].lastEvent) {
+      userActivity[userId].lastEvent = eventDate;
+    }
+  });
+
   // Update segments for each user
-  for (const user of activeUsers || []) {
+  let updateCount = 0;
+  for (const [userId, activity] of Object.entries(userActivity)) {
     const daysSinceLastEvent = Math.floor(
-      (Date.now() - new Date(user.last_event).getTime()) / (24 * 60 * 60 * 1000)
+      (Date.now() - activity.lastEvent.getTime()) / (24 * 60 * 60 * 1000)
     );
 
     let segment: string;
     if (daysSinceLastEvent <= 7) {
-      segment = user.event_count > 20 ? 'power_user' : 'active';
+      segment = activity.eventCount > 20 ? 'power_user' : 'active';
     } else if (daysSinceLastEvent <= 30) {
       segment = 'dormant';
     } else {
@@ -125,10 +141,12 @@ async function updateUserCohorts() {
         user_segment: segment,
         updated_at: new Date().toISOString(),
       })
-      .eq('user_id', user.user_id);
+      .eq('user_id', userId);
+    
+    updateCount++;
   }
 
-  logger.log(`[Analytics Cron] Updated cohorts for ${activeUsers?.length || 0} users`);
+  logger.log(`[Analytics Cron] Updated cohorts for ${updateCount} users`);
 }
 
 /**
