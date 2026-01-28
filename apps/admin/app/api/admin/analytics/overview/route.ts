@@ -60,14 +60,44 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    // Get total unique users
+    const { count: totalUsersCount } = await supabaseAdmin
+      .from('user_cohorts')
+      .select('*', { count: 'exact', head: true });
+
+    // Get alerts (critical only)
+    const { data: criticalAlerts } = await supabaseAdmin
+      .from('analytics_alerts')
+      .select('*')
+      .eq('severity', 'critical')
+      .eq('status', 'unread')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    const { count: unreadAlertCount } = await supabaseAdmin
+      .from('analytics_alerts')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'unread');
+
     return NextResponse.json({
       success: true,
       data: {
-        activeUsers24h: activeUsers,
-        transactions24h: totalTxs || 0,
-        volume24h: totalVolume,
-        failedRate,
-        userSegments: segments,
+        metrics: {
+          activeUsers24h: activeUsers,
+          transactions24h: totalTxs || 0,
+          volume24h: totalVolume,
+          failedRate,
+        },
+        trends: {
+          transactions: 0, // TODO: Calculate trend vs previous 24h
+        },
+        cohorts: segments,
+        totalUsers: totalUsersCount || 0,
+        alerts: {
+          unreadCount: unreadAlertCount || 0,
+          critical: criticalAlerts || [],
+        },
+        recentActivity: [], // TODO: Add recent activity
       },
     });
   } catch (error: any) {

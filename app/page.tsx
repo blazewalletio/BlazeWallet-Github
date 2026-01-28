@@ -21,7 +21,7 @@ export default function Home() {
   const [showBiometricAuth, setShowBiometricAuth] = useState(false);
   const [showQRLogin, setShowQRLogin] = useState(false);
   const [showRecoveryPhrase, setShowRecoveryPhrase] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
   const [setupPassword, setSetupPassword] = useState<string | undefined>(undefined); // Store password temporarily for biometric setup
   const { importWallet, hasPassword, isLocked, wallet, hasBiometric, isBiometricEnabled } = useWalletStore();
 

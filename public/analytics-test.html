@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BLAZE Analytics Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+        }
+        h1 {
+            color: #0ea5e9;
+            margin: 0 0 10px 0;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 5px 5px 5px 0;
+        }
+        .success { background: #dcfce7; color: #16a34a; }
+        .warning { background: #fef3c7; color: #d97706; }
+        .error { background: #fee2e2; color: #dc2626; }
+        .info { background: #dbeafe; color: #2563eb; }
+        button {
+            background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 5px 5px 5px 0;
+        }
+        button:hover { opacity: 0.9; }
+        pre {
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 13px;
+        }
+        .test-result {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 4px solid #0ea5e9;
+            background: #f0f9ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🔥 BLAZE Analytics Test Console</h1>
+        <p>Test if analytics tracking is working correctly</p>
+    </div>
+
+    <div class="card">
+        <h2>📊 Analytics Status</h2>
+        <div id="status">
+            <span class="status info">Checking...</span>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🧪 Quick Tests</h2>
+        <button onclick="testAnalyticsEnabled()">Check if Enabled</button>
+        <button onclick="testSimulateTransaction()">Simulate Transaction</button>
+        <button onclick="checkQueue()">Check Event Queue</button>
+        <button onclick="forceFlush()">Force Flush</button>
+        
+        <div id="testResults"></div>
+    </div>
+
+    <div class="card">
+        <h2>📋 Test Instructions</h2>
+        <ol>
+            <li><strong>Login</strong> to BLAZE Wallet at <a href="http://localhost:3000" target="_blank">localhost:3000</a></li>
+            <li><strong>Perform actions</strong>: Send, Swap, or Buy crypto</li>
+            <li><strong>Check Admin</strong> at <a href="http://localhost:3002" target="_blank">localhost:3002</a></li>
+            <li><strong>Verify data</strong> appears in dashboard (30s refresh)</li>
+        </ol>
+    </div>
+
+    <script>
+        function showResult(title, content, type = 'info') {
+            const resultsDiv = document.getElementById('testResults');
+            const resultHTML = `
+                <div class="test-result" style="border-left-color: ${
+                    type === 'success' ? '#16a34a' : 
+                    type === 'error' ? '#dc2626' : 
+                    type === 'warning' ? '#d97706' : '#2563eb'
+                }; background: ${
+                    type === 'success' ? '#dcfce7' : 
+                    type === 'error' ? '#fee2e2' : 
+                    type === 'warning' ? '#fef3c7' : '#f0f9ff'
+                }">
+                    <strong>${title}</strong>
+                    <pre>${content}</pre>
+                </div>
+            `;
+            resultsDiv.innerHTML = resultHTML + resultsDiv.innerHTML;
+        }
+
+        async function testAnalyticsEnabled() {
+            const enabled = localStorage.getItem('analytics_enabled');
+            const status = enabled === null || enabled === 'true';
+            
+            showResult(
+                '✅ Analytics Status',
+                `Enabled: ${status}\nLocalStorage value: ${enabled}\n\nAnalytics will ${status ? 'track events' : 'NOT track events'}`,
+                status ? 'success' : 'warning'
+            );
+        }
+
+        async function testSimulateTransaction() {
+            showResult(
+                '🔄 Simulating Transaction',
+                'Opening wallet to perform real transaction...\n\nPlease:\n1. Go to localhost:3000\n2. Login\n3. Perform a Send/Swap/Buy action\n4. Return here and click "Check Event Queue"',
+                'info'
+            );
+            
+            // Open wallet in new tab
+            window.open('http://localhost:3000', '_blank');
+        }
+
+        async function checkQueue() {
+            try {
+                // This won't work directly, but we can check localStorage
+                const enabled = localStorage.getItem('analytics_enabled');
+                
+                showResult(
+                    '📦 Event Queue Check',
+                    `Analytics Enabled: ${enabled || 'true (default)'}\n\nNote: Queue is internal to AnalyticsTracker.\nCheck browser console for flush logs:\n"📊 Analytics flushed: X events processed"`,
+                    'info'
+                );
+            } catch (error) {
+                showResult(
+                    '❌ Queue Check Failed',
+                    error.message,
+                    'error'
+                );
+            }
+        }
+
+        async function forceFlush() {
+            showResult(
+                '⚡ Force Flush',
+                'To force flush analytics:\n\n1. Open browser console (F12)\n2. Ensure you\'re logged in to wallet\n3. Events auto-flush every 5 seconds\n4. Check Network tab for /api/analytics/batch-log calls',
+                'info'
+            );
+        }
+
+        // Auto-check status on load
+        window.addEventListener('load', () => {
+            testAnalyticsEnabled();
+        });
+    </script>
+</body>
+</html>
+

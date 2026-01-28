@@ -26,6 +26,17 @@ export default function AuthCallback() {
           }
 
           if (session) {
+            // Track login
+            try {
+              const { trackAuth } = await import('@/lib/analytics');
+              await trackAuth(session.user.id, 'login', {
+                method: 'oauth',
+                provider: 'google_or_apple'
+              });
+            } catch (err) {
+              console.error('Failed to track login:', err);
+            }
+
             // Check if user has a wallet in Supabase
             const { data: wallet } = await supabase
               .from('wallets')

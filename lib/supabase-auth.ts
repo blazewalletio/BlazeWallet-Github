@@ -215,6 +215,15 @@ export async function signUpWithEmail(
       // It will be returned to user for backup, but not persisted locally
     }
 
+    // Track successful signup
+    if (typeof window !== 'undefined') {
+      const { trackAuth } = await import('@/lib/analytics');
+      await trackAuth(authData.user.id, 'signup', {
+        method: 'email',
+        hasWallet: true
+      });
+    }
+
     // 7. Send custom welcome + verification email via API route
     try {
       const response = await fetch('/api/send-welcome-email', {
@@ -318,10 +327,13 @@ export async function signInWithEmail(
     }
 
     // Track successful login
-    await logFeatureUsage('user_login', { 
-      method: 'email',
-      hasWallet: true 
-    });
+    if (typeof window !== 'undefined') {
+      const { trackAuth } = await import('@/lib/analytics');
+      await trackAuth(authData.user!.id, 'login', { 
+        method: 'email',
+        hasWallet: true 
+      });
+    }
 
     return {
       success: true,
