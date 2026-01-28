@@ -1,23 +1,6 @@
 {
-  "git": {
-    "deploymentEnabled": {
-      "main": true
-    }
-  },
-  "github": {
-    "autoAlias": true,
-    "autoJobCancelation": false,
-    "enabled": true,
-    "silent": false
-  },
-  "buildCommand": "npm run build",
+  "buildCommand": "cd ../.. && npm run build --workspace=apps/admin",
   "outputDirectory": ".next",
-  "framework": "nextjs",
-  "regions": ["iad1"],
-  "functions": {
-    "app/api/**/*.ts": {
-      "maxDuration": 60
-    }
-  }
+  "installCommand": "cd ../.. && npm install",
+  "framework": "nextjs"
 }
-
