@@ -1301,7 +1301,12 @@ export class OnramperService {
 
       const fiatLower = fiatCurrency.toLowerCase();
       const cryptoLower = cryptoCurrency.toLowerCase();
-      let url = `https://api.onramper.com/quotes/${fiatLower}/${cryptoLower}?amount=${fiatAmount}`;
+      
+      // ⚠️ CRITICAL FIX: For BUY quotes (fiat → crypto), we must use type=buy parameter
+      // Without this parameter, Onramper API returns 401 Unauthorized or empty quotes
+      // Format: /quotes/{fiat}/{crypto}?amount={amount}&type=buy
+      // Docs: https://docs.onramper.com/reference/get_quotes-fiat-crypto
+      let url = `https://api.onramper.com/quotes/${fiatLower}/${cryptoLower}?amount=${fiatAmount}&type=buy`;
       
       // ⚠️ CRITICAL: Always use paymentMethod filter when provided
       // Testing shows that Onramper correctly returns quotes with paymentMethod set

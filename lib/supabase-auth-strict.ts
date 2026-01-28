@@ -72,7 +72,7 @@ async function decryptMnemonic(encryptedData: string, password: string): Promise
       return mnemonic;
     } catch (decryptError) {
       logger.error('Failed to decrypt mnemonic:', decryptError);
-      throw new Error('Failed to decrypt wallet');
+    throw new Error('Failed to decrypt wallet');
     }
   }
 }

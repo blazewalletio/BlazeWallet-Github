@@ -68,10 +68,10 @@ export default function AddContactModal({
       if (user) {
         logger.log('✅ [AddContactModal] User identifier (UUID):', user.id);
         setUserId(user.id); // UUID from Supabase auth
-      } else {
+    } else {
         logger.error('❌ [AddContactModal] No authenticated user found!');
-        setUserId(null);
-      }
+      setUserId(null);
+    }
     };
     
     loadUserId();
