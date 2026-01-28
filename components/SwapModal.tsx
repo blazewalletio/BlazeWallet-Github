@@ -285,17 +285,16 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     setExecutionStep(0);
 
     // Track swap initiation
-    const swapValueUSD = parseFloat(fromAmount) * (fromTokenDisplay.priceUSD || 0);
     await logTransactionEvent({
       eventType: 'swap_initiated',
       chainKey: fromChain,
-      tokenSymbol: fromToken,
-      valueUSD: swapValueUSD,
+      tokenSymbol: typeof fromToken === 'string' ? fromToken : ((fromToken as any)?.symbol || 'UNKNOWN'),
+      valueUSD: 0, // Price not available in swap context
       status: 'pending',
       metadata: {
-        fromToken,
-        toToken,
-        fromAmount,
+        fromToken: typeof fromToken === 'string' ? fromToken : (fromToken as any)?.symbol || 'unknown',
+        toToken: typeof toToken === 'string' ? toToken : (toToken as any)?.symbol || 'unknown',
+        fromAmount: amount,
         toChain,
       },
     });
@@ -566,14 +565,14 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       await logTransactionEvent({
         eventType: 'swap_confirmed',
         chainKey: fromChain,
-        tokenSymbol: fromToken,
-        valueUSD: swapValueUSD,
+        tokenSymbol: typeof fromToken === 'string' ? fromToken : ((fromToken as any)?.symbol || 'UNKNOWN'),
+        valueUSD: 0,
         status: 'success',
         referenceId: txHash || undefined,
         metadata: {
-          fromToken,
-          toToken,
-          fromAmount,
+          fromToken: typeof fromToken === 'string' ? fromToken : (fromToken as any)?.symbol || 'unknown',
+          toToken: typeof toToken === 'string' ? toToken : (toToken as any)?.symbol || 'unknown',
+          fromAmount: amount,
           toChain,
         },
       });
@@ -587,13 +586,13 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       await logTransactionEvent({
         eventType: 'swap_failed',
         chainKey: fromChain,
-        tokenSymbol: fromToken,
-        valueUSD: swapValueUSD,
+        tokenSymbol: typeof fromToken === 'string' ? fromToken : ((fromToken as any)?.symbol || 'UNKNOWN'),
+        valueUSD: 0,
         status: 'failed',
         metadata: {
-          fromToken,
-          toToken,
-          fromAmount,
+          fromToken: typeof fromToken === 'string' ? fromToken : (fromToken as any)?.symbol || 'unknown',
+          toToken: typeof toToken === 'string' ? toToken : (toToken as any)?.symbol || 'unknown',
+          fromAmount: amount,
           toChain,
           error: error.message,
         },

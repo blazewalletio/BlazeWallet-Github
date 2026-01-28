@@ -148,7 +148,7 @@ export class IncomingTransactionMonitor {
       if (!isIncoming) continue;
 
       // This is a NEW incoming transaction!
-      logger.log(`📥 [IncomingTxMonitor] New incoming ${tx.tokenSymbol || chain.symbol} on ${chain.name}`);
+      logger.log(`📥 [IncomingTxMonitor] New incoming ${tx.tokenSymbol || chain.nativeCurrency?.symbol || 'tokens'} on ${chain.name}`);
       logger.log(`   Amount: ${tx.value}`);
       logger.log(`   TX Hash: ${tx.hash}`);
 
@@ -194,7 +194,7 @@ export class IncomingTransactionMonitor {
       
       // Get token price for USD value calculation
       let valueUSD = 0;
-      const tokenSymbol = tx.tokenSymbol || chain.symbol;
+      const tokenSymbol = tx.tokenSymbol || chain.nativeCurrency?.symbol || 'UNKNOWN';
       
       // Import price service dynamically to avoid circular deps
       const { PriceService } = await import('@/lib/price-service');
@@ -202,7 +202,7 @@ export class IncomingTransactionMonitor {
       
       try {
         const priceData = await priceService.getPrice(tokenSymbol);
-        valueUSD = value * priceData.price;
+        valueUSD = value * (typeof priceData === 'number' ? priceData : (priceData as any).price || 0);
       } catch (error) {
         // If price fetch fails, just use 0
         logger.warn(`[IncomingTxMonitor] Could not fetch price for ${tokenSymbol}`);

@@ -305,7 +305,7 @@ export async function POST(req: NextRequest) {
             fiat_currency: payload.sourceCurrency,
             crypto_currency: payload.targetCurrency,
             payment_method: payload.paymentMethod,
-            failure_reason: payload.failureReason || 'unknown',
+            failure_reason: (payload as any).failureReason || 'unknown',
           });
         }
         break;
