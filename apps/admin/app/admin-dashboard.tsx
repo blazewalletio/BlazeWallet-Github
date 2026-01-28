@@ -39,7 +39,7 @@ interface DashboardData {
   trends: { transactions: number };
   cohorts: Cohorts;
   totalUsers: number;
-  alerts: {
+  alerts?: {
     unreadCount: number;
     critical: Alert[];
   };
@@ -203,7 +203,7 @@ export default function AdminDashboard() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Critical Alerts */}
-        {data && data.alerts.critical.length > 0 && (
+        {data && data.alerts?.critical && data.alerts.critical.length > 0 && (
           <div className="mb-8 bg-red-500/20 border border-red-500 rounded-lg p-6">
             <div className="flex items-start gap-3">
               <AlertTriangle className="w-6 h-6 text-red-500 flex-shrink-0 mt-1" />
