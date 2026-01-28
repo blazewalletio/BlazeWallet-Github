@@ -46,11 +46,15 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
   useBlockBodyScroll(isOpen);
 
   useEffect(() => {
-    const account = getCurrentAccount();
-    if (account) {
-      const userIdentifier = account.email || account.id;
-      setUserId(userIdentifier);
-    }
+    const loadUserId = async () => {
+      // ✅ Use Supabase auth UUID (consistent with wallets table)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id); // UUID from Supabase auth
+      }
+    };
+    
+    loadUserId();
   }, []);
 
   useEffect(() => {

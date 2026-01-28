@@ -59,19 +59,22 @@ export default function AddContactModal({
   useBlockBodyScroll(isOpen);
 
   useEffect(() => {
-    logger.log('🔍 [AddContactModal] Fetching user ID from account manager...');
-    const account = getCurrentAccount();
-    logger.log('🔍 [AddContactModal] Current account:', account);
+    const loadUserId = async () => {
+      logger.log('🔍 [AddContactModal] Fetching user ID from Supabase auth...');
+      
+      // ✅ Use Supabase auth UUID (consistent with wallets table)
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        logger.log('✅ [AddContactModal] User identifier (UUID):', user.id);
+        setUserId(user.id); // UUID from Supabase auth
+      } else {
+        logger.error('❌ [AddContactModal] No authenticated user found!');
+        setUserId(null);
+      }
+    };
     
-    if (account) {
-      // Use displayName (email) or id (wallet hash) as user_id
-      const userIdentifier = account.email || account.id;
-      logger.log('✅ [AddContactModal] User identifier:', userIdentifier);
-      setUserId(userIdentifier);
-    } else {
-      logger.error('❌ [AddContactModal] No account found!');
-      setUserId(null);
-    }
+    loadUserId();
   }, []);
 
   useEffect(() => {
