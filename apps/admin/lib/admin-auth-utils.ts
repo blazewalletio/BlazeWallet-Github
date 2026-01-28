@@ -25,16 +25,22 @@ interface AdminUser {
 }
 
 /**
- * Verify admin session from cookie
+ * Verify admin session from Authorization header or cookie
  * Returns admin user if valid, null otherwise
  */
 export async function verifyAdminSession(request: NextRequest): Promise<AdminUser | null> {
   try {
-    // Get session token from cookie
-    const sessionToken = request.cookies.get('admin_session')?.value;
+    // Get session token from Authorization header first, then cookie
+    const authHeader = request.headers.get('authorization');
+    let sessionToken = authHeader?.replace('Bearer ', '');
     
     if (!sessionToken) {
-      logger.warn('[Admin Auth] No session token found');
+      // Fallback to cookie
+      sessionToken = request.cookies.get('admin_session')?.value;
+    }
+    
+    if (!sessionToken) {
+      logger.warn('[Admin Auth] No session token found in header or cookie');
       return null;
     }
 
