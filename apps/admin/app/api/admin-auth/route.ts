@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
-import { authenticator } from 'otplib';
+import * as OTPAuth from 'otplib';
 import QRCode from 'qrcode';
 import { nanoid } from 'nanoid';
+
+// Get authenticator from otplib
+const authenticator = OTPAuth.authenticator;
 
 // Admin Supabase client with service role (bypasses RLS)
 const supabaseAdmin = createClient(
