@@ -279,13 +279,13 @@ async function checkForAnomalies() {
   const lastHour = new Date(Date.now() - 60 * 60 * 1000);
 
   // Anomaly 1: High volume user (>$10k in 24h)
-  const { data: highVolumeUsers } = await supabaseAdmin.rpc(
+  const { data: highVolumeUsers, error: rpcError } = await supabaseAdmin.rpc(
     'get_high_volume_users',
     { threshold_usd: 10000, hours: 24 }
-  ).catch(() => ({ data: null }));
+  );
 
-  // If RPC doesn't exist, use manual query
-  if (!highVolumeUsers) {
+  // If RPC doesn't exist or fails, use manual query
+  if (rpcError || !highVolumeUsers) {
     const { data: events } = await supabaseAdmin
       .from('transaction_events')
       .select('user_id, value_usd')
