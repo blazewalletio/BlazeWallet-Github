@@ -13,6 +13,7 @@ import ParticleEffect from './ParticleEffect';
 import SmartScheduleModal from './SmartScheduleModal';
 import AddressBook from './AddressBook';
 import { logger } from '@/lib/logger';
+import { logTransactionEvent } from '@/lib/analytics-tracker';
 import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface Asset {
@@ -410,6 +411,20 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
     setStep('sending');
     setError('');
 
+    // Track send initiation
+    const sendValueUSD = parseFloat(amount) * (selectedAsset.priceUSD || 0);
+    await logTransactionEvent({
+      eventType: 'send_initiated',
+      chainKey: selectedChain,
+      tokenSymbol: selectedAsset.symbol,
+      valueUSD: sendValueUSD,
+      status: 'pending',
+      metadata: {
+        isNative: selectedAsset.isNative,
+        toAddress,
+      },
+    });
+
     try {
       const gas = gasPrice[selectedGas];
       
@@ -442,6 +457,20 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
       setTxHash(hash);
       setStep('success');
       setShowSuccessParticles(true);
+      
+      // Track successful send
+      await logTransactionEvent({
+        eventType: 'send_confirmed',
+        chainKey: selectedChain,
+        tokenSymbol: selectedAsset.symbol,
+        valueUSD: sendValueUSD,
+        status: 'success',
+        referenceId: hash,
+        metadata: {
+          isNative: selectedAsset.isNative,
+          toAddress,
+        },
+      });
       
       // ✅ CRITICAL: Invalidate cache after successful transaction!
       // This ensures balance updates immediately on next view
@@ -509,6 +538,20 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
       
       setError(userMessage);
       setStep('confirm');
+      
+      // Track failed send
+      await logTransactionEvent({
+        eventType: 'send_failed',
+        chainKey: selectedChain,
+        tokenSymbol: selectedAsset.symbol,
+        valueUSD: sendValueUSD,
+        status: 'failed',
+        metadata: {
+          isNative: selectedAsset.isNative,
+          toAddress,
+          error: technicalDetails || userMessage,
+        },
+      });
     }
   };
 

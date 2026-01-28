@@ -11,6 +11,7 @@ import { ProviderSelector } from '@/lib/provider-selector';
 import { UserOnRampPreferencesService } from '@/lib/user-onramp-preferences';
 import { GeolocationService } from '@/lib/geolocation';
 import { logger } from '@/lib/logger';
+import { logTransactionEvent } from '@/lib/analytics-tracker';
 import { supabase } from '@/lib/supabase';
 
 interface BuyModal3Props {

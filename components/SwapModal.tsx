@@ -22,6 +22,7 @@ import { getLiFiChainId, isSolanaChainId } from '@/lib/lifi-chain-ids';
 import { LiFiService, LiFiToken, LiFiQuote } from '@/lib/lifi-service';
 import { isLiFiSupported } from '@/lib/popular-tokens';
 import { logger } from '@/lib/logger';
+import { logTransactionEvent, logFeatureUsage } from '@/lib/analytics-tracker';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { apiPost } from '@/lib/api-client';
 import { ethers } from 'ethers';
@@ -282,6 +283,22 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     setIsExecuting(true);
     setError(null);
     setExecutionStep(0);
+
+    // Track swap initiation
+    const swapValueUSD = parseFloat(fromAmount) * (fromTokenDisplay.priceUSD || 0);
+    await logTransactionEvent({
+      eventType: 'swap_initiated',
+      chainKey: fromChain,
+      tokenSymbol: fromToken,
+      valueUSD: swapValueUSD,
+      status: 'pending',
+      metadata: {
+        fromToken,
+        toToken,
+        fromAmount,
+        toChain,
+      },
+    });
 
     try {
       // ✅ According to LI.FI docs: /v1/quote returns a Step object with transactionRequest already populated
@@ -544,10 +561,43 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       }
 
       setStep('success');
+      
+      // Track successful swap
+      await logTransactionEvent({
+        eventType: 'swap_confirmed',
+        chainKey: fromChain,
+        tokenSymbol: fromToken,
+        valueUSD: swapValueUSD,
+        status: 'success',
+        referenceId: txHash || undefined,
+        metadata: {
+          fromToken,
+          toToken,
+          fromAmount,
+          toChain,
+        },
+      });
+      
     } catch (error: any) {
       logger.error('❌ Swap execution error:', error);
       setError(error.message || 'Transaction failed');
       setStep('error');
+      
+      // Track failed swap
+      await logTransactionEvent({
+        eventType: 'swap_failed',
+        chainKey: fromChain,
+        tokenSymbol: fromToken,
+        valueUSD: swapValueUSD,
+        status: 'failed',
+        metadata: {
+          fromToken,
+          toToken,
+          fromAmount,
+          toChain,
+          error: error.message,
+        },
+      });
     } finally {
       setIsExecuting(false);
     }

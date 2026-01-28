@@ -5,6 +5,7 @@ import { supabase } from './supabase';
 import * as bip39 from 'bip39';
 import { ethers } from 'ethers';
 import { logger } from '@/lib/logger';
+import { logFeatureUsage } from '@/lib/analytics-tracker';
 
 // =============================================================================
 // ENCRYPTION UTILITIES
@@ -239,6 +240,12 @@ export async function signUpWithEmail(
       logger.error('Failed to send welcome email:', emailError);
     }
 
+    // Track successful signup
+    await logFeatureUsage('user_signup', { 
+      method: 'email',
+      hasWallet: true 
+    });
+
     return {
       success: true,
       user: authData.user,
@@ -309,6 +316,12 @@ export async function signInWithEmail(
       // ✅ SECURITY: NEVER store plaintext mnemonic in localStorage
       // Mnemonic is returned directly and handled in memory only
     }
+
+    // Track successful login
+    await logFeatureUsage('user_login', { 
+      method: 'email',
+      hasWallet: true 
+    });
 
     return {
       success: true,
