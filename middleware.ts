@@ -13,8 +13,21 @@ import { nanoid } from 'nanoid';
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+  const hostname = request.headers.get('host') || '';
   
-  // Only apply to API routes
+  // 🔐 ADMIN SUBDOMAIN ROUTING: admin.blazewallet.io → /admin
+  if (hostname.startsWith('admin.')) {
+    // If not already on /admin path, rewrite to /admin
+    if (!pathname.startsWith('/admin')) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/admin${pathname === '/' ? '' : pathname}`;
+      return NextResponse.rewrite(url);
+    }
+    // Already on /admin, continue
+    return NextResponse.next();
+  }
+  
+  // Only apply CSRF to API routes
   if (!pathname.startsWith('/api/')) {
     return NextResponse.next();
   }
@@ -91,6 +104,9 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: '/api/:path*',
+  matcher: [
+    '/api/:path*',      // All API routes (CSRF protection)
+    '/((?!_next|static|favicon.ico).*)',  // All pages (for admin subdomain routing)
+  ],
 };
 
