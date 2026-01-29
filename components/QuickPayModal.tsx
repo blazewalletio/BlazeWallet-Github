@@ -684,14 +684,14 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     className="w-full glass-card p-5 hover:bg-white/10 transition-all duration-200 group"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                      <div className="w-14 h-14 bg-gradient-to-br from-rose-500 to-orange-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
                         <CreditCard className="w-7 h-7 text-white" />
                       </div>
                       <div className="text-left flex-1">
                         <div className="font-semibold text-gray-900 text-base mb-0.5">Send to address</div>
                         <div className="text-sm text-gray-600">Enter amount & wallet address → Manual transfer</div>
                         </div>
-                      <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-orange-500 transition-colors flex-shrink-0" />
+                      <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-rose-500 transition-colors flex-shrink-0" />
                     </div>
                   </motion.button>
 
