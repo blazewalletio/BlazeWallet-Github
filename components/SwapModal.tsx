@@ -423,17 +423,25 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
               setTxHash(signature);
             } catch (versionedError: any) {
               // Check if it's a VersionedMessage error specifically
-              if (versionedError.message?.includes('VersionedMessage')) {
-                logger.warn('⚠️ Received VersionedMessage - attempting to construct VersionedTransaction manually');
+              if (versionedError.message?.toLowerCase().includes('versioned') && 
+                  versionedError.message?.toLowerCase().includes('message')) {
+                logger.warn('⚠️ Received VersionedMessage format - constructing VersionedTransaction from message');
                 
                 try {
-                  // Parse as MessageV0 and create VersionedTransaction
-                  const message = MessageV0.deserialize(buffer);
-                  transaction = new VersionedTransaction(message);
+                  // Import VersionedMessage if not already imported
+                  const { VersionedMessage } = await import('@solana/web3.js');
                   
-                  // Sign the constructed transaction
+                  // Deserialize as VersionedMessage first
+                  const versionedMessage = VersionedMessage.deserialize(buffer);
+                  logger.log('✅ Deserialized VersionedMessage');
+                  
+                  // Create VersionedTransaction from the message
+                  transaction = new VersionedTransaction(versionedMessage);
+                  logger.log('✅ Created VersionedTransaction from VersionedMessage');
+                  
+                  // Sign the transaction
                   transaction.sign([keypair]);
-                  logger.log('✅ VersionedTransaction constructed and signed from MessageV0');
+                  logger.log('✅ VersionedTransaction signed');
                   
                   // Send transaction
                   const signature = await connection.sendTransaction(transaction, {
@@ -448,7 +456,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                   stepTxHash = signature;
                   setTxHash(signature);
                 } catch (messageError: any) {
-                  logger.warn(`⚠️ MessageV0 approach failed: ${messageError.message}`);
+                  logger.error(`❌ VersionedMessage approach failed: ${messageError.message}`);
                   // Fall through to legacy transaction attempt
                   throw versionedError;
                 }
