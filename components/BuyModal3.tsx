@@ -267,6 +267,19 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       setAvailablePaymentMethods(new Set());
       setAvailableCryptosSet(new Set());
       setUnavailableReasons({});
+    } else {
+      // ⚠️ FIX: Cleanup when modal closes to fix viewport/scroll issues
+      // Ensure body scroll is restored and viewport is reset
+      if (typeof window !== 'undefined') {
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.width = '';
+        document.body.style.height = '';
+        // Force viewport reset on mobile
+        window.scrollTo(0, 0);
+        // Trigger a reflow to ensure viewport is correct
+        document.body.offsetHeight;
+      }
     }
   }, [isOpen]);
 
@@ -1176,10 +1189,27 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
+        className="fixed inset-0 z-50 bg-gray-50"
+        style={{
+          overflow: 'hidden',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: '100vh',
+          height: '100dvh', // Dynamic viewport height for mobile
+        }}
       >
-        <div className="min-h-full flex flex-col">
-          <div className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 pt-safe pb-safe">
+        <div 
+          className="h-full w-full overflow-y-auto" 
+          style={{
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain',
+          }}
+        >
+          <div className="min-h-full flex flex-col">
+            <div className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 pt-safe pb-safe">
             {/* Header - Clean like SendModal */}
             <div className="pt-4 pb-2">
               <button
@@ -1925,6 +1955,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
               </div>
             )}
           </div>
+        </div>
         </div>
       </motion.div>
     </AnimatePresence>
