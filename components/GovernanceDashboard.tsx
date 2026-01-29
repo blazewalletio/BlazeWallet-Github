@@ -14,7 +14,7 @@ interface GovernanceDashboardProps {
 }
 
 export default function GovernanceDashboard({ isOpen, onClose }: GovernanceDashboardProps) {
-  const { wallet, address, currentChain } = useWalletStore();
+  const { wallet, address } = useWalletStore();
   const [activeTab, setActiveTab] = useState<'vote' | 'create'>('vote');
   const [newProposal, setNewProposal] = useState({ title: '', description: '' });
   const [proposals, setProposals] = useState<Proposal[]>([]);
@@ -33,7 +33,7 @@ export default function GovernanceDashboard({ isOpen, onClose }: GovernanceDashb
     if (isOpen) {
       loadGovernanceData();
     }
-  }, [isOpen, wallet, address, currentChain]);
+  }, [isOpen, wallet, address]);
 
   const loadGovernanceData = async () => {
     if (!wallet || !address) {
@@ -45,17 +45,12 @@ export default function GovernanceDashboard({ isOpen, onClose }: GovernanceDashb
       setIsLoading(true);
       setError('');
       
-      // ✅ FIXED: Connect wallet to provider before passing to GovernanceService
+      // ✅ FIXED: Always use BSC Testnet for Governance (where contracts are deployed)
       const { ethers } = await import('ethers');
-      const { CHAINS } = await import('@/lib/chains');
-      const chain = CHAINS[currentChain];
-      
-      if (!chain) {
-        throw new Error(`Chain ${currentChain} not found`);
-      }
+      const BSC_TESTNET_RPC = 'https://data-seed-prebsc-1-s1.binance.org:8545';
       
       // Create provider and connect wallet
-      const provider = new ethers.JsonRpcProvider(chain.rpcUrl);
+      const provider = new ethers.JsonRpcProvider(BSC_TESTNET_RPC);
       const connectedWallet = wallet.connect(provider);
       
       const governanceService = new GovernanceService(connectedWallet);
@@ -91,16 +86,11 @@ export default function GovernanceDashboard({ isOpen, onClose }: GovernanceDashb
       setError('');
       setSuccess('');
       
-      // ✅ FIXED: Connect wallet to provider
+      // ✅ FIXED: Always use BSC Testnet
       const { ethers } = await import('ethers');
-      const { CHAINS } = await import('@/lib/chains');
-      const chain = CHAINS[currentChain];
+      const BSC_TESTNET_RPC = 'https://data-seed-prebsc-1-s1.binance.org:8545';
       
-      if (!chain) {
-        throw new Error(`Chain ${currentChain} not found`);
-      }
-      
-      const provider = new ethers.JsonRpcProvider(chain.rpcUrl);
+      const provider = new ethers.JsonRpcProvider(BSC_TESTNET_RPC);
       const connectedWallet = wallet.connect(provider);
       
       const governanceService = new GovernanceService(connectedWallet);
@@ -134,16 +124,11 @@ export default function GovernanceDashboard({ isOpen, onClose }: GovernanceDashb
       setError('');
       setSuccess('');
       
-      // ✅ FIXED: Connect wallet to provider
+      // ✅ FIXED: Always use BSC Testnet
       const { ethers } = await import('ethers');
-      const { CHAINS } = await import('@/lib/chains');
-      const chain = CHAINS[currentChain];
+      const BSC_TESTNET_RPC = 'https://data-seed-prebsc-1-s1.binance.org:8545';
       
-      if (!chain) {
-        throw new Error(`Chain ${currentChain} not found`);
-      }
-      
-      const provider = new ethers.JsonRpcProvider(chain.rpcUrl);
+      const provider = new ethers.JsonRpcProvider(BSC_TESTNET_RPC);
       const connectedWallet = wallet.connect(provider);
       
       const governanceService = new GovernanceService(connectedWallet);

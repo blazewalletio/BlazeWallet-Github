@@ -14,7 +14,7 @@ interface NFTMintDashboardProps {
 }
 
 export default function NFTMintDashboard({ isOpen, onClose }: NFTMintDashboardProps) {
-  const { wallet, currentChain } = useWalletStore();
+  const { wallet } = useWalletStore();
   const [selectedSkin, setSelectedSkin] = useState<number | null>(null);
   const [isMinting, setIsMinting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,7 +34,7 @@ export default function NFTMintDashboard({ isOpen, onClose }: NFTMintDashboardPr
     if (isOpen) {
       loadData();
     }
-  }, [isOpen, wallet, currentChain]);
+  }, [isOpen, wallet]);
 
   const loadData = async () => {
     if (!wallet) {
@@ -46,17 +46,12 @@ export default function NFTMintDashboard({ isOpen, onClose }: NFTMintDashboardPr
       setIsLoading(true);
       setError(null);
       
-      // ✅ FIXED: Connect wallet to provider before passing to NFTService
+      // ✅ FIXED: Always use BSC Testnet for NFT Skins (where contracts are deployed)
       const { ethers } = await import('ethers');
-      const { CHAINS } = await import('@/lib/chains');
-      const chain = CHAINS[currentChain];
-      
-      if (!chain) {
-        throw new Error(`Chain ${currentChain} not found`);
-      }
+      const BSC_TESTNET_RPC = 'https://data-seed-prebsc-1-s1.binance.org:8545';
       
       // Create provider and connect wallet
-      const provider = new ethers.JsonRpcProvider(chain.rpcUrl);
+      const provider = new ethers.JsonRpcProvider(BSC_TESTNET_RPC);
       const connectedWallet = wallet.connect(provider);
       
       const service = new NFTService(connectedWallet);
