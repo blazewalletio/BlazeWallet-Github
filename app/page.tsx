@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useWalletStore } from '@/lib/wallet-store';
 import Onboarding from '@/components/Onboarding';
 import Dashboard from '@/components/Dashboard';
@@ -13,37 +13,69 @@ import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import { logger } from '@/lib/logger';
 
 export default function Home() {
+  // ✅ REACTIVE APPROACH: Minimal local state, derive everything from wallet store
   const [hasWallet, setHasWallet] = useState<boolean | null>(null);
   const [showSplash, setShowSplash] = useState(true);
   const [showPasswordSetup, setShowPasswordSetup] = useState(false);
-  const [showPasswordUnlock, setShowPasswordUnlock] = useState(false);
   const [showBiometricSetup, setShowBiometricSetup] = useState(false);
-  const [showBiometricAuth, setShowBiometricAuth] = useState(false);
   const [showQRLogin, setShowQRLogin] = useState(false);
   const [showRecoveryPhrase, setShowRecoveryPhrase] = useState(false);
-  const [isMobile, setIsMobile] = useState<boolean | null>(null);
-  const [setupPassword, setSetupPassword] = useState<string | undefined>(undefined); // Store password temporarily for biometric setup
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [setupPassword, setSetupPassword] = useState<string | undefined>(undefined);
+  
+  // ✅ Read wallet store state (single source of truth)
   const { importWallet, hasPassword, isLocked, wallet, hasBiometric, isBiometricEnabled } = useWalletStore();
+  
+  // ✅ REACTIVE: Compute if unlock modal should show based on wallet store state
+  const shouldShowUnlockModal = useMemo(() => {
+    // Don't show if no wallet exists yet
+    if (hasWallet !== true) return false;
+    
+    // Don't show if password setup is showing
+    if (showPasswordSetup) return false;
+    
+    // Don't show if biometric setup is showing
+    if (showBiometricSetup) return false;
+    
+    // Don't show if QR login is showing
+    if (showQRLogin) return false;
+    
+    // Show unlock modal if:
+    // 1. Wallet has password protection AND
+    // 2. Wallet is not unlocked (no address or isLocked)
+    const needsUnlock = hasPassword && (!wallet || !wallet.address || isLocked);
+    
+    logger.log('🔍 [REACTIVE] shouldShowUnlockModal computed:', {
+      hasWallet,
+      hasPassword,
+      walletAddress: wallet?.address?.substring(0, 12) || 'null',
+      isLocked,
+      needsUnlock,
+      showPasswordSetup,
+      showBiometricSetup,
+      showQRLogin
+    });
+    
+    return needsUnlock;
+  }, [hasWallet, hasPassword, wallet, isLocked, showPasswordSetup, showBiometricSetup, showQRLogin]);
 
   useEffect(() => {
     // Hide splash immediately - no delay
     setShowSplash(false);
     
     // Detect if device is mobile
-    const checkMobile = () => {
-      const isMobileDevice = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      setIsMobile(isMobileDevice);
-    };
+    const isMobileDevice = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    setIsMobile(isMobileDevice);
     
-    checkMobile();
     logger.log('🔍 Device detection:', { 
       userAgent: navigator.userAgent,
-      isMobile: /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      isMobile: isMobileDevice
     });
   }, []);
 
   useEffect(() => {
-    // Check wallet state on load - wait for isMobile to be set
+    // ✅ SOLUTION 3: Always check wallet on mount (no dependencies blocking it!)
+    // This runs immediately, independent of isMobile
     const checkWallet = async () => {
       logger.log('🔄 [WALLET CHECK] Starting wallet check...');
       
@@ -102,8 +134,8 @@ export default function Home() {
             );
             logger.log('✅ [WALLET CHECK] Account manager initialized');
             
-            // User has active Supabase session + encrypted wallet → Show unlock modal
-            logger.log('✅ [WALLET CHECK] Setting hasWallet=true, will show unlock modal');
+            // ✅ REACTIVE: Just set hasWallet=true, unlock modal shows automatically!
+            logger.log('✅ [WALLET CHECK] Setting hasWallet=true, unlock modal will show automatically');
             setHasWallet(true);
             return;
           } else {
@@ -120,90 +152,47 @@ export default function Home() {
       
       logger.log('🔄 [WALLET CHECK] Proceeding to localStorage check...');
       
-      // ✅ SECOND: Check for encrypted_wallet (not wallet_address) to detect wallet existence
-      // This works for both old users (who have wallet_address) and new users (who don't)
+      // ✅ SECOND: Check for encrypted_wallet to detect wallet existence
       const hasEncryptedWallet = localStorage.getItem('encrypted_wallet');
-      const storedAddress = localStorage.getItem('wallet_address'); // For backward compat / logging
+      const storedAddress = localStorage.getItem('wallet_address');
       const hasPasswordStored = localStorage.getItem('has_password') === 'true';
       const biometricEnabled = localStorage.getItem('biometric_enabled') === 'true';
       
-            logger.log('🔍 Checking wallet state:', { hasEncryptedWallet: !!hasEncryptedWallet, storedAddress, hasPasswordStored, biometricEnabled, isMobile });
-            logger.log('🔍 LocalStorage check:', {
-              encrypted_wallet: !!localStorage.getItem('encrypted_wallet'), // Don't log actual value
-              wallet_address: localStorage.getItem('wallet_address'),
-              wallet_mnemonic: localStorage.getItem('wallet_mnemonic'),
-              has_password: localStorage.getItem('has_password'),
-              biometric_enabled: localStorage.getItem('biometric_enabled'),
-              wallet_just_imported: localStorage.getItem('wallet_just_imported'),
-              wallet_just_created: localStorage.getItem('wallet_just_created'),
-              force_password_setup: localStorage.getItem('force_password_setup')
-            });
+      logger.log('🔍 Checking wallet state:', { 
+        hasEncryptedWallet: !!hasEncryptedWallet, 
+        storedAddress, 
+        hasPasswordStored, 
+        biometricEnabled, 
+        isMobile 
+      });
+      
+      logger.log('🔍 LocalStorage check:', {
+        encrypted_wallet: !!localStorage.getItem('encrypted_wallet'),
+        wallet_address: localStorage.getItem('wallet_address'),
+        wallet_mnemonic: !!localStorage.getItem('wallet_mnemonic'),
+        has_password: localStorage.getItem('has_password'),
+        biometric_enabled: localStorage.getItem('biometric_enabled'),
+        wallet_just_imported: localStorage.getItem('wallet_just_imported'),
+        wallet_just_created: localStorage.getItem('wallet_just_created'),
+        force_password_setup: localStorage.getItem('force_password_setup')
+      });
       
       // ✅ Use encrypted_wallet as source of truth for wallet existence
       if (hasEncryptedWallet || storedAddress) {
         if (hasPasswordStored) {
-          // Wallet exists with password protection
+          // ✅ REACTIVE: Just set hasWallet=true
+          // Unlock modal will show automatically based on wallet store state!
+          logger.log('✅ [WALLET CHECK] Wallet with password found, setting hasWallet=true');
+          logger.log('✅ [WALLET CHECK] Unlock modal will show automatically (reactive)');
           setHasWallet(true);
           
-          // Check if wallet is already unlocked in this session
+          // Check if wallet is already unlocked from fresh onboarding
           const unlockedThisSession = sessionStorage.getItem('wallet_unlocked_this_session') === 'true';
-          
-          if (unlockedThisSession) {
-            // ✅ OPTIE A+: Check session timeout (30 minutes)
-            const lastActivity = sessionStorage.getItem('last_activity');
+          if (unlockedThisSession && wallet && !isLocked) {
+            logger.log('✅ Wallet already unlocked in store (fresh onboarding session)');
             const now = Date.now();
-            const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
-            
-            if (lastActivity) {
-              const timeSince = now - parseInt(lastActivity);
-              
-              if (timeSince > SESSION_TIMEOUT) {
-                logger.log('⏰ Session expired (inactive for ' + Math.round(timeSince / 60000) + ' minutes) - clearing session');
-                sessionStorage.clear();
-                // Fall through to normal unlock flow below
-              } else {
-                logger.log('🔄 Session active (last activity: ' + Math.round(timeSince / 1000) + 's ago) - attempting auto-unlock');
-                
-                // Update activity timestamp
-                sessionStorage.setItem('last_activity', now.toString());
-                
-                // ✅ FIX: Don't auto-trigger biometric on session resume
-                // Let PasswordUnlockModal handle biometric authentication
-                // This prevents double biometric prompts on mobile
-                logger.log('🔑 Session active - showing unlock modal (biometric button available if enabled)');
-                setShowPasswordUnlock(true);
-                return;
-              }
-            } else {
-              // No last_activity timestamp found
-              // This means either:
-              // 1. Hard refresh → Need to show unlock modal
-              // 2. New session → Need to show unlock modal
-              // Only exception: wallet is currently unlocked in store (from fresh onboarding)
-              
-              if (wallet && !isLocked) {
-                // Wallet is already unlocked in store (fresh onboarding) - allow through
-                logger.log('✅ Wallet already unlocked in store (fresh onboarding) - skipping unlock');
-                sessionStorage.setItem('last_activity', now.toString());
-                sessionStorage.setItem('wallet_unlocked_this_session', 'true');
-                return;
-              }
-              
-              // Otherwise: Show unlock modal (hard refresh / new session)
-              logger.log('🔓 No activity timestamp + wallet locked → Show unlock modal');
-              // Fall through to show unlock modal below
-            }
+            sessionStorage.setItem('last_activity', now.toString());
           }
-          
-          // ✅ FIX: Don't auto-trigger biometric on initial load
-          // Let PasswordUnlockModal handle biometric authentication via its button
-          // This prevents automatic Face ID popup before user can see the UI
-          logger.log('🔍 Auth flow decision:', { biometricEnabled, isMobile });
-          
-          // Always show password unlock modal with biometric button (if enabled)
-          // This gives user control over when to trigger Face ID
-          logger.log('🔑 Showing password unlock modal (biometric button available if enabled)');
-          setShowPasswordUnlock(true);
         } else {
           // Wallet exists but no password set - check for old unencrypted mnemonic
           const storedMnemonic = localStorage.getItem('wallet_mnemonic');
@@ -216,23 +205,19 @@ export default function Home() {
           if (createdWithEmail) {
             logger.log('✅ Wallet created with email - skipping password setup');
             setHasWallet(true);
-            // Wallet is already unlocked, no need for password modal
             return;
           }
           
           if (storedMnemonic || justImported || justCreated || forcePasswordSetup) {
             try {
               if (forcePasswordSetup) {
-                // Clear the flag
                 localStorage.removeItem('force_password_setup');
                 localStorage.removeItem('wallet_just_imported');
                 logger.log('🚨 FORCE: Password setup required after wallet import');
               } else if (justImported) {
-                // Clear the flag
                 localStorage.removeItem('wallet_just_imported');
                 logger.log('🔄 Wallet just imported - showing password setup');
               } else if (justCreated) {
-                // Clear the flag
                 localStorage.removeItem('wallet_just_created');
                 logger.log('🔄 Wallet just created - showing password setup');
               } else if (storedMnemonic) {
@@ -243,7 +228,7 @@ export default function Home() {
               
               setHasWallet(true);
               logger.log('🎯 Triggering password setup modal');
-              setShowPasswordSetup(true); // Prompt to set password
+              setShowPasswordSetup(true);
             } catch (error) {
               logger.error('Error importing wallet:', error);
               setHasWallet(false);
@@ -253,15 +238,14 @@ export default function Home() {
           }
         }
       } else {
+        logger.log('ℹ️ No wallet found in localStorage');
         setHasWallet(false);
       }
     };
 
-    // Only check wallet after isMobile is determined
-    if (isMobile !== null) {
-      checkWallet();
-    }
-  }, [isMobile]);
+    // ✅ Always run checkWallet on mount (no blocking dependencies!)
+    checkWallet();
+  }, []); // Empty deps - runs once on mount
 
   // Auto-lock check
   useEffect(() => {
@@ -339,19 +323,20 @@ export default function Home() {
               }}
               onCancel={() => {
                 setShowQRLogin(false);
-                setShowPasswordUnlock(true);
               }}
             />
           )}
           
-          {/* Password Unlock Modal */}
+          {/* ✅ REACTIVE UNLOCK MODAL: Shows automatically based on wallet store state! */}
           <PasswordUnlockModal
-            isOpen={showPasswordUnlock}
+            isOpen={shouldShowUnlockModal}
             onComplete={() => {
-              setShowPasswordUnlock(false);
+              // Wallet unlocked - store will update automatically
+              logger.log('✅ Wallet unlocked via modal');
+              sessionStorage.setItem('wallet_unlocked_this_session', 'true');
+              sessionStorage.setItem('last_activity', Date.now().toString());
             }}
             onFallback={() => {
-              setShowPasswordUnlock(false);
               setShowRecoveryPhrase(true);
             }}
           />
