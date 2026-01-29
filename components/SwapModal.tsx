@@ -396,21 +396,47 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           logger.log('🔍 DEBUG: Full txRequest:', txRequest);
           
           try {
-            // ✅ FIX: Try VersionedTransaction with proper error handling
+            // ✅ IMPROVED: Detect transaction format BEFORE deserializing
             logger.log('📦 Parsing Solana transaction data...');
             const buffer = Buffer.from(txData, 'base64');
             
-            try {
-              // Attempt VersionedTransaction deserialization
-              transaction = VersionedTransaction.deserialize(buffer);
-              logger.log('✅ Deserialized as VersionedTransaction');
+            // Check transaction format by examining the buffer
+            // Versioned transactions start with version byte (0x80 for v0, or 0xFF for legacy)
+            const firstByte = buffer[0];
+            
+            // VersionedTransaction format: First byte is version (< 0x7F for versioned)
+            // Legacy Transaction format: First byte is number of signatures (typically 1-2)
+            const isVersioned = firstByte < 0x7F; // Versioned transactions have version as first byte (0 = v0)
+            const isLegacy = firstByte >= 0x7F; // Legacy has signature count first (usually 1 or 2)
+            
+            logger.log(`🔍 Transaction format detection: firstByte=0x${firstByte.toString(16)}, isVersioned=${isVersioned}, isLegacy=${isLegacy}`);
+            
+            if (isVersioned) {
+              // ✅ Versioned transaction or message - try both formats
+              try {
+                // First try: Complete VersionedTransaction
+                transaction = VersionedTransaction.deserialize(buffer);
+                logger.log('✅ Deserialized as VersionedTransaction (complete)');
+              } catch (versionedTxError: any) {
+                // If that fails, it might be just a VersionedMessage (needs wrapping)
+                if (versionedTxError.message?.toLowerCase().includes('versioned') && 
+                    versionedTxError.message?.toLowerCase().includes('message')) {
+                  logger.log('📝 Data is VersionedMessage format - constructing VersionedTransaction');
+                  const { VersionedMessage } = await import('@solana/web3.js');
+                  const versionedMessage = VersionedMessage.deserialize(buffer);
+                  transaction = new VersionedTransaction(versionedMessage);
+                  logger.log('✅ Created VersionedTransaction from VersionedMessage');
+                } else {
+                  throw versionedTxError;
+                }
+              }
               
               // Sign versioned transaction
-              (transaction as VersionedTransaction).sign([keypair]);
-              logger.log('✅ Transaction signed');
+              transaction.sign([keypair]);
+              logger.log('✅ Versioned transaction signed');
               
               // Send versioned transaction
-              const signature = await connection.sendTransaction(transaction as VersionedTransaction, {
+              const signature = await connection.sendTransaction(transaction, {
                 skipPreflight: false,
                 maxRetries: 3,
               });
@@ -421,55 +447,9 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
               
               stepTxHash = signature;
               setTxHash(signature);
-            } catch (versionedError: any) {
-              // Check if it's a VersionedMessage error specifically
-              if (versionedError.message?.toLowerCase().includes('versioned') && 
-                  versionedError.message?.toLowerCase().includes('message')) {
-                logger.warn('⚠️ Received VersionedMessage format - constructing VersionedTransaction from message');
-                
-                try {
-                  // Import VersionedMessage if not already imported
-                  const { VersionedMessage } = await import('@solana/web3.js');
-                  
-                  // Deserialize as VersionedMessage first
-                  const versionedMessage = VersionedMessage.deserialize(buffer);
-                  logger.log('✅ Deserialized VersionedMessage');
-                  
-                  // Create VersionedTransaction from the message
-                  transaction = new VersionedTransaction(versionedMessage);
-                  logger.log('✅ Created VersionedTransaction from VersionedMessage');
-                  
-                  // Sign the transaction
-                  transaction.sign([keypair]);
-                  logger.log('✅ VersionedTransaction signed');
-                  
-                  // Send transaction
-                  const signature = await connection.sendTransaction(transaction, {
-                    skipPreflight: false,
-                    maxRetries: 3,
-                  });
-                  logger.log(`✅ Transaction sent: ${signature}`);
-                  
-                  await connection.confirmTransaction(signature, 'confirmed');
-                  logger.log(`✅ Transaction confirmed: ${signature}`);
-                  
-                  stepTxHash = signature;
-                  setTxHash(signature);
-                } catch (messageError: any) {
-                  logger.error(`❌ VersionedMessage approach failed: ${messageError.message}`);
-                  // Fall through to legacy transaction attempt
-                  throw versionedError;
-                }
-              } else {
-                // Not a VersionedMessage error - try legacy transaction
-                throw versionedError;
-              }
-            }
-          } catch (finalError: any) {
-            // Final fallback: Legacy Transaction
-            try {
-              logger.log('📦 Attempting legacy Transaction format...');
-              const buffer = Buffer.from(txData, 'base64');
+            } else {
+              // ✅ Legacy transaction format
+              logger.log('📦 Detected legacy Transaction format');
               transaction = Transaction.from(buffer);
               logger.log('✅ Deserialized as legacy Transaction');
               
@@ -489,13 +469,34 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
               
               stepTxHash = signature;
               setTxHash(signature);
-            } catch (legacyError: any) {
-              logger.error('❌ All transaction formats failed:', {
-                versionedError: finalError.message,
-                legacyError: legacyError.message,
-              });
-              throw new Error(`Failed to send Solana transaction: ${legacyError.message || finalError.message}`);
             }
+          } catch (parseError: any) {
+            // ❌ Parsing failed completely
+            logger.error('❌ Failed to parse Solana transaction:', {
+              error: parseError.message,
+              stack: parseError.stack,
+            });
+            
+            const errorMsg = `Failed to send Solana transaction: ${parseError.message || 'Unknown error'}`;
+            setError(errorMsg);
+            setStep('error');
+            
+            // Track failed transaction
+            await logTransactionEvent({
+              userId,
+              action: 'cross_chain_swap',
+              status: 'failed',
+              metadata: {
+                error: errorMsg,
+                fromChain,
+                toChain,
+                fromToken,
+                toToken,
+                amount: fromAmount
+              },
+              chainType: CHAINS[fromChain]?.chainType
+            });
+            throw new Error(errorMsg);
           }
         } else {
           // ✅ EVM transaction execution
