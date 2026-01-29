@@ -514,3 +514,182 @@ export async function verifyDeviceAndSignIn(
   }
 }
 
+// ✅ Export with standard names for compatibility
+export const signInWithEmail = strictSignInWithEmail;
+
+/**
+ * Sign up with email - creates new wallet (no device verification needed for signup)
+ * Device will be verified on first sign-in
+ */
+export async function signUpWithEmail(
+  email: string,
+  password: string
+): Promise<any> {
+  try {
+    const bip39 = (await import('bip39')).default;
+    const ethers = await import('ethers');
+    const { encryptMnemonic } = await import('./wallet-encryption');
+    const { trackAuth, logFeatureUsage } = await import('./analytics');
+
+    // 1. Create Supabase user
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${typeof window !== 'undefined' ? window.location.origin : 'https://my.blazewallet.io'}/auth/verify`,
+        data: {
+          email_confirm: false,
+        }
+      }
+    });
+
+    if (authError) {
+      return { success: false, error: authError.message };
+    }
+
+    if (!authData.user) {
+      return { success: false, error: 'Failed to create user' };
+    }
+
+    logger.log('✅ [StrictAuth] User created:', authData.user.id);
+
+    // 2. Generate new wallet mnemonic
+    const mnemonic = bip39.generateMnemonic();
+
+    // 3. Encrypt mnemonic with user's password
+    const encryptedWallet = await encryptMnemonic(mnemonic, password);
+
+    // 4. Get wallet address
+    const hdNode = ethers.HDNodeWallet.fromPhrase(mnemonic);
+    const walletAddress = hdNode.address;
+
+    // 5. Upload encrypted wallet to Supabase
+    try {
+      const csrfResponse = await fetch('/api/csrf-token');
+      const { token: csrfToken } = await csrfResponse.json();
+      
+      const walletResponse = await fetch('/api/wallet/create', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify({
+          userId: authData.user.id,
+          encryptedMnemonic: encryptedWallet,
+          walletAddress,
+        }),
+      });
+      
+      const walletData = await walletResponse.json();
+      
+      if (!walletData.success) {
+        logger.error('Failed to save encrypted wallet:', walletData.error);
+      }
+    } catch (walletError: any) {
+      logger.error('Failed to save encrypted wallet:', walletError);
+    }
+
+    // 6. Store wallet flags locally
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('wallet_email', email);
+      localStorage.setItem('has_password', 'true');
+      localStorage.setItem('encrypted_wallet', encryptedWallet);
+      localStorage.setItem('wallet_created_with_email', 'true');
+      localStorage.setItem('supabase_user_id', authData.user!.id);
+      localStorage.setItem('email_verified', 'false');
+      sessionStorage.setItem('wallet_unlocked_this_session', 'true');
+    }
+
+    // Track successful signup
+    if (typeof window !== 'undefined') {
+      await trackAuth(authData.user.id, 'signup', {
+        success: true,
+        method: 'email',
+        hasWallet: true
+      });
+    }
+
+    // 7. Send welcome email
+    try {
+      const response = await fetch('/api/send-welcome-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          userId: authData.user.id,
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        logger.log('✅ Welcome email sent to:', email);
+      } else {
+        logger.error('Failed to send welcome email:', result.error);
+      }
+    } catch (emailError) {
+      logger.error('Failed to send welcome email:', emailError);
+    }
+
+    // Track feature usage
+    await logFeatureUsage('user_signup', { 
+      success: true,
+      method: 'email',
+      hasWallet: true 
+    });
+
+    return {
+      success: true,
+      user: authData.user,
+      mnemonic,
+    };
+  } catch (error: any) {
+    logger.error('Sign up error:', error);
+    return { success: false, error: error.message || 'Failed to sign up' };
+  }
+}
+
+// ✅ OAuth exports (these will redirect to OAuth providers)
+export async function signInWithGoogle(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    logger.error('Google sign in error:', error);
+    return { success: false, error: error.message || 'Failed to sign in with Google' };
+  }
+}
+
+export async function signInWithApple(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'apple',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    logger.error('Apple sign in error:', error);
+    return { success: false, error: error.message || 'Failed to sign in with Apple' };
+  }
+}
+

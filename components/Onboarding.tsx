@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, CheckCircle2, Copy, Check, Sparkles, Shield, Zap, Lock, AlertTriangle, Eye, EyeOff, ArrowRight, Mail, Key, Usb, FileText, Fingerprint, X, Brain, Flame, Vote, Rocket, Gift, CreditCard, Users, Palette, CheckCircle, XCircle } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
-import { signUpWithEmail, signInWithEmail, signInWithGoogle, signInWithApple } from '@/lib/supabase-auth';
+import { signUpWithEmail, signInWithEmail, signInWithGoogle, signInWithApple } from '@/lib/supabase-auth-strict';
 import BlazeLogoImage from './BlazeLogoImage';
 import { logger } from '@/lib/logger';
 

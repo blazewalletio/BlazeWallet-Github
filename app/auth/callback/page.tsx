@@ -3,6 +3,8 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { generateEnhancedFingerprint } from '@/lib/device-fingerprint-pro';
+import { logger } from '@/lib/logger';
 
 export default function AuthCallback() {
   const router = useRouter();
@@ -26,33 +28,102 @@ export default function AuthCallback() {
           }
 
           if (session) {
-            // Track login
-            try {
-              const { trackAuth } = await import('@/lib/analytics');
-              await trackAuth(session.user.id, 'login', {
-                success: true,
-                method: 'oauth',
-                provider: 'google_or_apple'
-              });
-            } catch (err) {
-              console.error('Failed to track login:', err);
-            }
+            logger.log('✅ [OAuth] Session established for user:', session.user.id);
 
-            // Check if user has a wallet in Supabase
-            const { data: wallet } = await supabase
-              .from('wallets')
-              .select('id')
+            // ✅ DEVICE VERIFICATION for OAuth logins
+            logger.log('📱 [OAuth] Generating device fingerprint...');
+            const deviceInfo = await generateEnhancedFingerprint();
+
+            // Check if device is already trusted
+            const { data: existingDevice, error: deviceError } = await supabase
+              .from('trusted_devices')
+              .select('*')
               .eq('user_id', session.user.id)
-              .single();
+              .eq('device_fingerprint', deviceInfo.fingerprint)
+              .maybeSingle();
 
-            if (!wallet) {
-              // New user from OAuth - needs to create wallet
-              // Redirect to onboarding to show recovery phrase
-              router.push('/?oauth=new_user&show_mnemonic=true');
-            } else {
-              // Existing user - wallet will be loaded automatically
-              router.push('/');
+            if (deviceError) {
+              logger.error('❌ [OAuth] Error checking device:', deviceError);
             }
+
+            // TRUSTED DEVICE - Allow immediate access
+            if (existingDevice && existingDevice.verified_at) {
+              logger.log('✅ [OAuth] TRUSTED device detected');
+
+              // Update last_used_at
+              await supabase
+                .from('trusted_devices')
+                .update({
+                  last_used_at: new Date().toISOString(),
+                  is_current: true
+                })
+                .eq('id', existingDevice.id);
+
+              // Track login
+              try {
+                const { trackAuth } = await import('@/lib/analytics');
+                await trackAuth(session.user.id, 'login', {
+                  success: true,
+                  method: 'oauth',
+                  provider: 'google_or_apple'
+                });
+              } catch (err) {
+                console.error('Failed to track login:', err);
+              }
+
+              // Check if user has a wallet in Supabase
+              const { data: wallet } = await supabase
+                .from('wallets')
+                .select('id')
+                .eq('user_id', session.user.id)
+                .single();
+
+              if (!wallet) {
+                // New user from OAuth - needs to create wallet
+                router.push('/?oauth=new_user&show_mnemonic=true');
+              } else {
+                // Existing user - wallet will be loaded automatically
+                router.push('/');
+              }
+              return;
+            }
+
+            // NEW/UNVERIFIED DEVICE - Require verification
+            logger.log('⚠️ [OAuth] NEW device detected - requiring verification');
+
+            // Store device verification token in localStorage
+            const verificationToken = crypto.randomUUID();
+            localStorage.setItem('device_verification_pending', 'true');
+            localStorage.setItem('device_verification_token', verificationToken);
+            localStorage.setItem('device_verification_user_id', session.user.id);
+
+            // Send verification email via API
+            try {
+              await fetch('/api/verify-device', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  userId: session.user.id,
+                  email: session.user.email,
+                  deviceInfo: {
+                    fingerprint: deviceInfo.fingerprint,
+                    deviceName: deviceInfo.deviceName,
+                    browser: deviceInfo.browser,
+                    os: deviceInfo.os,
+                    location: deviceInfo.location,
+                    ipAddress: deviceInfo.ipAddress || 'Unknown',
+                    userAgent: navigator.userAgent,
+                  }
+                })
+              });
+
+              logger.log('✅ [OAuth] Verification email sent');
+            } catch (emailError) {
+              logger.error('❌ [OAuth] Failed to send verification email:', emailError);
+            }
+
+            // Redirect to device verification page
+            router.push('/?device_verification_required=true');
           } else {
             router.push('/?error=no_session');
           }

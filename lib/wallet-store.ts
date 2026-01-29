@@ -364,7 +364,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         // Email wallet: use Supabase auth to decrypt
         secureLog.sensitive('Unlocking email wallet with biometric password');
         
-        const { signInWithEmail } = await import('./supabase-auth');
+        const { signInWithEmail } = await import('./supabase-auth-strict');
         const result = await signInWithEmail(email, password);
         
         if (!result.success || !result.mnemonic) {

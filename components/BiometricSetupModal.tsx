@@ -30,7 +30,7 @@ export default function BiometricSetupModal({ isOpen, onClose, onSuccess }: Biom
 
       if (createdWithEmail && email) {
         // Validate password with Supabase
-        const { signInWithEmail } = await import('@/lib/supabase-auth');
+        const { signInWithEmail } = await import('@/lib/supabase-auth-strict');
         const result = await signInWithEmail(email, password);
         
         if (!result.success) {
