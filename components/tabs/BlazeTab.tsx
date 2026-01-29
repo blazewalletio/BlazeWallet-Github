@@ -58,7 +58,7 @@ export default function BlazeTab() {
       description: 'Earn up to 25% APY',
       icon: Lock,
       gradient: 'from-orange-500 to-red-500',
-      onClick: () => setActiveModal('staking'),
+      comingSoon: true, // ✅ COMING SOON
     },
     {
       id: 'cashback',
@@ -66,7 +66,7 @@ export default function BlazeTab() {
       description: '2% on all transactions',
       icon: Gift,
       gradient: 'from-green-500 to-emerald-500',
-      onClick: () => setActiveModal('cashback'),
+      comingSoon: true, // ✅ COMING SOON
     },
     {
       id: 'governance',
@@ -74,7 +74,7 @@ export default function BlazeTab() {
       description: 'Vote on proposals',
       icon: Vote,
       gradient: 'from-purple-500 to-pink-500',
-      onClick: () => setActiveModal('governance'),
+      comingSoon: true, // ✅ COMING SOON
     },
     {
       id: 'launchpad',
@@ -82,7 +82,7 @@ export default function BlazeTab() {
       description: 'Early access to IDOs',
       icon: Rocket,
       gradient: 'from-blue-500 to-cyan-500',
-      onClick: () => setActiveModal('launchpad'),
+      comingSoon: true, // ✅ COMING SOON
     },
     {
       id: 'referrals',
@@ -90,7 +90,7 @@ export default function BlazeTab() {
       description: 'Earn 50 BLAZE/referral',
       icon: Users,
       gradient: 'from-yellow-500 to-orange-500',
-      onClick: () => setActiveModal('referrals'),
+      comingSoon: true, // ✅ COMING SOON
     },
     {
       id: 'nft-skins',
@@ -98,7 +98,7 @@ export default function BlazeTab() {
       description: 'Exclusive wallet themes',
       icon: Palette,
       gradient: 'from-pink-500 to-purple-500',
-      onClick: () => setActiveModal('nft-mint'),
+      comingSoon: true, // ✅ COMING SOON
     },
     ...(isFounder ? [{
       id: 'vesting',
@@ -237,18 +237,45 @@ export default function BlazeTab() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={feature.onClick}
-                className="glass-card card-hover p-4 rounded-xl text-left hover:bg-white/10 transition-all relative overflow-hidden group"
+                whileTap={feature.comingSoon ? undefined : { scale: 0.95 }}
+                onClick={feature.comingSoon ? undefined : feature.onClick}
+                disabled={feature.comingSoon}
+                className={`glass-card p-4 rounded-xl text-left transition-all relative overflow-hidden group ${
+                  feature.comingSoon 
+                    ? 'opacity-75 cursor-default' 
+                    : 'card-hover hover:bg-white/10 cursor-pointer'
+                }`}
               >
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
+                {/* Coming Soon Badge */}
+                {feature.comingSoon && (
+                  <div className="absolute top-3 right-3 z-10">
+                    <div className="px-2 py-1 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-xs font-bold rounded-full shadow-lg">
+                      Soon
+                    </div>
+                  </div>
+                )}
+                
+                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-3 ${
+                  feature.comingSoon ? '' : 'group-hover:scale-110'
+                } transition-transform ${feature.comingSoon ? 'opacity-60' : ''}`}>
                   <Icon className="w-6 h-6 text-white" />
                 </div>
-                <div className="font-semibold text-gray-900 mb-1 text-sm">{feature.title}</div>
-                <div className="text-xs text-gray-500">{feature.description}</div>
+                <div className={`font-semibold text-gray-900 mb-1 text-sm ${feature.comingSoon ? 'opacity-60' : ''}`}>
+                  {feature.title}
+                </div>
+                <div className={`text-xs text-gray-500 ${feature.comingSoon ? 'opacity-50' : ''}`}>
+                  {feature.description}
+                </div>
                 
-                {/* Hover glow effect */}
-                <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                {/* Hover glow effect - only for active features */}
+                {!feature.comingSoon && (
+                  <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                )}
+                
+                {/* Coming Soon overlay gradient */}
+                {feature.comingSoon && (
+                  <div className="absolute inset-0 bg-gradient-to-br from-gray-200/10 to-gray-100/20 pointer-events-none" />
+                )}
               </motion.button>
             );
           })}
