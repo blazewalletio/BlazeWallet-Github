@@ -1588,7 +1588,10 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       // Verify device with code
                       const result = await verifyDeviceAndSignIn(
                         deviceVerificationToken,
-                        deviceVerificationCode
+                        deviceVerificationCode,
+                        '', // No 2FA code (not implemented yet)
+                        email,
+                        password
                       );
                       
                       if (!result.success) {
