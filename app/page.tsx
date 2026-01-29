@@ -76,7 +76,11 @@ export default function Home() {
             
             // Initialize account in account manager
             const { switchToEmailAccount } = await import('@/lib/account-manager');
-            await switchToEmailAccount(session.user.email!);
+            await switchToEmailAccount(
+              session.user.email!,
+              session.user.id,
+              walletData.encrypted_mnemonic
+            );
             
             // User has active Supabase session + encrypted wallet → Show unlock modal
             setHasWallet(true);
