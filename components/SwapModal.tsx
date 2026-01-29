@@ -510,7 +510,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                 toChain,
                 fromToken: typeof fromToken === 'string' ? fromToken : (fromToken as any)?.symbol || 'unknown',
                 toToken: typeof toToken === 'string' ? toToken : (toToken as any)?.symbol || 'unknown',
-                amount: fromAmount
+                amount: amount
               },
             });
             throw new Error(errorMsg);
