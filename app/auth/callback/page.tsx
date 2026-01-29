@@ -30,6 +30,7 @@ export default function AuthCallback() {
             try {
               const { trackAuth } = await import('@/lib/analytics');
               await trackAuth(session.user.id, 'login', {
+                success: true,
                 method: 'oauth',
                 provider: 'google_or_apple'
               });

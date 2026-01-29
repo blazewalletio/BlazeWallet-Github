@@ -251,6 +251,7 @@ export async function signUpWithEmail(
 
     // Track successful signup
     await logFeatureUsage('user_signup', { 
+      success: true,
       method: 'email',
       hasWallet: true 
     });
@@ -330,6 +331,7 @@ export async function signInWithEmail(
     if (typeof window !== 'undefined') {
       const { trackAuth } = await import('@/lib/analytics');
       await trackAuth(authData.user!.id, 'login', { 
+        success: true,
         method: 'email',
         hasWallet: true 
       });
