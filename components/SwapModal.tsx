@@ -577,7 +577,9 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           
           // Optional: Confirm in background (don't await)
           tx.wait().then(receipt => {
-            logger.log(`✅ Transaction confirmed: ${receipt.hash}`);
+            if (receipt) {
+              logger.log(`✅ Transaction confirmed: ${receipt.hash}`);
+            }
           }).catch(err => {
             logger.warn('⚠️ Background confirmation failed:', err.message);
             // Transaction was already sent, so this is non-critical
