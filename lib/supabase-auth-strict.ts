@@ -8,6 +8,63 @@ import { supabase } from './supabase';
 import { generateEnhancedFingerprint, EnhancedDeviceInfo } from './device-fingerprint-pro';
 import { logger } from './logger';
 
+// =============================================================================
+// ENCRYPTION UTILITIES
+// =============================================================================
+
+/**
+ * Encrypt wallet mnemonic with user's password
+ * Uses AES-256-GCM for encryption
+ */
+async function encryptMnemonic(mnemonic: string, password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  
+  // Derive key from password using PBKDF2
+  const passwordKey = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits', 'deriveKey']
+  );
+
+  // Salt for key derivation
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+
+  // Derive AES key
+  const key = await crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      salt: salt,
+      iterations: 100000,
+      hash: 'SHA-256'
+    },
+    passwordKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt']
+  );
+
+  // IV for encryption
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+
+  // Encrypt
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: iv },
+    key,
+    encoder.encode(mnemonic)
+  );
+
+  // Combine salt + iv + encrypted data
+  const combined = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
+  combined.set(salt, 0);
+  combined.set(iv, salt.length);
+  combined.set(new Uint8Array(encrypted), salt.length + iv.length);
+
+  // Return as base64
+  return btoa(String.fromCharCode(...combined));
+}
+
 // Helper to decrypt mnemonic - supports BOTH old (WebCrypto) and new (crypto-utils) formats
 async function decryptMnemonic(encryptedData: string, password: string): Promise<string> {
   try {
@@ -528,7 +585,6 @@ export async function signUpWithEmail(
   try {
     const bip39 = (await import('bip39')).default;
     const ethers = await import('ethers');
-    const { encryptMnemonic } = await import('./wallet-encryption');
     const { trackAuth, logFeatureUsage } = await import('./analytics');
 
     // 1. Create Supabase user
