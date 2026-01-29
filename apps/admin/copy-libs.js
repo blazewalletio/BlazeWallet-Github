@@ -5,7 +5,7 @@ console.log('📦 Preparing lib/ folder for build...');
 
 const sourceLib = path.join(__dirname, '../../lib');
 const targetLib = path.join(__dirname, 'lib');
-const adminLibBackup = path.join(__dirname, 'lib-admin-backup');
+const adminSpecificFiles = ['admin-auth-utils.ts']; // Files that should stay in apps/admin/lib
 
 function copyRecursive(src, dest) {
   const stat = fs.statSync(src);
@@ -23,21 +23,19 @@ function copyRecursive(src, dest) {
   }
 }
 
-// Step 1: Backup admin-specific lib files if they exist
-if (fs.existsSync(targetLib)) {
-  console.log('ℹ️  Backing up admin-specific lib files...');
-  
-  if (fs.existsSync(adminLibBackup)) {
-    fs.rmSync(adminLibBackup, { recursive: true });
-  }
-  
-  copyRecursive(targetLib, adminLibBackup);
-  console.log('✅ Admin lib files backed up');
-}
-
-// Step 2: Check if source lib exists (monorepo)
+// Check if we're in a monorepo (source lib exists)
 if (fs.existsSync(sourceLib)) {
-  console.log('✅ Found root lib/ folder, copying recursively...');
+  console.log('✅ Monorepo detected - syncing lib/ folder');
+  
+  // Backup admin-specific files
+  const backups = {};
+  adminSpecificFiles.forEach(file => {
+    const filePath = path.join(targetLib, file);
+    if (fs.existsSync(filePath)) {
+      backups[file] = fs.readFileSync(filePath);
+      console.log(`  💾 Backed up: ${file}`);
+    }
+  });
   
   // Remove old target
   if (fs.existsSync(targetLib)) {
@@ -55,36 +53,37 @@ if (fs.existsSync(sourceLib)) {
     copyRecursive(src, dest);
   });
   
-  console.log(`✅ Copied ${files.length} items from ../../lib/ to lib/`);
+  console.log(`✅ Copied ${files.length} items from ../../lib/`);
   
-  // Step 3: Restore admin-specific files (overwrite if needed)
-  if (fs.existsSync(adminLibBackup)) {
-    console.log('ℹ️  Restoring admin-specific lib files...');
-    
-    const adminFiles = fs.readdirSync(adminLibBackup);
-    adminFiles.forEach(file => {
-      const src = path.join(adminLibBackup, file);
-      const dest = path.join(targetLib, file);
-      
-      // Only copy if it's admin-specific (contains "admin" in name)
-      if (file.includes('admin')) {
-        fs.copyFileSync(src, dest);
-        console.log(`  ✅ Restored: ${file}`);
-      }
-    });
-    
-    // Clean up backup
-    fs.rmSync(adminLibBackup, { recursive: true });
-  }
+  // Restore admin-specific files
+  Object.keys(backups).forEach(file => {
+    const filePath = path.join(targetLib, file);
+    fs.writeFileSync(filePath, backups[file]);
+    console.log(`  ✅ Restored: ${file}`);
+  });
   
-  console.log('✅ Lib folder ready for build!');
+  console.log('✅ lib/ folder ready for build');
 } else {
-  console.log('ℹ️  No root lib/ found (probably on Vercel), assuming lib/ already complete');
+  console.log('ℹ️  Not in monorepo (Vercel deployment)');
+  console.log('ℹ️  Using committed lib/ folder');
   
   if (!fs.existsSync(targetLib)) {
-    console.error('❌ lib/ folder not found! Build will fail.');
+    console.error('❌ lib/ folder not found!');
+    console.error('   Make sure apps/admin/lib/ is committed to git');
     process.exit(1);
-  } else {
-    console.log('✅ lib/ folder exists, continuing build');
   }
+  
+  const libFiles = fs.readdirSync(targetLib);
+  console.log(`✅ lib/ folder exists with ${libFiles.length} items`);
+  
+  // Verify critical files
+  const criticalFiles = ['admin-auth-utils.ts', 'logger.ts', 'supabase.ts'];
+  const missing = criticalFiles.filter(f => !fs.existsSync(path.join(targetLib, f)));
+  
+  if (missing.length > 0) {
+    console.error(`❌ Missing critical files: ${missing.join(', ')}`);
+    process.exit(1);
+  }
+  
+  console.log('✅ All critical files present');
 }
