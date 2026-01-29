@@ -45,17 +45,29 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
 
   useBlockBodyScroll(isOpen);
 
+  // ✅ FIX: Load userId when modal opens (not just on mount)
   useEffect(() => {
+    if (!isOpen) return;
+    
     const loadUserId = async () => {
-      // ✅ Use Supabase auth UUID (consistent with wallets table)
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error) {
+        logger.error('Failed to get user:', error);
+        setIsLoading(false); // Stop loading if auth fails
+        return;
+      }
+      
       if (user) {
-        setUserId(user.id); // UUID from Supabase auth
+        setUserId(user.id);
+        logger.log(`✅ User ID loaded: ${user.id}`);
+      } else {
+        logger.warn('⚠️ No authenticated user found');
+        setIsLoading(false); // Stop loading if no user
       }
     };
     
     loadUserId();
-  }, []);
+  }, [isOpen]); // ✅ Re-run when modal opens
 
   useEffect(() => {
     if (isOpen && userId) {
@@ -74,7 +86,10 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
   }, [contacts, searchQuery, selectedChainFilter]);
 
   const loadContacts = async () => {
-    if (!userId) return;
+    if (!userId) {
+      setIsLoading(false); // ✅ FIX: Stop loading if no user
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -85,10 +100,16 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
         .order('is_favorite', { ascending: false })
         .order('name');
 
-      if (error) throw error;
+      if (error) {
+        logger.error('Failed to load contacts:', error);
+        throw error;
+      }
+      
       setContacts(data || []);
+      logger.log(`✅ Loaded ${data?.length || 0} contacts`);
     } catch (error) {
       logger.error('Failed to load contacts:', error);
+      setContacts([]); // ✅ Clear contacts on error
     } finally {
       setIsLoading(false);
     }
