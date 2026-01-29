@@ -71,23 +71,23 @@ export default function Home() {
           logger.log('🔄 [WALLET CHECK] Loading encrypted wallet from Supabase...');
           const { data: walletData, error: walletError } = await supabase
             .from('wallets')
-            .select('encrypted_mnemonic')
+            .select('encrypted_wallet')
             .eq('user_id', session.user.id)
             .maybeSingle();
           
           logger.log('🔄 [WALLET CHECK] Wallet data result:', {
             hasData: !!walletData,
             hasError: !!walletError,
-            hasEncryptedMnemonic: !!walletData?.encrypted_mnemonic
+            hasEncryptedWallet: !!walletData?.encrypted_wallet
           });
           
           if (walletError) {
             logger.error('❌ Error loading wallet from Supabase:', walletError);
-          } else if (walletData && walletData.encrypted_mnemonic) {
+          } else if (walletData && walletData.encrypted_wallet) {
             logger.log('✅ Found encrypted wallet in Supabase for user');
             
             // Store encrypted wallet in localStorage (for unlock modal)
-            localStorage.setItem('encrypted_wallet', walletData.encrypted_mnemonic);
+            localStorage.setItem('encrypted_wallet', walletData.encrypted_wallet);
             localStorage.setItem('has_password', 'true');
             localStorage.setItem('wallet_email', session.user.email || '');
             logger.log('✅ [WALLET CHECK] Data stored in localStorage');
@@ -98,7 +98,7 @@ export default function Home() {
             await switchToEmailAccount(
               session.user.email!,
               session.user.id,
-              walletData.encrypted_mnemonic
+              walletData.encrypted_wallet
             );
             logger.log('✅ [WALLET CHECK] Account manager initialized');
             
