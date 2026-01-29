@@ -222,11 +222,14 @@ export class AnalyticsTracker {
       // Get auth token
       const token = await this.getAuthToken();
       if (!token) {
+        logger.warn('[Analytics] No auth token, re-queuing events');
         // Not logged in, re-queue events
         this.queue = [...events, ...this.queue];
         this.isFlushing = false;
         return;
       }
+
+      logger.log(`[Analytics] Flushing ${events.length} events...`);
 
       // Send to backend
       const response = await fetch('/api/analytics/batch-log', {
@@ -239,14 +242,22 @@ export class AnalyticsTracker {
       });
 
       if (!response.ok) {
-        throw new Error(`Analytics batch log failed: ${response.statusText}`);
+        const errorText = await response.text();
+        logger.error(`[Analytics] Flush failed: ${response.status} ${response.statusText}`, errorText);
+        
+        // Re-queue events on failure (but limit queue size)
+        if (this.queue.length < 100) {
+          this.queue = [...events, ...this.queue];
+        }
+        this.isFlushing = false;
+        return;
       }
 
       const result = await response.json();
-      logger.log(`📊 Analytics flushed: ${result.processed} events processed`);
+      logger.log(`✅ [Analytics] Flushed successfully: ${result.processed} events processed`);
 
-    } catch (error) {
-      logger.error('[Analytics] Flush failed:', error);
+    } catch (error: any) {
+      logger.error('[Analytics] Flush exception:', error.message);
       
       // Re-queue events on failure (but limit queue size to prevent memory issues)
       if (this.queue.length < 100) {
@@ -264,10 +275,22 @@ export class AnalyticsTracker {
     try {
       // Use existing supabase client to avoid multiple instances
       const { supabase } = await import('./supabase');
-      const { data: { session } } = await supabase.auth.getSession();
-      return session?.access_token || null;
-    } catch (error) {
-      logger.error('[Analytics] Failed to get auth token:', error);
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (error) {
+        logger.warn('[Analytics] Session error:', error.message);
+        return null;
+      }
+      
+      if (!session) {
+        logger.log('[Analytics] No active session');
+        return null;
+      }
+      
+      logger.log('[Analytics] Auth token retrieved');
+      return session.access_token;
+    } catch (error: any) {
+      logger.error('[Analytics] Token error:', error.message);
       return null;
     }
   }

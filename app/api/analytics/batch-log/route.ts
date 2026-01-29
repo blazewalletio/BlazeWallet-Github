@@ -40,12 +40,28 @@ function hashString(input: string): string {
  */
 export async function POST(request: NextRequest) {
   try {
+    // ✅ Add CORS headers
+    const origin = request.headers.get('origin');
+    const headers = {
+      'Access-Control-Allow-Origin': origin || '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    };
+
     // Get authenticated user
     const authHeader = request.headers.get('authorization');
+    
+    logger.log('[Analytics API] Request received:', {
+      hasAuth: !!authHeader,
+      origin,
+      method: request.method,
+    });
+    
     if (!authHeader) {
+      logger.warn('[Analytics API] Missing authorization header');
       return NextResponse.json(
         { error: 'Missing authorization header' },
-        { status: 401 }
+        { status: 401, headers }
       );
     }
 
@@ -54,11 +70,14 @@ export async function POST(request: NextRequest) {
     );
 
     if (authError || !user) {
+      logger.warn('[Analytics API] Auth failed:', authError?.message || 'No user');
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: 'Unauthorized', details: authError?.message },
+        { status: 401, headers }
       );
     }
+
+    logger.log('[Analytics API] User authenticated:', user.id);
 
     // Parse request body
     const { events } = await request.json();
@@ -66,7 +85,7 @@ export async function POST(request: NextRequest) {
     if (!events || !Array.isArray(events)) {
       return NextResponse.json(
         { error: 'Invalid request: events must be an array' },
-        { status: 400 }
+        { status: 400, headers }
       );
     }
 
@@ -102,7 +121,7 @@ export async function POST(request: NextRequest) {
       success: true,
       processed: succeeded,
       failed,
-    });
+    }, { headers });
 
   } catch (error: any) {
     logger.error('[Analytics] Batch log error:', error);
@@ -111,6 +130,20 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// ✅ Add OPTIONS handler for CORS preflight
+export async function OPTIONS(request: NextRequest) {
+  const origin = request.headers.get('origin');
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': origin || '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Max-Age': '86400',
+    },
+  });
 }
 
 /**
