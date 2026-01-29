@@ -1197,8 +1197,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
           left: 0,
           right: 0,
           bottom: 0,
-          height: '100vh',
-          height: '100dvh', // Dynamic viewport height for mobile
+          height: '100dvh', // Dynamic viewport height (fallback to 100vh in older browsers)
         }}
       >
         <div 
