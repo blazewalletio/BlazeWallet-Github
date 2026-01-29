@@ -1,2 +1,3 @@
 # Trigger clean deployment after removing ignore commands
 # Vercel settings fixed via API
+# Test admin deployment after Git link
