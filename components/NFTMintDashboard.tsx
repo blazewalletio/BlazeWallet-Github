@@ -14,7 +14,7 @@ interface NFTMintDashboardProps {
 }
 
 export default function NFTMintDashboard({ isOpen, onClose }: NFTMintDashboardProps) {
-  const { wallet } = useWalletStore();
+  const { wallet, currentChain } = useWalletStore();
   const [selectedSkin, setSelectedSkin] = useState<number | null>(null);
   const [isMinting, setIsMinting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,7 +34,7 @@ export default function NFTMintDashboard({ isOpen, onClose }: NFTMintDashboardPr
     if (isOpen) {
       loadData();
     }
-  }, [isOpen, wallet]);
+  }, [isOpen, wallet, currentChain]);
 
   const loadData = async () => {
     if (!wallet) {
@@ -46,12 +46,25 @@ export default function NFTMintDashboard({ isOpen, onClose }: NFTMintDashboardPr
       setIsLoading(true);
       setError(null);
       
-      const service = new NFTService(wallet);
+      // ✅ FIXED: Connect wallet to provider before passing to NFTService
+      const { ethers } = await import('ethers');
+      const { CHAINS } = await import('@/lib/chains');
+      const chain = CHAINS[currentChain];
+      
+      if (!chain) {
+        throw new Error(`Chain ${currentChain} not found`);
+      }
+      
+      // Create provider and connect wallet
+      const provider = new ethers.JsonRpcProvider(chain.rpcUrl);
+      const connectedWallet = wallet.connect(provider);
+      
+      const service = new NFTService(connectedWallet);
       setNftService(service);
       
       const [collectionsData, statsData] = await Promise.all([
         service.getCollections(),
-        service.getNFTStats(await wallet.getAddress()),
+        service.getNFTStats(await connectedWallet.getAddress()),
       ]);
       
       setCollections(collectionsData);

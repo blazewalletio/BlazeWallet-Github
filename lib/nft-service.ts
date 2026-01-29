@@ -58,10 +58,11 @@ export class NFTService {
    */
   async getCollections(): Promise<NFTCollection[]> {
     try {
-      const nextCollectionId = await this.nftContract.nextCollectionId();
+      // ✅ FIXED: Use collectionCount instead of nextCollectionId()
+      const collectionCount = await this.nftContract.collectionCount();
       const collections: NFTCollection[] = [];
 
-      for (let i = 1; i < nextCollectionId; i++) {
+      for (let i = 1; i <= collectionCount; i++) {
         const collectionData = await this.nftContract.collections(i);
         const progress = collectionData.maxSupply > 0 
           ? (Number(collectionData.minted) / Number(collectionData.maxSupply)) * 100 
@@ -122,16 +123,16 @@ export class NFTService {
   async getNFTStats(userAddress: string): Promise<NFTStats> {
     try {
       const [
-        nextCollectionId,
+        collectionCount,
         userBlazeBalance,
         premiumStatus,
         premiumDiscount,
         userNFTs,
       ] = await Promise.all([
-        this.nftContract.nextCollectionId(),
+        this.nftContract.collectionCount(), // ✅ FIXED: Use collectionCount instead of nextCollectionId()
         this.blazeTokenContract.balanceOf(userAddress),
         this.nftContract.isPremiumUser(userAddress),
-        this.nftContract.premiumDiscountPercentage(),
+        this.nftContract.PREMIUM_DISCOUNT(), // ✅ FIXED: Use PREMIUM_DISCOUNT constant instead of function
         this.getUserNFTs(userAddress),
       ]);
 
@@ -140,7 +141,7 @@ export class NFTService {
       const totalMinted = allCollections.reduce((sum, c) => sum + c.minted, 0);
 
       return {
-        totalCollections: Number(nextCollectionId) - 1,
+        totalCollections: Number(collectionCount),
         activeCollections,
         totalMinted,
         userNFTs: userNFTs.length,
