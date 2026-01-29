@@ -86,13 +86,10 @@ export async function GET(
       const chainBalances: any[] = [];
       let totalPortfolioUSD = 0;
 
-      // Fetch balances for all supported EVM chains
-      const evmChains = Object.keys(CHAINS).filter(key => {
-        const chain = CHAINS[key];
-        return chain.type !== 'bitcoin' && key !== 'solana'; // EVM chains only for now
-      });
+      // Fetch balances for ALL supported chains (EVM + Bitcoin + Solana)
+      const allChainKeys = Object.keys(CHAINS);
 
-      for (const chainKey of evmChains) {
+      for (const chainKey of allChainKeys) {
         try {
           const chain = CHAINS[chainKey];
           const chainService = MultiChainService.getInstance(chainKey);
@@ -105,10 +102,17 @@ export async function GET(
           const priceData = await priceService.getPrice(nativeSymbol);
           const nativeValueUSD = parseFloat(nativeBalance) * (priceData || 0);
 
-          // Get ERC20 tokens
+          // Get tokens (ERC20 for EVM chains, SPL for Solana)
           let tokens: any[] = [];
           try {
-            tokens = await chainService.getERC20TokenBalances(walletAddress);
+            if (chainKey === 'solana') {
+              // Solana SPL tokens
+              tokens = await chainService.getSPLTokenBalances(walletAddress);
+            } else if (chain.type !== 'bitcoin') {
+              // EVM chains - ERC20 tokens
+              tokens = await chainService.getERC20TokenBalances(walletAddress);
+            }
+            // Bitcoin doesn't have tokens
           } catch (err) {
             logger.warn(`Failed to fetch tokens for ${chainKey}:`, err);
           }
