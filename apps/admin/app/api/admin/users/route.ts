@@ -64,10 +64,12 @@ export async function GET(request: NextRequest) {
           .eq('user_id', profile.user_id)
           .single();
 
-        // Smart display name fallback
+        // Display name logic:
+        // 1. Use database display_name if set and not default
+        // 2. Fallback to email prefix
         let displayName = profile.display_name;
         if (!displayName || displayName === 'BLAZE User' || displayName.trim() === '') {
-          // Fallback: use first part of email or "Anonymous"
+          // Fallback: use first part of email
           displayName = authUser?.user?.email?.split('@')[0] || 'Anonymous';
         }
 

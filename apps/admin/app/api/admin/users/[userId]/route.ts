@@ -44,10 +44,12 @@ export async function GET(
     const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
     const userEmail = authUser?.user?.email || 'No email';
 
-    // Smart display name fallback
+    // Display name logic:
+    // 1. Use database display_name if set and not default
+    // 2. Fallback to email prefix
     let displayName = profile.display_name;
     if (!displayName || displayName === 'BLAZE User' || displayName.trim() === '') {
-      // Fallback: use first part of email or "Anonymous"
+      // Fallback: use first part of email
       displayName = userEmail.split('@')[0];
     }
 
