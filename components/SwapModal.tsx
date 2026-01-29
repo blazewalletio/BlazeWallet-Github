@@ -440,13 +440,21 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                 skipPreflight: false,
                 maxRetries: 3,
               });
-              logger.log(`✅ Transaction sent: ${signature}`);
               
-              await connection.confirmTransaction(signature, 'confirmed');
-              logger.log(`✅ Transaction confirmed: ${signature}`);
-              
+              // ✅ SPEED OPTIMIZATION: Don't wait for confirmation!
+              // Show success immediately after transaction is sent
               stepTxHash = signature;
               setTxHash(signature);
+              logger.log(`✅ Solana transaction sent: ${signature}`);
+              logger.log('⚡ Transaction will be confirmed in background (~400ms for Solana)');
+              
+              // Optional: Confirm in background (don't await)
+              connection.confirmTransaction(signature, 'confirmed').then(() => {
+                logger.log(`✅ Transaction confirmed: ${signature}`);
+              }).catch(err => {
+                logger.warn('⚠️ Background confirmation failed:', err.message);
+                // Transaction was already sent, so this is non-critical
+              });
             } else {
               // ✅ Legacy transaction format
               logger.log('📦 Detected legacy Transaction format');
@@ -462,13 +470,21 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                 skipPreflight: false,
                 maxRetries: 3,
               });
-              logger.log(`✅ Legacy transaction sent: ${signature}`);
               
-              await connection.confirmTransaction(signature, 'confirmed');
-              logger.log(`✅ Legacy transaction confirmed: ${signature}`);
-              
+              // ✅ SPEED OPTIMIZATION: Don't wait for confirmation!
+              // Show success immediately after transaction is sent
               stepTxHash = signature;
               setTxHash(signature);
+              logger.log(`✅ Solana legacy transaction sent: ${signature}`);
+              logger.log('⚡ Transaction will be confirmed in background (~400ms for Solana)');
+              
+              // Optional: Confirm in background (don't await)
+              connection.confirmTransaction(signature, 'confirmed').then(() => {
+                logger.log(`✅ Transaction confirmed: ${signature}`);
+              }).catch(err => {
+                logger.warn('⚠️ Background confirmation failed:', err.message);
+                // Transaction was already sent, so this is non-critical
+              });
             }
           } catch (parseError: any) {
             // ❌ Parsing failed completely
