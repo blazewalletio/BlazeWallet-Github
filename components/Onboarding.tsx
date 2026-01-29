@@ -1599,7 +1599,6 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       
                       // Initialize wallet locally with the decrypted mnemonic
                       if (result.mnemonic) {
-                        const { importWallet } = await import('@/lib/wallet');
                         await importWallet(result.mnemonic);
                       }
                       
