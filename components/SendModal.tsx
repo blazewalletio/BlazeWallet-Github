@@ -221,12 +221,25 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
         const chainTokens = getChainTokens(chain);
         logger.log(`🪙 [SendModal] Found ${chainTokens.length} cached tokens for ${chain}`);
         
+        // ✅ Get fresh prices for all tokens
+        const tokenSymbols = chainTokens
+          .filter(t => t.address && parseFloat(t.balance || '0') > 0)
+          .map(t => t.symbol);
+        
+        const tokenPrices = tokenSymbols.length > 0 
+          ? await priceService.getMultiplePrices(tokenSymbols)
+          : {};
+        
         for (const token of chainTokens) {
           // Skip native currency (already added)
           if (!token.address) continue;
           
           const balance = parseFloat(token.balance || '0');
           if (balance > 0) {
+            // ✅ FIXED: Use fresh price from API, not stale cache
+            const freshPrice = tokenPrices[token.symbol]?.price || token.priceUSD || 0;
+            const valueUSD = balance * freshPrice;
+            
             assets.push({
               symbol: token.symbol,
               name: token.name,
@@ -235,8 +248,8 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
               logo: token.logo,
               address: token.address,
               isNative: false,
-              priceUSD: token.priceUSD || 0,
-              valueUSD: parseFloat(token.balanceUSD || '0'),
+              priceUSD: freshPrice,
+              valueUSD: valueUSD,
             });
           }
         }
