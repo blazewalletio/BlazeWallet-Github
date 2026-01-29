@@ -5,6 +5,7 @@ import { supabase } from './supabase';
 import * as bip39 from 'bip39';
 import { ethers } from 'ethers';
 import { logger } from '@/lib/logger';
+import { logFeatureUsage } from '@/lib/analytics-tracker';
 
 // =============================================================================
 // ENCRYPTION UTILITIES
@@ -214,6 +215,15 @@ export async function signUpWithEmail(
       // It will be returned to user for backup, but not persisted locally
     }
 
+    // Track successful signup
+    if (typeof window !== 'undefined') {
+      const { trackAuth } = await import('@/lib/analytics');
+      await trackAuth(authData.user.id, 'signup', {
+        method: 'email',
+        hasWallet: true
+      });
+    }
+
     // 7. Send custom welcome + verification email via API route
     try {
       const response = await fetch('/api/send-welcome-email', {
@@ -238,6 +248,12 @@ export async function signUpWithEmail(
       // Don't fail signup if email fails
       logger.error('Failed to send welcome email:', emailError);
     }
+
+    // Track successful signup
+    await logFeatureUsage('user_signup', { 
+      method: 'email',
+      hasWallet: true 
+    });
 
     return {
       success: true,
@@ -308,6 +324,15 @@ export async function signInWithEmail(
       // ✅ SECURITY: Addresses are NEVER stored - they're derived from mnemonic on unlock
       // ✅ SECURITY: NEVER store plaintext mnemonic in localStorage
       // Mnemonic is returned directly and handled in memory only
+    }
+
+    // Track successful login
+    if (typeof window !== 'undefined') {
+      const { trackAuth } = await import('@/lib/analytics');
+      await trackAuth(authData.user!.id, 'login', { 
+        method: 'email',
+        hasWallet: true 
+      });
     }
 
     return {
