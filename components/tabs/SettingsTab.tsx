@@ -14,14 +14,19 @@ import {
   Eye,
   EyeOff,
   Key,
-  Smartphone
+  Smartphone,
+  DollarSign
 } from 'lucide-react';
 import SettingsModal from '../SettingsModal';
+import CurrencyModal from '../CurrencyModal';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { logger } from '@/lib/logger';
 
 export default function SettingsTab() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showBalance, setShowBalance] = useState(true);
+  const [showCurrency, setShowCurrency] = useState(false);
+  const { selectedCurrency, symbol } = useCurrency();
 
   const settingsSections = [
     {
@@ -35,6 +40,7 @@ export default function SettingsTab() {
     {
       title: 'Preferences',
       items: [
+        { icon: DollarSign, label: 'Currency', description: `${symbol} ${selectedCurrency}`, action: () => setShowCurrency(true) },
         { icon: Globe, label: 'Language', description: 'English', action: () => {} },
         { icon: Bell, label: 'Notifications', description: 'Push notifications enabled', action: () => {} },
         { icon: Eye, label: 'Appearance', description: 'Light mode', action: () => {} },
@@ -194,6 +200,19 @@ export default function SettingsTab() {
         <SettingsModal 
           isOpen={showSettingsModal} 
           onClose={() => setShowSettingsModal(false)} 
+        />
+      )}
+
+      {/* Currency Modal */}
+      {showCurrency && (
+        <CurrencyModal
+          isOpen={showCurrency}
+          onClose={() => setShowCurrency(false)}
+          currentCurrency={selectedCurrency}
+          onSuccess={() => {
+            setShowCurrency(false);
+            logger.log('✅ Currency updated successfully');
+          }}
         />
       )}
     </>
