@@ -585,7 +585,7 @@ export async function signUpWithEmail(
   try {
     const bip39 = (await import('bip39')).default;
     const ethers = await import('ethers');
-    const { trackAuth, logFeatureUsage } = await import('./analytics');
+    const { trackAuth } = await import('./analytics');
 
     // 1. Create Supabase user
     const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -689,13 +689,6 @@ export async function signUpWithEmail(
     } catch (emailError) {
       logger.error('Failed to send welcome email:', emailError);
     }
-
-    // Track feature usage
-    await logFeatureUsage('user_signup', { 
-      success: true,
-      method: 'email',
-      hasWallet: true 
-    });
 
     return {
       success: true,
