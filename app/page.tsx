@@ -45,7 +45,31 @@ export default function Home() {
   useEffect(() => {
     // Check wallet state on load - wait for isMobile to be set
     const checkWallet = async () => {
-      // ✅ Check for encrypted_wallet (not wallet_address) to detect wallet existence
+      // ✅ FIRST: Check for active Supabase session (email wallets)
+      try {
+        const { supabase } = await import('@/lib/supabase');
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (session && !error) {
+          logger.log('✅ Active Supabase session found:', {
+            userId: session.user.id,
+            email: session.user.email,
+            expiresAt: new Date(session.expires_at! * 1000).toISOString()
+          });
+          
+          // User has active Supabase session → Show wallet (encrypted wallet will be loaded from cloud)
+          setHasWallet(true);
+          return;
+        } else if (error) {
+          logger.warn('⚠️ Error checking Supabase session:', error.message);
+        } else {
+          logger.log('ℹ️ No active Supabase session found');
+        }
+      } catch (err) {
+        logger.error('❌ Failed to check Supabase session:', err);
+      }
+      
+      // ✅ SECOND: Check for encrypted_wallet (not wallet_address) to detect wallet existence
       // This works for both old users (who have wallet_address) and new users (who don't)
       const hasEncryptedWallet = localStorage.getItem('encrypted_wallet');
       const storedAddress = localStorage.getItem('wallet_address'); // For backward compat / logging
