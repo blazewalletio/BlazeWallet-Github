@@ -175,14 +175,23 @@ export default function Home() {
                 return;
               }
             } else {
-              // No last_activity timestamp - set it and continue with normal flow
-              logger.log('📝 No activity timestamp found - setting initial timestamp');
-              sessionStorage.setItem('last_activity', now.toString());
+              // No last_activity timestamp found
+              // This means either:
+              // 1. Hard refresh → Need to show unlock modal
+              // 2. New session → Need to show unlock modal
+              // Only exception: wallet is currently unlocked in store (from fresh onboarding)
               
-              // ✅ FIX: Wallet is already unlocked from onboarding - don't try to unlock again!
-              // This prevents double unlock attempt that causes errors on iPhone after Face ID setup
-              logger.log('✅ Wallet already unlocked from onboarding session - skipping unlock');
-              return;
+              if (wallet && !isLocked) {
+                // Wallet is already unlocked in store (fresh onboarding) - allow through
+                logger.log('✅ Wallet already unlocked in store (fresh onboarding) - skipping unlock');
+                sessionStorage.setItem('last_activity', now.toString());
+                sessionStorage.setItem('wallet_unlocked_this_session', 'true');
+                return;
+              }
+              
+              // Otherwise: Show unlock modal (hard refresh / new session)
+              logger.log('🔓 No activity timestamp + wallet locked → Show unlock modal');
+              // Fall through to show unlock modal below
             }
           }
           
