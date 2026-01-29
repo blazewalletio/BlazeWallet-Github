@@ -57,9 +57,33 @@ export default function Home() {
             expiresAt: new Date(session.expires_at! * 1000).toISOString()
           });
           
-          // User has active Supabase session → Show wallet (encrypted wallet will be loaded from cloud)
-          setHasWallet(true);
-          return;
+          // ✅ Load encrypted wallet from Supabase
+          const { data: walletData, error: walletError } = await supabase
+            .from('wallets')
+            .select('encrypted_mnemonic')
+            .eq('user_id', session.user.id)
+            .maybeSingle();
+          
+          if (walletError) {
+            logger.error('❌ Error loading wallet from Supabase:', walletError);
+          } else if (walletData && walletData.encrypted_mnemonic) {
+            logger.log('✅ Found encrypted wallet in Supabase for user');
+            
+            // Store encrypted wallet in localStorage (for unlock modal)
+            localStorage.setItem('encrypted_wallet', walletData.encrypted_mnemonic);
+            localStorage.setItem('has_password', 'true');
+            localStorage.setItem('wallet_email', session.user.email || '');
+            
+            // Initialize account in account manager
+            const { switchToEmailAccount } = await import('@/lib/account-manager');
+            await switchToEmailAccount(session.user.email!);
+            
+            // User has active Supabase session + encrypted wallet → Show unlock modal
+            setHasWallet(true);
+            return;
+          } else {
+            logger.warn('⚠️ User has Supabase session but no encrypted wallet found');
+          }
         } else if (error) {
           logger.warn('⚠️ Error checking Supabase session:', error.message);
         } else {
