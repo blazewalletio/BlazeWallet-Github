@@ -400,20 +400,34 @@ export default function Dashboard() {
     logger.log(`   Is address change only: ${isAddressChange && !isRealChainSwitch}`);
     logger.log(`   Is initial load: ${isInitialLoad}`);
     
+    // ✅ SAVE previous values BEFORE updating tracker (needed for unlock detection)
+    const wasAddressNull = previousChainAddress.current.address === null;
+    const isAddressNowSet = displayAddress !== null;
+    
     // Update the previous chain/address tracker
     previousChainAddress.current = { chain: currentChain, address: displayAddress };
     
     // 🚫 SKIP if this is ONLY an address change (wallet unlock) and NOT a chain switch
-    if (!isRealChainSwitch && isAddressChange && displayAddress) {
+    // ✅ BUT: Don't skip if address changed from null → address (wallet unlock after hard refresh!)
+    const isUnlockAfterRefresh = wasAddressNull && isAddressNowSet;
+    
+    if (!isRealChainSwitch && isAddressChange && displayAddress && !isUnlockAfterRefresh) {
       console.log('');
-      console.log('⏭️  SKIPPING FETCH - This is just wallet unlock, NOT a chain switch!');
-      console.log(`   Address changed from null → ${displayAddress.substring(0, 12)}...`);
-      console.log(`   Chain stayed the same: ${currentChain}`);
-      console.log(`   The initial load already triggered fetchData, so we don\'t need another one.`);
+      console.log('⏭️  SKIPPING FETCH - This is just address change, NOT a chain switch!');
+      console.log(`   Address changed but chain stayed the same: ${currentChain}`);
       console.log('');
-      logger.log(`⏭️ [Dashboard] Skipping fetch - this is just wallet unlock, not a chain switch`);
-      logger.log(`   Address changed from null → ${displayAddress.substring(0, 8)}... but chain stayed ${currentChain}`);
-      return; // EXIT EARLY - don't trigger another fetch!
+      logger.log(`⏭️ [Dashboard] Skipping fetch - address change only`);
+      return; // EXIT EARLY
+    }
+    
+    // ✅ If this is wallet unlock after hard refresh (null → address), PROCEED with fetch
+    if (isUnlockAfterRefresh) {
+      console.log('');
+      console.log('🔓 WALLET UNLOCKED AFTER HARD REFRESH - Fetching data!');
+      console.log(`   Address unlocked: ${displayAddress.substring(0, 12)}...`);
+      console.log(`   Chain: ${currentChain}`);
+      console.log('');
+      logger.log(`🔓 [Dashboard] Wallet unlocked - fetching data for ${displayAddress.substring(0, 8)}...`);
     }
     
     const prevChain = activeFetchControllers.current.size > 0 
