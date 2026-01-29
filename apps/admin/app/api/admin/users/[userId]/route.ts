@@ -40,6 +40,17 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // Get email from auth.users (not in user_profiles!)
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
+    const userEmail = authUser?.user?.email || 'No email';
+
+    // Smart display name fallback
+    let displayName = profile.display_name;
+    if (!displayName || displayName === 'BLAZE User' || displayName.trim() === '') {
+      // Fallback: use first part of email or "Anonymous"
+      displayName = userEmail.split('@')[0];
+    }
+
     // Get wallets
     const { data: wallets } = await supabaseAdmin
       .from('wallets')
@@ -52,8 +63,8 @@ export async function GET(
         data: {
           profile: {
             id: profile.user_id,
-            email: profile.email,
-            display_name: profile.display_name,
+            email: userEmail,
+            display_name: displayName,
             created_at: profile.created_at,
           },
           wallets: [],
@@ -146,6 +157,7 @@ export async function GET(
         chains: chainBalances,
         totalPortfolioUSD,
         lastFetched: new Date().toISOString(),
+        _warning: 'Balances are fetched live from blockchain APIs. This is slow (10-30s) and may hit rate limits. Consider implementing balance caching.',
       };
     }
 
@@ -188,8 +200,8 @@ export async function GET(
       data: {
         profile: {
           id: profile.user_id,
-          email: profile.email,
-          display_name: profile.display_name,
+          email: userEmail,
+          display_name: displayName,
           created_at: profile.created_at,
           updated_at: profile.updated_at,
         },
@@ -212,6 +224,10 @@ export async function GET(
         },
         transactions: transactions || [],
         events: events || [],
+        _notes: {
+          transactions: 'Transaction stats are 0 because wallet app does not track to transaction_events table yet',
+          balances: includeBalances ? 'Balances fetched live from blockchain - slow and may be inaccurate due to rate limits' : 'Use ?balances=true to fetch (slow)',
+        },
       },
     });
   } catch (error: any) {

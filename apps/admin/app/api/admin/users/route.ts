@@ -33,6 +33,9 @@ export async function GET(request: NextRequest) {
     // Enrich with wallet and activity data
     const enrichedUsers = await Promise.all(
       profiles.map(async (profile) => {
+        // Get email from auth.users (not in user_profiles!)
+        const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(profile.user_id);
+
         // Get wallet count
         const { count: walletCount } = await supabaseAdmin
           .from('wallets')
@@ -61,10 +64,17 @@ export async function GET(request: NextRequest) {
           .eq('user_id', profile.user_id)
           .single();
 
+        // Smart display name fallback
+        let displayName = profile.display_name;
+        if (!displayName || displayName === 'BLAZE User' || displayName.trim() === '') {
+          // Fallback: use first part of email or "Anonymous"
+          displayName = authUser?.user?.email?.split('@')[0] || 'Anonymous';
+        }
+
         return {
           id: profile.user_id,
-          email: profile.email,
-          display_name: profile.display_name,
+          email: authUser?.user?.email || 'No email',
+          display_name: displayName,
           created_at: profile.created_at,
           wallet_count: walletCount || 0,
           transaction_count: transactionCount || 0,

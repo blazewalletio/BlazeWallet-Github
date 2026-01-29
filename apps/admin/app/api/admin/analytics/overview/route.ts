@@ -18,13 +18,17 @@ export async function GET(request: NextRequest) {
 
     const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-    // Active users (24h)
+    // Active users (24h) - using user_events instead of transaction_events
     const { data: activeUsersData } = await supabaseAdmin
-      .from('transaction_events')
+      .from('user_events')
       .select('user_id')
       .gte('created_at', last24h);
     const activeUsers = new Set(activeUsersData?.map(e => e.user_id)).size;
 
+    // NOTE: Transactions metrics are currently not tracked
+    // transaction_events table exists but is empty - wallet app does not track transactions yet
+    // These will all return 0 until transaction tracking is implemented in wallet app
+    
     // Transactions (24h)
     const { count: totalTxs } = await supabaseAdmin
       .from('transaction_events')
@@ -48,6 +52,10 @@ export async function GET(request: NextRequest) {
       .gte('created_at', last24h);
     const failedRate = totalTxs ? ((failedTxs || 0) / totalTxs) * 100 : 0;
 
+    // NOTE: User cohorts/segments are currently not calculated
+    // user_cohorts table exists but is empty - needs automatic segmentation logic
+    // This should be implemented via database triggers or scheduled functions
+    
     // User segments
     const { data: cohorts } = await supabaseAdmin
       .from('user_cohorts')
@@ -65,19 +73,10 @@ export async function GET(request: NextRequest) {
       .from('user_cohorts')
       .select('*', { count: 'exact', head: true });
 
-    // Get alerts (critical only)
-    const { data: criticalAlerts } = await supabaseAdmin
-      .from('analytics_alerts')
-      .select('*')
-      .eq('severity', 'critical')
-      .eq('status', 'unread')
-      .order('created_at', { ascending: false })
-      .limit(5);
-
-    const { count: unreadAlertCount } = await supabaseAdmin
-      .from('analytics_alerts')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'unread');
+    // NOTE: Alert system not implemented yet
+    // analytics_alerts table does not exist - this feature needs to be built
+    const criticalAlerts: any[] = [];
+    const unreadAlertCount = 0;
 
     return NextResponse.json({
       success: true,
@@ -94,10 +93,15 @@ export async function GET(request: NextRequest) {
         cohorts: segments,
         totalUsers: totalUsersCount || 0,
         alerts: {
-          unreadCount: unreadAlertCount || 0,
-          critical: criticalAlerts || [],
+          unreadCount: unreadAlertCount,
+          critical: criticalAlerts,
         },
         recentActivity: [], // TODO: Add recent activity
+        _notes: {
+          transactions: 'Transaction tracking not yet implemented in wallet app',
+          cohorts: 'User segmentation not yet calculated automatically',
+          alerts: 'Alert system not yet implemented',
+        },
       },
     });
   } catch (error: any) {

@@ -22,6 +22,10 @@ export async function GET(request: NextRequest) {
     const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const last7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
+    // NOTE: All transaction analytics currently return 0
+    // transaction_events table exists but is empty - wallet app does not track transactions yet
+    // This tracking needs to be implemented in the wallet app
+
     // Send transactions
     const { count: sendInitiated } = await supabaseAdmin
       .from('transaction_events')
