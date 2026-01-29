@@ -66,7 +66,7 @@ const GOVERNANCE_ABI = [
   },
   {
     "inputs": [],
-    "name": "nextProposalId",
+    "name": "proposalCount",
     "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "view",
     "type": "function"
@@ -151,13 +151,14 @@ export class GovernanceService {
    */
   async getProposals(): Promise<Proposal[]> {
     try {
-      const nextProposalId = await this.contract.nextProposalId();
+      // ✅ FIXED: Use proposalCount instead of nextProposalId()
+      const proposalCount = await this.contract.proposalCount();
       const userAddress = await this.wallet.getAddress();
       
       const proposals: Proposal[] = [];
       
-      // Fetch all proposals (from 1 to nextProposalId - 1)
-      for (let i = 1; i < Number(nextProposalId); i++) {
+      // Fetch all proposals (from 1 to proposalCount)
+      for (let i = 1; i <= Number(proposalCount); i++) {
         try {
           const proposal = await this.contract.proposals(i);
           const hasVoted = await this.contract.hasVoted(i, userAddress);
