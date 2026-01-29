@@ -204,7 +204,11 @@ async function fetchFromChainSources(
 }
 
 /**
- * GET /api/token-logo?address=xxx&chainKey=xxx&symbol=xxx&logoURI=xxx
+ * GET /api/token-logo?address=xxx&chainKey=xxx&symbol=xxx&logoURI=xxx&returnUrl=true
+ * 
+ * Options:
+ * - returnUrl=true: Return JSON with HTTPS URL (no caching, instant)
+ * - returnUrl=false|undefined: Return image blob (cached, for persistent storage)
  */
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -212,6 +216,7 @@ export async function GET(request: NextRequest) {
   const chainKey = searchParams.get('chainKey');
   const symbol = searchParams.get('symbol') || 'UNKNOWN';
   const logoURI = searchParams.get('logoURI');
+  const returnUrl = searchParams.get('returnUrl') === 'true'; // ✅ NEW: Option to return URL only
 
   if (!address || !chainKey) {
     return NextResponse.json(
@@ -269,7 +274,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch the actual image
+    // ✅ NEW: If returnUrl=true, return JSON with HTTPS URL (no blob fetching!)
+    if (returnUrl) {
+      return NextResponse.json(
+        { imageUrl: logoUrl, symbol, chainKey },
+        {
+          status: 200,
+          headers: {
+            'Cache-Control': `public, max-age=${CACHE_MAX_AGE}, immutable`,
+          },
+        }
+      );
+    }
+
+    // ✅ DEFAULT: Fetch and return image blob (for persistent caching)
     const imageResponse = await fetch(logoUrl, {
       signal: AbortSignal.timeout(10000),
     });
