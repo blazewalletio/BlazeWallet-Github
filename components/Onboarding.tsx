@@ -13,7 +13,7 @@ interface OnboardingProps {
 }
 
 export default function Onboarding({ onComplete }: OnboardingProps) {
-  const [step, setStep] = useState<'carousel' | 'create-options' | 'add-wallet' | 'import-options' | 'mnemonic' | 'verify' | 'import-seed' | 'email-auth' | 'biometric-setup'>('carousel');
+  const [step, setStep] = useState<'carousel' | 'create-options' | 'add-wallet' | 'import-options' | 'mnemonic' | 'verify' | 'import-seed' | 'email-auth' | 'device-verification' | 'biometric-setup'>('carousel');
   const [carouselPage, setCarouselPage] = useState(0);
   const [mnemonic, setMnemonic] = useState<string>('');
   const [importInput, setImportInput] = useState<string>('');
@@ -43,6 +43,10 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  
+  // ✅ NEW: Device verification state
+  const [deviceVerificationCode, setDeviceVerificationCode] = useState('');
+  const [deviceVerificationToken, setDeviceVerificationToken] = useState('');
   
   // ✅ NEW: Field refs for auto-focus and scroll
   const emailRef = useRef<HTMLInputElement>(null);
@@ -303,6 +307,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         const result = await signInWithEmail(email, password);
         
         if (!result.success) {
+          // ✅ FIXED: Check if device verification is required
+          if (result.requiresDeviceVerification && result.deviceVerificationToken) {
+            setDeviceVerificationToken(result.deviceVerificationToken);
+            setStep('device-verification');
+            return;
+          }
+          
           setError(result.error || 'Failed to sign in');
           return;
         }
@@ -1486,6 +1497,164 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 >
                   Verify and continue →
                 </button>
+              </div>
+          </motion.div>
+        )}
+
+          {/* DEVICE VERIFICATION SCREEN */}
+          {step === 'device-verification' && (
+          <motion.div
+              key="device-verification"
+              initial={{ opacity: 0, x: 100 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -100 }}
+              transition={{ duration: 0.3 }}
+              className="w-full max-w-md lg:max-w-xl mx-auto"
+            >
+              <div className="w-full">
+                {/* Icon & Header */}
+            <div className="text-center mb-8">
+                  <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                    <Mail className="w-10 h-10 text-white" />
+                  </div>
+                  <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                    Verify your device
+                  </h2>
+                  <p className="text-gray-600 text-sm">
+                    We sent a 6-digit code to {email}. Enter it below to verify this device.
+              </p>
+            </div>
+
+                {/* Info box */}
+                <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Shield className="w-4 h-4 text-orange-500" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900 text-sm">Security first</p>
+                      <p className="text-xs text-gray-600">This helps protect your account from unauthorized access</p>
+                    </div>
+                  </div>
+            </div>
+
+                {/* Verification Code Input */}
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Verification Code
+                  </label>
+                  <input
+                    type="text"
+                    value={deviceVerificationCode}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      setDeviceVerificationCode(value);
+                      setError('');
+                    }}
+                    placeholder="000000"
+                    maxLength={6}
+                    className="w-full p-4 bg-white border-2 border-gray-200 rounded-xl text-center text-2xl font-bold tracking-widest focus:outline-none focus:border-orange-500 transition-all"
+                    autoFocus
+                    autoComplete="off"
+                  />
+                  <p className="text-xs text-gray-500 mt-2 text-center">
+                    Enter the 6-digit code from your email
+                  </p>
+            </div>
+
+                {/* Error */}
+            {error && (
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-4 flex items-start gap-2">
+                    <AlertTriangle className="w-5 h-5 text-red-700 flex-shrink-0 mt-0.5" />
+                    <span className="text-sm text-red-700">{error}</span>
+              </div>
+            )}
+
+                {/* Action Button */}
+            <button
+                  onClick={async () => {
+                    try {
+                      if (deviceVerificationCode.length !== 6) {
+                        setError('Please enter a 6-digit code');
+                        return;
+                      }
+
+                      setIsLoading(true);
+                      setError('');
+                      
+                      // Import verifyDeviceAndSignIn from strict auth
+                      const { verifyDeviceAndSignIn } = await import('@/lib/supabase-auth-strict');
+                      
+                      // Verify device with code
+                      const result = await verifyDeviceAndSignIn(
+                        deviceVerificationToken,
+                        deviceVerificationCode
+                      );
+                      
+                      if (!result.success) {
+                        setError(result.error || 'Verification failed');
+                        setIsLoading(false);
+                        return;
+                      }
+                      
+                      // Initialize wallet locally with the decrypted mnemonic
+                      if (result.mnemonic) {
+                        const { importWallet } = await import('@/lib/wallet');
+                        await importWallet(result.mnemonic);
+                      }
+                      
+                      // Check if mobile AND biometrics not already enabled
+                      const biometricEnabled = typeof window !== 'undefined'
+                        ? localStorage.getItem('biometric_enabled') === 'true'
+                        : false;
+                      
+                      if (isMobileDevice && !biometricEnabled) {
+                        // Offer biometric setup after device verification
+                        logger.log('📱 Mobile device detected - offering biometric setup');
+                        // Store password temporarily for biometric setup
+                        if (typeof window !== 'undefined') {
+                          sessionStorage.setItem('pending_biometric_password', password);
+                        }
+                        setStep('biometric-setup');
+                      } else {
+                        // Desktop or biometrics already enabled - complete onboarding
+                        onComplete();
+                      }
+                    } catch (err: any) {
+                      logger.error('Device verification error:', err);
+                      setError(err.message || 'Verification failed');
+                    } finally {
+                      setIsLoading(false);
+                    }
+                  }}
+                  disabled={isLoading || deviceVerificationCode.length !== 6}
+                  className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed rounded-xl font-semibold text-white shadow-lg transition-all flex items-center justify-center gap-2"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Verifying...
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="w-5 h-5" />
+                      Verify Device
+                    </>
+                  )}
+              </button>
+
+                {/* Resend link */}
+                <div className="mt-4 text-center">
+                  <button
+                    onClick={async () => {
+                      // TODO: Implement resend verification code
+                      setError('Resend feature coming soon. Please check your email for the code.');
+                    }}
+                    className="text-sm text-orange-500 hover:text-orange-600 font-semibold transition-colors"
+                  >
+                    Didn't receive the code? Resend
+                  </button>
+                </div>
               </div>
           </motion.div>
         )}
