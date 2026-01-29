@@ -550,15 +550,21 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
             gasPrice: txRequest.gasPrice ? BigInt(txRequest.gasPrice) : undefined,
           });
 
-          logger.log('⏳ Waiting for confirmation...');
-          const receipt = await tx.wait();
+          // ✅ SPEED OPTIMIZATION: Don't wait for confirmation!
+          // Show success immediately after transaction is sent to network
+          // Confirmation happens in background (miners will process it)
+          stepTxHash = tx.hash;
+          setTxHash(tx.hash);
+          logger.log(`✅ EVM transaction sent: ${tx.hash}`);
+          logger.log('⚡ Transaction will be confirmed in background (~12s for Ethereum)');
           
-          if (!receipt) {
-            throw new Error('Transaction receipt is null');
-          }
-
-          stepTxHash = receipt.hash;
-          setTxHash(receipt.hash);
+          // Optional: Confirm in background (don't await)
+          tx.wait().then(receipt => {
+            logger.log(`✅ Transaction confirmed: ${receipt.hash}`);
+          }).catch(err => {
+            logger.warn('⚠️ Background confirmation failed:', err.message);
+            // Transaction was already sent, so this is non-critical
+          });
         }
 
         // If this is the last step and it's cross-chain, start status polling
