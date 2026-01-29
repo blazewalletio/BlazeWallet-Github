@@ -499,18 +499,19 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
             
             // Track failed transaction
             await logTransactionEvent({
-              userId,
-              action: 'cross_chain_swap',
+              eventType: 'swap_failed',
+              chainKey: fromChain,
+              tokenSymbol: typeof fromToken === 'string' ? fromToken : ((fromToken as any)?.symbol || 'UNKNOWN'),
+              valueUSD: 0,
               status: 'failed',
               metadata: {
                 error: errorMsg,
                 fromChain,
                 toChain,
-                fromToken,
-                toToken,
+                fromToken: typeof fromToken === 'string' ? fromToken : (fromToken as any)?.symbol || 'unknown',
+                toToken: typeof toToken === 'string' ? toToken : (toToken as any)?.symbol || 'unknown',
                 amount: fromAmount
               },
-              chainType: CHAINS[fromChain]?.chainType
             });
             throw new Error(errorMsg);
           }
