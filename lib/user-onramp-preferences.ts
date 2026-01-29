@@ -33,7 +33,13 @@ export class UserOnRampPreferencesService {
           // No record found - return null (will be created on first use)
           return null;
         }
-        logger.error('❌ Error fetching user onramp preferences:', error);
+        if (error.code === 'PGRST205' || error.message?.includes('does not exist') || error.message?.includes('schema cache')) {
+          // Table doesn't exist yet - migration not run, fail silently
+          // Don't log to console - this is expected if migration hasn't run yet
+          return null;
+        }
+        // Only log unexpected errors (but silently for now to avoid console spam)
+        // logger.error('❌ Error fetching user onramp preferences:', error);
         return null;
       }
 
