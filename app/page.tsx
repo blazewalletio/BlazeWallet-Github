@@ -45,10 +45,20 @@ export default function Home() {
   useEffect(() => {
     // Check wallet state on load - wait for isMobile to be set
     const checkWallet = async () => {
+      logger.log('🔄 [WALLET CHECK] Starting wallet check...');
+      
       // ✅ FIRST: Check for active Supabase session (email wallets)
       try {
         const { supabase } = await import('@/lib/supabase');
+        logger.log('🔄 [WALLET CHECK] Supabase imported, checking session...');
         const { data: { session }, error } = await supabase.auth.getSession();
+        
+        logger.log('🔄 [WALLET CHECK] Session check result:', {
+          hasSession: !!session,
+          hasError: !!error,
+          userId: session?.user?.id,
+          email: session?.user?.email
+        });
         
         if (session && !error) {
           logger.log('✅ Active Supabase session found:', {
@@ -58,11 +68,18 @@ export default function Home() {
           });
           
           // ✅ Load encrypted wallet from Supabase
+          logger.log('🔄 [WALLET CHECK] Loading encrypted wallet from Supabase...');
           const { data: walletData, error: walletError } = await supabase
             .from('wallets')
             .select('encrypted_mnemonic')
             .eq('user_id', session.user.id)
             .maybeSingle();
+          
+          logger.log('🔄 [WALLET CHECK] Wallet data result:', {
+            hasData: !!walletData,
+            hasError: !!walletError,
+            hasEncryptedMnemonic: !!walletData?.encrypted_mnemonic
+          });
           
           if (walletError) {
             logger.error('❌ Error loading wallet from Supabase:', walletError);
@@ -73,16 +90,20 @@ export default function Home() {
             localStorage.setItem('encrypted_wallet', walletData.encrypted_mnemonic);
             localStorage.setItem('has_password', 'true');
             localStorage.setItem('wallet_email', session.user.email || '');
+            logger.log('✅ [WALLET CHECK] Data stored in localStorage');
             
             // Initialize account in account manager
+            logger.log('🔄 [WALLET CHECK] Initializing account manager...');
             const { switchToEmailAccount } = await import('@/lib/account-manager');
             await switchToEmailAccount(
               session.user.email!,
               session.user.id,
               walletData.encrypted_mnemonic
             );
+            logger.log('✅ [WALLET CHECK] Account manager initialized');
             
             // User has active Supabase session + encrypted wallet → Show unlock modal
+            logger.log('✅ [WALLET CHECK] Setting hasWallet=true, will show unlock modal');
             setHasWallet(true);
             return;
           } else {
@@ -96,6 +117,8 @@ export default function Home() {
       } catch (err) {
         logger.error('❌ Failed to check Supabase session:', err);
       }
+      
+      logger.log('🔄 [WALLET CHECK] Proceeding to localStorage check...');
       
       // ✅ SECOND: Check for encrypted_wallet (not wallet_address) to detect wallet existence
       // This works for both old users (who have wallet_address) and new users (who don't)
