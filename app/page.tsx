@@ -40,14 +40,18 @@ export default function Home() {
     // Don't show if QR login is showing
     if (showQRLogin) return false;
     
+    // ✅ FIX: Check localStorage for has_password (more reliable than store initial state)
+    const hasPasswordStored = typeof window !== 'undefined' && localStorage.getItem('has_password') === 'true';
+    
     // Show unlock modal if:
     // 1. Wallet has password protection AND
     // 2. Wallet is not unlocked (no address or isLocked)
-    const needsUnlock = hasPassword && (!wallet || !wallet.address || isLocked);
+    const needsUnlock = hasPasswordStored && (!wallet || !wallet.address || isLocked);
     
     logger.log('🔍 [REACTIVE] shouldShowUnlockModal computed:', {
       hasWallet,
       hasPassword,
+      hasPasswordStored,
       walletAddress: wallet?.address?.substring(0, 12) || 'null',
       isLocked,
       needsUnlock,
