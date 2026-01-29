@@ -45,7 +45,20 @@ export default function GovernanceDashboard({ isOpen, onClose }: GovernanceDashb
       setIsLoading(true);
       setError('');
       
-      const governanceService = new GovernanceService(wallet);
+      // ✅ FIXED: Connect wallet to provider before passing to GovernanceService
+      const { ethers } = await import('ethers');
+      const { CHAINS } = await import('@/lib/chains');
+      const chain = CHAINS[currentChain];
+      
+      if (!chain) {
+        throw new Error(`Chain ${currentChain} not found`);
+      }
+      
+      // Create provider and connect wallet
+      const provider = new ethers.JsonRpcProvider(chain.rpcUrl);
+      const connectedWallet = wallet.connect(provider);
+      
+      const governanceService = new GovernanceService(connectedWallet);
       
       // Load all data in parallel
       const [proposalsData, stats, threshold, canCreate] = await Promise.all([
@@ -78,7 +91,19 @@ export default function GovernanceDashboard({ isOpen, onClose }: GovernanceDashb
       setError('');
       setSuccess('');
       
-      const governanceService = new GovernanceService(wallet);
+      // ✅ FIXED: Connect wallet to provider
+      const { ethers } = await import('ethers');
+      const { CHAINS } = await import('@/lib/chains');
+      const chain = CHAINS[currentChain];
+      
+      if (!chain) {
+        throw new Error(`Chain ${currentChain} not found`);
+      }
+      
+      const provider = new ethers.JsonRpcProvider(chain.rpcUrl);
+      const connectedWallet = wallet.connect(provider);
+      
+      const governanceService = new GovernanceService(connectedWallet);
       const txHash = await governanceService.vote(proposalId, vote === 'for');
       
       setSuccess(`Vote cast successfully! Transaction: ${txHash.substring(0, 10)}...`);
@@ -109,7 +134,19 @@ export default function GovernanceDashboard({ isOpen, onClose }: GovernanceDashb
       setError('');
       setSuccess('');
       
-      const governanceService = new GovernanceService(wallet);
+      // ✅ FIXED: Connect wallet to provider
+      const { ethers } = await import('ethers');
+      const { CHAINS } = await import('@/lib/chains');
+      const chain = CHAINS[currentChain];
+      
+      if (!chain) {
+        throw new Error(`Chain ${currentChain} not found`);
+      }
+      
+      const provider = new ethers.JsonRpcProvider(chain.rpcUrl);
+      const connectedWallet = wallet.connect(provider);
+      
+      const governanceService = new GovernanceService(connectedWallet);
       const txHash = await governanceService.createProposal(newProposal.description);
       
       setSuccess(`Proposal created successfully! Transaction: ${txHash.substring(0, 10)}...`);
