@@ -82,19 +82,26 @@ export default function Home() {
     // ✅ SOLUTION 3: Always check wallet on mount (no dependencies blocking it!)
     // This runs immediately, independent of isMobile
     const checkWallet = async () => {
-      logger.log('🔄 [WALLET CHECK] Starting wallet check...');
+      logger.log('╔════════════════════════════════════════════════════════════╗');
+      logger.log('║ 🔄 [WALLET CHECK] STARTING WALLET CHECK ON MOUNT         ║');
+      logger.log('╚════════════════════════════════════════════════════════════╝');
+      logger.log('🔄 [WALLET CHECK] Timestamp:', new Date().toISOString());
       
       // ✅ FIRST: Check for active Supabase session (email wallets)
       try {
+        logger.log('📦 [WALLET CHECK] Importing Supabase client...');
         const { supabase } = await import('@/lib/supabase');
-        logger.log('🔄 [WALLET CHECK] Supabase imported, checking session...');
+        logger.log('✅ [WALLET CHECK] Supabase client imported successfully');
+        
+        logger.log('🔄 [WALLET CHECK] Calling supabase.auth.getSession()...');
         const { data: { session }, error } = await supabase.auth.getSession();
         
         logger.log('🔄 [WALLET CHECK] Session check result:', {
           hasSession: !!session,
           hasError: !!error,
           userId: session?.user?.id,
-          email: session?.user?.email
+          email: session?.user?.email,
+          errorMessage: error?.message || 'none'
         });
         
         if (session && !error) {
