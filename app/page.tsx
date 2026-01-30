@@ -81,7 +81,20 @@ export default function Home() {
   useEffect(() => {
     // ✅ SOLUTION 3: Always check wallet on mount (no dependencies blocking it!)
     // This runs immediately, independent of isMobile
+    
+    // FORCE LOGGING - MUST BE VISIBLE!
+    console.log('╔════════════════════════════════════════════════════════════╗');
+    console.log('║ 🔄 [WALLET CHECK] USEEFFECT IS FIRING NOW!!!!            ║');
+    console.log('╚════════════════════════════════════════════════════════════╝');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Window location:', window.location.href);
+    
     const checkWallet = async () => {
+      console.log('╔════════════════════════════════════════════════════════════╗');
+      console.log('║ 🔄 [WALLET CHECK] STARTING WALLET CHECK ON MOUNT         ║');
+      console.log('╚════════════════════════════════════════════════════════════╝');
+      console.log('🔄 [WALLET CHECK] Timestamp:', new Date().toISOString());
+      
       logger.log('╔════════════════════════════════════════════════════════════╗');
       logger.log('║ 🔄 [WALLET CHECK] STARTING WALLET CHECK ON MOUNT         ║');
       logger.log('╚════════════════════════════════════════════════════════════╝');
@@ -89,12 +102,26 @@ export default function Home() {
       
       // ✅ FIRST: Check for active Supabase session (email wallets)
       try {
+        console.log('📦 [WALLET CHECK] Importing Supabase client...');
         logger.log('📦 [WALLET CHECK] Importing Supabase client...');
+        
         const { supabase } = await import('@/lib/supabase');
+        
+        console.log('✅ [WALLET CHECK] Supabase client imported successfully');
         logger.log('✅ [WALLET CHECK] Supabase client imported successfully');
         
+        console.log('🔄 [WALLET CHECK] Calling supabase.auth.getSession()...');
         logger.log('🔄 [WALLET CHECK] Calling supabase.auth.getSession()...');
+        
         const { data: { session }, error } = await supabase.auth.getSession();
+        
+        console.log('🔄 [WALLET CHECK] Session check result:', {
+          hasSession: !!session,
+          hasError: !!error,
+          userId: session?.user?.id,
+          email: session?.user?.email,
+          errorMessage: error?.message || 'none'
+        });
         
         logger.log('🔄 [WALLET CHECK] Session check result:', {
           hasSession: !!session,
@@ -105,6 +132,12 @@ export default function Home() {
         });
         
         if (session && !error) {
+          console.log('✅ Active Supabase session found:', {
+            userId: session.user.id,
+            email: session.user.email,
+            expiresAt: new Date(session.expires_at! * 1000).toISOString()
+          });
+          
           logger.log('✅ Active Supabase session found:', {
             userId: session.user.id,
             email: session.user.email,
@@ -112,10 +145,18 @@ export default function Home() {
           });
           
           // ✅ NEW: Check if device is verified for email wallets (V2!)
+          console.log('🔍 [DEVICE CHECK V2] Checking device verification for email wallet...');
           logger.log('🔍 [DEVICE CHECK V2] Checking device verification for email wallet...');
+          
           const deviceCheck = await DeviceVerificationCheckV2.isDeviceVerified();
           
+          console.log('🔍 [DEVICE CHECK V2] Result:', deviceCheck);
+          logger.log('🔍 [DEVICE CHECK V2] Result:', deviceCheck);
+          
           if (!deviceCheck.verified) {
+            console.warn('⚠️ [DEVICE CHECK] Device not verified:', deviceCheck.reason);
+            console.warn('⚠️ [DEVICE CHECK] Requiring email login + device verification');
+            
             logger.warn('⚠️ [DEVICE CHECK] Device not verified:', deviceCheck.reason);
             logger.warn('⚠️ [DEVICE CHECK] Requiring email login + device verification');
             
@@ -175,14 +216,18 @@ export default function Home() {
             logger.warn('⚠️ User has Supabase session but no encrypted wallet found');
           }
         } else if (error) {
+          console.warn('⚠️ Error checking Supabase session:', error.message);
           logger.warn('⚠️ Error checking Supabase session:', error.message);
         } else {
+          console.log('ℹ️ No active Supabase session found');
           logger.log('ℹ️ No active Supabase session found');
         }
       } catch (err) {
+        console.error('❌ Failed to check Supabase session:', err);
         logger.error('❌ Failed to check Supabase session:', err);
       }
       
+      console.log('🔄 [WALLET CHECK] Proceeding to localStorage check...');
       logger.log('🔄 [WALLET CHECK] Proceeding to localStorage check...');
       
       // ✅ SECOND: Check for encrypted_wallet to detect wallet existence
