@@ -226,12 +226,12 @@ async function fetchCoinGeckoPriceHistory(
     });
 
     if (!response.ok) {
-      // API route returns 200 even on errors, but check just in case
+      // ❌ API returned non-2xx status (401, 404, 500, etc.)
       logger.error(`[TokenPriceHistory:CoinGecko] ❌ API route returned error status`, {
         status: response.status,
         statusText: response.statusText,
       });
-      return { prices: [], success: false, error: `API error: ${response.status}`, source: 'CoinGecko' };
+      return { prices: [], success: false, error: `CoinGecko API error: ${response.status}`, source: 'CoinGecko' };
     }
 
     const parseStartTime = Date.now();
@@ -246,6 +246,7 @@ async function fetchCoinGeckoPriceHistory(
       coinGeckoId: data.coinGeckoId,
       source: data.source,
       parseDuration: `${parseDuration}ms`,
+      fullResponseData: JSON.stringify(data).substring(0, 500), // First 500 chars for debug
     });
     
     if (!data.success || !data.prices || data.prices.length === 0) {
@@ -253,6 +254,7 @@ async function fetchCoinGeckoPriceHistory(
         error: data.error || 'Unknown error',
         symbol,
         days,
+        fullErrorData: JSON.stringify(data),
       });
       return { prices: [], success: false, error: data.error || 'No price data available', source: 'CoinGecko' };
     }
