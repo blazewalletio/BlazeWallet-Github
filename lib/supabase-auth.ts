@@ -127,6 +127,7 @@ export interface SignInResult {
   error?: string;
   user?: any;
   mnemonic?: string;
+  requires2FA?: boolean; // ✅ NEW: Indicates 2FA verification is needed
 }
 
 /**
@@ -270,6 +271,7 @@ export async function signUpWithEmail(
 /**
  * Sign in with email and password
  * Downloads and decrypts wallet from Supabase
+ * ✅ NEW: Now checks if 2FA is required BEFORE allowing login
  */
 export async function signInWithEmail(
   email: string,
@@ -288,6 +290,23 @@ export async function signInWithEmail(
 
     if (!authData.user) {
       return { success: false, error: 'Failed to sign in' };
+    }
+
+    // ✅ NEW: Check if user has 2FA enabled
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('two_factor_enabled')
+      .eq('user_id', authData.user.id)
+      .single();
+
+    if (profile?.two_factor_enabled) {
+      // Return success with requires2FA flag
+      // The UI will show 2FA modal before completing login
+      return {
+        success: true,
+        user: authData.user,
+        requires2FA: true,
+      };
     }
 
     // 2. Download encrypted wallet (via secure server endpoint)
@@ -345,6 +364,71 @@ export async function signInWithEmail(
   } catch (error: any) {
     logger.error('Sign in error:', error);
     return { success: false, error: error.message || 'Failed to sign in' };
+  }
+}
+
+/**
+ * ✅ NEW: Complete sign in after 2FA verification
+ * Downloads and decrypts wallet after 2FA is verified
+ */
+export async function completeSignInAfter2FA(
+  userId: string,
+  email: string,
+  password: string
+): Promise<SignInResult> {
+  try {
+    // Download encrypted wallet (via secure server endpoint)
+    // Get CSRF token first
+    const csrfResponse = await fetch('/api/csrf-token');
+    const { token: csrfToken } = await csrfResponse.json();
+    
+    const walletResponse = await fetch('/api/get-wallet', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken,
+      },
+      body: JSON.stringify({ userId }),
+    });
+    
+    const walletData = await walletResponse.json();
+    
+    if (!walletData.success || !walletData.encrypted_mnemonic) {
+      return { success: false, error: 'Wallet not found. Please use recovery phrase.' };
+    }
+
+    // Decrypt wallet
+    const mnemonic = await decryptMnemonic(walletData.encrypted_mnemonic, password);
+
+    // Store wallet flags locally (NOT addresses - they're derived on unlock)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('wallet_email', email);
+      localStorage.setItem('has_password', 'true');
+      localStorage.setItem('encrypted_wallet', walletData.encrypted_mnemonic);
+      localStorage.setItem('wallet_created_with_email', 'true');
+      localStorage.setItem('supabase_user_id', userId);
+      sessionStorage.setItem('wallet_unlocked_this_session', 'true');
+    }
+
+    // Track successful login with 2FA
+    if (typeof window !== 'undefined') {
+      const { trackAuth } = await import('@/lib/analytics');
+      await trackAuth(userId, 'login', { 
+        success: true,
+        method: 'email',
+        hasWallet: true,
+        used2FA: true
+      });
+    }
+
+    return {
+      success: true,
+      user: { id: userId, email } as any, // Minimal user object
+      mnemonic,
+    };
+  } catch (error: any) {
+    logger.error('Complete sign in after 2FA error:', error);
+    return { success: false, error: error.message || 'Failed to complete sign in' };
   }
 }
 

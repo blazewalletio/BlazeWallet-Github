@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, CheckCircle2, Copy, Check, Sparkles, Shield, Zap, Lock, AlertTriangle, Eye, EyeOff, ArrowRight, Mail, Key, Usb, FileText, Fingerprint, X, Brain, Flame, Vote, Rocket, Gift, CreditCard, Users, Palette, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
-import { signUpWithEmail, signInWithEmail, signInWithGoogle, signInWithApple } from '@/lib/supabase-auth-strict';
+import { signUpWithEmail, signInWithEmail, completeSignInAfter2FA, signInWithGoogle, signInWithApple } from '@/lib/supabase-auth';
+import TwoFactorLoginModal from './TwoFactorLoginModal';
 import BlazeLogoImage from './BlazeLogoImage';
 import { logger } from '@/lib/logger';
 
@@ -47,6 +48,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   // ✅ NEW: Device verification state
   const [deviceVerificationCode, setDeviceVerificationCode] = useState('');
   const [deviceVerificationToken, setDeviceVerificationToken] = useState('');
+  
+  // ✅ NEW: 2FA state
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [pending2FAUserId, setPending2FAUserId] = useState('');
+  const [pending2FAEmail, setPending2FAEmail] = useState('');
+  const [pending2FAPassword, setPending2FAPassword] = useState('');
   
   // ✅ NEW: Field refs for auto-focus and scroll
   const emailRef = useRef<HTMLInputElement>(null);
@@ -318,6 +325,16 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           return;
         }
 
+        // ✅ NEW: Check if 2FA is required
+        if (result.requires2FA && result.user) {
+          logger.log('🔐 2FA required for this account');
+          setPending2FAUserId(result.user.id);
+          setPending2FAEmail(email);
+          setPending2FAPassword(password);
+          setShow2FAModal(true);
+          return;
+        }
+
         // Initialize wallet locally with the decrypted mnemonic
         if (result.mnemonic) {
           await importWallet(result.mnemonic);
@@ -346,6 +363,52 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       setError('Something went wrong. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Handle 2FA verification success
+  const handle2FASuccess = async () => {
+    try {
+      setShow2FAModal(false);
+      setIsLoading(true);
+
+      // Complete sign in after 2FA verification
+      const result = await completeSignInAfter2FA(pending2FAUserId, pending2FAEmail, pending2FAPassword);
+
+      if (!result.success) {
+        setError(result.error || 'Failed to complete sign in');
+        return;
+      }
+
+      // Initialize wallet locally with the decrypted mnemonic
+      if (result.mnemonic) {
+        await importWallet(result.mnemonic);
+      }
+
+      // Check if mobile AND biometrics not already enabled
+      const biometricEnabled = typeof window !== 'undefined'
+        ? localStorage.getItem('biometric_enabled') === 'true'
+        : false;
+
+      if (isMobileDevice && !biometricEnabled) {
+        // Offer biometric setup after email login
+        logger.log('📱 Mobile device detected - offering biometric setup');
+        // Store password temporarily for biometric setup
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('pending_biometric_password', pending2FAPassword);
+        }
+        setStep('biometric-setup');
+      } else {
+        // Desktop or biometrics already enabled - complete onboarding
+        onComplete();
+      }
+    } catch (err) {
+      logger.error('Error completing 2FA sign in:', err);
+      setError('Failed to complete sign in after 2FA');
+    } finally {
+      setIsLoading(false);
+      // Clear sensitive data
+      setPending2FAPassword('');
     }
   };
 
@@ -1819,6 +1882,18 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         )}
       </AnimatePresence>
       </div>
+
+      {/* ✅ NEW: 2FA Login Modal */}
+      <TwoFactorLoginModal
+        isOpen={show2FAModal}
+        onClose={() => {
+          setShow2FAModal(false);
+          setPending2FAPassword(''); // Clear sensitive data
+        }}
+        onSuccess={handle2FASuccess}
+        userId={pending2FAUserId}
+        email={pending2FAEmail}
+      />
     </div>
   );
 }
