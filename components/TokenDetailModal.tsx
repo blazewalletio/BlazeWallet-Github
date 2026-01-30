@@ -30,6 +30,7 @@ import { refreshTokenMetadata } from '@/lib/spl-token-metadata';
 import TokenPriceChart from './TokenPriceChart';
 import { logger } from '@/lib/logger';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
+import { getTokenMarketData, formatLargeNumber, formatSupply, TokenMarketData } from '@/lib/token-market-data';
 
 interface TokenDetailModalProps {
   token: Token;
@@ -99,6 +100,8 @@ export default function TokenDetailModal({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showFullChart, setShowFullChart] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [marketData, setMarketData] = useState<TokenMarketData | null>(null);
+  const [isLoadingMarketData, setIsLoadingMarketData] = useState(false);
   
   // Swipe gesture state
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
@@ -221,6 +224,39 @@ export default function TokenDetailModal({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose, onSend, onReceive, onSwap]);
+  
+  // Fetch market data
+  useEffect(() => {
+    if (!isOpen || !token.symbol) return;
+    
+    const fetchMarketData = async () => {
+      setIsLoadingMarketData(true);
+      logger.log(`[TokenDetailModal] 🔄 Fetching market data for ${token.symbol}`);
+      
+      try {
+        const data = await getTokenMarketData(
+          token.symbol,
+          isNative ? undefined : token.address,
+          chain.name.toLowerCase()
+        );
+        
+        setMarketData(data);
+        logger.log(`[TokenDetailModal] ✅ Market data fetched`, {
+          symbol: token.symbol,
+          success: data.success,
+          marketCap: data.marketCap,
+          rank: data.marketCapRank,
+        });
+      } catch (error) {
+        logger.error(`[TokenDetailModal] ❌ Failed to fetch market data`, error);
+        setMarketData({ success: false, error: 'Failed to load' });
+      } finally {
+        setIsLoadingMarketData(false);
+      }
+    };
+    
+    fetchMarketData();
+  }, [isOpen, token.symbol, token.address, isNative, chain.name]);
   
   // Address to display (wallet address for native, contract address for tokens)
   const addressToDisplay = isNative && displayAddress ? displayAddress : token.address;
@@ -428,19 +464,43 @@ export default function TokenDetailModal({
               <div className="grid grid-cols-4 gap-3">
                 <div className="glass-card p-4 text-center">
                   <div className="text-xs text-gray-600 mb-1">Market Cap</div>
-                  <div className="text-sm font-bold text-gray-900">-</div>
+                  {isLoadingMarketData ? (
+                    <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                  ) : (
+                    <div className="text-sm font-bold text-gray-900">
+                      {marketData?.success ? formatLargeNumber(marketData.marketCap) : '-'}
+                    </div>
+                  )}
                 </div>
                 <div className="glass-card p-4 text-center">
                   <div className="text-xs text-gray-600 mb-1">Vol 24h</div>
-                  <div className="text-sm font-bold text-gray-900">-</div>
+                  {isLoadingMarketData ? (
+                    <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                  ) : (
+                    <div className="text-sm font-bold text-gray-900">
+                      {marketData?.success ? formatLargeNumber(marketData.volume24h) : '-'}
+                    </div>
+                  )}
                 </div>
                 <div className="glass-card p-4 text-center">
                   <div className="text-xs text-gray-600 mb-1">Supply</div>
-                  <div className="text-sm font-bold text-gray-900">-</div>
+                  {isLoadingMarketData ? (
+                    <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                  ) : (
+                    <div className="text-sm font-bold text-gray-900">
+                      {marketData?.success ? formatSupply(marketData.circulatingSupply) : '-'}
+                    </div>
+                  )}
                 </div>
                 <div className="glass-card p-4 text-center">
                   <div className="text-xs text-gray-600 mb-1">Rank</div>
-                  <div className="text-sm font-bold text-gray-900">-</div>
+                  {isLoadingMarketData ? (
+                    <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                  ) : (
+                    <div className="text-sm font-bold text-gray-900">
+                      {marketData?.success && marketData.marketCapRank ? `#${marketData.marketCapRank}` : '-'}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
