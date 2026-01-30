@@ -271,20 +271,34 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
               setTrustedDevices(devices);
             }
             
-            // Load transaction stats
-            const { data: stats } = await supabase
-              .from('user_transaction_stats')
-              .select('*')
-              .eq('user_id', user.id)
-              .single();
-            
-            if (stats) {
-              setTransactionStats(stats);
-            } else {
-              // Create stats if they don't exist
-              await supabase
-                .from('user_transaction_stats')
-                .insert({ user_id: user.id });
+            // Load transaction stats - use new API endpoint
+            try {
+              const statsResponse = await fetch(`/api/transactions/track?userId=${user.id}`);
+              const statsData = await statsResponse.json();
+              
+              if (statsData.success && statsData.stats) {
+                setTransactionStats(statsData.stats);
+              } else {
+                // Fallback to direct database query
+                const { data: stats } = await supabase
+                  .from('user_transaction_stats')
+                  .select('*')
+                  .eq('user_id', user.id)
+                  .single();
+                
+                if (stats) {
+                  setTransactionStats(stats);
+                }
+              }
+            } catch (statsError) {
+              logger.error('Failed to load transaction stats:', statsError);
+              // Set default empty stats
+              setTransactionStats({
+                total_transactions: 0,
+                total_sent: 0,
+                total_received: 0,
+                total_gas_spent: 0
+              });
             }
           } else {
             // ✅ Seed wallet - set defaults (no Supabase data)

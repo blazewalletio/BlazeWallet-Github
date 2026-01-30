@@ -484,6 +484,43 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
           toAddress,
         },
       });
+
+      // ✅ NEW: Track transaction in database for cross-device stats
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const currentAddress = getCurrentAddress(selectedChain);
+          await fetch('/api/transactions/track', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.id,
+              chainKey: selectedChain,
+              txHash: hash,
+              transactionType: 'send',
+              direction: 'sent',
+              fromAddress: currentAddress,
+              toAddress,
+              tokenSymbol: selectedAsset.symbol,
+              tokenAddress: selectedAsset.address || null,
+              tokenDecimals: selectedAsset.decimals,
+              isNative: selectedAsset.isNative,
+              amount: amount,
+              amountUSD: sendValueUSD,
+              gasCostUSD: parseFloat(gas) * (selectedAsset.priceUSD || 0) * 0.000000001, // Rough estimate
+              status: 'confirmed',
+              metadata: {
+                gasSpeed: selectedGas,
+                toAddress
+              }
+            })
+          });
+          logger.log('✅ Transaction tracked in database');
+        }
+      } catch (trackError) {
+        logger.error('Failed to track transaction:', trackError);
+        // Don't fail the whole transaction if tracking fails
+      }
       
       // ✅ CRITICAL: Invalidate cache after successful transaction!
       // This ensures balance updates immediately on next view
