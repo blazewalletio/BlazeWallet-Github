@@ -72,14 +72,22 @@ export class DeviceVerificationCheckV2 {
       // LAYER 1: PERSISTENT DEVICE ID (Primary Check)
       // =====================================================================
       
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('🔍 [LAYER 1] PERSISTENT DEVICE ID CHECK');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      
       logger.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       logger.log('🔍 [LAYER 1] PERSISTENT DEVICE ID CHECK');
       logger.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       
       const { deviceId, isNew } = DeviceIdManager.getOrCreateDeviceId();
       
+      console.log('🔍 [Layer 1] Device ID:', deviceId.substring(0, 12) + '...', 'isNew:', isNew);
+      logger.log('🔍 [Layer 1] Device ID:', deviceId.substring(0, 12) + '...', 'isNew:', isNew);
+      
       if (!isNew) {
         // Device ID exists in localStorage → Check database
+        console.log('✅ [Layer 1] Device ID found in localStorage:', deviceId.substring(0, 12) + '...');
         logger.log('✅ [Layer 1] Device ID found in localStorage:', deviceId.substring(0, 12) + '...');
         
         const layer1StartTime = Date.now();
@@ -90,6 +98,9 @@ export class DeviceVerificationCheckV2 {
           .eq('device_id', deviceId)
           .maybeSingle();
         const layer1Duration = Date.now() - layer1StartTime;
+        
+        console.log(`🔍 [Layer 1] Database query took ${layer1Duration}ms`);
+        console.log('🔍 [Layer 1] Query result - device found:', !!device, 'has verified_at:', !!device?.verified_at);
         
         logger.log(`🔍 [Layer 1] Database query took ${layer1Duration}ms`);
         
@@ -126,10 +137,14 @@ export class DeviceVerificationCheckV2 {
         } else if (device && !device.verified_at) {
           logger.log('⚠️ [Layer 1] Device found but NOT verified yet');
         } else {
+          console.log('⚠️ [Layer 1] Device ID not found in database');
+          console.log('⚠️ [Layer 1] Queried for user_id:', user.id, 'device_id:', deviceId.substring(0, 12) + '...');
+          
           logger.log('⚠️ [Layer 1] Device ID not found in database');
           logger.log('⚠️ [Layer 1] Possible reasons: localStorage cleared previously, or device not yet registered');
         }
       } else {
+        console.log('🆕 [Layer 1] NEW device ID generated (first time on this device)');
         logger.log('🆕 [Layer 1] NEW device ID generated (first time on this device)');
       }
       
