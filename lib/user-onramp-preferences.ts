@@ -26,13 +26,9 @@ export class UserOnRampPreferencesService {
         .from('user_onramp_preferences')
         .select('*')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle(); // ✅ FIX: Use maybeSingle() instead of single() to avoid 406 when no record exists
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          // No record found - return null (will be created on first use)
-          return null;
-        }
         if (error.code === 'PGRST205' || error.message?.includes('does not exist') || error.message?.includes('schema cache')) {
           // Table doesn't exist yet - migration not run, fail silently
           // Don't log to console - this is expected if migration hasn't run yet
@@ -43,7 +39,7 @@ export class UserOnRampPreferencesService {
         return null;
       }
 
-      if (!data) return null;
+      if (!data) return null; // ✅ maybeSingle() returns null if no record found (no error!)
 
       return {
         id: data.id,
