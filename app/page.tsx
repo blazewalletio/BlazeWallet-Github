@@ -11,6 +11,7 @@ import BiometricAuthModal from '@/components/BiometricAuthModal';
 import QRLoginModal from '@/components/QRLoginModal';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import { logger } from '@/lib/logger';
+import { DeviceVerificationCheck } from '@/lib/device-verification-check';
 
 export default function Home() {
   // ✅ REACTIVE APPROACH: Minimal local state, derive everything from wallet store
@@ -103,6 +104,26 @@ export default function Home() {
             expiresAt: new Date(session.expires_at! * 1000).toISOString()
           });
           
+          // ✅ NEW: Check if device is verified for email wallets
+          logger.log('🔍 [DEVICE CHECK] Checking device verification for email wallet...');
+          const deviceCheck = await DeviceVerificationCheck.isDeviceVerified();
+          
+          if (!deviceCheck.verified) {
+            logger.warn('⚠️ [DEVICE CHECK] Device not verified:', deviceCheck.reason);
+            logger.warn('⚠️ [DEVICE CHECK] Requiring email login + device verification');
+            
+            // Clear localStorage and require full email login
+            localStorage.removeItem('encrypted_wallet');
+            localStorage.removeItem('has_password');
+            sessionStorage.clear();
+            
+            // Show onboarding (user must login with email + verify device)
+            setHasWallet(false);
+            return;
+          }
+          
+          logger.log('✅ [DEVICE CHECK] Device is verified - allowing password unlock');
+          
           // ✅ Load encrypted wallet from Supabase
           logger.log('🔄 [WALLET CHECK] Loading encrypted wallet from Supabase...');
           const { data: walletData, error: walletError } = await supabase
@@ -126,6 +147,7 @@ export default function Home() {
             localStorage.setItem('encrypted_wallet', walletData.encrypted_wallet);
             localStorage.setItem('has_password', 'true');
             localStorage.setItem('wallet_email', session.user.email || '');
+            localStorage.setItem('wallet_created_with_email', 'true');
             logger.log('✅ [WALLET CHECK] Data stored in localStorage');
             
             // Initialize account in account manager

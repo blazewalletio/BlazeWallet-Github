@@ -12,6 +12,7 @@ import DeviceVerificationModal from './DeviceVerificationModal';
 import { logger } from '@/lib/logger';
 import { rateLimitService } from '@/lib/rate-limit-service';
 import { EnhancedDeviceInfo } from '@/lib/device-fingerprint-pro';
+import { DeviceVerificationCheck } from '@/lib/device-verification-check';
 
 interface PasswordUnlockModalProps {
   isOpen: boolean;
@@ -93,6 +94,39 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // ✅ NEW: Check device verification for email wallets BEFORE unlock
+    const isSeedWallet = DeviceVerificationCheck.isSeedWallet();
+    
+    if (!isSeedWallet) {
+      logger.log('📧 [PasswordUnlock] Email wallet detected - checking device verification...');
+      
+      const deviceCheck = await DeviceVerificationCheck.isDeviceVerified();
+      
+      if (!deviceCheck.verified) {
+        logger.warn('⚠️ [PasswordUnlock] Device not verified:', deviceCheck.reason);
+        setError('Device not recognized. Redirecting to email login...');
+        setIsLoading(true);
+        
+        // Clear local data and redirect to email login
+        setTimeout(() => {
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('encrypted_wallet');
+            localStorage.removeItem('has_password');
+            sessionStorage.clear();
+          }
+          
+          // Reload to show onboarding (email login required)
+          window.location.reload();
+        }, 2000);
+        
+        return;
+      }
+      
+      logger.log('✅ [PasswordUnlock] Device verified - proceeding with unlock');
+    } else {
+      logger.log('🌱 [PasswordUnlock] Seed wallet - no device verification needed');
+    }
 
     // Note: Rate limiting is now handled in wallet-store.ts unlockWithPassword()
     // The error message from there will show remaining attempts
