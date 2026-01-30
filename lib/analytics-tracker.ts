@@ -231,12 +231,29 @@ export class AnalyticsTracker {
 
       logger.log(`[Analytics] Flushing ${events.length} events...`);
 
+      // Get CSRF token for security
+      let csrfToken: string | null = null;
+      try {
+        const csrfResponse = await fetch('/api/csrf-token');
+        if (csrfResponse.ok) {
+          const csrfData = await csrfResponse.json();
+          csrfToken = csrfData.token;
+        }
+      } catch (csrfError) {
+        logger.warn('[Analytics] Failed to get CSRF token, skipping flush');
+        // Re-queue events
+        this.queue = [...events, ...this.queue];
+        this.isFlushing = false;
+        return;
+      }
+
       // Send to backend
       const response = await fetch('/api/analytics/batch-log', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
+          'X-CSRF-Token': csrfToken || '',
         },
         body: JSON.stringify({ events }),
       });
