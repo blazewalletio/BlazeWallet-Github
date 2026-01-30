@@ -48,24 +48,32 @@ export async function GET(request: Request) {
       apiKeyPrefix: apiKey ? apiKey.substring(0, 6) + '...' : 'none',
     });
     
-    // ✅ EXACT CoinGecko granularity matching:
-    // - 1 day: NO interval parameter → automatically gives 5-minute data (288 points)
-    // - 1-90 days: interval=hourly → hourly data
-    // - >90 days: interval=daily → daily data
+    // ✅ CRITICAL FIX: CoinGecko Pro API automatically provides optimal granularity!
+    // - 1 day: 5-minute intervals (NO interval parameter needed)
+    // - 2-90 days: hourly intervals (NO interval parameter needed - AUTOMATIC!)
+    // - >90 days: daily intervals (NO interval parameter needed)
+    // 
+    // ❌ The `interval` parameter is ONLY available on Enterprise plan!
+    // ✅ Pro plan gets automatic granularity based on `days` parameter
+    //
+    // Source: https://docs.coingecko.com/reference/coins-id-market-chart
     let interval: string | null = null;
-    if (days === 1) {
-      // ✅ 1D: No interval parameter = CoinGecko automatically gives 5-minute intervals
-      interval = null; // Don't add interval parameter for 1D
-    } else if (days <= 90) {
-      interval = 'hourly'; // For 7D, 30D: hourly data
-    } else {
-      interval = 'daily'; // For 1J, ALLES: daily data
-    }
+    
+    // ❌ REMOVED: Do NOT use interval parameter for Pro API!
+    // It causes 401 error: "interval=hourly is exclusive to Enterprise plan"
+    // if (days === 1) {
+    //   interval = null;
+    // } else if (days <= 90) {
+    //   interval = 'hourly';
+    // } else {
+    //   interval = 'daily';
+    // }
     
     logger.log(`[Price History API] ⚙️ Interval calculation`, {
       days,
-      interval: interval || 'null (auto 5-minute)',
-      reason: days === 1 ? '1 day = auto 5-minute' : days <= 90 ? '1-90 days = hourly' : '>90 days = daily',
+      interval: 'auto (Pro API automatic granularity)',
+      reason: 'CoinGecko Pro automatically provides optimal intervals',
+      note: 'interval parameter is Enterprise-only',
     });
     
     let coinGeckoId: string | null = null;
@@ -372,9 +380,8 @@ export async function GET(request: Request) {
       );
     }
 
-    // ✅ EXACT CoinGecko API call matching their website
-    // For 1D: No interval parameter (CoinGecko automatically gives 5-minute data)
-    // For others: Use interval parameter
+    // ✅ EXACT CoinGecko API call matching their Pro API documentation
+    // NO interval parameter needed - CoinGecko Pro automatically provides optimal granularity!
     // ✅ Using CoinGecko Pro API with API key (if available)
     const baseUrl = apiKey ? 'https://pro-api.coingecko.com/api/v3' : 'https://api.coingecko.com/api/v3';
     const headers: HeadersInit = { 'Accept': 'application/json' };
@@ -382,14 +389,11 @@ export async function GET(request: Request) {
       headers['x-cg-pro-api-key'] = apiKey;
     }
     
-    if (interval) {
-      url = `${baseUrl}/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}&interval=${interval}`;
-    } else {
-      // 1D: No interval parameter = 5-minute granularity
-      url = `${baseUrl}/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}`;
-    }
+    // ✅ CRITICAL: Do NOT add interval parameter for Pro API!
+    // It's Enterprise-only and causes 401 errors
+    url = `${baseUrl}/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}`;
     
-    const intervalLabel = interval || '5-minute (auto)';
+    const intervalLabel = 'auto (Pro API)';
     logger.log(`[Price History API] 📡 Step 4: Fetching market chart data`, {
       symbol,
       coinGeckoId,
@@ -400,9 +404,21 @@ export async function GET(request: Request) {
       url: url.replace(apiKey || '', 'API_KEY_HIDDEN'),
       usingProAPI: !!apiKey,
       apiKeyPresent: !!apiKey,
+      note: 'No interval parameter - automatic granularity',
     });
     
     const marketChartStartTime = Date.now();
+    
+    // ✅ DEBUG: Log exact request details
+    logger.log(`[Price History API] 🔍 EXACT REQUEST DEBUG`, {
+      url,
+      headers: JSON.stringify(headers),
+      apiKeyLength: apiKey?.length,
+      apiKeyFirstChars: apiKey?.substring(0, 10),
+      apiKeyLastChars: apiKey?.substring(apiKey.length - 5),
+      headerKeys: Object.keys(headers),
+    });
+    
     const response = await fetch(url, {
       headers,
       next: { revalidate: days <= 1 ? 300 : 900 }, // 5 min cache for 1D, 15 min for others
