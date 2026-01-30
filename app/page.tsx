@@ -11,7 +11,7 @@ import BiometricAuthModal from '@/components/BiometricAuthModal';
 import QRLoginModal from '@/components/QRLoginModal';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import { logger } from '@/lib/logger';
-import { DeviceVerificationCheck } from '@/lib/device-verification-check';
+import { DeviceVerificationCheckV2 } from '@/lib/device-verification-check-v2'; // ← V2!
 
 export default function Home() {
   // ✅ REACTIVE APPROACH: Minimal local state, derive everything from wallet store
@@ -104,9 +104,9 @@ export default function Home() {
             expiresAt: new Date(session.expires_at! * 1000).toISOString()
           });
           
-          // ✅ NEW: Check if device is verified for email wallets
-          logger.log('🔍 [DEVICE CHECK] Checking device verification for email wallet...');
-          const deviceCheck = await DeviceVerificationCheck.isDeviceVerified();
+          // ✅ NEW: Check if device is verified for email wallets (V2!)
+          logger.log('🔍 [DEVICE CHECK V2] Checking device verification for email wallet...');
+          const deviceCheck = await DeviceVerificationCheckV2.isDeviceVerified();
           
           if (!deviceCheck.verified) {
             logger.warn('⚠️ [DEVICE CHECK] Device not verified:', deviceCheck.reason);

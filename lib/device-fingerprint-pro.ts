@@ -1,10 +1,16 @@
 /**
  * Enhanced Device Fingerprinting with Risk Analysis
  * Fort Knox Security Level
+ * V2: Added persistent localStorage caching (24h TTL)
  */
 
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
 import { logger } from './logger';
+
+// Persistent cache keys
+const FINGERPRINT_CACHE_KEY = 'blaze_device_fingerprint';
+const FINGERPRINT_CACHE_TIME_KEY = 'blaze_fingerprint_cached_at';
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 export interface EnhancedDeviceInfo {
   fingerprint: string;
@@ -40,6 +46,65 @@ export interface EnhancedDeviceInfo {
   isTor: boolean;
   isVPN: boolean;
   riskScore: number;
+}
+
+/**
+ * Get cached fingerprint or generate fresh one
+ * Caches in localStorage for 24 hours (persistent across app restarts)
+ */
+export async function getCachedOrGenerateFingerprint(): Promise<{
+  fingerprint: string;
+  isFromCache: boolean;
+  previousFingerprint?: string;
+}> {
+  if (typeof window === 'undefined') {
+    throw new Error('Fingerprint generation only works in browser');
+  }
+  
+  // Check localStorage cache (24h TTL)
+  const cached = localStorage.getItem(FINGERPRINT_CACHE_KEY);
+  const cachedAt = localStorage.getItem(FINGERPRINT_CACHE_TIME_KEY);
+  
+  const now = Date.now();
+  
+  if (cached && cachedAt) {
+    const age = now - parseInt(cachedAt, 10);
+    const ageMinutes = Math.floor(age / 1000 / 60);
+    
+    if (age < CACHE_TTL) {
+      logger.log(`✅ [Fingerprint] Using cached (age: ${ageMinutes} min)`);
+      return { fingerprint: cached, isFromCache: true };
+    } else {
+      logger.log(`⏰ [Fingerprint] Cache expired (age: ${ageMinutes} min), regenerating...`);
+    }
+  }
+  
+  // Generate fresh fingerprint
+  logger.log('🔄 [Fingerprint] Generating fresh fingerprint...');
+  const deviceInfo = await generateEnhancedFingerprint();
+  const newFingerprint = deviceInfo.fingerprint;
+  
+  // Save to localStorage cache
+  localStorage.setItem(FINGERPRINT_CACHE_KEY, newFingerprint);
+  localStorage.setItem(FINGERPRINT_CACHE_TIME_KEY, now.toString());
+  
+  logger.log('✅ [Fingerprint] Fresh fingerprint cached');
+  
+  return {
+    fingerprint: newFingerprint,
+    isFromCache: false,
+    previousFingerprint: cached || undefined,
+  };
+}
+
+/**
+ * Clear fingerprint cache (for testing or security)
+ */
+export function clearFingerprintCache(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(FINGERPRINT_CACHE_KEY);
+  localStorage.removeItem(FINGERPRINT_CACHE_TIME_KEY);
+  logger.log('🗑️ [Fingerprint] Cache cleared');
 }
 
 /**

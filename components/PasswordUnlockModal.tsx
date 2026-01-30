@@ -12,7 +12,7 @@ import DeviceVerificationModal from './DeviceVerificationModal';
 import { logger } from '@/lib/logger';
 import { rateLimitService } from '@/lib/rate-limit-service';
 import { EnhancedDeviceInfo } from '@/lib/device-fingerprint-pro';
-import { DeviceVerificationCheck } from '@/lib/device-verification-check';
+import { DeviceVerificationCheckV2 } from '@/lib/device-verification-check-v2'; // ← V2!
 
 interface PasswordUnlockModalProps {
   isOpen: boolean;
@@ -95,13 +95,13 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     e.preventDefault();
     setError('');
 
-    // ✅ NEW: Check device verification for email wallets BEFORE unlock
-    const isSeedWallet = DeviceVerificationCheck.isSeedWallet();
+    // ✅ NEW: Check device verification for email wallets BEFORE unlock (V2!)
+    const isSeedWallet = DeviceVerificationCheckV2.isSeedWallet();
     
     if (!isSeedWallet) {
-      logger.log('📧 [PasswordUnlock] Email wallet detected - checking device verification...');
+      logger.log('📧 [PasswordUnlock] Email wallet detected - checking device verification (V2)...');
       
-      const deviceCheck = await DeviceVerificationCheck.isDeviceVerified();
+      const deviceCheck = await DeviceVerificationCheckV2.isDeviceVerified();
       
       if (!deviceCheck.verified) {
         logger.warn('⚠️ [PasswordUnlock] Device not verified:', deviceCheck.reason);

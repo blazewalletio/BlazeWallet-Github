@@ -295,16 +295,24 @@ export async function strictSignInWithEmail(
     
     // Insert new device with fresh verification token
     logger.log('💾 [StrictAuth] Inserting device record...');
+    
+    // ✅ NEW: Get or create device_id
+    const { DeviceIdManager } = await import('./device-id-manager');
+    const { deviceId } = DeviceIdManager.getOrCreateDeviceId();
+    
     const { data: insertedDevice, error: insertError } = await supabase
       .from('trusted_devices')
       .insert({
         user_id: data.user.id,
+        device_id: deviceId, // ← NEW: Persistent device ID!
         device_name: deviceInfo.deviceName,
         device_fingerprint: deviceInfo.fingerprint,
         ip_address: deviceInfo.ipAddress,
         user_agent: deviceInfo.userAgent,
-        browser: `${deviceInfo.browser} ${deviceInfo.browserVersion}`,
-        os: `${deviceInfo.os} ${deviceInfo.osVersion}`,
+        browser: `${deviceInfo.browser}`,
+        browser_version: deviceInfo.browserVersion, // ← NEW: Separate version
+        os: `${deviceInfo.os}`,
+        os_version: deviceInfo.osVersion, // ← NEW: Separate version
         is_current: false, // Not current until verified
         verification_token: deviceToken,
         verification_code: verificationCode,
@@ -316,6 +324,7 @@ export async function strictSignInWithEmail(
           isVPN: deviceInfo.isVPN,
           timezone: deviceInfo.timezone,
           language: deviceInfo.language,
+          screenResolution: deviceInfo.screenResolution, // ← NEW
         },
         last_used_at: new Date().toISOString(),
       })
@@ -470,6 +479,10 @@ export async function verifyDeviceAndSignIn(
     }
     
     // 3. Mark device as verified
+    // ✅ NEW: Generate session token for grace period
+    const crypto = await import('crypto');
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+    
     const { error: updateError } = await supabase
       .from('trusted_devices')
       .update({
@@ -478,6 +491,8 @@ export async function verifyDeviceAndSignIn(
         verification_token: null, // Clear token
         verification_code: null, // Clear code
         verification_expires_at: null,
+        session_token: sessionToken, // ← NEW: For grace period
+        last_verified_session_at: new Date().toISOString(), // ← NEW
       })
       .eq('id', device.id);
     
@@ -487,6 +502,12 @@ export async function verifyDeviceAndSignIn(
         success: false,
         error: 'Failed to verify device',
       };
+    }
+    
+    // Store session token in sessionStorage (for grace period)
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('blaze_session_token', sessionToken);
+      logger.log('✅ [StrictAuth] Session token stored');
     }
     
     logger.log('✅ [StrictAuth] Device verified and trusted');
@@ -618,6 +639,55 @@ export async function signUpWithEmail(
     // 4. Get wallet address
     const hdNode = ethers.HDNodeWallet.fromPhrase(mnemonic);
     const walletAddress = hdNode.address;
+
+    // ✅ 4.5. AUTO-TRUST FIRST DEVICE (NEW!)
+    // Register signup device as automatically trusted (no verification needed)
+    try {
+      logger.log('📱 [StrictAuth] Registering first device as auto-trusted...');
+      
+      const { DeviceIdManager } = await import('./device-id-manager');
+      const { generateEnhancedFingerprint } = await import('./device-fingerprint-pro');
+      
+      const { deviceId } = DeviceIdManager.getOrCreateDeviceId();
+      const deviceInfo = await generateEnhancedFingerprint();
+      
+      const { error: deviceError } = await supabase
+        .from('trusted_devices')
+        .insert({
+          user_id: authData.user.id,
+          device_id: deviceId, // ← NEW: Persistent device ID!
+          device_name: deviceInfo.deviceName,
+          device_fingerprint: deviceInfo.fingerprint,
+          ip_address: deviceInfo.ipAddress,
+          user_agent: deviceInfo.userAgent,
+          browser: `${deviceInfo.browser}`,
+          browser_version: deviceInfo.browserVersion,
+          os: `${deviceInfo.os}`,
+          os_version: deviceInfo.osVersion,
+          verified_at: new Date().toISOString(), // ← AUTO-VERIFIED on signup!
+          is_current: true,
+          device_metadata: {
+            location: deviceInfo.location,
+            riskScore: deviceInfo.riskScore,
+            timezone: deviceInfo.timezone,
+            screenResolution: deviceInfo.screenResolution,
+            language: deviceInfo.language,
+          },
+          last_used_at: new Date().toISOString(),
+        });
+      
+      if (deviceError) {
+        logger.warn('⚠️ [StrictAuth] Failed to register first device:', deviceError);
+        // Non-critical - user can verify later if needed
+      } else {
+        logger.log('✅ [StrictAuth] First device auto-trusted successfully!');
+        logger.log('✅ [StrictAuth] Device ID:', deviceId.substring(0, 12) + '...');
+        logger.log('✅ [StrictAuth] Device Name:', deviceInfo.deviceName);
+      }
+    } catch (deviceRegError) {
+      logger.warn('⚠️ [StrictAuth] Device registration error:', deviceRegError);
+      // Non-critical - continue with signup
+    }
 
     // 5. Upload encrypted wallet to Supabase
     try {
