@@ -28,10 +28,16 @@ export class DeviceVerificationCheck {
    */
   static async isDeviceVerified(): Promise<DeviceVerificationResult> {
     try {
+      logger.log('🔍 [DeviceCheck] ═══════════════════════════════════════');
       logger.log('🔍 [DeviceCheck] Starting device verification check...');
+      logger.log('🔍 [DeviceCheck] Timestamp:', new Date().toISOString());
       
       // 1. Get current user from Supabase session
+      const userStartTime = Date.now();
       const { data: { user }, error: userError } = await supabase.auth.getUser();
+      const userDuration = Date.now() - userStartTime;
+      
+      logger.log(`🔍 [DeviceCheck] getUser() took ${userDuration}ms`);
       
       if (userError) {
         logger.error('❌ [DeviceCheck] Error getting user:', userError);
@@ -44,40 +50,93 @@ export class DeviceVerificationCheck {
       }
       
       logger.log('✅ [DeviceCheck] User session found:', user.id);
+      logger.log('✅ [DeviceCheck] User email:', user.email);
       
       // 2. Generate or use cached device fingerprint
+      const fpStartTime = Date.now();
       const fingerprint = await this.getCachedFingerprint();
+      const fpDuration = Date.now() - fpStartTime;
       
+      logger.log(`🔍 [DeviceCheck] Fingerprint generation took ${fpDuration}ms`);
       logger.log('🔍 [DeviceCheck] Device fingerprint:', fingerprint.substring(0, 16) + '...');
+      logger.log('🔍 [DeviceCheck] Full fingerprint:', fingerprint);
       
       // 3. Check if this device is verified in database
+      const dbStartTime = Date.now();
       const { data: device, error: deviceError } = await supabase
         .from('trusted_devices')
         .select('*')
         .eq('user_id', user.id)
         .eq('device_fingerprint', fingerprint)
         .maybeSingle();
+      const dbDuration = Date.now() - dbStartTime;
+      
+      logger.log(`🔍 [DeviceCheck] Database query took ${dbDuration}ms`);
       
       if (deviceError) {
         logger.error('❌ [DeviceCheck] Database error:', deviceError);
+        logger.error('❌ [DeviceCheck] Error code:', deviceError.code);
+        logger.error('❌ [DeviceCheck] Error message:', deviceError.message);
         return { verified: false, reason: 'database_error' };
       }
       
       if (!device) {
         logger.log('❌ [DeviceCheck] Device not found in database');
+        logger.log('❌ [DeviceCheck] Searched for user_id:', user.id);
+        logger.log('❌ [DeviceCheck] Searched for fingerprint:', fingerprint);
+        
+        // 🔍 DEBUG: Query ALL devices for this user to see what's in DB
+        const { data: allDevices } = await supabase
+          .from('trusted_devices')
+          .select('id, device_fingerprint, verified_at, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(5);
+        
+        logger.log('🔍 [DeviceCheck] Total devices in DB for this user:', allDevices?.length || 0);
+        if (allDevices && allDevices.length > 0) {
+          logger.log('🔍 [DeviceCheck] Recent devices:');
+          allDevices.forEach((d, i) => {
+            logger.log(`  Device ${i + 1}:`, {
+              id: d.id,
+              fingerprint_preview: d.device_fingerprint?.substring(0, 20) + '...',
+              verified: !!d.verified_at,
+              created: d.created_at,
+            });
+            
+            // Compare fingerprints character by character
+            if (d.device_fingerprint && fingerprint) {
+              let matches = 0;
+              const minLen = Math.min(d.device_fingerprint.length, fingerprint.length);
+              for (let j = 0; j < minLen; j++) {
+                if (d.device_fingerprint[j] === fingerprint[j]) matches++;
+              }
+              const matchPercentage = (matches / minLen * 100).toFixed(1);
+              logger.log(`    → Fingerprint match: ${matchPercentage}% (${matches}/${minLen} chars)`);
+            }
+          });
+        }
+        
         return { verified: false, reason: 'device_not_found' };
       }
       
       logger.log('✅ [DeviceCheck] Device found in database:', device.id);
+      logger.log('✅ [DeviceCheck] Device name:', device.device_name);
+      logger.log('✅ [DeviceCheck] Device created:', device.created_at);
+      logger.log('✅ [DeviceCheck] Device last used:', device.last_used_at);
       
       // 4. Check if device has been verified (has verified_at timestamp)
       if (!device.verified_at) {
         logger.log('❌ [DeviceCheck] Device exists but not verified yet');
+        logger.log('❌ [DeviceCheck] verification_expires_at:', device.verification_expires_at);
         return { verified: false, reason: 'device_not_verified' };
       }
       
       logger.log('✅ [DeviceCheck] Device is VERIFIED!');
       logger.log('✅ [DeviceCheck] Verified at:', device.verified_at);
+      logger.log('✅ [DeviceCheck] Time since verification:', 
+        Math.round((Date.now() - new Date(device.verified_at).getTime()) / 1000 / 60), 'minutes ago');
+      logger.log('🔍 [DeviceCheck] ═══════════════════════════════════════');
       
       // 5. Update last_used_at timestamp
       try {
