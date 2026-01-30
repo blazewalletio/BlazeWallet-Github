@@ -1100,85 +1100,140 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             </AnimatePresence>
           </motion.div>
 
-          {/* TRUSTED DEVICES - NEW! */}
+          {/* TRUSTED DEVICES - REDESIGNED */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="glass-card rounded-2xl overflow-hidden mb-6"
+            className="glass-card rounded-2xl overflow-hidden mb-6 border border-gray-200"
           >
-            <button
-              onClick={() => setShowDevices(!showDevices)}
-              className="w-full flex items-center justify-between p-6 hover:bg-gray-50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                  <Smartphone className="w-5 h-5 text-purple-600" />
+            {/* Header - Always Visible */}
+            <div className="p-6 bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-gray-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <Smartphone className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Trusted Devices</h3>
+                    <p className="text-sm text-gray-600">
+                      {trustedDevices.length} {trustedDevices.length === 1 ? 'device' : 'devices'} verified
+                    </p>
+                  </div>
                 </div>
-                <div className="text-left">
-                  <h3 className="text-lg font-bold text-gray-900">Trusted Devices</h3>
-                  <p className="text-sm text-gray-600">{trustedDevices.length} device{trustedDevices.length !== 1 ? 's' : ''} connected</p>
-                </div>
+                <button
+                  onClick={() => setShowDevices(!showDevices)}
+                  className="px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm text-gray-700 transition-all shadow-sm flex items-center gap-2"
+                >
+                  {showDevices ? 'Hide' : 'Show'}
+                  <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${showDevices ? 'rotate-90' : ''}`} />
+                </button>
               </div>
-              <ChevronRight className={`w-5 h-5 text-gray-400 transition-transform ${showDevices ? 'rotate-90' : ''}`} />
-            </button>
+              <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                <Shield className="w-3.5 h-3.5" />
+                New devices require email verification for security
+              </p>
+            </div>
 
+            {/* Devices List - Expandable */}
             <AnimatePresence>
               {showDevices && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  className="border-t border-gray-100"
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
                 >
                   <div className="p-6 space-y-3">
                     {trustedDevices.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">
-                        <Smartphone className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                        <p className="text-sm">No trusted devices yet</p>
-                        <p className="text-xs mt-1">New devices must be verified via email</p>
+                      <div className="text-center py-12 px-6">
+                        <div className="w-20 h-20 bg-gradient-to-r from-purple-100 to-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                          <Smartphone className="w-10 h-10 text-purple-500 opacity-50" />
+                        </div>
+                        <p className="text-sm font-semibold text-gray-900 mb-1">No trusted devices yet</p>
+                        <p className="text-xs text-gray-500 max-w-xs mx-auto">
+                          When you sign in from a new device, you'll need to verify it via email. 
+                          Once verified, it will appear here.
+                        </p>
                       </div>
                     ) : (
-                      trustedDevices.map((device) => (
-                        <div key={device.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                          <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
-                            {device.os?.toLowerCase().includes('mac') || device.os?.toLowerCase().includes('ios') ? (
-                              <Apple className="w-5 h-5 text-gray-600" />
-                            ) : (
-                              <Monitor className="w-5 h-5 text-gray-600" />
+                      trustedDevices.map((device, index) => (
+                        <motion.div
+                          key={device.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="group relative overflow-hidden bg-gradient-to-r from-gray-50 to-gray-50/50 hover:from-white hover:to-gray-50 border border-gray-200 rounded-xl p-4 transition-all hover:shadow-md hover:border-gray-300"
+                        >
+                          <div className="flex items-start gap-4">
+                            {/* Device Icon */}
+                            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm border border-gray-100 group-hover:scale-110 transition-transform">
+                              {device.os?.toLowerCase().includes('mac') || device.os?.toLowerCase().includes('ios') ? (
+                                <Apple className="w-6 h-6 text-gray-700" />
+                              ) : device.os?.toLowerCase().includes('android') ? (
+                                <Smartphone className="w-6 h-6 text-green-600" />
+                              ) : (
+                                <Monitor className="w-6 h-6 text-blue-600" />
+                              )}
+                            </div>
+                            
+                            {/* Device Info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="text-sm font-bold text-gray-900 truncate">
+                                  {device.device_name}
+                                </p>
+                                {device.is_current && (
+                                  <span className="px-2.5 py-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-bold rounded-full shadow-sm flex items-center gap-1">
+                                    <CheckCircle className="w-3 h-3" />
+                                    Current
+                                  </span>
+                                )}
+                                {!device.verified_at && (
+                                  <span className="px-2.5 py-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs font-bold rounded-full shadow-sm flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    Pending
+                                  </span>
+                                )}
+                              </div>
+                              
+                              {/* Device Details */}
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-600">
+                                <span className="font-medium">{device.browser}</span>
+                                <span className="text-gray-300">•</span>
+                                <span>{device.os}</span>
+                                {device.last_used_at && (
+                                  <>
+                                    <span className="text-gray-300">•</span>
+                                    <span className="text-gray-500">
+                                      Last used {formatActivityTime(device.last_used_at)}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                              
+                              {/* Verification Status */}
+                              {device.verified_at && (
+                                <div className="mt-2 flex items-center gap-1.5 text-xs text-green-600">
+                                  <Shield className="w-3 h-3" />
+                                  <span className="font-medium">Verified {formatActivityTime(device.verified_at)}</span>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Remove Button - Only for non-current devices */}
+                            {!device.is_current && (
+                              <button 
+                                onClick={() => handleRemoveDevice(device.id)}
+                                className="px-3 py-1.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 hover:text-red-700 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 group/remove"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 group-hover/remove:scale-110 transition-transform" />
+                                Remove
+                              </button>
                             )}
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-medium text-gray-900">{device.device_name}</p>
-                              {device.is_current && (
-                                <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded-full">
-                                  Current
-                                </span>
-                              )}
-                              {!device.verified_at && (
-                                <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs font-bold rounded-full">
-                                  Pending
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                              <span>{device.browser}</span>
-                              <span>•</span>
-                              <span>{device.os}</span>
-                              <span>•</span>
-                              <span>Last used {formatActivityTime(device.last_used_at)}</span>
-                            </div>
-                          </div>
-                          {!device.is_current && (
-                            <button 
-                              onClick={() => handleRemoveDevice(device.id)}
-                              className="text-red-500 hover:text-red-700 text-sm font-medium"
-                            >
-                              Remove
-                            </button>
-                          )}
-                        </div>
+                        </motion.div>
                       ))
                     )}
                   </div>
