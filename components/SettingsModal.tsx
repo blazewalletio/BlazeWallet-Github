@@ -5,14 +5,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Shield, Key, Trash2, 
   Eye, EyeOff, Copy, Check, Bell, Settings, Fingerprint, CheckCircle, XCircle, Bug,
-  AlertTriangle, Lock, Clock, Globe, TestTube2, ChevronDown, DollarSign
+  AlertTriangle, Lock, ChevronDown, DollarSign
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { supabase } from '@/lib/supabase';
-import { CHAINS } from '@/lib/chains';
 import BiometricSetupModal from './BiometricSetupModal';
 import PasswordVerificationModal from './PasswordVerificationModal';
-import CustomSelect from './CustomSelect';
 import CurrencyModal from './CurrencyModal';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { logger } from '@/lib/logger';
@@ -41,11 +39,6 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
   // ✅ NEW: Notifications state
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   
-  // ✅ NEW: Network & Testnet settings
-  const [defaultNetwork, setDefaultNetwork] = useState('ethereum');
-  const [enableTestnets, setEnableTestnets] = useState(false);
-  const [autoLockTimeout, setAutoLockTimeout] = useState(5); // minutes
-  
   // Supabase user ID (for syncing settings)
   const [supabaseUserId, setSupabaseUserId] = useState<string | null>(null);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
@@ -71,7 +64,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
         // Load from Supabase
         const { data: profile, error } = await supabase
           .from('user_profiles')
-          .select('notifications_enabled, default_network, enable_testnets, auto_lock_timeout')
+          .select('notifications_enabled')
           .eq('user_id', user.id)
           .single();
         
@@ -82,9 +75,6 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
         } else if (profile) {
           // Apply Supabase settings
           setNotificationsEnabled(profile.notifications_enabled ?? true);
-          setDefaultNetwork(profile.default_network || 'ethereum');
-          setEnableTestnets(profile.enable_testnets ?? false);
-          setAutoLockTimeout(profile.auto_lock_timeout ?? 5);
           
           logger.log('✅ Settings loaded from Supabase:', profile);
         } else {
@@ -108,9 +98,6 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
   const loadFromLocalStorage = () => {
     if (typeof window !== 'undefined') {
       setNotificationsEnabled(localStorage.getItem('notifications_enabled') !== 'false');
-      setDefaultNetwork(localStorage.getItem('default_network') || 'ethereum');
-      setEnableTestnets(localStorage.getItem('enable_testnets') === 'true');
-      setAutoLockTimeout(parseInt(localStorage.getItem('auto_lock_timeout') || '5'));
     }
   };
 
@@ -149,49 +136,6 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
     await saveToSupabase({ notifications_enabled: newValue });
     
     logger.log(`✅ Notifications ${newValue ? 'enabled' : 'disabled'}`);
-  };
-
-  const handleChangeDefaultNetwork = async (network: string) => {
-    setDefaultNetwork(network);
-    
-    // Save to localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('default_network', network);
-    }
-    
-    // Sync to Supabase
-    await saveToSupabase({ default_network: network });
-    
-    logger.log(`✅ Default network changed to: ${network}`);
-  };
-
-  const handleToggleTestnets = async () => {
-    const newValue = !enableTestnets;
-    setEnableTestnets(newValue);
-    
-    // Save to localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('enable_testnets', String(newValue));
-    }
-    
-    // Sync to Supabase
-    await saveToSupabase({ enable_testnets: newValue });
-    
-    logger.log(`✅ Testnets ${newValue ? 'enabled' : 'disabled'}`);
-  };
-
-  const handleChangeAutoLock = async (minutes: number) => {
-    setAutoLockTimeout(minutes);
-    
-    // Save to localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('auto_lock_timeout', String(minutes));
-    }
-    
-    // Sync to Supabase
-    await saveToSupabase({ auto_lock_timeout: minutes });
-    
-    logger.log(`✅ Auto-lock timeout changed to: ${minutes} minutes`);
   };
 
   // Check biometric status on mount - WALLET-SPECIFIC
@@ -531,7 +475,7 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
                   </label>
                 </div>
 
-                {/* ✅ NEW: Currency Selector */}
+                {/* ✅ Currency Selector */}
                 <button
                   onClick={() => setShowCurrency(true)}
                   className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-colors"
@@ -545,81 +489,6 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
                   </div>
                   <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg]" />
                 </button>
-
-                {/* Auto-Lock Timeout */}
-                <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Clock className="w-5 h-5 text-indigo-500" />
-                    <div className="flex-1">
-                      <div className="font-semibold text-sm text-gray-900">Auto-Lock Timeout</div>
-                      <div className="text-xs text-gray-600">Lock wallet after inactivity</div>
-                    </div>
-                  </div>
-                  <CustomSelect
-                    value={autoLockTimeout}
-                    onChange={(val) => handleChangeAutoLock(val as number)}
-                    options={[
-                      { value: 0, label: 'Never' },
-                      { value: 1, label: '1 minute' },
-                      { value: 5, label: '5 minutes' },
-                      { value: 15, label: '15 minutes' },
-                      { value: 30, label: '30 minutes' },
-                      { value: 60, label: '1 hour' }
-                    ]}
-                    disabled={isLoadingSettings}
-                    accentColor="indigo"
-                  />
-                </div>
-
-                {/* Default Network */}
-                <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Globe className="w-5 h-5 text-blue-500" />
-                    <div className="flex-1">
-                      <div className="font-semibold text-sm text-gray-900">Default Network</div>
-                      <div className="text-xs text-gray-600">Chain shown when opening wallet</div>
-                    </div>
-                  </div>
-                  <CustomSelect
-                    value={defaultNetwork}
-                    onChange={(val) => handleChangeDefaultNetwork(val as string)}
-                    options={Object.entries(CHAINS)
-                      .filter(([key]) => {
-                        const chain = CHAINS[key as keyof typeof CHAINS];
-                        if (chain.isTestnet) return enableTestnets;
-                        return true;
-                      })
-                      .map(([key, chain]) => ({
-                        value: key,
-                        label: chain.name
-                      }))}
-                    disabled={isLoadingSettings}
-                    accentColor="blue"
-                  />
-                </div>
-
-                {/* Enable Testnets */}
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
-                  <div className="flex items-center gap-3">
-                    <TestTube2 className="w-5 h-5 text-purple-500" />
-                    <div>
-                      <div className="font-semibold text-sm text-gray-900">Enable Testnets</div>
-                      <div className="text-xs text-gray-600">Show testnet chains in network list</div>
-                    </div>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      className="sr-only peer" 
-                      checked={enableTestnets}
-                      onChange={handleToggleTestnets}
-                      disabled={isLoadingSettings}
-                    />
-                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500 peer-disabled:opacity-50 peer-disabled:cursor-not-allowed"></div>
-                  </label>
-                </div>
-
-                {/* Dark Mode REMOVED - wallet only has light mode */}
               </div>
             </div>
 
