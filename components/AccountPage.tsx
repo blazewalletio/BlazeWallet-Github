@@ -78,6 +78,8 @@ interface TransactionStats {
   total_received: string;
   total_gas_spent: string;
   favorite_token: string | null;
+  last_transaction_at?: string | null;
+  updated_at?: string;
 }
 
 export default function AccountPage({ isOpen, onClose, onOpenSettings }: AccountPageProps) {
@@ -295,9 +297,12 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
               // Set default empty stats
               setTransactionStats({
                 total_transactions: 0,
-                total_sent: 0,
-                total_received: 0,
-                total_gas_spent: 0
+                total_sent: '0',
+                total_received: '0',
+                total_gas_spent: '0',
+                favorite_token: null,
+                last_transaction_at: null,
+                updated_at: new Date().toISOString()
               });
             }
           } else {

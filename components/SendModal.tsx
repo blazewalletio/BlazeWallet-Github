@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Loader2, CheckCircle2, Flame, ChevronDown, Check, AlertTriangle, Lightbulb, Users, Zap, TurtleIcon as Turtle, Gauge, Rocket } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
+import { supabase } from '@/lib/supabase';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { MultiChainService } from '@/lib/multi-chain-service';
 import { BlockchainService } from '@/lib/blockchain';
@@ -489,7 +490,10 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const currentAddress = getCurrentAddress(selectedChain);
+          const currentAddress = selectedChain === 'solana' 
+            ? useWalletStore.getState().solanaAddress 
+            : useWalletStore.getState().address;
+            
           await fetch('/api/transactions/track', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

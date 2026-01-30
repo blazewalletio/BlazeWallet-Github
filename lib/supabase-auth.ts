@@ -128,6 +128,8 @@ export interface SignInResult {
   user?: any;
   mnemonic?: string;
   requires2FA?: boolean; // ✅ NEW: Indicates 2FA verification is needed
+  requiresDeviceVerification?: boolean; // ✅ Device verification flag
+  deviceVerificationToken?: string; // ✅ Device verification token
 }
 
 /**
