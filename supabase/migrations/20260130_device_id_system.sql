@@ -65,6 +65,27 @@ CREATE INDEX IF NOT EXISTS idx_security_events_user
 CREATE INDEX IF NOT EXISTS idx_security_events_type
   ON security_events(event_type, created_at DESC);
 
+-- ============================================================================
+-- RLS POLICIES FOR TRUSTED_DEVICES (CRITICAL FIX)
+-- ============================================================================
+-- NOTE: Without UPDATE policy, verified_at cannot be set during device verification!
+-- This was causing devices to never be marked as verified.
+
+-- RLS Policy: Users can update their own devices (for verification)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'trusted_devices' 
+    AND policyname = 'Users can update their own devices'
+  ) THEN
+    CREATE POLICY "Users can update their own devices"
+      ON trusted_devices FOR UPDATE
+      USING (auth.uid() = user_id)
+      WITH CHECK (auth.uid() = user_id);
+  END IF;
+END $$;
+
 -- Enable RLS on security_events
 ALTER TABLE security_events ENABLE ROW LEVEL SECURITY;
 
