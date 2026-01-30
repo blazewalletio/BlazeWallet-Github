@@ -1,6 +1,6 @@
 {
+  "/_not-found/page": "app/_not-found/page.js",
   "/api/priority-list/route": "app/api/priority-list/route.js",
   "/api/token-logo/route": "app/api/token-logo/route.js",
-  "/api/transactions/route": "app/api/transactions/route.js",
   "/api/prices-by-address/route": "app/api/prices-by-address/route.js"
 }

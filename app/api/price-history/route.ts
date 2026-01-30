@@ -41,18 +41,11 @@ export async function GET(request: Request) {
     }
 
     const apiKey = process.env.COINGECKO_API_KEY?.trim();
-    // ✅ IMPROVED: CoinGecko free tier supports ALL timeframes (1D, 7D, 30D, 1J, ALLES)
-    // Only use API key if explicitly needed (e.g., for higher rate limits)
-    // For now, we'll use free tier by default to avoid API key errors
-    // TODO: Add API key validation to check if key is valid before using it
-    const useApiKey = false; // ✅ Use free tier by default (works for all timeframes)
-    const apiKeyParam = ''; // ✅ No API key = free tier
     
-    logger.log(`[Price History API] 🔑 Using CoinGecko free tier`, {
+    logger.log(`[Price History API] 🔑 CoinGecko API key check`, {
       hasApiKeyInEnv: !!apiKey,
       apiKeyLength: apiKey?.length || 0,
-      usingFreeTier: true,
-      note: 'Free tier supports all timeframes (1D, 7D, 30D, 1J, ALLES)',
+      apiKeyPrefix: apiKey ? apiKey.substring(0, 6) + '...' : 'none',
     });
     
     // ✅ EXACT CoinGecko granularity matching:
@@ -109,17 +102,25 @@ export async function GET(request: Request) {
         
         if (platform) {
           try {
-            // ✅ Use free tier (no API key) for contract lookup
-            const contractUrl = `https://api.coingecko.com/api/v3/coins/${platform}/contract/${contractAddress}`;
+            // ✅ CoinGecko Pro API with API key
+            const headers: HeadersInit = { 'Accept': 'application/json' };
+            if (apiKey) {
+              headers['x-cg-pro-api-key'] = apiKey;
+            }
+            const contractUrl = apiKey
+              ? `https://pro-api.coingecko.com/api/v3/coins/${platform}/contract/${contractAddress}`
+              : `https://api.coingecko.com/api/v3/coins/${platform}/contract/${contractAddress}`;
+            
             logger.log(`[Price History API] 📡 Contract lookup API call`, {
-              url: contractUrl,
+              url: contractUrl.replace(apiKey || '', 'API_KEY_HIDDEN'),
               platform,
               contractAddress,
+              usingProAPI: !!apiKey,
             });
           
           const contractStartTime = Date.now();
           const contractResponse = await fetch(contractUrl, {
-            headers: { 'Accept': 'application/json' },
+            headers,
             next: { revalidate: 3600 } // 1 hour cache
           });
           const contractDuration = Date.now() - contractStartTime;
@@ -275,16 +276,24 @@ export async function GET(request: Request) {
       });
       
       try {
-        // ✅ Use free tier (no API key) for search
-        const searchUrl = `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(symbol)}`;
+        // ✅ CoinGecko Pro API with API key
+        const headers: HeadersInit = { 'Accept': 'application/json' };
+        if (apiKey) {
+          headers['x-cg-pro-api-key'] = apiKey;
+        }
+        const searchUrl = apiKey
+          ? `https://pro-api.coingecko.com/api/v3/search?query=${encodeURIComponent(symbol)}`
+          : `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(symbol)}`;
+        
         logger.log(`[Price History API] 📡 Search API call`, {
-          url: searchUrl,
+          url: searchUrl.replace(apiKey || '', 'API_KEY_HIDDEN'),
           symbol,
+          usingProAPI: !!apiKey,
         });
         
         const searchStartTime = Date.now();
         const searchResponse = await fetch(searchUrl, {
-          headers: { 'Accept': 'application/json' },
+          headers,
           next: { revalidate: 3600 } // 1 hour cache
         });
         const searchDuration = Date.now() - searchStartTime;
@@ -366,31 +375,36 @@ export async function GET(request: Request) {
     // ✅ EXACT CoinGecko API call matching their website
     // For 1D: No interval parameter (CoinGecko automatically gives 5-minute data)
     // For others: Use interval parameter
-    // ✅ Using free tier (no API key) - supports all timeframes
+    // ✅ Using CoinGecko Pro API with API key (if available)
+    const baseUrl = apiKey ? 'https://pro-api.coingecko.com/api/v3' : 'https://api.coingecko.com/api/v3';
+    const headers: HeadersInit = { 'Accept': 'application/json' };
+    if (apiKey) {
+      headers['x-cg-pro-api-key'] = apiKey;
+    }
+    
     if (interval) {
-      url = `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}&interval=${interval}`;
+      url = `${baseUrl}/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}&interval=${interval}`;
     } else {
       // 1D: No interval parameter = 5-minute granularity
-      url = `https://api.coingecko.com/api/v3/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}`;
+      url = `${baseUrl}/coins/${coinGeckoId}/market_chart?vs_currency=usd&days=${days}`;
     }
     
     const intervalLabel = interval || '5-minute (auto)';
-    logger.log(`[Price History API] 📡 Step 4: Fetching market chart data (free tier)`, {
+    logger.log(`[Price History API] 📡 Step 4: Fetching market chart data`, {
       symbol,
       coinGeckoId,
       days,
       interval: intervalLabel,
       isNativeToken,
       contractAddress: contractAddress || 'none',
-      url: url,
-      usingFreeTier: true,
+      url: url.replace(apiKey || '', 'API_KEY_HIDDEN'),
+      usingProAPI: !!apiKey,
+      apiKeyPresent: !!apiKey,
     });
     
     const marketChartStartTime = Date.now();
     const response = await fetch(url, {
-      headers: {
-        'Accept': 'application/json',
-      },
+      headers,
       next: { revalidate: days <= 1 ? 300 : 900 }, // 5 min cache for 1D, 15 min for others
     });
     const marketChartDuration = Date.now() - marketChartStartTime;
@@ -416,14 +430,15 @@ export async function GET(request: Request) {
         symbol,
         days,
         interval,
-        usingFreeTier: true,
+        usingProAPI: !!apiKey,
         errorText: errorText.substring(0, 200), // First 200 chars
       });
       
-      // ✅ No fallback needed - we're already using free tier
-      // If free tier fails, it's likely a rate limit (429) or token not found (404)
+      // ✅ No fallback needed - using Pro API or free tier based on API key
+      // If API fails, it's likely a rate limit (429) or token not found (404)
       if (response.status === 429) {
-        logger.error(`[Price History API] ❌ 429 Rate limit hit (free tier: 10-50 calls/min)`);
+        const tier = apiKey ? 'Pro API (500 calls/min)' : 'Free tier (10-50 calls/min)';
+        logger.error(`[Price History API] ❌ 429 Rate limit hit (${tier})`);
         return NextResponse.json(
           { prices: [], success: false, error: 'Rate limited - please try again in a moment' },
           { status: 200 }
