@@ -16,6 +16,10 @@ import {
   ChevronDown,
   ChevronUp,
   Flame,
+  Maximize2,
+  BarChart3,
+  Bell,
+  Share2,
 } from 'lucide-react';
 import { Token } from '@/lib/types';
 import { useWalletStore } from '@/lib/wallet-store';
@@ -93,6 +97,8 @@ export default function TokenDetailModal({
   const [copied, setCopied] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showFullChart, setShowFullChart] = useState(false);
+  const [showStats, setShowStats] = useState(false);
   
   // Swipe gesture state
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
@@ -234,48 +240,37 @@ export default function TokenDetailModal({
         onTouchEnd={onTouchEnd}
       >
         <div className="max-w-4xl mx-auto p-6">
-          {/* Back Button */}
-          <button
-            onClick={onClose}
-            className="mb-4 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-          >
-            ← Back
-          </button>
-
-          {/* Header */}
-          <div className="mb-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden">
-                {token.logo && (token.logo.startsWith('http') || token.logo.startsWith('/') || token.logo.startsWith('data:') || token.logo.startsWith('blob:')) ? (
-                  <img 
-                    src={token.logo} 
-                    alt={token.symbol}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                      const parent = e.currentTarget.parentElement;
-                      if (parent) {
-                        parent.innerHTML = '<span class="text-white text-xl font-bold">' + token.symbol[0] + '</span>';
-                      }
-                    }}
-                  />
-                ) : (
-                  <span className="text-white text-xl font-bold">{token.symbol[0]}</span>
-                )}
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Token details</h2>
-                <p className="text-sm text-gray-600">
-                  {token.name} ({token.symbol})
-                </p>
-              </div>
+          {/* Header with Back + Actions */}
+          <div className="flex items-center justify-between mb-6">
+            <button
+              onClick={onClose}
+              className="text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 rounded-lg"
+            >
+              ← Back
+            </button>
+            
+            <div className="flex items-center gap-2">
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                className="p-2 hover:bg-white rounded-lg transition-colors"
+                title="Add to favorites"
+              >
+                <Star className="w-5 h-5 text-gray-600" />
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                className="p-2 hover:bg-white rounded-lg transition-colors"
+                title="Share"
+              >
+                <Share2 className="w-5 h-5 text-gray-600" />
+              </motion.button>
             </div>
           </div>
 
-          <div className="max-w-2xl mx-auto space-y-6">
-            {/* Balance Overview */}
-            <div className="glass-card p-6 text-center">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-orange-100 to-orange-50 mb-4 overflow-hidden border-2 border-white shadow-lg">
+          <div className="max-w-2xl mx-auto space-y-4">
+            {/* Token Name */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden">
                 {token.logo && (token.logo.startsWith('http') || token.logo.startsWith('/') || token.logo.startsWith('data:') || token.logo.startsWith('blob:')) ? (
                   <img 
                     src={token.logo} 
@@ -285,41 +280,111 @@ export default function TokenDetailModal({
                       e.currentTarget.style.display = 'none';
                       const parent = e.currentTarget.parentElement;
                       if (parent) {
-                        parent.innerHTML = '<span class="text-3xl font-bold text-orange-600">' + token.symbol[0] + '</span>';
+                        parent.innerHTML = '<span class="text-white text-lg font-bold">' + token.symbol[0] + '</span>';
                       }
                     }}
                   />
                 ) : (
-                  <span className="text-3xl font-bold text-orange-600">{token.symbol[0]}</span>
+                  <span className="text-white text-lg font-bold">{token.symbol[0]}</span>
                 )}
               </div>
-              
-              <div className="space-y-2">
-                <div className="text-3xl font-bold text-gray-900">
-                  {parseFloat(token.balance || '0').toFixed(6)} {token.symbol}
-                </div>
-                <div className="text-xl text-gray-600">
-                  ≈ {formatUSDSync(parseFloat(token.balanceUSD || '0'))}
-                </div>
-                {token.change24h !== undefined && (
-                  <div className={`flex items-center justify-center gap-1 text-sm font-medium ${
-                    isPositiveChange ? 'text-emerald-600' : 'text-rose-600'
-                  }`}>
-                    {isPositiveChange ? (
-                      <TrendingUp className="w-4 h-4" />
-                    ) : (
-                      <TrendingDown className="w-4 h-4" />
-                    )}
-                    <span>
-                      {isPositiveChange ? '+' : ''}{token.change24h.toFixed(2)}% (24h)
-                    </span>
-                  </div>
-                )}
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">{token.name} ({token.symbol})</h2>
               </div>
             </div>
 
-            {/* Price Chart */}
+            {/* 🔥 DASHBOARD CARD: Balance + Quick Actions Integrated */}
+            <div className="glass-card p-6 border-2 border-orange-100">
+              <div className="space-y-4">
+                {/* Balance */}
+                <div>
+                  <div className="text-3xl font-bold text-gray-900 mb-1">
+                    {parseFloat(token.balance || '0').toFixed(6)} {token.symbol}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-xl text-gray-600">
+                      ≈ {formatUSDSync(parseFloat(token.balanceUSD || '0'))}
+                    </div>
+                    {token.change24h !== undefined && (
+                      <div className={`flex items-center gap-1 text-sm font-medium ${
+                        isPositiveChange ? 'text-emerald-600' : 'text-rose-600'
+                      }`}>
+                        {isPositiveChange ? (
+                          <TrendingUp className="w-4 h-4" />
+                        ) : (
+                          <TrendingDown className="w-4 h-4" />
+                        )}
+                        <span>
+                          {isPositiveChange ? '+' : ''}{token.change24h.toFixed(2)}%
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Inline Quick Actions */}
+                <div className="flex items-center gap-2 pt-2">
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      onClose();
+                      onSend?.();
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white transition-all shadow-md hover:shadow-lg font-medium text-sm"
+                  >
+                    <Send className="w-4 h-4" />
+                    Send
+                  </motion.button>
+                  
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      onClose();
+                      onReceive?.();
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white transition-all shadow-md hover:shadow-lg font-medium text-sm"
+                  >
+                    <ArrowDownLeft className="w-4 h-4" />
+                    Receive
+                  </motion.button>
+                  
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      onClose();
+                      onSwap?.();
+                    }}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white transition-all shadow-md hover:shadow-lg font-medium text-sm"
+                  >
+                    <Repeat className="w-4 h-4" />
+                    Swap
+                  </motion.button>
+                </div>
+              </div>
+            </div>
+
+            {/* 📊 PRICE CHART CARD */}
             <div className="glass-card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-gray-900" />
+                  <div>
+                    <div className="text-lg font-bold text-gray-900">
+                      {symbol}{typeof token.priceUSD === 'string' 
+                        ? parseFloat(token.priceUSD).toFixed(parseFloat(token.priceUSD) < 0.01 ? 6 : 2)
+                        : (token.priceUSD || 0).toFixed((token.priceUSD || 0) < 0.01 ? 6 : 2)}
+                    </div>
+                    {token.change24h !== undefined && (
+                      <div className={`text-xs font-medium ${
+                        isPositiveChange ? 'text-emerald-600' : 'text-rose-600'
+                      }`}>
+                        {isPositiveChange ? '▲' : '▼'} {isPositiveChange ? '+' : ''}{token.change24h.toFixed(2)}%
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
               <TokenPriceChart
                 tokenSymbol={token.symbol}
                 tokenAddress={isNative ? undefined : token.address}
@@ -327,137 +392,70 @@ export default function TokenDetailModal({
                 currentPrice={typeof token.priceUSD === 'string' ? parseFloat(token.priceUSD) : (token.priceUSD || 0)}
                 isPositiveChange={isPositiveChange}
               />
-            </div>
-
-            {/* Quick Actions */}
-            <div className="glass-card p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick actions</h3>
-              <div className="grid grid-cols-3 gap-3">
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    onClose();
-                    onSend?.();
-                  }}
-                  className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white transition-all shadow-lg hover:shadow-xl"
-                >
-                  <Send className="w-6 h-6" />
-                  <span className="text-sm font-semibold">Send</span>
-                </motion.button>
-                
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    onClose();
-                    onReceive?.();
-                  }}
-                  className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white transition-all shadow-lg hover:shadow-xl"
-                >
-                  <ArrowDownLeft className="w-6 h-6" />
-                  <span className="text-sm font-semibold">Receive</span>
-                </motion.button>
-                
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    onClose();
-                    onSwap?.();
-                  }}
-                  className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white transition-all shadow-lg hover:shadow-xl"
-                >
-                  <Repeat className="w-6 h-6" />
-                  <span className="text-sm font-semibold">Swap</span>
-                </motion.button>
-              </div>
-            </div>
-
-            {/* Token Details */}
-            <div className="glass-card p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Token details</h3>
               
-              <div className="space-y-3">
-                {/* Address/Contract */}
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">{addressLabel}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-gray-900 text-xs">
-                      {addressToDisplay ? `${addressToDisplay.slice(0, 6)}...${addressToDisplay.slice(-4)}` : 'N/A'}
-                    </span>
-                    {addressToDisplay && (
-                      <>
-                        <motion.button
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => copyToClipboard(addressToDisplay)}
-                          className="p-1 hover:bg-gray-200 rounded transition-colors"
-                          title="Copy address"
-                        >
-                          {copied ? (
-                            <span className="text-green-600 text-xs">✓</span>
-                          ) : (
-                            <Copy className="w-3.5 h-3.5 text-gray-600" />
-                          )}
-                        </motion.button>
-                        <a
-                          href={explorerUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1 hover:bg-gray-200 rounded transition-colors"
-                          title="View on explorer"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5 text-gray-600" />
-                        </a>
-                      </>
-                    )}
-                  </div>
-                </div>
+              {/* Chart Actions */}
+              <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-200">
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowFullChart(!showFullChart)}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors text-sm font-medium"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                  Fullscreen
+                </motion.button>
                 
-                {token.decimals !== undefined && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Decimals</span>
-                    <span className="font-medium text-gray-900">{token.decimals}</span>
-                  </div>
-                )}
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowStats(!showStats)}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors text-sm font-medium"
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  Stats
+                </motion.button>
                 
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Standard</span>
-                  <span className="font-medium text-gray-900">
-                    {isNative 
-                      ? 'Native' 
-                      : currentChain === 'solana' 
-                        ? 'SPL Token' 
-                        : 'ERC-20'}
-                  </span>
-                </div>
-                
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Chain</span>
-                  <span className="font-medium text-gray-900">{chain.name}</span>
-                </div>
-                
-                {token.priceUSD !== undefined && token.priceUSD > 0 && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">Price</span>
-                    <span className="font-medium text-gray-900">
-                      {symbol}{typeof token.priceUSD === 'string' 
-                        ? parseFloat(token.priceUSD).toFixed(parseFloat(token.priceUSD) < 0.01 ? 6 : 2)
-                        : token.priceUSD.toFixed(token.priceUSD < 0.01 ? 6 : 2)}
-                    </span>
-                  </div>
-                )}
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors text-sm font-medium"
+                >
+                  <Bell className="w-4 h-4" />
+                  Alert
+                </motion.button>
               </div>
             </div>
 
-            {/* Advanced Section */}
+            {/* 📈 MARKET STATS GRID */}
+            {token.priceUSD !== undefined && token.priceUSD > 0 && (
+              <div className="grid grid-cols-4 gap-3">
+                <div className="glass-card p-4 text-center">
+                  <div className="text-xs text-gray-600 mb-1">Market Cap</div>
+                  <div className="text-sm font-bold text-gray-900">-</div>
+                </div>
+                <div className="glass-card p-4 text-center">
+                  <div className="text-xs text-gray-600 mb-1">Vol 24h</div>
+                  <div className="text-sm font-bold text-gray-900">-</div>
+                </div>
+                <div className="glass-card p-4 text-center">
+                  <div className="text-xs text-gray-600 mb-1">Supply</div>
+                  <div className="text-sm font-bold text-gray-900">-</div>
+                </div>
+                <div className="glass-card p-4 text-center">
+                  <div className="text-xs text-gray-600 mb-1">Rank</div>
+                  <div className="text-sm font-bold text-gray-900">-</div>
+                </div>
+              </div>
+            )}
+
+            {/* Token Details - Collapsible */}
             <div className="glass-card p-6">
               <button
                 onClick={() => setShowAdvanced(!showAdvanced)}
-                className="flex items-center justify-between w-full text-sm font-semibold text-gray-900 hover:text-orange-600 transition-colors mb-3"
+                className="flex items-center justify-between w-full text-base font-semibold text-gray-900 hover:text-orange-600 transition-colors"
               >
-                <span>Advanced options</span>
+                <span>Token details</span>
                 {showAdvanced ? (
-                  <ChevronUp className="w-4 h-4" />
+                  <ChevronUp className="w-5 h-5" />
                 ) : (
-                  <ChevronDown className="w-4 h-4" />
+                  <ChevronDown className="w-5 h-5" />
                 )}
               </button>
               
@@ -470,56 +468,106 @@ export default function TokenDetailModal({
                     transition={{ duration: 0.2 }}
                     className="overflow-hidden"
                   >
-                    <div className="space-y-2 pt-3 border-t border-gray-200">
-                      {isUnknownToken && !isNative && (
-                        <motion.button
-                          whileTap={{ scale: 0.98 }}
-                          onClick={handleRefresh}
-                          disabled={isRefreshing}
-                          className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-gray-50 transition-colors text-left disabled:opacity-50"
-                        >
-                          <RefreshCw className={`w-5 h-5 text-orange-600 ${isRefreshing ? 'animate-spin' : ''}`} />
-                          <div>
-                            <div className="font-medium text-gray-900 text-sm">Refresh metadata</div>
-                            <div className="text-xs text-gray-500">Fetch latest info from Jupiter</div>
-                          </div>
-                        </motion.button>
+                    <div className="space-y-3 pt-4 mt-4 border-t border-gray-200">
+                      {/* Address/Contract */}
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">{addressLabel}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-gray-900 text-xs">
+                            {addressToDisplay ? `${addressToDisplay.slice(0, 6)}...${addressToDisplay.slice(-4)}` : 'N/A'}
+                          </span>
+                          {addressToDisplay && (
+                            <>
+                              <motion.button
+                                whileTap={{ scale: 0.9 }}
+                                onClick={() => copyToClipboard(addressToDisplay)}
+                                className="p-1 hover:bg-gray-200 rounded transition-colors"
+                                title="Copy address"
+                              >
+                                {copied ? (
+                                  <span className="text-green-600 text-xs">✓</span>
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5 text-gray-600" />
+                                )}
+                              </motion.button>
+                              <a
+                                href={explorerUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1 hover:bg-gray-200 rounded transition-colors"
+                                title="View on explorer"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5 text-gray-600" />
+                              </a>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {token.decimals !== undefined && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">Decimals</span>
+                          <span className="font-medium text-gray-900">{token.decimals}</span>
+                        </div>
                       )}
                       
-                      <motion.button
-                        whileTap={{ scale: 0.98 }}
-                        className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-gray-50 transition-colors text-left"
-                      >
-                        <Star className="w-5 h-5 text-gray-600" />
-                        <div>
-                          <div className="font-medium text-gray-900 text-sm">Add to favorites</div>
-                          <div className="text-xs text-gray-500">Quick access from dashboard</div>
-                        </div>
-                      </motion.button>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Standard</span>
+                        <span className="font-medium text-gray-900">
+                          {isNative 
+                            ? 'Native' 
+                            : currentChain === 'solana' 
+                              ? 'SPL Token' 
+                              : 'ERC-20'}
+                        </span>
+                      </div>
                       
-                      <motion.button
-                        whileTap={{ scale: 0.98 }}
-                        className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-gray-50 transition-colors text-left"
-                      >
-                        <EyeOff className="w-5 h-5 text-gray-600" />
-                        <div>
-                          <div className="font-medium text-gray-900 text-sm">Hide token</div>
-                          <div className="text-xs text-gray-500">Remove from assets list</div>
-                        </div>
-                      </motion.button>
-                      
-                      <a
-                        href={`https://www.coingecko.com/en/search?query=${token.symbol}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-gray-50 transition-colors text-left"
-                      >
-                        <ExternalLink className="w-5 h-5 text-gray-600" />
-                        <div>
-                          <div className="font-medium text-gray-900 text-sm">View on CoinGecko</div>
-                          <div className="text-xs text-gray-500">Market data and charts</div>
-                        </div>
-                      </a>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600">Chain</span>
+                        <span className="font-medium text-gray-900">{chain.name}</span>
+                      </div>
+
+                      {/* Advanced Actions */}
+                      <div className="pt-3 mt-3 border-t border-gray-200 space-y-2">
+                        {isUnknownToken && !isNative && (
+                          <motion.button
+                            whileTap={{ scale: 0.98 }}
+                            onClick={handleRefresh}
+                            disabled={isRefreshing}
+                            className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-gray-50 transition-colors text-left disabled:opacity-50"
+                          >
+                            <RefreshCw className={`w-5 h-5 text-orange-600 ${isRefreshing ? 'animate-spin' : ''}`} />
+                            <div>
+                              <div className="font-medium text-gray-900 text-sm">Refresh metadata</div>
+                              <div className="text-xs text-gray-500">Fetch latest info from Jupiter</div>
+                            </div>
+                          </motion.button>
+                        )}
+                        
+                        <motion.button
+                          whileTap={{ scale: 0.98 }}
+                          className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-gray-50 transition-colors text-left"
+                        >
+                          <EyeOff className="w-5 h-5 text-gray-600" />
+                          <div>
+                            <div className="font-medium text-gray-900 text-sm">Hide token</div>
+                            <div className="text-xs text-gray-500">Remove from assets list</div>
+                          </div>
+                        </motion.button>
+                        
+                        <a
+                          href={`https://www.coingecko.com/en/search?query=${token.symbol}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-gray-50 transition-colors text-left"
+                        >
+                          <ExternalLink className="w-5 h-5 text-gray-600" />
+                          <div>
+                            <div className="font-medium text-gray-900 text-sm">View on CoinGecko</div>
+                            <div className="text-xs text-gray-500">Market data and charts</div>
+                          </div>
+                        </a>
+                      </div>
                     </div>
                   </motion.div>
                 )}
