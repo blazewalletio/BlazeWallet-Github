@@ -1454,48 +1454,87 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
           {/* PREFERENCES Section - REMOVED, now in Settings */}
           {/* ADVANCED Section - REMOVED, now in Settings */}
 
-          {/* Quick Actions */}
+          {/* Quick Actions - REDESIGNED */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="grid grid-cols-3 gap-4 mb-6"
+            className="mb-6"
           >
-            <button 
-              onClick={handleExportAddresses}
-              className="glass-card rounded-2xl p-6 text-center hover:bg-purple-50 hover:border-purple-200 border border-gray-100 transition-all group"
-            >
-              <div className="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
-                <Wallet className="w-6 h-6 text-purple-600" />
-              </div>
-              <div className="font-semibold text-gray-900 mb-1 text-sm">Export Addresses</div>
-              <div className="text-xs text-gray-600">All 18 chains</div>
-            </button>
-            
-            <button 
-              onClick={() => {
-                onClose();
-                if (onOpenSettings) onOpenSettings();
-              }}
-              className="glass-card rounded-2xl p-6 text-center hover:bg-blue-50 hover:border-blue-200 border border-gray-100 transition-all group"
-            >
-              <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
-                <Download className="w-6 h-6 text-blue-600" />
-              </div>
-              <div className="font-semibold text-gray-900 mb-1 text-sm">Export Wallet</div>
-              <div className="text-xs text-gray-600">Backup seed phrase</div>
-            </button>
+            <h3 className="text-lg font-bold text-gray-900 mb-4 px-1">Quick Actions</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+              {/* Export Addresses */}
+              <button 
+                onClick={handleExportAddresses}
+                className="group relative overflow-hidden glass-card rounded-2xl p-6 text-center hover:shadow-lg border-2 border-transparent hover:border-purple-200 transition-all"
+              >
+                {/* Gradient Background on Hover */}
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-50 to-indigo-50 opacity-0 group-hover:opacity-100 transition-opacity" />
+                
+                {/* Content */}
+                <div className="relative z-10">
+                  <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all shadow-lg">
+                    <Wallet className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="font-bold text-gray-900 mb-2">Export Addresses</div>
+                  <div className="text-sm text-gray-600 flex items-center justify-center gap-1.5">
+                    <span className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
+                    All 18 chains
+                  </div>
+                </div>
 
-            <button 
-              onClick={handleLockWallet}
-              className="glass-card rounded-2xl p-6 text-center hover:bg-red-50 hover:border-red-200 border border-gray-100 transition-all group"
-            >
-              <div className="w-14 h-14 bg-red-100 rounded-xl flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
-                <LogOut className="w-6 h-6 text-red-600" />
-              </div>
-              <div className="font-semibold text-red-600 mb-1 text-sm">Lock Wallet</div>
-              <div className="text-xs text-gray-600">Secure your wallet</div>
-            </button>
+                {/* Shine Effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              </button>
+              
+              {/* Export Wallet */}
+              <button 
+                onClick={() => {
+                  onClose();
+                  if (onOpenSettings) onOpenSettings();
+                }}
+                className="group relative overflow-hidden glass-card rounded-2xl p-6 text-center hover:shadow-lg border-2 border-transparent hover:border-blue-200 transition-all"
+              >
+                {/* Gradient Background on Hover */}
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-cyan-50 opacity-0 group-hover:opacity-100 transition-opacity" />
+                
+                {/* Content */}
+                <div className="relative z-10">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all shadow-lg">
+                    <Download className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="font-bold text-gray-900 mb-2">Export Wallet</div>
+                  <div className="text-sm text-gray-600">Backup seed phrase</div>
+                </div>
+
+                {/* Shine Effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              </button>
+
+              {/* Lock Wallet */}
+              <button 
+                onClick={handleLockWallet}
+                className="group relative overflow-hidden glass-card rounded-2xl p-6 text-center hover:shadow-lg border-2 border-transparent hover:border-red-200 transition-all"
+              >
+                {/* Gradient Background on Hover */}
+                <div className="absolute inset-0 bg-gradient-to-br from-red-50 to-orange-50 opacity-0 group-hover:opacity-100 transition-opacity" />
+                
+                {/* Content */}
+                <div className="relative z-10">
+                  <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all shadow-lg">
+                    <LogOut className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="font-bold text-red-600 mb-2">Lock Wallet</div>
+                  <div className="text-sm text-gray-600 flex items-center justify-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5" />
+                    Secure your wallet
+                  </div>
+                </div>
+
+                {/* Shine Effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+              </button>
+            </div>
           </motion.div>
 
           {/* Footer */}
