@@ -462,42 +462,42 @@ export default function TokenDetailModal({
             {/* 📈 MARKET STATS GRID */}
             {token.priceUSD !== undefined && token.priceUSD > 0 && (
               <div className="grid grid-cols-4 gap-3">
-                <div className="glass-card p-4 text-center">
-                  <div className="text-xs text-gray-600 mb-1">Market Cap</div>
+                <div className="glass-card p-4 flex flex-col items-center justify-center min-h-[80px]">
+                  <div className="text-xs font-medium text-gray-600 mb-2">Market Cap</div>
                   {isLoadingMarketData ? (
-                    <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                    <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    <div className="text-sm font-bold text-gray-900">
+                    <div className="text-base font-bold text-gray-900 leading-tight">
                       {marketData?.success ? formatLargeNumber(marketData.marketCap) : '-'}
                     </div>
                   )}
                 </div>
-                <div className="glass-card p-4 text-center">
-                  <div className="text-xs text-gray-600 mb-1">Vol 24h</div>
+                <div className="glass-card p-4 flex flex-col items-center justify-center min-h-[80px]">
+                  <div className="text-xs font-medium text-gray-600 mb-2">Vol 24h</div>
                   {isLoadingMarketData ? (
-                    <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                    <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    <div className="text-sm font-bold text-gray-900">
+                    <div className="text-base font-bold text-gray-900 leading-tight">
                       {marketData?.success ? formatLargeNumber(marketData.volume24h) : '-'}
                     </div>
                   )}
                 </div>
-                <div className="glass-card p-4 text-center">
-                  <div className="text-xs text-gray-600 mb-1">Supply</div>
+                <div className="glass-card p-4 flex flex-col items-center justify-center min-h-[80px]">
+                  <div className="text-xs font-medium text-gray-600 mb-2">Supply</div>
                   {isLoadingMarketData ? (
-                    <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                    <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    <div className="text-sm font-bold text-gray-900">
+                    <div className="text-base font-bold text-gray-900 leading-tight">
                       {marketData?.success ? formatSupply(marketData.circulatingSupply) : '-'}
                     </div>
                   )}
                 </div>
-                <div className="glass-card p-4 text-center">
-                  <div className="text-xs text-gray-600 mb-1">Rank</div>
+                <div className="glass-card p-4 flex flex-col items-center justify-center min-h-[80px]">
+                  <div className="text-xs font-medium text-gray-600 mb-2">Rank</div>
                   {isLoadingMarketData ? (
-                    <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                    <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
                   ) : (
-                    <div className="text-sm font-bold text-gray-900">
+                    <div className="text-xl font-bold text-gray-900 leading-tight">
                       {marketData?.success && marketData.marketCapRank ? `#${marketData.marketCapRank}` : '-'}
                     </div>
                   )}
