@@ -637,6 +637,26 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
     }
   };
 
+  const getActivityColor = (type: string) => {
+    switch (type) {
+      case 'login': return 'from-blue-500 to-cyan-500';
+      case 'transaction': return 'from-green-500 to-emerald-500';
+      case 'security_alert': return 'from-red-500 to-orange-500';
+      case 'settings_change': return 'from-purple-500 to-indigo-500';
+      default: return 'from-gray-500 to-gray-600';
+    }
+  };
+
+  const getActivityBgColor = (type: string) => {
+    switch (type) {
+      case 'login': return 'from-blue-50 to-cyan-50';
+      case 'transaction': return 'from-green-50 to-emerald-50';
+      case 'security_alert': return 'from-red-50 to-orange-50';
+      case 'settings_change': return 'from-purple-50 to-indigo-50';
+      default: return 'from-gray-50 to-gray-50';
+    }
+  };
+
   // ✅ Show loading state even if account not loaded yet
   if (!isOpen) return null;
 
@@ -1033,64 +1053,117 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             </div>
           </motion.div>
 
-          {/* RECENT ACTIVITY - NEW! */}
+          {/* RECENT ACTIVITY - REDESIGNED */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.25 }}
-            className="glass-card rounded-2xl overflow-hidden mb-6"
+            className="glass-card rounded-2xl overflow-hidden mb-6 border border-gray-200"
           >
-            <button
-              onClick={() => setShowActivityLog(!showActivityLog)}
-              className="w-full flex items-center justify-between p-6 hover:bg-gray-50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                  <Activity className="w-5 h-5 text-blue-600" />
+            {/* Header - Always Visible */}
+            <div className="p-6 bg-gradient-to-r from-blue-50 to-cyan-50 border-b border-gray-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <Activity className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Recent Activity</h3>
+                    <p className="text-sm text-gray-600">
+                      {activityLog.length > 0 ? `Last ${activityLog.length} actions` : 'No activity yet'}
+                    </p>
+                  </div>
                 </div>
-                <div className="text-left">
-                  <h3 className="text-lg font-bold text-gray-900">Recent Activity</h3>
-                  <p className="text-sm text-gray-600">Last {activityLog.length} actions</p>
-                </div>
+                <button
+                  onClick={() => setShowActivityLog(!showActivityLog)}
+                  className="px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm text-gray-700 transition-all shadow-sm flex items-center gap-2"
+                >
+                  {showActivityLog ? 'Hide' : 'Show'}
+                  <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${showActivityLog ? 'rotate-90' : ''}`} />
+                </button>
               </div>
-              <ChevronRight className={`w-5 h-5 text-gray-400 transition-transform ${showActivityLog ? 'rotate-90' : ''}`} />
-            </button>
+              <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5" />
+                Security logs, transactions, and settings changes
+              </p>
+            </div>
 
+            {/* Activity List - Expandable */}
             <AnimatePresence>
               {showActivityLog && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  className="border-t border-gray-100"
+                  transition={{ duration: 0.2 }}
+                  className="overflow-hidden"
                 >
                   <div className="p-6 space-y-3">
                     {activityLog.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">
-                        <Activity className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                        <p className="text-sm">No recent activity</p>
+                      <div className="text-center py-12 px-6">
+                        <div className="w-20 h-20 bg-gradient-to-r from-blue-100 to-cyan-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                          <Activity className="w-10 h-10 text-blue-500 opacity-50" />
+                        </div>
+                        <p className="text-sm font-semibold text-gray-900 mb-1">No recent activity</p>
+                        <p className="text-xs text-gray-500 max-w-xs mx-auto">
+                          Your account activity like logins, transactions, and security events will appear here.
+                        </p>
                       </div>
                     ) : (
-                      activityLog.map((activity) => {
+                      activityLog.map((activity, index) => {
                         const Icon = getActivityIcon(activity.activity_type);
+                        const iconGradient = getActivityColor(activity.activity_type);
+                        const bgGradient = getActivityBgColor(activity.activity_type);
+                        
                         return (
-                          <div key={activity.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
-                              <Icon className="w-5 h-5 text-gray-600" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900">{activity.description}</p>
-                              <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                                {activity.ip_address && (
-                                  <>
-                                    <span>{activity.ip_address}</span>
-                                    <span>•</span>
-                                  </>
-                                )}
-                                <span>{formatActivityTime(activity.created_at)}</span>
+                          <motion.div
+                            key={activity.id}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                            className={`group relative overflow-hidden bg-gradient-to-r ${bgGradient} hover:from-white hover:to-gray-50 border border-gray-200 rounded-xl p-4 transition-all hover:shadow-md hover:border-gray-300`}
+                          >
+                            <div className="flex items-start gap-4">
+                              {/* Activity Icon - Color coded by type */}
+                              <div className={`w-12 h-12 bg-gradient-to-r ${iconGradient} rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-110 transition-transform`}>
+                                <Icon className="w-6 h-6 text-white" />
+                              </div>
+                              
+                              {/* Activity Info */}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold text-gray-900 mb-1">
+                                  {activity.description}
+                                </p>
+                                
+                                {/* Activity Details */}
+                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-600">
+                                  {activity.ip_address && (
+                                    <>
+                                      <span className="font-mono bg-gray-100 px-2 py-0.5 rounded">
+                                        {activity.ip_address}
+                                      </span>
+                                      <span className="text-gray-300">•</span>
+                                    </>
+                                  )}
+                                  <span className="flex items-center gap-1 text-gray-500">
+                                    <Clock className="w-3 h-3" />
+                                    {formatActivityTime(activity.created_at)}
+                                  </span>
+                                </div>
+                                
+                                {/* Activity Type Badge */}
+                                <div className="mt-2">
+                                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r ${iconGradient} text-white text-xs font-bold rounded-full shadow-sm`}>
+                                    {activity.activity_type === 'login' && '🔐 Login'}
+                                    {activity.activity_type === 'transaction' && '💸 Transaction'}
+                                    {activity.activity_type === 'security_alert' && '⚠️ Security'}
+                                    {activity.activity_type === 'settings_change' && '⚙️ Settings'}
+                                    {!['login', 'transaction', 'security_alert', 'settings_change'].includes(activity.activity_type) && '📋 Activity'}
+                                  </span>
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          </motion.div>
                         );
                       })
                     )}
