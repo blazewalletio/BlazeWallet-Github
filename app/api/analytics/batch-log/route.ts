@@ -45,8 +45,34 @@ export async function POST(request: NextRequest) {
     const headers = {
       'Access-Control-Allow-Origin': origin || '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRF-Token',
     };
+
+    // ✅ CSRF Token Validation
+    const csrfToken = request.headers.get('X-CSRF-Token');
+    const cookieHeader = request.headers.get('cookie');
+    
+    if (!csrfToken || !cookieHeader) {
+      logger.warn('[Analytics API] Missing CSRF token or cookie');
+      return NextResponse.json(
+        { error: 'Invalid CSRF token', message: 'Security check failed. Please refresh the page and try again.' },
+        { status: 403, headers }
+      );
+    }
+
+    // Extract CSRF cookie value
+    const csrfCookie = cookieHeader
+      .split(';')
+      .find(c => c.trim().startsWith('csrfToken='))
+      ?.split('=')[1];
+
+    if (csrfToken !== csrfCookie) {
+      logger.warn('[Analytics API] CSRF token mismatch');
+      return NextResponse.json(
+        { error: 'Invalid CSRF token', message: 'Security check failed. Please refresh the page and try again.' },
+        { status: 403, headers }
+      );
+    }
 
     // Get authenticated user
     const authHeader = request.headers.get('authorization');
@@ -140,7 +166,7 @@ export async function OPTIONS(request: NextRequest) {
     headers: {
       'Access-Control-Allow-Origin': origin || '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRF-Token',
       'Access-Control-Max-Age': '86400',
     },
   });
