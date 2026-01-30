@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Shield, Key, Trash2, 
   Eye, EyeOff, Copy, Check, Bell, Settings, Fingerprint, CheckCircle, XCircle, Bug,
-  AlertTriangle, Lock, Clock, Globe, TestTube2, ChevronDown
+  AlertTriangle, Lock, Clock, Globe, TestTube2, ChevronDown, DollarSign
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { supabase } from '@/lib/supabase';
@@ -13,6 +13,8 @@ import { CHAINS } from '@/lib/chains';
 import BiometricSetupModal from './BiometricSetupModal';
 import PasswordVerificationModal from './PasswordVerificationModal';
 import CustomSelect from './CustomSelect';
+import CurrencyModal from './CurrencyModal';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { logger } from '@/lib/logger';
 
 interface SettingsModalProps {
@@ -33,6 +35,8 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
   const [biometricError, setBiometricError] = useState('');
   const [showBiometricSetup, setShowBiometricSetup] = useState(false);
   const [showPasswordVerification, setShowPasswordVerification] = useState(false);
+  const [showCurrency, setShowCurrency] = useState(false); // ✅ NEW: Currency modal state
+  const { selectedCurrency, symbol } = useCurrency(); // ✅ NEW: Currency context
   
   // ✅ NEW: Notifications state
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -527,6 +531,21 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
                   </label>
                 </div>
 
+                {/* ✅ NEW: Currency Selector */}
+                <button
+                  onClick={() => setShowCurrency(true)}
+                  className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <DollarSign className="w-5 h-5 text-green-500" />
+                    <div className="text-left">
+                      <div className="font-semibold text-sm text-gray-900">Currency</div>
+                      <div className="text-xs text-gray-600">{symbol} {selectedCurrency}</div>
+                    </div>
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg]" />
+                </button>
+
                 {/* Auto-Lock Timeout */}
                 <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
                   <div className="flex items-center gap-3 mb-3">
@@ -689,6 +708,19 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
           onClose={() => setShowBiometricSetup(false)}
           onSuccess={handleBiometricSetupSuccess}
         />
+
+        {/* ✅ NEW: Currency Modal */}
+        {showCurrency && (
+          <CurrencyModal
+            isOpen={showCurrency}
+            onClose={() => setShowCurrency(false)}
+            currentCurrency={selectedCurrency}
+            onSuccess={() => {
+              setShowCurrency(false);
+              logger.log('✅ Currency updated successfully');
+            }}
+          />
+        )}
       </motion.div>
     </AnimatePresence>
   );
