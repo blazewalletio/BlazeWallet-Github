@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Key, Loader2, AlertTriangle, ArrowLeft } from 'lucide-react';
-import { verify2FACode, verifyBackupCode } from '@/lib/2fa-service';
 import { logger } from '@/lib/logger';
 
 interface TwoFactorLoginModalProps {
@@ -41,15 +40,18 @@ export default function TwoFactorLoginModal({
     setError('');
 
     try {
-      let result;
-      
-      if (useBackupCode) {
-        // Verify backup code
-        result = await verifyBackupCode(userId, verificationCode);
-      } else {
-        // Verify TOTP code
-        result = await verify2FACode(userId, verificationCode);
-      }
+      // Call API route for verification (server-side only)
+      const response = await fetch('/api/2fa/verify-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          code: verificationCode,
+          isBackupCode: useBackupCode,
+        }),
+      });
+
+      const result = await response.json();
 
       if (!result.success) {
         throw new Error(result.error || 'Verification failed');
