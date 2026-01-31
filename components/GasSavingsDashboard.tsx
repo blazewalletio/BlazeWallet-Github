@@ -18,12 +18,8 @@ import {
   TrendingDown, DollarSign, Trophy, Calendar,
   Clock, Zap, BarChart3, Award, Sparkles, RefreshCw
 } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface SavingsStats {
   totalSavingsUSD: number;

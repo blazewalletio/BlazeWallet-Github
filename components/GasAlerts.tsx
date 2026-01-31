@@ -16,13 +16,9 @@ import {
   Bell, BellOff, Plus, X, Zap, Clock, TrendingDown,
   Check, AlertCircle, Settings
 } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { gasPriceService } from '@/lib/gas-price-service';
 import { logger } from '@/lib/logger';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 interface GasAlert {
   id: string;
