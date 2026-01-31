@@ -706,7 +706,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-gradient-to-br from-gray-50 via-white to-gray-50 overflow-y-auto"
+        className="fixed inset-0 z-50 bg-gray-50 overflow-y-auto"
       >
         <div className="max-w-4xl mx-auto p-6 pb-32">
           {/* Back Button */}
@@ -715,19 +715,19 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             className="mb-6 text-gray-600 hover:text-gray-900 flex items-center gap-2 font-semibold transition-all hover:gap-3"
           >
             <span className="text-lg">←</span>
-            <span>Back to Dashboard</span>
+            <span>Back</span>
           </button>
 
           {/* Header - Modern & Compact */}
           <div className="mb-8">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-orange-500 via-red-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg">
-                <User className="w-8 h-8 text-white" />
+              <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-2xl flex items-center justify-center shadow-lg">
+                <Settings className="w-8 h-8 text-white" />
               </div>
               <div>
                 <h2 className="text-3xl font-black text-gray-900 mb-1">Account Settings</h2>
                 <p className="text-sm text-gray-600">
-                  Manage your profile, security, and preferences
+                  Manage your wallet preferences
                 </p>
               </div>
             </div>
