@@ -2,19 +2,43 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
 
+// 🔍 DEBUG: Track API Supabase initialization
+console.group('🔧 [Transaction Track API] Supabase Init');
+console.log('📍 Location: SERVER (API Route)');
+console.log('⏰ Time:', new Date().toISOString());
+
 // Validate environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  logger.error('❌ Missing Supabase environment variables in transaction tracking API');
-  logger.error('NEXT_PUBLIC_SUPABASE_URL:', supabaseUrl ? 'SET' : 'MISSING');
-  logger.error('SUPABASE_SERVICE_ROLE_KEY:', supabaseServiceKey ? 'SET' : 'MISSING');
+console.log('📦 Environment Variables:', {
+  NEXT_PUBLIC_SUPABASE_URL: supabaseUrl ? `${supabaseUrl.substring(0, 30)}...` : '❌ MISSING',
+  SUPABASE_SERVICE_ROLE_KEY: supabaseServiceKey ? `${supabaseServiceKey.substring(0, 20)}... (${supabaseServiceKey.length} chars)` : '❌ MISSING',
+});
+
+if (!supabaseUrl) {
+  console.error('💥 FATAL: NEXT_PUBLIC_SUPABASE_URL is missing in Track API!');
+  throw new Error('NEXT_PUBLIC_SUPABASE_URL is required');
 }
 
+if (!supabaseServiceKey) {
+  console.error('💥 FATAL: SUPABASE_SERVICE_ROLE_KEY is missing in Track API!');
+  throw new Error('SUPABASE_SERVICE_ROLE_KEY is required');
+}
+
+const cleanUrl = supabaseUrl.trim();
+const cleanServiceKey = supabaseServiceKey.trim();
+
+console.log('🧹 After trimming:', {
+  urlLength: cleanUrl.length,
+  keyLength: cleanServiceKey.length,
+  urlChanged: cleanUrl !== supabaseUrl,
+  keyChanged: cleanServiceKey !== supabaseServiceKey,
+});
+
 const supabaseAdmin = createClient(
-  supabaseUrl || '',
-  supabaseServiceKey || '',
+  cleanUrl,
+  cleanServiceKey,
   {
     auth: {
       autoRefreshToken: false,
@@ -22,6 +46,9 @@ const supabaseAdmin = createClient(
     }
   }
 );
+
+console.log('✅ Supabase Admin client created successfully');
+console.groupEnd();
 
 export async function POST(request: NextRequest) {
   try {
