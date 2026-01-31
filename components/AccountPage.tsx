@@ -938,30 +938,30 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             </motion.div>
           </div>
 
-          {/* SECURITY SCORE & CHECKLIST - REDESIGNED */}
+          {/* SECURITY SCORE & CHECKLIST - PERFECT ALIGNMENT */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="glass-card rounded-2xl overflow-hidden mb-6 border border-gray-200 bg-white"
+            className="glass-card rounded-2xl overflow-hidden mb-6 border border-gray-200 bg-white shadow-sm"
           >
             {/* Header */}
-            <div className="p-5 bg-gradient-to-r from-red-50 to-pink-50 border-b border-gray-200">
+            <div className="p-6 bg-gradient-to-r from-red-50 to-pink-50 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-14 h-14 bg-gradient-to-r ${getSecurityScoreGradient(securityScore?.score || 0)} rounded-2xl flex items-center justify-center shadow-lg`}>
-                    <Shield className="w-7 h-7 text-white" />
+                <div className="flex items-center gap-4">
+                  <div className={`w-16 h-16 bg-gradient-to-r ${getSecurityScoreGradient(securityScore?.score || 0)} rounded-2xl flex items-center justify-center shadow-lg`}>
+                    <Shield className="w-8 h-8 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900">Security Status</h3>
+                    <h3 className="text-xl font-black text-gray-900 mb-1">Security Status</h3>
                     <p className="text-sm text-gray-600">Protect your account</p>
                   </div>
                 </div>
                 <div className="text-center">
-                  <div className={`text-4xl font-black ${getSecurityScoreColor(securityScore?.score || 0)} mb-0.5`}>
+                  <div className={`text-5xl font-black ${getSecurityScoreColor(securityScore?.score || 0)} leading-none mb-1`}>
                     {securityScore?.score || 0}
                   </div>
-                  <div className="text-xs text-gray-500 font-medium">
+                  <div className="text-xs text-gray-500 font-semibold">
                     {securityScore?.score === 100 ? '🎉 Perfect!' : securityScore && securityScore.score >= 75 ? 'Good' : 'Needs Work'}
                   </div>
                 </div>
@@ -969,110 +969,142 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             </div>
 
             {/* Progress Bar */}
-            <div className="px-5 pt-4">
-              <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+            <div className="px-6 pt-5">
+              <div className="h-3 bg-gray-100 rounded-full overflow-hidden shadow-inner">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${securityScore?.score || 0}%` }}
-                  transition={{ duration: 1.2, ease: 'easeOut' }}
+                  transition={{ duration: 1.5, ease: [0.4, 0, 0.2, 1] }}
                   className={`h-full bg-gradient-to-r ${getSecurityScoreGradient(securityScore?.score || 0)} shadow-sm`}
                 />
               </div>
             </div>
 
-            {/* Checklist - Compact & Modern */}
-            <div className="p-5 space-y-2.5">
+            {/* Checklist - PERFECT UNIFORM ALIGNMENT */}
+            <div className="p-6 space-y-3">
               {/* Email Verified - 25 pts */}
-              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-white to-gray-50 rounded-xl border border-gray-200 hover:shadow-sm transition-all">
-                <div className="flex items-center gap-3">
-                  {securityScore?.email_verified ? (
-                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                    </div>
-                  ) : (
-                    <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <AlertCircle className="w-5 h-5 text-gray-400" />
-                    </div>
-                  )}
-                  <span className={`text-sm font-semibold ${securityScore?.email_verified ? 'text-gray-900' : 'text-gray-500'}`}>
+              <div className="group flex items-center justify-between min-h-[64px] p-4 bg-white rounded-xl border-2 border-gray-200 hover:border-gray-300 hover:shadow-md transition-all">
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className={`w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center ${
+                    securityScore?.email_verified 
+                      ? 'bg-green-100 ring-2 ring-green-200' 
+                      : 'bg-gray-100'
+                  }`}>
+                    <CheckCircle className={`w-6 h-6 ${
+                      securityScore?.email_verified 
+                        ? 'text-green-600' 
+                        : 'text-gray-400'
+                    }`} />
+                  </div>
+                  <span className={`text-base font-bold ${
+                    securityScore?.email_verified 
+                      ? 'text-gray-900' 
+                      : 'text-gray-500'
+                  }`}>
                     Email Verified
                   </span>
                 </div>
-                <span className="text-xs font-bold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-lg">
-                  +25 pts
-                </span>
+                <div className="flex-shrink-0 ml-4">
+                  <span className="inline-flex items-center justify-center min-w-[80px] px-3 py-2 text-sm font-black text-gray-700 bg-gray-100 rounded-lg">
+                    +25 pts
+                  </span>
+                </div>
               </div>
 
               {/* 2FA Enabled - 30 pts */}
-              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-white to-gray-50 rounded-xl border border-gray-200 hover:shadow-sm transition-all">
-                <div className="flex items-center gap-3">
-                  {securityScore?.two_factor_enabled ? (
-                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                    </div>
-                  ) : (
-                    <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <AlertCircle className="w-5 h-5 text-gray-400" />
-                    </div>
-                  )}
-                  <span className={`text-sm font-semibold ${securityScore?.two_factor_enabled ? 'text-gray-900' : 'text-gray-500'}`}>
+              <div className="group flex items-center justify-between min-h-[64px] p-4 bg-white rounded-xl border-2 border-gray-200 hover:border-gray-300 hover:shadow-md transition-all">
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className={`w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center ${
+                    securityScore?.two_factor_enabled 
+                      ? 'bg-green-100 ring-2 ring-green-200' 
+                      : 'bg-gray-100'
+                  }`}>
+                    <CheckCircle className={`w-6 h-6 ${
+                      securityScore?.two_factor_enabled 
+                        ? 'text-green-600' 
+                        : 'text-gray-400'
+                    }`} />
+                  </div>
+                  <span className={`text-base font-bold ${
+                    securityScore?.two_factor_enabled 
+                      ? 'text-gray-900' 
+                      : 'text-gray-500'
+                  }`}>
                     2FA Enabled
                   </span>
                 </div>
-                <span className="text-xs font-bold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-lg">
-                  +30 pts
-                </span>
+                <div className="flex-shrink-0 ml-4">
+                  <span className="inline-flex items-center justify-center min-w-[80px] px-3 py-2 text-sm font-black text-gray-700 bg-gray-100 rounded-lg">
+                    +30 pts
+                  </span>
+                </div>
               </div>
 
               {/* Recovery Phrase Backed Up - 25 pts */}
-              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-white to-gray-50 rounded-xl border border-gray-200 hover:shadow-sm transition-all">
-                <div className="flex items-center gap-3">
-                  {securityScore?.recovery_phrase_backed_up ? (
-                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                    </div>
-                  ) : (
-                    <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <AlertCircle className="w-5 h-5 text-gray-400" />
-                    </div>
-                  )}
-                  <span className={`text-sm font-semibold ${securityScore?.recovery_phrase_backed_up ? 'text-gray-900' : 'text-gray-500'}`}>
+              <div className="group flex items-center justify-between min-h-[64px] p-4 bg-white rounded-xl border-2 border-gray-200 hover:border-gray-300 hover:shadow-md transition-all">
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className={`w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center ${
+                    securityScore?.recovery_phrase_backed_up 
+                      ? 'bg-green-100 ring-2 ring-green-200' 
+                      : 'bg-gray-100'
+                  }`}>
+                    <CheckCircle className={`w-6 h-6 ${
+                      securityScore?.recovery_phrase_backed_up 
+                        ? 'text-green-600' 
+                        : 'text-gray-400'
+                    }`} />
+                  </div>
+                  <span className={`text-base font-bold ${
+                    securityScore?.recovery_phrase_backed_up 
+                      ? 'text-gray-900' 
+                      : 'text-gray-500'
+                  }`}>
                     Recovery Phrase Backed Up
                   </span>
                 </div>
-                <span className="text-xs font-bold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-lg">
-                  +25 pts
-                </span>
+                <div className="flex-shrink-0 ml-4">
+                  <span className="inline-flex items-center justify-center min-w-[80px] px-3 py-2 text-sm font-black text-gray-700 bg-gray-100 rounded-lg">
+                    +25 pts
+                  </span>
+                </div>
               </div>
 
               {/* Trusted Device Added - 20 pts */}
-              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-white to-gray-50 rounded-xl border border-gray-200 hover:shadow-sm transition-all">
-                <div className="flex items-center gap-3">
-                  {securityScore?.trusted_device_added ? (
-                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                    </div>
-                  ) : (
-                    <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <AlertCircle className="w-5 h-5 text-gray-400" />
-                    </div>
-                  )}
-                  <span className={`text-sm font-semibold ${securityScore?.trusted_device_added ? 'text-gray-900' : 'text-gray-500'}`}>
+              <div className="group flex items-center justify-between min-h-[64px] p-4 bg-white rounded-xl border-2 border-gray-200 hover:border-gray-300 hover:shadow-md transition-all">
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className={`w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center ${
+                    securityScore?.trusted_device_added 
+                      ? 'bg-green-100 ring-2 ring-green-200' 
+                      : 'bg-gray-100'
+                  }`}>
+                    <CheckCircle className={`w-6 h-6 ${
+                      securityScore?.trusted_device_added 
+                        ? 'text-green-600' 
+                        : 'text-gray-400'
+                    }`} />
+                  </div>
+                  <span className={`text-base font-bold ${
+                    securityScore?.trusted_device_added 
+                      ? 'text-gray-900' 
+                      : 'text-gray-500'
+                  }`}>
                     Trusted Device Added
                   </span>
                 </div>
-                <span className="text-xs font-bold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-lg">
-                  +20 pts
-                </span>
+                <div className="flex-shrink-0 ml-4">
+                  <span className="inline-flex items-center justify-center min-w-[80px] px-3 py-2 text-sm font-black text-gray-700 bg-gray-100 rounded-lg">
+                    +20 pts
+                  </span>
+                </div>
               </div>
             </div>
 
             {/* Total Calculation Footer */}
-            <div className="px-5 pb-4">
-              <div className="p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+            <div className="px-6 pb-6">
+              <div className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border-2 border-gray-200 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-gray-700">Maximum Score</span>
-                  <span className="text-lg font-black text-gray-900">100 pts</span>
+                  <span className="text-base font-black text-gray-800">Maximum Score</span>
+                  <span className="text-2xl font-black text-gray-900">100 pts</span>
                 </div>
               </div>
             </div>
