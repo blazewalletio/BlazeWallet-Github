@@ -172,7 +172,14 @@ export async function strictSignInWithEmail(
     
     logger.log('✅ [StrictAuth] Basic auth successful for user:', data.user.id);
     
-    // 2. Generate enhanced device fingerprint
+    // 2. Get or create persistent device ID (PRIMARY identifier)
+    logger.log('📱 [StrictAuth] Getting device ID...');
+    const { DeviceIdManager } = await import('./device-id-manager');
+    const { deviceId, isNew: isNewDeviceId } = DeviceIdManager.getOrCreateDeviceId();
+    
+    logger.log(`✅ [StrictAuth] Device ID: ${deviceId.substring(0, 12)}... (${isNewDeviceId ? 'NEW' : 'EXISTING'})`);
+    
+    // 3. Generate enhanced device fingerprint (for metadata/risk analysis)
     logger.log('📱 [StrictAuth] Generating device fingerprint...');
     const deviceInfo = await generateEnhancedFingerprint();
     
@@ -183,7 +190,7 @@ export async function strictSignInWithEmail(
       riskScore: deviceInfo.riskScore,
     });
     
-    // 3. Check risk score - block high-risk logins immediately
+    // 4. Check risk score - block high-risk logins immediately
     if (deviceInfo.riskScore >= 70) {
       logger.warn('🚨 [StrictAuth] HIGH RISK login blocked! Score:', deviceInfo.riskScore);
       
@@ -212,12 +219,13 @@ export async function strictSignInWithEmail(
       };
     }
     
-    // 4. Check if device is already trusted
+    // 5. Check if device is already trusted (BY DEVICE_ID - primary identifier!)
+    logger.log('🔍 [StrictAuth] Checking if device is trusted...');
     const { data: existingDevice, error: deviceError } = await supabase
       .from('trusted_devices')
       .select('*')
       .eq('user_id', data.user.id)
-      .eq('device_fingerprint', deviceInfo.fingerprint)
+      .eq('device_id', deviceId)  // ← PRIMARY LOOKUP on device_id!
       .maybeSingle();
     
     if (deviceError) {
@@ -227,13 +235,25 @@ export async function strictSignInWithEmail(
     // TRUSTED DEVICE - Allow immediate access
     if (existingDevice && existingDevice.verified_at) {
       logger.log('✅ [StrictAuth] TRUSTED device detected - allowing login');
+      logger.log(`📱 [StrictAuth] Device last used: ${existingDevice.last_used_at}`);
       
-      // Update last_used_at
+      // Update last_used_at + fingerprint (fingerprint can change over time, but device_id stays same)
       await supabase
         .from('trusted_devices')
         .update({ 
+          device_fingerprint: deviceInfo.fingerprint, // ← Update fingerprint (for risk analysis)
+          ip_address: deviceInfo.ipAddress, // ← Update IP (for security monitoring)
           last_used_at: new Date().toISOString(),
-          is_current: true 
+          is_current: true,
+          device_metadata: { // ← Update metadata (for analytics)
+            location: deviceInfo.location,
+            riskScore: deviceInfo.riskScore,
+            isTor: deviceInfo.isTor,
+            isVPN: deviceInfo.isVPN,
+            timezone: deviceInfo.timezone,
+            language: deviceInfo.language,
+            screenResolution: deviceInfo.screenResolution,
+          }
         })
         .eq('id', existingDevice.id);
       
@@ -284,67 +304,115 @@ export async function strictSignInWithEmail(
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 15); // 15 min expiry
     
-    // Delete ANY existing device with same fingerprint (verified or not)
-    // In production this is fine because each real device has unique fingerprint
-    // In localhost testing, fingerprints are often the same, so we clean up old records
-    await supabase
+    // ✅ PERFECT FIX: Check if device_id already exists (prevent duplicate key error)
+    logger.log('🔍 [StrictAuth] Checking if device_id already exists in database...');
+    
+    const { data: existingDeviceById, error: deviceCheckError } = await supabase
       .from('trusted_devices')
-      .delete()
+      .select('*')
       .eq('user_id', data.user.id)
-      .eq('device_fingerprint', deviceInfo.fingerprint);
+      .eq('device_id', deviceId)
+      .maybeSingle();
     
-    // Insert new device with fresh verification token
-    logger.log('💾 [StrictAuth] Inserting device record...');
+    if (deviceCheckError) {
+      logger.error('❌ [StrictAuth] Error checking device by ID:', deviceCheckError);
+    }
     
-    // ✅ NEW: Get or create device_id
-    const { DeviceIdManager } = await import('./device-id-manager');
-    const { deviceId } = DeviceIdManager.getOrCreateDeviceId();
+    let insertedDevice;
     
-    const { data: insertedDevice, error: insertError } = await supabase
-      .from('trusted_devices')
-      .insert({
-        user_id: data.user.id,
-        device_id: deviceId, // ← NEW: Persistent device ID!
-        device_name: deviceInfo.deviceName,
-        device_fingerprint: deviceInfo.fingerprint,
-        ip_address: deviceInfo.ipAddress,
-        user_agent: deviceInfo.userAgent,
-        browser: `${deviceInfo.browser}`,
-        browser_version: deviceInfo.browserVersion, // ← NEW: Separate version
-        os: `${deviceInfo.os}`,
-        os_version: deviceInfo.osVersion, // ← NEW: Separate version
-        is_current: false, // Not current until verified
-        verification_token: deviceToken,
-        verification_code: verificationCode,
-        verification_expires_at: expiresAt.toISOString(),
-        device_metadata: {
-          location: deviceInfo.location,
-          riskScore: deviceInfo.riskScore,
-          isTor: deviceInfo.isTor,
-          isVPN: deviceInfo.isVPN,
-          timezone: deviceInfo.timezone,
-          language: deviceInfo.language,
-          screenResolution: deviceInfo.screenResolution, // ← NEW
-        },
-        last_used_at: new Date().toISOString(),
-      })
-      .select(); // Get the inserted record back
-    
-    if (insertError) {
-      logger.error('❌ [StrictAuth] Failed to store device:', insertError);
-      logger.error('❌ [StrictAuth] Insert error details:', JSON.stringify(insertError, null, 2));
-      throw new Error('Failed to register device for verification');
+    if (existingDeviceById) {
+      // ✅ Device exists in DB (but not verified yet or verification expired)
+      logger.log('🔄 [StrictAuth] Device exists in DB - updating with new verification code...');
+      
+      const { data: updatedDevice, error: updateError } = await supabase
+        .from('trusted_devices')
+        .update({
+          device_name: deviceInfo.deviceName,
+          device_fingerprint: deviceInfo.fingerprint, // Update fingerprint (can change)
+          ip_address: deviceInfo.ipAddress,
+          user_agent: deviceInfo.userAgent,
+          browser: `${deviceInfo.browser}`,
+          browser_version: deviceInfo.browserVersion,
+          os: `${deviceInfo.os}`,
+          os_version: deviceInfo.osVersion,
+          verification_token: deviceToken, // New verification token
+          verification_code: verificationCode, // New verification code
+          verification_expires_at: expiresAt.toISOString(),
+          device_metadata: {
+            location: deviceInfo.location,
+            riskScore: deviceInfo.riskScore,
+            isTor: deviceInfo.isTor,
+            isVPN: deviceInfo.isVPN,
+            timezone: deviceInfo.timezone,
+            language: deviceInfo.language,
+            screenResolution: deviceInfo.screenResolution,
+          },
+          last_used_at: new Date().toISOString(),
+        })
+        .eq('id', existingDeviceById.id)
+        .select();
+      
+      if (updateError) {
+        logger.error('❌ [StrictAuth] Failed to update device:', updateError);
+        throw new Error('Failed to update device for verification');
+      }
+      
+      insertedDevice = updatedDevice;
+      logger.log('✅ [StrictAuth] Device updated with new verification code');
+      
+    } else {
+      // ✅ Device does NOT exist - INSERT new record
+      logger.log('➕ [StrictAuth] Device NOT in DB - inserting new record...');
+      
+      const { data: newDevice, error: insertError } = await supabase
+        .from('trusted_devices')
+        .insert({
+          user_id: data.user.id,
+          device_id: deviceId, // ← Persistent device ID!
+          device_name: deviceInfo.deviceName,
+          device_fingerprint: deviceInfo.fingerprint,
+          ip_address: deviceInfo.ipAddress,
+          user_agent: deviceInfo.userAgent,
+          browser: `${deviceInfo.browser}`,
+          browser_version: deviceInfo.browserVersion,
+          os: `${deviceInfo.os}`,
+          os_version: deviceInfo.osVersion,
+          is_current: false, // Not current until verified
+          verification_token: deviceToken,
+          verification_code: verificationCode,
+          verification_expires_at: expiresAt.toISOString(),
+          device_metadata: {
+            location: deviceInfo.location,
+            riskScore: deviceInfo.riskScore,
+            isTor: deviceInfo.isTor,
+            isVPN: deviceInfo.isVPN,
+            timezone: deviceInfo.timezone,
+            language: deviceInfo.language,
+            screenResolution: deviceInfo.screenResolution,
+          },
+          last_used_at: new Date().toISOString(),
+        })
+        .select();
+      
+      if (insertError) {
+        logger.error('❌ [StrictAuth] Failed to insert device:', insertError);
+        logger.error('❌ [StrictAuth] Insert error details:', JSON.stringify(insertError, null, 2));
+        throw new Error('Failed to register device for verification');
+      }
+      
+      insertedDevice = newDevice;
+      logger.log('✅ [StrictAuth] New device inserted successfully');
     }
     
     if (!insertedDevice || insertedDevice.length === 0) {
-      logger.error('❌ [StrictAuth] Device insert succeeded but no record returned!');
+      logger.error('❌ [StrictAuth] Device operation succeeded but no record returned!');
       throw new Error('Failed to register device for verification');
     }
     
-    logger.log('✅ [StrictAuth] Device record inserted successfully:', {
+    logger.log('✅ [StrictAuth] Device record ready:', {
       id: insertedDevice[0]?.id,
-      verification_token: insertedDevice[0]?.verification_token?.substring(0, 10) + '...',
       verification_code: insertedDevice[0]?.verification_code,
+      device_id: deviceId.substring(0, 12) + '...',
     });
     
     logger.log('✅ [StrictAuth] Device stored, sending verification email...');
