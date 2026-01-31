@@ -2,34 +2,40 @@ import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
 
 // Supabase configuration
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 logger.log('🔍 Supabase Configuration Check:');
-logger.log('  NEXT_PUBLIC_SUPABASE_URL:', supabaseUrl ? `${supabaseUrl.slice(0, 20)}...` : '❌ NOT SET');
+logger.log('  NEXT_PUBLIC_SUPABASE_URL:', supabaseUrl ? `${supabaseUrl.slice(0, 30)}...` : '❌ NOT SET');
 logger.log('  NEXT_PUBLIC_SUPABASE_ANON_KEY:', supabaseAnonKey ? `${supabaseAnonKey.slice(0, 20)}...` : '❌ NOT SET');
 
-// Warn during build if variables are missing, but don't crash
+// CRITICAL: Environment variables MUST be set
 if (!supabaseUrl || !supabaseAnonKey) {
-  if (typeof window === 'undefined') {
-    // Server-side (build time or runtime)
-    logger.warn('⚠️  Supabase environment variables not set. Some features may not work.');
-    logger.warn('⚠️  Required variables:');
-    logger.warn('    - NEXT_PUBLIC_SUPABASE_URL');
-    logger.warn('    - NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  const error = '❌ CRITICAL: Supabase environment variables are not set!';
+  logger.error(error);
+  logger.error('Required variables:');
+  logger.error('  - NEXT_PUBLIC_SUPABASE_URL');
+  logger.error('  - NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  
+  if (typeof window !== 'undefined') {
+    // Client-side: Show user-friendly error
+    throw new Error('Configuration error: Unable to connect to backend services. Please check your deployment configuration.');
+  } else {
+    // Server-side: Log but allow build to continue
+    logger.warn('⚠️  Build will continue, but runtime features will not work without these variables.');
   }
 }
 
-// Create Supabase client with fallback values (will be overridden at runtime)
+// Create Supabase client - will throw error if keys are invalid
 export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-key',
+  supabaseUrl!,
+  supabaseAnonKey!,
   {
     auth: {
-      persistSession: true, // ✅ FIXED: Persist sessions across page refreshes
-      storage: typeof window !== 'undefined' ? window.localStorage : undefined, // ✅ Use localStorage for session storage
-      autoRefreshToken: true, // ✅ Auto-refresh tokens to keep user logged in
-      detectSessionInUrl: true, // ✅ Detect OAuth callback sessions
+      persistSession: true,
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
     },
   }
 );
