@@ -6,14 +6,28 @@ console.group('🚀 SUPABASE INITIALIZATION DEBUG');
 console.log('📍 Location:', typeof window !== 'undefined' ? 'BROWSER' : 'SERVER');
 console.log('⏰ Time:', new Date().toISOString());
 
-// Supabase configuration
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// Get environment variables with multiple fallback methods
+// Method 1: process.env (works in Node.js / Server-side / Build time)
+// Method 2: Direct from next.config.mjs env export (for client-side)
+const supabaseUrl = 
+  process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-console.log('📦 Raw process.env:', {
+const supabaseAnonKey = 
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+console.log('📦 Environment variable sources:', {
+  hasProcessEnv: typeof process !== 'undefined' && typeof process.env !== 'undefined',
+  processEnvKeys: typeof process !== 'undefined' && typeof process.env !== 'undefined' 
+    ? Object.keys(process.env).filter(k => k.startsWith('NEXT_PUBLIC')).length + ' keys'
+    : 'N/A',
+});
+
+console.log('📦 Raw values:', {
   NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : undefined,
-  allEnvKeys: Object.keys(process.env).filter(k => k.startsWith('NEXT_PUBLIC')),
+  allEnvKeys: typeof process !== 'undefined' && typeof process.env !== 'undefined'
+    ? Object.keys(process.env).filter(k => k.startsWith('NEXT_PUBLIC'))
+    : [],
 });
 
 // Detailed value inspection

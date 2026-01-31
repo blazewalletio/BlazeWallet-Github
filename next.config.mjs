@@ -1,5 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // 🔧 Explicitly expose environment variables to the client
+  // This ensures they're available in the browser bundle
+  env: {
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    NEXT_PUBLIC_ALCHEMY_API_KEY: process.env.NEXT_PUBLIC_ALCHEMY_API_KEY,
+    NEXT_PUBLIC_TRANSAK_API_KEY: process.env.NEXT_PUBLIC_TRANSAK_API_KEY,
+    NEXT_PUBLIC_GREENLIGHT_CERT: process.env.NEXT_PUBLIC_GREENLIGHT_CERT,
+    NEXT_PUBLIC_SERVER_PUBLIC_KEY: process.env.NEXT_PUBLIC_SERVER_PUBLIC_KEY,
+  },
+  
   // Exclude Supabase functions directory from TypeScript checking
   typescript: {
     ignoreBuildErrors: false,
