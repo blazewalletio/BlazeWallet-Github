@@ -8,13 +8,9 @@
  * - Powers AI predictions
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { gasPriceService, GasPrice } from './gas-price-service';
 import { logger } from '@/lib/logger';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 export interface HistoricalGasPoint {
   timestamp: number;

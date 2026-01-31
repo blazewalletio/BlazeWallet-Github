@@ -9,10 +9,22 @@ import { createClient } from '@supabase/supabase-js';
 import { checkRateLimit, resetRateLimit } from './rate-limiter';
 import crypto from 'crypto';
 
+// Validate environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl) {
+  throw new Error('NEXT_PUBLIC_SUPABASE_URL is required for 2FA service');
+}
+
+if (!supabaseServiceKey) {
+  throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for 2FA service');
+}
+
 // Admin client for database operations
 const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+  supabaseUrl.trim(),
+  supabaseServiceKey.trim(),
   {
     auth: {
       autoRefreshToken: false,
