@@ -9,27 +9,27 @@ logger.log('🔍 Supabase Configuration Check:');
 logger.log('  NEXT_PUBLIC_SUPABASE_URL:', supabaseUrl ? `${supabaseUrl.slice(0, 30)}...` : '❌ NOT SET');
 logger.log('  NEXT_PUBLIC_SUPABASE_ANON_KEY:', supabaseAnonKey ? `${supabaseAnonKey.slice(0, 20)}...` : '❌ NOT SET');
 
-// CRITICAL: Environment variables MUST be set
-if (!supabaseUrl || !supabaseAnonKey) {
-  const error = '❌ CRITICAL: Supabase environment variables are not set!';
-  logger.error(error);
-  logger.error('Required variables:');
-  logger.error('  - NEXT_PUBLIC_SUPABASE_URL');
-  logger.error('  - NEXT_PUBLIC_SUPABASE_ANON_KEY');
-  
-  if (typeof window !== 'undefined') {
-    // Client-side: Show user-friendly error
-    throw new Error('Configuration error: Unable to connect to backend services. Please check your deployment configuration.');
-  } else {
-    // Server-side: Log but allow build to continue
-    logger.warn('⚠️  Build will continue, but runtime features will not work without these variables.');
-  }
+// CRITICAL: Validate environment variables before creating client
+if (!supabaseUrl) {
+  throw new Error('NEXT_PUBLIC_SUPABASE_URL is required but not set');
 }
 
-// Create Supabase client - will throw error if keys are invalid
+if (!supabaseAnonKey) {
+  throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is required but not set');
+}
+
+// Trim any whitespace that might have snuck in
+const cleanUrl = supabaseUrl.trim();
+const cleanKey = supabaseAnonKey.trim();
+
+logger.log('✅ Supabase env vars validated');
+logger.log('  URL length:', cleanUrl.length);
+logger.log('  Key length:', cleanKey.length);
+
+// Create Supabase client with validated, cleaned values
 export const supabase = createClient(
-  supabaseUrl!,
-  supabaseAnonKey!,
+  cleanUrl,
+  cleanKey,
   {
     auth: {
       persistSession: true,
