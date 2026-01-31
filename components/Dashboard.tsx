@@ -1748,26 +1748,7 @@ export default function Dashboard() {
             <div className="relative z-10">
               <div className="flex justify-between items-start mb-4">
                 <div className="flex-1">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="text-sm text-gray-600">Portfolio value</div>
-                    {/* Dust Filter Toggle */}
-                    <button
-                      onClick={() => {
-                        const newValue = !hideDust;
-                        setHideDust(newValue);
-                        localStorage.setItem('blaze_hide_dust', String(newValue));
-                      }}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                        hideDust
-                          ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-md'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                      title={hideDust ? `Hiding tokens < $${dustThreshold}` : 'Show all tokens'}
-                    >
-                      <Eye className={`w-3.5 h-3.5 ${hideDust ? '' : 'opacity-50'}`} />
-                      <span>Hide &lt; ${dustThreshold}</span>
-                    </button>
-                  </div>
+                  <div className="text-sm text-gray-600 mb-2">Portfolio value</div>
                   <div className="flex items-center gap-3 mb-2">
                     {showBalance ? (
                       <>
@@ -2044,12 +2025,29 @@ export default function Dashboard() {
       >
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-semibold">Assets</h3>
-          {hideDust && tokens.filter(t => parseFloat(t.balanceUSD || '0') < dustThreshold).length > 0 && (
-            <div className="text-xs text-gray-500 flex items-center gap-1.5">
-              <Eye className="w-3.5 h-3.5" />
-              <span>{tokens.filter(t => parseFloat(t.balanceUSD || '0') < dustThreshold).length} hidden</span>
-            </div>
-          )}
+          <button
+            onClick={() => {
+              const newValue = !hideDust;
+              setHideDust(newValue);
+              localStorage.setItem('blaze_hide_dust', String(newValue));
+            }}
+            className="flex items-center gap-2 text-gray-500 hover:text-gray-700 transition-colors group"
+            title={hideDust ? `${tokens.filter(t => parseFloat(t.balanceUSD || '0') < dustThreshold).length} tokens hidden (< $${dustThreshold})` : 'Hide small balances'}
+          >
+            {hideDust ? (
+              <>
+                <EyeOff className="w-4 h-4" />
+                <span className="text-sm font-medium">
+                  {tokens.filter(t => parseFloat(t.balanceUSD || '0') < dustThreshold).length} hidden
+                </span>
+              </>
+            ) : (
+              <>
+                <Eye className="w-4 h-4 opacity-50 group-hover:opacity-100" />
+                <span className="text-sm text-gray-400 group-hover:text-gray-600">Hide &lt; ${dustThreshold}</span>
+              </>
+            )}
+          </button>
         </div>
         
         <div className="space-y-3">
