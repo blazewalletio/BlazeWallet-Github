@@ -954,112 +954,118 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                     <Gauge className="w-4 h-4 text-orange-500" />
                     Transaction Speed
                   </label>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-2.5">
                     {/* Slow */}
                     <button
                       onClick={() => setSelectedGas('slow')}
-                      className={`p-4 rounded-xl text-center transition-all border-2 relative overflow-hidden group ${
+                      className={`p-3 rounded-xl text-center transition-all border-2 relative overflow-hidden group ${
                         selectedGas === 'slow'
-                          ? 'bg-blue-50 border-blue-500 shadow-md'
-                          : 'bg-gray-50 border-gray-200 hover:border-blue-300 hover:bg-blue-50/50'
+                          ? 'bg-blue-50 border-blue-500 shadow-lg scale-[1.02]'
+                          : 'bg-white border-gray-200 hover:border-blue-300 hover:shadow-md'
                       }`}
                     >
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-2 transition-transform group-hover:scale-110 ${
-                        selectedGas === 'slow' ? 'bg-blue-100' : 'bg-gray-100'
-                      }`}>
-                        <Turtle className={`w-5 h-5 ${selectedGas === 'slow' ? 'text-blue-600' : 'text-gray-500'}`} />
-                      </div>
-                      <div className="font-bold text-sm text-gray-900 mb-1">
-                        Slow
-                      </div>
-                      <div className="text-xs text-gray-500 mb-2">
-                        ~5-10 min
-                      </div>
-                      <div className="font-semibold text-base text-gray-900">
-                        {parseFloat(gasPrice.slow).toFixed(1)}
-                      </div>
-                      <div className="text-[10px] text-gray-500">
-                        Gwei
-                      </div>
                       {selectedGas === 'slow' && (
-                        <div className="absolute top-2 right-2">
-                          <Check className="w-4 h-4 text-blue-600" />
+                        <div className="absolute top-1.5 right-1.5">
+                          <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                            <Check className="w-3 h-3 text-white" />
+                          </div>
                         </div>
                       )}
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-1.5 transition-all ${
+                        selectedGas === 'slow' ? 'bg-blue-100 scale-110' : 'bg-gray-100'
+                      }`}>
+                        <Turtle className={`w-4 h-4 ${selectedGas === 'slow' ? 'text-blue-600' : 'text-gray-400'}`} />
+                      </div>
+                      <div className={`font-bold text-xs mb-0.5 ${selectedGas === 'slow' ? 'text-blue-700' : 'text-gray-700'}`}>
+                        Slow
+                      </div>
+                      <div className="text-[10px] text-gray-500 mb-1.5">
+                        ~5-10 min
+                      </div>
+                      <div className={`font-bold text-lg leading-none mb-0.5 ${selectedGas === 'slow' ? 'text-blue-600' : 'text-gray-900'}`}>
+                        {parseFloat(gasPrice.slow).toFixed(1)}
+                      </div>
+                      <div className="text-[9px] text-gray-400 uppercase tracking-wider">
+                        Gwei
+                      </div>
                     </button>
 
                     {/* Standard (Recommended) */}
                     <button
                       onClick={() => setSelectedGas('standard')}
-                      className={`p-4 rounded-xl text-center transition-all border-2 relative overflow-hidden group ${
+                      className={`p-3 rounded-xl text-center transition-all border-2 relative overflow-hidden group ${
                         selectedGas === 'standard'
-                          ? 'bg-orange-50 border-orange-500 shadow-md'
-                          : 'bg-gray-50 border-gray-200 hover:border-orange-300 hover:bg-orange-50/50'
+                          ? 'bg-gradient-to-br from-orange-50 to-orange-100/50 border-orange-500 shadow-lg scale-[1.02]'
+                          : 'bg-white border-gray-200 hover:border-orange-300 hover:shadow-md'
                       }`}
                     >
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-2 transition-transform group-hover:scale-110 ${
-                        selectedGas === 'standard' ? 'bg-orange-100' : 'bg-gray-100'
-                      }`}>
-                        <Gauge className={`w-5 h-5 ${selectedGas === 'standard' ? 'text-orange-600' : 'text-gray-500'}`} />
-                      </div>
-                      <div className="font-bold text-sm text-gray-900 mb-1">
-                        Standard
-                      </div>
-                      <div className="text-xs text-orange-600 mb-2 font-medium">
-                        ✓ Recommended
-                      </div>
-                      <div className="font-semibold text-base text-gray-900">
-                        {parseFloat(gasPrice.standard).toFixed(1)}
-                      </div>
-                      <div className="text-[10px] text-gray-500">
-                        Gwei
-                      </div>
                       {selectedGas === 'standard' && (
-                        <div className="absolute top-2 right-2">
-                          <Check className="w-4 h-4 text-orange-600" />
+                        <div className="absolute top-1.5 right-1.5">
+                          <div className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center">
+                            <Check className="w-3 h-3 text-white" />
+                          </div>
                         </div>
                       )}
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-1.5 transition-all ${
+                        selectedGas === 'standard' ? 'bg-orange-100 scale-110' : 'bg-gray-100'
+                      }`}>
+                        <Gauge className={`w-4 h-4 ${selectedGas === 'standard' ? 'text-orange-600' : 'text-gray-400'}`} />
+                      </div>
+                      <div className={`font-bold text-xs mb-0.5 ${selectedGas === 'standard' ? 'text-orange-700' : 'text-gray-700'}`}>
+                        Standard
+                      </div>
+                      <div className="text-[10px] text-orange-600 mb-1.5 font-semibold">
+                        ✓ Recommended
+                      </div>
+                      <div className={`font-bold text-lg leading-none mb-0.5 ${selectedGas === 'standard' ? 'text-orange-600' : 'text-gray-900'}`}>
+                        {parseFloat(gasPrice.standard).toFixed(1)}
+                      </div>
+                      <div className="text-[9px] text-gray-400 uppercase tracking-wider">
+                        Gwei
+                      </div>
                     </button>
 
                     {/* Fast */}
                     <button
                       onClick={() => setSelectedGas('fast')}
-                      className={`p-4 rounded-xl text-center transition-all border-2 relative overflow-hidden group ${
+                      className={`p-3 rounded-xl text-center transition-all border-2 relative overflow-hidden group ${
                         selectedGas === 'fast'
-                          ? 'bg-green-50 border-green-500 shadow-md'
-                          : 'bg-gray-50 border-gray-200 hover:border-green-300 hover:bg-green-50/50'
+                          ? 'bg-green-50 border-green-500 shadow-lg scale-[1.02]'
+                          : 'bg-white border-gray-200 hover:border-green-300 hover:shadow-md'
                       }`}
                     >
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-2 transition-transform group-hover:scale-110 ${
-                        selectedGas === 'fast' ? 'bg-green-100' : 'bg-gray-100'
-                      }`}>
-                        <Rocket className={`w-5 h-5 ${selectedGas === 'fast' ? 'text-green-600' : 'text-gray-500'}`} />
-                      </div>
-                      <div className="font-bold text-sm text-gray-900 mb-1">
-                        Fast
-                      </div>
-                      <div className="text-xs text-gray-500 mb-2">
-                        ~30 sec
-                      </div>
-                      <div className="font-semibold text-base text-gray-900">
-                        {parseFloat(gasPrice.fast).toFixed(1)}
-                      </div>
-                      <div className="text-[10px] text-gray-500">
-                        Gwei
-                      </div>
                       {selectedGas === 'fast' && (
-                        <div className="absolute top-2 right-2">
-                          <Check className="w-4 h-4 text-green-600" />
+                        <div className="absolute top-1.5 right-1.5">
+                          <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                            <Check className="w-3 h-3 text-white" />
+                          </div>
                         </div>
                       )}
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-1.5 transition-all ${
+                        selectedGas === 'fast' ? 'bg-green-100 scale-110' : 'bg-gray-100'
+                      }`}>
+                        <Rocket className={`w-4 h-4 ${selectedGas === 'fast' ? 'text-green-600' : 'text-gray-400'}`} />
+                      </div>
+                      <div className={`font-bold text-xs mb-0.5 ${selectedGas === 'fast' ? 'text-green-700' : 'text-gray-700'}`}>
+                        Fast
+                      </div>
+                      <div className="text-[10px] text-gray-500 mb-1.5">
+                        ~30 sec
+                      </div>
+                      <div className={`font-bold text-lg leading-none mb-0.5 ${selectedGas === 'fast' ? 'text-green-600' : 'text-gray-900'}`}>
+                        {parseFloat(gasPrice.fast).toFixed(1)}
+                      </div>
+                      <div className="text-[9px] text-gray-400 uppercase tracking-wider">
+                        Gwei
+                      </div>
                     </button>
                   </div>
                   
                   {/* Estimated Fee Display */}
-                  <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="mt-3 p-3 bg-gradient-to-r from-gray-50 to-gray-100/50 rounded-xl border border-gray-200">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">Estimated Network Fee:</span>
-                      <span className="font-semibold text-gray-900">
+                      <span className="text-gray-600 font-medium">Estimated Network Fee:</span>
+                      <span className="font-bold text-gray-900">
                         ~{estimatedFee} {selectedChainConfig.nativeCurrency.symbol}
                       </span>
                     </div>
