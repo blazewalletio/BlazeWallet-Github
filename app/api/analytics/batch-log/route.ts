@@ -1,12 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
 import crypto from 'crypto';
 
+// Validate environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl) {
+  throw new Error('NEXT_PUBLIC_SUPABASE_URL is required');
+}
+
+if (!supabaseServiceKey) {
+  throw new Error('SUPABASE_SERVICE_ROLE_KEY is required');
+}
+
 // Admin client with service role (bypasses RLS)
 const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  supabaseUrl.trim(),
+  supabaseServiceKey.trim(),
   {
     auth: {
       autoRefreshToken: false,
@@ -15,11 +28,8 @@ const supabaseAdmin = createClient(
   }
 );
 
-// Regular client for auth
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Regular client for auth - use central client
+// (imported from @/lib/supabase above)
 
 /**
  * Hash a string for privacy (SHA-256)
