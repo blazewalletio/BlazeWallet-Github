@@ -416,9 +416,16 @@ export async function signInWithEmail(
       
       // Send device verification CODE email (6-digit code)
       try {
+        // Get CSRF token first
+        const csrfResponse = await fetch('/api/csrf-token');
+        const { token: csrfToken } = await csrfResponse.json();
+        
         await fetch('/api/send-device-code', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken,
+          },
           body: JSON.stringify({
             email: authData.user.email,
             deviceName: deviceInfo.deviceName,
