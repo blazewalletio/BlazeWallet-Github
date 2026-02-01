@@ -37,7 +37,7 @@ function generateDeviceVerificationEmail(deviceName: string, verificationLink: s
           <tr>
             <td style="background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); padding: 40px 30px; text-align: center;">
               <img src="${ASSET_BASE_URL}/email/blaze-icon-white.png?v=${CACHE_BUST}" alt="BLAZE" style="width: 80px; height: 80px; margin-bottom: 20px;" />
-              <h1 style="margin: 0; color: white; font-size: 28px; font-weight: bold;">New Device Login Detected</h1>
+              <h1 style="margin: 0; color: #FFFFFF; font-size: 28px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">New Device Login Detected</h1>
             </td>
           </tr>
           
@@ -68,7 +68,7 @@ function generateDeviceVerificationEmail(deviceName: string, verificationLink: s
                 </p>
               </div>
               
-              <p style="margin: 0 0 24px 0; color: #4B5563; font-size: 16px; line-height: 1.6;">
+              <p style="margin: 0 0 24px 0; color: #1F2937; font-size: 16px; line-height: 1.6; font-weight: 500;">
                 If this was you, please verify this device by clicking the button below. This will add it to your trusted devices list.
               </p>
               
@@ -76,7 +76,7 @@ function generateDeviceVerificationEmail(deviceName: string, verificationLink: s
               <table role="presentation" style="width: 100%; margin-bottom: 30px;">
                 <tr>
                   <td align="center">
-                    <a href="${verificationLink}" style="display: inline-block; padding: 16px 48px; background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); color: white; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);">
+                    <a href="${verificationLink}" style="display: inline-block; padding: 16px 48px; background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); color: #FFFFFF; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4); text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
                       Verify This Device
                     </a>
                   </td>

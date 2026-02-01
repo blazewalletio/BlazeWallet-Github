@@ -24,7 +24,7 @@ function generateDeviceCodeEmail(deviceName: string, verificationCode: string, l
           <tr>
             <td style="background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); padding: 40px 30px; text-align: center;">
               <img src="${ASSET_BASE_URL}/email/blaze-icon-white.png?v=${CACHE_BUST}" alt="BLAZE" style="width: 80px; height: 80px; margin-bottom: 20px;" />
-              <h1 style="margin: 0; color: white; font-size: 28px; font-weight: bold;">Verify Your Device</h1>
+              <h1 style="margin: 0; color: #FFFFFF; font-size: 28px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">Verify Your Device</h1>
             </td>
           </tr>
           
@@ -55,14 +55,14 @@ function generateDeviceCodeEmail(deviceName: string, verificationCode: string, l
                 </p>
               </div>
               
-              <p style="margin: 0 0 24px 0; color: #4B5563; font-size: 16px; line-height: 1.6;">
+              <p style="margin: 0 0 24px 0; color: #1F2937; font-size: 16px; line-height: 1.6; font-weight: 500;">
                 Enter this 6-digit code in the BLAZE Wallet app to verify this device:
               </p>
               
               <!-- Verification Code -->
               <div style="background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); border-radius: 16px; padding: 30px; text-align: center; margin-bottom: 30px; box-shadow: 0 8px 24px rgba(255, 107, 53, 0.3);">
-                <p style="margin: 0 0 12px 0; color: white; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px;">Your Verification Code</p>
-                <p style="margin: 0; color: white; font-size: 48px; font-weight: bold; letter-spacing: 8px; font-family: 'Courier New', monospace;">
+                <p style="margin: 0 0 12px 0; color: #FFFFFF; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">Your Verification Code</p>
+                <p style="margin: 0; color: #FFFFFF; font-size: 48px; font-weight: bold; letter-spacing: 8px; font-family: 'Courier New', monospace; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
                   ${verificationCode}
                 </p>
               </div>
