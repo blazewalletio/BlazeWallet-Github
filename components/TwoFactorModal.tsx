@@ -174,37 +174,40 @@ export default function TwoFactorModal({ isOpen, onClose, isEnabled, onSuccess }
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
-        onClick={handleClose}
+        className="fixed inset-0 z-[60] bg-gray-50"
+        onClick={(e) => {
+          // Only close if clicking directly on the overlay (not on content)
+          if (e.target === e.currentTarget) {
+            handleClose();
+          }
+        }}
       >
         <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          onClick={(e) => e.stopPropagation()}
-          className="glass-card rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
+          initial={{ x: '100%' }}
+          animate={{ x: 0 }}
+          exit={{ x: '100%' }}
+          transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+          className="absolute inset-0 bg-gray-50 overflow-y-auto"
         >
-          {/* Header */}
-          <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center">
-                <Shield className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">Two-Factor Authentication</h2>
-                <p className="text-xs text-gray-600">Extra layer of security</p>
-              </div>
-            </div>
+          {/* Header - Sticky */}
+          <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-3 shadow-sm z-10">
             <button
               onClick={handleClose}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <X className="w-5 h-5 text-gray-500" />
             </button>
+            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
+              <Shield className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Two-Factor Authentication</h2>
+              <p className="text-xs text-gray-600">Extra layer of security</p>
+            </div>
           </div>
 
           {/* Content */}
-          <div className="p-6">
+          <div className="max-w-2xl mx-auto p-6">
             {/* INFO STEP */}
             {step === 'info' && (
               <div className="space-y-4">

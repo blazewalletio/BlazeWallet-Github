@@ -739,24 +739,40 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
               <Shield className="w-5 h-5 text-orange-500" />
               Account
             </h3>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Shield className="w-5 h-5 text-orange-500" />
-              Account
-            </h3>
             
             {/* User Info */}
             <div className="mb-4">
               <div className="flex items-center gap-3 mb-3">
-                {/* Simple Avatar */}
-                <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                  {userProfile?.avatar_url ? (
-                    <img 
-                      src={userProfile.avatar_url} 
-                      alt="Avatar" 
-                      className="w-full h-full object-cover rounded-xl"
-                    />
-                  ) : (
-                    <User className="w-6 h-6 text-white" />
+                {/* Avatar with Upload Button */}
+                <div className="relative flex-shrink-0">
+                  <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center overflow-hidden">
+                    {userProfile?.avatar_url ? (
+                      <img 
+                        src={userProfile.avatar_url} 
+                        alt="Avatar" 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <User className="w-6 h-6 text-white" />
+                    )}
+                  </div>
+                  
+                  {/* Upload Button */}
+                  {account?.type === 'email' && (
+                    <label className="absolute -bottom-1 -right-1 w-6 h-6 bg-orange-500 hover:bg-orange-600 rounded-lg flex items-center justify-center cursor-pointer shadow-md transition-colors">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleAvatarUpload}
+                        disabled={isUploadingAvatar}
+                      />
+                      {isUploadingAvatar ? (
+                        <Loader2 className="w-3 h-3 text-white animate-spin" />
+                      ) : (
+                        <Camera className="w-3 h-3 text-white" />
+                      )}
+                    </label>
                   )}
                 </div>
                 
