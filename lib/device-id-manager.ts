@@ -5,6 +5,7 @@
  */
 
 import { logger } from './logger';
+import { debugLogger } from './debug-logger';
 
 export class DeviceIdManager {
   private static readonly STORAGE_KEY = 'blaze_device_id';
@@ -19,8 +20,23 @@ export class DeviceIdManager {
       throw new Error('DeviceIdManager can only run in browser');
     }
     
+    // 🔧 DEBUG: Log localStorage state BEFORE reading
+    debugLogger.debug('localStorage', '🔍 READING localStorage for device_id', {
+      storageKey: this.STORAGE_KEY,
+      allKeys: Object.keys(localStorage),
+      localStorageLength: localStorage.length,
+      url: window.location.href,
+    });
+    
     // Check if device ID already exists
     const existing = localStorage.getItem(this.STORAGE_KEY);
+    
+    // 🔧 DEBUG: Log the result
+    debugLogger.info('localStorage', existing ? '✅ Device ID found in localStorage' : '❌ Device ID NOT found in localStorage', {
+      deviceId: existing ? existing.substring(0, 12) + '...' : 'null',
+      isValid: existing ? this.isValidUUID(existing) : false,
+      rawValue: existing,
+    });
     
     if (existing && this.isValidUUID(existing)) {
       logger.log('✅ [DeviceID] Found existing device ID:', existing.substring(0, 8) + '...');
@@ -29,7 +45,23 @@ export class DeviceIdManager {
     
     // Generate NEW device ID (UUID v4)
     const newDeviceId = this.generateUUID();
+    
+    // 🔧 DEBUG: Log BEFORE writing to localStorage
+    debugLogger.warn('localStorage', '🆕 CREATING NEW device ID', {
+      newDeviceId: newDeviceId.substring(0, 12) + '...',
+      reason: existing ? 'Invalid UUID format' : 'No existing device ID',
+      existingValue: existing,
+    });
+    
     localStorage.setItem(this.STORAGE_KEY, newDeviceId);
+    
+    // 🔧 DEBUG: Verify write was successful
+    const verification = localStorage.getItem(this.STORAGE_KEY);
+    debugLogger.info('localStorage', verification === newDeviceId ? '✅ Device ID written successfully' : '❌ Device ID write FAILED', {
+      written: newDeviceId.substring(0, 12) + '...',
+      readBack: verification ? verification.substring(0, 12) + '...' : 'null',
+      writeSuccessful: verification === newDeviceId,
+    });
     
     logger.log('🆕 [DeviceID] Generated NEW device ID:', newDeviceId.substring(0, 8) + '...');
     

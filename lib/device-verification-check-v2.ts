@@ -9,6 +9,7 @@ import { DeviceIdManager } from './device-id-manager';
 import { getCachedOrGenerateFingerprint, generateEnhancedFingerprint } from './device-fingerprint-pro';
 import { findBestDeviceMatch, calculateStringSimilarity } from './device-matcher';
 import { logger } from './logger';
+import { debugLogger } from './debug-logger';
 
 export interface DeviceVerificationResult {
   verified: boolean;
@@ -45,6 +46,13 @@ export class DeviceVerificationCheckV2 {
       logger.log('🔍 [DeviceCheck V2] Starting verification...');
       logger.log('🔍 [DeviceCheck V2] Timestamp:', new Date().toISOString());
       
+      // 🔧 DEBUG: Start verification
+      debugLogger.info('device_verification', '🚀 DEVICE VERIFICATION STARTED', {
+        timestamp: new Date().toISOString(),
+        url: typeof window !== 'undefined' ? window.location.href : 'unknown',
+        userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+      });
+      
       // =====================================================================
       // STEP 0: GET SUPABASE USER
       // =====================================================================
@@ -55,18 +63,32 @@ export class DeviceVerificationCheckV2 {
       
       logger.log(`🔍 [DeviceCheck V2] getUser() took ${userDuration}ms`);
       
+      // 🔧 DEBUG: User session check
+      debugLogger.info('auth', `🔍 Supabase session check (${userDuration}ms)`, {
+        hasUser: !!user,
+        hasError: !!userError,
+        userId: user?.id,
+        email: user?.email,
+        errorMessage: userError?.message,
+      });
+      
       if (userError) {
         logger.error('❌ [DeviceCheck V2] Error getting user:', userError);
+        debugLogger.error('auth', '❌ Failed to get Supabase user', { error: userError });
         return { verified: false, reason: 'session_error' };
       }
       
       if (!user) {
         logger.log('❌ [DeviceCheck V2] No active Supabase session');
+        debugLogger.warn('auth', '❌ No active Supabase session', {});
         return { verified: false, reason: 'no_session' };
       }
       
       logger.log('✅ [DeviceCheck V2] User session found:', user.id);
       logger.log('✅ [DeviceCheck V2] User email:', user.email);
+      
+      // Set user ID in debug logger
+      debugLogger.setUserId(user.id);
       
       // =====================================================================
       // LAYER 1: PERSISTENT DEVICE ID (Primary Check)
@@ -76,13 +98,31 @@ export class DeviceVerificationCheckV2 {
       logger.log('🔍 [LAYER 1] PERSISTENT DEVICE ID CHECK');
       logger.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       
+      // 🔧 DEBUG: Layer 1 start
+      debugLogger.info('device_verification', '🔍 [LAYER 1] PERSISTENT DEVICE ID CHECK', {});
+      
       const { deviceId, isNew } = DeviceIdManager.getOrCreateDeviceId();
       
       logger.log('🔍 [Layer 1] Device ID:', deviceId.substring(0, 12) + '...', 'isNew:', isNew);
       
+      // 🔧 DEBUG: Device ID result
+      debugLogger.info('device_verification', `[LAYER 1] Device ID: ${isNew ? '🆕 NEW' : '✅ EXISTING'}`, {
+        deviceId: deviceId.substring(0, 12) + '...',
+        deviceIdFull: deviceId,
+        isNew,
+        storageKey: 'blaze_device_id',
+      });
+      
       if (!isNew) {
         // Device ID exists in localStorage → Check database
         logger.log('✅ [Layer 1] Device ID found in localStorage:', deviceId.substring(0, 12) + '...');
+        
+        // 🔧 DEBUG: Querying database
+        debugLogger.info('database', '[LAYER 1] Querying trusted_devices table', {
+          userId: user.id,
+          deviceId: deviceId.substring(0, 12) + '...',
+          query: 'SELECT * FROM trusted_devices WHERE user_id = ? AND device_id = ?',
+        });
         
         const layer1StartTime = Date.now();
         const { data: device, error: deviceError } = await supabase
@@ -95,12 +135,32 @@ export class DeviceVerificationCheckV2 {
         
         logger.log(`🔍 [Layer 1] Database query took ${layer1Duration}ms`);
         
+        // 🔧 DEBUG: Database query result
+        debugLogger.info('database', `[LAYER 1] Database query completed (${layer1Duration}ms)`, {
+          hasDevice: !!device,
+          hasError: !!deviceError,
+          deviceName: device?.device_name,
+          verifiedAt: device?.verified_at,
+          lastUsedAt: device?.last_used_at,
+          errorMessage: deviceError?.message,
+        });
+        
         if (deviceError) {
           logger.error('❌ [Layer 1] Database error:', deviceError);
+          debugLogger.error('database', '[LAYER 1] Database error', { error: deviceError });
         } else if (device && device.verified_at) {
           logger.log('✅ [Layer 1] Device ID MATCH! Device is trusted.');
           logger.log('✅ [Layer 1] Device name:', device.device_name);
           logger.log('✅ [Layer 1] Verified at:', device.verified_at);
+          
+          // 🔧 DEBUG: SUCCESS!
+          debugLogger.info('device_verification', '✅ [LAYER 1] SUCCESS - DEVICE VERIFIED!', {
+            deviceId: device.id,
+            deviceName: device.device_name,
+            verifiedAt: device.verified_at,
+            lastUsedAt: device.last_used_at,
+            result: 'VERIFIED',
+          });
           
           // Update last_used_at
           await supabase
@@ -127,12 +187,24 @@ export class DeviceVerificationCheckV2 {
           };
         } else if (device && !device.verified_at) {
           logger.log('⚠️ [Layer 1] Device found but NOT verified yet');
+          debugLogger.warn('device_verification', '[LAYER 1] Device found but NOT verified', {
+            deviceId: device.id,
+            verifiedAt: device.verified_at,
+          });
         } else {
           logger.log('⚠️ [Layer 1] Device ID not found in database');
           logger.log('⚠️ [Layer 1] Possible reasons: localStorage cleared previously, or device not yet registered');
+          debugLogger.warn('device_verification', '[LAYER 1] Device NOT found in database', {
+            deviceId: deviceId.substring(0, 12) + '...',
+            userId: user.id,
+            reason: 'No matching device in database',
+          });
         }
       } else {
         logger.log('🆕 [Layer 1] NEW device ID generated (first time on this device)');
+        debugLogger.info('device_verification', '[LAYER 1] NEW device ID - skipping database check', {
+          deviceId: deviceId.substring(0, 12) + '...',
+        });
       }
       
       // =====================================================================
@@ -306,6 +378,16 @@ export class DeviceVerificationCheckV2 {
       logger.log('╚═══════════════════════════════════════════════════════════════');
       logger.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       
+      // 🔧 DEBUG: ALL LAYERS FAILED
+      debugLogger.error('device_verification', '❌ ALL LAYERS FAILED - VERIFICATION REQUIRED', {
+        layer1: 'FAILED',
+        layer2: 'FAILED',
+        layer3: 'FAILED',
+        layer4: 'FAILED',
+        result: 'NOT_VERIFIED',
+        action: 'EMAIL_VERIFICATION_REQUIRED',
+      });
+      
       return {
         verified: false,
         reason: 'device_not_found',
@@ -313,6 +395,13 @@ export class DeviceVerificationCheckV2 {
       
     } catch (error: any) {
       logger.error('❌ [DeviceCheck V2] Unexpected error:', error);
+      
+      // 🔧 DEBUG: Unexpected error
+      debugLogger.error('device_verification', '❌ UNEXPECTED ERROR in device verification', {
+        error: error.message,
+        stack: error.stack,
+      });
+      
       return { verified: false, reason: 'unexpected_error' };
     }
   }
