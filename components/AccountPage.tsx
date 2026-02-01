@@ -779,17 +779,18 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 {/* Name & Email */}
                 <div className="flex-1 min-w-0">
                   {isEditing ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 w-full">
                       <input
                         type="text"
                         value={displayName}
                         onChange={(e) => setDisplayName(e.target.value)}
-                        className="text-base font-bold text-gray-900 bg-white border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-orange-500 flex-1"
+                        className="text-base font-bold text-gray-900 bg-white border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 flex-1 min-w-0"
                         placeholder="Your name"
                       />
                       <button
                         onClick={handleSaveDisplayName}
-                        className="p-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors"
+                        className="p-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex-shrink-0"
+                        title="Save"
                       >
                         <Check className="w-4 h-4" />
                       </button>
@@ -798,7 +799,8 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                           setIsEditing(false);
                           setDisplayName(userProfile?.display_name || 'BLAZE User');
                         }}
-                        className="p-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors"
+                        className="p-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors flex-shrink-0"
+                        title="Cancel"
                       >
                         <X className="w-4 h-4" />
                       </button>
