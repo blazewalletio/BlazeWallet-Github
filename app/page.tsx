@@ -122,14 +122,41 @@ export default function Home() {
           
           if (!deviceCheck.verified) {
             logger.warn('⚠️ [DEVICE CHECK] Device not verified:', deviceCheck.reason);
-            logger.warn('⚠️ [DEVICE CHECK] Requiring email login + device verification');
+            logger.warn('⚠️ [DEVICE CHECK] User has session + wallet, but device not verified');
             
-            // Clear localStorage and require full email login
+            // Check if wallet exists in database
+            const { data: walletData } = await supabase
+              .from('wallets')
+              .select('encrypted_wallet')
+              .eq('user_id', session.user.id)
+              .maybeSingle();
+            
+            if (walletData && walletData.encrypted_wallet) {
+              // ✅ User has account + wallet → Just need device verification!
+              // Don't clear localStorage, don't show onboarding
+              // The user will get device verification email via signInWithEmail
+              logger.log('✅ [DEVICE CHECK] User has wallet - will require device verification on next login');
+              
+              // Store minimal data for unlock modal
+              localStorage.setItem('encrypted_wallet', walletData.encrypted_wallet);
+              localStorage.setItem('has_password', 'true');
+              localStorage.setItem('wallet_email', session.user.email || '');
+              localStorage.setItem('wallet_created_with_email', 'true');
+              localStorage.setItem('supabase_user_id', session.user.id);
+              
+              // ✅ Sign out to force fresh login with device verification
+              await supabase.auth.signOut();
+              
+              // Show onboarding (which will show login screen)
+              setHasWallet(false);
+              return;
+            }
+            
+            // No wallet found → Truly new user → Show onboarding
+            logger.warn('⚠️ [DEVICE CHECK] No wallet found - showing onboarding');
             localStorage.removeItem('encrypted_wallet');
             localStorage.removeItem('has_password');
             sessionStorage.clear();
-            
-            // Show onboarding (user must login with email + verify device)
             setHasWallet(false);
             return;
           }
