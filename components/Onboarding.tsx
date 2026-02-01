@@ -314,18 +314,19 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         const result = await signInWithEmail(email, password);
         
         if (!result.success) {
-          // ✅ FIXED: Check if device verification is required
-          if (result.requiresDeviceVerification && result.deviceVerificationToken) {
-            setDeviceVerificationToken(result.deviceVerificationToken);
-            setStep('device-verification');
-            return;
-          }
-          
           setError(result.error || 'Failed to sign in');
           return;
         }
 
-        // ✅ NEW: Check if 2FA is required
+        // ✅ Check if device verification is required (success: true + requiresDeviceVerification: true)
+        if (result.requiresDeviceVerification && result.deviceVerificationToken) {
+          logger.log('📧 Device verification required - showing verification step');
+          setDeviceVerificationToken(result.deviceVerificationToken);
+          setStep('device-verification');
+          return;
+        }
+
+        // ✅ Check if 2FA is required
         if (result.requires2FA && result.user) {
           logger.log('🔐 2FA required for this account');
           setPending2FAUserId(result.user.id);
