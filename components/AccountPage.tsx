@@ -733,416 +733,287 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             </div>
           </div>
 
-          {/* User Profile Card - REDESIGNED */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="glass-card rounded-2xl overflow-hidden mb-6 border border-gray-200 bg-white shadow-lg"
-          >
-            {/* Gradient Header */}
-            <div className="h-24 bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 relative">
-              <div className="absolute inset-0 bg-black/10"></div>
-            </div>
+          {/* Account Section - HYBRID PRO */}
+          <div className="glass-card p-6 border border-gray-200 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-orange-500" />
+              Account
+            </h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-orange-500" />
+              Account
+            </h3>
             
-            {/* Content */}
-            <div className="px-6 pb-6 -mt-12 relative">
-              {/* Avatar */}
-              <div className="relative inline-block mb-4">
-                <div className="w-24 h-24 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl flex items-center justify-center shadow-2xl border-4 border-white relative overflow-hidden">
+            {/* User Info */}
+            <div className="mb-4">
+              <div className="flex items-center gap-3 mb-3">
+                {/* Simple Avatar */}
+                <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0">
                   {userProfile?.avatar_url ? (
                     <img 
                       src={userProfile.avatar_url} 
                       alt="Avatar" 
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover rounded-xl"
                     />
                   ) : (
-                    <User className="w-12 h-12 text-white" />
+                    <User className="w-6 h-6 text-white" />
                   )}
                 </div>
                 
-                {/* Verified Badge */}
-                {isEmailVerified && (
-                  <div className="absolute -top-1 -right-1 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center border-3 border-white shadow-lg">
-                    <CheckCircle className="w-5 h-5 text-white" />
-                  </div>
-                )}
-                
-                {/* Upload Button */}
-                <label className="absolute -bottom-1 -right-1 w-9 h-9 bg-blue-500 hover:bg-blue-600 rounded-xl flex items-center justify-center cursor-pointer shadow-lg transition-all hover:scale-110 border-3 border-white">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleAvatarUpload}
-                    disabled={isUploadingAvatar}
-                  />
-                  {isUploadingAvatar ? (
-                    <Loader2 className="w-4 h-4 text-white animate-spin" />
-                  ) : (
-                    <Camera className="w-4 h-4 text-white" />
-                  )}
-                </label>
-              </div>
-              
-              {/* Name & Status */}
-              <div className="mb-4">
-                <div className="flex items-center gap-2 mb-2">
+                {/* Name & Email */}
+                <div className="flex-1 min-w-0">
                   {isEditing ? (
-                    <div className="flex items-center gap-2 flex-1">
+                    <div className="flex items-center gap-2">
                       <input
                         type="text"
                         value={displayName}
                         onChange={(e) => setDisplayName(e.target.value)}
-                        className="text-2xl font-black text-gray-900 bg-gray-50 border-2 border-orange-500 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-300 flex-1"
+                        className="text-base font-bold text-gray-900 bg-white border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-orange-500 flex-1"
                         placeholder="Your name"
                       />
                       <button
                         onClick={handleSaveDisplayName}
-                        className="p-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl transition-all hover:scale-105 shadow-md"
+                        className="p-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors"
                       >
-                        <Save className="w-5 h-5" />
+                        <Check className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => {
                           setIsEditing(false);
                           setDisplayName(userProfile?.display_name || 'BLAZE User');
                         }}
-                        className="p-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl transition-all"
+                        className="p-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors"
                       >
-                        <X className="w-5 h-5" />
+                        <X className="w-4 h-4" />
                       </button>
                     </div>
                   ) : (
-                    <>
-                      <h2 className="text-2xl font-black text-gray-900">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-base font-bold text-gray-900 truncate">
                         {displayName}
-                      </h2>
+                      </h4>
                       {isEmailVerified && (
-                        <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full flex items-center gap-1.5 shadow-sm">
-                          <CheckCircle className="w-3.5 h-3.5" />
-                          Verified
-                        </span>
+                        <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
                       )}
                       <button
                         onClick={() => setIsEditing(true)}
-                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors ml-auto"
+                        className="p-1 hover:bg-gray-100 rounded transition-colors ml-auto"
                       >
-                        <Edit2 className="w-4 h-4 text-gray-500" />
+                        <Edit2 className="w-3.5 h-3.5 text-gray-500" />
                       </button>
-                    </>
+                    </div>
                   )}
-                </div>
-                
-                <p className="text-sm font-medium text-gray-700 mb-2">
-                  {userEmail || (account?.type === 'seed' ? 'Seed Wallet (No Email)' : 'No Email')}
-                </p>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <Calendar className="w-4 h-4" />
-                  <span>Member since {memberSince}</span>
-                </div>
-              </div>
-                
-              {/* Wallet Address - Prominent */}
-              <div className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs text-gray-500 font-medium mb-1">Wallet Address</div>
-                    <code className="text-sm font-mono font-bold text-gray-900 block truncate">
-                      {address || useWalletStore.getState().getCurrentAddress()}
-                    </code>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    {/* Copy Button */}
-                    <button
-                      onClick={handleCopyAddress}
-                      className="p-2.5 hover:bg-white rounded-lg transition-all hover:shadow-sm border border-transparent hover:border-gray-200"
-                      title="Copy address"
-                    >
-                      {copiedAddress ? (
-                        <Check className="w-4 h-4 text-green-600" />
-                      ) : (
-                        <Copy className="w-4 h-4 text-gray-600" />
-                      )}
-                    </button>
-                    
-                    {/* More Options */}
-                    <button
-                      className="p-2.5 hover:bg-white rounded-lg transition-all hover:shadow-sm border border-transparent hover:border-gray-200"
-                      title="More options"
-                    >
-                      <MoreVertical className="w-4 h-4 text-gray-600" />
-                    </button>
-                  </div>
+                  <p className="text-sm text-gray-600 truncate">
+                    {userEmail || (account?.type === 'seed' ? 'Seed Wallet' : 'No Email')}
+                  </p>
                 </div>
               </div>
             </div>
-          </motion.div>
-
-          {/* QUICK STATS - NEW! */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 }}
-              className="glass-card p-6"
-            >
-              <div className="flex items-center gap-2 text-blue-600 mb-2">
-                <TrendingUp className="w-5 h-5" />
-                <span className="text-sm font-semibold">Transactions</span>
+            
+            {/* Wallet Address */}
+            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs text-gray-600 font-medium mb-1">Wallet address</div>
+                  <code className="text-sm font-mono text-gray-900 block truncate">
+                    {address || useWalletStore.getState().getCurrentAddress()}
+                  </code>
+                </div>
+                <button
+                  onClick={handleCopyAddress}
+                  className="p-2 hover:bg-white rounded-lg transition-colors flex-shrink-0"
+                  title="Copy address"
+                >
+                  {copiedAddress ? (
+                    <Check className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <Copy className="w-4 h-4 text-gray-600" />
+                  )}
+                </button>
               </div>
-              <div className="text-3xl font-bold text-gray-900">
-                {transactionStats?.total_transactions || 0}
-              </div>
-              <div className="text-sm text-gray-600 mt-1">
-                Lifetime activity
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="glass-card p-6"
-            >
-              <div className="flex items-center gap-2 text-purple-600 mb-2">
-                <Wallet className="w-5 h-5" />
-                <span className="text-sm font-semibold">Total Volume</span>
-              </div>
-              <div className="text-3xl font-bold text-gray-900">
-                {transactionStats ? (
-                  `$${(parseFloat(transactionStats.total_sent) + parseFloat(transactionStats.total_received)).toFixed(2)}`
-                ) : '$0.00'}
-              </div>
-              <div className="text-sm text-gray-600 mt-1">
-                Sent + Received
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-              className="glass-card p-6"
-            >
-              <div className="flex items-center gap-2 text-orange-600 mb-2">
-                <Target className="w-5 h-5" />
-                <span className="text-sm font-semibold">Security Score</span>
-              </div>
-              <div className={`text-3xl font-bold ${getSecurityScoreColor(securityScore?.score || 0)}`}>
-                {securityScore?.score || 0}/100
-              </div>
-              <div className="text-sm text-gray-600 mt-1">
-                {securityScore && securityScore.score >= 80 ? 'Excellent' : securityScore && securityScore.score >= 60 ? 'Good' : 'Needs Work'}
-              </div>
-            </motion.div>
+            </div>
           </div>
 
-          {/* SECURITY SCORE & CHECKLIST - PERFECT ALIGNMENT */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="glass-card rounded-2xl overflow-hidden mb-6 border border-gray-200 bg-white shadow-sm"
-          >
+          {/* Stats Section - HYBRID PRO Grid */}
+          <div className="glass-card p-6 border border-gray-200 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-orange-500" />
+              Statistics
+            </h3>
+            
+            <div className="grid grid-cols-3 gap-4">
+              {/* Transactions */}
+              <div>
+                <div className="text-xs text-gray-600 mb-1">Transactions</div>
+                <div className="text-2xl font-bold text-gray-900">
+                  {transactionStats?.total_transactions || 0}
+                </div>
+              </div>
+              
+              {/* Volume */}
+              <div>
+                <div className="text-xs text-gray-600 mb-1">Total Volume</div>
+                <div className="text-2xl font-bold text-gray-900">
+                  {transactionStats ? (
+                    `$${(parseFloat(transactionStats.total_sent) + parseFloat(transactionStats.total_received)).toFixed(2)}`
+                  ) : '$0.00'}
+                </div>
+              </div>
+              
+              {/* Security Score */}
+              <div>
+                <div className="text-xs text-gray-600 mb-1">Security</div>
+                <div className={`text-2xl font-bold ${getSecurityScoreColor(securityScore?.score || 0)}`}>
+                  {securityScore?.score || 0}/100
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Security Section - HYBRID PRO Grid Layout */}
+          <div className="glass-card p-6 border border-gray-200 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Key className="w-5 h-5 text-orange-500" />
+                Security
+              </h3>
+              <div className="text-right">
+                <div className={`text-2xl font-bold ${getSecurityScoreColor(securityScore?.score || 0)}`}>
+                  {securityScore?.score || 0}
+                </div>
+                <div className="text-xs text-gray-600">/100 pts</div>
+              </div>
+            </div>
+            
+            {/* Security Score Grid - 4 items horizontal */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              {/* Email Verified */}
+              <div className={`p-3 rounded-lg border-2 ${
+                securityScore?.email_verified 
+                  ? 'border-green-200 bg-green-50' 
+                  : 'border-gray-200 bg-gray-50'
+              }`}>
+                <div className="flex items-center justify-center mb-2">
+                  {securityScore?.email_verified ? (
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  ) : (
+                    <Mail className="w-5 h-5 text-gray-400" />
+                  )}
+                </div>
+                <div className="text-xs text-center font-medium text-gray-900 mb-1">
+                  Email Verified
+                </div>
+                <div className="text-xs text-center font-bold text-gray-600">
+                  +25 pts
+                </div>
+              </div>
+              
+              {/* 2FA Enabled */}
+              <div className={`p-3 rounded-lg border-2 ${
+                securityScore?.two_factor_enabled 
+                  ? 'border-green-200 bg-green-50' 
+                  : 'border-gray-200 bg-gray-50'
+              }`}>
+                <div className="flex items-center justify-center mb-2">
+                  {securityScore?.two_factor_enabled ? (
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  ) : (
+                    <Shield className="w-5 h-5 text-gray-400" />
+                  )}
+                </div>
+                <div className="text-xs text-center font-medium text-gray-900 mb-1">
+                  2FA Enabled
+                </div>
+                <div className="text-xs text-center font-bold text-gray-600">
+                  +30 pts
+                </div>
+              </div>
+              
+              {/* Recovery Phrase */}
+              <div className={`p-3 rounded-lg border-2 ${
+                securityScore?.recovery_phrase_backed_up 
+                  ? 'border-green-200 bg-green-50' 
+                  : 'border-gray-200 bg-gray-50'
+              }`}>
+                <div className="flex items-center justify-center mb-2">
+                  {securityScore?.recovery_phrase_backed_up ? (
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  ) : (
+                    <Key className="w-5 h-5 text-gray-400" />
+                  )}
+                </div>
+                <div className="text-xs text-center font-medium text-gray-900 mb-1">
+                  Recovery Phrase
+                </div>
+                <div className="text-xs text-center font-bold text-gray-600">
+                  +25 pts
+                </div>
+              </div>
+              
+              {/* Trusted Device */}
+              <div className={`p-3 rounded-lg border-2 ${
+                securityScore?.trusted_device_added 
+                  ? 'border-green-200 bg-green-50' 
+                  : 'border-gray-200 bg-gray-50'
+              }`}>
+                <div className="flex items-center justify-center mb-2">
+                  {securityScore?.trusted_device_added ? (
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  ) : (
+                    <Smartphone className="w-5 h-5 text-gray-400" />
+                  )}
+                </div>
+                <div className="text-xs text-center font-medium text-gray-900 mb-1">
+                  Trusted Device
+                </div>
+                <div className="text-xs text-center font-bold text-gray-600">
+                  +20 pts
+                </div>
+              </div>
+            </div>
+            
+            {/* 2FA Button */}
+            {account?.type === 'email' && (
+              <button
+                onClick={() => setShow2FAModal(true)}
+                className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-orange-500" />
+                  <span className="text-sm font-medium text-gray-900">Two-Factor Authentication</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-600">
+                    {userProfile?.two_factor_enabled ? 'Enabled' : 'Not enabled'}
+                  </span>
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                </div>
+              </button>
+            )}
+          </div>
+
+          {/* Recent Activity - HYBRID PRO Clean Collapsible */}
+          <div className="glass-card border border-gray-200 mb-6 overflow-hidden">
             {/* Header */}
-            <div className="p-6 bg-gradient-to-r from-red-50 to-pink-50 border-b border-gray-200">
+            <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className={`w-16 h-16 bg-gradient-to-r ${getSecurityScoreGradient(securityScore?.score || 0)} rounded-2xl flex items-center justify-center shadow-lg`}>
-                    <Shield className="w-8 h-8 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-black text-gray-900 mb-1">Security Status</h3>
-                    <p className="text-sm text-gray-600">Protect your account</p>
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className={`text-5xl font-black ${getSecurityScoreColor(securityScore?.score || 0)} leading-none mb-1`}>
-                    {securityScore?.score || 0}
-                  </div>
-                  <div className="text-xs text-gray-500 font-semibold">
-                    {securityScore?.score === 100 ? '🎉 Perfect!' : securityScore && securityScore.score >= 75 ? 'Good' : 'Needs Work'}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="px-6 pt-5">
-              <div className="h-3 bg-gray-100 rounded-full overflow-hidden shadow-inner">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${securityScore?.score || 0}%` }}
-                  transition={{ duration: 1.5, ease: [0.4, 0, 0.2, 1] }}
-                  className={`h-full bg-gradient-to-r ${getSecurityScoreGradient(securityScore?.score || 0)} shadow-sm`}
-                />
-              </div>
-            </div>
-
-            {/* Checklist - PERFECT UNIFORM ALIGNMENT */}
-            <div className="p-6 space-y-3">
-              {/* Email Verified - 25 pts */}
-              <div className="group flex items-center justify-between min-h-[64px] p-4 bg-white rounded-xl border-2 border-gray-200 hover:border-gray-300 hover:shadow-md transition-all">
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className={`w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center ${
-                    securityScore?.email_verified 
-                      ? 'bg-green-100 ring-2 ring-green-200' 
-                      : 'bg-gray-100'
-                  }`}>
-                    <CheckCircle className={`w-6 h-6 ${
-                      securityScore?.email_verified 
-                        ? 'text-green-600' 
-                        : 'text-gray-400'
-                    }`} />
-                  </div>
-                  <span className={`text-base font-bold ${
-                    securityScore?.email_verified 
-                      ? 'text-gray-900' 
-                      : 'text-gray-500'
-                  }`}>
-                    Email Verified
-                  </span>
-                </div>
-                <div className="flex-shrink-0 ml-4">
-                  <span className="inline-flex items-center justify-center min-w-[80px] px-3 py-2 text-sm font-black text-gray-700 bg-gray-100 rounded-lg">
-                    +25 pts
-                  </span>
-                </div>
-              </div>
-
-              {/* 2FA Enabled - 30 pts */}
-              <div className="group flex items-center justify-between min-h-[64px] p-4 bg-white rounded-xl border-2 border-gray-200 hover:border-gray-300 hover:shadow-md transition-all">
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className={`w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center ${
-                    securityScore?.two_factor_enabled 
-                      ? 'bg-green-100 ring-2 ring-green-200' 
-                      : 'bg-gray-100'
-                  }`}>
-                    <CheckCircle className={`w-6 h-6 ${
-                      securityScore?.two_factor_enabled 
-                        ? 'text-green-600' 
-                        : 'text-gray-400'
-                    }`} />
-                  </div>
-                  <span className={`text-base font-bold ${
-                    securityScore?.two_factor_enabled 
-                      ? 'text-gray-900' 
-                      : 'text-gray-500'
-                  }`}>
-                    2FA Enabled
-                  </span>
-                </div>
-                <div className="flex-shrink-0 ml-4">
-                  <span className="inline-flex items-center justify-center min-w-[80px] px-3 py-2 text-sm font-black text-gray-700 bg-gray-100 rounded-lg">
-                    +30 pts
-                  </span>
-                </div>
-              </div>
-
-              {/* Recovery Phrase Backed Up - 25 pts */}
-              <div className="group flex items-center justify-between min-h-[64px] p-4 bg-white rounded-xl border-2 border-gray-200 hover:border-gray-300 hover:shadow-md transition-all">
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className={`w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center ${
-                    securityScore?.recovery_phrase_backed_up 
-                      ? 'bg-green-100 ring-2 ring-green-200' 
-                      : 'bg-gray-100'
-                  }`}>
-                    <CheckCircle className={`w-6 h-6 ${
-                      securityScore?.recovery_phrase_backed_up 
-                        ? 'text-green-600' 
-                        : 'text-gray-400'
-                    }`} />
-                  </div>
-                  <span className={`text-base font-bold ${
-                    securityScore?.recovery_phrase_backed_up 
-                      ? 'text-gray-900' 
-                      : 'text-gray-500'
-                  }`}>
-                    Recovery Phrase Backed Up
-                  </span>
-                </div>
-                <div className="flex-shrink-0 ml-4">
-                  <span className="inline-flex items-center justify-center min-w-[80px] px-3 py-2 text-sm font-black text-gray-700 bg-gray-100 rounded-lg">
-                    +25 pts
-                  </span>
-                </div>
-              </div>
-
-              {/* Trusted Device Added - 20 pts */}
-              <div className="group flex items-center justify-between min-h-[64px] p-4 bg-white rounded-xl border-2 border-gray-200 hover:border-gray-300 hover:shadow-md transition-all">
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className={`w-10 h-10 flex-shrink-0 rounded-xl flex items-center justify-center ${
-                    securityScore?.trusted_device_added 
-                      ? 'bg-green-100 ring-2 ring-green-200' 
-                      : 'bg-gray-100'
-                  }`}>
-                    <CheckCircle className={`w-6 h-6 ${
-                      securityScore?.trusted_device_added 
-                        ? 'text-green-600' 
-                        : 'text-gray-400'
-                    }`} />
-                  </div>
-                  <span className={`text-base font-bold ${
-                    securityScore?.trusted_device_added 
-                      ? 'text-gray-900' 
-                      : 'text-gray-500'
-                  }`}>
-                    Trusted Device Added
-                  </span>
-                </div>
-                <div className="flex-shrink-0 ml-4">
-                  <span className="inline-flex items-center justify-center min-w-[80px] px-3 py-2 text-sm font-black text-gray-700 bg-gray-100 rounded-lg">
-                    +20 pts
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Total Calculation Footer */}
-            <div className="px-6 pb-6">
-              <div className="p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl border-2 border-gray-200 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-base font-black text-gray-800">Maximum Score</span>
-                  <span className="text-2xl font-black text-gray-900">100 pts</span>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* RECENT ACTIVITY - REDESIGNED */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25 }}
-            className="glass-card rounded-2xl overflow-hidden mb-6 border border-gray-200"
-          >
-            {/* Header - Always Visible */}
-            <div className="p-6 bg-gradient-to-r from-blue-50 to-cyan-50 border-b border-gray-200">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg">
-                    <Activity className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">Recent Activity</h3>
-                    <p className="text-sm text-gray-600">
-                      {activityLog.length > 0 ? `Last ${activityLog.length} actions` : 'No activity yet'}
-                    </p>
-                  </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1 flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-orange-500" />
+                    Recent Activity
+                  </h3>
+                  <p className="text-xs text-gray-600">
+                    {activityLog.length > 0 ? `Last ${activityLog.length} actions` : 'No activity yet'}
+                  </p>
                 </div>
                 <button
                   onClick={() => setShowActivityLog(!showActivityLog)}
-                  className="px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm text-gray-700 transition-all shadow-sm flex items-center gap-2"
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium text-sm text-gray-700 transition-colors flex items-center gap-2"
                 >
                   {showActivityLog ? 'Hide' : 'Show'}
                   <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${showActivityLog ? 'rotate-90' : ''}`} />
                 </button>
               </div>
-              <p className="text-xs text-gray-500 flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5" />
-                Security logs, transactions, and settings changes
-              </p>
             </div>
 
             {/* Activity List - Expandable */}
@@ -1155,72 +1026,39 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                   transition={{ duration: 0.2 }}
                   className="overflow-hidden"
                 >
-                  <div className="p-6 space-y-3">
+                  <div className="p-6 space-y-2">
                     {activityLog.length === 0 ? (
-                      <div className="text-center py-12 px-6">
-                        <div className="w-20 h-20 bg-gradient-to-r from-blue-100 to-cyan-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                          <Activity className="w-10 h-10 text-blue-500 opacity-50" />
-                        </div>
-                        <p className="text-sm font-semibold text-gray-900 mb-1">No recent activity</p>
-                        <p className="text-xs text-gray-500 max-w-xs mx-auto">
-                          Your account activity like logins, transactions, and security events will appear here.
+                      <div className="text-center py-8">
+                        <Activity className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                        <p className="text-sm font-medium text-gray-900 mb-1">No recent activity</p>
+                        <p className="text-xs text-gray-500">
+                          Activity will appear here
                         </p>
                       </div>
                     ) : (
-                      activityLog.map((activity, index) => {
+                      activityLog.map((activity) => {
                         const Icon = getActivityIcon(activity.activity_type);
-                        const iconGradient = getActivityColor(activity.activity_type);
-                        const bgGradient = getActivityBgColor(activity.activity_type);
                         
                         return (
-                          <motion.div
+                          <div
                             key={activity.id}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.05 }}
-                            className={`group relative overflow-hidden bg-gradient-to-r ${bgGradient} hover:from-white hover:to-gray-50 border border-gray-200 rounded-xl p-4 transition-all hover:shadow-md hover:border-gray-300`}
+                            className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-white hover:border-gray-300 transition-colors"
                           >
-                            <div className="flex items-start gap-4">
-                              {/* Activity Icon - Color coded by type */}
-                              <div className={`w-12 h-12 bg-gradient-to-r ${iconGradient} rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-110 transition-transform`}>
-                                <Icon className="w-6 h-6 text-white" />
-                              </div>
-                              
-                              {/* Activity Info */}
+                            <div className="flex items-start gap-3">
+                              <Icon className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-bold text-gray-900 mb-1">
+                                <p className="text-sm font-medium text-gray-900 mb-1">
                                   {activity.description}
                                 </p>
-                                
-                                {/* Activity Details */}
-                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-600">
+                                <div className="flex items-center gap-2 text-xs text-gray-600">
                                   {activity.ip_address && (
-                                    <>
-                                      <span className="font-mono bg-gray-100 px-2 py-0.5 rounded">
-                                        {activity.ip_address}
-                                      </span>
-                                      <span className="text-gray-300">•</span>
-                                    </>
+                                    <span className="font-mono">{activity.ip_address}</span>
                                   )}
-                                  <span className="flex items-center gap-1 text-gray-500">
-                                    <Clock className="w-3 h-3" />
-                                    {formatActivityTime(activity.created_at)}
-                                  </span>
-                                </div>
-                                
-                                {/* Activity Type Badge */}
-                                <div className="mt-2">
-                                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r ${iconGradient} text-white text-xs font-bold rounded-full shadow-sm`}>
-                                    {activity.activity_type === 'login' && '🔐 Login'}
-                                    {activity.activity_type === 'transaction' && '💸 Transaction'}
-                                    {activity.activity_type === 'security_alert' && '⚠️ Security'}
-                                    {activity.activity_type === 'settings_change' && '⚙️ Settings'}
-                                    {!['login', 'transaction', 'security_alert', 'settings_change'].includes(activity.activity_type) && '📋 Activity'}
-                                  </span>
+                                  <span>{formatActivityTime(activity.created_at)}</span>
                                 </div>
                               </div>
                             </div>
-                          </motion.div>
+                          </div>
                         );
                       })
                     )}
@@ -1228,41 +1066,30 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 </motion.div>
               )}
             </AnimatePresence>
-          </motion.div>
+          </div>
 
-          {/* TRUSTED DEVICES - REDESIGNED */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="glass-card rounded-2xl overflow-hidden mb-6 border border-gray-200"
-          >
-            {/* Header - Always Visible */}
-            <div className="p-6 bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-gray-200">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg">
-                    <Smartphone className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">Trusted Devices</h3>
-                    <p className="text-sm text-gray-600">
-                      {trustedDevices.length} {trustedDevices.length === 1 ? 'device' : 'devices'} verified
-                    </p>
-                  </div>
+          {/* Trusted Devices - HYBRID PRO Clean Collapsible */}
+          <div className="glass-card border border-gray-200 mb-6 overflow-hidden">
+            {/* Header */}
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1 flex items-center gap-2">
+                    <Smartphone className="w-5 h-5 text-orange-500" />
+                    Trusted Devices
+                  </h3>
+                  <p className="text-xs text-gray-600">
+                    {trustedDevices.length} {trustedDevices.length === 1 ? 'device' : 'devices'} verified
+                  </p>
                 </div>
                 <button
                   onClick={() => setShowDevices(!showDevices)}
-                  className="px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl font-medium text-sm text-gray-700 transition-all shadow-sm flex items-center gap-2"
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium text-sm text-gray-700 transition-colors flex items-center gap-2"
                 >
                   {showDevices ? 'Hide' : 'Show'}
                   <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${showDevices ? 'rotate-90' : ''}`} />
                 </button>
               </div>
-              <p className="text-xs text-gray-500 flex items-center gap-1.5">
-                <Shield className="w-3.5 h-3.5" />
-                New devices require email verification for security
-              </p>
             </div>
 
             {/* Devices List - Expandable */}
@@ -1275,324 +1102,108 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                   transition={{ duration: 0.2 }}
                   className="overflow-hidden"
                 >
-                  <div className="p-6 space-y-3">
+                  <div className="p-6 space-y-2">
                     {trustedDevices.length === 0 ? (
-                      <div className="text-center py-12 px-6">
-                        <div className="w-20 h-20 bg-gradient-to-r from-purple-100 to-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                          <Smartphone className="w-10 h-10 text-purple-500 opacity-50" />
-                        </div>
-                        <p className="text-sm font-semibold text-gray-900 mb-1">No trusted devices yet</p>
-                        <p className="text-xs text-gray-500 max-w-xs mx-auto">
-                          When you sign in from a new device, you'll need to verify it via email. 
-                          Once verified, it will appear here.
+                      <div className="text-center py-8">
+                        <Smartphone className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                        <p className="text-sm font-medium text-gray-900 mb-1">No trusted devices yet</p>
+                        <p className="text-xs text-gray-500">
+                          Verified devices will appear here
                         </p>
                       </div>
                     ) : (
-                      trustedDevices.map((device, index) => (
-                        <motion.div
+                      trustedDevices.map((device) => (
+                        <div
                           key={device.id}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.05 }}
-                          className="group relative overflow-hidden bg-gradient-to-r from-gray-50 to-gray-50/50 hover:from-white hover:to-gray-50 border border-gray-200 rounded-xl p-4 transition-all hover:shadow-md hover:border-gray-300"
+                          className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-white hover:border-gray-300 transition-colors"
                         >
-                          <div className="flex items-start gap-4">
-                            {/* Device Icon */}
-                            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm border border-gray-100 group-hover:scale-110 transition-transform">
-                              {device.os?.toLowerCase().includes('mac') || device.os?.toLowerCase().includes('ios') ? (
-                                <Apple className="w-6 h-6 text-gray-700" />
-                              ) : device.os?.toLowerCase().includes('android') ? (
-                                <Smartphone className="w-6 h-6 text-green-600" />
-                              ) : (
-                                <Monitor className="w-6 h-6 text-blue-600" />
-                              )}
-                            </div>
-                            
-                            {/* Device Info */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <p className="text-sm font-bold text-gray-900 truncate">
-                                  {device.device_name}
-                                </p>
-                                {device.is_current && (
-                                  <span className="px-2.5 py-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-bold rounded-full shadow-sm flex items-center gap-1">
-                                    <CheckCircle className="w-3 h-3" />
-                                    Current
-                                  </span>
-                                )}
-                                {!device.verified_at && (
-                                  <span className="px-2.5 py-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs font-bold rounded-full shadow-sm flex items-center gap-1">
-                                    <Clock className="w-3 h-3" />
-                                    Pending
-                                  </span>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-3 flex-1 min-w-0">
+                              <div className={`p-2 rounded-lg ${device.is_current ? 'bg-orange-100' : 'bg-gray-100'} flex-shrink-0`}>
+                                {device.is_current ? (
+                                  <Monitor className="w-4 h-4 text-orange-500" />
+                                ) : device.os.toLowerCase().includes('ios') || device.os.toLowerCase().includes('iphone') ? (
+                                  <Apple className="w-4 h-4 text-gray-600" />
+                                ) : (
+                                  <Monitor className="w-4 h-4 text-gray-600" />
                                 )}
                               </div>
-                              
-                              {/* Device Details */}
-                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-600">
-                                <span className="font-medium">{device.browser}</span>
-                                <span className="text-gray-300">•</span>
-                                <span>{device.os}</span>
-                                {device.last_used_at && (
-                                  <>
-                                    <span className="text-gray-300">•</span>
-                                    <span className="text-gray-500">
-                                      Last used {formatActivityTime(device.last_used_at)}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p className="text-sm font-semibold text-gray-900 truncate">
+                                    {device.device_name}
+                                  </p>
+                                  {device.is_current && (
+                                    <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-bold rounded">
+                                      Current
                                     </span>
-                                  </>
-                                )}
-                              </div>
-                              
-                              {/* Verification Status */}
-                              {device.verified_at && (
-                                <div className="mt-2 flex items-center gap-1.5 text-xs text-green-600">
-                                  <Shield className="w-3 h-3" />
-                                  <span className="font-medium">Verified {formatActivityTime(device.verified_at)}</span>
+                                  )}
                                 </div>
-                              )}
+                                <p className="text-xs text-gray-600">
+                                  {device.browser} · {device.os}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Last used {formatActivityTime(device.last_used_at)}
+                                </p>
+                              </div>
                             </div>
                             
-                            {/* Remove Button - Only for non-current devices */}
                             {!device.is_current && (
-                              <button 
+                              <button
                                 onClick={() => handleRemoveDevice(device.id)}
-                                className="px-3 py-1.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 hover:text-red-700 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 group/remove"
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                                title="Remove device"
                               >
-                                <Trash2 className="w-3.5 h-3.5 group-hover/remove:scale-110 transition-transform" />
-                                Remove
+                                <Trash2 className="w-4 h-4" />
                               </button>
                             )}
                           </div>
-                        </motion.div>
+                        </div>
                       ))
                     )}
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
-          </motion.div>
+          </div>
 
-          {/* UPGRADE BANNER - Show for seed wallets without email */}
-          {account?.type === 'seed' && !userEmail && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.32 }}
-              className="mb-6"
-            >
-              <div className="glass-card rounded-2xl p-6 bg-gradient-to-r from-orange-50 to-red-50 border-2 border-orange-200">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <Shield className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900 mb-1">
-                      Upgrade to Email Account
-                    </h3>
-                    <p className="text-sm text-gray-700 mb-4">
-                      Get cloud backup, multi-device access, and advanced security features while keeping your existing wallet.
-                    </p>
-                    <button
-                      onClick={() => setShowUpgradeModal(true)}
-                      className="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold rounded-xl transition-all shadow-lg shadow-orange-500/30 flex items-center gap-2"
-                    >
-                      <Shield className="w-4 h-4" />
-                      Upgrade Now
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {/* SECURITY Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35 }}
-            className="mb-6"
-          >
-            <h3 className="text-lg font-bold text-gray-900 mb-3 px-1">Security</h3>
-            <div className="glass-card rounded-2xl overflow-hidden">
-              {/* Upgrade Button for Seed Wallets (Alternative placement in menu) */}
-              {account?.type === 'seed' && !userEmail && (
-                <button 
-                  onClick={() => setShowUpgradeModal(true)}
-                  className="w-full flex items-center gap-4 p-4 hover:bg-gradient-to-r hover:from-orange-50 hover:to-red-50 transition-all border-b border-gray-100 bg-gradient-to-r from-orange-50/30 to-red-50/30"
-                >
-                  <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
-                    <Shield className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-gray-900">Upgrade to Email Account</span>
-                      <span className="px-2 py-0.5 bg-orange-500 text-white text-xs font-bold rounded-full">
-                        Recommended
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600">Cloud backup & advanced features</p>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                </button>
-              )}
+          {/* Quick Actions - HYBRID PRO Button Grid */}
+          <div className="glass-card p-6 border border-gray-200 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Zap className="w-5 h-5 text-orange-500" />
+              Quick Actions
+            </h3>
+            
+            <div className="grid grid-cols-3 gap-3">
+              {/* Export CSV */}
+              <button
+                onClick={handleExportCSV}
+                className="p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+              >
+                <Download className="w-5 h-5 text-orange-500 mx-auto mb-2" />
+                <div className="text-xs font-medium text-gray-900">Export CSV</div>
+              </button>
               
-              {/* Email section - Only show for email wallets */}
-              {userEmail && (
-                <button 
-                  onClick={() => setShowChangeEmail(true)}
-                  className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
-                >
-                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                    <Mail className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-gray-900">Email</span>
-                      {isEmailVerified ? (
-                        <span className="flex items-center gap-1 text-green-600 text-xs">
-                          <CheckCircle className="w-3 h-3" />
-                          Verified
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-orange-600 text-xs">
-                          Pending verification
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-600 truncate">{userEmail}</p>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                </button>
-              )}
-
-              <button 
-                onClick={() => setShow2FAModal(true)}
-                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors border-b border-gray-100"
-              >
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                  <Key className="w-5 h-5 text-green-600" />
-                </div>
-                <div className="flex-1 text-left">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-gray-900">Two-Factor Authentication</span>
-                    {userProfile?.two_factor_enabled ? (
-                      <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded-full">
-                        Enabled
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 bg-gray-200 text-gray-700 text-xs font-bold rounded-full">
-                        Disabled
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    {userProfile?.two_factor_enabled ? 'Extra layer of security active' : 'Add an extra layer of security'}
-                  </p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
-              </button>
-
-              <button 
-                onClick={() => setShowChangePassword(true)}
-                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors"
-              >
-                <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-                  <Key className="w-5 h-5 text-orange-600" />
-                </div>
-                <div className="flex-1 text-left">
-                  <div className="font-semibold text-gray-900">Change Password</div>
-                  <p className="text-sm text-gray-600">Update your password</p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
-              </button>
-            </div>
-          </motion.div>
-
-          {/* PREFERENCES Section - REMOVED, now in Settings */}
-          {/* ADVANCED Section - REMOVED, now in Settings */}
-
-          {/* Quick Actions - REDESIGNED */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="mb-6"
-          >
-            <h3 className="text-lg font-bold text-gray-900 mb-4 px-1">Quick Actions</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               {/* Export Addresses */}
-              <button 
+              <button
                 onClick={handleExportAddresses}
-                className="group relative overflow-hidden glass-card rounded-2xl p-6 text-center hover:shadow-lg border-2 border-transparent hover:border-purple-200 transition-all"
+                className="p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
               >
-                {/* Gradient Background on Hover */}
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-50 to-indigo-50 opacity-0 group-hover:opacity-100 transition-opacity" />
-                
-                {/* Content */}
-                <div className="relative z-10">
-                  <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all shadow-lg">
-                    <Wallet className="w-8 h-8 text-white" />
-                  </div>
-                  <div className="font-bold text-gray-900 mb-2">Export Addresses</div>
-                  <div className="text-sm text-gray-600 flex items-center justify-center gap-1.5">
-                    <span className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
-                    All 18 chains
-                  </div>
-                </div>
-
-                {/* Shine Effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                <FileDown className="w-5 h-5 text-orange-500 mx-auto mb-2" />
+                <div className="text-xs font-medium text-gray-900">Export Addresses</div>
               </button>
               
-              {/* Export Wallet */}
-              <button 
-                onClick={() => {
-                  onClose();
-                  if (onOpenSettings) onOpenSettings();
-                }}
-                className="group relative overflow-hidden glass-card rounded-2xl p-6 text-center hover:shadow-lg border-2 border-transparent hover:border-blue-200 transition-all"
-              >
-                {/* Gradient Background on Hover */}
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-cyan-50 opacity-0 group-hover:opacity-100 transition-opacity" />
-                
-                {/* Content */}
-                <div className="relative z-10">
-                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all shadow-lg">
-                    <Download className="w-8 h-8 text-white" />
-                  </div>
-                  <div className="font-bold text-gray-900 mb-2">Export Wallet</div>
-                  <div className="text-sm text-gray-600">Backup seed phrase</div>
-                </div>
-
-                {/* Shine Effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-              </button>
-
               {/* Lock Wallet */}
-              <button 
+              <button
                 onClick={handleLockWallet}
-                className="group relative overflow-hidden glass-card rounded-2xl p-6 text-center hover:shadow-lg border-2 border-transparent hover:border-red-200 transition-all"
+                className="p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
               >
-                {/* Gradient Background on Hover */}
-                <div className="absolute inset-0 bg-gradient-to-br from-red-50 to-orange-50 opacity-0 group-hover:opacity-100 transition-opacity" />
-                
-                {/* Content */}
-                <div className="relative z-10">
-                  <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 group-hover:rotate-3 transition-all shadow-lg">
-                    <LogOut className="w-8 h-8 text-white" />
-                  </div>
-                  <div className="font-bold text-red-600 mb-2">Lock Wallet</div>
-                  <div className="text-sm text-gray-600 flex items-center justify-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5" />
-                    Secure your wallet
-                  </div>
-                </div>
-
-                {/* Shine Effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                <Lock className="w-5 h-5 text-orange-500 mx-auto mb-2" />
+                <div className="text-xs font-medium text-gray-900">Lock Wallet</div>
               </button>
             </div>
-          </motion.div>
+          </div>
+
 
           {/* Footer */}
           <div className="text-center text-xs text-gray-500 space-y-1 mt-8">
