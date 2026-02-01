@@ -24,6 +24,8 @@ import AutoLockSettingsModal from './AutoLockSettingsModal';
 import DeleteAccountModal from './DeleteAccountModal';
 import ChangeEmailModal from './ChangeEmailModal';
 import UpgradeToEmailModal from './UpgradeToEmailModal';
+import RecentActivityModal from './RecentActivityModal';
+import TrustedDevicesModal from './TrustedDevicesModal';
 
 interface AccountPageProps {
   isOpen: boolean;
@@ -1010,180 +1012,47 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             )}
           </div>
 
-          {/* Recent Activity - HYBRID PRO Clean Collapsible */}
-          <div className="glass-card border border-gray-200 mb-6 overflow-hidden">
-            {/* Header */}
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
+          {/* Recent Activity - Button to open modal */}
+          <button
+            onClick={() => setShowActivityLog(true)}
+            className="glass-card p-6 border border-gray-200 mb-6 w-full hover:border-gray-300 transition-colors text-left"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
+                  <Activity className="w-5 h-5 text-white" />
+                </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1 flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-orange-500" />
-                    Recent Activity
-                  </h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Recent Activity</h3>
                   <p className="text-xs text-gray-600">
                     {activityLog.length > 0 ? `Last ${activityLog.length} actions` : 'No activity yet'}
                   </p>
                 </div>
-                <button
-                  onClick={() => setShowActivityLog(!showActivityLog)}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium text-sm text-gray-700 transition-colors flex items-center gap-2"
-                >
-                  {showActivityLog ? 'Hide' : 'Show'}
-                  <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${showActivityLog ? 'rotate-90' : ''}`} />
-                </button>
               </div>
+              <ChevronRight className="w-5 h-5 text-gray-400" />
             </div>
+          </button>
 
-            {/* Activity List - Expandable */}
-            <AnimatePresence>
-              {showActivityLog && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden"
-                >
-                  <div className="p-6 space-y-2">
-                    {activityLog.length === 0 ? (
-                      <div className="text-center py-8">
-                        <Activity className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-sm font-medium text-gray-900 mb-1">No recent activity</p>
-                        <p className="text-xs text-gray-500">
-                          Activity will appear here
-                        </p>
-                      </div>
-                    ) : (
-                      activityLog.map((activity) => {
-                        const Icon = getActivityIcon(activity.activity_type);
-                        
-                        return (
-                          <div
-                            key={activity.id}
-                            className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-white hover:border-gray-300 transition-colors"
-                          >
-                            <div className="flex items-start gap-3">
-                              <Icon className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-gray-900 mb-1">
-                                  {activity.description}
-                                </p>
-                                <div className="flex items-center gap-2 text-xs text-gray-600">
-                                  {activity.ip_address && (
-                                    <span className="font-mono">{activity.ip_address}</span>
-                                  )}
-                                  <span>{formatActivityTime(activity.created_at)}</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* Trusted Devices - HYBRID PRO Clean Collapsible */}
-          <div className="glass-card border border-gray-200 mb-6 overflow-hidden">
-            {/* Header */}
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
+          {/* Trusted Devices - Button to open modal */}
+          <button
+            onClick={() => setShowDevices(true)}
+            className="glass-card p-6 border border-gray-200 mb-6 w-full hover:border-gray-300 transition-colors text-left"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
+                  <Smartphone className="w-5 h-5 text-white" />
+                </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1 flex items-center gap-2">
-                    <Smartphone className="w-5 h-5 text-orange-500" />
-                    Trusted Devices
-                  </h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Trusted Devices</h3>
                   <p className="text-xs text-gray-600">
                     {trustedDevices.length} {trustedDevices.length === 1 ? 'device' : 'devices'} verified
                   </p>
                 </div>
-                <button
-                  onClick={() => setShowDevices(!showDevices)}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium text-sm text-gray-700 transition-colors flex items-center gap-2"
-                >
-                  {showDevices ? 'Hide' : 'Show'}
-                  <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${showDevices ? 'rotate-90' : ''}`} />
-                </button>
               </div>
+              <ChevronRight className="w-5 h-5 text-gray-400" />
             </div>
-
-            {/* Devices List - Expandable */}
-            <AnimatePresence>
-              {showDevices && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="overflow-hidden"
-                >
-                  <div className="p-6 space-y-2">
-                    {trustedDevices.length === 0 ? (
-                      <div className="text-center py-8">
-                        <Smartphone className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-sm font-medium text-gray-900 mb-1">No trusted devices yet</p>
-                        <p className="text-xs text-gray-500">
-                          Verified devices will appear here
-                        </p>
-                      </div>
-                    ) : (
-                      trustedDevices.map((device) => (
-                        <div
-                          key={device.id}
-                          className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-white hover:border-gray-300 transition-colors"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-start gap-3 flex-1 min-w-0">
-                              <div className={`p-2 rounded-lg ${device.is_current ? 'bg-orange-100' : 'bg-gray-100'} flex-shrink-0`}>
-                                {device.is_current ? (
-                                  <Monitor className="w-4 h-4 text-orange-500" />
-                                ) : device.os.toLowerCase().includes('ios') || device.os.toLowerCase().includes('iphone') ? (
-                                  <Apple className="w-4 h-4 text-gray-600" />
-                                ) : (
-                                  <Monitor className="w-4 h-4 text-gray-600" />
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <p className="text-sm font-semibold text-gray-900 truncate">
-                                    {device.device_name}
-                                  </p>
-                                  {device.is_current && (
-                                    <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-bold rounded">
-                                      Current
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-xs text-gray-600">
-                                  {device.browser} · {device.os}
-                                </p>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  Last used {formatActivityTime(device.last_used_at)}
-                                </p>
-                              </div>
-                            </div>
-                            
-                            {!device.is_current && (
-                              <button
-                                onClick={() => handleRemoveDevice(device.id)}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
-                                title="Remove device"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          </button>
 
           {/* Quick Actions - HYBRID PRO Button Grid */}
           <div className="glass-card p-6 border border-gray-200 mb-6">
@@ -1282,6 +1151,19 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
         onSuccess={handleReloadData}
+      />
+      
+      <RecentActivityModal
+        isOpen={showActivityLog}
+        onClose={() => setShowActivityLog(false)}
+        activities={activityLog}
+      />
+      
+      <TrustedDevicesModal
+        isOpen={showDevices}
+        onClose={() => setShowDevices(false)}
+        devices={trustedDevices}
+        onRemoveDevice={handleRemoveDevice}
       />
     </AnimatePresence>
   );
