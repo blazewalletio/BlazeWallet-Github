@@ -137,6 +137,11 @@ export default function Home() {
               // The user will get device verification email via signInWithEmail
               logger.log('✅ [DEVICE CHECK] User has wallet - will require device verification on next login');
               
+              // ⚠️ CRITICAL: Preserve device_id before signOut (Supabase clears localStorage!)
+              const preservedDeviceId = localStorage.getItem('blaze_device_id');
+              const preservedFingerprint = localStorage.getItem('blaze_device_fingerprint');
+              const preservedFingerprintCachedAt = localStorage.getItem('blaze_fingerprint_cached_at');
+              
               // Store minimal data for unlock modal
               localStorage.setItem('encrypted_wallet', walletData.encrypted_wallet);
               localStorage.setItem('has_password', 'true');
@@ -146,6 +151,18 @@ export default function Home() {
               
               // ✅ Sign out to force fresh login with device verification
               await supabase.auth.signOut();
+              
+              // ⚠️ CRITICAL: Restore device_id after signOut!
+              if (preservedDeviceId) {
+                localStorage.setItem('blaze_device_id', preservedDeviceId);
+                logger.log('✅ [DEVICE CHECK] Device ID preserved after signOut:', preservedDeviceId.substring(0, 12) + '...');
+              }
+              if (preservedFingerprint) {
+                localStorage.setItem('blaze_device_fingerprint', preservedFingerprint);
+              }
+              if (preservedFingerprintCachedAt) {
+                localStorage.setItem('blaze_fingerprint_cached_at', preservedFingerprintCachedAt);
+              }
               
               // Show onboarding (which will show login screen)
               setHasWallet(false);
