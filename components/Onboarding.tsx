@@ -340,23 +340,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           await importWallet(result.mnemonic);
         }
 
-        // Check if mobile AND biometrics not already enabled
-        const biometricEnabled = typeof window !== 'undefined'
-          ? localStorage.getItem('biometric_enabled') === 'true'
-          : false;
-
-        if (isMobileDevice && !biometricEnabled) {
-          // Offer biometric setup after email login
-          logger.log('📱 Mobile device detected - offering biometric setup');
-          // Store password temporarily for biometric setup
-          if (typeof window !== 'undefined') {
-            sessionStorage.setItem('pending_biometric_password', password);
-          }
-          setStep('biometric-setup');
-        } else {
-          // Desktop or biometrics already enabled - complete onboarding
-          onComplete();
-        }
+        // ✅ SIGN IN (existing user) → Always complete onboarding immediately!
+        // Don't offer biometric setup for existing users during sign in
+        // They can enable it later in settings if they want
+        logger.log('✅ Sign in successful - completing onboarding');
+        onComplete();
       }
     } catch (err) {
       logger.error('Error with email auth:', err);
@@ -385,23 +373,10 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         await importWallet(result.mnemonic);
       }
 
-      // Check if mobile AND biometrics not already enabled
-      const biometricEnabled = typeof window !== 'undefined'
-        ? localStorage.getItem('biometric_enabled') === 'true'
-        : false;
-
-      if (isMobileDevice && !biometricEnabled) {
-        // Offer biometric setup after email login
-        logger.log('📱 Mobile device detected - offering biometric setup');
-        // Store password temporarily for biometric setup
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem('pending_biometric_password', pending2FAPassword);
-        }
-        setStep('biometric-setup');
-      } else {
-        // Desktop or biometrics already enabled - complete onboarding
-        onComplete();
-      }
+      // ✅ 2FA SIGN IN (existing user) → Always complete onboarding immediately!
+      // Don't offer biometric setup for existing users during sign in
+      logger.log('✅ 2FA verification successful - completing onboarding');
+      onComplete();
     } catch (err) {
       logger.error('Error completing 2FA sign in:', err);
       setError('Failed to complete sign in after 2FA');
