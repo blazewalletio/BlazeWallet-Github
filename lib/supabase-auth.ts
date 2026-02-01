@@ -218,7 +218,38 @@ export async function signUpWithEmail(
       // It will be returned to user for backup, but not persisted locally
     }
 
-    // Track successful signup
+    // 6.5. ✅ NEW: Store first device as VERIFIED (no email verification needed for sign-up)
+    logger.log('📱 [SignUp] Storing first device as verified...');
+    try {
+      const { DeviceIdManager } = await import('./device-id-manager');
+      const { deviceId } = DeviceIdManager.getOrCreateDeviceId();
+      
+      const { generateEnhancedFingerprint } = await import('./device-fingerprint-pro');
+      const deviceInfo = await generateEnhancedFingerprint();
+      
+      await supabase
+        .from('trusted_devices')
+        .insert({
+          user_id: authData.user.id,
+          device_id: deviceId,
+          device_name: deviceInfo.deviceName,
+          device_fingerprint: deviceInfo.fingerprint,
+          ip_address: deviceInfo.ipAddress,
+          user_agent: deviceInfo.userAgent,
+          browser: `${deviceInfo.browser}`,
+          os: `${deviceInfo.os}`,
+          is_current: true,
+          verified_at: new Date().toISOString(), // ✅ Mark as verified immediately!
+          last_used_at: new Date().toISOString(),
+        });
+      
+      logger.log('✅ [SignUp] First device stored as verified');
+    } catch (deviceError) {
+      logger.error('❌ [SignUp] Failed to store first device:', deviceError);
+      // Don't fail signup if device storage fails
+    }
+
+    // 7. Track successful signup
     if (typeof window !== 'undefined') {
       const { trackAuth } = await import('@/lib/analytics');
       await trackAuth(authData.user.id, 'signup', {
@@ -271,9 +302,8 @@ export async function signUpWithEmail(
 }
 
 /**
- * Sign in with email and password
- * Downloads and decrypts wallet from Supabase
- * ✅ NEW: Now checks if 2FA is required BEFORE allowing login
+ * Sign in with email (existing account)
+ * ✅ UPDATED: Now includes device verification (industry best practice)
  */
 export async function signInWithEmail(
   email: string,
@@ -294,7 +324,7 @@ export async function signInWithEmail(
       return { success: false, error: 'Failed to sign in' };
     }
 
-    // ✅ NEW: Check if user has 2FA enabled
+    // 2. ✅ Check if user has 2FA enabled
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('two_factor_enabled')
@@ -311,7 +341,127 @@ export async function signInWithEmail(
       };
     }
 
-    // 2. Download encrypted wallet (via secure server endpoint)
+    // 3. ✅ NEW: Check device verification (ALWAYS for email wallets)
+    logger.log('🔐 [SignIn] Checking device verification...');
+    
+    // Get or create persistent device ID
+    const { DeviceIdManager } = await import('./device-id-manager');
+    const { deviceId, isNew: isNewDeviceId } = DeviceIdManager.getOrCreateDeviceId();
+    
+    logger.log(`📱 [SignIn] Device ID: ${deviceId.substring(0, 12)}... (${isNewDeviceId ? 'NEW' : 'EXISTING'})`);
+    
+    // Generate enhanced device fingerprint
+    const { generateEnhancedFingerprint } = await import('./device-fingerprint-pro');
+    const deviceInfo = await generateEnhancedFingerprint();
+    
+    logger.log('📱 [SignIn] Device fingerprint generated:', deviceInfo.deviceName);
+    
+    // Check if device is already trusted (by device_id)
+    const { data: existingDevice } = await supabase
+      .from('trusted_devices')
+      .select('*')
+      .eq('user_id', authData.user.id)
+      .eq('device_id', deviceId)
+      .maybeSingle();
+    
+    // UNTRUSTED DEVICE - Require verification
+    if (!existingDevice || !existingDevice.verified_at) {
+      logger.warn('🚫 [SignIn] UNTRUSTED device - requiring verification');
+      
+      // Generate 6-digit verification code
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Generate device verification token
+      const crypto = await import('crypto');
+      const deviceToken = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date();
+      expiresAt.setMinutes(expiresAt.getMinutes() + 15); // 15 min expiry
+      
+      // Store/update device in database (unverified)
+      if (existingDevice) {
+        // Update existing device with new verification code
+        await supabase
+          .from('trusted_devices')
+          .update({
+            device_name: deviceInfo.deviceName,
+            device_fingerprint: deviceInfo.fingerprint,
+            ip_address: deviceInfo.ipAddress,
+            user_agent: deviceInfo.userAgent,
+            browser: `${deviceInfo.browser}`,
+            os: `${deviceInfo.os}`,
+            verification_token: deviceToken,
+            verification_code: verificationCode,
+            verification_expires_at: expiresAt.toISOString(),
+          })
+          .eq('id', existingDevice.id);
+      } else {
+        // Insert new device
+        await supabase
+          .from('trusted_devices')
+          .insert({
+            user_id: authData.user.id,
+            device_id: deviceId,
+            device_name: deviceInfo.deviceName,
+            device_fingerprint: deviceInfo.fingerprint,
+            ip_address: deviceInfo.ipAddress,
+            user_agent: deviceInfo.userAgent,
+            browser: `${deviceInfo.browser}`,
+            os: `${deviceInfo.os}`,
+            verification_token: deviceToken,
+            verification_code: verificationCode,
+            verification_expires_at: expiresAt.toISOString(),
+            is_current: true,
+          });
+      }
+      
+      // Send device verification email
+      try {
+        await fetch('/api/verify-device', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: authData.user.id,
+            email: authData.user.email,
+            deviceInfo: {
+              deviceName: deviceInfo.deviceName,
+              fingerprint: deviceInfo.fingerprint,
+              ipAddress: deviceInfo.ipAddress,
+              userAgent: deviceInfo.userAgent,
+              browser: deviceInfo.browser,
+              os: deviceInfo.os,
+              location: deviceInfo.location,
+            },
+          }),
+        });
+        
+        logger.log('✅ [SignIn] Device verification email sent');
+      } catch (emailError) {
+        logger.error('❌ [SignIn] Failed to send verification email:', emailError);
+      }
+      
+      // Return requiresDeviceVerification flag
+      return {
+        success: true,
+        user: authData.user,
+        requiresDeviceVerification: true,
+        deviceVerificationToken: deviceToken,
+      };
+    }
+    
+    // TRUSTED DEVICE - Continue with login
+    logger.log('✅ [SignIn] TRUSTED device - allowing login');
+    
+    // Update last_used_at
+    await supabase
+      .from('trusted_devices')
+      .update({ 
+        last_used_at: new Date().toISOString(),
+        is_current: true,
+      })
+      .eq('id', existingDevice.id);
+
+    // 4. Download encrypted wallet (via secure server endpoint)
+    // 4. Download encrypted wallet (via secure server endpoint)
     // Get CSRF token first
     const csrfResponse = await fetch('/api/csrf-token');
     const { token: csrfToken } = await csrfResponse.json();
@@ -331,10 +481,11 @@ export async function signInWithEmail(
       return { success: false, error: 'Wallet not found. Please use recovery phrase.' };
     }
 
-    // 3. Decrypt wallet
+    // 5. Decrypt wallet
     const mnemonic = await decryptMnemonic(walletData.encrypted_mnemonic, password);
 
-    // 4. Store wallet flags locally (NOT addresses - they're derived on unlock)
+    // 6. Store wallet flags locally (NOT addresses - they're derived on unlock)
+    // 6. Store wallet flags locally (NOT addresses - they're derived on unlock)
     if (typeof window !== 'undefined') {
       localStorage.setItem('wallet_email', email);
       localStorage.setItem('has_password', 'true'); // Password is verified
@@ -348,7 +499,7 @@ export async function signInWithEmail(
       // Mnemonic is returned directly and handled in memory only
     }
 
-    // Track successful login
+    // 7. Track successful login
     if (typeof window !== 'undefined') {
       const { trackAuth } = await import('@/lib/analytics');
       await trackAuth(authData.user!.id, 'login', { 
