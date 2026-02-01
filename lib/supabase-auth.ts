@@ -414,29 +414,22 @@ export async function signInWithEmail(
           });
       }
       
-      // Send device verification email
+      // Send device verification CODE email (6-digit code)
       try {
-        await fetch('/api/verify-device', {
+        await fetch('/api/send-device-code', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            userId: authData.user.id,
             email: authData.user.email,
-            deviceInfo: {
-              deviceName: deviceInfo.deviceName,
-              fingerprint: deviceInfo.fingerprint,
-              ipAddress: deviceInfo.ipAddress,
-              userAgent: deviceInfo.userAgent,
-              browser: deviceInfo.browser,
-              os: deviceInfo.os,
-              location: deviceInfo.location,
-            },
+            deviceName: deviceInfo.deviceName,
+            verificationCode: verificationCode,
+            location: deviceInfo.location,
           }),
         });
         
-        logger.log('✅ [SignIn] Device verification email sent');
+        logger.log('✅ [SignIn] Device verification code email sent');
       } catch (emailError) {
-        logger.error('❌ [SignIn] Failed to send verification email:', emailError);
+        logger.error('❌ [SignIn] Failed to send verification code email:', emailError);
       }
       
       // Return requiresDeviceVerification flag
