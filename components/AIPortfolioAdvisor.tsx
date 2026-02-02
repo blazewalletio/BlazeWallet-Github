@@ -406,10 +406,17 @@ export default function AIPortfolioAdvisor({
               <div className="space-y-3 bg-white rounded-xl border border-gray-200 p-6">
                 <h3 className="font-semibold text-gray-900">Top Holdings</h3>
                 <div className="space-y-3">
-                  {tokens.slice(0, 5).map((token, i) => {
-                    // Calculate USD value properly using correct Token properties
-                    const tokenUsdValue = token.balanceUSD ? parseFloat(token.balanceUSD) :
-                                         (token.priceUSD && token.balance ? parseFloat(token.balance) * token.priceUSD : 0);
+                  {tokens
+                    // ✅ Sort by USD value (highest first)
+                    .map(token => {
+                      const tokenUsdValue = token.balanceUSD ? parseFloat(token.balanceUSD) :
+                                           (token.priceUSD && token.balance ? parseFloat(token.balance) * token.priceUSD : 0);
+                      return { ...token, calculatedUsdValue: tokenUsdValue };
+                    })
+                    .sort((a, b) => b.calculatedUsdValue - a.calculatedUsdValue)
+                    .slice(0, 5)
+                    .map((token, i) => {
+                    const tokenUsdValue = token.calculatedUsdValue;
                     const percentage = tokenUsdValue > 0 && totalValue > 0 ? (tokenUsdValue / totalValue) * 100 : 0;
                     
                     // Get correct logo - Dashboard uses 'logo' property
