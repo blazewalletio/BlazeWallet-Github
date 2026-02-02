@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Loader2, CheckCircle2, Flame, ChevronDown, Check, AlertTriangle, Lightbulb, Users, Zap, TurtleIcon as Turtle, Gauge, Rocket } from 'lucide-react';
+import { ArrowRight, Loader2, CheckCircle2, ArrowUpRight, ChevronDown, Check, AlertTriangle, Lightbulb, Users, Zap, TurtleIcon as Turtle, Gauge, Rocket } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { supabase } from '@/lib/supabase';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
@@ -661,7 +661,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
             <div className="mb-6">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Flame className="w-6 h-6 text-white" />
+                  <ArrowUpRight className="w-6 h-6 text-white" />
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Send crypto</h2>
