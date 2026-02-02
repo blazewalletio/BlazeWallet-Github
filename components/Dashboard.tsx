@@ -410,6 +410,17 @@ export default function Dashboard() {
     // 🚫 SKIP if this is ONLY an address change (wallet unlock) and NOT a chain switch
     // ✅ BUT: Don't skip if address changed from null → address (wallet unlock after hard refresh!)
     const isUnlockAfterRefresh = wasAddressNull && isAddressNowSet;
+    const isSignOut = !wasAddressNull && !isAddressNowSet; // address changed from value → null (sign out)
+    
+    // 🚪 SKIP fetch on sign out (address → null)
+    if (isSignOut) {
+      console.log('');
+      console.log('🚪 SKIPPING FETCH - User signed out (address cleared)');
+      console.log(`   Chain: ${currentChain}, Address changed to null`);
+      console.log('');
+      logger.log(`🚪 [Dashboard] Skipping fetch - sign out detected`);
+      return; // EXIT EARLY
+    }
     
     if (!isRealChainSwitch && isAddressChange && displayAddress && !isUnlockAfterRefresh) {
       console.log('');
