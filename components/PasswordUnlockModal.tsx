@@ -323,8 +323,8 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       await supabase.auth.signOut();
       
       // Clear wallet store
-      const { clearWallet } = useWalletStore.getState();
-      clearWallet();
+      const { resetWallet } = useWalletStore.getState();
+      resetWallet();
       
       // Clear all wallet-related localStorage (but preserve device tracking)
       const keysToRemove = [
