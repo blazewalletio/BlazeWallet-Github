@@ -419,7 +419,10 @@ export default function Home() {
               sessionStorage.setItem('last_activity', Date.now().toString());
             }}
             onFallback={() => {
-              setShowRecoveryPhrase(true);
+              // ✅ Sign out: Return to onboarding screen
+              logger.log('🚪 [Sign Out] Returning to onboarding screen');
+              setHasWallet(false);
+              setShowRecoveryPhrase(false);
             }}
           />
         </>
