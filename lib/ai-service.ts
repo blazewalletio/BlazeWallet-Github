@@ -555,29 +555,12 @@ class AIService {
     }
   }
 
-  // Conversational AI assistant
+  // Conversational AI assistant (stub - feature disabled)
   async chat(message: string, context?: any): Promise<string> {
     try {
       // Add to conversation history
       this.conversationHistory.push({ role: 'user', content: message });
       
-      // Check if we have an API key
-      const apiKey = this.getApiKey();
-      if (!apiKey) {
-        logger.log('❌ No API key available for chat');
-        return 'I cannot answer your question without an OpenAI API key. Set this up in Settings → AI Configuration.';
-      }
-
-      // Check rate limit
-      if (!this.checkRateLimit()) {
-        return 'Too many requests. Wait a moment and try again.';
-      }
-
-      // Check for recent failures
-      if (this.isRecentFailure()) {
-        return 'OpenAI API has had too many requests recently. Wait a moment before trying again.';
-      }
-
       // Common crypto questions (works offline)
       const commonQuestions: { [key: string]: string } = {
         'what is gas': 'Gas is the transaction fee on Ethereum. It\'s the price you pay to miners/validators to process your transaction. Measured in gwei (1 gwei = 0.000000001 ETH).',
@@ -596,6 +579,7 @@ class AIService {
         'what are altcoins': 'Altcoins are all cryptocurrencies except Bitcoin. Popular altcoins are Ethereum, Cardano, Solana and Polygon.',
       };
 
+      // Check for common questions
       const lowerMessage = message.toLowerCase();
       for (const [question, answer] of Object.entries(commonQuestions)) {
         if (lowerMessage.includes(question)) {
@@ -605,92 +589,13 @@ class AIService {
         }
       }
 
-      // If we have API key, use OpenAI
-      if (apiKey) {
-        logger.log('🤖 Making OpenAI API call...');
-        
-        return await this.retryWithBackoff(async () => {
-          const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify({
-              model: 'gpt-4o-mini', // Changed to more cost-effective model
-              messages: [
-                {
-                  role: 'system',
-                  content: `You are a helpful crypto expert assistant in BlazeWallet. 
-                  Give clear, short answers in English.
-                  Focus on practical advice. Never mention that you are an AI.
-                  Context: ${JSON.stringify(context || {})}`,
-                },
-                ...this.conversationHistory,
-              ],
-              temperature: 0.7,
-              max_tokens: 200,
-            }),
-          });
-
-          logger.log('📡 OpenAI response status:', response.status);
-
-          if (!response.ok) {
-            logger.error('❌ OpenAI API error:', response.status, response.statusText);
-            
-            // Parse error response
-            const errorData = await response.json().catch(() => ({}));
-            
-            if (response.status === 401) {
-              throw new Error('API key is ongeldig. Controleer je OpenAI API key in de instellingen.');
-            } else if (response.status === 429) {
-              // Check if it's a quota error
-              if (errorData.error?.code === 'insufficient_quota') {
-                throw new Error('Je OpenAI account heeft geen credits meer. Voeg een betaalmethod toe of upgrade je plan op platform.openai.com/account/billing');
-              } else {
-                throw new Error('Te veel requests. Wacht even en probeer opnieuw.');
-              }
-            } else if (response.status === 404) {
-              throw new Error('OpenAI API endpoint niet gevonden. Controleer je API key.');
-            } else {
-              throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
-            }
-          }
-
-          const data = await response.json();
-          logger.log('✅ OpenAI response data:', data);
-
-          if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-            logger.error('❌ Invalid OpenAI response structure:', data);
-            throw new Error('OpenAI gaf een onverwacht antwoord. Probeer opnieuw.');
-          }
-
-          const assistantMessage = data.choices[0].message.content;
-          
-          this.conversationHistory.push({ role: 'assistant', content: assistantMessage });
-          
-          // Keep conversation history manageable
-          if (this.conversationHistory.length > 20) {
-            this.conversationHistory = this.conversationHistory.slice(-10);
-          }
-
-          return assistantMessage;
-        });
-      }
-
-      // No API key available
-      return 'I cannot answer your question without an OpenAI API key. Set this up in Settings → AI Configuration.';
+      // For any other question, return a helpful message
+      const response = 'This feature is currently unavailable. Please use the AI Portfolio Advisor, Gas Optimizer, or Whisper features instead.';
+      this.conversationHistory.push({ role: 'assistant', content: response });
+      return response;
     } catch (error: any) {
       logger.error('Chat error:', error);
-      
-      // Provide helpful fallback responses when OpenAI is unavailable
-      if (error.message?.includes('Te veel requests')) {
-        return 'OpenAI API heeft momenteel te veel requests. Probeer het over een paar minuten opnieuw, of stel je vraag anders.';
-      } else if (error.message?.includes('API key')) {
-        return 'Er is een probleem met de OpenAI API key. Controleer de instellingen.';
-      } else {
-        return 'Sorry, er ging iets fout. Probeer het opnieuw of stel een eenvoudigere vraag.';
-      }
+      return 'Sorry, something went wrong. Please try again.';
     }
   }
 
