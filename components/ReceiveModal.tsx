@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Copy, Check, Share2, Flame } from 'lucide-react';
+import { Copy, Check, Share2, ArrowDownLeft } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import QRCode from 'qrcode';
@@ -99,7 +99,7 @@ export default function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
           <div className="mb-6">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
-                <Flame className="w-6 h-6 text-white" />
+                <ArrowDownLeft className="w-6 h-6 text-white" />
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Receive crypto</h2>
