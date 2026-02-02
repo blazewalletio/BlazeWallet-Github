@@ -86,6 +86,9 @@ export default function AIGasOptimizer({ onClose, chain }: AIGasOptimizerProps) 
     try {
       logger.log('⛽ [Gas Optimizer] Requesting analysis...', { chain, selectedTxType, urgency });
       
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout
+      
       const response = await fetch('/api/gas-optimizer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -94,9 +97,27 @@ export default function AIGasOptimizer({ onClose, chain }: AIGasOptimizerProps) 
           transactionType: selectedTxType,
           urgency,
         }),
+        signal: controller.signal,
       });
       
-      const data = await response.json();
+      clearTimeout(timeoutId);
+      
+      // Check if response is ok
+      if (!response.ok) {
+        if (response.status === 504) {
+          throw new Error('Request timeout - the analysis is taking too long. Please try again.');
+        }
+        throw new Error(`Server error: ${response.status}`);
+      }
+      
+      // Try to parse JSON
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        logger.error('❌ Failed to parse response as JSON:', jsonError);
+        throw new Error('Invalid response from server. Please try again.');
+      }
       
       if (!data.success) {
         throw new Error(data.error || 'Failed to analyze gas prices');
@@ -106,7 +127,13 @@ export default function AIGasOptimizer({ onClose, chain }: AIGasOptimizerProps) 
       logger.log('✅ [Gas Optimizer] Analysis loaded:', data.analysis);
     } catch (err: any) {
       logger.error('❌ [Gas Optimizer] Error:', err);
-      setError(err.message);
+      
+      // Handle abort error (timeout)
+      if (err.name === 'AbortError') {
+        setError('Request timeout - the server took too long to respond. Please try again.');
+      } else {
+        setError(err.message || 'Failed to load gas analysis. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

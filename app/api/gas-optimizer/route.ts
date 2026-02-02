@@ -17,7 +17,7 @@ import { gasPriceService } from '@/lib/gas-price-service';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 30; // Reduced timeout to fail fast
 
 interface GasAnalysisRequest {
   chain: string;
@@ -105,12 +105,36 @@ export async function POST(req: NextRequest) {
     
     // Get real-time gas price
     logger.log(`⛽ Fetching real-time gas for ${chain}...`);
-    const gasPrice = await gasPriceService.getGasPrice(chain);
+    
+    // Add timeout wrapper for gas price fetch (5 seconds max)
+    const gasPricePromise = gasPriceService.getGasPrice(chain);
+    const gasPriceTimeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Gas price fetch timeout')), 5000)
+    );
+    
+    const gasPrice = await Promise.race([gasPricePromise, gasPriceTimeout]) as any;
     logger.log('✅ Gas price fetched:', gasPrice);
     
-    // Get historical data from Supabase
+    // Get historical data from Supabase (with timeout)
     const { gasHistoryService } = await import('@/lib/gas-history-service');
-    const stats = await gasHistoryService.getStatistics(chain);
+    
+    const statsPromise = gasHistoryService.getStatistics(chain);
+    const statsTimeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Historical data fetch timeout')), 5000)
+    );
+    
+    let stats;
+    try {
+      stats = await Promise.race([statsPromise, statsTimeout]) as any;
+    } catch (err) {
+      logger.warn('⚠️ Could not fetch historical data, using defaults:', err);
+      // Use reasonable defaults if historical data fails
+      stats = {
+        avg24h: gasPrice.standard,
+        min24h: gasPrice.standard * 0.7,
+        max24h: gasPrice.standard * 1.5,
+      };
+    }
     
     const historicalData = {
       avg24h: stats.avg24h,
@@ -274,7 +298,8 @@ Respond in JSON format:
     
     const openai = new OpenAI({ apiKey });
     
-    const completion = await openai.chat.completions.create({
+    // Add timeout for OpenAI call (15 seconds max)
+    const completionPromise = openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
@@ -291,6 +316,12 @@ Respond in JSON format:
       max_tokens: 1000,
     });
     
+    const completionTimeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('OpenAI API timeout - request took too long')), 15000)
+    );
+    
+    const completion = await Promise.race([completionPromise, completionTimeout]) as any;
+    
     const aiResponse = completion.choices[0].message.content;
     logger.log('✅ OpenAI response received');
     logger.log('📄 Response:', aiResponse);
@@ -299,7 +330,33 @@ Respond in JSON format:
       throw new Error('No response from OpenAI');
     }
     
-    const recommendation = JSON.parse(aiResponse);
+    // Parse JSON with better error handling
+    let recommendation;
+    try {
+      recommendation = JSON.parse(aiResponse);
+    } catch (parseError: any) {
+      logger.error('❌ Failed to parse OpenAI response:', parseError);
+      logger.error('📄 Raw response:', aiResponse);
+      
+      // Provide fallback recommendation if JSON parsing fails
+      recommendation = {
+        action: gasLevel === 'very_low' || gasLevel === 'low' ? 'transact_now' : 'wait_short',
+        confidence: 60,
+        reasoning: 'AI analysis unavailable. Based on current gas levels, this is a reasonable action.',
+        estimatedSavings: gasLevel === 'medium' || gasLevel === 'high' ? {
+          gas: avgGas * 0.2,
+          usd: usdCosts[transactionType as keyof typeof usdCosts] * 0.2,
+          percentage: 20
+        } : undefined,
+        optimalTime: gasLevel === 'high' || gasLevel === 'very_high' ? 'in 2-4 hours' : undefined,
+        warnings: [],
+        tips: [
+          'Consider transacting during off-peak hours (2-6 AM UTC)',
+          'Use Layer 2 solutions like Arbitrum or Optimism for lower fees',
+          'Set gas price manually for better control'
+        ]
+      };
+    }
     
     // Build final response
     const response: GasAnalysisResponse = {
