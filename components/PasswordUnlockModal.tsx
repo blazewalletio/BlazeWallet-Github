@@ -303,6 +303,72 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     onFallback();
   };
 
+  // Handle complete sign out
+  const handleSignOut = async () => {
+    try {
+      setIsLoading(true);
+      logger.log('🚪 [Unlock Modal] User initiated sign out');
+      
+      // Import supabase
+      const { supabase } = await import('@/lib/supabase');
+      
+      // ⚠️ CRITICAL: Preserve device_id before clearing localStorage
+      const preservedDeviceId = localStorage.getItem('blaze_device_id');
+      const preservedFingerprint = localStorage.getItem('blaze_device_fingerprint');
+      const preservedFingerprintCachedAt = localStorage.getItem('blaze_fingerprint_cached_at');
+      
+      logger.log('🔑 [Unlock Modal] Preserving device_id:', preservedDeviceId?.substring(0, 12) + '...');
+      
+      // Sign out from Supabase
+      await supabase.auth.signOut();
+      
+      // Clear wallet store
+      const { clearWallet } = useWalletStore.getState();
+      clearWallet();
+      
+      // Clear all wallet-related localStorage (but preserve device tracking)
+      const keysToRemove = [
+        'wallet_email',
+        'has_password',
+        'encrypted_wallet',
+        'wallet_created_with_email',
+        'supabase_user_id',
+        'biometric_enabled',
+        'wallet_unlocked_this_session',
+      ];
+      
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+      });
+      
+      // Clear sessionStorage
+      sessionStorage.clear();
+      
+      // ✅ CRITICAL: Restore device_id after clearing localStorage
+      if (preservedDeviceId) {
+        localStorage.setItem('blaze_device_id', preservedDeviceId);
+        logger.log('✅ [Unlock Modal] Device ID restored after sign out');
+      }
+      if (preservedFingerprint) {
+        localStorage.setItem('blaze_device_fingerprint', preservedFingerprint);
+      }
+      if (preservedFingerprintCachedAt) {
+        localStorage.setItem('blaze_fingerprint_cached_at', preservedFingerprintCachedAt);
+      }
+      
+      logger.log('✅ [Unlock Modal] Sign out complete, redirecting to onboarding');
+      
+      // Redirect to onboarding
+      onFallback();
+      
+    } catch (error: any) {
+      logger.error('❌ [Unlock Modal] Sign out error:', error);
+      setError('Failed to sign out. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleBiometricAuth = async () => {
     setIsLoading(true);
     setError('');
@@ -435,13 +501,24 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
               )}
             </form>
 
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center space-y-3">
               <button
                 onClick={() => setShowRecoveryFlow(true)}
                 className="text-gray-600 hover:text-gray-900 text-sm underline transition-colors"
               >
                 Recover with recovery phrase
               </button>
+              
+              {/* Sign Out Link - Subtle and secondary */}
+              <div className="pt-2 border-t border-gray-100">
+                <button
+                  onClick={handleSignOut}
+                  disabled={isLoading}
+                  className="text-gray-500 hover:text-red-600 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Sign out
+                </button>
+              </div>
             </div>
 
             <div className="mt-4 text-center">
