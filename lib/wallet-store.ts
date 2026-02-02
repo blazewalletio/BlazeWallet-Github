@@ -675,32 +675,79 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   },
 
   addToken: (token: Token) => {
-    const { tokens } = get();
-    const exists = tokens.find(t => t.address.toLowerCase() === token.address.toLowerCase());
+    const { currentChain } = get();
+    
+    // Load existing custom tokens for this chain
+    let customTokens: Token[] = [];
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(`custom_tokens_${currentChain}`);
+        if (stored) {
+          customTokens = JSON.parse(stored);
+        }
+      } catch (err) {
+        logger.error('Failed to load custom tokens:', err);
+      }
+    }
+    
+    // Check if token already exists
+    const exists = customTokens.find(t => t.address.toLowerCase() === token.address.toLowerCase());
     
     if (!exists) {
-      const newTokens = [...tokens, token];
-      set({ tokens: newTokens });
+      const newCustomTokens = [...customTokens, token];
       
-      // Save to localStorage
+      // Save to localStorage for this specific chain
       if (typeof window !== 'undefined') {
-        localStorage.setItem('custom_tokens', JSON.stringify(newTokens));
+        localStorage.setItem(`custom_tokens_${currentChain}`, JSON.stringify(newCustomTokens));
+        logger.log(`✅ Saved custom token ${token.symbol} for chain ${currentChain}`);
       }
+      
+      // Update current tokens state with the new token
+      const { tokens } = get();
+      const updatedTokens = [...tokens, token];
+      set({ tokens: updatedTokens });
     }
   },
 
   // ✅ PHASE 3: Chain-specific token update
   updateTokens: (chain: string, tokens: Token[]) => {
-    const { chainTokens } = get();
+    const { chainTokens, currentChain } = get();
+    
+    // Load custom tokens for this chain
+    let customTokens: Token[] = [];
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(`custom_tokens_${chain}`);
+        if (stored) {
+          customTokens = JSON.parse(stored);
+          logger.log(`📦 Loaded ${customTokens.length} custom tokens for chain ${chain}`);
+        }
+      } catch (err) {
+        logger.error('Failed to load custom tokens:', err);
+      }
+    }
+    
+    // Merge custom tokens with fetched tokens (avoid duplicates)
+    const mergedTokens = [...tokens];
+    customTokens.forEach(customToken => {
+      const exists = mergedTokens.find(t => 
+        t.address.toLowerCase() === customToken.address.toLowerCase()
+      );
+      if (!exists) {
+        mergedTokens.push(customToken);
+        logger.log(`✅ Added custom token ${customToken.symbol} to ${chain} token list`);
+      }
+    });
+    
     const updated = new Map(chainTokens);
-    updated.set(chain, tokens);
+    updated.set(chain, mergedTokens);
     
     // Update chain-specific storage
     set({ chainTokens: updated });
     
     // Also update deprecated tokens array for backward compatibility (use current chain)
-    if (chain === get().currentChain) {
-      set({ tokens });
+    if (chain === currentChain) {
+      set({ tokens: mergedTokens });
     }
   },
 
