@@ -368,49 +368,35 @@ export async function signInWithEmail(
     if (!existingDevice || !existingDevice.verified_at) {
       logger.warn('🚫 [SignIn] UNTRUSTED device - requiring verification');
       
-      // Generate 6-digit verification code
-      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-      
-      // Generate device verification token
-      const crypto = await import('crypto');
-      const deviceToken = crypto.randomBytes(32).toString('hex');
-      const expiresAt = new Date();
-      expiresAt.setMinutes(expiresAt.getMinutes() + 15); // 15 min expiry
-      
-      // Store/update device in database (unverified) via admin API
-      logger.log('💾 [SignIn] Storing device via admin API...', {
+      logger.log('💾 [SignIn] Storing device via server-side API...', {
         existingDevice: !!existingDevice,
         deviceId: deviceId.substring(0, 12) + '...',
-        verificationCode,
       });
       
+      // Store device via server-side API (Industry Best Practice)
+      // This ensures RLS is bypassed correctly using service role
       try {
-        // Get CSRF token first
-        const csrfResponse = await fetch('/api/csrf-token');
-        const { token: csrfToken } = await csrfResponse.json();
+        // Get session token for authentication
+        const { data: sessionData } = await supabase.auth.getSession();
         
-        // Store device via admin API (bypasses RLS)
-        const storeResponse = await fetch('/api/store-device', {
+        if (!sessionData.session?.access_token) {
+          logger.error('❌ [SignIn] No session token available');
+          return {
+            success: false,
+            error: 'Authentication error. Please try again.'
+          };
+        }
+        
+        const storeResponse = await fetch('/api/device-verification/store', {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
-            'X-CSRF-Token': csrfToken,
+            'Authorization': `Bearer ${sessionData.session.access_token}`,
           },
           body: JSON.stringify({
-            userId: authData.user.id,
-            deviceId: deviceId,
-            deviceInfo: {
-              deviceName: deviceInfo.deviceName,
-              fingerprint: deviceInfo.fingerprint,
-              ipAddress: deviceInfo.ipAddress,
-              userAgent: deviceInfo.userAgent,
-              browser: deviceInfo.browser,
-              os: deviceInfo.os,
-            },
-            verificationToken: deviceToken,
-            verificationCode: verificationCode,
-            verificationExpiresAt: expiresAt.toISOString(),
-            existingDeviceId: existingDevice?.id || null,
+            deviceId,
+            deviceInfo,
+            existingDeviceId: existingDevice?.id,
           }),
         });
         
@@ -418,56 +404,29 @@ export async function signInWithEmail(
         
         if (!storeResult.success) {
           logger.error('❌ [SignIn] Failed to store device:', storeResult.error);
-          return { 
-            success: false, 
-            error: `Failed to store device verification: ${storeResult.error}. Please try again.` 
+          return {
+            success: false,
+            error: storeResult.error || 'Failed to store device verification. Please try again.'
           };
         }
         
-        logger.log('✅ [SignIn] Device stored successfully via admin API');
-      } catch (storeError: any) {
-        logger.error('❌ [SignIn] Exception storing device:', storeError);
-        return { 
-          success: false, 
-          error: 'Failed to prepare device verification. Please try again.' 
+        logger.log('✅ [SignIn] Device stored successfully via API');
+        
+        // Return requiresDeviceVerification flag
+        return {
+          success: true,
+          user: authData.user,
+          requiresDeviceVerification: true,
+          deviceVerificationToken: storeResult.deviceVerificationToken,
+        };
+        
+      } catch (apiError: any) {
+        logger.error('❌ [SignIn] API error:', apiError);
+        return {
+          success: false,
+          error: 'Failed to prepare device verification. Please try again.'
         };
       }
-      
-      logger.log('📧 [SignIn] Device stored successfully, sending email...');
-      
-      // Send device verification CODE email (6-digit code)
-      try {
-        // Get CSRF token first
-        const csrfResponse = await fetch('/api/csrf-token');
-        const { token: csrfToken } = await csrfResponse.json();
-        
-        await fetch('/api/send-device-code', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': csrfToken,
-          },
-          body: JSON.stringify({
-            email: authData.user.email,
-            deviceName: deviceInfo.deviceName,
-            verificationCode: verificationCode,
-            location: deviceInfo.location,
-          }),
-        });
-        
-        logger.log('✅ [SignIn] Device verification code email sent');
-      } catch (emailError) {
-        logger.error('❌ [SignIn] Failed to send verification code email:', emailError);
-        // Don't fail the whole flow if email fails - user can request new code
-      }
-      
-      // Return requiresDeviceVerification flag
-      return {
-        success: true,
-        user: authData.user,
-        requiresDeviceVerification: true,
-        deviceVerificationToken: deviceToken,
-      };
     }
     
     // TRUSTED DEVICE - Continue with login
