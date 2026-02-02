@@ -123,12 +123,12 @@ export async function POST(request: NextRequest) {
       console.log('✅ [device-verification/store] Device updated:', deviceDbId);
       
     } else {
-      // INSERT new device
-      console.log('➕ [device-verification/store] Inserting new device');
+      // UPSERT: INSERT or UPDATE if device_fingerprint already exists
+      console.log('🔄 [device-verification/store] UPSERT device (insert or update on conflict)');
       
-      const { data: insertData, error: insertError } = await supabaseAdmin
+      const { data: upsertData, error: upsertError } = await supabaseAdmin
         .from('trusted_devices')
-        .insert({
+        .upsert({
           user_id: user.id,
           device_id: deviceId,
           device_name: deviceInfo.deviceName,
@@ -141,22 +141,25 @@ export async function POST(request: NextRequest) {
           verification_code: verificationCode,
           verification_expires_at: expiresAt.toISOString(),
           is_current: true,
+        }, {
+          onConflict: 'user_id,device_fingerprint',
+          ignoreDuplicates: false, // Update on conflict instead of ignoring
         })
         .select()
         .single();
       
-      if (insertError) {
-        console.error('❌ [device-verification/store] INSERT failed:', insertError);
-        logger.error('[device-verification/store] INSERT failed', insertError);
+      if (upsertError) {
+        console.error('❌ [device-verification/store] UPSERT failed:', upsertError);
+        logger.error('[device-verification/store] UPSERT failed', upsertError);
         return NextResponse.json(
           { success: false, error: 'Failed to store device verification' },
           { status: 500 }
         );
       }
       
-      deviceDbId = insertData.id;
+      deviceDbId = upsertData.id;
       dbSuccess = true;
-      console.log('✅ [device-verification/store] Device inserted:', deviceDbId);
+      console.log('✅ [device-verification/store] Device upserted:', deviceDbId);
     }
     
     if (!dbSuccess) {
