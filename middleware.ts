@@ -41,6 +41,7 @@ export async function middleware(request: NextRequest) {
     '/api/ai-risk-scanner',
     '/api/gas-optimizer',
     '/api/send-welcome-email', // Email sending endpoint
+    '/api/send-device-code', // Device verification code email (called server-to-server)
     '/api/auth/verify-email', // Email verification endpoint
     '/api/2fa', // 2FA setup/verification
     '/api/verify-device', // Device verification
