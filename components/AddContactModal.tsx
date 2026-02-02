@@ -9,6 +9,7 @@ import { BlockchainService } from '@/lib/blockchain';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { getCurrentAccount } from '@/lib/account-manager';
 import { logger } from '@/lib/logger';
+import { ethers } from 'ethers';
 
 interface AddContactModalProps {
   isOpen: boolean;
@@ -27,6 +28,142 @@ const EMOJI_OPTIONS = [
 ];
 
 const COMMON_TAGS = ['Family', 'Friend', 'Business', 'Exchange', 'DeFi', 'NFT', 'Trading'];
+
+/**
+ * ✅ STRICT ADDRESS VALIDATION - Per Chain Type
+ * Industry standard validation for all supported blockchains
+ */
+const validateAddress = (address: string, chain: string): boolean => {
+  if (!address || typeof address !== 'string') return false;
+  
+  const trimmedAddr = address.trim();
+  if (trimmedAddr.length === 0) return false;
+  
+  try {
+    // ===== SOLANA =====
+    if (chain === 'solana') {
+      // Base58 format: 32-44 characters, no 0, O, I, l
+      return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(trimmedAddr);
+    }
+    
+    // ===== BITCOIN =====
+    else if (chain === 'bitcoin') {
+      // Legacy (P2PKH): starts with 1, 25-34 chars
+      // Script (P2SH): starts with 3, 25-34 chars
+      // SegWit (Bech32): starts with bc1, 42-62 chars
+      return /^(1[a-km-zA-HJ-NP-Z1-9]{25,34}|3[a-km-zA-HJ-NP-Z1-9]{25,34}|bc1[ac-hj-np-z02-9]{39,59})$/.test(trimmedAddr);
+    }
+    
+    // ===== LITECOIN =====
+    else if (chain === 'litecoin') {
+      // Legacy: starts with L, 26-33 chars
+      // Script: starts with M, 26-33 chars
+      // SegWit: starts with ltc1, 42-62 chars
+      return /^(L[a-km-zA-HJ-NP-Z1-9]{26,33}|M[a-km-zA-HJ-NP-Z1-9]{26,33}|ltc1[a-z0-9]{39,59})$/.test(trimmedAddr);
+    }
+    
+    // ===== DOGECOIN =====
+    else if (chain === 'dogecoin') {
+      // Starts with D, 34 chars total
+      return /^D[5-9A-HJ-NP-U][1-9A-HJ-NP-Za-km-z]{32}$/.test(trimmedAddr);
+    }
+    
+    // ===== BITCOIN CASH =====
+    else if (chain === 'bitcoincash' || chain === 'bitcoin-cash') {
+      // CashAddr format: starts with q or p (lowercase), 42 chars
+      // Legacy format: starts with 1 or 3, 25-34 chars
+      return /^([qp][a-z0-9]{41}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/.test(trimmedAddr);
+    }
+    
+    // ===== ALL EVM CHAINS =====
+    // Ethereum, Polygon, Arbitrum, Optimism, Base, Avalanche, BSC, Fantom, Cronos, zkSync, Linea
+    else if ([
+      'ethereum', 'polygon', 'arbitrum', 'optimism', 'base',
+      'avalanche', 'bsc', 'fantom', 'cronos', 'zksync', 'linea'
+    ].includes(chain)) {
+      // Must start with 0x
+      if (!trimmedAddr.startsWith('0x')) return false;
+      
+      // Must be exactly 42 characters (0x + 40 hex)
+      if (trimmedAddr.length !== 42) return false;
+      
+      // Must be valid hex after 0x
+      if (!/^0x[a-fA-F0-9]{40}$/.test(trimmedAddr)) return false;
+      
+      // Ethers.js checksum validation (most strict)
+      return ethers.isAddress(trimmedAddr);
+    }
+    
+    // Unknown chain - reject
+    return false;
+  } catch (error) {
+    logger.warn('[AddContactModal] Address validation error:', error);
+    return false;
+  }
+};
+
+/**
+ * ✅ GET ADDRESS FORMAT HINT - Per Chain Type
+ * Shows user what format is expected
+ */
+const getAddressHint = (chain: string): string => {
+  if (chain === 'solana') {
+    return 'Enter a valid Solana address (32-44 characters, Base58)';
+  } else if (chain === 'bitcoin') {
+    return 'Enter a valid Bitcoin address (starts with 1, 3, or bc1)';
+  } else if (chain === 'litecoin') {
+    return 'Enter a valid Litecoin address (starts with L, M, or ltc1)';
+  } else if (chain === 'dogecoin') {
+    return 'Enter a valid Dogecoin address (starts with D)';
+  } else if (chain === 'bitcoincash' || chain === 'bitcoin-cash') {
+    return 'Enter a valid Bitcoin Cash address (CashAddr or legacy format)';
+  } else {
+    // EVM chains
+    return 'Enter a valid address (must start with 0x, followed by 40 hex characters)';
+  }
+};
+
+/**
+ * ✅ ADDRESS QUALITY CHECKS - Warn about common mistakes
+ */
+const getAddressWarnings = (address: string, chain: string): string[] => {
+  const warnings: string[] = [];
+  
+  if (!address || address.length === 0) return warnings;
+  
+  // Check for spaces
+  if (address.includes(' ')) {
+    warnings.push('Address contains spaces - please remove them');
+  }
+  
+  // Check for mixed case issues on EVM chains
+  if ([
+    'ethereum', 'polygon', 'arbitrum', 'optimism', 'base',
+    'avalanche', 'bsc', 'fantom', 'cronos', 'zksync', 'linea'
+  ].includes(chain) && address.startsWith('0x')) {
+    // If it's not all lowercase and not valid checksum, warn
+    try {
+      const checksumAddr = ethers.getAddress(address);
+      if (address !== address.toLowerCase() && address !== checksumAddr) {
+        warnings.push('Address checksum might be incorrect');
+      }
+    } catch {
+      // Invalid address, will be caught by main validation
+    }
+  }
+  
+  // Check if user put wrong chain address
+  // Detect if it looks like a different chain
+  if (chain !== 'solana' && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) {
+    warnings.push('⚠️ This looks like a Solana address, but you selected ' + (CHAINS[chain]?.name || chain));
+  } else if (chain === 'solana' && address.startsWith('0x')) {
+    warnings.push('⚠️ This looks like an EVM address, but you selected Solana');
+  } else if (chain === 'solana' && /^[13bc]/.test(address)) {
+    warnings.push('⚠️ This looks like a Bitcoin address, but you selected Solana');
+  }
+  
+  return warnings;
+};
 
 export default function AddContactModal({
   isOpen,
@@ -105,9 +242,10 @@ export default function AddContactModal({
     }
   }, [isOpen, editContact, prefillChain, prefillAddress]);
 
-  // Real-time address validation
+  // ✅ Real-time STRICT address validation
   useEffect(() => {
-    if (!address || address.length < 10) {
+    // Don't validate empty or very short addresses
+    if (!address || address.trim().length < 10) {
       setAddressValidation('idle');
       return;
     }
@@ -115,19 +253,12 @@ export default function AddContactModal({
     const validateTimeout = setTimeout(async () => {
       setAddressValidation('validating');
       
-      // Validate address format
-      let isValid = false;
-      if (selectedChain === 'solana') {
-        isValid = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
-      } else if (['bitcoin', 'litecoin', 'dogecoin', 'bitcoin-cash'].includes(selectedChain)) {
-        isValid = /^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$|^bc1[ac-hj-np-z02-9]{39,59}$|^[LM][a-km-zA-HJ-NP-Z1-9]{26,33}$|^D[5-9A-HJ-NP-U][1-9A-HJ-NP-Za-km-z]{32}$|^[qp][a-z0-9]{41}$/.test(address);
-      } else {
-        isValid = BlockchainService.isValidAddress(address);
-      }
-
+      // ✅ Use new strict validation function
+      const isValid = validateAddress(address.trim(), selectedChain);
+      
       setAddressValidation(isValid ? 'valid' : 'invalid');
 
-      // Check for duplicates (only if valid and not editing)
+      // ✅ Check for duplicates (only if valid and not editing)
       if (isValid && !editContact && userId) {
         try {
           const { data } = await supabase
@@ -149,7 +280,7 @@ export default function AddContactModal({
           setDuplicateWarning(null);
         }
       }
-    }, 500);
+    }, 500); // Debounce 500ms
 
     return () => clearTimeout(validateTimeout);
   }, [address, selectedChain, userId, editContact]);
@@ -624,21 +755,28 @@ export default function AddContactModal({
                     Address
                   </label>
                   <div className="relative">
-                    <input aria-label="Text input"
+                    <input aria-label="Wallet address"
                       type="text"
-                      placeholder={selectedChain === 'solana' ? 'Solana address...' : '0x...'}
+                      placeholder={
+                        selectedChain === 'solana' ? 'Solana address (32-44 chars)...' :
+                        selectedChain === 'bitcoin' ? 'Bitcoin address (1... or 3... or bc1...)' :
+                        selectedChain === 'litecoin' ? 'Litecoin address (L... or M... or ltc1...)' :
+                        selectedChain === 'dogecoin' ? 'Dogecoin address (D...)' :
+                        selectedChain === 'bitcoincash' || selectedChain === 'bitcoin-cash' ? 'Bitcoin Cash address' :
+                        '0x...'
+                      }
                       value={address}
                       onChange={(e) => {
                         setAddress(e.target.value);
                         setError('');
                       }}
                       disabled={isSaving}
-                      className={`w-full px-4 py-3 pr-12 border rounded-xl font-mono text-sm focus:outline-none focus:ring-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                      className={`w-full px-4 py-3 pr-12 border-2 rounded-xl font-mono text-sm focus:outline-none focus:ring-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                         addressValidation === 'valid' 
-                          ? 'border-green-500 focus:ring-green-500/20 focus:border-green-500' 
+                          ? 'border-green-500 bg-green-50 focus:ring-green-500/20 focus:border-green-500' 
                           : addressValidation === 'invalid'
-                          ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
-                          : 'border-gray-200 focus:ring-orange-500/20 focus:border-orange-500'
+                          ? 'border-red-500 bg-red-50 focus:ring-red-500/20 focus:border-red-500'
+                          : 'border-gray-200 bg-white focus:ring-orange-500/20 focus:border-orange-500'
                       }`}
                     />
                     
@@ -656,18 +794,45 @@ export default function AddContactModal({
                     </div>
                   </div>
                   
-                  {/* Helper Text */}
+                  {/* ✅ Helper Text - Always show format hint */}
+                  {addressValidation === 'idle' && address.length === 0 && (
+                    <p className="text-xs text-gray-500 flex items-start gap-1">
+                      <span className="mt-0.5">ℹ️</span>
+                      <span>{getAddressHint(selectedChain)}</span>
+                    </p>
+                  )}
+                  
+                  {/* ✅ Success Message */}
                   {addressValidation === 'valid' && (
-                    <p className="text-xs text-green-600 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" />
+                    <p className="text-xs text-green-600 flex items-center gap-1 font-medium">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
                       Valid {CHAINS[selectedChain]?.name || selectedChain} address
                     </p>
                   )}
-                  {addressValidation === 'invalid' && address.length >= 10 && (
-                    <p className="text-xs text-red-600 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      Invalid address format
-                    </p>
+                  
+                  {/* ✅ Error Message - Detailed */}
+                  {addressValidation === 'invalid' && address.trim().length >= 10 && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-red-600 flex items-center gap-1 font-medium">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        Invalid {CHAINS[selectedChain]?.name || selectedChain} address format
+                      </p>
+                      <p className="text-xs text-gray-600 ml-4.5">
+                        {getAddressHint(selectedChain)}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* ✅ Warnings - Common Mistakes */}
+                  {address.trim().length > 0 && addressValidation !== 'valid' && (
+                    <>
+                      {getAddressWarnings(address, selectedChain).map((warning, idx) => (
+                        <p key={idx} className="text-xs text-yellow-600 flex items-start gap-1">
+                          <span className="mt-0.5">⚠️</span>
+                          <span>{warning}</span>
+                        </p>
+                      ))}
+                    </>
                   )}
                 </div>
 
