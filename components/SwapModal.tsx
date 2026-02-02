@@ -17,6 +17,7 @@ import {
   Clock
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
+import { MultiChainService } from '@/lib/multi-chain-service';
 import { CHAINS } from '@/lib/chains';
 import { getLiFiChainId, isSolanaChainId } from '@/lib/lifi-chain-ids';
 import { LiFiService, LiFiToken, LiFiQuote } from '@/lib/lifi-service';
@@ -277,6 +278,25 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     if (!quote || !wallet || !mnemonic || !walletAddress) {
       setError('Wallet not available. Please unlock your wallet.');
       return;
+    }
+
+    // ✅ Pre-check: Verify sufficient native token balance for gas
+    try {
+      const blockchain = MultiChainService.getInstance(fromChain);
+      const nativeBalance = await blockchain.getBalance(walletAddress);
+      const nativeBalanceNum = parseFloat(nativeBalance);
+      const nativeCurrency = CHAINS[fromChain]?.nativeCurrency?.symbol || 'native token';
+      
+      // Estimate minimum gas needed (conservative estimate)
+      const estimatedGasCost = fromChain === 'ethereum' ? 0.01 : 0.001; // ETH needs more, others less
+      
+      if (nativeBalanceNum < estimatedGasCost) {
+        setError(`Insufficient ${nativeCurrency} for gas fees. You have ${nativeBalanceNum.toFixed(6)} ${nativeCurrency} but need at least ${estimatedGasCost} ${nativeCurrency} to pay for the transaction.`);
+        return;
+      }
+    } catch (err) {
+      logger.warn('⚠️ Failed to check native balance:', err);
+      // Continue anyway - let the actual transaction fail with proper error
     }
 
     setStep('executing');
@@ -613,7 +633,31 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       
     } catch (error: any) {
       logger.error('❌ Swap execution error:', error);
-      setError(error.message || 'Transaction failed');
+      
+      // ✅ User-friendly error messages
+      let userMessage = 'Transaction failed';
+      const errorMsg = error.message?.toLowerCase() || '';
+      
+      if (errorMsg.includes('insufficient funds') && errorMsg.includes('intrinsic')) {
+        // Not enough native currency (ETH/MATIC/etc) for gas fees
+        const nativeCurrency = CHAINS[fromChain]?.nativeCurrency?.symbol || 'native token';
+        userMessage = `Insufficient ${nativeCurrency} for gas fees. You need ${nativeCurrency} to pay for the transaction, even when swapping tokens.`;
+      } else if (errorMsg.includes('insufficient funds') || errorMsg.includes('insufficient balance')) {
+        userMessage = `Insufficient balance to complete this swap`;
+      } else if (errorMsg.includes('user rejected') || errorMsg.includes('user denied')) {
+        userMessage = 'Transaction was cancelled';
+      } else if (errorMsg.includes('slippage')) {
+        userMessage = 'Price changed too much. Try increasing slippage tolerance or refreshing the quote.';
+      } else if (errorMsg.includes('execution reverted')) {
+        userMessage = 'Transaction rejected by contract. Try refreshing the quote or adjusting the amount.';
+      } else if (errorMsg.includes('network') || errorMsg.includes('timeout')) {
+        userMessage = 'Network error. Please check your connection and try again.';
+      } else if (error.message) {
+        // Show original message if it's somewhat readable
+        userMessage = error.message;
+      }
+      
+      setError(userMessage);
       setStep('error');
       
       // Track failed swap
