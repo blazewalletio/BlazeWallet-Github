@@ -152,7 +152,6 @@ export default function Dashboard() {
   const [showCashback, setShowCashback] = useState(false);
   const [showPresale, setShowPresale] = useState(false);
   const [showVesting, setShowVesting] = useState(false);
-  const [showAddressBook, setShowAddressBook] = useState(false);
   const [showProfile, setShowProfile] = useState(false); // NEW: Profile/Account page
   
   // ✅ PHASE 1: Chain-Scoped State Management
@@ -300,15 +299,6 @@ export default function Dashboard() {
     
     loadUserPreferences();
   }, []);
-  
-  // ✅ Auto-open AddressBook modal when Contacts tab is selected
-  useEffect(() => {
-    if (activeTab === 'contacts') {
-      setShowAddressBook(true);
-      // Switch back to wallet tab immediately
-      setActiveTab('wallet');
-    }
-  }, [activeTab]);
   
   // ✅ NEW: Token refresh state
   const [refreshingToken, setRefreshingToken] = useState<string | null>(null);
@@ -2470,27 +2460,11 @@ export default function Dashboard() {
 
   // Settings tab content
   const renderContactsContent = () => (
-    <div className="space-y-4">
-      <div className="glass-card p-6 rounded-2xl">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center">
-            <Users className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">Contacts</h2>
-            <p className="text-sm text-gray-600">Manage your saved addresses</p>
-          </div>
-        </div>
-        
-        <button
-          onClick={() => setShowAddressBook(true)}
-          className="w-full p-4 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white transition-colors text-left shadow-sm"
-        >
-          <div className="font-medium">Open Address Book</div>
-          <div className="text-sm text-white/90">View and manage your contacts</div>
-        </button>
-      </div>
-    </div>
+    <AddressBook 
+      isOpen={true}
+      onClose={() => {}} // No-op in inline mode
+      inline={true} // ✅ Render inline without modal wrapper
+    />
   );
 
   return (
@@ -2972,12 +2946,6 @@ export default function Dashboard() {
           setShowProfile(false);
           setShowSettings(true);
         }}
-      />
-
-      {/* Address Book Modal */}
-      <AddressBook
-        isOpen={showAddressBook}
-        onClose={() => setShowAddressBook(false)}
       />
 
     </>
