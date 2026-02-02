@@ -377,78 +377,56 @@ export async function signInWithEmail(
       const expiresAt = new Date();
       expiresAt.setMinutes(expiresAt.getMinutes() + 15); // 15 min expiry
       
-      // Store/update device in database (unverified)
-      logger.log('💾 [SignIn] Storing device in database...', {
+      // Store/update device in database (unverified) via admin API
+      logger.log('💾 [SignIn] Storing device via admin API...', {
         existingDevice: !!existingDevice,
         deviceId: deviceId.substring(0, 12) + '...',
         verificationCode,
       });
       
-      let dbSuccess = false;
-      
-      if (existingDevice) {
-        // Update existing device with new verification code
-        logger.log('🔄 [SignIn] Updating existing device:', existingDevice.id);
-        const { data: updateData, error: updateError } = await supabase
-          .from('trusted_devices')
-          .update({
-            device_name: deviceInfo.deviceName,
-            device_fingerprint: deviceInfo.fingerprint,
-            ip_address: deviceInfo.ipAddress,
-            user_agent: deviceInfo.userAgent,
-            browser: `${deviceInfo.browser}`,
-            os: `${deviceInfo.os}`,
-            verification_token: deviceToken,
-            verification_code: verificationCode,
-            verification_expires_at: expiresAt.toISOString(),
-          })
-          .eq('id', existingDevice.id)
-          .select();
+      try {
+        // Get CSRF token first
+        const csrfResponse = await fetch('/api/csrf-token');
+        const { token: csrfToken } = await csrfResponse.json();
         
-        if (updateError) {
-          logger.error('❌ [SignIn] Failed to update device:', updateError);
+        // Store device via admin API (bypasses RLS)
+        const storeResponse = await fetch('/api/store-device', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken,
+          },
+          body: JSON.stringify({
+            userId: authData.user.id,
+            deviceId: deviceId,
+            deviceInfo: {
+              deviceName: deviceInfo.deviceName,
+              fingerprint: deviceInfo.fingerprint,
+              ipAddress: deviceInfo.ipAddress,
+              userAgent: deviceInfo.userAgent,
+              browser: deviceInfo.browser,
+              os: deviceInfo.os,
+            },
+            verificationToken: deviceToken,
+            verificationCode: verificationCode,
+            verificationExpiresAt: expiresAt.toISOString(),
+            existingDeviceId: existingDevice?.id || null,
+          }),
+        });
+        
+        const storeResult = await storeResponse.json();
+        
+        if (!storeResult.success) {
+          logger.error('❌ [SignIn] Failed to store device:', storeResult.error);
           return { 
             success: false, 
-            error: 'Failed to store device verification. Please try again.' 
+            error: `Failed to store device verification: ${storeResult.error}. Please try again.` 
           };
-        } else {
-          logger.log('✅ [SignIn] Device updated successfully:', updateData);
-          dbSuccess = true;
         }
-      } else {
-        // Insert new device
-        logger.log('➕ [SignIn] Inserting new device');
-        const { data: insertData, error: insertError } = await supabase
-          .from('trusted_devices')
-          .insert({
-            user_id: authData.user.id,
-            device_id: deviceId,
-            device_name: deviceInfo.deviceName,
-            device_fingerprint: deviceInfo.fingerprint,
-            ip_address: deviceInfo.ipAddress,
-            user_agent: deviceInfo.userAgent,
-            browser: `${deviceInfo.browser}`,
-            os: `${deviceInfo.os}`,
-            verification_token: deviceToken,
-            verification_code: verificationCode,
-            verification_expires_at: expiresAt.toISOString(),
-            is_current: true,
-          })
-          .select();
         
-        if (insertError) {
-          logger.error('❌ [SignIn] Failed to insert device:', insertError);
-          return { 
-            success: false, 
-            error: 'Failed to store device verification. Please try again.' 
-          };
-        } else {
-          logger.log('✅ [SignIn] Device inserted successfully:', insertData);
-          dbSuccess = true;
-        }
-      }
-      
-      if (!dbSuccess) {
+        logger.log('✅ [SignIn] Device stored successfully via admin API');
+      } catch (storeError: any) {
+        logger.error('❌ [SignIn] Exception storing device:', storeError);
         return { 
           success: false, 
           error: 'Failed to prepare device verification. Please try again.' 
