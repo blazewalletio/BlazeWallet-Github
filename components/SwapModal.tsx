@@ -292,6 +292,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       
       if (nativeBalanceNum < estimatedGasCost) {
         setError(`Insufficient ${nativeCurrency} for gas fees. You have ${nativeBalanceNum.toFixed(6)} ${nativeCurrency} but need at least ${estimatedGasCost} ${nativeCurrency} to pay for the transaction.`);
+        setStep('error'); // ✅ Show error screen
         return;
       }
     } catch (err) {
