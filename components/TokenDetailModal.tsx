@@ -102,6 +102,8 @@ export default function TokenDetailModal({
   const [showStats, setShowStats] = useState(false);
   const [marketData, setMarketData] = useState<TokenMarketData | null>(null);
   const [isLoadingMarketData, setIsLoadingMarketData] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [showShareSuccess, setShowShareSuccess] = useState(false);
   
   // Swipe gesture state
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
@@ -129,6 +131,72 @@ export default function TokenDetailModal({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, []);
+  
+  // Handle favorite toggle
+  const handleFavoriteToggle = useCallback(() => {
+    const favoriteKey = `favorite_${token.symbol}_${token.address || 'native'}`;
+    const currentFavorites = JSON.parse(localStorage.getItem('favoriteTokens') || '{}');
+    
+    if (isFavorite) {
+      // Remove from favorites
+      delete currentFavorites[favoriteKey];
+      setIsFavorite(false);
+      logger.log(`⭐ Removed ${token.symbol} from favorites`);
+    } else {
+      // Add to favorites
+      currentFavorites[favoriteKey] = {
+        symbol: token.symbol,
+        name: token.name,
+        address: token.address,
+        chain: currentChain,
+        addedAt: Date.now(),
+      };
+      setIsFavorite(true);
+      logger.log(`⭐ Added ${token.symbol} to favorites`);
+    }
+    
+    localStorage.setItem('favoriteTokens', JSON.stringify(currentFavorites));
+  }, [isFavorite, token, currentChain]);
+  
+  // Handle share
+  const handleShare = useCallback(async () => {
+    const tokenInfo = `${token.name} (${token.symbol})\n${parseFloat(token.balance || '0').toFixed(6)} ${token.symbol}\n≈ ${formatUSDSync(parseFloat(token.balanceUSD || '0'))}\n\n${explorerUrl}`;
+    
+    // Try native share API first (mobile)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${token.name} (${token.symbol})`,
+          text: tokenInfo,
+          url: explorerUrl,
+        });
+        logger.log('✅ Shared via native share API');
+      } catch (err: any) {
+        // User cancelled or error - only log if not cancelled
+        if (err.name !== 'AbortError') {
+          logger.warn('Share cancelled or failed:', err);
+        }
+      }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(tokenInfo);
+        setShowShareSuccess(true);
+        setTimeout(() => setShowShareSuccess(false), 2000);
+        logger.log('✅ Token info copied to clipboard');
+      } catch (err) {
+        logger.error('Failed to copy:', err);
+      }
+    }
+  }, [token, explorerUrl, formatUSDSync]);
+  
+  // Load favorite status on mount
+  useEffect(() => {
+    if (!isOpen) return;
+    const favoriteKey = `favorite_${token.symbol}_${token.address || 'native'}`;
+    const currentFavorites = JSON.parse(localStorage.getItem('favoriteTokens') || '{}');
+    setIsFavorite(!!currentFavorites[favoriteKey]);
+  }, [isOpen, token]);
   
   // Handle refresh (skip for native tokens)
   const handleRefresh = useCallback(async () => {
@@ -286,19 +354,38 @@ export default function TokenDetailModal({
             </button>
             
             <div className="flex items-center gap-2">
+              {/* Favorite Button */}
               <motion.button
                 whileTap={{ scale: 0.95 }}
-                className="p-2 hover:bg-white rounded-lg transition-colors"
-                title="Add to favorites"
+                onClick={handleFavoriteToggle}
+                className={`p-2 rounded-lg transition-all ${
+                  isFavorite 
+                    ? 'bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow-md' 
+                    : 'hover:bg-gray-100 text-gray-600'
+                }`}
+                title={isFavorite ? "Remove from favorites" : "Add to favorites"}
               >
-                <Star className="w-5 h-5 text-gray-600" />
+                <Star className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
               </motion.button>
+              
+              {/* Share Button */}
               <motion.button
                 whileTap={{ scale: 0.95 }}
-                className="p-2 hover:bg-white rounded-lg transition-colors"
-                title="Share"
+                onClick={handleShare}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-600 relative"
+                title="Share token"
               >
-                <Share2 className="w-5 h-5 text-gray-600" />
+                <Share2 className="w-5 h-5" />
+                {showShareSuccess && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute top-full right-0 mt-2 px-3 py-1.5 bg-emerald-500 text-white text-xs font-medium rounded-lg shadow-lg whitespace-nowrap z-50"
+                  >
+                    ✓ Copied to clipboard
+                  </motion.div>
+                )}
               </motion.button>
             </div>
           </div>
