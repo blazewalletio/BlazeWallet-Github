@@ -59,12 +59,13 @@ function generateDeviceCodeEmail(deviceName: string, verificationCode: string, l
                 Enter this 6-digit code in the BLAZE Wallet app to verify this device:
               </p>
               
-              <!-- Verification Code -->
-              <div style="background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); border-radius: 16px; padding: 30px; text-align: center; margin-bottom: 30px; box-shadow: 0 8px 24px rgba(255, 107, 53, 0.3);">
-                <p style="margin: 0 0 12px 0; color: #FFFFFF; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">Your Verification Code</p>
-                <p style="margin: 0; color: #FFFFFF; font-size: 48px; font-weight: bold; letter-spacing: 8px; font-family: 'Courier New', monospace; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+              <!-- Verification Code - HIGHLY VISIBLE -->
+              <div style="background: #FFFFFF; border: 4px solid #FF6B35; border-radius: 16px; padding: 40px 30px; text-align: center; margin-bottom: 30px; box-shadow: 0 8px 24px rgba(255, 107, 53, 0.2);">
+                <p style="margin: 0 0 16px 0; color: #6B7280; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px;">Your Verification Code</p>
+                <p style="margin: 0; color: #FF6B35; font-size: 56px; font-weight: 800; letter-spacing: 12px; font-family: 'Courier New', monospace; text-shadow: none; line-height: 1.2;">
                   ${verificationCode}
                 </p>
+                <p style="margin: 16px 0 0 0; color: #6B7280; font-size: 13px; font-weight: 500;">Valid for 15 minutes</p>
               </div>
               
               <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
