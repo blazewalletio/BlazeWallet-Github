@@ -44,6 +44,7 @@ export async function middleware(request: NextRequest) {
     '/api/auth/verify-email', // Email verification endpoint
     '/api/2fa', // 2FA setup/verification
     '/api/verify-device', // Device verification
+    '/api/device-verification', // Device verification (uses Bearer token auth instead of CSRF)
     '/api/device-verification-code', // Device verification email sending
     '/api/verify-device-code', // Device verification code validation
     '/api/security-alert', // Security alert emails
