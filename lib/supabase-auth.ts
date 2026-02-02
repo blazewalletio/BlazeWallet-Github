@@ -378,9 +378,16 @@ export async function signInWithEmail(
       expiresAt.setMinutes(expiresAt.getMinutes() + 15); // 15 min expiry
       
       // Store/update device in database (unverified)
+      logger.log('💾 [SignIn] Storing device in database...', {
+        existingDevice: !!existingDevice,
+        deviceId: deviceId.substring(0, 12) + '...',
+        verificationCode,
+      });
+      
       if (existingDevice) {
         // Update existing device with new verification code
-        await supabase
+        logger.log('🔄 [SignIn] Updating existing device:', existingDevice.id);
+        const { data: updateData, error: updateError } = await supabase
           .from('trusted_devices')
           .update({
             device_name: deviceInfo.deviceName,
@@ -393,10 +400,18 @@ export async function signInWithEmail(
             verification_code: verificationCode,
             verification_expires_at: expiresAt.toISOString(),
           })
-          .eq('id', existingDevice.id);
+          .eq('id', existingDevice.id)
+          .select();
+        
+        if (updateError) {
+          logger.error('❌ [SignIn] Failed to update device:', updateError);
+        } else {
+          logger.log('✅ [SignIn] Device updated successfully:', updateData);
+        }
       } else {
         // Insert new device
-        await supabase
+        logger.log('➕ [SignIn] Inserting new device');
+        const { data: insertData, error: insertError } = await supabase
           .from('trusted_devices')
           .insert({
             user_id: authData.user.id,
@@ -411,8 +426,17 @@ export async function signInWithEmail(
             verification_code: verificationCode,
             verification_expires_at: expiresAt.toISOString(),
             is_current: true,
-          });
+          })
+          .select();
+        
+        if (insertError) {
+          logger.error('❌ [SignIn] Failed to insert device:', insertError);
+        } else {
+          logger.log('✅ [SignIn] Device inserted successfully:', insertData);
+        }
       }
+      
+      logger.log('📧 [SignIn] Device stored, sending email...');
       
       // Send device verification CODE email (6-digit code)
       try {
