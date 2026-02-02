@@ -1039,7 +1039,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                       }}
                       className="p-3 bg-white rounded-full shadow-lg hover:shadow-xl transition-all border-2 border-orange-200"
                     >
-                      <ArrowUpDown className="w-5 h-5 text-orange-600" />
+                      <Repeat className="w-5 h-5 text-orange-600" />
                     </motion.button>
                   </div>
 
