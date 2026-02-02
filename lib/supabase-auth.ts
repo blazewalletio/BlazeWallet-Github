@@ -384,6 +384,8 @@ export async function signInWithEmail(
         verificationCode,
       });
       
+      let dbSuccess = false;
+      
       if (existingDevice) {
         // Update existing device with new verification code
         logger.log('🔄 [SignIn] Updating existing device:', existingDevice.id);
@@ -405,8 +407,13 @@ export async function signInWithEmail(
         
         if (updateError) {
           logger.error('❌ [SignIn] Failed to update device:', updateError);
+          return { 
+            success: false, 
+            error: 'Failed to store device verification. Please try again.' 
+          };
         } else {
           logger.log('✅ [SignIn] Device updated successfully:', updateData);
+          dbSuccess = true;
         }
       } else {
         // Insert new device
@@ -431,12 +438,24 @@ export async function signInWithEmail(
         
         if (insertError) {
           logger.error('❌ [SignIn] Failed to insert device:', insertError);
+          return { 
+            success: false, 
+            error: 'Failed to store device verification. Please try again.' 
+          };
         } else {
           logger.log('✅ [SignIn] Device inserted successfully:', insertData);
+          dbSuccess = true;
         }
       }
       
-      logger.log('📧 [SignIn] Device stored, sending email...');
+      if (!dbSuccess) {
+        return { 
+          success: false, 
+          error: 'Failed to prepare device verification. Please try again.' 
+        };
+      }
+      
+      logger.log('📧 [SignIn] Device stored successfully, sending email...');
       
       // Send device verification CODE email (6-digit code)
       try {
@@ -461,6 +480,7 @@ export async function signInWithEmail(
         logger.log('✅ [SignIn] Device verification code email sent');
       } catch (emailError) {
         logger.error('❌ [SignIn] Failed to send verification code email:', emailError);
+        // Don't fail the whole flow if email fails - user can request new code
       }
       
       // Return requiresDeviceVerification flag
@@ -921,4 +941,5 @@ export async function upgradeToEmailAccount(
     return { success: false, error: error.message || 'Failed to upgrade wallet' };
   }
 }
+
 
