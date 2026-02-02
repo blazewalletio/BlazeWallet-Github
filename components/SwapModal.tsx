@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
-  ArrowUpDown, 
+  Repeat, 
   Loader2, 
   Check, 
   AlertCircle, 
@@ -829,7 +829,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
             <div className="mb-6">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
-                  <ArrowUpDown className="w-6 h-6 text-white" />
+                  <Repeat className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1">
                   <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Swap</h2>
