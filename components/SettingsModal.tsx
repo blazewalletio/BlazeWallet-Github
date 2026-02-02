@@ -18,10 +18,9 @@ import { logger } from '@/lib/logger';
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onOpenDebug?: () => void; // NEW: Callback to open debug panel
 }
 
-export default function SettingsModal({ isOpen, onClose, onOpenDebug }: SettingsModalProps) {
+export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { mnemonic, resetWallet, address, getCurrentAddress } = useWalletStore();
   const displayAddress = getCurrentAddress(); // ✅ Get correct address for current chain
   const [showMnemonic, setShowMnemonic] = useState(false);
@@ -490,30 +489,6 @@ export default function SettingsModal({ isOpen, onClose, onOpenDebug }: Settings
                   <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg]" />
                 </button>
               </div>
-            </div>
-
-            {/* Developer Tools - Mobile Only */}
-            <div className="glass-card p-6 lg:hidden">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Bug className="w-5 h-5 text-orange-500" />
-                Developer tools
-              </h3>
-              
-              <button
-                onClick={() => {
-                  if (onOpenDebug) {
-                    onOpenDebug();
-                  }
-                }}
-                className="w-full bg-gradient-to-r from-orange-50 to-yellow-50 hover:from-orange-100 hover:to-yellow-100 border border-orange-200 text-gray-900 py-3 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2"
-              >
-                <Bug className="w-5 h-5 text-orange-500" />
-                Open debug panel
-              </button>
-              
-              <p className="text-xs text-gray-500 mt-3">
-                View wallet info, check balances, and debug blockchain connections.
-              </p>
             </div>
 
             {/* Danger Zone */}

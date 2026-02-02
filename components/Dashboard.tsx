@@ -27,7 +27,6 @@ import { supabase } from '@/lib/supabase';
 import ChainSelector from './ChainSelector';
 import TokenSelector from './TokenSelector';
 import PasswordUnlockModal from './PasswordUnlockModal';
-import DebugPanel from './DebugPanel';
 import AnimatedNumber from './AnimatedNumber';
 import TransactionHistory from './TransactionHistory';
 import PremiumBadge, { PremiumCard } from './PremiumBadge';
@@ -2614,10 +2613,6 @@ export default function Dashboard() {
       <SettingsModal 
         isOpen={showSettings} 
         onClose={() => setShowSettings(false)} 
-        onOpenDebug={() => {
-          setShowSettings(false);
-          setShowDebugPanel(true);
-        }}
       />
       <QuickPayModal 
         isOpen={showQuickPay} 
@@ -2824,11 +2819,6 @@ export default function Dashboard() {
           </motion.div>
         )}
       </AnimatePresence>
-      
-      <DebugPanel 
-        externalOpen={showDebugPanel} 
-        onExternalClose={() => setShowDebugPanel(false)} 
-      />
       
       {/* Password Unlock Modal - for lock/unlock flow */}
       <PasswordUnlockModal
