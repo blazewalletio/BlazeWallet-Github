@@ -919,7 +919,7 @@ export default function AddContactModal({
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-3 pb-6">
+            <div className="flex gap-3 pb-32">
               <button
                 onClick={onClose}
                 disabled={isSaving}
