@@ -17,12 +17,6 @@ import {
 } from 'lucide-react';
 import PremiumBadge from '../PremiumBadge';
 import PresaleDashboard from '../PresaleDashboard';
-import StakingDashboard from '../StakingDashboard';
-import GovernanceDashboard from '../GovernanceDashboard';
-import LaunchpadDashboard from '../LaunchpadDashboard';
-import ReferralDashboard from '../ReferralDashboard';
-import NFTMintDashboard from '../NFTMintDashboard';
-import CashbackTracker from '../CashbackTracker';
 import VestingDashboard from '../VestingDashboard';
 import { useWalletStore } from '@/lib/wallet-store';
 import { logger } from '@/lib/logger';
@@ -58,7 +52,7 @@ export default function BlazeTab() {
       description: 'Earn up to 25% APY',
       icon: Lock,
       gradient: 'from-orange-500 to-red-500',
-      comingSoon: true, // ✅ COMING SOON
+      comingSoon: true, // ✅ COMING SOON - Disabled
     },
     {
       id: 'cashback',
@@ -66,7 +60,7 @@ export default function BlazeTab() {
       description: '2% on all transactions',
       icon: Gift,
       gradient: 'from-green-500 to-emerald-500',
-      comingSoon: true, // ✅ COMING SOON
+      comingSoon: true, // ✅ COMING SOON - Disabled
     },
     {
       id: 'governance',
@@ -74,7 +68,7 @@ export default function BlazeTab() {
       description: 'Vote on proposals',
       icon: Vote,
       gradient: 'from-purple-500 to-pink-500',
-      comingSoon: true, // ✅ COMING SOON
+      comingSoon: true, // ✅ COMING SOON - Disabled
     },
     {
       id: 'launchpad',
@@ -82,7 +76,7 @@ export default function BlazeTab() {
       description: 'Early access to IDOs',
       icon: Rocket,
       gradient: 'from-blue-500 to-cyan-500',
-      comingSoon: true, // ✅ COMING SOON
+      comingSoon: true, // ✅ COMING SOON - Disabled
     },
     {
       id: 'referrals',
@@ -90,7 +84,7 @@ export default function BlazeTab() {
       description: 'Earn 50 BLAZE/referral',
       icon: Users,
       gradient: 'from-yellow-500 to-orange-500',
-      comingSoon: true, // ✅ COMING SOON
+      comingSoon: true, // ✅ COMING SOON - Disabled
     },
     {
       id: 'nft-skins',
@@ -98,7 +92,7 @@ export default function BlazeTab() {
       description: 'Exclusive wallet themes',
       icon: Palette,
       gradient: 'from-pink-500 to-purple-500',
-      comingSoon: true, // ✅ COMING SOON
+      comingSoon: true, // ✅ COMING SOON - Disabled
     },
     ...(isFounder ? [{
       id: 'vesting',
@@ -250,7 +244,7 @@ export default function BlazeTab() {
                 {feature.comingSoon && (
                   <div className="absolute top-3 right-3 z-10">
                     <div className="px-2 py-1 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-xs font-bold rounded-full shadow-lg">
-                      Soon
+                      Coming Soon
                     </div>
                   </div>
                 )}
@@ -342,32 +336,7 @@ export default function BlazeTab() {
         </motion.div>
       </div>
 
-      {/* Modals */}
-      <StakingDashboard 
-        isOpen={activeModal === 'staking'} 
-        onClose={() => setActiveModal(null)} 
-      />
-      <GovernanceDashboard 
-        isOpen={activeModal === 'governance'} 
-        onClose={() => setActiveModal(null)} 
-      />
-      <CashbackTracker 
-        isOpen={activeModal === 'cashback'} 
-        onClose={() => setActiveModal(null)} 
-      />
-      <LaunchpadDashboard 
-        isOpen={activeModal === 'launchpad'} 
-        onClose={() => setActiveModal(null)} 
-      />
-      <ReferralDashboard 
-        isOpen={activeModal === 'referrals'} 
-        onClose={() => setActiveModal(null)} 
-      />
-      <NFTMintDashboard 
-        isOpen={activeModal === 'nft-mint'} 
-        onClose={() => setActiveModal(null)} 
-      />
-      
+      {/* Modals - Only render active modals (Presale if enabled, Vesting for founders) */}
       <AnimatePresence>
         {renderModal()}
       </AnimatePresence>
