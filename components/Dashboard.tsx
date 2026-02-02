@@ -66,7 +66,6 @@ const AIPortfolioAdvisor = dynamic(() => import('./AIPortfolioAdvisor'), { ssr: 
 const AIGasOptimizer = dynamic(() => import('./AIGasOptimizer'), { ssr: false });
 const AIConversationalAssistant = dynamic(() => import('./AIConversationalAssistant'), { ssr: false });
 const AIBrainAssistant = dynamic(() => import('./AIBrainAssistant'), { ssr: false });
-const AISettingsModal = dynamic(() => import('./AISettingsModal'), { ssr: false });
 
 // Smart Scheduler components
 const ScheduledTransactionsPanel = dynamic(() => import('./ScheduledTransactionsPanel'), { ssr: false });
@@ -236,7 +235,6 @@ export default function Dashboard() {
   const [showAIGasOptimizer, setShowAIGasOptimizer] = useState(false);
   const [showAIChat, setShowAIChat] = useState(false);
   const [showAIBrain, setShowAIBrain] = useState(false);
-  const [showAISettings, setShowAISettings] = useState(false);
   
   // Smart Scheduler modals
   const [showScheduledTransactions, setShowScheduledTransactions] = useState(false);
@@ -2267,13 +2265,6 @@ export default function Dashboard() {
                   <Sparkles className="w-5 h-5 text-purple-500" />
                   AI Tools
                 </h3>
-                <button
-                  onClick={() => setShowAISettings(true)}
-                  className="text-xs text-purple-500 hover:text-purple-600 flex items-center gap-1"
-                >
-                  <Settings className="w-3 h-3" />
-                  Configureer
-                </button>
               </div>
               
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -2770,10 +2761,6 @@ export default function Dashboard() {
               totalValue: totalValueUSD,
             }}
           />
-        )}
-
-        {showAISettings && (
-          <AISettingsModal onClose={() => setShowAISettings(false)} />
         )}
       </AnimatePresence>
       
