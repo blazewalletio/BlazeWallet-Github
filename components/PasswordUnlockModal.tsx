@@ -305,27 +305,35 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
 
   // Handle complete sign out
   const handleSignOut = async () => {
+    console.log('🚪 [SIGN OUT] Button clicked!');
+    
     try {
       setIsLoading(true);
       logger.log('🚪 [Unlock Modal] User initiated sign out');
       
+      console.log('🚪 [SIGN OUT] Importing supabase...');
       // Import supabase
       const { supabase } = await import('@/lib/supabase');
       
+      console.log('🚪 [SIGN OUT] Preserving device_id...');
       // ⚠️ CRITICAL: Preserve device_id before clearing localStorage
       const preservedDeviceId = localStorage.getItem('blaze_device_id');
       const preservedFingerprint = localStorage.getItem('blaze_device_fingerprint');
       const preservedFingerprintCachedAt = localStorage.getItem('blaze_fingerprint_cached_at');
       
       logger.log('🔑 [Unlock Modal] Preserving device_id:', preservedDeviceId?.substring(0, 12) + '...');
+      console.log('🚪 [SIGN OUT] Device ID preserved:', preservedDeviceId?.substring(0, 12) + '...');
       
+      console.log('🚪 [SIGN OUT] Signing out from Supabase...');
       // Sign out from Supabase
       await supabase.auth.signOut();
       
+      console.log('🚪 [SIGN OUT] Resetting wallet...');
       // Clear wallet store
       const { resetWallet } = useWalletStore.getState();
       resetWallet();
       
+      console.log('🚪 [SIGN OUT] Clearing localStorage...');
       // Clear all wallet-related localStorage (but preserve device tracking)
       const keysToRemove = [
         'wallet_email',
@@ -344,6 +352,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       // Clear sessionStorage
       sessionStorage.clear();
       
+      console.log('🚪 [SIGN OUT] Restoring device_id...');
       // ✅ CRITICAL: Restore device_id after clearing localStorage
       if (preservedDeviceId) {
         localStorage.setItem('blaze_device_id', preservedDeviceId);
@@ -357,11 +366,13 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       }
       
       logger.log('✅ [Unlock Modal] Sign out complete, redirecting to onboarding');
+      console.log('🚪 [SIGN OUT] Complete! Redirecting...');
       
       // Redirect to onboarding
       onFallback();
       
     } catch (error: any) {
+      console.error('❌ [SIGN OUT] Error:', error);
       logger.error('❌ [Unlock Modal] Sign out error:', error);
       setError('Failed to sign out. Please try again.');
     } finally {
