@@ -105,7 +105,14 @@ export default function BlazeTab() {
   ];
 
   const renderModal = () => {
-    if (!activeModal || activeModal === 'staking' || activeModal === 'governance' || activeModal === 'cashback' || activeModal === 'launchpad' || activeModal === 'referrals' || activeModal === 'nft-mint') return null; // These have their own modals
+    // Only allow Presale (if enabled) and Vesting (for founders)
+    // All other features are disabled (Coming Soon)
+    if (!activeModal) return null;
+    
+    // Block disabled features
+    if (['staking', 'governance', 'cashback', 'launchpad', 'referrals', 'nft-mint', 'nft-skins'].includes(activeModal)) {
+      return null;
+    }
     
     // Hide presale modal if feature flag is disabled
     if (activeModal === 'presale' && !PRESALE_FEATURE_ENABLED) return null;
