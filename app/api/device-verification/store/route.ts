@@ -13,6 +13,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
 
+// Bypass CSRF protection (we use Bearer token authentication instead)
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 // Create admin client (service role - bypasses RLS)
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
