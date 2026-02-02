@@ -23,38 +23,11 @@ export interface TransactionIntent {
 }
 
 class AIService {
-  private apiKey: string | null = null;
   private conversationHistory: Array<{ role: string; content: string }> = [];
   private lastApiCall: number = 0;
   private readonly RATE_LIMIT_MS = 5000; // 5 seconds between calls (increased)
   private retryCount: number = 0;
   private readonly MAX_RETRIES = 2; // Reduced retries to avoid long waits
-
-  setApiKey(key: string) {
-    logger.log('🔑 Setting API key...', key.substring(0, 8) + '...');
-    this.apiKey = key;
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('ai_api_key', key);
-      logger.log('✅ API key saved to localStorage');
-    }
-  }
-
-  getApiKey(): string | null {
-    if (this.apiKey) {
-      logger.log('🔑 Using in-memory API key:', this.apiKey.substring(0, 8) + '...');
-      return this.apiKey;
-    }
-    if (typeof window !== 'undefined') {
-      const storedKey = localStorage.getItem('ai_api_key');
-      if (storedKey) {
-        logger.log('🔑 Loaded API key from localStorage:', storedKey.substring(0, 8) + '...');
-        this.apiKey = storedKey; // Cache it
-        return storedKey;
-      }
-    }
-    logger.log('❌ No API key found');
-    return null;
-  }
 
   private checkRateLimit(): boolean {
     const now = Date.now();
