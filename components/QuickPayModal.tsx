@@ -74,6 +74,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   const [isConverting, setIsConverting] = useState(false);
   const [error, setError] = useState<string>('');
   const [txHash, setTxHash] = useState<string>('');
+  const [step, setStep] = useState<'sending' | 'confirming' | 'success' | 'error'>('sending');
   const [balanceWarning, setBalanceWarning] = useState<{
     message: string;
     details: { need: string; have: string; missing: string; missingUSD: string };
