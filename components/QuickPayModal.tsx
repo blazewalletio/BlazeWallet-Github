@@ -1546,7 +1546,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                           whileTap={{ scale: 0.95 }}
                           onClick={() => {
                             setSelectedAmount(amt);
-                            setCustomAmount('');
+                            setCustomAmount(amt.toString()); // ✅ Show preset in custom field too
                           }}
                           className={`p-6 text-center rounded-xl transition-all border-2 ${
                             selectedAmount === amt
@@ -2281,7 +2281,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                               key={preset}
                               onClick={() => {
                                 setSelectedAmount(preset);
-                                setCustomAmount('');
+                                setCustomAmount(preset.toString()); // ✅ Show preset in custom field too
                               }}
                               className={`py-3 rounded-lg font-semibold transition-all ${
                                 selectedAmount === preset
