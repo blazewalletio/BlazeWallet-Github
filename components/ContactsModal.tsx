@@ -87,7 +87,7 @@ export default function ContactsModal({
     const filtered = contacts.filter(contact =>
       contact.name.toLowerCase().includes(query) ||
       contact.address.toLowerCase().includes(query) ||
-      contact.note?.toLowerCase().includes(query)
+      contact.notes?.toLowerCase().includes(query)
     );
     setFilteredContacts(filtered);
   }, [searchQuery, contacts]);
