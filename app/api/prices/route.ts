@@ -190,81 +190,9 @@ export async function GET(request: Request) {
       coinGeckoFailed = true;
     }
 
-    // ⚡ TRY 2: Binance fallback for major tokens (SOL, BTC, ETH, BNB, MATIC)
-    // Use Binance if:
-    // 1. CoinGecko completely failed (coinGeckoFailed = true)
-    // 2. CoinGecko returned 0 for any requested native token
-    const needsBinanceFallback = coinGeckoFailed || !data || 
-      symbols.some(symbol => {
-        const coinId = symbolToId[symbol.toUpperCase()];
-        if (!coinId) return false; // Not a major token, skip
-        const price = data[coinId]?.usd || 0;
-        return price === 0; // Need fallback if price is 0
-      });
-    
-    if (needsBinanceFallback) {
-      logger.log(`🔄 [Prices] Trying Binance fallback for major tokens...`);
-      
-      // ✅ COMPREHENSIVE: All native tokens supported by Binance
-      // Note: CRO (Cronos) is NOT on Binance - will rely on CoinGecko for that
-      const binanceSymbols: Record<string, string> = {
-        // Layer 1 Blockchains
-        'SOL': 'SOLUSDT',        // Solana
-        'BTC': 'BTCUSDT',        // Bitcoin
-        'ETH': 'ETHUSDT',        // Ethereum (also used by Arbitrum, Base, Optimism, zkSync, Linea)
-        'BNB': 'BNBUSDT',        // BNB Smart Chain
-        'tBNB': 'BNBUSDT',       // BSC Testnet (same price as mainnet)
-        'MATIC': 'MATICUSDT',    // Polygon
-        'AVAX': 'AVAXUSDT',      // Avalanche
-        'FTM': 'FTMUSDT',        // Fantom
-        
-        // Bitcoin Forks
-        'LTC': 'LTCUSDT',        // Litecoin
-        'DOGE': 'DOGEUSDT',      // Dogecoin
-        'BCH': 'BCHUSDT',        // Bitcoin Cash
-        
-        // Layer 2s (use ETH price)
-        'ARB': 'ARBUSDT',        // Arbitrum (has its own token)
-        'OP': 'OPUSDT',          // Optimism (has its own token)
-      };
-
-      if (!data) data = {}; // Initialize if CoinGecko completely failed
-      
-      for (const [symbol, binanceSymbol] of Object.entries(binanceSymbols)) {
-        if (!symbols.includes(symbol)) continue;
-        
-        // Check if we already have a valid price from CoinGecko
-        const coinId = symbolToId[symbol];
-        if (coinId && data[coinId]?.usd && data[coinId].usd > 0) {
-          logger.log(`✅ [Prices] ${symbol} already has valid CoinGecko price: $${data[coinId].usd}`);
-          continue; // Skip Binance if we have a valid price
-        }
-        
-        try {
-          const binanceUrl = `https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`;
-          const binanceResponse = await fetch(binanceUrl, {
-            signal: AbortSignal.timeout(5000), // 5 second timeout
-          });
-
-          if (binanceResponse.ok) {
-            const binanceData = await binanceResponse.json();
-            if (coinId) {
-              data[coinId] = {
-                usd: parseFloat(binanceData.lastPrice),
-                usd_24h_change: parseFloat(binanceData.priceChangePercent),
-              };
-              logger.log(`✅ [Prices] ${symbol} from Binance: $${data[coinId].usd} (${data[coinId].usd_24h_change >= 0 ? '+' : ''}${data[coinId].usd_24h_change.toFixed(2)}%)`);
-            }
-          }
-        } catch (binanceError: any) {
-          logger.warn(`⚠️ [Prices] Binance fallback failed for ${symbol}:`, binanceError.message);
-        }
-      }
-    }
-
-    // If both failed, return empty result (will trigger DexScreener fallback on client)
+    // If CoinGecko Pro failed completely, return empty result (will trigger DexScreener fallback on client)
     if (!data || Object.keys(data).length === 0) {
-      logger.warn('⚠️ [Prices] Both CoinGecko and Binance failed - returning empty result');
+      logger.warn('⚠️ [Prices] CoinGecko Pro failed - returning empty result for DexScreener fallback');
       const emptyResult: Record<string, { price: number; change24h: number }> = {};
       symbols.forEach(symbol => {
         emptyResult[symbol] = { price: 0, change24h: 0 };
@@ -277,7 +205,7 @@ export async function GET(request: Request) {
     // Convert back to symbol-keyed format that PriceService expects
     const result: Record<string, { price: number; change24h: number }> = {};
     
-    // Map CoinGecko/Binance response back to original symbols
+    // Map CoinGecko Pro response back to original symbols
     for (const mapping of coinIdMappings) {
       if (!mapping.id) {
         // Symbol not found - return 0 (will trigger DexScreener fallback)

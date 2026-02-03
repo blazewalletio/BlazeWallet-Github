@@ -10,8 +10,7 @@ export class PriceService {
   private addressCache = new LRUCache<{ price: number; change24h: number; source: string }>(100); // EVM address cache
   private cacheDuration = 0; // 🔥 NO CLIENT-SIDE CACHE - ALWAYS FRESH DATA (user requirement)
   private change24hCacheDuration = 0; // 🔥 NO CACHE - always fetch fresh 24h change
-  private primaryApiUrl = '/api/prices'; // CoinGecko (primary)
-  private fallbackApiUrl = '/api/prices-binance'; // Binance (fallback)
+  private primaryApiUrl = '/api/prices'; // CoinGecko Pro (primary and ONLY source!)
   private addressApiUrl = '/api/prices-by-address'; // CoinGecko by address (NEW!)
 
   /**
@@ -74,75 +73,6 @@ export class PriceService {
   }
 
   /**
-   * 🔥 NEW: Get native token price DIRECTLY from Binance API
-   * This bypasses the broken /api/prices route but USES THE SAME CACHE as other tokens!
-   * So cache clearing works consistently for ALL tokens (native + ERC-20/SPL)
-   */
-  async getNativePriceDirectFromBinance(symbol: string): Promise<{ price: number; change24h: number }> {
-    // ✅ Check cache first (respects clearCache() calls!)
-    const cached = this.cache.get(symbol);
-    if (cached) {
-      logger.log(`💰 [PriceService] Cache hit for native ${symbol}: $${cached.price} (${cached.source})`);
-      return { price: cached.price, change24h: cached.change24h };
-    }
-
-    // Binance symbol mapping
-    const binanceSymbolMap: Record<string, string> = {
-      'SOL': 'SOLUSDT',
-      'ETH': 'ETHUSDT',
-      'BTC': 'BTCUSDT',
-      'BNB': 'BNBUSDT',
-      'MATIC': 'MATICUSDT',
-      'AVAX': 'AVAXUSDT',
-      'FTM': 'FTMUSDT',
-      'LTC': 'LTCUSDT',
-      'DOGE': 'DOGEUSDT',
-      'BCH': 'BCHUSDT',
-      'ARB': 'ARBUSDT',
-      'OP': 'OPUSDT',
-    };
-
-    const binanceSymbol = binanceSymbolMap[symbol];
-    
-    if (!binanceSymbol) {
-      logger.warn(`⚠️ [PriceService] ${symbol} not on Binance, falling back to CoinGecko`);
-      // Fallback to regular method for chains not on Binance (e.g., CRO)
-      return this.getMultiplePrices([symbol]).then(result => result[symbol] || { price: 0, change24h: 0 });
-    }
-
-    try {
-      logger.log(`📡 [PriceService] Fetching ${symbol} DIRECT from Binance (${binanceSymbol})`);
-      const binanceUrl = `https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`;
-      const binanceResponse = await fetch(binanceUrl, {
-        signal: AbortSignal.timeout(5000),
-      });
-      
-      if (binanceResponse.ok) {
-        const binanceData = await binanceResponse.json();
-        const price = parseFloat(binanceData.lastPrice);
-        const change24h = parseFloat(binanceData.priceChangePercent);
-        
-        // ✅ CRITICAL: Store in cache (respects clearCache()!)
-        this.cache.set(symbol, {
-          price,
-          change24h,
-          source: 'binance-direct',
-        }, this.cacheDuration);
-        
-        logger.log(`✅ [PriceService] Binance ${symbol}: $${price} (${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%)`);
-        return { price, change24h };
-      } else {
-        throw new Error(`Binance returned ${binanceResponse.status}`);
-      }
-    } catch (error) {
-      logger.warn(`⚠️ [PriceService] Binance failed for ${symbol}, trying CoinGecko fallback`);
-      // Fallback to CoinGecko
-      const cgPrices = await this.getMultiplePrices([symbol]);
-      return cgPrices[symbol] || { price: 0, change24h: 0 };
-    }
-  }
-
-  /**
    * Get 24h change with fallback
    * ✅ NOTE: This is now mainly used as fallback - prefer getMultiplePrices() for batch fetching!
    * For single symbol, use cached value if available, otherwise fetch fresh
@@ -193,7 +123,7 @@ export class PriceService {
   }
 
   /**
-   * 🔥 NEW: Get price by mint address (for SPL tokens not on CoinGecko/Binance)
+   * 🔥 NEW: Get price by mint address (for SPL tokens not on CoinGecko Pro)
    * Uses DexScreener as primary source for DEX-traded tokens
    */
   async getPriceByMint(mint: string): Promise<{ price: number; change24h: number }> {
@@ -292,10 +222,10 @@ export class PriceService {
   }
 
   /**
-   * Private: Fetch price with fallback logic
+   * Private: Fetch price with fallback logic (CoinGecko Pro → DexScreener)
    */
   private async fetchPriceWithFallback(symbol: string): Promise<number> {
-    // Try CoinGecko first
+    // Try CoinGecko Pro first
     try {
       const response = await fetch(`${this.primaryApiUrl}?symbols=${symbol}`, {
         signal: AbortSignal.timeout(5000), // 5 second timeout
@@ -311,76 +241,42 @@ export class PriceService {
           this.cache.set(symbol, { 
             price, 
             change24h, 
-            source: 'coingecko',
+            source: 'coingecko-pro',
           }, this.cacheDuration);
           
-          logger.log(`✅ [PriceService] CoinGecko: ${symbol} = $${price}`);
+          logger.log(`✅ [PriceService] CoinGecko Pro: ${symbol} = $${price}`);
           return price;
         }
       } else if (response.status === 400) {
         // ✅ Silent 400 - expected for unknown tokens (meme coins, new tokens)
-        // Will fallback to Binance and then DexScreener
+        logger.log(`⏭️ [PriceService] ${symbol} not found in CoinGecko Pro, will use DexScreener fallback`);
       }
     } catch (error) {
       // ✅ Don't log network/timeout errors - they're expected
       if (!(error instanceof Error && (error.name === 'AbortError' || error.message.includes('fetch')))) {
-        logger.warn(`⚠️ [PriceService] CoinGecko failed for ${symbol}:`, error instanceof Error ? error.message : 'Unknown error');
+        logger.warn(`⚠️ [PriceService] CoinGecko Pro failed for ${symbol}:`, error instanceof Error ? error.message : 'Unknown error');
       }
     }
 
-    // Try Binance fallback
-    try {
-      const response = await fetch(`${this.fallbackApiUrl}?symbols=${symbol}`, {
-        signal: AbortSignal.timeout(5000), // 5 second timeout
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data[symbol] && data[symbol].price > 0) {
-          const price = data[symbol].price;
-          const change24h = data[symbol].change24h || 0;
-          
-          // Update cache with TTL
-          this.cache.set(symbol, { 
-            price, 
-            change24h, 
-            source: 'binance',
-          }, this.cacheDuration);
-          
-          logger.log(`✅ [PriceService] Binance: ${symbol} = $${price}`);
-          return price;
-        }
-      } else if (response.status === 400) {
-        // ✅ Silent 400 - token not in Binance either, will use DexScreener
-      }
-    } catch (error) {
-      // ✅ Don't log network/timeout errors - they're expected
-      if (!(error instanceof Error && (error.name === 'AbortError' || error.message.includes('fetch')))) {
-        logger.warn(`⚠️ [PriceService] Binance failed for ${symbol}:`, error instanceof Error ? error.message : 'Unknown error');
-      }
-    }
-
-    // Silent fail for getPrice() - DexScreener will be used as final fallback for tokens with addresses
-    // For native tokens (MATIC, ETH, etc), if both CoinGecko and Binance fail, we return 0
-    // This is expected behavior - the price will be fetched on next refresh or from cache
+    // For native tokens, log warning if CoinGecko Pro fails
     const knownTokens = ['ETH', 'BTC', 'SOL', 'MATIC', 'BNB', 'USDT', 'USDC'];
     if (knownTokens.includes(symbol.toUpperCase())) {
-      logger.warn(`⚠️ [PriceService] CoinGecko and Binance both failed for ${symbol} - price will be 0 until next refresh. Check API keys and rate limits.`);
+      logger.warn(`⚠️ [PriceService] CoinGecko Pro failed for ${symbol} - price will be 0 until next refresh. Check API key and rate limits.`);
     }
     return 0;
   }
 
   /**
-   * Private: Fetch multiple prices + change24h with fallback (batch optimized)
+   * Private: Fetch multiple prices + change24h (batch optimized)
    * ✅ CRITICAL FIX: Returns both price AND change24h in one call
-   * CoinGecko API already returns both, so we use it directly!
+   * CoinGecko Pro API already returns both, so we use it directly!
    */
   private async fetchMultiplePricesWithFallback(symbols: string[]): Promise<Record<string, { price: number; change24h: number }>> {
     const result: Record<string, { price: number; change24h: number }> = {};
 
-    // ✅ STEP 1: Try CoinGecko first (batch request - returns price + change24h!)
+    // ✅ STEP 1: Try CoinGecko Pro (batch request - returns price + change24h!)
     try {
-      logger.log(`📡 [PriceService] Trying CoinGecko batch for: ${symbols.join(', ')}`);
+      logger.log(`📡 [PriceService] Trying CoinGecko Pro batch for: ${symbols.join(', ')}`);
       // 🔥 CACHE BUSTING: Add timestamp to force Vercel to fetch fresh data
       const cacheBuster = Date.now();
       const response = await fetch(`${this.primaryApiUrl}?symbols=${symbols.join(',')}&_t=${cacheBuster}`, {
@@ -390,8 +286,8 @@ export class PriceService {
       if (response.ok) {
         const data = await response.json();
         
-        // 🔍 DEBUG: Log RAW response from CoinGecko
-        logger.log(`📦 [PriceService] RAW CoinGecko batch response:`, JSON.stringify(data, null, 2));
+        // 🔍 DEBUG: Log RAW response from CoinGecko Pro
+        logger.log(`📦 [PriceService] RAW CoinGecko Pro batch response:`, JSON.stringify(data, null, 2));
 
         symbols.forEach(symbol => {
           if (data[symbol] && data[symbol].price > 0) {
@@ -408,73 +304,25 @@ export class PriceService {
             this.cache.set(symbol, { 
               price, 
               change24h, 
-              source: 'coingecko'
+              source: 'coingecko-pro'
             }, this.cacheDuration);
             
             logger.log(`✅ [PriceService] CACHED for ${this.cacheDuration/1000}s: ${symbol} = $${price}, change24h: ${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%`);
           } else {
-            // ⚠️ DON'T add to result yet - let fallbacks try first!
-            logger.log(`⚠️ [PriceService] ${symbol}: NOT FOUND in CoinGecko (price: ${data[symbol]?.price || 0})`);
+            // ⚠️ DON'T add to result yet - let DexScreener try first!
+            logger.log(`⚠️ [PriceService] ${symbol}: NOT FOUND in CoinGecko Pro (price: ${data[symbol]?.price || 0})`);
           }
         });
       } else if (response.status === 400) {
         // 400 is expected for unknown tokens - don't log as error
-        logger.log(`⏭️ [PriceService] Some tokens not in CoinGecko (${response.status}), trying Binance...`);
+        logger.log(`⏭️ [PriceService] Some tokens not in CoinGecko Pro (${response.status}), will use DexScreener fallback`);
       }
     } catch (error) {
       // Don't log fetch errors as warnings - they're expected for unknown tokens
-      logger.log(`⏭️ [PriceService] CoinGecko batch fallthrough, trying Binance...`);
+      logger.log(`⏭️ [PriceService] CoinGecko Pro batch fallthrough, will use DexScreener fallback`);
     }
 
-    // ✅ STEP 2: Find symbols that still need prices (not found in CoinGecko)
-    const missingSymbols = symbols.filter(s => !result[s] || result[s].price === 0);
-    
-    if (missingSymbols.length === 0) {
-      logger.log(`✅ [PriceService] All ${symbols.length} symbols found via CoinGecko`);
-      return result;
-    }
-    
-    logger.log(`🔍 [PriceService] ${missingSymbols.length}/${symbols.length} symbols still missing, trying Binance fallback...`);
-
-    // ✅ STEP 3: Try Binance fallback for missing symbols
-    try {
-      logger.log(`📡 [PriceService] Trying Binance batch for missing: ${missingSymbols.join(', ')}`);
-      const response = await fetch(`${this.fallbackApiUrl}?symbols=${missingSymbols.join(',')}`, {
-        signal: AbortSignal.timeout(10000),
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-
-        missingSymbols.forEach(symbol => {
-          if (data[symbol] && data[symbol].price > 0) {
-            const price = data[symbol].price;
-            const change24h = data[symbol].change24h || 0;
-            
-            // ✅ Store both price AND change24h
-            result[symbol] = { price, change24h };
-            this.cache.set(symbol, { 
-              price, 
-              change24h, 
-              source: 'binance'
-            }, this.cacheDuration);
-            
-            logger.log(`✅ [PriceService] Binance: ${symbol} = $${price}, change24h: ${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%`);
-          } else {
-            // ⚠️ Still not found - will try DexScreener fallback if mint/address available
-            logger.log(`⚠️ [PriceService] ${symbol}: NOT FOUND in Binance either (price: ${data[symbol]?.price || 0})`);
-          }
-        });
-      } else if (response.status === 400) {
-        // 400 is expected for unknown tokens - don't log as error
-        logger.log(`⏭️ [PriceService] Symbols not found in Binance either (${response.status}), will use DexScreener fallback`);
-      }
-    } catch (error) {
-      // Don't log as warning - expected for unknown tokens
-      logger.log(`⏭️ [PriceService] Binance batch fallthrough, will use DexScreener fallback`);
-    }
-
-    // ✅ STEP 4: Log final summary
+    // ✅ STEP 2: Log final summary
     const foundSymbols = symbols.filter(s => result[s] && result[s].price > 0);
     const notFoundSymbols = symbols.filter(s => !result[s] || result[s].price === 0);
     
