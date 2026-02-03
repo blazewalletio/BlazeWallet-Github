@@ -33,7 +33,6 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   const [paymentMethod, setPaymentMethod] = useState<'scanqr' | 'manual' | 'lightning' | null>(null);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState('');
-  const [recipientAddress, setRecipientAddress] = useState('');
   const [lightningQR, setLightningQR] = useState('');
   const [lightningInvoice, setLightningInvoice] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
