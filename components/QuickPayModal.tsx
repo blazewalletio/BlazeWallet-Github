@@ -20,6 +20,8 @@ import { logTransactionEvent } from '@/lib/analytics-tracker';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { Token } from '@/lib/types';
 import Image from 'next/image';
+import ContactsModal from './ContactsModal';
+import { contactsService, Contact } from '@/lib/contacts-service';
 
 interface QuickPayModalProps {
   isOpen: boolean;
@@ -58,6 +60,9 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   const [parsedQR, setParsedQR] = useState<ParsedQRData | null>(null);
   const [needsChainSwitch, setNeedsChainSwitch] = useState(false);
   const [showChainSwitchDialog, setShowChainSwitchDialog] = useState(false); // ⚡ NEW: Chain switch confirmation
+  
+  // 📇 NEW: Contacts feature
+  const [showContactsModal, setShowContactsModal] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1138,6 +1143,20 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     }
   };
 
+  // 📇 Handle contact selection
+  const handleSelectContact = async (contact: Contact) => {
+    setRecipientAddress(contact.address);
+    toast.success(`✅ Selected: ${contact.name}`);
+    
+    // Update usage stats in background
+    if (amount && nativePrice) {
+      const amountUSD = amount * (await convertUSD(amount)) / amount;
+      contactsService.incrementUsage(contact.address, contact.chain, amountUSD).catch(err => 
+        logger.warn('Failed to update contact usage:', err)
+      );
+    }
+  };
+
   const resetModal = () => {
     setMode('method');
     setPaymentMethod(null);
@@ -1728,7 +1747,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                       </motion.button>
                       <motion.button
                         whileTap={{ scale: 0.95 }}
-                        onClick={() => toast('Contacts feature coming soon!')}
+                        onClick={() => setShowContactsModal(true)}
                         className="p-3 bg-white border-2 border-gray-200 hover:border-orange-300 rounded-xl text-center transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                       >
                         <User className="w-5 h-5 text-orange-600 mx-auto mb-1" />
@@ -2676,6 +2695,14 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
           </div>
         </motion.div>
       )}
+      
+      {/* 📇 Contacts Modal */}
+      <ContactsModal
+        isOpen={showContactsModal}
+        onClose={() => setShowContactsModal(false)}
+        onSelectContact={handleSelectContact}
+        filterChain={currentChain}
+      />
     </AnimatePresence>
   );
 }
