@@ -178,12 +178,29 @@ export async function GET(request: Request) {
 
       if (!response.ok) {
         logger.error(`❌ CoinGecko Pro error: ${response.status}`);
+        
+        // ⚠️ CRITICAL: Log response body for 400 errors
+        let errorBody = '';
+        try {
+          errorBody = await response.text();
+          logger.error(`   Response body: ${errorBody}`);
+        } catch (e) {
+          logger.error(`   Could not read response body`);
+        }
+        
         if (response.status === 401) {
           logger.error('   → 401 Unauthorized: API key is invalid or missing');
+          logger.error(`   → API KEY CHECK: ${apiKey ? `Present (${apiKey.length} chars)` : 'MISSING!'}`);
         } else if (response.status === 429) {
           logger.error('   → 429 Rate Limit: Too many requests');
         } else if (response.status === 404) {
           logger.error('   → 404 Not Found: Coin IDs may be incorrect');
+          logger.error(`   → Requested coin IDs: ${coinIds.join(', ')}`);
+        } else if (response.status === 400) {
+          logger.error('   → 400 Bad Request: Request parameters are invalid');
+          logger.error(`   → Requested coin IDs: ${coinIds.join(', ')}`);
+          logger.error(`   → API KEY: ${apiKey ? 'Present' : 'MISSING'}`);
+          logger.error(`   → Full URL: ${url}`);
         }
         coinGeckoFailed = true;
       } else {
