@@ -466,7 +466,8 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
             });
           }
         }
-      } else if (chainConfig.type === 'evm') {
+      } else if (chainConfig.id) {
+        // EVM chains have numeric IDs (Ethereum, Polygon, BSC, etc.)
         // EVM ERC20 tokens (use Alchemy if available)
         const erc20Tokens = await blockchain.getERC20TokenBalances(currentAddress);
         logger.log(`🪙 [QuickPay] Found ${erc20Tokens.length} ERC20 tokens`);
