@@ -64,7 +64,6 @@ const AIRiskScanner = dynamic(() => import('./AIRiskScanner'), { ssr: false });
 const AIPortfolioAdvisor = dynamic(() => import('./AIPortfolioAdvisor'), { ssr: false });
 const AIGasOptimizer = dynamic(() => import('./AIGasOptimizer'), { ssr: false });
 const AIConversationalAssistant = dynamic(() => import('./AIConversationalAssistant'), { ssr: false });
-const AIBrainAssistant = dynamic(() => import('./AIBrainAssistant'), { ssr: false });
 
 // Smart Scheduler components
 const ScheduledTransactionsPanel = dynamic(() => import('./ScheduledTransactionsPanel'), { ssr: false });
@@ -232,7 +231,6 @@ export default function Dashboard() {
   const [showAIPortfolioAdvisor, setShowAIPortfolioAdvisor] = useState(false);
   const [showAIGasOptimizer, setShowAIGasOptimizer] = useState(false);
   const [showAIChat, setShowAIChat] = useState(false);
-  const [showAIBrain, setShowAIBrain] = useState(false);
   
   // Smart Scheduler modals
   const [showScheduledTransactions, setShowScheduledTransactions] = useState(false);
@@ -2322,18 +2320,39 @@ export default function Dashboard() {
                   <div className="text-xs text-slate-400">24/7 AI support</div>
                 </motion.button>
 
-                {/* AI Brain - All Features */}
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => setShowAIBrain(true)}
-                  className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20"
+                {/* AI Brain - COMING SOON */}
+                <motion.div
+                  animate={{ 
+                    scale: [1, 1.01, 1],
+                  }}
+                  transition={{ 
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                    delay: 1.2
+                  }}
+                  className="glass p-4 rounded-xl text-left cursor-default relative overflow-hidden backdrop-blur-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20"
                 >
-                  <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-lg flex items-center justify-center mb-3">
-                    <Brain className="w-5 h-5 text-white" />
+                  {/* Content Layer (faded) */}
+                  <div className="relative z-0 opacity-40">
+                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-lg flex items-center justify-center mb-3">
+                      <Brain className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="font-semibold mb-1">AI Brain</div>
+                    <div className="text-xs text-slate-400">Alles in één interface</div>
                   </div>
-                  <div className="font-semibold mb-1">AI Brain</div>
-                  <div className="text-xs text-slate-400">Alles in één interface</div>
-                </motion.button>
+                  
+                  {/* Frosted Overlay with Lock */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-black/30 via-black/20 to-black/30 backdrop-blur-md z-10">
+                    <motion.div
+                      animate={{ opacity: [0.4, 0.7, 0.4] }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
+                    >
+                      <Lock className="w-8 h-8 text-white/60 mb-2" />
+                    </motion.div>
+                    <span className="text-[10px] font-bold text-white/80 tracking-wider">UNLOCKING SOON</span>
+                  </div>
+                </motion.div>
               </div>
             </div>
           </motion.div>
@@ -2826,27 +2845,6 @@ export default function Dashboard() {
         {showAIChat && (
           <AIConversationalAssistant
             onClose={() => setShowAIChat(false)}
-            context={{
-              balance: balance || '0',
-              tokens: tokens,
-              address: address || '',
-              chain: currentChain,
-              totalValue: totalValueUSD,
-            }}
-          />
-        )}
-
-        {showAIBrain && (
-          <AIBrainAssistant
-            onClose={() => setShowAIBrain(false)}
-            onOpenFeature={(feature) => {
-              setShowAIBrain(false);
-              if (feature === 'assistant') setShowAIAssistant(true);
-              else if (feature === 'scanner') setShowAIRiskScanner(true);
-              else if (feature === 'advisor') setShowAIPortfolioAdvisor(true);
-              else if (feature === 'optimizer') setShowAIGasOptimizer(true);
-              else if (feature === 'chat') setShowAIChat(true);
-            }}
             context={{
               balance: balance || '0',
               tokens: tokens,
