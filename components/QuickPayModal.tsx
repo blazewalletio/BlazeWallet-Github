@@ -724,48 +724,13 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         
         // Handle tokens without price data
         if (!priceUSD || priceUSD === 0) {
-          logger.warn(`⚠️ [QuickPay] No price data for ${tokenSymbol}`);
-          logger.log(`   Switching to token-amount mode (no USD conversion)`);
+          logger.error(`⚠️ [QuickPay] No price data for ${tokenSymbol}`);
           
-          // For tokens without price, treat the entered amount as the token amount
-          const tokenAmount = amount;
-          setCryptoAmount(tokenAmount.toString());
-          setNativePrice(0);
-          
-          logger.log(`✅ [QuickPay] Sending ${tokenAmount} ${tokenSymbol} (no USD conversion)`);
-          
-          // Still need to estimate gas in native token
-          logger.log(`\n📍 STEP 5: Estimating gas fees...`);
-          logger.log(`   Chain type: ${currentChain}`);
-          logger.log(`   Gas paid in: ${chainConfig.nativeCurrency.symbol} (native token)`);
-          
-          const blockchain = MultiChainService.getInstance(currentChain);
-          const gasPrices = await blockchain.getGasPrice();
-          
-          // Get native token price for gas calculation (from CoinGecko Pro)
-          const nativePriceResult = await priceService.getMultiplePrices([chainConfig.nativeCurrency.symbol]);
-          const nativeTokenPrice = nativePriceResult[chainConfig.nativeCurrency.symbol]?.price || 0;
-          
-          let gasAmount = 0;
-          if (currentChain === 'solana') {
-            gasAmount = 0.000005;
-          } else if (currentChain === 'bitcoin' || currentChain === 'litecoin' || currentChain === 'dogecoin' || currentChain === 'bitcoincash') {
-            gasAmount = 0.0001;
-          } else {
-            const gasPrice = parseFloat(gasPrices.standard);
-            const gasLimit = isNative ? 21000 : 65000;
-            gasAmount = (gasPrice * gasLimit) / 1e9;
-          }
-          
-          const gasUSD = gasAmount * nativeTokenPrice;
-          setEstimatedGas(gasAmount);
-          setEstimatedGasUSD(gasUSD);
-          
-          logger.log(`   Gas: ${gasAmount.toFixed(6)} ${chainConfig.nativeCurrency.symbol} ($${gasUSD.toFixed(2)})`);
-          logger.log(`\n✅ [QuickPay] Ready to send ${tokenAmount} ${tokenSymbol}`);
-          
+          // Show user-friendly error message
+          const errorMsg = `Unable to convert ${symbol}${amount} to ${tokenSymbol}. Price data is currently unavailable for this token. Please try again later or select a different token.`;
+          setError(errorMsg);
+          toast.error(errorMsg);
           setIsConverting(false);
-          setMode('address');
           return;
         }
         
@@ -1572,56 +1537,33 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     <h3 className="text-lg font-semibold text-gray-900 mb-1">
                       {paymentMethod === 'lightning' ? 'Amount to receive' : 'Amount to send'}
                     </h3>
+                    <p className="text-sm text-gray-600 mb-4">Choose a preset or enter custom amount</p>
                     
-                    {/* Show warning for tokens without price */}
-                    {selectedToken && (!selectedToken.priceUSD || selectedToken.priceUSD === 0) ? (
-                      <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                        <div className="flex items-start gap-2">
-                          <span className="text-amber-600 mt-0.5">⚠️</span>
-                          <div className="text-sm text-amber-800">
-                            <p className="font-semibold">Price data unavailable</p>
-                            <p className="text-xs mt-1">Enter the amount in {selectedToken.symbol} tokens directly (not {selectedCurrency})</p>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-600 mb-4">Choose a preset or enter custom amount</p>
-                    )}
-                    
-                    {/* Only show presets if token has price data */}
-                    {(!selectedToken || (selectedToken.priceUSD && selectedToken.priceUSD > 0)) && (
-                      <div className="grid grid-cols-3 gap-3 mb-6">
-                        {PRESET_AMOUNTS_EUR.map((amt) => (
-                          <motion.button
-                            key={amt}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={() => {
-                              setSelectedAmount(amt);
-                              setCustomAmount('');
-                            }}
-                            className={`p-6 text-center rounded-xl transition-all border-2 ${
-                              selectedAmount === amt
-                                ? 'bg-gradient-to-br from-orange-500 to-yellow-500 text-white border-orange-500 shadow-lg'
-                                : 'bg-white border-gray-200 hover:border-orange-300 text-gray-900'
-                            }`}
-                          >
-                            <div className="text-3xl font-bold">{symbol}{amt}</div>
-                          </motion.button>
-                        ))}
-                      </div>
-                    )}
+                    <div className="grid grid-cols-3 gap-3 mb-6">
+                      {PRESET_AMOUNTS_EUR.map((amt) => (
+                        <motion.button
+                          key={amt}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => {
+                            setSelectedAmount(amt);
+                            setCustomAmount('');
+                          }}
+                          className={`p-6 text-center rounded-xl transition-all border-2 ${
+                            selectedAmount === amt
+                              ? 'bg-gradient-to-br from-orange-500 to-yellow-500 text-white border-orange-500 shadow-lg'
+                              : 'bg-white border-gray-200 hover:border-orange-300 text-gray-900'
+                          }`}
+                        >
+                          <div className="text-3xl font-bold">{symbol}{amt}</div>
+                        </motion.button>
+                      ))}
+                    </div>
 
                     <div>
-                      <h3 className="text-sm text-gray-600 mb-2">
-                        {selectedToken && (!selectedToken.priceUSD || selectedToken.priceUSD === 0) 
-                          ? `Enter amount in ${selectedToken.symbol}` 
-                          : 'Or enter custom amount'}
-                      </h3>
+                      <h3 className="text-sm text-gray-600 mb-2">Or enter custom amount</h3>
                       <div className="relative">
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-gray-600">
-                          {selectedToken && (!selectedToken.priceUSD || selectedToken.priceUSD === 0) 
-                            ? selectedToken.symbol 
-                            : symbol}
+                          {symbol}
                         </span>
                         <input aria-label="Number input"
                           type="number"
@@ -1631,7 +1573,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                             setSelectedAmount(null);
                           }}
                           placeholder="0.00"
-                          className="w-full pl-16 pr-4 py-4 text-2xl font-bold input-field placeholder-gray-400"
+                          className="w-full pl-12 pr-4 py-4 text-2xl font-bold input-field placeholder-gray-400"
                         />
                       </div>
                     </div>
