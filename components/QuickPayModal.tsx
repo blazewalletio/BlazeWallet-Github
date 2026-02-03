@@ -1620,7 +1620,16 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm text-gray-600">Crypto amount</span>
                         <span className="text-lg font-bold text-gray-900">
-                          {parseFloat(cryptoAmount).toFixed(6)} {selectedToken?.symbol || CHAINS[currentChain].nativeCurrency.symbol}
+                          {(() => {
+                            const tokenSymbol = selectedToken?.symbol || CHAINS[currentChain].nativeCurrency.symbol;
+                            console.log('🔍 [QuickPay Address Screen] Rendering crypto amount:', {
+                              selectedToken,
+                              tokenSymbol,
+                              cryptoAmount,
+                              fallback: CHAINS[currentChain].nativeCurrency.symbol
+                            });
+                            return `${parseFloat(cryptoAmount).toFixed(6)} ${tokenSymbol}`;
+                          })()}
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-xs text-gray-500">
