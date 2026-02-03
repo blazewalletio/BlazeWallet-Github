@@ -1620,7 +1620,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm text-gray-600">Crypto amount</span>
                         <span className="text-lg font-bold text-gray-900">
-                          {parseFloat(cryptoAmount).toFixed(6)} {CHAINS[currentChain].nativeCurrency.symbol}
+                          {parseFloat(cryptoAmount).toFixed(6)} {selectedToken?.symbol || CHAINS[currentChain].nativeCurrency.symbol}
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-xs text-gray-500">
@@ -2556,7 +2556,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-gray-600">Crypto amount:</span>
                             <span className="font-mono font-bold text-gray-900">
-                              {parseFloat(cryptoAmount).toFixed(6)} {CHAINS[currentChain].nativeCurrency.symbol}
+                              {parseFloat(cryptoAmount).toFixed(6)} {selectedToken?.symbol || CHAINS[currentChain].nativeCurrency.symbol}
                             </span>
                           </div>
                           <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
