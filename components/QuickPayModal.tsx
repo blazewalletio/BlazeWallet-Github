@@ -477,23 +477,25 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         logger.log(`\n💱 [QuickPay] Converting ${symbol}${amount} to ${nativeSymbol}...\n`);
         
         // Fetch current price in USD
-        logger.log(`📍 STEP 2: Fetching ${nativeSymbol} price in USD...`);
-        logger.log(`   Calling: priceService.getMultiplePrices([${nativeSymbol}])`);
+        logger.log(`\n📍 STEP 2: Fetching ${nativeSymbol} price in USD...`);
+        logger.log(`   Method: getNativePriceDirectFromBinance (same as Dashboard)`);
+        logger.log(`   This uses: Binance (primary) → CoinGecko (fallback)`);
         
-        const priceData = await priceService.getMultiplePrices([nativeSymbol]);
+        const priceResult = await priceService.getNativePriceDirectFromBinance(nativeSymbol);
         
-        logger.log(`   Raw priceData response:`, priceData);
-        logger.log(`   priceData[${nativeSymbol}]:`, priceData[nativeSymbol]);
+        logger.log(`   Raw priceResult response:`, priceResult);
+        logger.log(`   priceResult.price:`, priceResult.price);
+        logger.log(`   priceResult.change24h:`, priceResult.change24h);
         
-        const priceUSD = priceData[nativeSymbol]?.price || 0;
+        const priceUSD = priceResult.price || 0;
         
         logger.log(`   Extracted price: $${priceUSD}`);
         logger.log(`   Price is valid: ${priceUSD > 0}`);
         
         if (!priceUSD || priceUSD === 0) {
           logger.error(`❌ CRITICAL: Failed to get ${nativeSymbol} price`);
-          logger.error(`   priceData was:`, priceData);
-          logger.error(`   priceData[${nativeSymbol}] was:`, priceData[nativeSymbol]);
+          logger.error(`   priceResult was:`, priceResult);
+          logger.error(`   priceResult.price was:`, priceResult.price);
           throw new Error(`Failed to get ${nativeSymbol} price`);
         }
         
