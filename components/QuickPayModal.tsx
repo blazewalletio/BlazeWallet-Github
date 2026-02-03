@@ -714,8 +714,8 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
           }
           
           const gasUSD = gasAmount * nativeTokenPrice;
-          setEstimatedGas(gasAmount.toString());
-          setEstimatedGasUSD(gasUSD.toString());
+          setEstimatedGas(gasAmount);
+          setEstimatedGasUSD(gasUSD);
           
           logger.log(`   Gas: ${gasAmount.toFixed(6)} ${chainConfig.nativeCurrency.symbol} ($${gasUSD.toFixed(2)})`);
           logger.log(`\n✅ [QuickPay] Ready to send ${tokenAmount} ${tokenSymbol}`);
