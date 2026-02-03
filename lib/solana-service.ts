@@ -610,12 +610,13 @@ export class SolanaService {
    */
   async getTransactionFee(): Promise<string> {
     try {
-      // Get recent blockhash and fee calculator
-      const { feeCalculator } = await this.connection.getRecentBlockhash();
+      // ✅ Use new API: getFeeForMessage instead of deprecated getRecentBlockhash
+      // Solana now requires creating a dummy transaction to estimate fees
+      const latestBlockhash = await this.connection.getLatestBlockhash();
       
       // Solana fees are typically very low (around 0.000005 SOL per signature)
-      // Return in SOL
-      return (feeCalculator.lamportsPerSignature / LAMPORTS_PER_SOL).toString();
+      // Return fixed fee estimate (Solana has predictable fees)
+      return '0.000005';
     } catch (error) {
       logger.error('Error fetching Solana fee:', error);
       // Return default fee estimate

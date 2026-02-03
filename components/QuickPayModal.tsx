@@ -80,7 +80,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   const [isFetchingTokens, setIsFetchingTokens] = useState(false); // 🆕 Loading state for tokens
   const [error, setError] = useState<string>('');
   const [txHash, setTxHash] = useState<string>('');
-  const [step, setStep] = useState<'sending' | 'confirming' | 'success' | 'error'>('sending');
+  const [step, setStep] = useState<'idle' | 'sending' | 'confirming' | 'success' | 'error'>('idle'); // ✅ Start in idle state
   const [balanceWarning, setBalanceWarning] = useState<{
     message: string;
     details: { need: string; have: string; missing: string; missingUSD: string };
@@ -949,6 +949,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       
       setBalanceWarning(null);
     setScannedAddress(recipientAddress);
+    setStep('idle'); // ✅ Reset to idle state for confirm screen
     setMode('confirm');
     } catch (err: any) {
       logger.error('❌ [QuickPay] Balance check failed:', err);
@@ -1161,7 +1162,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     setTxHash('');
     setBalanceWarning(null);
     setPendingChainSwitch(null);
-    setStep('sending');
+    setStep('idle'); // ✅ Reset to idle state
     stopCamera();
     
     // Stop payment monitoring
