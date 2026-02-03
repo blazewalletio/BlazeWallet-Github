@@ -30,7 +30,10 @@ import { ethers } from 'ethers';
 import { Connection, Transaction, VersionedTransaction, MessageV0 } from '@solana/web3.js';
 import { SolanaService } from '@/lib/solana-service';
 import TokenSearchModal from './TokenSearchModal';
+import SensitiveAction2FAModal from './SensitiveAction2FAModal';
 import { getIPFSGatewayUrl, isIPFSUrl, initIPFSErrorSuppression } from '@/lib/ipfs-utils';
+import { twoFactorSessionService } from '@/lib/2fa-session-service';
+import { supabase } from '@/lib/supabase';
 
 interface SwapModalProps {
   isOpen: boolean;
@@ -51,6 +54,23 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   useEffect(() => {
     initIPFSErrorSuppression();
   }, []);
+
+  // 🔐 Load userId for 2FA checks
+  useEffect(() => {
+    const loadUserId = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setUserId(user.id);
+        }
+      } catch (error) {
+        logger.log('No Supabase user (seed wallet)');
+      }
+    };
+    if (isOpen) {
+      loadUserId();
+    }
+  }, [isOpen]);
 
   // Wallet state
   const { wallet, currentChain, getCurrentAddress, mnemonic, getChainTokens, tokens } = useWalletStore();
@@ -88,6 +108,11 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isCrossChain, setIsCrossChain] = useState(false);
+
+  // 🔐 2FA SESSION SHIELD states
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [pendingSwapData, setPendingSwapData] = useState<any>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   // ✅ CRITICAL FIX: Reset toToken when toChain changes
   // This prevents using wrong token address (e.g. Ethereum USDC on BSC)
@@ -275,6 +300,45 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   };
 
   const handleSwap = async () => {
+    if (!quote || !wallet || !mnemonic || !walletAddress) {
+      setError('Wallet not available. Please unlock your wallet.');
+      return;
+    }
+
+    // 🔐 SESSION SHIELD: Check if 2FA is required
+    if (userId) {
+      // Estimate USD value from quote
+      const swapValueUSD = quote.estimate?.toAmountUSD 
+        ? parseFloat(quote.estimate.toAmountUSD) 
+        : 0;
+      
+      const sessionStatus = await twoFactorSessionService.checkActionRequires2FA(userId, {
+        action: 'swap',
+        amountUSD: swapValueUSD,
+      });
+
+      if (sessionStatus.required) {
+        logger.log('🔒 2FA verification required for swap');
+        
+        // Store swap data to execute after 2FA
+        setPendingSwapData({
+          swapValueUSD,
+        });
+        
+        // Show 2FA modal
+        setShow2FAModal(true);
+        return; // Wait for 2FA verification
+      }
+
+      logger.log('✅ 2FA session valid - proceeding with swap');
+    }
+
+    // Execute the swap
+    await executeSwap();
+  };
+
+  // 🔐 Separated swap logic (called after 2FA if needed)
+  const executeSwap = async () => {
     if (!quote || !wallet || !mnemonic || !walletAddress) {
       setError('Wallet not available. Please unlock your wallet.');
       return;
@@ -1538,6 +1602,19 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         walletTokens={[]}
         onlyShowTokensWithBalance={false}
       />
+
+      {/* 🔐 2FA Verification Modal */}
+      {userId && (
+        <SensitiveAction2FAModal
+          isOpen={show2FAModal}
+          onClose={() => setShow2FAModal(false)}
+          onSuccess={executeSwap}
+          userId={userId}
+          actionName={`Swap ${amount} ${fromToken === 'native' ? CHAINS[fromChain]?.nativeCurrency?.symbol : (fromToken as any)?.symbol || ''} → ${toToken === 'native' ? CHAINS[toChain]?.nativeCurrency?.symbol : (toToken as any)?.symbol || ''}`}
+          actionType="swap"
+          amountUSD={pendingSwapData?.swapValueUSD}
+        />
+      )}
     </AnimatePresence>
   );
 }

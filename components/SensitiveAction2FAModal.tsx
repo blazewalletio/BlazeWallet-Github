@@ -1,26 +1,35 @@
+/**
+ * 🔐 SENSITIVE ACTION 2FA MODAL
+ * For SESSION SHIELD - verify 2FA before sensitive actions
+ */
+
 'use client';
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Key, Loader2, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Shield, Key, Loader2, AlertTriangle, ArrowLeft, Clock } from 'lucide-react';
 import { logger } from '@/lib/logger';
 import { twoFactorSessionService } from '@/lib/2fa-session-service';
 
-interface TwoFactorLoginModalProps {
+interface SensitiveAction2FAModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: () => void; // Called after successful 2FA verification
   userId: string;
-  email: string;
+  actionName: string; // e.g., "Send $500", "Swap tokens", "Export wallet"
+  actionType: 'send' | 'swap' | 'wallet_export' | '2fa_disable' | 'password_change';
+  amountUSD?: number; // For display purposes
 }
 
-export default function TwoFactorLoginModal({ 
+export default function SensitiveAction2FAModal({ 
   isOpen, 
   onClose, 
   onSuccess, 
   userId,
-  email 
-}: TwoFactorLoginModalProps) {
+  actionName,
+  actionType,
+  amountUSD
+}: SensitiveAction2FAModalProps) {
   const [verificationCode, setVerificationCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -41,14 +50,15 @@ export default function TwoFactorLoginModal({
     setError('');
 
     try {
-      // Call API route for verification (server-side only)
-      const response = await fetch('/api/2fa/verify-login', {
+      // Call API route for verification
+      const response = await fetch('/api/2fa/verify-action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId,
           code: verificationCode,
           isBackupCode: useBackupCode,
+          actionType,
         }),
       });
 
@@ -58,9 +68,9 @@ export default function TwoFactorLoginModal({
         throw new Error(result.error || 'Verification failed');
       }
 
-      logger.log('✅ 2FA verification successful during login');
-      
-      // 🔐 SESSION SHIELD: Create 30-minute session after login
+      logger.log('✅ 2FA verification successful for action:', actionType);
+
+      // Create/extend 2FA session (30 minutes)
       const sessionResult = await twoFactorSessionService.createSession(
         userId,
         undefined, // device fingerprint (optional)
@@ -70,13 +80,15 @@ export default function TwoFactorLoginModal({
 
       if (sessionResult.success) {
         logger.log('✅ 2FA session created, valid for 30 minutes');
-      } else {
-        logger.warn('⚠️ Failed to create 2FA session, but login successful');
       }
-      
+
+      // Call success callback - allow action to proceed
       onSuccess();
+      
+      // Close modal
+      handleClose();
     } catch (err: any) {
-      logger.error('2FA login verification error:', err);
+      logger.error('2FA action verification error:', err);
       setError(err.message || 'Verification failed');
     } finally {
       setIsLoading(false);
@@ -90,6 +102,42 @@ export default function TwoFactorLoginModal({
     onClose();
   };
 
+  // Get action-specific messaging
+  const getActionMessage = () => {
+    switch (actionType) {
+      case 'send':
+        return amountUSD 
+          ? `Verify your identity to send ${amountUSD.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`
+          : 'Verify your identity to send cryptocurrency';
+      case 'swap':
+        return 'Verify your identity to swap tokens';
+      case 'wallet_export':
+        return 'Verify your identity to export wallet data';
+      case '2fa_disable':
+        return 'Verify your identity to disable 2FA';
+      case 'password_change':
+        return 'Verify your identity to change your password';
+      default:
+        return 'Verify your identity to continue';
+    }
+  };
+
+  const getActionColor = () => {
+    switch (actionType) {
+      case 'wallet_export':
+      case '2fa_disable':
+      case 'password_change':
+        return 'from-red-500 to-orange-500'; // Critical actions = red
+      case 'send':
+      case 'swap':
+        return amountUSD && amountUSD > 1000
+          ? 'from-yellow-500 to-orange-500' // Large amounts = orange
+          : 'from-green-500 to-emerald-500'; // Normal = green
+      default:
+        return 'from-blue-500 to-cyan-500';
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -98,7 +146,7 @@ export default function TwoFactorLoginModal({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+        className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
         onClick={handleClose}
       >
         <motion.div
@@ -109,14 +157,14 @@ export default function TwoFactorLoginModal({
           className="glass-card rounded-2xl max-w-md w-full"
         >
           {/* Header */}
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-100 px-6 py-4">
+          <div className={`bg-gradient-to-r ${getActionColor()} bg-opacity-10 border-b border-gray-100 px-6 py-4`}>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
+              <div className={`w-12 h-12 bg-gradient-to-br ${getActionColor()} rounded-xl flex items-center justify-center shadow-lg`}>
                 <Shield className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-gray-900">Two-Factor Authentication</h2>
-                <p className="text-xs text-gray-600">{email}</p>
+                <h2 className="text-lg font-bold text-gray-900">Security Verification</h2>
+                <p className="text-xs text-gray-600">{actionName}</p>
               </div>
             </div>
           </div>
@@ -128,16 +176,33 @@ export default function TwoFactorLoginModal({
               <div className="flex items-start gap-3">
                 <Shield className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
                 <div>
-                  <h3 className="font-semibold text-blue-900 mb-1">Security Check</h3>
+                  <h3 className="font-semibold text-blue-900 mb-1">2FA Required</h3>
                   <p className="text-sm text-blue-800">
-                    {useBackupCode 
-                      ? 'Enter one of your backup codes to continue'
-                      : 'Enter the 6-digit code from your authenticator app to continue'
-                    }
+                    {getActionMessage()}
                   </p>
                 </div>
               </div>
             </div>
+
+            {/* Session info for non-critical actions */}
+            {!['wallet_export', '2fa_disable', 'password_change'].includes(actionType) && (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-start gap-2">
+                <Clock className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-green-800">
+                  After verification, you won't need 2FA again for 30 minutes
+                </p>
+              </div>
+            )}
+
+            {/* Critical action warning */}
+            {['wallet_export', '2fa_disable', 'password_change'].includes(actionType) && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-red-800">
+                  <strong>Critical action:</strong> 2FA is always required for security
+                </p>
+              </div>
+            )}
 
             {/* Input */}
             <div className="space-y-3">
@@ -150,18 +215,16 @@ export default function TwoFactorLoginModal({
                   value={verificationCode}
                   onChange={(e) => {
                     if (useBackupCode) {
-                      // Backup code: allow alphanumeric and dashes
                       const value = e.target.value.toUpperCase();
                       setVerificationCode(value);
                     } else {
-                      // TOTP: only numbers, max 6 digits
                       const value = e.target.value.replace(/\D/g, '').slice(0, 6);
                       setVerificationCode(value);
                     }
                     setError('');
                   }}
                   placeholder={useBackupCode ? 'XXXX-XXXX' : '000000'}
-                  className="w-full p-4 text-center text-2xl font-mono bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:outline-none tracking-widest"
+                  className="w-full p-4 text-center text-2xl font-mono bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none tracking-widest"
                   maxLength={useBackupCode ? 20 : 6}
                   autoFocus
                   onKeyDown={(e) => {
@@ -174,7 +237,7 @@ export default function TwoFactorLoginModal({
               <p className="text-xs text-gray-500 text-center">
                 {useBackupCode 
                   ? 'Each backup code can only be used once'
-                  : 'The code refreshes every 30 seconds'
+                  : 'Enter the 6-digit code from your authenticator app'
                 }
               </p>
             </div>
@@ -225,7 +288,7 @@ export default function TwoFactorLoginModal({
               <button
                 onClick={handleVerify}
                 disabled={isLoading || verificationCode.length < (useBackupCode ? 8 : 6)}
-                className="flex-1 p-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className={`flex-1 p-4 bg-gradient-to-r ${getActionColor()} hover:opacity-90 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
               >
                 {isLoading ? (
                   <>
@@ -235,7 +298,7 @@ export default function TwoFactorLoginModal({
                 ) : (
                   <>
                     <Key className="w-5 h-5" />
-                    Continue
+                    Verify & Continue
                   </>
                 )}
               </button>

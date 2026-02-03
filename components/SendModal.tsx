@@ -13,9 +13,11 @@ import { priceService } from '@/lib/price-service';
 import ParticleEffect from './ParticleEffect';
 import SmartScheduleModal from './SmartScheduleModal';
 import AddressBook from './AddressBook';
+import SensitiveAction2FAModal from './SensitiveAction2FAModal';
 import { logger } from '@/lib/logger';
 import { logTransactionEvent } from '@/lib/analytics-tracker';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { twoFactorSessionService } from '@/lib/2fa-session-service';
 
 interface Asset {
   symbol: string;
@@ -72,10 +74,33 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
   // Address Book state
   const [showAddressBook, setShowAddressBook] = useState(false);
 
+  // 🔐 2FA SESSION SHIELD states
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [pendingTransactionData, setPendingTransactionData] = useState<any>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+
   // ✅ Use singleton instance (prevents re-initialization)
   const blockchain = MultiChainService.getInstance(selectedChain);
 
   useBlockBodyScroll(isOpen);
+
+  // 🔐 Load userId for 2FA checks
+  useEffect(() => {
+    const loadUserId = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setUserId(user.id);
+        }
+      } catch (error) {
+        // Seed wallet - no user ID
+        logger.log('No Supabase user (seed wallet)');
+      }
+    };
+    if (isOpen) {
+      loadUserId();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -422,11 +447,46 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
       return;
     }
 
+    // 🔐 SESSION SHIELD: Check if 2FA is required
+    if (userId) {
+      const sendValueUSD = parseFloat(amount) * (selectedAsset.priceUSD || 0);
+      
+      const sessionStatus = await twoFactorSessionService.checkActionRequires2FA(userId, {
+        action: 'send',
+        amountUSD: sendValueUSD,
+      });
+
+      if (sessionStatus.required) {
+        logger.log('🔒 2FA verification required for send transaction');
+        
+        // Store transaction data to execute after 2FA
+        setPendingTransactionData({
+          sendValueUSD,
+        });
+        
+        // Show 2FA modal
+        setShow2FAModal(true);
+        return; // Wait for 2FA verification
+      }
+
+      logger.log('✅ 2FA session valid - proceeding with send');
+    }
+
+    // Execute the send transaction
+    await executeSendTransaction();
+  };
+
+  // 🔐 Separated send logic (called after 2FA if needed)
+  const executeSendTransaction = async () => {
+    if (!gasPrice || !selectedAsset) return;
+    
+    const isSolana = selectedChain === 'solana';
+
     setStep('sending');
     setError('');
 
     // Track send initiation
-    const sendValueUSD = parseFloat(amount) * (selectedAsset.priceUSD || 0);
+    const sendValueUSD = pendingTransactionData?.sendValueUSD || (parseFloat(amount) * (selectedAsset.priceUSD || 0));
     await logTransactionEvent({
       eventType: 'send_initiated',
       chainKey: selectedChain,
@@ -471,6 +531,9 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
       setTxHash(hash);
       setStep('success');
       setShowSuccessParticles(true);
+      
+      // Clear pending transaction data
+      setPendingTransactionData(null);
       
       // Track successful send
       await logTransactionEvent({
@@ -1242,6 +1305,19 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
           setShowAddressBook(false);
         }}
       />
+
+      {/* 🔐 2FA Verification Modal */}
+      {userId && (
+        <SensitiveAction2FAModal
+          isOpen={show2FAModal}
+          onClose={() => setShow2FAModal(false)}
+          onSuccess={executeSendTransaction}
+          userId={userId}
+          actionName={`Send ${amount} ${selectedAsset?.symbol || ''}`}
+          actionType="send"
+          amountUSD={pendingTransactionData?.sendValueUSD}
+        />
+      )}
     </AnimatePresence>
   );
 }

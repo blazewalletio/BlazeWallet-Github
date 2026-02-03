@@ -21,7 +21,9 @@ import { useCurrency } from '@/contexts/CurrencyContext';
 import { Token } from '@/lib/types';
 import Image from 'next/image';
 import ContactsModal from './ContactsModal';
+import SensitiveAction2FAModal from './SensitiveAction2FAModal';
 import { contactsService, Contact } from '@/lib/contacts-service';
+import { twoFactorSessionService } from '@/lib/2fa-session-service';
 
 interface QuickPayModalProps {
   isOpen: boolean;
@@ -64,6 +66,11 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   // 📇 NEW: Contacts feature
   const [showContactsModal, setShowContactsModal] = useState(false);
   
+  // 🔐 2FA SESSION SHIELD states
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [pendingPaymentData, setPendingPaymentData] = useState<any>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -99,7 +106,25 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   // Block body scroll when overlay is open
   useBlockBodyScroll(isOpen);
 
+  // 🔐 Load userId for 2FA checks
+  useEffect(() => {
+    const loadUserId = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setUserId(user.id);
+        }
+      } catch (error) {
+        logger.log('No Supabase user (seed wallet)');
+      }
+    };
+    if (isOpen) {
+      loadUserId();
+    }
+  }, [isOpen]);
+
   const amount = selectedAmount || parseFloat(customAmount) || 0;
+
 
   // Camera functions
   const startCamera = async () => {
@@ -968,6 +993,42 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       return;
     }
     
+    // 🔐 SESSION SHIELD: Check if 2FA is required
+    if (userId) {
+      const sendValueUSD = parseFloat(cryptoAmount) * nativePrice;
+      
+      const sessionStatus = await twoFactorSessionService.checkActionRequires2FA(userId, {
+        action: 'send',
+        amountUSD: sendValueUSD,
+      });
+
+      if (sessionStatus.required) {
+        logger.log('🔒 2FA verification required for QuickPay transaction');
+        
+        // Store transaction data to execute after 2FA
+        setPendingPaymentData({
+          sendValueUSD,
+        });
+        
+        // Show 2FA modal
+        setShow2FAModal(true);
+        return; // Wait for 2FA verification
+      }
+
+      logger.log('✅ 2FA session valid - proceeding with QuickPay');
+    }
+
+    // Execute the payment
+    await executePayment();
+  };
+
+  // 🔐 Separated payment logic (called after 2FA if needed)
+  const executePayment = async () => {
+    if (!mnemonic && !wallet) {
+      setError('Wallet not initialized');
+      return;
+    }
+    
     setStep('sending');
     setError('');
     
@@ -975,15 +1036,15 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     const toAddr = scannedAddress || recipientAddress;
     
     // Track send initiation
-    const sendValueUSD = parseFloat(cryptoAmount) * nativePrice;
+    const sendValueUSD = pendingPaymentData?.sendValueUSD || (parseFloat(cryptoAmount) * nativePrice);
     await logTransactionEvent({
       eventType: 'send_initiated',
       chainKey: currentChain,
-      tokenSymbol: CHAINS[currentChain].nativeCurrency.symbol,
+      tokenSymbol: selectedToken?.symbol || CHAINS[currentChain].nativeCurrency.symbol,
       valueUSD: sendValueUSD,
       status: 'pending',
       metadata: {
-        isNative: true,
+        isNative: !selectedToken || selectedToken.address === 'native',
         toAddress: toAddr,
         source: 'quickpay'
       },
@@ -996,18 +1057,35 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       
       const isSolana = currentChain === 'solana';
       
-      logger.log(`🚀 [QuickPay] Sending ${cryptoAmount} ${CHAINS[currentChain].nativeCurrency.symbol} to ${toAddr}...`);
+      logger.log(`🚀 [QuickPay] Sending ${cryptoAmount} ${selectedToken?.symbol || CHAINS[currentChain].nativeCurrency.symbol} to ${toAddr}...`);
       
-      // Send transaction
-      const tx = await blockchain.sendTransaction(
-        isSolana ? mnemonic! : wallet!,
-        toAddr,
-        cryptoAmount,
-        gas
-      );
+      // Send transaction (native or token)
+      let tx;
+      if (!selectedToken || selectedToken.address === 'native') {
+        // Native token
+        tx = await blockchain.sendTransaction(
+          isSolana ? mnemonic! : wallet!,
+          toAddr,
+          cryptoAmount,
+          gas
+        );
+      } else {
+        // ERC20/SPL token
+        tx = await blockchain.sendTokenTransaction(
+          isSolana ? mnemonic! : wallet!,
+          selectedToken.address,
+          toAddr,
+          cryptoAmount,
+          selectedToken.decimals,
+          gas
+        );
+      }
       
       const hash = typeof tx === 'string' ? tx : tx.hash;
       setTxHash(hash);
+      
+      // Clear pending data
+      setPendingPaymentData(null);
       
       logger.log(`✅ [QuickPay] Transaction sent: ${hash}`);
       
@@ -1015,12 +1093,12 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       await logTransactionEvent({
         eventType: 'send_confirmed',
         chainKey: currentChain,
-        tokenSymbol: CHAINS[currentChain].nativeCurrency.symbol,
+        tokenSymbol: selectedToken?.symbol || CHAINS[currentChain].nativeCurrency.symbol,
         valueUSD: sendValueUSD,
         status: 'success',
         referenceId: hash,
         metadata: {
-          isNative: true,
+          isNative: !selectedToken || selectedToken.address === 'native',
           toAddress: toAddr,
           source: 'quickpay'
         },
@@ -2703,6 +2781,19 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         onSelectContact={handleSelectContact}
         filterChain={currentChain}
       />
+
+      {/* 🔐 2FA Verification Modal */}
+      {userId && (
+        <SensitiveAction2FAModal
+          isOpen={show2FAModal}
+          onClose={() => setShow2FAModal(false)}
+          onSuccess={executePayment}
+          userId={userId}
+          actionName={`Send ${amount} ${symbol}`}
+          actionType="send"
+          amountUSD={pendingPaymentData?.sendValueUSD}
+        />
+      )}
     </AnimatePresence>
   );
 }
