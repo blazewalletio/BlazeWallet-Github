@@ -419,9 +419,14 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       // Get native balance
       const nativeBalance = await blockchain.getBalance(currentAddress);
       
-      // Get native price
-      const nativePriceData = await priceService.getNativePriceDirectFromBinance(chainConfig.nativeCurrency.symbol);
-      const nativeUsdValue = parseFloat(nativeBalance) * nativePriceData.price;
+      // Get native price from CoinGecko Pro (via API route)
+      logger.log(`📡 [QuickPay] Fetching ${chainConfig.nativeCurrency.symbol} price from CoinGecko Pro...`);
+      const nativePriceData = await priceService.getMultiplePrices([chainConfig.nativeCurrency.symbol]);
+      const nativePrice = nativePriceData[chainConfig.nativeCurrency.symbol]?.price || 0;
+      const nativePriceChange = nativePriceData[chainConfig.nativeCurrency.symbol]?.change24h || 0;
+      const nativeUsdValue = parseFloat(nativeBalance) * nativePrice;
+      
+      logger.log(`✅ [QuickPay] ${chainConfig.nativeCurrency.symbol} price: $${nativePrice} (${nativePriceChange >= 0 ? '+' : ''}${nativePriceChange.toFixed(2)}%)`);
       
       // Create native token
       const nativeToken: Token = {
@@ -430,9 +435,9 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         name: chainConfig.name,
         decimals: chainConfig.nativeCurrency.decimals,
         balance: nativeBalance,
-        logo: chainConfig.icon || '/crypto-placeholder.png',
-        priceUSD: nativePriceData.price,
-        change24h: nativePriceData.change24h,
+        logo: chainConfig.logoUrl || chainConfig.icon || '/crypto-placeholder.png',
+        priceUSD: nativePrice,
+        change24h: nativePriceChange,
         balanceUSD: nativeUsdValue.toString(),
       };
       
@@ -444,12 +449,13 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         const splTokens = await blockchain.getSPLTokenBalances(currentAddress);
         logger.log(`🪙 [QuickPay] Found ${splTokens.length} SPL tokens`);
         
-        // Add price data to SPL tokens
+        // Add price data to SPL tokens using CoinGecko Pro
         for (const token of splTokens) {
           try {
-            // Get price from Binance (more reliable)
-            const priceData = await priceService.getNativePriceDirectFromBinance(token.symbol);
-            const tokenPrice = priceData.price || 0;
+            // Get price from CoinGecko Pro (via API route)
+            const priceData = await priceService.getMultiplePrices([token.symbol]);
+            const tokenPrice = priceData[token.symbol]?.price || 0;
+            const tokenChange = priceData[token.symbol]?.change24h || 0;
             const tokenBalance = parseFloat(token.balance || '0');
             const tokenUsdValue = tokenBalance * tokenPrice;
             
@@ -458,7 +464,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
             allTokens.push({
               ...token,
               priceUSD: tokenPrice,
-              change24h: priceData.change24h,
+              change24h: tokenChange,
               balanceUSD: tokenUsdValue.toString(),
             });
           } catch (err) {
@@ -478,17 +484,17 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         const erc20Tokens = await blockchain.getERC20TokenBalances(currentAddress);
         logger.log(`🪙 [QuickPay] Found ${erc20Tokens.length} ERC20 tokens`);
         
-        // Fetch prices for ERC20 tokens
+        // Fetch prices for ERC20 tokens using CoinGecko Pro
         for (const token of erc20Tokens) {
           try {
-            // Get price from Binance if not already present
+            // Get price from CoinGecko Pro if not already present
             let tokenPrice = token.priceUSD || 0;
             let priceChange = token.change24h || 0;
             
             if (!tokenPrice) {
-              const priceData = await priceService.getNativePriceDirectFromBinance(token.symbol);
-              tokenPrice = priceData.price || 0;
-              priceChange = priceData.change24h || 0;
+              const priceData = await priceService.getMultiplePrices([token.symbol]);
+              tokenPrice = priceData[token.symbol]?.price || 0;
+              priceChange = priceData[token.symbol]?.change24h || 0;
             }
             
             const tokenBalance = parseFloat(token.balance || '0');
@@ -545,7 +551,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         name: chainConfig.name,
         decimals: chainConfig.nativeCurrency.decimals,
         balance: '0',
-        logo: chainConfig.icon || '/crypto-placeholder.png',
+        logo: chainConfig.logoUrl || chainConfig.icon || '/crypto-placeholder.png',
         priceUSD: 0,
         balanceUSD: '0',
       };
@@ -656,20 +662,20 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         let priceUSD = 0;
         
         if (isNative) {
-          logger.log(`   Method: getNativePriceDirectFromBinance (native token)`);
-          logger.log(`   This uses: Binance (primary) → CoinGecko (fallback)`);
+          logger.log(`   Method: CoinGecko Pro (via API route - native token)`);
+          logger.log(`   This uses: CoinGecko Pro (primary) → Binance (fallback)`);
           
-          const priceResult = await priceService.getNativePriceDirectFromBinance(tokenSymbol);
+          const priceResult = await priceService.getMultiplePrices([tokenSymbol]);
           
           logger.log(`   Raw priceResult response:`, priceResult);
-          priceUSD = priceResult.price || 0;
+          priceUSD = priceResult[tokenSymbol]?.price || 0;
         } else {
           logger.log(`   Method: Using cached price from token data (ERC20/SPL)`);
           priceUSD = selectedToken.priceUSD || 0;
           
-          // If no cached price, try to fetch
+          // If no cached price, try to fetch from CoinGecko Pro
           if (!priceUSD) {
-            logger.log(`   No cached price, fetching fresh price...`);
+            logger.log(`   No cached price, fetching from CoinGecko Pro...`);
             const priceData = await priceService.getMultiplePrices([tokenSymbol]);
             priceUSD = priceData[tokenSymbol]?.price || 0;
           }
@@ -698,9 +704,9 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
           const blockchain = MultiChainService.getInstance(currentChain);
           const gasPrices = await blockchain.getGasPrice();
           
-          // Get native token price for gas calculation
-          const nativePriceResult = await priceService.getNativePriceDirectFromBinance(chainConfig.nativeCurrency.symbol);
-          const nativeTokenPrice = nativePriceResult.price;
+          // Get native token price for gas calculation (from CoinGecko Pro)
+          const nativePriceResult = await priceService.getMultiplePrices([chainConfig.nativeCurrency.symbol]);
+          const nativeTokenPrice = nativePriceResult[chainConfig.nativeCurrency.symbol]?.price || 0;
           
           let gasAmount = 0;
           if (currentChain === 'solana') {
@@ -773,8 +779,8 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         logger.log(`   Gas prices fetched:`, gasPrices);
         
         // Get native token price for gas calculation
-        const nativePriceResult = await priceService.getNativePriceDirectFromBinance(chainConfig.nativeCurrency.symbol);
-        const nativeTokenPrice = nativePriceResult.price;
+        const nativePriceResult = await priceService.getMultiplePrices([chainConfig.nativeCurrency.symbol]);
+        const nativeTokenPrice = nativePriceResult[chainConfig.nativeCurrency.symbol]?.price || 0;
         
         let gasAmount = 0;
         if (currentChain === 'solana') {
@@ -1485,13 +1491,13 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                                     {token.priceUSD && token.priceUSD > 0 ? (
                                       <>
                                         <div className="text-sm font-semibold text-gray-900">
-                                          {symbol}{formatUSDSync(parseFloat(token.balanceUSD || '0'))}
+                                          {formatUSDSync(parseFloat(token.balanceUSD || '0'))}
                                         </div>
                                         <div className="flex items-center justify-end gap-1 mt-0.5">
                                           <span className="text-xs text-gray-500">
-                                            {symbol}{token.priceUSD >= 0.01 
+                                            {token.priceUSD >= 0.01 
                                               ? formatUSDSync(token.priceUSD) 
-                                              : token.priceUSD.toFixed(6)}
+                                              : `${symbol}${token.priceUSD.toFixed(6)}`}
                                           </span>
                                           {token.change24h !== undefined && token.change24h !== 0 && (
                                             <span className={`text-xs font-medium ${
