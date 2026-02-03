@@ -5,7 +5,6 @@ import {
   Transaction, 
   SystemProgram,
   LAMPORTS_PER_SOL,
-  sendAndConfirmTransaction,
   TransactionInstruction,
   clusterApiUrl,
   ParsedAccountData,
@@ -148,12 +147,38 @@ export class SolanaService {
         })
       );
 
-      // Send and confirm transaction
-      const signature = await sendAndConfirmTransaction(
-        this.connection,
-        transaction,
-        [fromKeypair]
-      );
+      // ✅ FIX: Use manual confirmation instead of WebSocket subscriptions
+      // Some RPC nodes don't support signatureSubscribe (WebSocket)
+      // Get recent blockhash
+      const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('finalized');
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = fromKeypair.publicKey;
+      
+      // Sign transaction
+      transaction.sign(fromKeypair);
+      
+      // Send transaction (don't wait for confirmation yet)
+      const signature = await this.connection.sendRawTransaction(transaction.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      });
+      
+      logger.log(`✅ Solana transaction sent: ${signature}`);
+      logger.log(`⏳ Confirming transaction (polling method, no WebSocket)...`);
+      
+      // ✅ Confirm using polling instead of WebSocket subscription
+      // This is more compatible with various RPC providers
+      const confirmation = await this.connection.confirmTransaction({
+        signature,
+        blockhash,
+        lastValidBlockHeight,
+      }, 'confirmed');
+      
+      if (confirmation.value.err) {
+        throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+      }
+      
+      logger.log(`✅ Solana transaction confirmed: ${signature}`);
 
       return signature;
     } catch (error) {
@@ -247,12 +272,33 @@ export class SolanaService {
         )
       );
 
-      // Send and confirm transaction
-      const signature = await sendAndConfirmTransaction(
-        this.connection,
-        transaction,
-        [fromKeypair]
-      );
+      // ✅ FIX: Use manual confirmation instead of WebSocket subscriptions
+      // Get recent blockhash
+      const { blockhash, lastValidBlockHeight } = await this.connection.getLatestBlockhash('finalized');
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = fromKeypair.publicKey;
+      
+      // Sign transaction
+      transaction.sign(fromKeypair);
+      
+      // Send transaction
+      const signature = await this.connection.sendRawTransaction(transaction.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      });
+      
+      logger.log(`✅ SPL token transaction sent: ${signature}`);
+      
+      // Confirm using polling instead of WebSocket subscription
+      const confirmation = await this.connection.confirmTransaction({
+        signature,
+        blockhash,
+        lastValidBlockHeight,
+      }, 'confirmed');
+      
+      if (confirmation.value.err) {
+        throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+      }
 
       logger.log('✅ [SolanaService] SPL token transfer successful:', signature);
       return signature;
