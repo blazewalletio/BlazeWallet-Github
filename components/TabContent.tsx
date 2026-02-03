@@ -14,12 +14,6 @@ import { CHAINS } from '@/lib/chains';
 import AnimatedNumber from './AnimatedNumber';
 import TransactionHistory from './TransactionHistory';
 import SettingsModal from './SettingsModal';
-import StakingDashboard from './StakingDashboard';
-import GovernanceDashboard from './GovernanceDashboard';
-import LaunchpadDashboard from './LaunchpadDashboard';
-import ReferralDashboard from './ReferralDashboard';
-import NFTMintDashboard from './NFTMintDashboard';
-import CashbackTracker from './CashbackTracker';
 import PresaleDashboard from './PresaleDashboard';
 import AddressBook from './AddressBook';
 import { logger } from '@/lib/logger';
@@ -62,12 +56,6 @@ export default function TabContent({
 
   // Modal states for each tab
   const [showSettings, setShowSettings] = useState(false);
-  const [showStaking, setShowStaking] = useState(false);
-  const [showGovernance, setShowGovernance] = useState(false);
-  const [showLaunchpad, setShowLaunchpad] = useState(false);
-  const [showReferrals, setShowReferrals] = useState(false);
-  const [showNFTMint, setShowNFTMint] = useState(false);
-  const [showCashback, setShowCashback] = useState(false);
   const [showPresale, setShowPresale] = useState(false);
   const [showAddressBook, setShowAddressBook] = useState(false);
 
@@ -357,79 +345,115 @@ export default function TabContent({
       </motion.button>
       )}
 
-      {/* Blaze Features Grid */}
+      {/* Blaze Features Grid - ALL COMING SOON */}
       <div className="grid grid-cols-2 gap-4">
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setShowStaking(true)}
-          className="glass-card p-6 rounded-2xl text-left hover:bg-gray-50 transition-colors group"
+        {/* Staking - COMING SOON */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass-card p-6 rounded-2xl text-left opacity-75 cursor-default relative overflow-hidden"
         >
-          <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+          <div className="absolute top-3 right-3 z-10">
+            <div className="px-2 py-1 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-xs font-bold rounded-full shadow-lg">
+              Coming Soon
+            </div>
+          </div>
+          <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center mb-4 opacity-60">
             <TrendingUp className="w-6 h-6 text-orange-600" />
           </div>
-          <div className="font-semibold text-gray-900 mb-1">Staking</div>
-          <div className="text-sm text-gray-600">Earn 8-20% APY</div>
-        </motion.button>
+          <div className="font-semibold text-gray-900 mb-1 opacity-60">Staking</div>
+          <div className="text-sm text-gray-600 opacity-50">Earn 8-20% APY</div>
+        </motion.div>
 
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setShowGovernance(true)}
-          className="glass-card p-6 rounded-2xl text-left hover:bg-gray-50 transition-colors group"
+        {/* Governance - COMING SOON */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass-card p-6 rounded-2xl text-left opacity-75 cursor-default relative overflow-hidden"
         >
-          <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+          <div className="absolute top-3 right-3 z-10">
+            <div className="px-2 py-1 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-xs font-bold rounded-full shadow-lg">
+              Coming Soon
+            </div>
+          </div>
+          <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center mb-4 opacity-60">
             <Vote className="w-6 h-6 text-blue-600" />
           </div>
-          <div className="font-semibold text-gray-900 mb-1">Governance</div>
-          <div className="text-sm text-gray-600">Vote on proposals</div>
-        </motion.button>
+          <div className="font-semibold text-gray-900 mb-1 opacity-60">Governance</div>
+          <div className="text-sm text-gray-600 opacity-50">Vote on proposals</div>
+        </motion.div>
 
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setShowLaunchpad(true)}
-          className="glass-card p-6 rounded-2xl text-left hover:bg-gray-50 transition-colors group"
+        {/* Launchpad - COMING SOON */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass-card p-6 rounded-2xl text-left opacity-75 cursor-default relative overflow-hidden"
         >
-          <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+          <div className="absolute top-3 right-3 z-10">
+            <div className="px-2 py-1 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-xs font-bold rounded-full shadow-lg">
+              Coming Soon
+            </div>
+          </div>
+          <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center mb-4 opacity-60">
             <Rocket className="w-6 h-6 text-green-600" />
           </div>
-          <div className="font-semibold text-gray-900 mb-1">Launchpad</div>
-          <div className="text-sm text-gray-600">Early token access</div>
-        </motion.button>
+          <div className="font-semibold text-gray-900 mb-1 opacity-60">Launchpad</div>
+          <div className="text-sm text-gray-600 opacity-50">Early token access</div>
+        </motion.div>
 
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setShowReferrals(true)}
-          className="glass-card p-6 rounded-2xl text-left hover:bg-gray-50 transition-colors group"
+        {/* Referrals - COMING SOON */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass-card p-6 rounded-2xl text-left opacity-75 cursor-default relative overflow-hidden"
         >
-          <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+          <div className="absolute top-3 right-3 z-10">
+            <div className="px-2 py-1 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-xs font-bold rounded-full shadow-lg">
+              Coming Soon
+            </div>
+          </div>
+          <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center mb-4 opacity-60">
             <UsersIcon className="w-6 h-6 text-purple-600" />
           </div>
-          <div className="font-semibold text-gray-900 mb-1">Referrals</div>
-          <div className="text-sm text-gray-600">Earn rewards</div>
-        </motion.button>
+          <div className="font-semibold text-gray-900 mb-1 opacity-60">Referrals</div>
+          <div className="text-sm text-gray-600 opacity-50">Earn rewards</div>
+        </motion.div>
 
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setShowNFTMint(true)}
-          className="glass-card p-6 rounded-2xl text-left hover:bg-gray-50 transition-colors group"
+        {/* NFT Skins - COMING SOON */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass-card p-6 rounded-2xl text-left opacity-75 cursor-default relative overflow-hidden"
         >
-          <div className="w-12 h-12 rounded-xl bg-pink-100 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+          <div className="absolute top-3 right-3 z-10">
+            <div className="px-2 py-1 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-xs font-bold rounded-full shadow-lg">
+              Coming Soon
+            </div>
+          </div>
+          <div className="w-12 h-12 rounded-xl bg-pink-100 flex items-center justify-center mb-4 opacity-60">
             <Palette className="w-6 h-6 text-pink-600" />
           </div>
-          <div className="font-semibold text-gray-900 mb-1">NFT Skins</div>
-          <div className="text-sm text-gray-600">Customize wallet</div>
-        </motion.button>
+          <div className="font-semibold text-gray-900 mb-1 opacity-60">NFT Skins</div>
+          <div className="text-sm text-gray-600 opacity-50">Customize wallet</div>
+        </motion.div>
 
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setShowCashback(true)}
-          className="glass-card p-6 rounded-2xl text-left hover:bg-gray-50 transition-colors group"
+        {/* Cashback - COMING SOON */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="glass-card p-6 rounded-2xl text-left opacity-75 cursor-default relative overflow-hidden"
         >
-          <div className="w-12 h-12 rounded-xl bg-yellow-100 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+          <div className="absolute top-3 right-3 z-10">
+            <div className="px-2 py-1 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-xs font-bold rounded-full shadow-lg">
+              Coming Soon
+            </div>
+          </div>
+          <div className="w-12 h-12 rounded-xl bg-yellow-100 flex items-center justify-center mb-4 opacity-60">
             <Gift className="w-6 h-6 text-yellow-600" />
           </div>
-          <div className="font-semibold text-gray-900 mb-1">Cashback</div>
-          <div className="text-sm text-gray-600">Earn on transactions</div>
-        </motion.button>
+          <div className="font-semibold text-gray-900 mb-1 opacity-60">Cashback</div>
+          <div className="text-sm text-gray-600 opacity-50">Earn on transactions</div>
+        </motion.div>
       </div>
     </div>
   );
@@ -542,12 +566,6 @@ export default function TabContent({
       {showAddressBook && <AddressBook isOpen={showAddressBook} onClose={() => setShowAddressBook(false)} />}
       
       {/* Full Screen Modals */}
-      <StakingDashboard isOpen={showStaking} onClose={() => setShowStaking(false)} />
-      <GovernanceDashboard isOpen={showGovernance} onClose={() => setShowGovernance(false)} />
-      <CashbackTracker isOpen={showCashback} onClose={() => setShowCashback(false)} />
-      <LaunchpadDashboard isOpen={showLaunchpad} onClose={() => setShowLaunchpad(false)} />
-      <ReferralDashboard isOpen={showReferrals} onClose={() => setShowReferrals(false)} />
-      <NFTMintDashboard isOpen={showNFTMint} onClose={() => setShowNFTMint(false)} />
       
       {PRESALE_FEATURE_ENABLED && showPresale && (
         <div className="fixed inset-0 z-50 bg-white overflow-y-auto">
