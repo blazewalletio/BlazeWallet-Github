@@ -431,9 +431,9 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         decimals: chainConfig.nativeCurrency.decimals,
         balance: nativeBalance,
         logo: chainConfig.icon || '/crypto-placeholder.png',
-        price: nativePriceData.price,
+        priceUSD: nativePriceData.price,
         change24h: nativePriceData.change24h,
-        usdValue: nativeUsdValue,
+        balanceUSD: nativeUsdValue.toString(),
       };
       
       const allTokens: Token[] = [nativeToken];
@@ -450,18 +450,19 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
             // Try to get price by mint address or symbol
             const priceData = await priceService.getMultiplePrices([token.symbol]);
             const tokenPrice = priceData[token.symbol]?.price || 0;
+            const tokenUsdValue = parseFloat(token.balance) * tokenPrice;
             
             allTokens.push({
               ...token,
-              price: tokenPrice,
-              usdValue: parseFloat(token.balance) * tokenPrice,
+              priceUSD: tokenPrice,
+              balanceUSD: tokenUsdValue.toString(),
             });
           } catch (err) {
             // Token without price
             allTokens.push({
               ...token,
-              price: 0,
-              usdValue: 0,
+              priceUSD: 0,
+              balanceUSD: '0',
             });
           }
         }
@@ -471,14 +472,21 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         logger.log(`🪙 [QuickPay] Found ${erc20Tokens.length} ERC20 tokens`);
         
         // ERC20 tokens already have price data from Alchemy
-        allTokens.push(...erc20Tokens.map(token => ({
-          ...token,
-          usdValue: parseFloat(token.balance) * (token.price || 0),
-        })));
+        allTokens.push(...erc20Tokens.map(token => {
+          const usdValue = parseFloat(token.balance || '0') * (token.priceUSD || 0);
+          return {
+            ...token,
+            balanceUSD: usdValue.toString(),
+          };
+        }));
       }
       
       // Sort by USD value (highest first)
-      const sortedTokens = allTokens.sort((a, b) => (b.usdValue || 0) - (a.usdValue || 0));
+      const sortedTokens = allTokens.sort((a, b) => {
+        const aValue = parseFloat(a.balanceUSD || '0');
+        const bValue = parseFloat(b.balanceUSD || '0');
+        return bValue - aValue;
+      });
       
       logger.log(`✅ [QuickPay] Total tokens available: ${sortedTokens.length}`);
       logger.log(`   Sorted by USD value (highest first)`);
@@ -503,8 +511,8 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         decimals: chainConfig.nativeCurrency.decimals,
         balance: '0',
         logo: chainConfig.icon || '/crypto-placeholder.png',
-        price: 0,
-        usdValue: 0,
+        priceUSD: 0,
+        balanceUSD: '0',
       };
       
       setAvailableTokens([fallbackToken]);
@@ -622,7 +630,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
           priceUSD = priceResult.price || 0;
         } else {
           logger.log(`   Method: Using cached price from token data (ERC20/SPL)`);
-          priceUSD = selectedToken.price || 0;
+          priceUSD = selectedToken.priceUSD || 0;
           
           // If no cached price, try to fetch
           if (!priceUSD) {
