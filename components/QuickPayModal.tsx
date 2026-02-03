@@ -420,23 +420,64 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       const nativeBalance = await blockchain.getBalance(currentAddress);
       
       // Get native price from CoinGecko Pro (via API route)
-      logger.log(`📡 [QuickPay] Fetching ${chainConfig.nativeCurrency.symbol} price from CoinGecko Pro...`);
+      logger.log(`\n╔══════════════════════════════════════════════════════════════╗`);
+      logger.log(`║  🔍 DEBUG: NATIVE TOKEN PRICE FETCHING - START              ║`);
+      logger.log(`╚══════════════════════════════════════════════════════════════╝`);
+      logger.log(`📍 Chain: ${currentChain}`);
+      logger.log(`📍 Native Symbol: ${chainConfig.nativeCurrency.symbol}`);
+      logger.log(`📍 Calling: priceService.getMultiplePrices(['${chainConfig.nativeCurrency.symbol}'])`);
+      
       const nativePriceData = await priceService.getMultiplePrices([chainConfig.nativeCurrency.symbol]);
       
       // Debug: Log the full response
-      logger.log(`📦 [QuickPay] Native price response:`, nativePriceData);
-      logger.log(`📦 [QuickPay] ${chainConfig.nativeCurrency.symbol} data:`, nativePriceData[chainConfig.nativeCurrency.symbol]);
+      logger.log(`\n📦 RAW RESPONSE FROM priceService.getMultiplePrices():`);
+      logger.log(`   Type: ${typeof nativePriceData}`);
+      logger.log(`   Is null: ${nativePriceData === null}`);
+      logger.log(`   Is undefined: ${nativePriceData === undefined}`);
+      logger.log(`   Keys: ${nativePriceData ? Object.keys(nativePriceData).join(', ') : 'N/A'}`);
+      logger.log(`   Full object:`, JSON.stringify(nativePriceData, null, 2));
+      
+      logger.log(`\n📦 ${chainConfig.nativeCurrency.symbol} SPECIFIC DATA:`);
+      const symbolData = nativePriceData[chainConfig.nativeCurrency.symbol];
+      logger.log(`   Exists: ${!!symbolData}`);
+      logger.log(`   Type: ${typeof symbolData}`);
+      logger.log(`   Full data:`, JSON.stringify(symbolData, null, 2));
+      
+      if (symbolData) {
+        logger.log(`\n📊 FIELD-BY-FIELD ANALYSIS:`);
+        logger.log(`   symbolData.price exists: ${symbolData.price !== undefined}`);
+        logger.log(`   symbolData.price type: ${typeof symbolData.price}`);
+        logger.log(`   symbolData.price value: ${symbolData.price}`);
+        logger.log(`   symbolData.price === 0: ${symbolData.price === 0}`);
+        logger.log(`   symbolData.price > 0: ${symbolData.price > 0}`);
+        logger.log(`   symbolData.change24h exists: ${symbolData.change24h !== undefined}`);
+        logger.log(`   symbolData.change24h type: ${typeof symbolData.change24h}`);
+        logger.log(`   symbolData.change24h value: ${symbolData.change24h}`);
+      }
       
       const nativePrice = nativePriceData[chainConfig.nativeCurrency.symbol]?.price || 0;
       const nativePriceChange = nativePriceData[chainConfig.nativeCurrency.symbol]?.change24h || 0;
       const nativeUsdValue = parseFloat(nativeBalance) * nativePrice;
       
+      logger.log(`\n🧮 EXTRACTED VALUES:`);
+      logger.log(`   nativePrice: ${nativePrice} (type: ${typeof nativePrice})`);
+      logger.log(`   nativePriceChange: ${nativePriceChange} (type: ${typeof nativePriceChange})`);
+      logger.log(`   nativeBalance: ${nativeBalance}`);
+      logger.log(`   nativeUsdValue: ${nativeUsdValue}`);
+      
       if (nativePrice === 0) {
-        logger.error(`❌ [QuickPay] CRITICAL: Failed to get ${chainConfig.nativeCurrency.symbol} price!`);
-        logger.error(`   Response was:`, nativePriceData);
+        logger.error(`\n❌ CRITICAL: Failed to get ${chainConfig.nativeCurrency.symbol} price!`);
+        logger.error(`   Full response object:`, nativePriceData);
+        logger.error(`   ${chainConfig.nativeCurrency.symbol} data:`, symbolData);
+        logger.error(`   This suggests the API returned price: 0`);
+        logger.error(`   Check /api/prices route logs for more details`);
       } else {
-        logger.log(`✅ [QuickPay] ${chainConfig.nativeCurrency.symbol} price: $${nativePrice} (${nativePriceChange >= 0 ? '+' : ''}${nativePriceChange.toFixed(2)}%)`);
+        logger.log(`\n✅ SUCCESS: ${chainConfig.nativeCurrency.symbol} price: $${nativePrice} (${nativePriceChange >= 0 ? '+' : ''}${nativePriceChange.toFixed(2)}%)`);
       }
+      
+      logger.log(`\n╔══════════════════════════════════════════════════════════════╗`);
+      logger.log(`║  🔍 DEBUG: NATIVE TOKEN PRICE FETCHING - END                ║`);
+      logger.log(`╚══════════════════════════════════════════════════════════════╝\n`);
       
       // Create native token
       const nativeToken: Token = {

@@ -39,35 +39,65 @@ export class PriceService {
    * This eliminates the need for separate get24hChange() calls!
    */
   async getMultiplePrices(symbols: string[]): Promise<Record<string, { price: number; change24h: number }>> {
-    logger.log(`🔍 [PriceService] Fetching multiple prices + change24h for: ${symbols.join(', ')}`);
+    logger.log(`\n╔══════════════════════════════════════════════════════════════╗`);
+    logger.log(`║  🔍 [PriceService] getMultiplePrices - START                ║`);
+    logger.log(`╚══════════════════════════════════════════════════════════════╝`);
+    logger.log(`📥 INPUT: symbols = [${symbols.join(', ')}]`);
+    logger.log(`📥 INPUT: symbols.length = ${symbols.length}`);
 
     // Check which symbols are in LRU cache
     const uncachedSymbols: string[] = [];
     const result: Record<string, { price: number; change24h: number }> = {};
 
+    logger.log(`\n🔍 STEP 1: Checking LRU cache...`);
     symbols.forEach(symbol => {
       const cached = this.cache.get(symbol);
       if (cached) {
         result[symbol] = { price: cached.price, change24h: cached.change24h };
+        logger.log(`   ✅ CACHE HIT: ${symbol} = $${cached.price} (source: ${cached.source})`);
       } else {
         uncachedSymbols.push(symbol);
+        logger.log(`   ❌ CACHE MISS: ${symbol}`);
       }
     });
 
-    logger.log(`💾 [PriceService] Cache hits: ${symbols.length - uncachedSymbols.length}/${symbols.length}`);
+    logger.log(`\n📊 CACHE RESULTS:`);
+    logger.log(`   Cache hits: ${symbols.length - uncachedSymbols.length}/${symbols.length}`);
+    logger.log(`   Cache misses: ${uncachedSymbols.length}/${symbols.length}`);
+    logger.log(`   Uncached symbols: [${uncachedSymbols.join(', ')}]`);
 
     // If all cached, return immediately
     if (uncachedSymbols.length === 0) {
+      logger.log(`\n✅ ALL CACHED! Returning immediately.`);
+      logger.log(`📤 OUTPUT:`, JSON.stringify(result, null, 2));
+      logger.log(`╚══════════════════════════════════════════════════════════════╝\n`);
       return result;
     }
 
     // Fetch uncached prices + change24h with fallback
+    logger.log(`\n🔍 STEP 2: Fetching uncached symbols from API...`);
+    logger.log(`   Calling fetchMultiplePricesWithFallback([${uncachedSymbols.join(', ')}])`);
+    
     const fetchedData = await this.fetchMultiplePricesWithFallback(uncachedSymbols);
     
+    logger.log(`\n📦 FETCHED DATA RETURNED:`);
+    logger.log(`   Type: ${typeof fetchedData}`);
+    logger.log(`   Keys: ${Object.keys(fetchedData).join(', ')}`);
+    logger.log(`   Full object:`, JSON.stringify(fetchedData, null, 2));
+    
     // Merge with cached results
+    logger.log(`\n🔍 STEP 3: Merging fetched data with cached results...`);
     Object.keys(fetchedData).forEach(symbol => {
       result[symbol] = fetchedData[symbol];
+      logger.log(`   Merged: ${symbol} = {price: ${fetchedData[symbol].price}, change24h: ${fetchedData[symbol].change24h}}`);
     });
+
+    logger.log(`\n📤 FINAL OUTPUT:`);
+    logger.log(`   Total symbols: ${Object.keys(result).length}`);
+    logger.log(`   Full result:`, JSON.stringify(result, null, 2));
+    logger.log(`╔══════════════════════════════════════════════════════════════╗`);
+    logger.log(`║  🔍 [PriceService] getMultiplePrices - END                  ║`);
+    logger.log(`╚══════════════════════════════════════════════════════════════╝\n`);
 
     return result;
   }

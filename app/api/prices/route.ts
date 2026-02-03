@@ -152,12 +152,17 @@ export async function GET(request: Request) {
       const apiKeyParam = apiKey ? `&x_cg_demo_api_key=${apiKey}` : '';
       const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coinIds.join(',')}&vs_currencies=usd&include_24hr_change=true${apiKeyParam}`;
       
-      if (isDev) {
-        logger.log(`📡 [Prices] Fetching from CoinGecko for ${coinIds.length} coins (API key: ${apiKey ? 'Yes' : 'No'})`);
-        if (!apiKey) {
-          logger.warn('⚠️ [Prices] No CoinGecko API key - using free tier (rate limited to 10-50 calls/min)');
-        }
-        logger.log(`🌐 [Prices API] CoinGecko URL: ${url.substring(0, 150)}...`);
+      logger.log(`\n╔══════════════════════════════════════════════════════════════╗`);
+      logger.log(`║  🔍 [API/prices] CoinGecko Pro Request - START              ║`);
+      logger.log(`╚══════════════════════════════════════════════════════════════╝`);
+      logger.log(`📡 Fetching from CoinGecko Pro for ${coinIds.length} coins`);
+      logger.log(`🔑 API key present: ${apiKey ? 'YES' : 'NO'}`);
+      logger.log(`🔑 API key length: ${apiKey ? apiKey.length : 0}`);
+      logger.log(`🔑 API key first 10 chars: ${apiKey ? apiKey.substring(0, 10) + '...' : 'N/A'}`);
+      logger.log(`🌐 URL: ${url.substring(0, 150)}...`);
+      
+      if (!apiKey) {
+        logger.warn('⚠️ NO COINGECKO_API_KEY FOUND! Using free tier (rate limited to 10-50 calls/min)');
       }
       
       const response = await fetch(url, {
@@ -166,29 +171,42 @@ export async function GET(request: Request) {
         signal: AbortSignal.timeout(8000), // 8 second timeout (Vercel has 10s limit)
       });
 
-      if (isDev) logger.log(`📊 [Prices API] CoinGecko response status: ${response.status}`);
+      logger.log(`\n📊 CoinGecko Pro response:`);
+      logger.log(`   Status: ${response.status} ${response.statusText}`);
+      logger.log(`   OK: ${response.ok}`);
+      logger.log(`   Headers:`, Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
+        logger.error(`❌ CoinGecko Pro error: ${response.status}`);
         if (response.status === 401) {
-          logger.warn('⚠️ [Prices] CoinGecko 401 Unauthorized - will try Binance fallback');
+          logger.error('   → 401 Unauthorized: API key is invalid or missing');
         } else if (response.status === 429) {
-          logger.warn('⚠️ [Prices] CoinGecko rate limit hit - will try Binance fallback');
-        } else {
-          logger.warn(`⚠️ [Prices] CoinGecko error ${response.status} - will try Binance fallback`);
+          logger.error('   → 429 Rate Limit: Too many requests');
+        } else if (response.status === 404) {
+          logger.error('   → 404 Not Found: Coin IDs may be incorrect');
         }
         coinGeckoFailed = true;
       } else {
         data = await response.json();
-        if (isDev) logger.log(`📦 [Prices API] CoinGecko data keys: ${Object.keys(data).join(', ')}`);
+        logger.log(`\n📦 CoinGecko Pro data received:`);
+        logger.log(`   Type: ${typeof data}`);
+        logger.log(`   Keys: ${Object.keys(data).join(', ')}`);
+        logger.log(`   Full response:`, JSON.stringify(data, null, 2));
       }
     } catch (error: any) {
+      logger.error(`\n❌ CoinGecko Pro fetch error:`);
+      logger.error(`   Error type: ${error.name}`);
+      logger.error(`   Error message: ${error.message}`);
+      logger.error(`   Full error:`, error);
       if (error.name === 'AbortError') {
-        logger.warn('⚠️ [Prices] CoinGecko timeout (8s) - will try Binance fallback');
-      } else {
-        logger.warn(`⚠️ [Prices] CoinGecko fetch error: ${error.message} - will try Binance fallback`);
+        logger.error('   → Timeout (8s) exceeded');
       }
       coinGeckoFailed = true;
     }
+
+    logger.log(`\n╔══════════════════════════════════════════════════════════════╗`);
+    logger.log(`║  🔍 [API/prices] CoinGecko Pro Request - END                ║`);
+    logger.log(`╚══════════════════════════════════════════════════════════════╝\n`);
 
     // If CoinGecko Pro failed completely, return empty result (will trigger DexScreener fallback on client)
     if (!data || Object.keys(data).length === 0) {
