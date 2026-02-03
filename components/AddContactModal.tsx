@@ -255,7 +255,7 @@ export default function AddContactModal({
       
       // ✅ Use new strict validation function
       const isValid = validateAddress(address.trim(), selectedChain);
-      
+
       setAddressValidation(isValid ? 'valid' : 'invalid');
 
       // ✅ Check for duplicates (only if valid and not editing)
@@ -816,7 +816,7 @@ export default function AddContactModal({
                       <p className="text-xs text-red-600 flex items-center gap-1 font-medium">
                         <AlertCircle className="w-3.5 h-3.5" />
                         Invalid {CHAINS[selectedChain]?.name || selectedChain} address format
-                      </p>
+                    </p>
                       <p className="text-xs text-gray-600 ml-4.5">
                         {getAddressHint(selectedChain)}
                       </p>

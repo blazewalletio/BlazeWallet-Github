@@ -409,8 +409,8 @@ export default function AIPortfolioAdvisor({
                   {tokens
                     // ✅ Sort by USD value (highest first)
                     .map(token => {
-                      const tokenUsdValue = token.balanceUSD ? parseFloat(token.balanceUSD) :
-                                           (token.priceUSD && token.balance ? parseFloat(token.balance) * token.priceUSD : 0);
+                    const tokenUsdValue = token.balanceUSD ? parseFloat(token.balanceUSD) :
+                                         (token.priceUSD && token.balance ? parseFloat(token.balance) * token.priceUSD : 0);
                       return { ...token, calculatedUsdValue: tokenUsdValue };
                     })
                     .sort((a, b) => b.calculatedUsdValue - a.calculatedUsdValue)

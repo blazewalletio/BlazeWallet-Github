@@ -350,132 +350,227 @@ export default function TabContent({
         {/* Staking - COMING SOON */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="glass-card p-6 rounded-2xl text-left cursor-default relative overflow-hidden"
+          animate={{ 
+            opacity: 1, 
+            scale: [1, 1.02, 1]
+          }}
+          transition={{
+            scale: {
+              duration: 3,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }
+          }}
+          className="glass-card p-6 rounded-2xl text-left cursor-default relative overflow-hidden backdrop-blur-xl"
         >
-          <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center mb-4">
-            <TrendingUp className="w-6 h-6 text-orange-600" />
-          </div>
-          <div className="font-semibold text-gray-900 mb-1">Staking</div>
-          <div className="text-sm text-gray-600">Earn 8-20% APY</div>
-          
-          {/* Subtle Overlay */}
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-3xl font-black bg-gradient-to-r from-orange-500 via-yellow-500 to-orange-500 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(249,115,22,0.5)]">
-                SOON
-              </div>
+          {/* Content Layer (faded) */}
+          <div className="relative z-0 opacity-40">
+            <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center mb-4">
+              <TrendingUp className="w-6 h-6 text-orange-600" />
             </div>
+            <div className="font-semibold text-gray-900 mb-1">Staking</div>
+            <div className="text-sm text-gray-600">Earn 8-20% APY</div>
+          </div>
+          
+          {/* Frosted Overlay with Lock */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-white/40 via-white/30 to-white/40 backdrop-blur-sm z-10">
+            <motion.div
+              animate={{ opacity: [0.5, 0.8, 0.5] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <Lock className="w-8 h-8 text-gray-600/70 mb-2" />
+            </motion.div>
+            <span className="text-[10px] font-bold text-gray-700/90 tracking-wider">UNLOCKING SOON</span>
           </div>
         </motion.div>
 
         {/* Governance - COMING SOON */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="glass-card p-6 rounded-2xl text-left cursor-default relative overflow-hidden"
+          animate={{ 
+            opacity: 1, 
+            scale: [1, 1.02, 1]
+          }}
+          transition={{
+            scale: {
+              duration: 3,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 0.2
+            }
+          }}
+          className="glass-card p-6 rounded-2xl text-left cursor-default relative overflow-hidden backdrop-blur-xl"
         >
-          <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center mb-4">
-            <Vote className="w-6 h-6 text-blue-600" />
-          </div>
-          <div className="font-semibold text-gray-900 mb-1">Governance</div>
-          <div className="text-sm text-gray-600">Vote on proposals</div>
-          
-          {/* Subtle Overlay */}
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-3xl font-black bg-gradient-to-r from-orange-500 via-yellow-500 to-orange-500 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(249,115,22,0.5)]">
-                SOON
-              </div>
+          {/* Content Layer (faded) */}
+          <div className="relative z-0 opacity-40">
+            <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center mb-4">
+              <Vote className="w-6 h-6 text-blue-600" />
             </div>
+            <div className="font-semibold text-gray-900 mb-1">Governance</div>
+            <div className="text-sm text-gray-600">Vote on proposals</div>
+          </div>
+          
+          {/* Frosted Overlay with Lock */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-white/40 via-white/30 to-white/40 backdrop-blur-sm z-10">
+            <motion.div
+              animate={{ opacity: [0.5, 0.8, 0.5] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
+            >
+              <Lock className="w-8 h-8 text-gray-600/70 mb-2" />
+            </motion.div>
+            <span className="text-[10px] font-bold text-gray-700/90 tracking-wider">UNLOCKING SOON</span>
           </div>
         </motion.div>
 
         {/* Launchpad - COMING SOON */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="glass-card p-6 rounded-2xl text-left cursor-default relative overflow-hidden"
+          animate={{ 
+            opacity: 1, 
+            scale: [1, 1.02, 1]
+          }}
+          transition={{
+            scale: {
+              duration: 3,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 0.4
+            }
+          }}
+          className="glass-card p-6 rounded-2xl text-left cursor-default relative overflow-hidden backdrop-blur-xl"
         >
-          <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center mb-4">
-            <Rocket className="w-6 h-6 text-green-600" />
-          </div>
-          <div className="font-semibold text-gray-900 mb-1">Launchpad</div>
-          <div className="text-sm text-gray-600">Early token access</div>
-          
-          {/* Subtle Overlay */}
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-3xl font-black bg-gradient-to-r from-orange-500 via-yellow-500 to-orange-500 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(249,115,22,0.5)]">
-                SOON
-              </div>
+          {/* Content Layer (faded) */}
+          <div className="relative z-0 opacity-40">
+            <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center mb-4">
+              <Rocket className="w-6 h-6 text-green-600" />
             </div>
+            <div className="font-semibold text-gray-900 mb-1">Launchpad</div>
+            <div className="text-sm text-gray-600">Early token access</div>
+          </div>
+          
+          {/* Frosted Overlay with Lock */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-white/40 via-white/30 to-white/40 backdrop-blur-sm z-10">
+            <motion.div
+              animate={{ opacity: [0.5, 0.8, 0.5] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
+            >
+              <Lock className="w-8 h-8 text-gray-600/70 mb-2" />
+            </motion.div>
+            <span className="text-[10px] font-bold text-gray-700/90 tracking-wider">UNLOCKING SOON</span>
           </div>
         </motion.div>
 
         {/* Referrals - COMING SOON */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="glass-card p-6 rounded-2xl text-left cursor-default relative overflow-hidden"
+          animate={{ 
+            opacity: 1, 
+            scale: [1, 1.02, 1]
+          }}
+          transition={{
+            scale: {
+              duration: 3,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 0.6
+            }
+          }}
+          className="glass-card p-6 rounded-2xl text-left cursor-default relative overflow-hidden backdrop-blur-xl"
         >
-          <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center mb-4">
-            <UsersIcon className="w-6 h-6 text-purple-600" />
-          </div>
-          <div className="font-semibold text-gray-900 mb-1">Referrals</div>
-          <div className="text-sm text-gray-600">Earn rewards</div>
-          
-          {/* Subtle Overlay */}
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-3xl font-black bg-gradient-to-r from-orange-500 via-yellow-500 to-orange-500 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(249,115,22,0.5)]">
-                SOON
-              </div>
+          {/* Content Layer (faded) */}
+          <div className="relative z-0 opacity-40">
+            <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center mb-4">
+              <UsersIcon className="w-6 h-6 text-purple-600" />
             </div>
+            <div className="font-semibold text-gray-900 mb-1">Referrals</div>
+            <div className="text-sm text-gray-600">Earn rewards</div>
+          </div>
+          
+          {/* Frosted Overlay with Lock */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-white/40 via-white/30 to-white/40 backdrop-blur-sm z-10">
+            <motion.div
+              animate={{ opacity: [0.5, 0.8, 0.5] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
+            >
+              <Lock className="w-8 h-8 text-gray-600/70 mb-2" />
+            </motion.div>
+            <span className="text-[10px] font-bold text-gray-700/90 tracking-wider">UNLOCKING SOON</span>
           </div>
         </motion.div>
 
         {/* NFT Skins - COMING SOON */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="glass-card p-6 rounded-2xl text-left cursor-default relative overflow-hidden"
+          animate={{ 
+            opacity: 1, 
+            scale: [1, 1.02, 1]
+          }}
+          transition={{
+            scale: {
+              duration: 3,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 0.8
+            }
+          }}
+          className="glass-card p-6 rounded-2xl text-left cursor-default relative overflow-hidden backdrop-blur-xl"
         >
-          <div className="w-12 h-12 rounded-xl bg-pink-100 flex items-center justify-center mb-4">
-            <Palette className="w-6 h-6 text-pink-600" />
-          </div>
-          <div className="font-semibold text-gray-900 mb-1">NFT Skins</div>
-          <div className="text-sm text-gray-600">Customize wallet</div>
-          
-          {/* Subtle Overlay */}
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-3xl font-black bg-gradient-to-r from-orange-500 via-yellow-500 to-orange-500 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(249,115,22,0.5)]">
-                SOON
-              </div>
+          {/* Content Layer (faded) */}
+          <div className="relative z-0 opacity-40">
+            <div className="w-12 h-12 rounded-xl bg-pink-100 flex items-center justify-center mb-4">
+              <Palette className="w-6 h-6 text-pink-600" />
             </div>
+            <div className="font-semibold text-gray-900 mb-1">NFT Skins</div>
+            <div className="text-sm text-gray-600">Customize wallet</div>
+          </div>
+          
+          {/* Frosted Overlay with Lock */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-white/40 via-white/30 to-white/40 backdrop-blur-sm z-10">
+            <motion.div
+              animate={{ opacity: [0.5, 0.8, 0.5] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.8 }}
+            >
+              <Lock className="w-8 h-8 text-gray-600/70 mb-2" />
+            </motion.div>
+            <span className="text-[10px] font-bold text-gray-700/90 tracking-wider">UNLOCKING SOON</span>
           </div>
         </motion.div>
 
         {/* Cashback - COMING SOON */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="glass-card p-6 rounded-2xl text-left cursor-default relative overflow-hidden"
+          animate={{ 
+            opacity: 1, 
+            scale: [1, 1.02, 1]
+          }}
+          transition={{
+            scale: {
+              duration: 3,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 1.0
+            }
+          }}
+          className="glass-card p-6 rounded-2xl text-left cursor-default relative overflow-hidden backdrop-blur-xl"
         >
-          <div className="w-12 h-12 rounded-xl bg-yellow-100 flex items-center justify-center mb-4">
-            <Gift className="w-6 h-6 text-yellow-600" />
-          </div>
-          <div className="font-semibold text-gray-900 mb-1">Cashback</div>
-          <div className="text-sm text-gray-600">Earn on transactions</div>
-          
-          {/* Subtle Overlay */}
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
-            <div className="text-center">
-              <div className="text-3xl font-black bg-gradient-to-r from-orange-500 via-yellow-500 to-orange-500 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(249,115,22,0.5)]">
-                SOON
-              </div>
+          {/* Content Layer (faded) */}
+          <div className="relative z-0 opacity-40">
+            <div className="w-12 h-12 rounded-xl bg-yellow-100 flex items-center justify-center mb-4">
+              <Gift className="w-6 h-6 text-yellow-600" />
             </div>
+            <div className="font-semibold text-gray-900 mb-1">Cashback</div>
+            <div className="text-sm text-gray-600">Earn on transactions</div>
+          </div>
+          
+          {/* Frosted Overlay with Lock */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-white/40 via-white/30 to-white/40 backdrop-blur-sm z-10">
+            <motion.div
+              animate={{ opacity: [0.5, 0.8, 0.5] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 1.0 }}
+            >
+              <Lock className="w-8 h-8 text-gray-600/70 mb-2" />
+            </motion.div>
+            <span className="text-[10px] font-bold text-gray-700/90 tracking-wider">UNLOCKING SOON</span>
           </div>
         </motion.div>
       </div>

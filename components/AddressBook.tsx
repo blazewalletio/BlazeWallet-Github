@@ -192,150 +192,150 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
   const addressBookContent = (
     <div className={inline ? "space-y-6" : "flex-1 overflow-y-auto"}>
       <div className={inline ? "" : "max-w-4xl mx-auto p-6 pb-24"}>
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
-              <Users className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">Address book</h2>
-              <p className="text-sm text-gray-600">{contacts.length} contact{contacts.length !== 1 ? 's' : ''} saved</p>
-            </div>
-          </div>
-          {!inline && (
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-            >
-              <X className="w-6 h-6 text-gray-600" />
-            </button>
-          )}
-        </div>
-
-        {/* Main Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-6">
-          <div className="p-6 space-y-6">
-            {/* Search & Filter Row */}
-            <div className="flex gap-3">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search contacts..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-sm"
-                />
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
+                  <Users className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Address book</h2>
+                  <p className="text-sm text-gray-600">{contacts.length} contact{contacts.length !== 1 ? 's' : ''} saved</p>
+                </div>
               </div>
+          {!inline && (
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-600" />
+              </button>
+          )}
+            </div>
 
-              {/* Chain Filter Dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowChainDropdown(!showChainDropdown)}
-                  className="flex items-center gap-2 px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all min-w-[140px]"
-                >
-                  {selectedChainOption.logoUrl ? (
-                    <img 
-                      src={selectedChainOption.logoUrl} 
-                      alt={selectedChainOption.label}
-                      className="w-5 h-5 rounded-full"
+            {/* Main Card */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+              <div className="p-6 space-y-6">
+                {/* Search & Filter Row */}
+                <div className="flex gap-3">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search contacts..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all text-sm"
                     />
-                  ) : (
-                    <span className="text-lg">{selectedChainOption.logo}</span>
-                  )}
-                  <span className="text-sm font-medium text-gray-700 flex-1 text-left truncate">
-                    {selectedChainOption.label}
-                  </span>
-                  <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showChainDropdown ? 'rotate-180' : ''}`} />
-                </button>
+                  </div>
 
-                <AnimatePresence>
-                  {showChainDropdown && (
-                    <>
-                      <div 
-                        className="fixed inset-0 z-10" 
-                        onClick={() => setShowChainDropdown(false)}
-                      />
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-20 max-h-80 overflow-y-auto"
-                      >
-                        {chainOptions.map((option) => (
-                          <button
-                            key={option.value}
-                            onClick={() => {
-                              setSelectedChainFilter(option.value);
-                              setShowChainDropdown(false);
-                            }}
-                            className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left ${
-                              selectedChainFilter === option.value ? 'bg-orange-50' : ''
-                            }`}
+                  {/* Chain Filter Dropdown */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowChainDropdown(!showChainDropdown)}
+                      className="flex items-center gap-2 px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all min-w-[140px]"
+                    >
+                      {selectedChainOption.logoUrl ? (
+                        <img 
+                          src={selectedChainOption.logoUrl} 
+                          alt={selectedChainOption.label}
+                          className="w-5 h-5 rounded-full"
+                        />
+                      ) : (
+                        <span className="text-lg">{selectedChainOption.logo}</span>
+                      )}
+                      <span className="text-sm font-medium text-gray-700 flex-1 text-left truncate">
+                        {selectedChainOption.label}
+                      </span>
+                      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showChainDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    <AnimatePresence>
+                      {showChainDropdown && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-10" 
+                            onClick={() => setShowChainDropdown(false)}
+                          />
+                          <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-20 max-h-80 overflow-y-auto"
                           >
-                            {option.logoUrl ? (
-                              <img 
-                                src={option.logoUrl} 
-                                alt={option.label}
+                            {chainOptions.map((option) => (
+                              <button
+                                key={option.value}
+                                onClick={() => {
+                                  setSelectedChainFilter(option.value);
+                                  setShowChainDropdown(false);
+                                }}
+                            className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left ${
+                                  selectedChainFilter === option.value ? 'bg-orange-50' : ''
+                                }`}
+                              >
+                                {option.logoUrl ? (
+                                  <img 
+                                    src={option.logoUrl} 
+                                    alt={option.label}
                                 className="w-5 h-5 rounded-full flex-shrink-0"
-                              />
-                            ) : (
+                                  />
+                                ) : (
                               <span className="text-lg flex-shrink-0">{option.logo}</span>
-                            )}
+                                )}
                             <span className="text-sm font-medium text-gray-700 flex-1 truncate">
-                              {option.label}
-                            </span>
+                                  {option.label}
+                                </span>
                             {selectedChainFilter === option.value && (
                               <CheckCircle2 className="w-4 h-4 text-orange-500 flex-shrink-0" />
                             )}
-                          </button>
-                        ))}
-                      </motion.div>
-                    </>
-                  )}
-                </AnimatePresence>
-              </div>
-            </div>
+                              </button>
+                            ))}
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
 
-            {/* Add Contact Button */}
-            <button
-              onClick={() => {
-                setSelectedContact(null);
-                setShowAddModal(true);
-              }}
+                {/* Add Contact Button */}
+                <button
+                  onClick={() => {
+                    setSelectedContact(null);
+                    setShowAddModal(true);
+                  }}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-xl transition-all shadow-sm"
-            >
-              <Plus className="w-5 h-5" />
+                >
+                  <Plus className="w-5 h-5" />
               <span className="font-medium">Add contact</span>
-            </button>
+                </button>
 
             {/* Contacts List */}
-            {isLoading ? (
+                {isLoading ? (
               <div className="text-center py-12 text-gray-500">
                 Loading contacts...
-              </div>
+                  </div>
             ) : filteredContacts.length === 0 ? (
-              <div className="text-center py-12">
-                <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                      <div className="text-center py-12">
+                        <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-600 font-medium mb-2">
-                  {searchQuery || selectedChainFilter !== 'all' 
-                    ? 'No contacts found'
-                    : 'No contacts yet'}
-                </p>
+                          {searchQuery || selectedChainFilter !== 'all'
+                            ? 'No contacts found'
+                            : 'No contacts yet'}
+                        </p>
                 <p className="text-sm text-gray-500">
-                  {searchQuery || selectedChainFilter !== 'all'
+                          {searchQuery || selectedChainFilter !== 'all'
                     ? 'Try adjusting your search or filter'
                     : 'Add your first contact to get started'}
                 </p>
-              </div>
-            ) : (
+                      </div>
+                    ) : (
               <div className="space-y-3">
                 {filteredContacts.map((contact) => (
                   <div
-                    key={contact.id}
+                          key={contact.id}
                     className="border border-gray-200 rounded-xl hover:shadow-md transition-all overflow-hidden"
-                  >
+                        >
                     {/* Contact Header (Always Visible) */}
                     <div
                       className="p-4 flex items-center gap-3 cursor-pointer hover:bg-gray-50"
@@ -349,13 +349,13 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
                       }}
                     >
                       {/* Avatar/Emoji */}
-                      {contact.profile_image ? (
-                        <img 
-                          src={contact.profile_image} 
-                          alt={contact.name}
+                                {contact.profile_image ? (
+                                  <img 
+                                    src={contact.profile_image} 
+                                    alt={contact.name}
                           className="w-12 h-12 rounded-full object-cover"
-                        />
-                      ) : (
+                                  />
+                                ) : (
                         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center text-2xl">
                           {contact.emoji}
                         </div>
@@ -367,8 +367,8 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
                           <p className="font-semibold text-gray-900 truncate">{contact.name}</p>
                           {contact.is_favorite && (
                             <Star className="w-4 h-4 text-yellow-500 fill-current flex-shrink-0" />
-                          )}
-                        </div>
+                                )}
+                              </div>
                         <p className="text-xs text-gray-500 truncate">{contact.address}</p>
                         {/* Chain Badge */}
                         {(() => {
@@ -376,54 +376,54 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
                           return chain ? (
                             <div className="flex items-center gap-1.5 mt-1">
                               {chain.logoUrl ? (
-                                <img 
+                                    <img 
                                   src={chain.logoUrl} 
                                   alt={chain.name}
-                                  className="w-4 h-4 rounded-full"
-                                />
-                              ) : (
+                                      className="w-4 h-4 rounded-full"
+                                    />
+                                  ) : (
                                 <span className="text-sm">{chain.icon}</span>
-                              )}
+                                  )}
                               <span className="text-xs text-gray-600 font-medium">{chain.name}</span>
-                            </div>
+                                </div>
                           ) : null;
                         })()}
-                      </div>
+                              </div>
 
-                      {/* Actions */}
+                              {/* Actions */}
                       {!onSelectContact && (
                         <div className="flex items-center gap-2">
-                          <button
+                                <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              setSelectedContact(contact);
-                              setShowAddModal(true);
-                            }}
+                                    setSelectedContact(contact);
+                                    setShowAddModal(true);
+                                  }}
                             className="p-2 hover:bg-orange-100 rounded-lg transition-colors"
-                          >
+                                >
                             <Edit2 className="w-4 h-4 text-orange-600" />
-                          </button>
-                          <button
+                                </button>
+                                <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteContact(contact.id);
                             }}
                             className="p-2 hover:bg-red-100 rounded-lg transition-colors"
-                          >
+                                >
                             <Trash2 className="w-4 h-4 text-red-600" />
-                          </button>
-                        </div>
+                                </button>
+                              </div>
                       )}
-                    </div>
+                            </div>
 
                     {/* Expanded Details */}
                     {!onSelectContact && (
-                      <AnimatePresence>
-                        {expandedContact === contact.id ? (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
+                                <AnimatePresence>
+                                  {expandedContact === contact.id ? (
+                                    <motion.div
+                                      initial={{ height: 0, opacity: 0 }}
+                                      animate={{ height: 'auto', opacity: 1 }}
+                                      exit={{ height: 0, opacity: 0 }}
                             className="border-t border-gray-200 bg-gray-50 px-4 py-3 space-y-2"
                           >
                             {contact.notes && (
@@ -436,9 +436,9 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
                                     {tag}
                                   </span>
                                 ))}
-                              </div>
-                            )}
-                          </motion.div>
+                            </div>
+                          )}
+                        </motion.div>
                         ) : null}
                       </AnimatePresence>
                     )}
@@ -481,10 +481,10 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
                 onClick={(e) => e.stopPropagation()}
               >
                 {addressBookContent}
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
+      </motion.div>
+          </>
+        )}
+      </AnimatePresence>
       )}
 
       {/* Add/Edit Contact Modal */}

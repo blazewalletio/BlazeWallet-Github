@@ -560,7 +560,7 @@ class AIService {
     try {
       // Add to conversation history
       this.conversationHistory.push({ role: 'user', content: message });
-      
+
       // Common crypto questions (works offline)
       const commonQuestions: { [key: string]: string } = {
         'what is gas': 'Gas is the transaction fee on Ethereum. It\'s the price you pay to miners/validators to process your transaction. Measured in gwei (1 gwei = 0.000000001 ETH).',
