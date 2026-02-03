@@ -366,10 +366,10 @@ export default function TabContent({
           {/* Content Layer (faded) */}
           <div className="relative z-0 opacity-40">
             <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center mb-4">
-              <TrendingUp className="w-6 h-6 text-orange-600" />
-            </div>
-            <div className="font-semibold text-gray-900 mb-1">Staking</div>
-            <div className="text-sm text-gray-600">Earn 8-20% APY</div>
+            <TrendingUp className="w-6 h-6 text-orange-600" />
+          </div>
+          <div className="font-semibold text-gray-900 mb-1">Staking</div>
+          <div className="text-sm text-gray-600">Earn 8-20% APY</div>
           </div>
           
           {/* Frosted Overlay with Lock */}
@@ -404,10 +404,10 @@ export default function TabContent({
           {/* Content Layer (faded) */}
           <div className="relative z-0 opacity-40">
             <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center mb-4">
-              <Vote className="w-6 h-6 text-blue-600" />
-            </div>
-            <div className="font-semibold text-gray-900 mb-1">Governance</div>
-            <div className="text-sm text-gray-600">Vote on proposals</div>
+            <Vote className="w-6 h-6 text-blue-600" />
+          </div>
+          <div className="font-semibold text-gray-900 mb-1">Governance</div>
+          <div className="text-sm text-gray-600">Vote on proposals</div>
           </div>
           
           {/* Frosted Overlay with Lock */}
@@ -442,10 +442,10 @@ export default function TabContent({
           {/* Content Layer (faded) */}
           <div className="relative z-0 opacity-40">
             <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center mb-4">
-              <Rocket className="w-6 h-6 text-green-600" />
-            </div>
-            <div className="font-semibold text-gray-900 mb-1">Launchpad</div>
-            <div className="text-sm text-gray-600">Early token access</div>
+            <Rocket className="w-6 h-6 text-green-600" />
+          </div>
+          <div className="font-semibold text-gray-900 mb-1">Launchpad</div>
+          <div className="text-sm text-gray-600">Early token access</div>
           </div>
           
           {/* Frosted Overlay with Lock */}
@@ -480,10 +480,10 @@ export default function TabContent({
           {/* Content Layer (faded) */}
           <div className="relative z-0 opacity-40">
             <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center mb-4">
-              <UsersIcon className="w-6 h-6 text-purple-600" />
-            </div>
-            <div className="font-semibold text-gray-900 mb-1">Referrals</div>
-            <div className="text-sm text-gray-600">Earn rewards</div>
+            <UsersIcon className="w-6 h-6 text-purple-600" />
+          </div>
+          <div className="font-semibold text-gray-900 mb-1">Referrals</div>
+          <div className="text-sm text-gray-600">Earn rewards</div>
           </div>
           
           {/* Frosted Overlay with Lock */}
@@ -518,10 +518,10 @@ export default function TabContent({
           {/* Content Layer (faded) */}
           <div className="relative z-0 opacity-40">
             <div className="w-12 h-12 rounded-xl bg-pink-100 flex items-center justify-center mb-4">
-              <Palette className="w-6 h-6 text-pink-600" />
-            </div>
-            <div className="font-semibold text-gray-900 mb-1">NFT Skins</div>
-            <div className="text-sm text-gray-600">Customize wallet</div>
+            <Palette className="w-6 h-6 text-pink-600" />
+          </div>
+          <div className="font-semibold text-gray-900 mb-1">NFT Skins</div>
+          <div className="text-sm text-gray-600">Customize wallet</div>
           </div>
           
           {/* Frosted Overlay with Lock */}
@@ -556,10 +556,10 @@ export default function TabContent({
           {/* Content Layer (faded) */}
           <div className="relative z-0 opacity-40">
             <div className="w-12 h-12 rounded-xl bg-yellow-100 flex items-center justify-center mb-4">
-              <Gift className="w-6 h-6 text-yellow-600" />
-            </div>
-            <div className="font-semibold text-gray-900 mb-1">Cashback</div>
-            <div className="text-sm text-gray-600">Earn on transactions</div>
+            <Gift className="w-6 h-6 text-yellow-600" />
+          </div>
+          <div className="font-semibold text-gray-900 mb-1">Cashback</div>
+          <div className="text-sm text-gray-600">Earn on transactions</div>
           </div>
           
           {/* Frosted Overlay with Lock */}

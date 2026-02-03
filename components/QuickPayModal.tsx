@@ -416,9 +416,9 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   const handleChainSwitch = () => {
     // Handle Lightning chain switch (to Bitcoin)
     if (paymentMethod === 'lightning' || lightningAction) {
-      switchChain('bitcoin');
-      setShowChainSwitchDialog(false);
-      setMode('lightning');
+    switchChain('bitcoin');
+    setShowChainSwitchDialog(false);
+    setMode('lightning');
       return;
     }
     
@@ -460,54 +460,140 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       setError('');
       
       try {
+        logger.log(`\n╔═══════════════════════════════════════════════════════════════╗`);
+        logger.log(`║    🔥 [QuickPay] CURRENCY CONVERSION DEBUG - START           ║`);
+        logger.log(`╚═══════════════════════════════════════════════════════════════╝\n`);
+        
         const chainConfig = CHAINS[currentChain];
         const nativeSymbol = chainConfig.nativeCurrency.symbol;
         
-        logger.log(`💱 [QuickPay] Converting ${symbol}${amount} to ${nativeSymbol}...`);
+        logger.log(`📍 STEP 1: Initial Data`);
+        logger.log(`   Current Chain: ${currentChain}`);
+        logger.log(`   Native Symbol: ${nativeSymbol}`);
+        logger.log(`   User Amount: ${symbol}${amount}`);
+        logger.log(`   User Currency: ${selectedCurrency}`);
+        logger.log(`   Currency Symbol: ${symbol}`);
+        
+        logger.log(`\n💱 [QuickPay] Converting ${symbol}${amount} to ${nativeSymbol}...\n`);
         
         // Fetch current price in USD
+        logger.log(`📍 STEP 2: Fetching ${nativeSymbol} price in USD...`);
+        logger.log(`   Calling: priceService.getMultiplePrices([${nativeSymbol}])`);
+        
         const priceData = await priceService.getMultiplePrices([nativeSymbol]);
+        
+        logger.log(`   Raw priceData response:`, priceData);
+        logger.log(`   priceData[${nativeSymbol}]:`, priceData[nativeSymbol]);
+        
         const priceUSD = priceData[nativeSymbol]?.price || 0;
         
+        logger.log(`   Extracted price: $${priceUSD}`);
+        logger.log(`   Price is valid: ${priceUSD > 0}`);
+        
         if (!priceUSD || priceUSD === 0) {
+          logger.error(`❌ CRITICAL: Failed to get ${nativeSymbol} price`);
+          logger.error(`   priceData was:`, priceData);
+          logger.error(`   priceData[${nativeSymbol}] was:`, priceData[nativeSymbol]);
           throw new Error(`Failed to get ${nativeSymbol} price`);
         }
         
+        logger.log(`✅ ${nativeSymbol} price fetched: $${priceUSD}`);
+        
         // Convert user's currency amount to USD first
+        logger.log(`\n📍 STEP 3: Converting ${symbol}${amount} to USD...`);
+        logger.log(`   User currency: ${selectedCurrency}`);
+        logger.log(`   User amount: ${amount}`);
+        logger.log(`   Calling: convertUSD(${amount})`);
+        
         const amountUSD = await convertUSD(amount); // Converts from selected currency to USD
         
+        logger.log(`   Result: $${amountUSD}`);
+        logger.log(`   Conversion valid: ${amountUSD > 0}`);
+        
+        if (!amountUSD || amountUSD <= 0) {
+          logger.error(`❌ CRITICAL: Currency conversion to USD failed`);
+          logger.error(`   Input: ${symbol}${amount}`);
+          logger.error(`   Output: $${amountUSD}`);
+          throw new Error(`Failed to convert ${symbol}${amount} to USD`);
+        }
+        
         // Then convert USD to crypto
+        logger.log(`\n📍 STEP 4: Converting USD to ${nativeSymbol}...`);
+        logger.log(`   USD amount: $${amountUSD}`);
+        logger.log(`   ${nativeSymbol} price: $${priceUSD}`);
+        logger.log(`   Calculation: ${amountUSD} / ${priceUSD}`);
+        
         const cryptoAmt = amountUSD / priceUSD;
+        
+        logger.log(`   Result: ${cryptoAmt} ${nativeSymbol}`);
+        logger.log(`   Result (6 decimals): ${cryptoAmt.toFixed(6)} ${nativeSymbol}`);
+        
         setCryptoAmount(cryptoAmt.toString());
         setNativePrice(priceUSD);
         
-        logger.log(`✅ [QuickPay] ${symbol}${amount} → $${amountUSD.toFixed(2)} → ${cryptoAmt.toFixed(6)} ${nativeSymbol}`);
+        logger.log(`\n✅ [QuickPay] ${symbol}${amount} → $${amountUSD.toFixed(2)} → ${cryptoAmt.toFixed(6)} ${nativeSymbol}`);
         
         // Estimate gas
+        logger.log(`\n📍 STEP 5: Estimating gas fees...`);
+        logger.log(`   Chain type: ${currentChain}`);
+        
         const blockchain = MultiChainService.getInstance(currentChain);
+        logger.log(`   Blockchain service initialized`);
+        
         const gasPrices = await blockchain.getGasPrice();
+        logger.log(`   Gas prices fetched:`, gasPrices);
         
         let gasAmount = 0;
         if (currentChain === 'solana') {
           gasAmount = 0.000005; // Fixed SOL fee
+          logger.log(`   Using fixed Solana fee: ${gasAmount} SOL`);
         } else if (currentChain === 'bitcoin' || currentChain === 'litecoin' || currentChain === 'dogecoin' || currentChain === 'bitcoincash') {
           // Bitcoin-like chains: ~0.0001 BTC/LTC/DOGE/BCH
           gasAmount = 0.0001;
+          logger.log(`   Using fixed Bitcoin-like fee: ${gasAmount} ${nativeSymbol}`);
         } else {
           // EVM chains: calculate from gas price
           const gasPrice = parseFloat(gasPrices.standard);
           gasAmount = (gasPrice * 21000) / 1e9; // 21000 gas limit for simple transfer
+          logger.log(`   EVM chain calculation:`);
+          logger.log(`      Gas price: ${gasPrice} gwei`);
+          logger.log(`      Gas limit: 21000`);
+          logger.log(`      Calculated fee: ${gasAmount} ${nativeSymbol}`);
         }
         
-        setEstimatedGas(gasAmount);
-        setEstimatedGasUSD(gasAmount * priceUSD);
+        const gasUSD = gasAmount * priceUSD;
         
-        logger.log(`⛽ [QuickPay] Estimated gas: ${gasAmount.toFixed(6)} ${nativeSymbol} ($${(gasAmount * priceUSD).toFixed(4)})`);
+        setEstimatedGas(gasAmount);
+        setEstimatedGasUSD(gasUSD);
+        
+        logger.log(`\n⛽ Gas Estimation Complete:`);
+        logger.log(`   Gas amount: ${gasAmount.toFixed(6)} ${nativeSymbol}`);
+        logger.log(`   Gas in USD: $${gasUSD.toFixed(4)}`);
+        logger.log(`   Gas in user currency: ${formatUSDSync(gasUSD)}`);
+        
+        logger.log(`\n╔═══════════════════════════════════════════════════════════════╗`);
+        logger.log(`║    ✅ [QuickPay] CONVERSION COMPLETE - SUCCESS               ║`);
+        logger.log(`╚═══════════════════════════════════════════════════════════════╝`);
+        logger.log(`📊 SUMMARY:`);
+        logger.log(`   Input: ${symbol}${amount}`);
+        logger.log(`   USD: $${amountUSD.toFixed(2)}`);
+        logger.log(`   Crypto: ${cryptoAmt.toFixed(6)} ${nativeSymbol}`);
+        logger.log(`   Price: $${priceUSD}/per ${nativeSymbol}`);
+        logger.log(`   Gas: ${gasAmount.toFixed(6)} ${nativeSymbol} ($${gasUSD.toFixed(4)})`);
+        logger.log(`═══════════════════════════════════════════════════════════════\n`);
         
         setIsConverting(false);
-        setMode('address');
+      setMode('address');
       } catch (err: any) {
+        logger.log(`\n╔═══════════════════════════════════════════════════════════════╗`);
+        logger.log(`║    ❌ [QuickPay] CONVERSION FAILED - ERROR                   ║`);
+        logger.log(`╚═══════════════════════════════════════════════════════════════╝`);
         logger.error('❌ [QuickPay] Conversion failed:', err);
+        logger.error(`   Error type: ${err.constructor.name}`);
+        logger.error(`   Error message: ${err.message}`);
+        logger.error(`   Error stack:`, err.stack);
+        logger.log(`═══════════════════════════════════════════════════════════════\n`);
+        
         setError('Failed to get current exchange rate. Please try again.');
         setIsConverting(false);
       }
@@ -617,8 +703,8 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       }
       
       setBalanceWarning(null);
-      setScannedAddress(recipientAddress);
-      setMode('confirm');
+    setScannedAddress(recipientAddress);
+    setMode('confirm');
     } catch (err: any) {
       logger.error('❌ [QuickPay] Balance check failed:', err);
       setError('Failed to verify balance. Please try again.');
@@ -950,7 +1036,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     {pendingChainSwitch ? (
                       <RefreshCw className="w-8 h-8 text-white" />
                     ) : (
-                      <Zap className="w-8 h-8 text-white" />
+                    <Zap className="w-8 h-8 text-white" />
                     )}
                   </div>
 
@@ -969,36 +1055,36 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     </>
                   ) : (
                     <>
-                      <h3 className="text-2xl font-bold text-center text-gray-900 mb-2">
-                        ⚡ Lightning Network
-                      </h3>
-                      <p className="text-center text-gray-700 mb-1 leading-relaxed">
-                        Lightning runs on the <span className="font-semibold text-orange-600">Bitcoin network</span>.
-                      </p>
-                      <p className="text-center text-gray-600 text-sm mb-6">
-                        Switch to Bitcoin to use instant, low-fee Lightning payments?
-                      </p>
+                  <h3 className="text-2xl font-bold text-center text-gray-900 mb-2">
+                    ⚡ Lightning Network
+                  </h3>
+                  <p className="text-center text-gray-700 mb-1 leading-relaxed">
+                    Lightning runs on the <span className="font-semibold text-orange-600">Bitcoin network</span>.
+                  </p>
+                  <p className="text-center text-gray-600 text-sm mb-6">
+                    Switch to Bitcoin to use instant, low-fee Lightning payments?
+                  </p>
                     </>
                   )}
 
                   {/* Benefits (Lightning only) */}
                   {!pendingChainSwitch && (
-                    <div className="bg-purple-50 border border-orange-200 rounded-xl p-4 mb-6">
-                      <div className="space-y-2 text-sm">
-                        <div className="flex items-center gap-2 text-purple-900">
-                          <Zap className="w-4 h-4 flex-shrink-0" />
-                          <span><strong>Instant</strong> settlement (&lt; 1 second)</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-purple-900">
-                          <Check className="w-4 h-4 flex-shrink-0" />
-                          <span><strong>Ultra-low</strong> fees (~$0.001)</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-purple-900">
-                          <Check className="w-4 h-4 flex-shrink-0" />
-                          <span><strong>Perfect</strong> for small payments</span>
-                        </div>
+                  <div className="bg-purple-50 border border-orange-200 rounded-xl p-4 mb-6">
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center gap-2 text-purple-900">
+                        <Zap className="w-4 h-4 flex-shrink-0" />
+                        <span><strong>Instant</strong> settlement (&lt; 1 second)</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-purple-900">
+                        <Check className="w-4 h-4 flex-shrink-0" />
+                        <span><strong>Ultra-low</strong> fees (~$0.001)</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-purple-900">
+                        <Check className="w-4 h-4 flex-shrink-0" />
+                        <span><strong>Perfect</strong> for small payments</span>
                       </div>
                     </div>
+                  </div>
                   )}
 
                   {/* Current chain indicator */}
@@ -1185,8 +1271,8 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                       <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
                         <ArrowUpRight className="w-6 h-6 text-white" />
                       </div>
-                    </div>
-                    
+                  </div>
+
                     {/* Crypto Amount Display */}
                     <div className="bg-white/60 backdrop-blur rounded-xl p-4 border border-orange-200">
                       <div className="flex items-center justify-between mb-2">
@@ -2161,8 +2247,8 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                         </button>
                       </div>
                     </div>
-                  </div>
-
+                    </div>
+                    
                   {/* Error Display */}
                   {error && (
                     <motion.div
@@ -2174,15 +2260,15 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                         <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                         <div>
                           <p className="font-semibold text-red-900 text-sm">{error}</p>
-                        </div>
-                      </div>
+                    </div>
+                  </div>
                     </motion.div>
                   )}
 
                   {/* Action Button */}
                   <motion.button
                     whileTap={{ scale: 0.98 }}
-                    onClick={handleConfirmPayment}
+                      onClick={handleConfirmPayment}
                     disabled={step === 'sending'}
                     className="w-full py-4 px-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >

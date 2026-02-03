@@ -2335,11 +2335,11 @@ export default function Dashboard() {
                 >
                   {/* Content Layer (faded) */}
                   <div className="relative z-0 opacity-40">
-                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-lg flex items-center justify-center mb-3">
-                      <Brain className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="font-semibold mb-1">AI Brain</div>
-                    <div className="text-xs text-slate-400">Alles in één interface</div>
+                  <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-lg flex items-center justify-center mb-3">
+                    <Brain className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="font-semibold mb-1">AI Brain</div>
+                  <div className="text-xs text-slate-400">Alles in één interface</div>
                   </div>
                   
                   {/* Frosted Overlay with Lock */}
@@ -2389,13 +2389,13 @@ export default function Dashboard() {
               >
                 {/* Content Layer (faded) */}
                 <div className="relative z-0 opacity-40">
-                  <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center mb-3">
-                    <Lock className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="font-semibold mb-1">Staking</div>
-                  <div className="text-xs text-slate-400">Earn up to 25% APY</div>
+                <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center mb-3">
+                  <Lock className="w-5 h-5 text-white" />
                 </div>
-                
+                <div className="font-semibold mb-1">Staking</div>
+                <div className="text-xs text-slate-400">Earn up to 25% APY</div>
+                </div>
+
                 {/* Frosted Overlay with Lock */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-black/30 via-black/20 to-black/30 backdrop-blur-md z-10">
                   <motion.div
@@ -2423,13 +2423,13 @@ export default function Dashboard() {
               >
                 {/* Content Layer (faded) */}
                 <div className="relative z-0 opacity-40">
-                  <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center mb-3">
-                    <Gift className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="font-semibold mb-1">Cashback</div>
-                  <div className="text-xs text-slate-400">2% on all transactions</div>
+                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center mb-3">
+                  <Gift className="w-5 h-5 text-white" />
                 </div>
-                
+                <div className="font-semibold mb-1">Cashback</div>
+                <div className="text-xs text-slate-400">2% on all transactions</div>
+                </div>
+
                 {/* Frosted Overlay with Lock */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-black/30 via-black/20 to-black/30 backdrop-blur-md z-10">
                   <motion.div
@@ -2457,13 +2457,13 @@ export default function Dashboard() {
               >
                 {/* Content Layer (faded) */}
                 <div className="relative z-0 opacity-40">
-                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center mb-3">
-                    <Vote className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="font-semibold mb-1">Governance</div>
-                  <div className="text-xs text-slate-400">Vote on proposals</div>
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center mb-3">
+                  <Vote className="w-5 h-5 text-white" />
                 </div>
-                
+                <div className="font-semibold mb-1">Governance</div>
+                <div className="text-xs text-slate-400">Vote on proposals</div>
+                </div>
+
                 {/* Frosted Overlay with Lock */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-black/30 via-black/20 to-black/30 backdrop-blur-md z-10">
                   <motion.div
@@ -2491,13 +2491,13 @@ export default function Dashboard() {
               >
                 {/* Content Layer (faded) */}
                 <div className="relative z-0 opacity-40">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mb-3">
-                    <Rocket className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="font-semibold mb-1">Launchpad</div>
-                  <div className="text-xs text-slate-400">Early access to IDOs</div>
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mb-3">
+                  <Rocket className="w-5 h-5 text-white" />
                 </div>
-                
+                <div className="font-semibold mb-1">Launchpad</div>
+                <div className="text-xs text-slate-400">Early access to IDOs</div>
+                </div>
+
                 {/* Frosted Overlay with Lock */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-black/30 via-black/20 to-black/30 backdrop-blur-md z-10">
                   <motion.div
@@ -2525,13 +2525,13 @@ export default function Dashboard() {
               >
                 {/* Content Layer (faded) */}
                 <div className="relative z-0 opacity-40">
-                  <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center mb-3">
-                    <Users className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="font-semibold mb-1">Referrals</div>
-                  <div className="text-xs text-slate-400">Earn 50 BLAZE/referral</div>
+                <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center mb-3">
+                  <Users className="w-5 h-5 text-white" />
                 </div>
-                
+                <div className="font-semibold mb-1">Referrals</div>
+                <div className="text-xs text-slate-400">Earn 50 BLAZE/referral</div>
+                </div>
+
                 {/* Frosted Overlay with Lock */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-black/30 via-black/20 to-black/30 backdrop-blur-md z-10">
                   <motion.div
@@ -2559,11 +2559,11 @@ export default function Dashboard() {
               >
                 {/* Content Layer (faded) */}
                 <div className="relative z-0 opacity-40">
-                  <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-purple-500 rounded-lg flex items-center justify-center mb-3">
-                    <Palette className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="font-semibold mb-1">NFT Skins</div>
-                  <div className="text-xs text-slate-400">Exclusive wallet themes</div>
+                <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-purple-500 rounded-lg flex items-center justify-center mb-3">
+                  <Palette className="w-5 h-5 text-white" />
+                </div>
+                <div className="font-semibold mb-1">NFT Skins</div>
+                <div className="text-xs text-slate-400">Exclusive wallet themes</div>
                 </div>
                 
                 {/* Frosted Overlay with Lock */}
