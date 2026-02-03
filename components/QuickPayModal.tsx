@@ -634,6 +634,9 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     setStep('sending');
     setError('');
     
+    // Define toAddr early for error handling
+    const toAddr = scannedAddress || recipientAddress;
+    
     // Track send initiation
     const sendValueUSD = parseFloat(cryptoAmount) * nativePrice;
     await logTransactionEvent({
@@ -644,7 +647,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       status: 'pending',
       metadata: {
         isNative: true,
-        toAddress: scannedAddress || recipientAddress,
+        toAddress: toAddr,
         source: 'quickpay'
       },
     });
@@ -655,7 +658,6 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       const gas = gasPrices['standard'];
       
       const isSolana = currentChain === 'solana';
-      const toAddr = scannedAddress || recipientAddress;
       
       logger.log(`🚀 [QuickPay] Sending ${cryptoAmount} ${CHAINS[currentChain].nativeCurrency.symbol} to ${toAddr}...`);
       
