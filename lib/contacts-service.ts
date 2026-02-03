@@ -1,6 +1,7 @@
 /**
  * 📇 CONTACTS SERVICE
  * Manage user's saved wallet addresses
+ * Uses existing address_book table
  */
 
 import { supabase } from './supabase';
@@ -12,30 +13,33 @@ export interface Contact {
   name: string;
   address: string;
   chain: string;
-  note?: string;
-  avatar_url?: string;
+  emoji?: string;
+  profile_image?: string;
+  tags: string[];
+  notes?: string;
   is_favorite: boolean;
   created_at: string;
   updated_at: string;
-  last_used_at?: string;
-  usage_count: number;
-  total_sent_usd: number;
 }
 
 export interface CreateContactData {
   name: string;
   address: string;
   chain: string;
-  note?: string;
-  avatar_url?: string;
+  notes?: string;
+  emoji?: string;
+  profile_image?: string;
   is_favorite?: boolean;
+  tags?: string[];
 }
 
 export interface UpdateContactData {
   name?: string;
-  note?: string;
-  avatar_url?: string;
+  notes?: string;
+  emoji?: string;
+  profile_image?: string;
   is_favorite?: boolean;
+  tags?: string[];
 }
 
 class ContactsService {
@@ -48,7 +52,7 @@ class ContactsService {
       if (!user) throw new Error('Not authenticated');
 
       let query = supabase
-        .from('contacts')
+        .from('address_book')
         .select('*')
         .eq('user_id', user.id);
 
@@ -58,10 +62,11 @@ class ContactsService {
           query = query.order('name', { ascending: true });
           break;
         case 'recent':
-          query = query.order('last_used_at', { ascending: false, nullsFirst: false });
+          query = query.order('updated_at', { ascending: false });
           break;
         case 'frequent':
-          query = query.order('usage_count', { ascending: false });
+          // For address_book, just sort by favorites first, then name
+          query = query.order('is_favorite', { ascending: false }).order('name', { ascending: true });
           break;
       }
 
@@ -85,12 +90,12 @@ class ContactsService {
       if (!user) throw new Error('Not authenticated');
 
       const { data, error } = await supabase
-        .from('contacts')
+        .from('address_book')
         .select('*')
         .eq('user_id', user.id)
         .eq('chain', chain)
         .order('is_favorite', { ascending: false })
-        .order('usage_count', { ascending: false });
+        .order('name', { ascending: true });
 
       if (error) throw error;
 
@@ -110,7 +115,7 @@ class ContactsService {
       if (!user) throw new Error('Not authenticated');
 
       const { data, error } = await supabase
-        .from('contacts')
+        .from('address_book')
         .select('*')
         .eq('user_id', user.id)
         .eq('is_favorite', true)
@@ -134,12 +139,12 @@ class ContactsService {
       if (!user) throw new Error('Not authenticated');
 
       const { data, error } = await supabase
-        .from('contacts')
+        .from('address_book')
         .select('*')
         .eq('user_id', user.id)
         .or(`name.ilike.%${query}%,address.ilike.%${query}%`)
         .order('is_favorite', { ascending: false })
-        .order('usage_count', { ascending: false });
+        .order('name', { ascending: true });
 
       if (error) throw error;
 
@@ -159,7 +164,7 @@ class ContactsService {
       if (!user) return null;
 
       const { data, error } = await supabase
-        .from('contacts')
+        .from('address_book')
         .select('*')
         .eq('user_id', user.id)
         .eq('address', address)
@@ -193,10 +198,17 @@ class ContactsService {
       }
 
       const { data, error } = await supabase
-        .from('contacts')
+        .from('address_book')
         .insert({
           user_id: user.id,
-          ...contactData,
+          name: contactData.name,
+          address: contactData.address,
+          chain: contactData.chain,
+          notes: contactData.notes || '',
+          emoji: contactData.emoji || '👤',
+          profile_image: contactData.profile_image || '',
+          is_favorite: contactData.is_favorite || false,
+          tags: contactData.tags || [],
         })
         .select()
         .single();
@@ -220,7 +232,7 @@ class ContactsService {
       if (!user) throw new Error('Not authenticated');
 
       const { data, error } = await supabase
-        .from('contacts')
+        .from('address_book')
         .update(updates)
         .eq('id', contactId)
         .eq('user_id', user.id)
@@ -246,7 +258,7 @@ class ContactsService {
       if (!user) throw new Error('Not authenticated');
 
       const { error } = await supabase
-        .from('contacts')
+        .from('address_book')
         .delete()
         .eq('id', contactId)
         .eq('user_id', user.id);
@@ -270,7 +282,7 @@ class ContactsService {
 
       // Get current contact
       const { data: contact } = await supabase
-        .from('contacts')
+        .from('address_book')
         .select('is_favorite')
         .eq('id', contactId)
         .eq('user_id', user.id)
@@ -280,7 +292,7 @@ class ContactsService {
 
       // Toggle favorite
       const { data, error } = await supabase
-        .from('contacts')
+        .from('address_book')
         .update({ is_favorite: !contact.is_favorite })
         .eq('id', contactId)
         .eq('user_id', user.id)
@@ -297,29 +309,13 @@ class ContactsService {
   }
 
   /**
-   * Increment usage stats when sending to a contact
+   * Increment usage stats when sending to a contact (not implemented in address_book)
    */
   async incrementUsage(address: string, chain: string, amountUSD: number = 0): Promise<void> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Call database function
-      const { error } = await supabase.rpc('increment_contact_usage', {
-        p_user_id: user.id,
-        p_address: address,
-        p_chain: chain,
-        p_amount_usd: amountUSD,
-      });
-
-      if (error) {
-        logger.warn('Failed to increment contact usage:', error);
-      }
-    } catch (error: any) {
-      logger.warn('Failed to increment contact usage:', error);
-    }
+    // address_book doesn't have usage tracking, so this is a no-op
+    // Could be added later if needed
+    logger.log(`📊 Sent to contact: ${address.slice(0, 8)}... (${chain})`);
   }
 }
 
 export const contactsService = new ContactsService();
-

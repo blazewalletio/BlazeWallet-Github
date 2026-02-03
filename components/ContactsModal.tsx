@@ -45,9 +45,11 @@ export default function ContactsModal({
     name: '',
     address: '',
     chain: filterChain || 'ethereum',
-    note: '',
-    avatar_url: '',
+    notes: '',
+    emoji: '👤',
+    profile_image: '',
     is_favorite: false,
+    tags: [],
   });
   const [formError, setFormError] = useState('');
 
@@ -117,9 +119,11 @@ export default function ContactsModal({
         name: '',
         address: '',
         chain: filterChain || 'ethereum',
-        note: '',
-        avatar_url: '',
+        notes: '',
+        emoji: '👤',
+        profile_image: '',
         is_favorite: false,
+        tags: [],
       });
       
       setMode('list');
@@ -141,9 +145,11 @@ export default function ContactsModal({
     try {
       const updates: UpdateContactData = {
         name: formData.name,
-        note: formData.note,
-        avatar_url: formData.avatar_url,
+        notes: formData.notes,
+        emoji: formData.emoji,
+        profile_image: formData.profile_image,
         is_favorite: formData.is_favorite,
+        tags: formData.tags,
       };
       
       await contactsService.updateContact(selectedContact.id, updates);
@@ -190,9 +196,11 @@ export default function ContactsModal({
       name: contact.name,
       address: contact.address,
       chain: contact.chain,
-      note: contact.note || '',
-      avatar_url: contact.avatar_url || '',
+      notes: contact.notes || '',
+      emoji: contact.emoji || '👤',
+      profile_image: contact.profile_image || '',
       is_favorite: contact.is_favorite,
+      tags: contact.tags || [],
     });
     setMode('edit');
   };
@@ -314,7 +322,7 @@ export default function ContactsModal({
                           {/* Avatar */}
                           <div className="w-12 h-12 bg-gradient-to-br from-orange-100 to-yellow-100 rounded-full flex items-center justify-center flex-shrink-0">
                             <span className="text-2xl">
-                              {contact.avatar_url || CHAINS[contact.chain as keyof typeof CHAINS]?.icon || '👤'}
+                              {contact.emoji || contact.profile_image || CHAINS[contact.chain as keyof typeof CHAINS]?.icon || '👤'}
                             </span>
                           </div>
 
@@ -438,8 +446,8 @@ export default function ContactsModal({
                   </label>
                   <input
                     type="text"
-                    value={formData.note}
-                    onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                     placeholder="e.g., Monthly rent, Trading account"
                     className="w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
                   />
