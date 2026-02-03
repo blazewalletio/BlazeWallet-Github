@@ -1401,7 +1401,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                                       )}
                                     </div>
                                     <div className="text-xs text-gray-500 mt-0.5">
-                                      {token.balance.toFixed(6)} • {symbol}{formatUSDSync(token.balanceUSD || 0)}
+                                      {parseFloat(token.balance || '0').toFixed(6)} • {symbol}{formatUSDSync(parseFloat(token.balanceUSD || '0'))}
                                     </div>
                                   </div>
 
