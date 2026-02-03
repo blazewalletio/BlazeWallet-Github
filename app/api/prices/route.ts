@@ -149,10 +149,10 @@ export async function GET(request: Request) {
 
     try {
       const apiKey = process.env.COINGECKO_API_KEY?.trim();
-      const apiKeyParam = apiKey ? `&x_cg_demo_api_key=${apiKey}` : '';
-      // ✅ FIXED: Use pro-api.coingecko.com for Pro API keys (not api.coingecko.com)
+      
+      // ✅ FIXED: Use pro-api.coingecko.com for Pro API keys
       const baseUrl = apiKey ? 'https://pro-api.coingecko.com' : 'https://api.coingecko.com';
-      const url = `${baseUrl}/api/v3/simple/price?ids=${coinIds.join(',')}&vs_currencies=usd&include_24hr_change=true${apiKeyParam}`;
+      const url = `${baseUrl}/api/v3/simple/price?ids=${coinIds.join(',')}&vs_currencies=usd&include_24hr_change=true`;
       
       logger.log(`\n╔══════════════════════════════════════════════════════════════╗`);
       logger.log(`║  🔍 [API/prices] CoinGecko Pro Request - START              ║`);
@@ -168,8 +168,20 @@ export async function GET(request: Request) {
         logger.warn('⚠️ NO COINGECKO_API_KEY FOUND! Using free tier (rate limited to 10-50 calls/min)');
       }
       
+      // ✅ CRITICAL FIX: Pro API keys must be sent as HEADER, not query parameter!
+      // Pro API: Header 'x-cg-pro-api-key'
+      // Demo API: Query param 'x_cg_demo_api_key'
+      const headers: Record<string, string> = {
+        'Accept': 'application/json',
+      };
+      
+      if (apiKey) {
+        headers['x-cg-pro-api-key'] = apiKey;
+        logger.log(`🔐 Sending API key as header: x-cg-pro-api-key`);
+      }
+      
       const response = await fetch(url, {
-        headers: { 'Accept': 'application/json' },
+        headers,
         next: { revalidate: 60 }, // Cache for 60 seconds
         signal: AbortSignal.timeout(8000), // 8 second timeout (Vercel has 10s limit)
       });
