@@ -447,21 +447,27 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         // Add price data to SPL tokens
         for (const token of splTokens) {
           try {
-            // Try to get price by mint address or symbol
-            const priceData = await priceService.getMultiplePrices([token.symbol]);
-            const tokenPrice = priceData[token.symbol]?.price || 0;
-            const tokenUsdValue = parseFloat(token.balance) * tokenPrice;
+            // Get price from Binance (more reliable)
+            const priceData = await priceService.getNativePriceDirectFromBinance(token.symbol);
+            const tokenPrice = priceData.price || 0;
+            const tokenBalance = parseFloat(token.balance || '0');
+            const tokenUsdValue = tokenBalance * tokenPrice;
+            
+            logger.log(`  💰 ${token.symbol}: ${tokenBalance.toFixed(4)} tokens @ $${tokenPrice.toFixed(2)} = $${tokenUsdValue.toFixed(2)}`);
             
             allTokens.push({
               ...token,
               priceUSD: tokenPrice,
+              change24h: priceData.change24h,
               balanceUSD: tokenUsdValue.toString(),
             });
           } catch (err) {
-            // Token without price
+            logger.warn(`  ⚠️ ${token.symbol}: No price data available`);
+            // Token without price - still show balance
             allTokens.push({
               ...token,
               priceUSD: 0,
+              change24h: 0,
               balanceUSD: '0',
             });
           }
@@ -472,14 +478,42 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         const erc20Tokens = await blockchain.getERC20TokenBalances(currentAddress);
         logger.log(`🪙 [QuickPay] Found ${erc20Tokens.length} ERC20 tokens`);
         
-        // ERC20 tokens already have price data from Alchemy
-        allTokens.push(...erc20Tokens.map(token => {
-          const usdValue = parseFloat(token.balance || '0') * (token.priceUSD || 0);
-          return {
-            ...token,
-            balanceUSD: usdValue.toString(),
-          };
-        }));
+        // Fetch prices for ERC20 tokens
+        for (const token of erc20Tokens) {
+          try {
+            // Get price from Binance if not already present
+            let tokenPrice = token.priceUSD || 0;
+            let priceChange = token.change24h || 0;
+            
+            if (!tokenPrice) {
+              const priceData = await priceService.getNativePriceDirectFromBinance(token.symbol);
+              tokenPrice = priceData.price || 0;
+              priceChange = priceData.change24h || 0;
+            }
+            
+            const tokenBalance = parseFloat(token.balance || '0');
+            const tokenUsdValue = tokenBalance * tokenPrice;
+            
+            logger.log(`  💰 ${token.symbol}: ${tokenBalance.toFixed(4)} tokens @ $${tokenPrice.toFixed(2)} = $${tokenUsdValue.toFixed(2)}`);
+            
+            allTokens.push({
+              ...token,
+              priceUSD: tokenPrice,
+              change24h: priceChange,
+              balanceUSD: tokenUsdValue.toString(),
+            });
+          } catch (err) {
+            logger.warn(`  ⚠️ ${token.symbol}: No price data available`);
+            // Token without price - still show balance
+            const tokenBalance = parseFloat(token.balance || '0');
+            allTokens.push({
+              ...token,
+              priceUSD: 0,
+              change24h: 0,
+              balanceUSD: '0',
+            });
+          }
+        }
       }
       
       // Sort by USD value (highest first)
@@ -1377,16 +1411,12 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                                 }`}
                               >
                                 <div className="flex items-center gap-3">
-                                  {/* Token Icon */}
-                                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                                    token.address === 'native'
-                                      ? 'bg-gradient-to-br from-orange-500 to-yellow-500' 
-                                      : 'bg-gradient-to-br from-purple-500 to-pink-500'
-                                  }`}>
+                                  {/* Token Icon - Clean circular logo */}
+                                  <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden bg-gray-100">
                                     {token.logo ? (
-                                      <img src={token.logo} alt={token.symbol} className="w-6 h-6" />
+                                      <img src={token.logo} alt={token.symbol} className="w-full h-full object-cover" />
                                     ) : (
-                                      <span className="text-white font-bold text-sm">{token.symbol.slice(0, 2)}</span>
+                                      <span className="text-gray-700 font-bold text-sm">{token.symbol.slice(0, 2)}</span>
                                     )}
                                   </div>
 
@@ -1401,20 +1431,38 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                                       )}
                                     </div>
                                     <div className="text-xs text-gray-500 mt-0.5">
-                                      {parseFloat(token.balance || '0').toFixed(6)} • {symbol}{formatUSDSync(parseFloat(token.balanceUSD || '0'))}
+                                      {parseFloat(token.balance || '0').toLocaleString('en-US', { 
+                                        minimumFractionDigits: 2, 
+                                        maximumFractionDigits: 6 
+                                      })} {token.symbol}
                                     </div>
                                   </div>
 
-                                  {/* Token Price & Change */}
+                                  {/* Token Price & USD Value */}
                                   <div className="text-right">
-                                    <div className="text-sm font-semibold text-gray-900">
-                                      {symbol}{formatUSDSync(token.priceUSD || 0)}
-                                    </div>
-                                    {token.change24h !== undefined && token.change24h !== 0 && (
-                                      <div className={`text-xs font-medium ${
-                                        token.change24h > 0 ? 'text-green-600' : 'text-red-600'
-                                      }`}>
-                                        {token.change24h > 0 ? '+' : ''}{token.change24h.toFixed(2)}%
+                                    {token.priceUSD && token.priceUSD > 0 ? (
+                                      <>
+                                        <div className="text-sm font-semibold text-gray-900">
+                                          {symbol}{formatUSDSync(parseFloat(token.balanceUSD || '0'))}
+                                        </div>
+                                        <div className="flex items-center justify-end gap-1 mt-0.5">
+                                          <span className="text-xs text-gray-500">
+                                            {symbol}{token.priceUSD >= 0.01 
+                                              ? formatUSDSync(token.priceUSD) 
+                                              : token.priceUSD.toFixed(6)}
+                                          </span>
+                                          {token.change24h !== undefined && token.change24h !== 0 && (
+                                            <span className={`text-xs font-medium ${
+                                              token.change24h > 0 ? 'text-green-600' : 'text-red-600'
+                                            }`}>
+                                              {token.change24h > 0 ? '+' : ''}{token.change24h.toFixed(2)}%
+                                            </span>
+                                          )}
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <div className="text-sm font-semibold text-gray-900">
+                                        {parseFloat(token.balance || '0').toFixed(4)} {token.symbol}
                                       </div>
                                     )}
                                   </div>
