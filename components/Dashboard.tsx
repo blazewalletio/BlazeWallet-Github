@@ -733,6 +733,8 @@ export default function Dashboard() {
         [nativeSymbol]: nativePriceData[nativeSymbol] || { price: 0, change24h: 0 },
       };
       
+      const nativePrice = nativePriceData[nativeSymbol] || { price: 0, change24h: 0 };
+      
       if (currentChain === 'ethereum') {
         console.log(`✅ ${nativeSymbol} price: $${nativePrice.price} (${nativePrice.change24h >= 0 ? '+' : ''}${nativePrice.change24h.toFixed(2)}%)`);
       }
