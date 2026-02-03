@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Zap, CreditCard, Scan, Check, Camera, AlertCircle, ArrowRight, Copy, User, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, AlertTriangle } from 'lucide-react';
+import { X, Zap, CreditCard, Scan, Check, Camera, AlertCircle, ArrowRight, Copy, User, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, AlertTriangle, ChevronDown } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import QRCode from 'qrcode';
@@ -18,6 +18,8 @@ import { CHAINS } from '@/lib/chains';
 import { supabase } from '@/lib/supabase';
 import { logTransactionEvent } from '@/lib/analytics-tracker';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { Token } from '@/lib/types';
+import Image from 'next/image';
 
 interface QuickPayModalProps {
   isOpen: boolean;
@@ -62,16 +64,20 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   const streamRef = useRef<MediaStream | null>(null);
   const scanIntervalRef = useRef<number | null>(null);
   
-  const { address, currentChain, switchChain, wallet, mnemonic, getCurrentAddress } = useWalletStore();
+  const { address, currentChain, switchChain, wallet, mnemonic, getCurrentAddress, tokens } = useWalletStore();
   const { formatUSDSync, symbol, convertUSD, selectedCurrency } = useCurrency();
 
   // ✅ NEW: Send to Address specific states
   const [recipientAddress, setRecipientAddress] = useState<string>('');
+  const [selectedToken, setSelectedToken] = useState<Token | null>(null); // 🆕 Selected token for sending
+  const [showTokenDropdown, setShowTokenDropdown] = useState(false); // 🆕 Token dropdown visibility
+  const [availableTokens, setAvailableTokens] = useState<Token[]>([]); // 🆕 All available tokens (native + ERC20/SPL)
   const [cryptoAmount, setCryptoAmount] = useState<string>('');
   const [nativePrice, setNativePrice] = useState<number>(0);
   const [estimatedGas, setEstimatedGas] = useState<number>(0);
   const [estimatedGasUSD, setEstimatedGasUSD] = useState<number>(0);
   const [isConverting, setIsConverting] = useState(false);
+  const [isFetchingTokens, setIsFetchingTokens] = useState(false); // 🆕 Loading state for tokens
   const [error, setError] = useState<string>('');
   const [txHash, setTxHash] = useState<string>('');
   const [step, setStep] = useState<'sending' | 'confirming' | 'success' | 'error'>('sending');
@@ -393,6 +399,121 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     }
   };
 
+  // 🆕 Fetch all available tokens for current chain
+  const fetchAvailableTokens = async () => {
+    setIsFetchingTokens(true);
+    
+    try {
+      const currentAddress = getCurrentAddress();
+      if (!currentAddress) {
+        logger.warn('[QuickPay] No address available');
+        setIsFetchingTokens(false);
+        return;
+      }
+
+      logger.log(`\n🪙 [QuickPay] Fetching tokens for ${currentChain}...`);
+      
+      const chainConfig = CHAINS[currentChain];
+      const blockchain = MultiChainService.getInstance(currentChain);
+      
+      // Get native balance
+      const nativeBalance = await blockchain.getBalance(currentAddress);
+      
+      // Get native price
+      const nativePriceData = await priceService.getNativePriceDirectFromBinance(chainConfig.nativeCurrency.symbol);
+      const nativeUsdValue = parseFloat(nativeBalance) * nativePriceData.price;
+      
+      // Create native token
+      const nativeToken: Token = {
+        address: 'native',
+        symbol: chainConfig.nativeCurrency.symbol,
+        name: chainConfig.name,
+        decimals: chainConfig.nativeCurrency.decimals,
+        balance: nativeBalance,
+        logo: chainConfig.icon || '/crypto-placeholder.png',
+        price: nativePriceData.price,
+        change24h: nativePriceData.change24h,
+        usdValue: nativeUsdValue,
+      };
+      
+      const allTokens: Token[] = [nativeToken];
+      
+      // Get ERC20/SPL tokens based on chain
+      if (currentChain === 'solana') {
+        // Solana SPL tokens
+        const splTokens = await blockchain.getSPLTokenBalances(currentAddress);
+        logger.log(`🪙 [QuickPay] Found ${splTokens.length} SPL tokens`);
+        
+        // Add price data to SPL tokens
+        for (const token of splTokens) {
+          try {
+            // Try to get price by mint address or symbol
+            const priceData = await priceService.getMultiplePrices([token.symbol]);
+            const tokenPrice = priceData[token.symbol]?.price || 0;
+            
+            allTokens.push({
+              ...token,
+              price: tokenPrice,
+              usdValue: parseFloat(token.balance) * tokenPrice,
+            });
+          } catch (err) {
+            // Token without price
+            allTokens.push({
+              ...token,
+              price: 0,
+              usdValue: 0,
+            });
+          }
+        }
+      } else if (chainConfig.type === 'evm') {
+        // EVM ERC20 tokens (use Alchemy if available)
+        const erc20Tokens = await blockchain.getERC20TokenBalances(currentAddress);
+        logger.log(`🪙 [QuickPay] Found ${erc20Tokens.length} ERC20 tokens`);
+        
+        // ERC20 tokens already have price data from Alchemy
+        allTokens.push(...erc20Tokens.map(token => ({
+          ...token,
+          usdValue: parseFloat(token.balance) * (token.price || 0),
+        })));
+      }
+      
+      // Sort by USD value (highest first)
+      const sortedTokens = allTokens.sort((a, b) => (b.usdValue || 0) - (a.usdValue || 0));
+      
+      logger.log(`✅ [QuickPay] Total tokens available: ${sortedTokens.length}`);
+      logger.log(`   Sorted by USD value (highest first)`);
+      
+      setAvailableTokens(sortedTokens);
+      
+      // Auto-select native token by default
+      if (!selectedToken && sortedTokens.length > 0) {
+        setSelectedToken(sortedTokens[0]);
+        logger.log(`✅ [QuickPay] Auto-selected native token: ${sortedTokens[0].symbol}`);
+      }
+      
+    } catch (err: any) {
+      logger.error('❌ [QuickPay] Failed to fetch tokens:', err);
+      
+      // Fallback: just show native token
+      const chainConfig = CHAINS[currentChain];
+      const fallbackToken: Token = {
+        address: 'native',
+        symbol: chainConfig.nativeCurrency.symbol,
+        name: chainConfig.name,
+        decimals: chainConfig.nativeCurrency.decimals,
+        balance: '0',
+        logo: chainConfig.icon || '/crypto-placeholder.png',
+        price: 0,
+        usdValue: 0,
+      };
+      
+      setAvailableTokens([fallbackToken]);
+      setSelectedToken(fallbackToken);
+    } finally {
+      setIsFetchingTokens(false);
+    }
+  };
+
   const handleMethodSelect = (method: 'scanqr' | 'manual' | 'lightning') => {
     // ⚡ NEW: Check if Lightning requires chain switch
     if (method === 'lightning' && currentChain !== 'bitcoin') {
@@ -406,6 +527,8 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     if (method === 'scanqr') {
       setMode('scan');
     } else if (method === 'manual') {
+      // 🆕 Fetch available tokens when entering manual send flow
+      fetchAvailableTokens();
       setMode('amount');
     } else if (method === 'lightning') {
       setMode('lightning'); // ⚡ Go directly to Lightning flow
@@ -454,6 +577,11 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       return;
     }
     
+    if (!selectedToken) {
+      toast.error('Please select a token to send');
+      return;
+    }
+    
     if (paymentMethod === 'manual') {
       // ✅ Convert user's currency to Crypto
       setIsConverting(true);
@@ -465,41 +593,54 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         logger.log(`╚═══════════════════════════════════════════════════════════════╝\n`);
         
         const chainConfig = CHAINS[currentChain];
-        const nativeSymbol = chainConfig.nativeCurrency.symbol;
+        const tokenSymbol = selectedToken.symbol;
+        const isNative = selectedToken.address === 'native';
         
         logger.log(`📍 STEP 1: Initial Data`);
         logger.log(`   Current Chain: ${currentChain}`);
-        logger.log(`   Native Symbol: ${nativeSymbol}`);
+        logger.log(`   Selected Token: ${tokenSymbol} (${selectedToken.name})`);
+        logger.log(`   Is Native: ${isNative}`);
+        logger.log(`   Token Address: ${selectedToken.address}`);
         logger.log(`   User Amount: ${symbol}${amount}`);
         logger.log(`   User Currency: ${selectedCurrency}`);
-        logger.log(`   Currency Symbol: ${symbol}`);
+        logger.log(`   Token Balance: ${selectedToken.balance} ${tokenSymbol}`);
         
-        logger.log(`\n💱 [QuickPay] Converting ${symbol}${amount} to ${nativeSymbol}...\n`);
+        logger.log(`\n💱 [QuickPay] Converting ${symbol}${amount} to ${tokenSymbol}...\n`);
         
         // Fetch current price in USD
-        logger.log(`\n📍 STEP 2: Fetching ${nativeSymbol} price in USD...`);
-        logger.log(`   Method: getNativePriceDirectFromBinance (same as Dashboard)`);
-        logger.log(`   This uses: Binance (primary) → CoinGecko (fallback)`);
+        logger.log(`\n📍 STEP 2: Fetching ${tokenSymbol} price in USD...`);
         
-        const priceResult = await priceService.getNativePriceDirectFromBinance(nativeSymbol);
+        let priceUSD = 0;
         
-        logger.log(`   Raw priceResult response:`, priceResult);
-        logger.log(`   priceResult.price:`, priceResult.price);
-        logger.log(`   priceResult.change24h:`, priceResult.change24h);
-        
-        const priceUSD = priceResult.price || 0;
+        if (isNative) {
+          logger.log(`   Method: getNativePriceDirectFromBinance (native token)`);
+          logger.log(`   This uses: Binance (primary) → CoinGecko (fallback)`);
+          
+          const priceResult = await priceService.getNativePriceDirectFromBinance(tokenSymbol);
+          
+          logger.log(`   Raw priceResult response:`, priceResult);
+          priceUSD = priceResult.price || 0;
+        } else {
+          logger.log(`   Method: Using cached price from token data (ERC20/SPL)`);
+          priceUSD = selectedToken.price || 0;
+          
+          // If no cached price, try to fetch
+          if (!priceUSD) {
+            logger.log(`   No cached price, fetching fresh price...`);
+            const priceData = await priceService.getMultiplePrices([tokenSymbol]);
+            priceUSD = priceData[tokenSymbol]?.price || 0;
+          }
+        }
         
         logger.log(`   Extracted price: $${priceUSD}`);
         logger.log(`   Price is valid: ${priceUSD > 0}`);
         
         if (!priceUSD || priceUSD === 0) {
-          logger.error(`❌ CRITICAL: Failed to get ${nativeSymbol} price`);
-          logger.error(`   priceResult was:`, priceResult);
-          logger.error(`   priceResult.price was:`, priceResult.price);
-          throw new Error(`Failed to get ${nativeSymbol} price`);
+          logger.error(`❌ CRITICAL: Failed to get ${tokenSymbol} price`);
+          throw new Error(`Failed to get ${tokenSymbol} price`);
         }
         
-        logger.log(`✅ ${nativeSymbol} price fetched: $${priceUSD}`);
+        logger.log(`✅ ${tokenSymbol} price fetched: $${priceUSD}`);
         
         // Convert user's currency amount to USD first
         logger.log(`\n📍 STEP 3: Converting ${symbol}${amount} to USD...`);
@@ -520,30 +661,35 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         }
         
         // Then convert USD to crypto
-        logger.log(`\n📍 STEP 4: Converting USD to ${nativeSymbol}...`);
+        logger.log(`\n📍 STEP 4: Converting USD to ${tokenSymbol}...`);
         logger.log(`   USD amount: $${amountUSD}`);
-        logger.log(`   ${nativeSymbol} price: $${priceUSD}`);
+        logger.log(`   ${tokenSymbol} price: $${priceUSD}`);
         logger.log(`   Calculation: ${amountUSD} / ${priceUSD}`);
         
         const cryptoAmt = amountUSD / priceUSD;
         
-        logger.log(`   Result: ${cryptoAmt} ${nativeSymbol}`);
-        logger.log(`   Result (6 decimals): ${cryptoAmt.toFixed(6)} ${nativeSymbol}`);
+        logger.log(`   Result: ${cryptoAmt} ${tokenSymbol}`);
+        logger.log(`   Result (6 decimals): ${cryptoAmt.toFixed(6)} ${tokenSymbol}`);
         
         setCryptoAmount(cryptoAmt.toString());
         setNativePrice(priceUSD);
         
-        logger.log(`\n✅ [QuickPay] ${symbol}${amount} → $${amountUSD.toFixed(2)} → ${cryptoAmt.toFixed(6)} ${nativeSymbol}`);
+        logger.log(`\n✅ [QuickPay] ${symbol}${amount} → $${amountUSD.toFixed(2)} → ${cryptoAmt.toFixed(6)} ${tokenSymbol}`);
         
-        // Estimate gas
+        // Estimate gas (always in native token)
         logger.log(`\n📍 STEP 5: Estimating gas fees...`);
         logger.log(`   Chain type: ${currentChain}`);
+        logger.log(`   Gas paid in: ${chainConfig.nativeCurrency.symbol} (native token)`);
         
         const blockchain = MultiChainService.getInstance(currentChain);
         logger.log(`   Blockchain service initialized`);
         
         const gasPrices = await blockchain.getGasPrice();
         logger.log(`   Gas prices fetched:`, gasPrices);
+        
+        // Get native token price for gas calculation
+        const nativePriceResult = await priceService.getNativePriceDirectFromBinance(chainConfig.nativeCurrency.symbol);
+        const nativeTokenPrice = nativePriceResult.price;
         
         let gasAmount = 0;
         if (currentChain === 'solana') {
@@ -552,24 +698,26 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         } else if (currentChain === 'bitcoin' || currentChain === 'litecoin' || currentChain === 'dogecoin' || currentChain === 'bitcoincash') {
           // Bitcoin-like chains: ~0.0001 BTC/LTC/DOGE/BCH
           gasAmount = 0.0001;
-          logger.log(`   Using fixed Bitcoin-like fee: ${gasAmount} ${nativeSymbol}`);
+          logger.log(`   Using fixed Bitcoin-like fee: ${gasAmount} ${chainConfig.nativeCurrency.symbol}`);
         } else {
           // EVM chains: calculate from gas price
           const gasPrice = parseFloat(gasPrices.standard);
-          gasAmount = (gasPrice * 21000) / 1e9; // 21000 gas limit for simple transfer
+          // ERC20 transfers need more gas (~65000) than native transfers (~21000)
+          const gasLimit = isNative ? 21000 : 65000;
+          gasAmount = (gasPrice * gasLimit) / 1e9;
           logger.log(`   EVM chain calculation:`);
           logger.log(`      Gas price: ${gasPrice} gwei`);
-          logger.log(`      Gas limit: 21000`);
-          logger.log(`      Calculated fee: ${gasAmount} ${nativeSymbol}`);
+          logger.log(`      Gas limit: ${gasLimit} (${isNative ? 'native' : 'ERC20'} transfer)`);
+          logger.log(`      Calculated fee: ${gasAmount} ${chainConfig.nativeCurrency.symbol}`);
         }
         
-        const gasUSD = gasAmount * priceUSD;
+        const gasUSD = gasAmount * nativeTokenPrice;
         
         setEstimatedGas(gasAmount);
         setEstimatedGasUSD(gasUSD);
         
         logger.log(`\n⛽ Gas Estimation Complete:`);
-        logger.log(`   Gas amount: ${gasAmount.toFixed(6)} ${nativeSymbol}`);
+        logger.log(`   Gas amount: ${gasAmount.toFixed(6)} ${chainConfig.nativeCurrency.symbol}`);
         logger.log(`   Gas in USD: $${gasUSD.toFixed(4)}`);
         logger.log(`   Gas in user currency: ${formatUSDSync(gasUSD)}`);
         
@@ -579,9 +727,10 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         logger.log(`📊 SUMMARY:`);
         logger.log(`   Input: ${symbol}${amount}`);
         logger.log(`   USD: $${amountUSD.toFixed(2)}`);
-        logger.log(`   Crypto: ${cryptoAmt.toFixed(6)} ${nativeSymbol}`);
-        logger.log(`   Price: $${priceUSD}/per ${nativeSymbol}`);
-        logger.log(`   Gas: ${gasAmount.toFixed(6)} ${nativeSymbol} ($${gasUSD.toFixed(4)})`);
+        logger.log(`   Token: ${cryptoAmt.toFixed(6)} ${tokenSymbol}`);
+        logger.log(`   Token Type: ${isNative ? 'Native' : 'ERC20/SPL'}`);
+        logger.log(`   Price: $${priceUSD}/per ${tokenSymbol}`);
+        logger.log(`   Gas: ${gasAmount.toFixed(6)} ${chainConfig.nativeCurrency.symbol} ($${gasUSD.toFixed(4)})`);
         logger.log(`═══════════════════════════════════════════════════════════════\n`);
         
         setIsConverting(false);
