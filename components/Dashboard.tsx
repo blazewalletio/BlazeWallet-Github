@@ -2356,83 +2356,101 @@ export default function Dashboard() {
             </div>
             
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {/* Staking */}
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setShowStaking(true)}
-                className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left"
+              {/* Staking - COMING SOON */}
+              <motion.div
+                className="glass p-4 rounded-xl text-left opacity-75 cursor-default relative"
               >
-                <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center mb-3">
+                <div className="absolute top-2 right-2 z-10">
+                  <div className="px-2 py-0.5 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-[10px] font-bold rounded-full shadow-lg">
+                    Coming Soon
+                  </div>
+                </div>
+                <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center mb-3 opacity-60">
                   <Lock className="w-5 h-5 text-white" />
                 </div>
-                <div className="font-semibold mb-1">Staking</div>
-                <div className="text-xs text-slate-400">Earn up to 25% APY</div>
-              </motion.button>
+                <div className="font-semibold mb-1 opacity-60">Staking</div>
+                <div className="text-xs text-slate-400 opacity-50">Earn up to 25% APY</div>
+              </motion.div>
 
-              {/* Cashback */}
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setShowCashback(true)}
-                className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left"
+              {/* Cashback - COMING SOON */}
+              <motion.div
+                className="glass p-4 rounded-xl text-left opacity-75 cursor-default relative"
               >
-                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center mb-3">
+                <div className="absolute top-2 right-2 z-10">
+                  <div className="px-2 py-0.5 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-[10px] font-bold rounded-full shadow-lg">
+                    Coming Soon
+                  </div>
+                </div>
+                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center mb-3 opacity-60">
                   <Gift className="w-5 h-5 text-white" />
                 </div>
-                <div className="font-semibold mb-1">Cashback</div>
-                <div className="text-xs text-slate-400">2% on all transactions</div>
-              </motion.button>
+                <div className="font-semibold mb-1 opacity-60">Cashback</div>
+                <div className="text-xs text-slate-400 opacity-50">2% on all transactions</div>
+              </motion.div>
 
-              {/* Governance */}
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setShowGovernance(true)}
-                className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left"
+              {/* Governance - COMING SOON */}
+              <motion.div
+                className="glass p-4 rounded-xl text-left opacity-75 cursor-default relative"
               >
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center mb-3">
+                <div className="absolute top-2 right-2 z-10">
+                  <div className="px-2 py-0.5 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-[10px] font-bold rounded-full shadow-lg">
+                    Coming Soon
+                  </div>
+                </div>
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center mb-3 opacity-60">
                   <Vote className="w-5 h-5 text-white" />
                 </div>
-                <div className="font-semibold mb-1">Governance</div>
-                <div className="text-xs text-slate-400">Vote on proposals</div>
-              </motion.button>
+                <div className="font-semibold mb-1 opacity-60">Governance</div>
+                <div className="text-xs text-slate-400 opacity-50">Vote on proposals</div>
+              </motion.div>
 
-              {/* Launchpad */}
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setShowLaunchpad(true)}
-                className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left"
+              {/* Launchpad - COMING SOON */}
+              <motion.div
+                className="glass p-4 rounded-xl text-left opacity-75 cursor-default relative"
               >
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mb-3">
+                <div className="absolute top-2 right-2 z-10">
+                  <div className="px-2 py-0.5 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-[10px] font-bold rounded-full shadow-lg">
+                    Coming Soon
+                  </div>
+                </div>
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mb-3 opacity-60">
                   <Rocket className="w-5 h-5 text-white" />
                 </div>
-                <div className="font-semibold mb-1">Launchpad</div>
-                <div className="text-xs text-slate-400">Early access to IDOs</div>
-              </motion.button>
+                <div className="font-semibold mb-1 opacity-60">Launchpad</div>
+                <div className="text-xs text-slate-400 opacity-50">Early access to IDOs</div>
+              </motion.div>
 
-              {/* Referrals */}
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setShowReferrals(true)}
-                className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left"
+              {/* Referrals - COMING SOON */}
+              <motion.div
+                className="glass p-4 rounded-xl text-left opacity-75 cursor-default relative"
               >
-                <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center mb-3">
+                <div className="absolute top-2 right-2 z-10">
+                  <div className="px-2 py-0.5 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-[10px] font-bold rounded-full shadow-lg">
+                    Coming Soon
+                  </div>
+                </div>
+                <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center mb-3 opacity-60">
                   <Users className="w-5 h-5 text-white" />
                 </div>
-                <div className="font-semibold mb-1">Referrals</div>
-                <div className="text-xs text-slate-400">Earn 50 BLAZE/referral</div>
-              </motion.button>
+                <div className="font-semibold mb-1 opacity-60">Referrals</div>
+                <div className="text-xs text-slate-400 opacity-50">Earn 50 BLAZE/referral</div>
+              </motion.div>
 
-              {/* NFT Collection */}
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setShowNFTMint(true)}
-                className="glass p-4 rounded-xl hover:bg-white/10 transition-colors text-left"
+              {/* NFT Skins - COMING SOON */}
+              <motion.div
+                className="glass p-4 rounded-xl text-left opacity-75 cursor-default relative"
               >
-                <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-purple-500 rounded-lg flex items-center justify-center mb-3">
+                <div className="absolute top-2 right-2 z-10">
+                  <div className="px-2 py-0.5 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-[10px] font-bold rounded-full shadow-lg">
+                    Coming Soon
+                  </div>
+                </div>
+                <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-purple-500 rounded-lg flex items-center justify-center mb-3 opacity-60">
                   <Palette className="w-5 h-5 text-white" />
                 </div>
-                <div className="font-semibold mb-1">NFT Skins</div>
-                <div className="text-xs text-slate-400">Exclusive wallet themes</div>
-              </motion.button>
+                <div className="font-semibold mb-1 opacity-60">NFT Skins</div>
+                <div className="text-xs text-slate-400 opacity-50">Exclusive wallet themes</div>
+              </motion.div>
 
               {/* Vesting (Founder Only) */}
               {isFounder && (
