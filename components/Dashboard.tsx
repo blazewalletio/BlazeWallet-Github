@@ -725,12 +725,12 @@ export default function Dashboard() {
         console.log(`📡 Fetching ${nativeSymbol} via PriceService (Binance → CoinGecko fallback)`);
       }
       if (currentChain === 'solana') {
-        console.log(`🔴📡 Fetching ${nativeSymbol} via PriceService (Binance → CoinGecko fallback)`);
+        console.log(`🔴📡 Fetching ${nativeSymbol} via PriceService (CoinGecko Pro)`);
       }
       
-      const nativePrice = await priceService.getNativePriceDirectFromBinance(nativeSymbol);
+      const nativePriceData = await priceService.getMultiplePrices([nativeSymbol]);
       const pricesMap: Record<string, { price: number; change24h: number }> = {
-        [nativeSymbol]: nativePrice,
+        [nativeSymbol]: nativePriceData[nativeSymbol] || { price: 0, change24h: 0 },
       };
       
       if (currentChain === 'ethereum') {
