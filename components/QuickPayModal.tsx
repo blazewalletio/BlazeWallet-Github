@@ -422,11 +422,21 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       // Get native price from CoinGecko Pro (via API route)
       logger.log(`📡 [QuickPay] Fetching ${chainConfig.nativeCurrency.symbol} price from CoinGecko Pro...`);
       const nativePriceData = await priceService.getMultiplePrices([chainConfig.nativeCurrency.symbol]);
+      
+      // Debug: Log the full response
+      logger.log(`📦 [QuickPay] Native price response:`, nativePriceData);
+      logger.log(`📦 [QuickPay] ${chainConfig.nativeCurrency.symbol} data:`, nativePriceData[chainConfig.nativeCurrency.symbol]);
+      
       const nativePrice = nativePriceData[chainConfig.nativeCurrency.symbol]?.price || 0;
       const nativePriceChange = nativePriceData[chainConfig.nativeCurrency.symbol]?.change24h || 0;
       const nativeUsdValue = parseFloat(nativeBalance) * nativePrice;
       
-      logger.log(`✅ [QuickPay] ${chainConfig.nativeCurrency.symbol} price: $${nativePrice} (${nativePriceChange >= 0 ? '+' : ''}${nativePriceChange.toFixed(2)}%)`);
+      if (nativePrice === 0) {
+        logger.error(`❌ [QuickPay] CRITICAL: Failed to get ${chainConfig.nativeCurrency.symbol} price!`);
+        logger.error(`   Response was:`, nativePriceData);
+      } else {
+        logger.log(`✅ [QuickPay] ${chainConfig.nativeCurrency.symbol} price: $${nativePrice} (${nativePriceChange >= 0 ? '+' : ''}${nativePriceChange.toFixed(2)}%)`);
+      }
       
       // Create native token
       const nativeToken: Token = {
@@ -449,77 +459,64 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         const splTokens = await blockchain.getSPLTokenBalances(currentAddress);
         logger.log(`🪙 [QuickPay] Found ${splTokens.length} SPL tokens`);
         
-        // Add price data to SPL tokens using CoinGecko Pro
-        for (const token of splTokens) {
-          try {
-            // Get price from CoinGecko Pro (via API route)
-            const priceData = await priceService.getMultiplePrices([token.symbol]);
-            const tokenPrice = priceData[token.symbol]?.price || 0;
-            const tokenChange = priceData[token.symbol]?.change24h || 0;
-            const tokenBalance = parseFloat(token.balance || '0');
-            const tokenUsdValue = tokenBalance * tokenPrice;
-            
-            logger.log(`  💰 ${token.symbol}: ${tokenBalance.toFixed(4)} tokens @ $${tokenPrice.toFixed(2)} = $${tokenUsdValue.toFixed(2)}`);
-            
-            allTokens.push({
-              ...token,
-              priceUSD: tokenPrice,
-              change24h: tokenChange,
-              balanceUSD: tokenUsdValue.toString(),
-            });
-          } catch (err) {
-            logger.warn(`  ⚠️ ${token.symbol}: No price data available`);
-            // Token without price - still show balance
-            allTokens.push({
-              ...token,
-              priceUSD: 0,
-              change24h: 0,
-              balanceUSD: '0',
-            });
-          }
-        }
+        // ⚡ BATCH FETCH: Get all SPL token prices in ONE API call (fast!)
+        const splSymbols = splTokens.map(t => t.symbol);
+        logger.log(`📡 [QuickPay] Batch fetching ${splSymbols.length} SPL token prices...`);
+        const splPrices = await priceService.getMultiplePrices(splSymbols);
+        
+        // Map prices to tokens
+        splTokens.forEach(token => {
+          const tokenPrice = splPrices[token.symbol]?.price || 0;
+          const tokenChange = splPrices[token.symbol]?.change24h || 0;
+          const tokenBalance = parseFloat(token.balance || '0');
+          const tokenUsdValue = tokenBalance * tokenPrice;
+          
+          logger.log(`  💰 ${token.symbol}: ${tokenBalance.toFixed(4)} tokens @ $${tokenPrice.toFixed(2)} = $${tokenUsdValue.toFixed(2)}`);
+          
+          allTokens.push({
+            ...token,
+            priceUSD: tokenPrice,
+            change24h: tokenChange,
+            balanceUSD: tokenUsdValue.toString(),
+          });
+        });
+        
       } else if (chainConfig.id) {
         // EVM chains have numeric IDs (Ethereum, Polygon, BSC, etc.)
-        // EVM ERC20 tokens (use Alchemy if available)
         const erc20Tokens = await blockchain.getERC20TokenBalances(currentAddress);
         logger.log(`🪙 [QuickPay] Found ${erc20Tokens.length} ERC20 tokens`);
         
-        // Fetch prices for ERC20 tokens using CoinGecko Pro
-        for (const token of erc20Tokens) {
-          try {
-            // Get price from CoinGecko Pro if not already present
-            let tokenPrice = token.priceUSD || 0;
-            let priceChange = token.change24h || 0;
-            
-            if (!tokenPrice) {
-              const priceData = await priceService.getMultiplePrices([token.symbol]);
-              tokenPrice = priceData[token.symbol]?.price || 0;
-              priceChange = priceData[token.symbol]?.change24h || 0;
-            }
-            
-            const tokenBalance = parseFloat(token.balance || '0');
-            const tokenUsdValue = tokenBalance * tokenPrice;
-            
-            logger.log(`  💰 ${token.symbol}: ${tokenBalance.toFixed(4)} tokens @ $${tokenPrice.toFixed(2)} = $${tokenUsdValue.toFixed(2)}`);
-            
-            allTokens.push({
-              ...token,
-              priceUSD: tokenPrice,
-              change24h: priceChange,
-              balanceUSD: tokenUsdValue.toString(),
-            });
-          } catch (err) {
-            logger.warn(`  ⚠️ ${token.symbol}: No price data available`);
-            // Token without price - still show balance
-            const tokenBalance = parseFloat(token.balance || '0');
-            allTokens.push({
-              ...token,
-              priceUSD: 0,
-              change24h: 0,
-              balanceUSD: '0',
-            });
-          }
+        // ⚡ BATCH FETCH: Get prices for tokens that don't have them yet
+        const tokensNeedingPrices = erc20Tokens.filter(t => !t.priceUSD || t.priceUSD === 0);
+        
+        if (tokensNeedingPrices.length > 0) {
+          const erc20Symbols = tokensNeedingPrices.map(t => t.symbol);
+          logger.log(`📡 [QuickPay] Batch fetching ${erc20Symbols.length} ERC20 token prices...`);
+          const erc20Prices = await priceService.getMultiplePrices(erc20Symbols);
+          
+          // Apply fetched prices to tokens
+          tokensNeedingPrices.forEach(token => {
+            token.priceUSD = erc20Prices[token.symbol]?.price || 0;
+            token.change24h = erc20Prices[token.symbol]?.change24h || 0;
+          });
         }
+        
+        // Map all ERC20 tokens with their prices
+        erc20Tokens.forEach(token => {
+          const tokenPrice = token.priceUSD || 0;
+          const priceChange = token.change24h || 0;
+          const tokenBalance = parseFloat(token.balance || '0');
+          const tokenUsdValue = tokenBalance * tokenPrice;
+          
+          logger.log(`  💰 ${token.symbol}: ${tokenBalance.toFixed(4)} tokens @ $${tokenPrice.toFixed(2)} = $${tokenUsdValue.toFixed(2)}`);
+          
+          allTokens.push({
+            ...token,
+            priceUSD: tokenPrice,
+            change24h: priceChange,
+            balanceUSD: tokenUsdValue.toString(),
+          });
+        });
       }
       
       // Sort by USD value (highest first)
