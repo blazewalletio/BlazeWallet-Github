@@ -150,12 +150,15 @@ export async function GET(request: Request) {
     try {
       const apiKey = process.env.COINGECKO_API_KEY?.trim();
       const apiKeyParam = apiKey ? `&x_cg_demo_api_key=${apiKey}` : '';
-      const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coinIds.join(',')}&vs_currencies=usd&include_24hr_change=true${apiKeyParam}`;
+      // ✅ FIXED: Use pro-api.coingecko.com for Pro API keys (not api.coingecko.com)
+      const baseUrl = apiKey ? 'https://pro-api.coingecko.com' : 'https://api.coingecko.com';
+      const url = `${baseUrl}/api/v3/simple/price?ids=${coinIds.join(',')}&vs_currencies=usd&include_24hr_change=true${apiKeyParam}`;
       
       logger.log(`\n╔══════════════════════════════════════════════════════════════╗`);
       logger.log(`║  🔍 [API/prices] CoinGecko Pro Request - START              ║`);
       logger.log(`╚══════════════════════════════════════════════════════════════╝`);
       logger.log(`📡 Fetching from CoinGecko Pro for ${coinIds.length} coins`);
+      logger.log(`🌐 Base URL: ${baseUrl} ${apiKey ? '(Pro API)' : '(Free API)'}`);
       logger.log(`🔑 API key present: ${apiKey ? 'YES' : 'NO'}`);
       logger.log(`🔑 API key length: ${apiKey ? apiKey.length : 0}`);
       logger.log(`🔑 API key first 10 chars: ${apiKey ? apiKey.substring(0, 10) + '...' : 'N/A'}`);
