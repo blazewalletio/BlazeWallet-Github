@@ -1379,12 +1379,12 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                                 <div className="flex items-center gap-3">
                                   {/* Token Icon */}
                                   <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                                    token.isNative 
+                                    token.address === 'native'
                                       ? 'bg-gradient-to-br from-orange-500 to-yellow-500' 
                                       : 'bg-gradient-to-br from-purple-500 to-pink-500'
                                   }`}>
-                                    {token.logoUrl ? (
-                                      <img src={token.logoUrl} alt={token.symbol} className="w-6 h-6" />
+                                    {token.logo ? (
+                                      <img src={token.logo} alt={token.symbol} className="w-6 h-6" />
                                     ) : (
                                       <span className="text-white font-bold text-sm">{token.symbol.slice(0, 2)}</span>
                                     )}
@@ -1394,7 +1394,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                                   <div className="flex-1 text-left">
                                     <div className="flex items-center gap-2">
                                       <span className="font-semibold text-gray-900">{token.symbol}</span>
-                                      {token.isNative && (
+                                      {token.address === 'native' && (
                                         <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-orange-100 text-orange-700 rounded">
                                           NATIVE
                                         </span>
