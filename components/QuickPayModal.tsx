@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Zap, CreditCard, Scan, Check, Camera, AlertCircle, ArrowRight, Copy, User, RefreshCw, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { X, Zap, CreditCard, Scan, Check, Camera, AlertCircle, ArrowRight, Copy, User, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, AlertTriangle } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import QRCode from 'qrcode';
@@ -12,6 +12,12 @@ import jsQR from 'jsqr';
 import { QRParser, ParsedQRData, ChainType } from '@/lib/qr-parser';
 import { lightningService, LightningInvoice } from '@/lib/lightning-service';
 import { logger } from '@/lib/logger';
+import { MultiChainService } from '@/lib/multi-chain-service';
+import { priceService } from '@/lib/price-service';
+import { CHAINS } from '@/lib/chains';
+import { supabase } from '@/lib/supabase';
+import { logTransactionEvent } from '@/lib/analytics-tracker';
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 interface QuickPayModalProps {
   isOpen: boolean;
@@ -57,7 +63,27 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   const streamRef = useRef<MediaStream | null>(null);
   const scanIntervalRef = useRef<number | null>(null);
   
-  const { address, currentChain, switchChain } = useWalletStore();
+  const { address, currentChain, switchChain, wallet, mnemonic, getCurrentAddress } = useWalletStore();
+  const { formatUSDSync, symbol, convertUSD, selectedCurrency } = useCurrency();
+
+  // ✅ NEW: Send to Address specific states
+  const [recipientAddress, setRecipientAddress] = useState<string>('');
+  const [cryptoAmount, setCryptoAmount] = useState<string>('');
+  const [nativePrice, setNativePrice] = useState<number>(0);
+  const [estimatedGas, setEstimatedGas] = useState<number>(0);
+  const [estimatedGasUSD, setEstimatedGasUSD] = useState<number>(0);
+  const [isConverting, setIsConverting] = useState(false);
+  const [error, setError] = useState<string>('');
+  const [txHash, setTxHash] = useState<string>('');
+  const [balanceWarning, setBalanceWarning] = useState<{
+    message: string;
+    details: { need: string; have: string; missing: string; missingUSD: string };
+  } | null>(null);
+  const [pendingChainSwitch, setPendingChainSwitch] = useState<{
+    from: string;
+    to: string;
+    address: string;
+  } | null>(null);
 
   // Block body scroll when overlay is open
   useBlockBodyScroll(isOpen);
@@ -386,11 +412,28 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     }
   };
 
-  // ⚡ NEW: Handle chain switch confirmation
+  // ⚡ Handle chain switch confirmation
   const handleChainSwitch = () => {
-    switchChain('bitcoin');
-    setShowChainSwitchDialog(false);
-    setMode('lightning');
+    // Handle Lightning chain switch (to Bitcoin)
+    if (paymentMethod === 'lightning' || lightningAction) {
+      switchChain('bitcoin');
+      setShowChainSwitchDialog(false);
+      setMode('lightning');
+      return;
+    }
+    
+    // Handle Address-based chain switch
+    if (pendingChainSwitch) {
+      logger.log(`✅ [QuickPay] Switching chain: ${pendingChainSwitch.from} → ${pendingChainSwitch.to}`);
+      switchChain(pendingChainSwitch.to);
+      setShowChainSwitchDialog(false);
+      setPendingChainSwitch(null);
+      
+      // Re-validate address on new chain
+      setTimeout(() => {
+        handleAddressNext();
+      }, 300);
+    }
   };
 
   // ⚡ NEW: Auto-select method on open (must be after handleMethodSelect definition)
@@ -405,41 +448,347 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     }
   }, [isOpen, initialMethod]);
 
-  const handleAmountNext = () => {
+  const handleAmountNext = async () => {
     if (!amount || amount <= 0) {
-      toast('Please enter a valid amount');
+      toast.error('Please enter a valid amount');
       return;
     }
     
     if (paymentMethod === 'manual') {
-      setMode('address');
+      // ✅ Convert user's currency to Crypto
+      setIsConverting(true);
+      setError('');
+      
+      try {
+        const chainConfig = CHAINS[currentChain];
+        const nativeSymbol = chainConfig.nativeCurrency.symbol;
+        
+        logger.log(`💱 [QuickPay] Converting ${symbol}${amount} to ${nativeSymbol}...`);
+        
+        // Fetch current price in USD
+        const priceData = await priceService.getMultiplePrices([nativeSymbol]);
+        const priceUSD = priceData[nativeSymbol]?.price || 0;
+        
+        if (!priceUSD || priceUSD === 0) {
+          throw new Error(`Failed to get ${nativeSymbol} price`);
+        }
+        
+        // Convert user's currency amount to USD first
+        const amountUSD = await convertUSD(amount); // Converts from selected currency to USD
+        
+        // Then convert USD to crypto
+        const cryptoAmt = amountUSD / priceUSD;
+        setCryptoAmount(cryptoAmt.toString());
+        setNativePrice(priceUSD);
+        
+        logger.log(`✅ [QuickPay] ${symbol}${amount} → $${amountUSD.toFixed(2)} → ${cryptoAmt.toFixed(6)} ${nativeSymbol}`);
+        
+        // Estimate gas
+        const blockchain = MultiChainService.getInstance(currentChain);
+        const gasPrices = await blockchain.getGasPrice();
+        
+        let gasAmount = 0;
+        if (currentChain === 'solana') {
+          gasAmount = 0.000005; // Fixed SOL fee
+        } else if (currentChain === 'bitcoin' || currentChain === 'litecoin' || currentChain === 'dogecoin' || currentChain === 'bitcoincash') {
+          // Bitcoin-like chains: ~0.0001 BTC/LTC/DOGE/BCH
+          gasAmount = 0.0001;
+        } else {
+          // EVM chains: calculate from gas price
+          const gasPrice = parseFloat(gasPrices.standard);
+          gasAmount = (gasPrice * 21000) / 1e9; // 21000 gas limit for simple transfer
+        }
+        
+        setEstimatedGas(gasAmount);
+        setEstimatedGasUSD(gasAmount * priceUSD);
+        
+        logger.log(`⛽ [QuickPay] Estimated gas: ${gasAmount.toFixed(6)} ${nativeSymbol} ($${(gasAmount * priceUSD).toFixed(4)})`);
+        
+        setIsConverting(false);
+        setMode('address');
+      } catch (err: any) {
+        logger.error('❌ [QuickPay] Conversion failed:', err);
+        setError('Failed to get current exchange rate. Please try again.');
+        setIsConverting(false);
+      }
     } else if (paymentMethod === 'lightning') {
       generateLightningQR();
     }
   };
 
-  const handleAddressNext = () => {
+  // ✅ Auto-detect chain from address
+  const detectChainFromAddress = (addr: string): string | null => {
+    // EVM addresses (0x... en 42 chars)
+    if (addr.startsWith('0x') && addr.length === 42) {
+      // EVM chain - keep current if also EVM
+      const evmChains = ['ethereum', 'polygon', 'arbitrum', 'base', 'bsc', 'optimism', 'avalanche', 'fantom', 'cronos', 'zksync', 'linea'];
+      if (evmChains.includes(currentChain)) {
+        return currentChain; // Stay on current EVM chain
+      }
+      return 'ethereum'; // Default to Ethereum
+    }
+    
+    // Solana (base58, 32-44 chars, geen 0x)
+    if (!addr.startsWith('0x') && addr.length >= 32 && addr.length <= 44 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(addr)) {
+      return 'solana';
+    }
+    
+    // Bitcoin (bc1..., 1..., 3...)
+    if (addr.startsWith('bc1') || (addr.startsWith('1') && addr.length >= 26 && addr.length <= 35) || (addr.startsWith('3') && addr.length >= 26 && addr.length <= 35)) {
+      return 'bitcoin';
+    }
+    
+    // Litecoin (L..., M..., ltc1...)
+    if (addr.startsWith('L') || addr.startsWith('M') || addr.startsWith('ltc1')) {
+      return 'litecoin';
+    }
+    
+    // Dogecoin (D...)
+    if (addr.startsWith('D')) {
+      return 'dogecoin';
+    }
+    
+    // Bitcoin Cash (q..., p..., bitcoincash:...)
+    if (addr.startsWith('q') || addr.startsWith('p') || addr.includes('bitcoincash:')) {
+      return 'bitcoincash';
+    }
+    
+    return null;
+  };
+
+  const handleAddressNext = async () => {
+    setError('');
+    
     if (!recipientAddress || recipientAddress.length < 26) {
-      toast('Please enter a valid wallet address');
+      setError('Please enter a valid wallet address');
       return;
     }
     
-    setScannedAddress(recipientAddress);
-    setScannedAmount(amount.toString());
-    setMode('confirm');
+    // ✅ Auto-detect chain from address
+    const detectedChain = detectChainFromAddress(recipientAddress);
+    
+    if (detectedChain && detectedChain !== currentChain) {
+      // Chain mismatch - show switch dialog
+      logger.log(`🔄 [QuickPay] Chain switch needed: ${currentChain} → ${detectedChain}`);
+      setPendingChainSwitch({
+        from: currentChain,
+        to: detectedChain,
+        address: recipientAddress
+      });
+      setShowChainSwitchDialog(true);
+      return;
+    }
+    
+    // ✅ Validate address for current chain
+    const blockchain = MultiChainService.getInstance(currentChain);
+    if (!blockchain.isValidAddress(recipientAddress)) {
+      setError(`Invalid ${blockchain.getAddressFormatHint()}`);
+      return;
+    }
+    
+    // ✅ Check balance
+    const currentAddress = getCurrentAddress();
+    if (!currentAddress) {
+      setError('Wallet address not found');
+      return;
+    }
+    
+    try {
+      const currentBalance = await blockchain.getBalance(currentAddress);
+      const balanceNum = parseFloat(currentBalance);
+      const cryptoAmountNum = parseFloat(cryptoAmount);
+      const total = cryptoAmountNum + estimatedGas;
+      
+      if (total > balanceNum) {
+        const chainConfig = CHAINS[currentChain];
+        const missing = total - balanceNum;
+        
+        setBalanceWarning({
+          message: 'Insufficient balance (including gas fees)',
+          details: {
+            need: `${total.toFixed(6)} ${chainConfig.nativeCurrency.symbol}`,
+            have: `${balanceNum.toFixed(6)} ${chainConfig.nativeCurrency.symbol}`,
+            missing: `${missing.toFixed(6)} ${chainConfig.nativeCurrency.symbol}`,
+            missingUSD: formatUSDSync(missing * nativePrice)
+          }
+        });
+        setError('Insufficient balance for transaction + gas fees');
+        return;
+      }
+      
+      setBalanceWarning(null);
+      setScannedAddress(recipientAddress);
+      setMode('confirm');
+    } catch (err: any) {
+      logger.error('❌ [QuickPay] Balance check failed:', err);
+      setError('Failed to verify balance. Please try again.');
+    }
   };
 
-  const handleConfirmPayment = () => {
-    setMode('processing');
+  const handleConfirmPayment = async () => {
+    if (!mnemonic && !wallet) {
+      setError('Wallet not initialized');
+      return;
+    }
     
-    setTimeout(() => {
+    setStep('sending');
+    setError('');
+    
+    // Track send initiation
+    const sendValueUSD = parseFloat(cryptoAmount) * nativePrice;
+    await logTransactionEvent({
+      eventType: 'send_initiated',
+      chainKey: currentChain,
+      tokenSymbol: CHAINS[currentChain].nativeCurrency.symbol,
+      valueUSD: sendValueUSD,
+      status: 'pending',
+      metadata: {
+        isNative: true,
+        toAddress: scannedAddress || recipientAddress,
+        source: 'quickpay'
+      },
+    });
+
+    try {
+      const blockchain = MultiChainService.getInstance(currentChain);
+      const gasPrices = await blockchain.getGasPrice();
+      const gas = gasPrices['standard'];
+      
+      const isSolana = currentChain === 'solana';
+      const toAddr = scannedAddress || recipientAddress;
+      
+      logger.log(`🚀 [QuickPay] Sending ${cryptoAmount} ${CHAINS[currentChain].nativeCurrency.symbol} to ${toAddr}...`);
+      
+      // Send transaction
+      const tx = await blockchain.sendTransaction(
+        isSolana ? mnemonic! : wallet!,
+        toAddr,
+        cryptoAmount,
+        gas
+      );
+      
+      const hash = typeof tx === 'string' ? tx : tx.hash;
+      setTxHash(hash);
+      
+      logger.log(`✅ [QuickPay] Transaction sent: ${hash}`);
+      
+      // Track successful send
+      await logTransactionEvent({
+        eventType: 'send_confirmed',
+        chainKey: currentChain,
+        tokenSymbol: CHAINS[currentChain].nativeCurrency.symbol,
+        valueUSD: sendValueUSD,
+        status: 'success',
+        referenceId: hash,
+        metadata: {
+          isNative: true,
+          toAddress: toAddr,
+          source: 'quickpay'
+        },
+      });
+
+      // ✅ Track transaction in database
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const currentAddress = getCurrentAddress();
+            
+          await fetch('/api/transactions/track', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.id,
+              chainKey: currentChain,
+              txHash: hash,
+              transactionType: 'send',
+              direction: 'sent',
+              fromAddress: currentAddress,
+              toAddress: toAddr,
+              tokenSymbol: CHAINS[currentChain].nativeCurrency.symbol,
+              tokenDecimals: CHAINS[currentChain].nativeCurrency.decimals,
+              isNative: true,
+              amount: cryptoAmount,
+              amountUSD: sendValueUSD,
+              gasCostUSD: estimatedGasUSD,
+              status: 'confirmed',
+              metadata: {
+                source: 'quickpay',
+                currency: selectedCurrency
+              }
+            })
+          });
+          logger.log('✅ [QuickPay] Transaction tracked in database');
+        }
+      } catch (trackError) {
+        logger.error('Failed to track transaction:', trackError);
+      }
+      
+      // ✅ Clear cache
+      const { tokenBalanceCache } = await import('@/lib/token-balance-cache');
+      const currentAddress = getCurrentAddress();
+      if (currentAddress) {
+        await tokenBalanceCache.clear(currentChain, currentAddress);
+      }
+      
+      // Wait for confirmation
+      if (typeof tx !== 'string' && tx.wait) {
+        await tx.wait();
+      }
+      
       setMode('success');
       setShowSuccess(true);
+      
       setTimeout(() => {
         onClose();
         resetModal();
       }, 3000);
-    }, 1500);
+      
+    } catch (err: any) {
+      logger.error('❌ [QuickPay] Transaction failed:', err);
+      
+      // User-friendly error messages (from SendModal)
+      let userMessage = 'Transaction failed';
+      
+      if (err.message) {
+        const msg = err.message.toLowerCase();
+        
+        if (msg.includes('insufficient funds') || msg.includes('insufficient balance')) {
+          userMessage = 'Insufficient balance to cover transaction and gas fees';
+        } else if (msg.includes('user rejected') || msg.includes('user denied')) {
+          userMessage = 'Transaction was cancelled';
+        } else if (msg.includes('gas required exceeds allowance') || msg.includes('out of gas')) {
+          userMessage = 'Transaction requires more gas. Try again.';
+        } else if (msg.includes('nonce too low')) {
+          userMessage = 'Transaction conflict. Please try again.';
+        } else if (msg.includes('replacement transaction underpriced')) {
+          userMessage = 'Transaction pending. Please wait.';
+        } else if (msg.includes('no response') || msg.includes('failed to send tx')) {
+          userMessage = 'Network error. Please try again.';
+        } else if (msg.includes('invalid address')) {
+          userMessage = 'Invalid recipient address';
+        } else {
+          userMessage = 'Transaction failed. Please try again.';
+        }
+      }
+      
+      setError(userMessage);
+      setMode('confirm');
+      
+      // Track failed send
+      await logTransactionEvent({
+        eventType: 'send_failed',
+        chainKey: currentChain,
+        tokenSymbol: CHAINS[currentChain].nativeCurrency.symbol,
+        valueUSD: sendValueUSD,
+        status: 'failed',
+        metadata: {
+          isNative: true,
+          toAddress: toAddr,
+          error: userMessage,
+          source: 'quickpay'
+        },
+      });
+    }
   };
 
   const handlePasteAddress = async () => {
@@ -471,6 +820,15 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     setParsedQR(null);
     setNeedsChainSwitch(false);
     setCryptoUSDValue(null);
+    setCryptoAmount('');
+    setNativePrice(0);
+    setEstimatedGas(0);
+    setEstimatedGasUSD(0);
+    setError('');
+    setTxHash('');
+    setBalanceWarning(null);
+    setPendingChainSwitch(null);
+    setStep('sending');
     stopCamera();
     
     // Stop payment monitoring
@@ -571,7 +929,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
             {/* Content */}
             <div className="max-w-2xl mx-auto space-y-6">
 
-            {/* ⚡ CHAIN SWITCH DIALOG - User-friendly Lightning prompt */}
+            {/* ⚡ CHAIN SWITCH DIALOG - User-friendly prompt for chain switching */}
             {showChainSwitchDialog && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -585,41 +943,61 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   onClick={(e) => e.stopPropagation()}
                   className="glass-card p-6 max-w-md w-full"
                 >
-                  {/* Lightning Icon */}
+                  {/* Icon */}
                   <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Zap className="w-8 h-8 text-white" />
+                    {pendingChainSwitch ? (
+                      <RefreshCw className="w-8 h-8 text-white" />
+                    ) : (
+                      <Zap className="w-8 h-8 text-white" />
+                    )}
                   </div>
 
-                  {/* Title */}
-                  <h3 className="text-2xl font-bold text-center text-gray-900 mb-2">
-                    ⚡ Lightning Network
-                  </h3>
+                  {/* Title & Message */}
+                  {pendingChainSwitch ? (
+                    <>
+                      <h3 className="text-2xl font-bold text-center text-gray-900 mb-2">
+                        Switch Network
+                      </h3>
+                      <p className="text-center text-gray-700 mb-1 leading-relaxed">
+                        This address is for <span className="font-semibold text-orange-600 capitalize">{pendingChainSwitch.to}</span>.
+                      </p>
+                      <p className="text-center text-gray-600 text-sm mb-6">
+                        Switch from {pendingChainSwitch.from} to {pendingChainSwitch.to}?
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="text-2xl font-bold text-center text-gray-900 mb-2">
+                        ⚡ Lightning Network
+                      </h3>
+                      <p className="text-center text-gray-700 mb-1 leading-relaxed">
+                        Lightning runs on the <span className="font-semibold text-orange-600">Bitcoin network</span>.
+                      </p>
+                      <p className="text-center text-gray-600 text-sm mb-6">
+                        Switch to Bitcoin to use instant, low-fee Lightning payments?
+                      </p>
+                    </>
+                  )}
 
-                  {/* Message */}
-                  <p className="text-center text-gray-700 mb-1 leading-relaxed">
-                    Lightning runs on the <span className="font-semibold text-orange-600">Bitcoin network</span>.
-                  </p>
-                  <p className="text-center text-gray-600 text-sm mb-6">
-                    Switch to Bitcoin to use instant, low-fee Lightning payments?
-                  </p>
-
-                  {/* Benefits */}
-                  <div className="bg-purple-50 border border-orange-200 rounded-xl p-4 mb-6">
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2 text-purple-900">
-                        <Zap className="w-4 h-4 flex-shrink-0" />
-                        <span><strong>Instant</strong> settlement (&lt; 1 second)</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-purple-900">
-                        <Check className="w-4 h-4 flex-shrink-0" />
-                        <span><strong>Ultra-low</strong> fees (~$0.001)</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-purple-900">
-                        <Check className="w-4 h-4 flex-shrink-0" />
-                        <span><strong>Perfect</strong> for small payments</span>
+                  {/* Benefits (Lightning only) */}
+                  {!pendingChainSwitch && (
+                    <div className="bg-purple-50 border border-orange-200 rounded-xl p-4 mb-6">
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center gap-2 text-purple-900">
+                          <Zap className="w-4 h-4 flex-shrink-0" />
+                          <span><strong>Instant</strong> settlement (&lt; 1 second)</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-purple-900">
+                          <Check className="w-4 h-4 flex-shrink-0" />
+                          <span><strong>Ultra-low</strong> fees (~$0.001)</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-purple-900">
+                          <Check className="w-4 h-4 flex-shrink-0" />
+                          <span><strong>Perfect</strong> for small payments</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Current chain indicator */}
                   <div className="text-center text-xs text-gray-500 mb-4">
@@ -630,17 +1008,20 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   <div className="flex gap-3">
                     <motion.button
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => setShowChainSwitchDialog(false)}
+                      onClick={() => {
+                        setShowChainSwitchDialog(false);
+                        setPendingChainSwitch(null);
+                      }}
                       className="flex-1 py-3 px-4 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
                     >
-                      Maybe later
+                      Cancel
                     </motion.button>
                     <motion.button
                       whileTap={{ scale: 0.98 }}
                       onClick={handleChainSwitch}
                       className="flex-1 py-3 px-4 bg-gradient-to-r from-orange-500 to-yellow-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
                     >
-                      Yes, switch to Bitcoin
+                      {pendingChainSwitch ? `Switch to ${pendingChainSwitch.to}` : 'Yes, switch to Bitcoin'}
                     </motion.button>
                   </div>
                 </motion.div>
@@ -743,7 +1124,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                               : 'bg-white border-gray-200 hover:border-orange-300 text-gray-900'
                           }`}
                         >
-                          <div className="text-3xl font-bold">€{amt}</div>
+                          <div className="text-3xl font-bold">{symbol}{amt}</div>
                         </motion.button>
                       ))}
                     </div>
@@ -752,7 +1133,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                       <h3 className="text-sm text-gray-600 mb-2">Or enter custom amount</h3>
                       <div className="relative">
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-gray-600">
-                          €
+                          {symbol}
                         </span>
                         <input aria-label="Number input"
                           type="number"
@@ -770,10 +1151,17 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
 
                   <button
                     onClick={handleAmountNext}
-                    disabled={!amount || amount <= 0}
-                    className="w-full py-3 px-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                    disabled={!amount || amount <= 0 || isConverting}
+                    className="w-full py-3 px-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 flex items-center justify-center gap-2"
                   >
-                    Next →
+                    {isConverting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Converting...
+                      </>
+                    ) : (
+                      'Next →'
+                    )}
                   </button>
                 </motion.div>
               )}
@@ -785,59 +1173,140 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   animate={{ opacity: 1, x: 0 }}
                   className="space-y-6"
                 >
-                  <div className="bg-gradient-to-br from-orange-50 to-yellow-50 border border-orange-200 rounded-xl p-4">
-                    <div className="text-sm text-gray-600 mb-1">Sending</div>
-                    <div className="text-3xl font-bold text-gray-900">€{amount.toFixed(2)}</div>
+                  {/* Crypto Preview Card */}
+                  <div className="bg-gradient-to-br from-orange-50 to-yellow-50 border-2 border-orange-200 rounded-2xl p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <div className="text-sm text-gray-600 mb-1">You're sending</div>
+                        <div className="text-3xl font-bold text-gray-900">{symbol}{amount.toFixed(2)}</div>
+                      </div>
+                      <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
+                        <ArrowUpRight className="w-6 h-6 text-white" />
+                      </div>
+                    </div>
+                    
+                    {/* Crypto Amount Display */}
+                    <div className="bg-white/60 backdrop-blur rounded-xl p-4 border border-orange-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm text-gray-600">Crypto amount</span>
+                        <span className="text-lg font-bold text-gray-900">
+                          {parseFloat(cryptoAmount).toFixed(6)} {CHAINS[currentChain].nativeCurrency.symbol}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <span>Est. gas fee</span>
+                        <span>{estimatedGas.toFixed(6)} {CHAINS[currentChain].nativeCurrency.symbol} ({formatUSDSync(estimatedGasUSD)})</span>
+                      </div>
+                    </div>
                   </div>
 
+                  {/* Recipient Address Input */}
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Recipient wallet address</h3>
+                    <label className="block text-lg font-semibold text-gray-900 mb-2">
+                      Recipient wallet address
+                    </label>
+                    <p className="text-sm text-gray-600 mb-3">
+                      Enter a valid {CHAINS[currentChain].name} address
+                    </p>
                     <textarea
                       value={recipientAddress}
-                      onChange={(e) => setRecipientAddress(e.target.value)}
-                      placeholder="0x... or paste wallet address"
+                      onChange={(e) => {
+                        setRecipientAddress(e.target.value);
+                        setError(''); // Clear error on input
+                      }}
+                      placeholder={`Enter ${CHAINS[currentChain].name} address...`}
                       rows={3}
-                      className="w-full input-field font-mono text-sm resize-none"
+                      className={`w-full input-field font-mono text-sm resize-none transition-all ${
+                        error ? 'border-red-500 focus:ring-red-500' : ''
+                      }`}
                     />
+                    
+                    {/* Error Message */}
+                    {error && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-2 flex items-start gap-2 text-red-600 text-sm"
+                      >
+                        <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                        <span>{error}</span>
+                      </motion.div>
+                    )}
+                    
+                    {/* Balance Warning */}
+                    {balanceWarning && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-3 bg-red-50 border border-red-200 rounded-xl p-4"
+                      >
+                        <div className="flex items-start gap-2 mb-2">
+                          <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1">
+                            <p className="font-semibold text-red-900 text-sm">{balanceWarning.message}</p>
+                            <div className="mt-2 space-y-1 text-xs text-red-700">
+                              <div className="flex justify-between">
+                                <span>You need:</span>
+                                <span className="font-mono font-semibold">{balanceWarning.details.need}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>You have:</span>
+                                <span className="font-mono font-semibold">{balanceWarning.details.have}</span>
+                              </div>
+                              <div className="flex justify-between border-t border-red-200 pt-1 mt-1">
+                                <span>Missing:</span>
+                                <span className="font-mono font-semibold">{balanceWarning.details.missing} ({balanceWarning.details.missingUSD})</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
                   </div>
 
+                  {/* Quick Options */}
                   <div>
                     <h3 className="text-sm font-semibold text-gray-700 mb-3">Quick options</h3>
                     <div className="grid grid-cols-3 gap-3">
-                      <button
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
                         onClick={handlePasteAddress}
                         className="p-3 bg-white border-2 border-gray-200 hover:border-blue-300 rounded-xl text-center transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                       >
                         <Copy className="w-5 h-5 text-blue-600 mx-auto mb-1" />
                         <div className="text-xs font-semibold text-gray-900">Paste</div>
-                      </button>
-                      <button
+                      </motion.button>
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
                         onClick={() => {
                           setMode('scan');
-                          // Will use different handler for address-only scan
                         }}
-                        className="p-3 bg-white border-2 border-gray-200 hover:border-green-300 rounded-xl text-center transition-all"
+                        className="p-3 bg-white border-2 border-gray-200 hover:border-green-300 rounded-xl text-center transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                       >
                         <Camera className="w-5 h-5 text-green-600 mx-auto mb-1" />
                         <div className="text-xs font-semibold text-gray-900">Scan QR</div>
-                      </button>
-                      <button
+                      </motion.button>
+                      <motion.button
+                        whileTap={{ scale: 0.95 }}
                         onClick={() => toast('Contacts feature coming soon!')}
-                        className="p-3 bg-white border-2 border-gray-200 hover:border-orange-300 rounded-xl text-center transition-all"
+                        className="p-3 bg-white border-2 border-gray-200 hover:border-orange-300 rounded-xl text-center transition-all focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
                       >
                         <User className="w-5 h-5 text-orange-600 mx-auto mb-1" />
                         <div className="text-xs font-semibold text-gray-900">Contacts</div>
-                      </button>
+                      </motion.button>
                     </div>
                   </div>
 
-                  <button
+                  {/* Action Button */}
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
                     onClick={handleAddressNext}
                     disabled={!recipientAddress || recipientAddress.length < 26}
-                    className="w-full py-3 px-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                    className="w-full py-4 px-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 flex items-center justify-center gap-2"
                   >
-                    Review payment →
-                  </button>
+                    <span>Review payment</span>
+                    <ArrowRight className="w-5 h-5" />
+                  </motion.button>
                 </motion.div>
               )}
 
@@ -1375,7 +1844,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
 
                       {/* Preset Amounts */}
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-3">Select amount (EUR)</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-3">Select amount ({selectedCurrency})</label>
                         <div className="grid grid-cols-5 gap-2">
                           {PRESET_AMOUNTS_EUR.map((preset) => (
                             <button
@@ -1390,7 +1859,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                                   : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-orange-300'
                               }`}
                             >
-                              €{preset}
+                              {symbol}{preset}
                             </button>
                           ))}
                         </div>
@@ -1401,7 +1870,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Or enter custom amount</label>
                         <div className="relative">
                           <div className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-gray-500">
-                            €
+                            {symbol}
                           </div>
                           <input aria-label="Number input"
                             type="number"
@@ -1425,16 +1894,17 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                           }
 
                           try {
-                            // TODO: Convert EUR to BTC/sats based on current price
-                            // For now, assume 1 EUR = ~2000 sats (approximate)
-                            const amountSats = Math.floor(amount * 2000);
+                            // Convert user's currency to USD, then to BTC/sats
+                            const amountUSD = await convertUSD(amount);
+                            // Assume 1 USD = ~2000 sats (this should use real-time price)
+                            const amountSats = Math.floor(amountUSD * 2000);
                             
-                            logger.log(`⚡ Generating Lightning invoice for €${amount} (${amountSats} sats)...`);
+                            logger.log(`⚡ Generating Lightning invoice for ${symbol}${amount} (${amountSats} sats)...`);
 
                             // Create invoice via Lightning service
                             const invoice = await lightningService.createInvoice(
                               amountSats,
-                              `Blaze Wallet: €${amount}`
+                              `Blaze Wallet: ${symbol}${amount}`
                             );
 
                             if (!invoice) {
@@ -1571,7 +2041,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
               )}
 
             {/* CONFIRMATION SCREEN */}
-            {mode === 'confirm' && scannedAddress && (
+            {mode === 'confirm' && (scannedAddress || recipientAddress) && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -1623,6 +2093,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     </div>
                   )}
 
+                  {/* Payment Summary Card */}
                   <div className="bg-gradient-to-br from-orange-50 to-yellow-50 border-2 border-orange-200 rounded-xl p-6">
                     <div className="text-sm text-gray-600 mb-2">You're sending</div>
                     {scannedAmount && parsedQR?.amount ? (
@@ -1636,34 +2107,51 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                         </div>
                         {cryptoUSDValue !== null && (
                           <div className="text-lg text-gray-600 mt-2">
-                            ≈ ${cryptoUSDValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                            ≈ {formatUSDSync(cryptoUSDValue)}
                           </div>
                         )}
                       </>
                     ) : (
-                      // Manual amount - show in EUR
+                      // Manual amount - show in user's currency + crypto
                       <>
                         <div className="text-4xl font-bold text-gray-900 mb-1">
-                          €{amount.toFixed(2)}
+                          {symbol}{amount.toFixed(2)}
                         </div>
-                        <div className="text-sm text-gray-600 flex items-center justify-center gap-2">
+                        <div className="text-sm text-gray-600 flex items-center justify-center gap-2 mb-2">
                           <span>{QRParser.getChainInfo(currentChain as ChainType)?.icon || '?'}</span>
                           Via {QRParser.getChainInfo(currentChain as ChainType)?.name || currentChain} network
+                        </div>
+                        {/* Crypto equivalent */}
+                        <div className="bg-white/60 backdrop-blur rounded-lg p-3 mt-3">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">Crypto amount:</span>
+                            <span className="font-mono font-bold text-gray-900">
+                              {parseFloat(cryptoAmount).toFixed(6)} {CHAINS[currentChain].nativeCurrency.symbol}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-gray-500 mt-1">
+                            <span>Est. gas fee:</span>
+                            <span className="font-mono">
+                              {estimatedGas.toFixed(6)} {CHAINS[currentChain].nativeCurrency.symbol} ({formatUSDSync(estimatedGasUSD)})
+                            </span>
+                          </div>
                         </div>
                       </>
                     )}
                   </div>
 
+                  {/* Recipient Details */}
                   <div className="bg-white border-2 border-gray-200 rounded-xl p-4 space-y-3">
                     <div className="flex justify-between items-start">
                       <span className="text-sm text-gray-600">To address</span>
                       <div className="text-right">
                         <div className="font-mono text-sm font-medium text-gray-900 break-all">
-                          {scannedAddress.slice(0, 6)}...{scannedAddress.slice(-4)}
+                          {(scannedAddress || recipientAddress).slice(0, 6)}...{(scannedAddress || recipientAddress).slice(-4)}
                         </div>
                         <button
                           onClick={() => {
-                            navigator.clipboard.writeText(scannedAddress);
+                            navigator.clipboard.writeText(scannedAddress || recipientAddress);
+                            toast.success('Address copied!');
                           }}
                           className="text-xs text-orange-600 hover:text-orange-700 mt-1"
                         >
@@ -1671,61 +2159,47 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                         </button>
                       </div>
                     </div>
-                    
-                    <div className="h-px bg-gray-200" />
-                    
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Network fee</span>
-                      <span className="text-sm font-medium text-gray-900">
-                        {currentChain === 'solana' ? '~€0.0001' : '~€0.50'}
-                      </span>
-                    </div>
-                    
-                    <div className="h-px bg-gray-200" />
-                    
-                    <div className="flex justify-between items-center">
-                      <span className="text-base font-semibold text-gray-900">Total</span>
-                      <span className="text-base font-bold text-gray-900">
-                        {scannedAmount && parsedQR?.amount ? (
-                          // QR amount in native crypto - show crypto amount
-                          `${scannedAmount} ${QRParser.getChainInfo(currentChain as ChainType)?.symbol} + fees`
-                        ) : (
-                          // Manual amount in EUR
-                          `€${(parseFloat(amount.toString()) + (currentChain === 'solana' ? 0.0001 : 0.50)).toFixed(2)}`
-                        )}
-                      </span>
-                    </div>
                   </div>
 
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-                    <div className="flex gap-3">
-                      <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                      <div className="text-sm text-gray-700">
-                        <strong>Double-check the address!</strong> Crypto transactions cannot be reversed.
+                  {/* Error Display */}
+                  {error && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-red-50 border-2 border-red-300 rounded-xl p-4"
+                    >
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-semibold text-red-900 text-sm">{error}</p>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    </motion.div>
+                  )}
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => {
-                        setScannedAddress('');
-                        setScannedAmount('');
-                        setParsedQR(null);
-                        setMode('method');
-                      }}
-                      className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-xl font-semibold transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleConfirmPayment}
-                      className="flex-1 py-3 px-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-                    >
-                      Confirm & send
-                    </button>
-                  </div>
+                  {/* Action Button */}
+                  <motion.button
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleConfirmPayment}
+                    disabled={step === 'sending'}
+                    className="w-full py-4 px-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {step === 'sending' ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Sending transaction...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-5 h-5" />
+                        <span>Confirm & Send</span>
+                      </>
+                    )}
+                  </motion.button>
+
+                  <p className="text-xs text-center text-gray-500">
+                    Make sure the details are correct before confirming
+                  </p>
                 </motion.div>
               )}
 
