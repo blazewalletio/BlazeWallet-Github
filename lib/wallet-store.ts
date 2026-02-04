@@ -34,6 +34,10 @@ export interface WalletState {
   hasBiometric: boolean;
   isBiometricEnabled: boolean;
   
+  // ✅ NEW: Unlock modal state (single source of truth)
+  showUnlockModal: boolean;
+  setShowUnlockModal: (show: boolean) => void;
+  
   // Actions
   createWallet: () => Promise<string>;
   importWallet: (mnemonic: string) => Promise<void>;
@@ -80,6 +84,10 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   lastActivity: Date.now(),
   hasBiometric: false,
   isBiometricEnabled: false,
+  
+  // ✅ NEW: Unlock modal state
+  showUnlockModal: false,
+  setShowUnlockModal: (show: boolean) => set({ showUnlockModal: show }),
 
   createWallet: async () => {
     // Generate a new random wallet with 12-word mnemonic
@@ -115,6 +123,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       bitcoincashAddress, // ✅ Bitcoin Cash address (derived from mnemonic)
       mnemonic, // Only in memory, never persisted
       isLocked: false,
+      showUnlockModal: false, // ✅ Close modal after wallet creation
       lastActivity: Date.now(),
     });
 
@@ -174,6 +183,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         bitcoincashAddress, // ✅ Bitcoin Cash address (derived from mnemonic)
         mnemonic: cleanMnemonic, // Only in memory, never persisted
         isLocked: false,
+        showUnlockModal: false, // ✅ Close modal after import
         currentChain: savedChain,
       });
 
@@ -350,6 +360,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         bitcoincashAddress, // ✅ Bitcoin Cash address (derived from mnemonic)
         mnemonic: cleanMnemonic,
         isLocked: false,
+        showUnlockModal: false, // ✅ Close modal after password unlock
         currentChain: savedChain,
         lastActivity: Date.now(),
       });
@@ -461,6 +472,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           bitcoincashAddress, // ✅ Bitcoin Cash address (derived from mnemonic)
           mnemonic: result.mnemonic,
           isLocked: false,
+          showUnlockModal: false, // ✅ Close modal after strict email login
           currentChain: savedChain,
           lastActivity: Date.now(),
         });
@@ -533,6 +545,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           bitcoincashAddress, // ✅ Bitcoin Cash address (derived from mnemonic)
           mnemonic,
           isLocked: false,
+          showUnlockModal: false, // ✅ Close modal after biometric unlock
           currentChain: savedChain,
           lastActivity: Date.now(),
         });
@@ -598,6 +611,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       wallet: null,
       mnemonic: null,
       isLocked: true,
+      showUnlockModal: true, // ✅ Show unlock modal when locking
     });
     
     // ✅ Clean up session state to ensure unlock modal appears
@@ -648,6 +662,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         bitcoincashAddress, // ✅ Bitcoin Cash address
         mnemonic: cleanMnemonic,
         isLocked: false,
+        showUnlockModal: false, // ✅ Close modal after successful unlock
       });
     } catch (error) {
       throw new Error('Ongeldige recovery phrase. Controleer je woorden en checksum.');

@@ -86,7 +86,9 @@ export default function Dashboard() {
     updateActivity,
     checkAutoLock, // ✅ SECURITY FIX: Auto-lock check
     lockWallet,
-    getCurrentAddress // ✅ NEW: Get correct address for current chain
+    getCurrentAddress, // ✅ NEW: Get correct address for current chain
+    showUnlockModal, // ✅ NEW: Read from store
+    setShowUnlockModal // ✅ NEW: Write to store
   } = useWalletStore();
   
   const { formatUSDSync, symbol } = useCurrency();
@@ -138,7 +140,7 @@ export default function Dashboard() {
   const [swapPrefillData, setSwapPrefillData] = useState<any>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false); // NEW: Debug panel state
-  const [showPasswordUnlock, setShowPasswordUnlock] = useState(false); // ✅ NEW: Password unlock modal state
+  // ✅ REMOVED: showPasswordUnlock now managed by wallet-store
   const [showQuickPay, setShowQuickPay] = useState(false);
   const [quickPayInitialMethod, setQuickPayInitialMethod] = useState<'scanqr' | 'manual' | 'lightning' | undefined>(undefined); // ⚡ Control which method to auto-select
   const [showFounderDeploy, setShowFounderDeploy] = useState(false);
@@ -277,14 +279,11 @@ export default function Dashboard() {
     console.log('🔐 [Dashboard] Current displayAddress:', displayAddress);
     console.log('🔐 [Dashboard] Current address:', address);
     console.log('🔐 [Dashboard] Current solanaAddress:', solanaAddress);
-    console.log('🔐 [Dashboard] Current showPasswordUnlock:', showPasswordUnlock);
+    console.log('🔐 [Dashboard] Current showUnlockModal:', showUnlockModal);
     
     logger.log('✅ Wallet unlocked successfully');
     
-    // ✅ Clear manual lock flag so page.tsx modal can work again on refresh
-    sessionStorage.removeItem('manual_lock');
-    
-    // ✅ FIX: Wait for displayAddress to be available before closing modal
+    // ✅ Wait for displayAddress to be available before closing modal
     // This prevents the modal from staying open on first unlock attempt
     console.log('🔐 [Dashboard] Starting address check interval...');
     let checkCount = 0;
@@ -295,8 +294,8 @@ export default function Dashboard() {
       
       if (currentAddress) {
         console.log('✅ [Dashboard] displayAddress is now available:', currentAddress);
-        console.log('✅ [Dashboard] Closing modal (setShowPasswordUnlock(false))');
-        setShowPasswordUnlock(false);
+        console.log('✅ [Dashboard] Closing modal (setShowUnlockModal(false))');
+        setShowUnlockModal(false); // ✅ Update store state
         clearInterval(checkAddressInterval);
       }
     }, 50); // Check every 50ms
@@ -306,11 +305,11 @@ export default function Dashboard() {
       console.log('⏰ [Dashboard] Safety timeout reached (3s)');
       console.log('⏰ [Dashboard] Clearing interval and closing modal');
       clearInterval(checkAddressInterval);
-      setShowPasswordUnlock(false);
+      setShowUnlockModal(false); // ✅ Update store state
     }, 3000);
     
     console.log('🔐 [Dashboard] ========== onComplete END ==========');
-  }, [displayAddress, address, solanaAddress, showPasswordUnlock, getCurrentAddress]);
+  }, [displayAddress, address, solanaAddress, showUnlockModal, getCurrentAddress, setShowUnlockModal]);
   
   // ✅ Load user preferences from Supabase (cross-device sync)
   useEffect(() => {
@@ -2734,10 +2733,8 @@ export default function Dashboard() {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => {
-                    // ✅ Set flag so page.tsx modal doesn't interfere
-                    sessionStorage.setItem('manual_lock', 'true');
+                    // ✅ lockWallet() will automatically set showUnlockModal: true in store
                     lockWallet();
-                    setShowPasswordUnlock(true); // ✅ Show unlock modal immediately
                   }}
                   className="glass-card p-2.5 sm:p-3 rounded-xl hover:bg-orange-50 text-orange-600"
                   title="Lock wallet"

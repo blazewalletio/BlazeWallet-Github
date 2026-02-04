@@ -25,7 +25,7 @@ export default function Home() {
   const [setupPassword, setSetupPassword] = useState<string | undefined>(undefined);
   
   // ✅ Read wallet store state (single source of truth)
-  const { importWallet, hasPassword, isLocked, wallet, hasBiometric, isBiometricEnabled } = useWalletStore();
+  const { importWallet, hasPassword, isLocked, wallet, hasBiometric, isBiometricEnabled, setShowUnlockModal } = useWalletStore();
   
   // ✅ REACTIVE: Compute if unlock modal should show based on wallet store state
   const shouldShowUnlockModal = useMemo(() => {
@@ -40,12 +40,6 @@ export default function Home() {
     
     // Don't show if QR login is showing
     if (showQRLogin) return false;
-    
-    // ✅ FIX: Don't show if user manually locked (Dashboard will handle it)
-    // This prevents both modals from competing
-    if (typeof window !== 'undefined' && sessionStorage.getItem('manual_lock') === 'true') {
-      return false;
-    }
     
     // ✅ FIX: Check localStorage for has_password (more reliable than store initial state)
     const hasPasswordStored = typeof window !== 'undefined' && localStorage.getItem('has_password') === 'true';
@@ -64,12 +58,18 @@ export default function Home() {
       needsUnlock,
       showPasswordSetup,
       showBiometricSetup,
-      showQRLogin,
-      manualLock: typeof window !== 'undefined' ? sessionStorage.getItem('manual_lock') : null
+      showQRLogin
     });
     
     return needsUnlock;
   }, [hasWallet, hasPassword, wallet, isLocked, showPasswordSetup, showBiometricSetup, showQRLogin]);
+  
+  // ✅ Set unlock modal state in store when needed
+  useEffect(() => {
+    if (shouldShowUnlockModal) {
+      setShowUnlockModal(true);
+    }
+  }, [shouldShowUnlockModal, setShowUnlockModal]);
 
   useEffect(() => {
     // Hide splash immediately - no delay
@@ -415,26 +415,8 @@ export default function Home() {
             />
           )}
           
-          {/* ✅ INITIAL UNLOCK MODAL: Only for automatic unlock on page load
-              Dashboard.tsx has its own modal for manual lock/unlock button.
-              These modals don't conflict because they serve different purposes. */}
-          {shouldShowUnlockModal && (
-            <PasswordUnlockModal
-              isOpen={shouldShowUnlockModal}
-              onComplete={() => {
-                // Wallet unlocked - store will update automatically
-                logger.log('✅ Wallet unlocked via initial modal');
-                sessionStorage.setItem('wallet_unlocked_this_session', 'true');
-                sessionStorage.setItem('last_activity', Date.now().toString());
-              }}
-              onFallback={() => {
-                // ✅ Sign out: Return to onboarding screen
-                logger.log('🚪 [Sign Out] Returning to onboarding screen');
-                setHasWallet(false);
-                setShowRecoveryPhrase(false);
-              }}
-            />
-          )}
+          {/* ✅ REMOVED: Unlock modal now managed by Dashboard via wallet-store
+              Single modal instance in Dashboard reads showUnlockModal from store */}
         </>
       )}
     </>
