@@ -281,6 +281,9 @@ export default function Dashboard() {
     
     logger.log('✅ Wallet unlocked successfully');
     
+    // ✅ Clear manual lock flag so page.tsx modal can work again on refresh
+    sessionStorage.removeItem('manual_lock');
+    
     // ✅ FIX: Wait for displayAddress to be available before closing modal
     // This prevents the modal from staying open on first unlock attempt
     console.log('🔐 [Dashboard] Starting address check interval...');
@@ -2731,6 +2734,8 @@ export default function Dashboard() {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => {
+                    // ✅ Set flag so page.tsx modal doesn't interfere
+                    sessionStorage.setItem('manual_lock', 'true');
                     lockWallet();
                     setShowPasswordUnlock(true); // ✅ Show unlock modal immediately
                   }}

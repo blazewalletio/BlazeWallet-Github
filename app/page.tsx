@@ -41,6 +41,12 @@ export default function Home() {
     // Don't show if QR login is showing
     if (showQRLogin) return false;
     
+    // ✅ FIX: Don't show if user manually locked (Dashboard will handle it)
+    // This prevents both modals from competing
+    if (typeof window !== 'undefined' && sessionStorage.getItem('manual_lock') === 'true') {
+      return false;
+    }
+    
     // ✅ FIX: Check localStorage for has_password (more reliable than store initial state)
     const hasPasswordStored = typeof window !== 'undefined' && localStorage.getItem('has_password') === 'true';
     
@@ -58,7 +64,8 @@ export default function Home() {
       needsUnlock,
       showPasswordSetup,
       showBiometricSetup,
-      showQRLogin
+      showQRLogin,
+      manualLock: typeof window !== 'undefined' ? sessionStorage.getItem('manual_lock') : null
     });
     
     return needsUnlock;
@@ -408,10 +415,26 @@ export default function Home() {
             />
           )}
           
-          {/* ✅ REMOVED: Unlock modal moved to Dashboard.tsx to prevent duplicate modals
-              The Dashboard now handles all lock/unlock flows with a single modal instance.
-              This prevents the issue where two modals compete for the same unlock action. */}
-          {/* <PasswordUnlockModal ... /> */}
+          {/* ✅ INITIAL UNLOCK MODAL: Only for automatic unlock on page load
+              Dashboard.tsx has its own modal for manual lock/unlock button.
+              These modals don't conflict because they serve different purposes. */}
+          {shouldShowUnlockModal && (
+            <PasswordUnlockModal
+              isOpen={shouldShowUnlockModal}
+              onComplete={() => {
+                // Wallet unlocked - store will update automatically
+                logger.log('✅ Wallet unlocked via initial modal');
+                sessionStorage.setItem('wallet_unlocked_this_session', 'true');
+                sessionStorage.setItem('last_activity', Date.now().toString());
+              }}
+              onFallback={() => {
+                // ✅ Sign out: Return to onboarding screen
+                logger.log('🚪 [Sign Out] Returning to onboarding screen');
+                setHasWallet(false);
+                setShowRecoveryPhrase(false);
+              }}
+            />
+          )}
         </>
       )}
     </>
