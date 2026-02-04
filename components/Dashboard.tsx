@@ -2950,10 +2950,22 @@ export default function Dashboard() {
         isOpen={showPasswordUnlock}
         onComplete={() => {
           logger.log('✅ Wallet unlocked successfully');
-          setShowPasswordUnlock(false);
-          // 🔥 REMOVED: Don't call fetchData here!
-          // The chain switch useEffect will handle fetching when displayAddress becomes available
-          // Calling fetchData here causes DOUBLE FETCH (race condition with chain switch effect)
+          // ✅ FIX: Wait for displayAddress to be available before closing modal
+          // This prevents the modal from staying open on first unlock attempt
+          const checkAddressInterval = setInterval(() => {
+            const currentAddress = getCurrentAddress();
+            if (currentAddress) {
+              logger.log('✅ displayAddress is now available:', currentAddress);
+              setShowPasswordUnlock(false);
+              clearInterval(checkAddressInterval);
+            }
+          }, 50); // Check every 50ms
+          
+          // Safety timeout: close modal after 3 seconds even if address not available
+          setTimeout(() => {
+            clearInterval(checkAddressInterval);
+            setShowPasswordUnlock(false);
+          }, 3000);
         }}
         onFallback={() => {
           // User wants to use recovery phrase instead
