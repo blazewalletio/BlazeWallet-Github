@@ -2949,13 +2949,26 @@ export default function Dashboard() {
       <PasswordUnlockModal
         isOpen={showPasswordUnlock}
         onComplete={() => {
+          console.log('🔐 [Dashboard] ========== onComplete START ==========');
+          console.log('🔐 [Dashboard] Current displayAddress:', displayAddress);
+          console.log('🔐 [Dashboard] Current address:', address);
+          console.log('🔐 [Dashboard] Current solanaAddress:', solanaAddress);
+          console.log('🔐 [Dashboard] Current showPasswordUnlock:', showPasswordUnlock);
+          
           logger.log('✅ Wallet unlocked successfully');
+          
           // ✅ FIX: Wait for displayAddress to be available before closing modal
           // This prevents the modal from staying open on first unlock attempt
+          console.log('🔐 [Dashboard] Starting address check interval...');
+          let checkCount = 0;
           const checkAddressInterval = setInterval(() => {
+            checkCount++;
             const currentAddress = getCurrentAddress();
+            console.log(`🔐 [Dashboard] Address check #${checkCount}: ${currentAddress}`);
+            
             if (currentAddress) {
-              logger.log('✅ displayAddress is now available:', currentAddress);
+              console.log('✅ [Dashboard] displayAddress is now available:', currentAddress);
+              console.log('✅ [Dashboard] Closing modal (setShowPasswordUnlock(false))');
               setShowPasswordUnlock(false);
               clearInterval(checkAddressInterval);
             }
@@ -2963,9 +2976,13 @@ export default function Dashboard() {
           
           // Safety timeout: close modal after 3 seconds even if address not available
           setTimeout(() => {
+            console.log('⏰ [Dashboard] Safety timeout reached (3s)');
+            console.log('⏰ [Dashboard] Clearing interval and closing modal');
             clearInterval(checkAddressInterval);
             setShowPasswordUnlock(false);
           }, 3000);
+          
+          console.log('🔐 [Dashboard] ========== onComplete END ==========');
         }}
         onFallback={() => {
           // User wants to use recovery phrase instead

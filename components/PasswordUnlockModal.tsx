@@ -42,12 +42,24 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     password: string;
   } | null>(null);
 
-  // Load current account
+  // Load current account and reset state when modal opens
   useEffect(() => {
     if (isOpen) {
+      console.log('🔐 [PasswordUnlock] Modal opened - resetting state');
       const account = getCurrentAccount();
       setCurrentAccount(account);
+      
+      // ✅ FIX: Reset ALL state when modal opens
+      setPassword('');
+      setError('');
+      setIsLoading(false);
+      setShowPassword(false);
+      setIsSwitching(false);
+      setShowRecoveryFlow(false);
+      setPendingNewEmail(null);
+      
       logger.log('📧 Current account loaded:', account);
+      console.log('✅ [PasswordUnlock] State reset complete');
     }
   }, [isOpen]);
 
