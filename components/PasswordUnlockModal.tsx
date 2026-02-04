@@ -94,9 +94,14 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    console.log('🔐 [PasswordUnlock] ========== UNLOCK ATTEMPT START ==========');
+    console.log('🔐 [PasswordUnlock] Timestamp:', new Date().toISOString());
+    console.log('🔐 [PasswordUnlock] Has password:', !!password);
 
     // ✅ NEW: Check device verification for email wallets BEFORE unlock (V2!)
     const isSeedWallet = DeviceVerificationCheckV2.isSeedWallet();
+    console.log('🔐 [PasswordUnlock] Is seed wallet:', isSeedWallet);
     
     if (!isSeedWallet) {
       logger.log('📧 [PasswordUnlock] Email wallet detected - checking device verification (V2)...');
@@ -218,20 +223,34 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         onComplete();
       } else {
         // For seed phrase wallets, use traditional unlock
+        console.log('🔐 [PasswordUnlock] Starting unlockWithPassword...');
+        console.time('🔐 [PasswordUnlock] unlockWithPassword duration');
+        
         await unlockWithPassword(password);
         
+        console.timeEnd('🔐 [PasswordUnlock] unlockWithPassword duration');
+        console.log('🔐 [PasswordUnlock] unlockWithPassword completed');
+        
         // ✅ FIX: Save account to recent after successful unlock
+        console.log('🔐 [PasswordUnlock] Saving account to recent...');
         saveCurrentAccountToRecent();
         
         // Set session flag
+        console.log('🔐 [PasswordUnlock] Setting session flag...');
         sessionStorage.setItem('wallet_unlocked_this_session', 'true');
         
+        console.log('🔐 [PasswordUnlock] Calling onComplete()...');
         onComplete();
+        console.log('🔐 [PasswordUnlock] ========== UNLOCK ATTEMPT END ==========');
       }
     } catch (error: any) {
       // Error message from wallet-store already includes attempt count and rate limit info
+      console.error('❌ [PasswordUnlock] Error during unlock:', error);
+      console.log('❌ [PasswordUnlock] Error message:', error.message);
+      console.log('❌ [PasswordUnlock] Error stack:', error.stack);
       setError(error.message || 'Failed to unlock wallet');
     } finally {
+      console.log('🔐 [PasswordUnlock] Setting isLoading to false');
       setIsLoading(false);
     }
   };

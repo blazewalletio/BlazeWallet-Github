@@ -221,11 +221,15 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   },
 
   unlockWithPassword: async (password: string) => {
+    console.log('🔑 [wallet-store] ========== unlockWithPassword START ==========');
+    console.log('🔑 [wallet-store] Timestamp:', new Date().toISOString());
+    
     try {
       if (typeof window === 'undefined') {
         throw new Error('Not available op server');
       }
 
+      console.log('🔑 [wallet-store] Step 1: Check rate limiting...');
       // ✅ SECURITY: Check rate limiting first
       const userIdentifier = 'local_wallet'; // For seed phrase wallets
       const lockStatus = rateLimitService.isLocked(userIdentifier);
@@ -234,14 +238,18 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         const minutes = Math.ceil(lockStatus.unlockInSeconds! / 60);
         throw new Error(`Too many failed attempts. Please try again in ${minutes} minutes.`);
       }
+      console.log('🔑 [wallet-store] ✅ Rate limit check passed');
 
+      console.log('🔑 [wallet-store] Step 2: Check if migration needed...');
       // ✅ SECURITY FIX: Migrate to IndexedDB if needed (one-time, automatic)
       const needsMigration = await secureStorage.needsMigration();
       if (needsMigration) {
         logger.log('🔄 Migrating sensitive data to IndexedDB...');
         await secureStorage.migrateFromLocalStorage();
       }
+      console.log('🔑 [wallet-store] ✅ Migration check complete');
 
+      console.log('🔑 [wallet-store] Step 3: Verify password...');
       // Check if password is correct (try IndexedDB first, fallback to localStorage)
       const storedHash = await secureStorage.getItem('password_hash') || localStorage.getItem('password_hash');
       if (!storedHash || !verifyPassword(password, storedHash)) {
@@ -254,10 +262,12 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         
         throw new Error(`Invalid password. ${result.remainingAttempts} attempts remaining.`);
       }
+      console.log('🔑 [wallet-store] ✅ Password verified');
 
       // ✅ SECURITY: Clear failed attempts on successful login
       rateLimitService.clearAttempts(userIdentifier);
 
+      console.log('🔑 [wallet-store] Step 4: Decrypt wallet...');
       // Decrypt wallet (try IndexedDB first, fallback to localStorage)
       const encryptedWalletData = await secureStorage.getItem('encrypted_wallet') || localStorage.getItem('encrypted_wallet');
       if (!encryptedWalletData) {
@@ -266,36 +276,70 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
       const encryptedWallet: EncryptedWallet = JSON.parse(encryptedWalletData);
       const mnemonic = decryptWallet(encryptedWallet, password);
+      console.log('🔑 [wallet-store] ✅ Wallet decrypted');
       
+      console.log('🔑 [wallet-store] Step 5: Validate mnemonic...');
       // Validate and create wallet
       const cleanMnemonic = mnemonic.trim().toLowerCase();
       if (!bip39.validateMnemonic(cleanMnemonic)) {
         throw new Error('Beschadigde wallet data');
       }
+      console.log('🔑 [wallet-store] ✅ Mnemonic validated');
 
+      console.log('🔑 [wallet-store] Step 6: Create EVM wallet...');
+      console.time('🔑 [wallet-store] EVM wallet creation');
       const wallet = ethers.Wallet.fromPhrase(cleanMnemonic);
+      console.timeEnd('🔑 [wallet-store] EVM wallet creation');
+      console.log('🔑 [wallet-store] ✅ EVM wallet created:', wallet.address);
       
+      console.log('🔑 [wallet-store] Step 7: Derive Solana address...');
+      console.time('🔑 [wallet-store] Solana derivation');
       // ✅ ALWAYS derive Solana address from mnemonic
       const solanaService = new SolanaService();
       const solanaAddress = solanaService.getAddressFromMnemonic(cleanMnemonic);
+      console.timeEnd('🔑 [wallet-store] Solana derivation');
+      console.log('🔑 [wallet-store] ✅ Solana address:', solanaAddress);
       
+      console.log('🔑 [wallet-store] Step 8: Import Bitcoin service...');
+      console.time('🔑 [wallet-store] Bitcoin service import');
       // ✅ ALWAYS derive Bitcoin address from mnemonic
       const { BitcoinService } = await import('./bitcoin-service');
+      console.timeEnd('🔑 [wallet-store] Bitcoin service import');
+      
+      console.log('🔑 [wallet-store] Step 9: Derive Bitcoin address...');
+      console.time('🔑 [wallet-store] Bitcoin derivation');
       const bitcoinService = new BitcoinService('mainnet');
       const { address: bitcoinAddress } = bitcoinService.deriveBitcoinAddress(cleanMnemonic, 'native-segwit');
+      console.timeEnd('🔑 [wallet-store] Bitcoin derivation');
+      console.log('🔑 [wallet-store] ✅ Bitcoin address:', bitcoinAddress);
       
+      console.log('🔑 [wallet-store] Step 10: Import Bitcoin fork services...');
+      console.time('🔑 [wallet-store] Fork services import');
       // ✅ ALWAYS derive Bitcoin-fork addresses from mnemonic
       const { BitcoinForkService } = await import('./bitcoin-fork-service');
+      console.timeEnd('🔑 [wallet-store] Fork services import');
+      
+      console.log('🔑 [wallet-store] Step 11: Create fork service instances...');
       const litecoinService = new BitcoinForkService('litecoin');
       const dogecoinService = new BitcoinForkService('dogecoin');
       const bitcoincashService = new BitcoinForkService('bitcoincash');
       
+      console.log('🔑 [wallet-store] Step 12: Derive fork addresses...');
+      console.time('🔑 [wallet-store] Fork addresses derivation');
       const { address: litecoinAddress } = litecoinService.deriveAddress(cleanMnemonic, 'legacy');
       const { address: dogecoinAddress } = dogecoinService.deriveAddress(cleanMnemonic, 'legacy');
       const { address: bitcoincashAddress } = bitcoincashService.deriveAddress(cleanMnemonic, 'legacy');
+      console.timeEnd('🔑 [wallet-store] Fork addresses derivation');
+      console.log('🔑 [wallet-store] ✅ Litecoin address:', litecoinAddress);
+      console.log('🔑 [wallet-store] ✅ Dogecoin address:', dogecoinAddress);
+      console.log('🔑 [wallet-store] ✅ Bitcoin Cash address:', bitcoincashAddress);
       
+      console.log('🔑 [wallet-store] Step 13: Get saved chain...');
       const savedChain = localStorage.getItem('current_chain') || DEFAULT_CHAIN;
+      console.log('🔑 [wallet-store] Saved chain:', savedChain);
 
+      console.log('🔑 [wallet-store] Step 14: Update Zustand state...');
+      console.time('🔑 [wallet-store] State update');
       set({
         wallet,
         address: wallet.address, // EVM address (derived from mnemonic)
@@ -309,14 +353,24 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         currentChain: savedChain,
         lastActivity: Date.now(),
       });
+      console.timeEnd('🔑 [wallet-store] State update');
+      console.log('🔑 [wallet-store] ✅ State updated');
 
+      console.log('🔑 [wallet-store] Step 15: Set session storage...');
       // Set session flag + activity timestamp
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('wallet_unlocked_this_session', 'true');
         sessionStorage.setItem('last_activity', Date.now().toString());
       }
+      console.log('🔑 [wallet-store] ✅ Session storage set');
+      
+      console.log('🔑 [wallet-store] ========== unlockWithPassword SUCCESS ==========');
 
     } catch (error) {
+      console.error('❌ [wallet-store] unlockWithPassword ERROR:', error);
+      console.log('❌ [wallet-store] Error type:', typeof error);
+      console.log('❌ [wallet-store] Error message:', (error as any).message);
+      console.log('❌ [wallet-store] ========== unlockWithPassword FAILED ==========');
       throw new Error('Invalid password or corrupted data');
     }
   },
