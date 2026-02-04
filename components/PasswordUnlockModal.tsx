@@ -279,8 +279,12 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         console.log('📧 [PasswordUnlock] Waiting 100ms before calling onComplete...');
         await new Promise(resolve => setTimeout(resolve, 100));
         
+        console.log('📧 [PasswordUnlock] About to call onComplete...');
+        console.log('📧 [PasswordUnlock] onComplete type:', typeof onComplete);
+        console.log('📧 [PasswordUnlock] onComplete function:', onComplete);
         console.log('📧 [PasswordUnlock] Calling onComplete()...');
         onComplete();
+        console.log('📧 [PasswordUnlock] onComplete() returned');
         console.log('📧 [PasswordUnlock] ========== EMAIL UNLOCK SUCCESS ==========');
       } else {
         // For seed phrase wallets, use traditional unlock
@@ -304,8 +308,11 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         console.log('🔐 [PasswordUnlock] Waiting 100ms before calling onComplete...');
         await new Promise(resolve => setTimeout(resolve, 100));
         
+        console.log('🔐 [PasswordUnlock] About to call onComplete...');
+        console.log('🔐 [PasswordUnlock] onComplete type:', typeof onComplete);
         console.log('🔐 [PasswordUnlock] Calling onComplete()...');
         onComplete();
+        console.log('🔐 [PasswordUnlock] onComplete() returned');
         console.log('🔐 [PasswordUnlock] ========== UNLOCK ATTEMPT END ==========');
       }
     } catch (error: any) {
