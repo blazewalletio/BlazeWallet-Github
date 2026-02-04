@@ -188,6 +188,9 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         // Set session flag
         sessionStorage.setItem('wallet_unlocked_this_session', 'true');
         
+        // ✅ FIX: Add small delay to ensure state propagates before calling onComplete
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         setPendingNewEmail(null);
         onComplete();
         return;
@@ -209,7 +212,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         const result = await strictSignInWithEmail(email, password);
         
         console.timeEnd('📧 [PasswordUnlock] strictSignInWithEmail duration');
-        console.log('📧 [PasswordUnlock] strictSignInWithEmail result:', result);
+        console.log('📧 [PasswordUnlock] strictSignInWithEmail result: success =', result.success);
         console.log('📧 [PasswordUnlock] Success:', result.success);
         
         if (!result.success) {
@@ -259,6 +262,11 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         console.log('📧 [PasswordUnlock] Setting session flag...');
         sessionStorage.setItem('wallet_unlocked_this_session', 'true');
         
+        // ✅ FIX: Add small delay to ensure state propagates before calling onComplete
+        // This prevents the modal from staying open on first unlock attempt
+        console.log('📧 [PasswordUnlock] Waiting 100ms before calling onComplete...');
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         console.log('📧 [PasswordUnlock] Calling onComplete()...');
         onComplete();
         console.log('📧 [PasswordUnlock] ========== EMAIL UNLOCK SUCCESS ==========');
@@ -279,6 +287,10 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         // Set session flag
         console.log('🔐 [PasswordUnlock] Setting session flag...');
         sessionStorage.setItem('wallet_unlocked_this_session', 'true');
+        
+        // ✅ FIX: Add small delay to ensure state propagates before calling onComplete
+        console.log('🔐 [PasswordUnlock] Waiting 100ms before calling onComplete...');
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         console.log('🔐 [PasswordUnlock] Calling onComplete()...');
         onComplete();
