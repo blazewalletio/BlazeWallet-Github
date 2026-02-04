@@ -2987,10 +2987,10 @@ export default function Dashboard() {
       </AnimatePresence>
       
       {/* Password Unlock Modal - for lock/unlock flow */}
-      {/* ✅ FIX: Only render when open to ensure fresh callback */}
-      {showPasswordUnlock && (
+      {/* ✅ Single modal reading from wallet-store state */}
+      {showUnlockModal && (
         <PasswordUnlockModal
-          isOpen={showPasswordUnlock}
+          isOpen={showUnlockModal}
           onComplete={handlePasswordUnlockComplete}
           onFallback={() => {
             // User wants to use recovery phrase instead
