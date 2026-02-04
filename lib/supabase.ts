@@ -3,9 +3,6 @@ import { logger } from '@/lib/logger';
 
 // 🔍 EXTENSIVE DEBUGGING FOR ENV VAR ISSUES
 console.group('🚀 SUPABASE INITIALIZATION DEBUG');
-console.log('📍 Location:', typeof window !== 'undefined' ? 'BROWSER' : 'SERVER');
-console.log('⏰ Time:', new Date().toISOString());
-
 // Get environment variables with multiple fallback methods
 // Method 1: process.env (works in Node.js / Server-side / Build time)
 // Method 2: Direct from next.config.mjs env export (for client-side)
@@ -14,49 +11,14 @@ const supabaseUrl =
 
 const supabaseAnonKey = 
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-console.log('📦 Environment variable sources:', {
-  hasProcessEnv: typeof process !== 'undefined' && typeof process.env !== 'undefined',
-  processEnvKeys: typeof process !== 'undefined' && typeof process.env !== 'undefined' 
-    ? Object.keys(process.env).filter(k => k.startsWith('NEXT_PUBLIC')).length + ' keys'
-    : 'N/A',
-});
-
-console.log('📦 Raw values:', {
-  NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 20)}...` : undefined,
-  allEnvKeys: typeof process !== 'undefined' && typeof process.env !== 'undefined'
-    ? Object.keys(process.env).filter(k => k.startsWith('NEXT_PUBLIC'))
-    : [],
-});
-
 // Detailed value inspection
 if (supabaseUrl) {
-  console.log('✅ NEXT_PUBLIC_SUPABASE_URL:', {
-    exists: true,
-    length: supabaseUrl.length,
-    first10: supabaseUrl.substring(0, 10),
-    last10: supabaseUrl.substring(supabaseUrl.length - 10),
-    hasNewline: supabaseUrl.includes('\n'),
-    hasCarriageReturn: supabaseUrl.includes('\r'),
-    trimmedLength: supabaseUrl.trim().length,
-  });
 } else {
   console.error('❌ NEXT_PUBLIC_SUPABASE_URL is:', supabaseUrl);
   console.error('❌ Type:', typeof supabaseUrl);
 }
 
 if (supabaseAnonKey) {
-  console.log('✅ NEXT_PUBLIC_SUPABASE_ANON_KEY:', {
-    exists: true,
-    length: supabaseAnonKey.length,
-    first20: supabaseAnonKey.substring(0, 20),
-    last20: supabaseAnonKey.substring(supabaseAnonKey.length - 20),
-    hasNewline: supabaseAnonKey.includes('\n'),
-    hasCarriageReturn: supabaseAnonKey.includes('\r'),
-    trimmedLength: supabaseAnonKey.trim().length,
-    startsWithEyJ: supabaseAnonKey.startsWith('eyJ'),
-  });
 } else {
   console.error('❌ NEXT_PUBLIC_SUPABASE_ANON_KEY is:', supabaseAnonKey);
   console.error('❌ Type:', typeof supabaseAnonKey);
@@ -78,18 +40,6 @@ if (!supabaseAnonKey) {
 // Trim any whitespace that might have snuck in
 const cleanUrl = supabaseUrl.trim();
 const cleanKey = supabaseAnonKey.trim();
-
-console.log('🧹 After trimming:', {
-  urlChanged: cleanUrl !== supabaseUrl,
-  keyChanged: cleanKey !== supabaseAnonKey,
-  cleanUrlLength: cleanUrl.length,
-  cleanKeyLength: cleanKey.length,
-});
-
-console.log('🎯 About to create Supabase client with:');
-console.log('   URL:', cleanUrl);
-console.log('   Key:', `${cleanKey.substring(0, 20)}...${cleanKey.substring(cleanKey.length - 20)}`);
-
 let supabaseClient;
 
 try {
@@ -106,8 +56,6 @@ try {
       },
     }
   );
-  
-  console.log('✅ Supabase client created successfully!');
   console.groupEnd();
 } catch (error) {
   console.error('💥 FATAL ERROR creating Supabase client:', error);

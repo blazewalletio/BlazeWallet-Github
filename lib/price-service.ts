@@ -165,21 +165,9 @@ export class PriceService {
     }
 
     logger.log(`🔍 [PriceService] Fetching price by mint for ${mint.substring(0, 8)}...`);
-    console.log(`\n🔎 DexScreener lookup voor mint: ${mint}`);
-
     try {
-      console.log(`   📡 Calling DexScreener API...`);
       // Try DexScreener (best for DEX-traded tokens)
       const dexToken = await dexScreenerService.getTokenMetadata(mint);
-      
-      console.log(`   📦 Response received:`, {
-        hasData: !!dexToken,
-        priceUsd: dexToken?.priceUsd,
-        priceChange24h: dexToken?.priceChange24h,
-        symbol: dexToken?.symbol,
-        name: dexToken?.name,
-      });
-      
       if (dexToken && dexToken.priceUsd && dexToken.priceUsd > 0) {
         const price = dexToken.priceUsd;
         const change24h = dexToken.priceChange24h || 0;
@@ -192,21 +180,16 @@ export class PriceService {
         }, this.cacheDuration);
         
         logger.log(`✅ [PriceService] DexScreener: ${mint.substring(0, 8)}... = $${price}`);
-        console.log(`   ✅ Prijs gevonden: $${price}`);
-        console.log(`   📈 24h Change: ${change24h >= 0 ? '+' : ''}${change24h.toFixed(2)}%`);
         return { price, change24h };
       } else {
-        console.log(`   ❌ Geen valide prijs gevonden (priceUsd: ${dexToken?.priceUsd || 'undefined'})`);
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       logger.warn(`⚠️ [PriceService] DexScreener failed for ${mint.substring(0, 8)}...:`, errorMsg);
-      console.log(`   ⚠️ DexScreener API error: ${errorMsg}`);
     }
 
     // If API fails, return 0 (LRU cache would have returned cached value if fresh)
     logger.error(`❌ [PriceService] Failed to get price by mint for ${mint.substring(0, 8)}...`);
-    console.log(`   ❌ Geen prijs beschikbaar voor deze mint`);
     return { price: 0, change24h: 0 };
   }
 
@@ -385,10 +368,6 @@ export class PriceService {
     if (addresses.length === 0) {
       return new Map();
     }
-
-    console.log(`\n💰 [PriceService] Fetching prices by address...`);
-    console.log(`   Chain: ${chain}`);
-    console.log(`   Total addresses: ${addresses.length}`);
     logger.log(`\n🔍 [PriceService] Fetching prices for ${addresses.length} addresses on ${chain}`);
 
     const result = new Map<string, { price: number; change24h: number }>();
@@ -396,28 +375,22 @@ export class PriceService {
     const uncachedAddresses: string[] = [];
 
     // ✅ STEP 1: Check cache first (TTL handled internally by LRU)
-    console.log(`\n📡 STEP 1: Checking cache...`);
     addresses.forEach(address => {
       const addressLower = address.toLowerCase();
       const cached = this.addressCache.get(addressLower);
       if (cached) {
         result.set(addressLower, { price: cached.price, change24h: cached.change24h });
-        console.log(`   ✅ CACHE HIT: ${addressLower.substring(0, 10)}... = $${cached.price.toFixed(6)}`);
         logger.log(`💾 [PriceService] 🔴 CACHE HIT: ${addressLower.substring(0, 10)}... = $${cached.price.toFixed(6)}, change24h: ${cached.change24h.toFixed(2)}%`);
         logger.log(`   ⚠️ Using CACHED data - this may be up to 60 seconds old!`);
       } else {
         uncachedAddresses.push(addressLower);
-        console.log(`   ❌ CACHE MISS: ${addressLower.substring(0, 10)}...`);
       }
     });
 
     if (uncachedAddresses.length === 0) {
-      console.log(`✅ All addresses from cache (0 API calls!)`);
       logger.log(`✅ [PriceService] All ${addresses.length} addresses from cache (0 API calls!)`);
       return result;
     }
-
-    console.log(`\n📡 STEP 2: Fetching ${uncachedAddresses.length} uncached addresses from API...`);
     logger.log(`📡 [PriceService] Fetching ${uncachedAddresses.length}/${addresses.length} uncached addresses...`);
 
     // ✅ STEP 2: Fetch from CoinGecko by address (batch request = efficient!)
@@ -425,40 +398,24 @@ export class PriceService {
       // 🔥 CACHE BUSTING: Add timestamp to force Vercel to fetch fresh data
       const cacheBuster = Date.now();
       const apiUrl = `${this.addressApiUrl}?addresses=${uncachedAddresses.join(',')}&chain=${chain}&_t=${cacheBuster}`;
-      console.log(`   API URL: ${apiUrl.substring(0, 100)}...`);
-      
       const response = await fetch(apiUrl, { signal: AbortSignal.timeout(15000) });
-
-      console.log(`   Response status: ${response.status} ${response.statusText}`);
-
       if (response.ok) {
         const data = await response.json();
-        console.log(`   ✅ Response received, processing ${Object.keys(data).length} price entries...`);
-
         uncachedAddresses.forEach((address, idx) => {
-          console.log(`\n   [${idx + 1}/${uncachedAddresses.length}] Processing ${address.substring(0, 10)}...`);
-
           // CoinGecko API route returns: { "0x...": { price: 5.42, change24h: -2.5 } }
           // (transformed from CoinGecko's { "0x...": { usd: 5.42, usd_24h_change: -2.5 } })
           const priceValue = data[address]?.price || data[address]?.usd || 0;
-          console.log(`      Raw data:`, data[address]);
-          console.log(`      Price value: ${priceValue}`);
-          
           if (data[address] && priceValue > 0) {
             let price = priceValue;
             
             // 🛡️ SANITY CHECK: Detect abnormally high prices (>$10k per token)
             if (price > 10000) {
-              console.log(`      ⚠️ SUSPICIOUS HIGH PRICE: $${price.toFixed(2)}`);
-              console.log(`      → Setting to 0 (will try DexScreener)`);
               logger.warn(`⚠️ [PriceService] SUSPICIOUS HIGH PRICE detected for ${address.substring(0, 10)}...: $${price.toFixed(2)}`);
               price = 0;
             }
             
             // Get change24h from either format
             const change24h = data[address].change24h || data[address].usd_24h_change || 0;
-            console.log(`      24h Change: ${change24h}%`);
-            
             const priceData = {
               price,
               change24h,
@@ -467,8 +424,6 @@ export class PriceService {
             // Only cache and use if price is valid (not 0 after sanity check)
             if (price > 0) {
               result.set(address, priceData);
-              console.log(`      ✅ Price set: $${price.toFixed(6)}, change24h: ${change24h.toFixed(2)}%`);
-              
               // Update cache with TTL
               this.addressCache.set(address, {
                 ...priceData,
@@ -477,11 +432,9 @@ export class PriceService {
               
               logger.log(`✅ [PriceService] CoinGecko: ${address.substring(0, 10)}... = $${priceData.price.toFixed(6)}`);
             } else {
-              console.log(`      ⚠️ Invalid price, skipping (will try DexScreener)`);
               logger.log(`⚠️ [PriceService] Skipping invalid price for ${address.substring(0, 10)}... (will try DexScreener)`);
             }
           } else {
-            console.log(`      ❌ No price data in response`);
           }
         });
       } else {
@@ -501,7 +454,6 @@ export class PriceService {
     });
     
     if (missingAddresses.length > 0) {
-      console.log(`\n📡 STEP 3: Trying DexScreener fallback for ${missingAddresses.length} addresses...`);
       logger.log(`\n🔄 [PriceService] Trying DexScreener fallback for ${missingAddresses.length} missing...`);
       
       // Limit to 10 DexScreener calls to avoid long waits (250ms * 10 = 2.5s max)
@@ -509,17 +461,13 @@ export class PriceService {
       
       for (let i = 0; i < maxDexScreenerCalls; i++) {
         const address = missingAddresses[i];
-        console.log(`   [${i + 1}/${maxDexScreenerCalls}] Trying DexScreener for ${address.substring(0, 10)}...`);
         try {
           const tokenData = await dexScreenerService.getTokenMetadata(address);
           
           if (tokenData && tokenData.priceUsd && tokenData.priceUsd > 0) {
             let price = tokenData.priceUsd;
-            console.log(`      ✅ DexScreener found price: $${price.toFixed(6)}`);
-            
             // 🛡️ SANITY CHECK: Also check DexScreener prices for abnormalities
             if (price > 10000) {
-              console.log(`      ⚠️ SUSPICIOUS HIGH PRICE, setting to 0`);
               logger.warn(`⚠️ [PriceService] SUSPICIOUS HIGH PRICE from DexScreener for ${address.substring(0, 10)}...: $${price.toFixed(2)}`);
               price = 0;
             }
@@ -532,8 +480,6 @@ export class PriceService {
             // Only set if price is valid after sanity check
             if (price > 0) {
               result.set(address, priceData);
-              console.log(`      ✅ Price set: $${price.toFixed(6)}, change24h: ${priceData.change24h.toFixed(2)}%`);
-              
               // Update cache with TTL
               this.addressCache.set(address, {
                 ...priceData,
@@ -542,11 +488,9 @@ export class PriceService {
               
               logger.log(`✅ [PriceService] DexScreener: ${address.substring(0, 10)}... = $${priceData.price}`);
             } else {
-              console.log(`      ⚠️ Invalid price, skipping`);
               logger.log(`⚠️ [PriceService] Skipping invalid DexScreener price for ${address.substring(0, 10)}...`);
             }
           } else {
-            console.log(`      ❌ No price data from DexScreener`);
           }
           
           // Rate limit: 250ms between requests (respects DexScreener 300/min limit)
@@ -558,9 +502,6 @@ export class PriceService {
           logger.warn(`⚠️ [PriceService] DexScreener failed for ${address.substring(0, 10)}...:`, error);
         }
       }
-      
-      console.log(`\n✅ STEP 3 COMPLETE: DexScreener fallback finished`);
-      
       if (missingAddresses.length > maxDexScreenerCalls) {
         logger.log(`ℹ️ [PriceService] Skipped ${missingAddresses.length - maxDexScreenerCalls} DexScreener lookups (performance optimization)`);
       }
@@ -574,8 +515,6 @@ export class PriceService {
     });
     
     if (stillMissing.length > 0) {
-      console.log(`\n📡 STEP 4: Trying symbol-based fallback for ${stillMissing.length} addresses...`);
-      
       // Map known contract addresses to symbols for fallback lookup
       const addressToSymbol: Record<string, string> = {
         '0x808507121b80c02388fad14726482e061b8da827': 'PENDLE', // Pendle Finance
@@ -584,16 +523,13 @@ export class PriceService {
       for (const address of stillMissing) {
         const symbol = addressToSymbol[address];
         if (symbol) {
-          console.log(`   Trying symbol lookup for ${symbol} (${address.substring(0, 10)}...)...`);
           try {
             const symbolPrices = await this.getMultiplePrices([symbol]);
             if (symbolPrices[symbol] && symbolPrices[symbol].price > 0) {
               const priceData = symbolPrices[symbol];
               result.set(address, priceData);
-              console.log(`   ✅ Found via symbol: $${priceData.price.toFixed(6)}`);
               logger.log(`✅ [PriceService] Symbol fallback: ${symbol} = $${priceData.price}`);
             } else {
-              console.log(`   ❌ No price found via symbol`);
             }
           } catch (error) {
             console.error(`   ❌ Symbol lookup error:`, error);
@@ -625,15 +561,8 @@ export class PriceService {
         }
       }
     });
-
-    console.log(`\n✅ [PriceService] Price fetching complete`);
-    console.log(`   Total addresses processed: ${result.size}/${addresses.length}`);
-    console.log(`\n💰 FINAL PRICE MAP:`);
     Array.from(result.entries()).forEach(([addr, data]) => {
-      console.log(`   ${addr.substring(0, 10)}...: $${data.price.toFixed(6)} (${data.change24h >= 0 ? '+' : ''}${data.change24h.toFixed(2)}%)`);
     });
-    console.log(`\n`);
-
     logger.log(`✅ [PriceService] Final: ${result.size}/${addresses.length} addresses processed`);
     return result;
   }

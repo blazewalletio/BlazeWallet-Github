@@ -45,7 +45,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   // Load current account and reset state when modal opens
   useEffect(() => {
     if (isOpen) {
-      console.log('🔐 [PasswordUnlock] Modal opened - resetting state');
       const account = getCurrentAccount();
       setCurrentAccount(account);
       
@@ -59,7 +58,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       setPendingNewEmail(null);
       
       logger.log('📧 Current account loaded:', account);
-      console.log('✅ [PasswordUnlock] State reset complete');
     }
   }, [isOpen]);
 
@@ -106,37 +104,17 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
-    console.log('🔐 [PasswordUnlock] ========== UNLOCK ATTEMPT START ==========');
-    console.log('🔐 [PasswordUnlock] Timestamp:', new Date().toISOString());
-    console.log('🔐 [PasswordUnlock] Has password:', !!password);
-
     // ✅ NEW: Check device verification for email wallets BEFORE unlock (V2!)
     const isSeedWallet = DeviceVerificationCheckV2.isSeedWallet();
-    console.log('🔐 [PasswordUnlock] Is seed wallet:', isSeedWallet);
-    
     if (!isSeedWallet) {
-      console.log('📧 [PasswordUnlock] Email wallet detected - checking device verification (V2)...');
       logger.log('📧 [PasswordUnlock] Email wallet detected - checking device verification (V2)...');
-      
-      console.time('📧 [PasswordUnlock] Device verification check');
       const deviceCheck = await DeviceVerificationCheckV2.isDeviceVerified();
-      console.timeEnd('📧 [PasswordUnlock] Device verification check');
-      
-      console.log('📧 [PasswordUnlock] Device check result:', deviceCheck);
-      console.log('📧 [PasswordUnlock] Device verified:', deviceCheck.verified);
-      console.log('📧 [PasswordUnlock] Device reason:', deviceCheck.reason);
-      
       if (!deviceCheck.verified) {
-        console.warn('⚠️ [PasswordUnlock] Device NOT verified - will redirect');
         logger.warn('⚠️ [PasswordUnlock] Device not verified:', deviceCheck.reason);
         setError('Device not recognized. Redirecting to email login...');
         setIsLoading(true);
-        
-        console.log('⚠️ [PasswordUnlock] Starting 2-second timeout for redirect...');
         // Clear local data and redirect to email login
         setTimeout(() => {
-          console.log('⚠️ [PasswordUnlock] Timeout completed - clearing data and reloading...');
           if (typeof window !== 'undefined') {
             localStorage.removeItem('encrypted_wallet');
             localStorage.removeItem('has_password');
@@ -146,15 +124,10 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
           // Reload to show onboarding (email login required)
           window.location.reload();
         }, 2000);
-        
-        console.log('⚠️ [PasswordUnlock] Returning early due to unverified device');
         return;
       }
-      
-      console.log('✅ [PasswordUnlock] Device verified - proceeding with unlock');
       logger.log('✅ [PasswordUnlock] Device verified - proceeding with unlock');
     } else {
-      console.log('🌱 [PasswordUnlock] Seed wallet - no device verification needed');
       logger.log('🌱 [PasswordUnlock] Seed wallet - no device verification needed');
     }
 
@@ -211,29 +184,13 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       // Check if wallet was created with email
       const createdWithEmail = localStorage.getItem('wallet_created_with_email') === 'true';
       const email = localStorage.getItem('wallet_email');
-      
-      console.log('📧 [PasswordUnlock] Created with email:', createdWithEmail);
-      console.log('📧 [PasswordUnlock] Email from localStorage:', email);
-
       if (createdWithEmail && email) {
-        console.log('📧 [PasswordUnlock] Starting strictSignInWithEmail...');
-        console.time('📧 [PasswordUnlock] strictSignInWithEmail duration');
-        
         // ✅ FORT KNOX: Use strict authentication with device verification
         const { strictSignInWithEmail } = await import('@/lib/supabase-auth-strict');
         const result = await strictSignInWithEmail(email, password);
-        
-        console.timeEnd('📧 [PasswordUnlock] strictSignInWithEmail duration');
-        console.log('📧 [PasswordUnlock] strictSignInWithEmail result: success =', result.success);
-        console.log('📧 [PasswordUnlock] Success:', result.success);
-        
         if (!result.success) {
-          console.log('❌ [PasswordUnlock] strictSignInWithEmail failed');
-          console.log('❌ [PasswordUnlock] Requires device verification:', result.requiresDeviceVerification);
-          
           // Check if device verification is required
           if (result.requiresDeviceVerification && result.deviceVerificationToken && result.deviceInfo) {
-            console.log('🚫 [PasswordUnlock] Device verification required - showing modal');
             logger.log('🚫 Device verification required');
             
             // Show device verification modal
@@ -246,83 +203,42 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
             setShowDeviceVerification(true);
             return;
           }
-          
-          console.log('❌ [PasswordUnlock] Throwing error:', result.error);
           throw new Error(result.error || 'Invalid password');
         }
-
-        console.log('✅ [PasswordUnlock] strictSignInWithEmail succeeded');
-        console.log('✅ [PasswordUnlock] Has mnemonic:', !!result.mnemonic);
-        
         // Wallet is now decrypted and loaded
         if (result.mnemonic) {
-          console.log('📧 [PasswordUnlock] Importing wallet with mnemonic...');
-          console.time('📧 [PasswordUnlock] importWallet duration');
-          
           const { importWallet } = useWalletStore.getState();
           await importWallet(result.mnemonic);
-          
-          console.timeEnd('📧 [PasswordUnlock] importWallet duration');
-          console.log('✅ [PasswordUnlock] Wallet imported');
         }
         
         // ✅ FIX: Save account to recent after successful unlock
-        console.log('📧 [PasswordUnlock] Saving account to recent...');
         saveCurrentAccountToRecent();
         
         // Set session flag to skip unlock modal on page refresh during same session
-        console.log('📧 [PasswordUnlock] Setting session flag...');
         sessionStorage.setItem('wallet_unlocked_this_session', 'true');
         
         // ✅ FIX: Add small delay to ensure state propagates before calling onComplete
         // This prevents the modal from staying open on first unlock attempt
-        console.log('📧 [PasswordUnlock] Waiting 100ms before calling onComplete...');
         await new Promise(resolve => setTimeout(resolve, 100));
-        
-        console.log('📧 [PasswordUnlock] About to call onComplete...');
-        console.log('📧 [PasswordUnlock] onComplete type:', typeof onComplete);
-        console.log('📧 [PasswordUnlock] onComplete function:', onComplete);
-        console.log('📧 [PasswordUnlock] Calling onComplete()...');
         onComplete();
-        console.log('📧 [PasswordUnlock] onComplete() returned');
-        console.log('📧 [PasswordUnlock] ========== EMAIL UNLOCK SUCCESS ==========');
       } else {
         // For seed phrase wallets, use traditional unlock
-        console.log('🔐 [PasswordUnlock] Starting unlockWithPassword...');
-        console.time('🔐 [PasswordUnlock] unlockWithPassword duration');
-        
         await unlockWithPassword(password);
-        
-        console.timeEnd('🔐 [PasswordUnlock] unlockWithPassword duration');
-        console.log('🔐 [PasswordUnlock] unlockWithPassword completed');
-        
         // ✅ FIX: Save account to recent after successful unlock
-        console.log('🔐 [PasswordUnlock] Saving account to recent...');
         saveCurrentAccountToRecent();
         
         // Set session flag
-        console.log('🔐 [PasswordUnlock] Setting session flag...');
         sessionStorage.setItem('wallet_unlocked_this_session', 'true');
         
         // ✅ FIX: Add small delay to ensure state propagates before calling onComplete
-        console.log('🔐 [PasswordUnlock] Waiting 100ms before calling onComplete...');
         await new Promise(resolve => setTimeout(resolve, 100));
-        
-        console.log('🔐 [PasswordUnlock] About to call onComplete...');
-        console.log('🔐 [PasswordUnlock] onComplete type:', typeof onComplete);
-        console.log('🔐 [PasswordUnlock] Calling onComplete()...');
         onComplete();
-        console.log('🔐 [PasswordUnlock] onComplete() returned');
-        console.log('🔐 [PasswordUnlock] ========== UNLOCK ATTEMPT END ==========');
       }
     } catch (error: any) {
       // Error message from wallet-store already includes attempt count and rate limit info
       console.error('❌ [PasswordUnlock] Error during unlock:', error);
-      console.log('❌ [PasswordUnlock] Error message:', error.message);
-      console.log('❌ [PasswordUnlock] Error stack:', error.stack);
       setError(error.message || 'Failed to unlock wallet');
     } finally {
-      console.log('🔐 [PasswordUnlock] Setting isLoading to false');
       setIsLoading(false);
     }
   };
@@ -396,35 +312,22 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
 
   // Handle complete sign out
   const handleSignOut = async () => {
-    console.log('🚪 [SIGN OUT] Button clicked!');
-    
     try {
       setIsLoading(true);
       logger.log('🚪 [Unlock Modal] User initiated sign out');
-      
-      console.log('🚪 [SIGN OUT] Importing supabase...');
       // Import supabase
       const { supabase } = await import('@/lib/supabase');
-      
-      console.log('🚪 [SIGN OUT] Preserving device_id...');
       // ⚠️ CRITICAL: Preserve device_id before clearing localStorage
       const preservedDeviceId = localStorage.getItem('blaze_device_id');
       const preservedFingerprint = localStorage.getItem('blaze_device_fingerprint');
       const preservedFingerprintCachedAt = localStorage.getItem('blaze_fingerprint_cached_at');
       
       logger.log('🔑 [Unlock Modal] Preserving device_id:', preservedDeviceId?.substring(0, 12) + '...');
-      console.log('🚪 [SIGN OUT] Device ID preserved:', preservedDeviceId?.substring(0, 12) + '...');
-      
-      console.log('🚪 [SIGN OUT] Signing out from Supabase...');
       // Sign out from Supabase
       await supabase.auth.signOut();
-      
-      console.log('🚪 [SIGN OUT] Resetting wallet...');
       // Clear wallet store
       const { resetWallet } = useWalletStore.getState();
       resetWallet();
-      
-      console.log('🚪 [SIGN OUT] Clearing localStorage...');
       // Clear all wallet-related localStorage (but preserve device tracking)
       const keysToRemove = [
         'wallet_email',
@@ -442,8 +345,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       
       // Clear sessionStorage
       sessionStorage.clear();
-      
-      console.log('🚪 [SIGN OUT] Restoring device_id...');
       // ✅ CRITICAL: Restore device_id after clearing localStorage
       if (preservedDeviceId) {
         localStorage.setItem('blaze_device_id', preservedDeviceId);
@@ -457,8 +358,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       }
       
       logger.log('✅ [Unlock Modal] Sign out complete, redirecting to onboarding');
-      console.log('🚪 [SIGN OUT] Complete! Redirecting...');
-      
       // Redirect to onboarding
       onFallback();
       

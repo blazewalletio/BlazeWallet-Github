@@ -275,26 +275,15 @@ export default function Dashboard() {
   // ✅ FIX: Stable callback for password unlock complete handler
   // Using useCallback prevents stale closure issues
   const handlePasswordUnlockComplete = useCallback(() => {
-    console.log('🔐 [Dashboard] ========== onComplete START ==========');
-    console.log('🔐 [Dashboard] Current displayAddress:', displayAddress);
-    console.log('🔐 [Dashboard] Current address:', address);
-    console.log('🔐 [Dashboard] Current solanaAddress:', solanaAddress);
-    console.log('🔐 [Dashboard] Current showUnlockModal:', showUnlockModal);
-    
     logger.log('✅ Wallet unlocked successfully');
     
     // ✅ Wait for displayAddress to be available before closing modal
     // This prevents the modal from staying open on first unlock attempt
-    console.log('🔐 [Dashboard] Starting address check interval...');
     let checkCount = 0;
     const checkAddressInterval = setInterval(() => {
       checkCount++;
       const currentAddress = getCurrentAddress();
-      console.log(`🔐 [Dashboard] Address check #${checkCount}: ${currentAddress}`);
-      
       if (currentAddress) {
-        console.log('✅ [Dashboard] displayAddress is now available:', currentAddress);
-        console.log('✅ [Dashboard] Closing modal (setShowUnlockModal(false))');
         setShowUnlockModal(false); // ✅ Update store state
         clearInterval(checkAddressInterval);
       }
@@ -302,13 +291,9 @@ export default function Dashboard() {
     
     // Safety timeout: close modal after 3 seconds even if address not available
     setTimeout(() => {
-      console.log('⏰ [Dashboard] Safety timeout reached (3s)');
-      console.log('⏰ [Dashboard] Clearing interval and closing modal');
       clearInterval(checkAddressInterval);
       setShowUnlockModal(false); // ✅ Update store state
     }, 3000);
-    
-    console.log('🔐 [Dashboard] ========== onComplete END ==========');
   }, [displayAddress, address, solanaAddress, showUnlockModal, getCurrentAddress, setShowUnlockModal]);
   
   // ✅ Load user preferences from Supabase (cross-device sync)
@@ -407,19 +392,6 @@ export default function Dashboard() {
     const isRealChainSwitch = previousChainAddress.current.chain !== currentChain;
     const isAddressChange = previousChainAddress.current.address !== displayAddress;
     const isInitialLoad = previousChainAddress.current.address === null && displayAddress === null;
-    
-    console.log('╔═══════════════════════════════════════════════════════════════╗');
-    console.log('║           🔄 CHAIN SWITCH EFFECT TRIGGERED                     ║');
-    console.log('╚═══════════════════════════════════════════════════════════════╝');
-    console.log(`   Current chain: ${currentChain}`);
-    console.log(`   Current address: ${displayAddress?.substring(0, 12) || 'null'}...`);
-    console.log(`   Previous chain: ${previousChainAddress.current.chain}`);
-    console.log(`   Previous address: ${previousChainAddress.current.address?.substring(0, 12) || 'null'}...`);
-    console.log(`   Is REAL chain switch: ${isRealChainSwitch}`);
-    console.log(`   Is address change ONLY: ${isAddressChange && !isRealChainSwitch}`);
-    console.log(`   Is initial load: ${isInitialLoad}`);
-    console.log('═══════════════════════════════════════════════════════════════');
-    
     logger.log(`🔄 [Dashboard] Effect triggered: chain=${currentChain}, address=${displayAddress?.substring(0, 8) || 'null'}`);
     logger.log(`   Previous: chain=${previousChainAddress.current.chain}, address=${previousChainAddress.current.address?.substring(0, 8) || 'null'}`);
     logger.log(`   Is real chain switch: ${isRealChainSwitch}`);
@@ -440,38 +412,23 @@ export default function Dashboard() {
     
     // 🚪 SKIP fetch on sign out (address → null)
     if (isSignOut) {
-      console.log('');
-      console.log('🚪 SKIPPING FETCH - User signed out (address cleared)');
-      console.log(`   Chain: ${currentChain}, Address changed to null`);
-      console.log('');
       logger.log(`🚪 [Dashboard] Skipping fetch - sign out detected`);
       return; // EXIT EARLY
     }
     
     if (!isRealChainSwitch && isAddressChange && displayAddress && !isUnlockAfterRefresh) {
-      console.log('');
-      console.log('⏭️  SKIPPING FETCH - This is just address change, NOT a chain switch!');
-      console.log(`   Address changed but chain stayed the same: ${currentChain}`);
-      console.log('');
       logger.log(`⏭️ [Dashboard] Skipping fetch - address change only`);
       return; // EXIT EARLY
     }
     
     // ✅ If this is wallet unlock after hard refresh (null → address), PROCEED with fetch
     if (isUnlockAfterRefresh) {
-      console.log('');
-      console.log('🔓 WALLET UNLOCKED AFTER HARD REFRESH - Fetching data!');
-      console.log(`   Address unlocked: ${displayAddress.substring(0, 12)}...`);
-      console.log(`   Chain: ${currentChain}`);
-      console.log('');
       logger.log(`🔓 [Dashboard] Wallet unlocked - fetching data for ${displayAddress.substring(0, 8)}...`);
     }
     
     const prevChain = activeFetchControllers.current.size > 0 
       ? Array.from(activeFetchControllers.current.keys())[0] 
       : null;
-    
-    console.log(`✅ Proceeding with chain switch logic: ${prevChain || 'initial'} → ${currentChain}`);
     logger.log(`🔄 [Dashboard] Chain switching: ${prevChain || 'initial'} → ${currentChain}`);
     
     // 🔥 CRITICAL: Block visibility change fetches during chain switch
@@ -527,9 +484,6 @@ export default function Dashboard() {
     
     // 5. Start fresh fetch voor nieuwe chain (always fetch to get latest balance!)
     const fetchTimer = setTimeout(() => {
-      console.log('');
-      console.log('⏰ Triggering fetchData() from chain switch effect (100ms delay)');
-      console.log('');
       fetchData(false); // Always fetch fresh data on chain switch
     }, 100);
     
@@ -582,11 +536,9 @@ export default function Dashboard() {
   const fetchData = useCallback(async (force = false) => {
     // ✅ DEBUG: Only log in development mode
     if (process.env.NODE_ENV === 'development') {
-      console.log('🔄 [Dashboard] fetchData called', { force, displayAddress, currentChain });
     }
     
     // 🔥 CRITICAL: ALWAYS clear price cache to get fresh prices!
-    console.log('🗑️ CLEARING ALL PRICE CACHES - forcing fresh data!');
     priceService.clearCache();
     
     // ✅ Early return if no displayAddress (normal during initialization)
@@ -695,15 +647,6 @@ export default function Dashboard() {
       
       // ✅ STEP 1: Fetch native balance
       if (currentChain === 'ethereum') {
-        console.log('\n\n');
-        console.log('╔═══════════════════════════════════════════════════════════════╗');
-        console.log('║        🔥 ETHEREUM DEBUG - START PORTFOLIO BEREKENING        ║');
-        console.log('║        ⚡ BUILD: 2025-12-29-01:03 - FULL DEBUG + NO-CACHE    ║');
-        console.log('╚═══════════════════════════════════════════════════════════════╝');
-        console.log('\n');
-        console.log('═══════════════════════════════════════════════════════════════');
-        console.log('🔍 ETHEREUM DEBUG - STEP 1: NATIVE ETH BALANCE');
-        console.log('═══════════════════════════════════════════════════════════════');
       }
       
       logger.log(`\n--- STEP 1: Fetch Native Balance ---`);
@@ -717,24 +660,15 @@ export default function Dashboard() {
       logger.log(`[${timestamp}] ✅ Balance received: ${bal} ${chain.nativeCurrency.symbol}`);
       
       if (currentChain === 'ethereum') {
-        console.log(`📍 Wallet Address: ${displayAddress}`);
-        console.log(`✅ Native ETH Balance: ${bal} ETH`);
       }
       
       updateBalance(bal);
 
       // ✅ STEP 2: Fetch ALL prices in ONE batch request (optimized!)
       if (currentChain === 'ethereum') {
-        console.log('\n');
-        console.log('═══════════════════════════════════════════════════════════════');
-        console.log('💰 ETHEREUM DEBUG - STEP 2: ETH PRIJS OPHALEN');
-        console.log('═══════════════════════════════════════════════════════════════');
       }
       
       if (currentChain === 'solana') {
-        console.log('\n🔴🔴🔴 [SOLANA DEBUG] ═══════════════════════════════════════');
-        console.log('💰 STEP 2: NATIVE SOL PRICE FETCH');
-        console.log('══════════════════════════════════════════════════════════════════');
       }
       
       logger.log(`\n--- STEP 2: Fetch Prices (Batch) ---`);
@@ -747,13 +681,9 @@ export default function Dashboard() {
       }
       
       if (currentChain === 'ethereum') {
-        console.log(`📡 Fetching prijs voor: ${chain.nativeCurrency.symbol}`);
-        console.log('   Via: CoinGecko → Binance (fallback)');
       }
       
       if (currentChain === 'solana') {
-        console.log(`🔴 Fetching native price for: ${chain.nativeCurrency.symbol}`);
-        console.log(`🔴 API: priceService.getMultiplePrices(['${chain.nativeCurrency.symbol}'])`);
       }
       
       logger.log(`[${timestamp}] 📡 Fetching prices + change24h for: ${allSymbols.join(', ')}`);
@@ -763,10 +693,8 @@ export default function Dashboard() {
       const nativeSymbol = chain.nativeCurrency.symbol;
       
       if (currentChain === 'ethereum') {
-        console.log(`📡 Fetching ${nativeSymbol} via PriceService (Binance → CoinGecko fallback)`);
       }
       if (currentChain === 'solana') {
-        console.log(`🔴📡 Fetching ${nativeSymbol} via PriceService (CoinGecko Pro)`);
       }
       
       const nativePriceData = await priceService.getMultiplePrices([nativeSymbol]);
@@ -777,10 +705,8 @@ export default function Dashboard() {
       const nativePrice = nativePriceData[nativeSymbol] || { price: 0, change24h: 0 };
       
       if (currentChain === 'ethereum') {
-        console.log(`✅ ${nativeSymbol} price: $${nativePrice.price} (${nativePrice.change24h >= 0 ? '+' : ''}${nativePrice.change24h.toFixed(2)}%)`);
       }
       if (currentChain === 'solana') {
-        console.log(`🔴✅ ${nativeSymbol} price: $${nativePrice.price} (${nativePrice.change24h >= 0 ? '+' : ''}${nativePrice.change24h.toFixed(2)}%)`);
       }
       
       // ✅ Abort check after price fetch
@@ -795,20 +721,9 @@ export default function Dashboard() {
       const nativeChange = nativePrice.change24h;
       
       if (currentChain === 'ethereum') {
-        console.log('\n💰 ETH Price received:');
-        console.log(`   ⏰ TIMESTAMP: ${new Date().toLocaleTimeString('nl-NL')} (${new Date().toISOString()})`);
-        console.log(`   Prijs: $${nativePriceValue}`);
-        console.log(`   24h Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
-        console.log(`   Bron: Binance (direct)`);
       }
       
       if (currentChain === 'solana') {
-        console.log('\n🔴 SOL Prijs Response:');
-        console.log(`   ⏰ TIMESTAMP: ${new Date().toLocaleTimeString('nl-NL')} (${new Date().toISOString()})`);
-        console.log(`   Raw pricesMap:`, pricesMap);
-        console.log(`   SOL entry:`, pricesMap['SOL']);
-        console.log(`   💰 Parsed Price: $${nativePriceValue}`);
-        console.log(`   📈 Parsed 24h Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
       }
       
       // ✅ Update chain-specific state instead of global state
@@ -826,16 +741,9 @@ export default function Dashboard() {
       });
       
       if (currentChain === 'ethereum') {
-        console.log('\n🧮 ETH Waarde Berekening:');
-        console.log(`   ${bal} ETH × $${nativePriceValue.toFixed(2)}`);
-        console.log(`   💵 = $${nativeValueUSD.toFixed(2)}`);
       }
       
       if (currentChain === 'solana') {
-        console.log('\n🔴🧮 SOL Waarde Berekening:');
-        console.log(`   ${bal} SOL × $${nativePriceValue.toFixed(2)}`);
-        console.log(`   💵 = $${nativeValueUSD.toFixed(2)}`);
-        console.log(`🔴══════════════════════════════════════════════════════════════════\n`);
       }
 
       // ✅ STEP 3: Fetch token balances (chain-specific)
@@ -880,8 +788,6 @@ export default function Dashboard() {
           if (tokensNeedingMintPrice.length > 0) {
             logger.log(`[${timestamp}] 🔍 Fetching DexScreener prices for ${tokensNeedingMintPrice.length} tokens without CoinGecko/Binance prices...`);
             const mints = tokensNeedingMintPrice.map((t: any) => t.address);
-            console.log(`\n📡 Fetching prices van DexScreener voor ${mints.length} mint addresses...`);
-            
             const mintPrices = await priceService.getPricesByMints(mints);
             
             // ✅ Abort check after DexScreener fetch
@@ -934,10 +840,6 @@ export default function Dashboard() {
       } else if (displayAddress) {
         // ✅ EVM: Fetch ERC20 tokens
         if (currentChain === 'ethereum') {
-          console.log('\n');
-          console.log('═══════════════════════════════════════════════════════════════');
-          console.log('🔍 ETHEREUM DEBUG - STEP 3: ERC-20 TOKEN BALANCES');
-          console.log('═══════════════════════════════════════════════════════════════');
         }
         
         logger.log(`\n--- STEP 3: Fetch Token Balances (EVM) ---`);
@@ -946,8 +848,6 @@ export default function Dashboard() {
         let erc20Tokens: any[] = [];
         
         if (currentChain === 'ethereum') {
-          console.log(`📍 Wallet Address: ${displayAddress}`);
-          console.log(`🔮 Attempting to fetch ALL ERC20 tokens via Alchemy...`);
         }
         
         try {
@@ -963,14 +863,7 @@ export default function Dashboard() {
             logger.log(`[${timestamp}] ✅ Alchemy found ${erc20Tokens.length} ERC20 tokens with balance`);
             
             if (currentChain === 'ethereum') {
-              console.log(`\n✅ Found ${erc20Tokens.length} ERC-20 tokens with non-zero balance via Alchemy`);
               erc20Tokens.forEach((token: any, index: number) => {
-                console.log(`\n  Token ${index + 1}:`);
-                console.log(`    Symbol: ${token.symbol}`);
-                console.log(`    Name: ${token.name}`);
-                console.log(`    Balance: ${token.balance}`);
-                console.log(`    Contract Address: ${token.address}`);
-                console.log(`    Decimals: ${token.decimals}`);
               });
             }
             
@@ -981,13 +874,11 @@ export default function Dashboard() {
           } else {
             logger.log(`[${timestamp}] ℹ️ No tokens found via Alchemy, falling back to POPULAR_TOKENS`);
             if (currentChain === 'ethereum') {
-              console.log(`\nℹ️ No tokens found via Alchemy, falling back to POPULAR_TOKENS`);
             }
           }
         } catch (error) {
           logger.warn(`[${timestamp}] ⚠️ Alchemy failed, falling back to POPULAR_TOKENS:`, error);
           if (currentChain === 'ethereum') {
-            console.log(`\n⚠️ Alchemy failed, falling back to POPULAR_TOKENS:`, error);
           }
         }
         
@@ -1012,10 +903,6 @@ export default function Dashboard() {
         // ✅ STEP 4: Enrich with USD prices
         if (erc20Tokens.length > 0) {
           if (currentChain === 'ethereum') {
-            console.log('\n');
-            console.log('═══════════════════════════════════════════════════════════════');
-            console.log('💰 ETHEREUM DEBUG - STEP 4: ERC-20 TOKEN PRICES');
-            console.log('═══════════════════════════════════════════════════════════════');
           }
           
           logger.log(`\n--- STEP 4: Fetch Token Prices (by Contract Address) ---`);
@@ -1025,10 +912,7 @@ export default function Dashboard() {
           logger.log(`[${timestamp}] 📡 Fetching prices for ${tokenAddresses.length} addresses via CoinGecko + DexScreener...`);
           
           if (currentChain === 'ethereum') {
-            console.log(`\n📡 Fetching prices via CoinGecko (by contract address) voor:`);
             erc20Tokens.forEach((token: any, idx: number) => {
-              console.log(`   ${idx + 1}. ${token.symbol} (${token.name})`);
-              console.log(`      Contract: ${token.address}`);
             });
           }
           
@@ -1043,16 +927,10 @@ export default function Dashboard() {
           logger.log(`[${timestamp}] 💰 Received prices for ${pricesByAddress.size}/${tokenAddresses.length} tokens`);
           
           if (currentChain === 'ethereum') {
-            console.log('\n💰 Prices received from CoinGecko:');
-            console.log(`   ⏰ TIMESTAMP: ${new Date().toLocaleTimeString('nl-NL')} (${new Date().toISOString()})`);
             erc20Tokens.forEach((token: any) => {
               const priceData = pricesByAddress.get(token.address.toLowerCase());
               if (priceData && priceData.price > 0) {
-                console.log(`  ${token.symbol}:`);
-                console.log(`    Prijs: $${priceData.price}`);
-                console.log(`    24h Change: ${priceData.change24h >= 0 ? '+' : ''}${priceData.change24h.toFixed(2)}%`);
               } else {
-                console.log(`  ${token.symbol}: ❌ Geen prijs gevonden`);
               }
             });
           }
@@ -1087,10 +965,6 @@ export default function Dashboard() {
           
           // Combine tokens with prices
           if (currentChain === 'ethereum') {
-            console.log('\n');
-            console.log('═══════════════════════════════════════════════════════════════');
-            console.log('🧮 ETHEREUM DEBUG - TOKEN VALUE BEREKENINGEN');
-            console.log('═══════════════════════════════════════════════════════════════');
           }
           
           const tokensWithPrices = erc20Tokens.map((token: any) => {
@@ -1125,12 +999,6 @@ export default function Dashboard() {
               if (currentChain === 'ethereum') {
                 // Find index for console logging
                 const tokenIndex = erc20Tokens.findIndex((t: any) => t.address === token.address);
-                console.log(`\n📊 Token ${tokenIndex + 1}: ${token.symbol}`);
-                console.log(`   Balance: ${token.balance}`);
-                console.log(`   Prijs per token: $${priceData.price.toFixed(6)}`);
-                console.log(`   Berekening: ${balanceNum.toFixed(6)} × $${priceData.price.toFixed(6)}`);
-                console.log(`   💵 Totale waarde: $${balanceUSD.toFixed(2)}`);
-                console.log(`   📈 24h Change: ${priceData.change24h >= 0 ? '+' : ''}${priceData.change24h.toFixed(2)}%`);
               }
             }
             
@@ -1156,10 +1024,6 @@ export default function Dashboard() {
 
       // ✅ STEP 5: Update tokens and calculate total portfolio value
       if (currentChain === 'ethereum') {
-        console.log('\n');
-        console.log('═══════════════════════════════════════════════════════════════');
-        console.log('💎 ETHEREUM DEBUG - STEP 5: TOTALE PORTFOLIO VALUE');
-        console.log('═══════════════════════════════════════════════════════════════');
       }
       
       logger.log(`\n--- STEP 5: Calculate Total Portfolio Value ---`);
@@ -1181,14 +1045,6 @@ export default function Dashboard() {
         const totalValue = nativeValueUSD + tokensTotalUSD;
         
         if (currentChain === 'ethereum') {
-          console.log(`\n💰 Native ETH waarde: $${nativeValueUSD.toFixed(2)}`);
-          console.log(`💰 ERC-20 Tokens waarde: $${tokensTotalUSD.toFixed(2)}`);
-          console.log(`   (${tokensWithValue.length} tokens)`);
-          console.log('\n🧮 Totale Portfolio Berekening:');
-          console.log(`   $${nativeValueUSD.toFixed(2)} (ETH)`);
-          console.log(`   + $${tokensTotalUSD.toFixed(2)} (Tokens)`);
-          console.log(`   ────────────────────`);
-          console.log(`   💎 TOTAAL: $${totalValue.toFixed(2)}`);
         }
         
         // ✅ Update chain-specific state
@@ -1209,9 +1065,6 @@ export default function Dashboard() {
         updateTokens(currentChain, []); // Clear tokens for this chain
         
         if (currentChain === 'ethereum') {
-          console.log(`\n💰 Native ETH waarde: $${nativeValueUSD.toFixed(2)}`);
-          console.log(`💰 ERC-20 Tokens waarde: $0.00 (geen tokens)`);
-          console.log(`\n💎 TOTAAL: $${nativeValueUSD.toFixed(2)} (alleen native ETH)`);
         }
         
         // ✅ Update chain-specific state
@@ -1229,17 +1082,12 @@ export default function Dashboard() {
       // ✅ STEP 6: Native 24h change already fetched in batch call above!
       // No extra API call needed - change24h is already in pricesMap!
       if (currentChain === 'ethereum') {
-        console.log('\n');
-        console.log('═══════════════════════════════════════════════════════════════');
-        console.log('📈 ETHEREUM DEBUG - STEP 6: 24H CHANGE BEREKENING');
-        console.log('═══════════════════════════════════════════════════════════════');
       }
       
       logger.log(`\n--- STEP 6: Native 24h Change (from batch) ---`);
       logger.log(`[${timestamp}] 📈 Native 24h Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
       
       if (currentChain === 'ethereum') {
-        console.log(`\n📈 Native ETH 24h Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
       }
       
       // ✅ STEP 7: Calculate weighted portfolio change (instant accurate!)
@@ -1260,22 +1108,12 @@ export default function Dashboard() {
       });
       
       if (currentChain === 'ethereum') {
-        console.log(`\n🔍 Tokens gebruikt voor weighted change berekening:`);
-        console.log(`   Totaal tokens: ${tokensWithValue.length}`);
-        console.log(`   Tokens met valide change data: ${tokensForCalculation.length}`);
-        console.log(`\n📊 Weighted Change Inputs:`);
-        console.log(`   Native Balance: ${parseFloat(bal)} ETH`);
-        console.log(`   Native Price: $${nativePriceValue.toFixed(2)}`);
-        console.log(`   Native Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
       }
       
       tokensForCalculation.forEach((token, idx) => {
         logger.log(`[${timestamp}]   Token ${idx + 1}: ${token.symbol || token.name || 'Unknown'} - balanceUSD: ${token.balanceUSD}, change24h: ${token.change24h}%`);
         
         if (currentChain === 'ethereum') {
-          console.log(`\n   Token ${idx + 1}: ${token.symbol}`);
-          console.log(`     USD Waarde: $${token.balanceUSD}`);
-          console.log(`     24h Change: ${(token.change24h || 0) >= 0 ? '+' : ''}${(token.change24h || 0).toFixed(2)}%`);
         }
       });
       
@@ -1291,39 +1129,19 @@ export default function Dashboard() {
       logger.log(`[${timestamp}] 🔍 DEBUG: Weighted change calculated: ${weightedChange.toFixed(2)}% (native: ${nativeChange.toFixed(2)}%)`);
       
       if (currentChain === 'ethereum') {
-        console.log(`\n🧮 Weighted Portfolio Change Berekening:`);
-        
         const totalPortfolioValue = nativeValueUSD + tokensWithValue.reduce((sum, t) => sum + parseFloat(t.balanceUSD || '0'), 0);
         
         if (totalPortfolioValue > 0) {
           const nativeWeight = nativeValueUSD / totalPortfolioValue;
           const nativeContribution = nativeWeight * nativeChange;
-          
-          console.log(`\n   Native ETH Contributie:`);
-          console.log(`     Waarde: $${nativeValueUSD.toFixed(2)}`);
-          console.log(`     Weight: ${(nativeWeight * 100).toFixed(2)}%`);
-          console.log(`     Change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
-          console.log(`     Contributie: ${(nativeWeight * 100).toFixed(2)}% × ${nativeChange.toFixed(2)}% = ${nativeContribution.toFixed(3)}%`);
-          
           let tokenContribution = 0;
           tokensForCalculation.forEach((token, idx) => {
             const tokenValue = parseFloat(token.balanceUSD || '0');
             const tokenWeight = tokenValue / totalPortfolioValue;
             const contribution = tokenWeight * (token.change24h || 0);
             tokenContribution += contribution;
-            
-            console.log(`\n   Token ${idx + 1} (${token.symbol}) Contributie:`);
-            console.log(`     Waarde: $${tokenValue.toFixed(2)}`);
-            console.log(`     Weight: ${(tokenWeight * 100).toFixed(2)}%`);
-            console.log(`     Change: ${(token.change24h || 0) >= 0 ? '+' : ''}${(token.change24h || 0).toFixed(2)}%`);
-            console.log(`     Contributie: ${(tokenWeight * 100).toFixed(2)}% × ${(token.change24h || 0).toFixed(2)}% = ${contribution.toFixed(3)}%`);
           });
-          
-          console.log(`\n   ────────────────────────────────────`);
-          console.log(`   📈 TOTALE WEIGHTED CHANGE: ${weightedChange >= 0 ? '+' : ''}${weightedChange.toFixed(2)}%`);
-          console.log(`      (Native: ${nativeContribution.toFixed(3)}% + Tokens: ${tokenContribution.toFixed(3)}%)`);
         } else {
-          console.log(`   ⚠️  Portfolio value is $0, weighted change = ${weightedChange.toFixed(2)}%`);
         }
       }
       
@@ -1336,17 +1154,6 @@ export default function Dashboard() {
       logger.log(`[${timestamp}] 📊 Portfolio 24h Change: ${weightedChange >= 0 ? '+' : ''}${weightedChange.toFixed(2)}%`);
       
       if (currentChain === 'ethereum') {
-        console.log('\n');
-        console.log('╔═══════════════════════════════════════════════════════════════╗');
-        console.log('║           ✅ ETHEREUM DEBUG - BEREKENING COMPLEET            ║');
-        console.log('╚═══════════════════════════════════════════════════════════════╝');
-        console.log('\n📊 FINALE WAARDEN DIE GETOOND WORDEN:');
-        console.log(`   💎 Total Portfolio Value: $${(nativeValueUSD + tokensWithValue.reduce((sum, t) => sum + parseFloat(t.balanceUSD || '0'), 0)).toFixed(2)}`);
-        console.log(`   📈 24h Change: ${weightedChange >= 0 ? '+' : ''}${weightedChange.toFixed(2)}%`);
-        console.log(`   🪙 Native Balance: ${bal} ETH`);
-        console.log(`   💰 Native Value: $${nativeValueUSD.toFixed(2)}`);
-        console.log(`   🎯 Aantal Tokens: ${tokensWithValue.length}`);
-        console.log('\n');
       }
       
       // ✅ PHASE 4: Cache with native price included
@@ -1580,7 +1387,6 @@ export default function Dashboard() {
   useEffect(() => {
     // ✅ DEBUG: Only log in development mode
     if (process.env.NODE_ENV === 'development') {
-      console.log('🔄 [Dashboard] useEffect triggered', { displayAddress, currentChain });
     }
     
     // ✅ Early return if no displayAddress (normal during initialization)
@@ -1645,7 +1451,6 @@ export default function Dashboard() {
     const fullRefreshInterval = setInterval(() => {
       // ✅ DEBUG: Only log in development mode
       if (process.env.NODE_ENV === 'development') {
-        console.log('⏰ [Dashboard] Full refresh interval triggered (60s)');
         logger.log('⏰ [Dashboard] Full refresh interval triggered');
       }
       // Use ref to call fetchData to avoid dependency issues
