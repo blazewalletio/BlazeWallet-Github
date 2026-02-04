@@ -9,10 +9,13 @@ import AccountSelectorDropdown from './AccountSelectorDropdown';
 import NewEmailModal from './NewEmailModal';
 import WalletRecoveryFlow from './WalletRecoveryFlow';
 import DeviceVerificationModal from './DeviceVerificationModal';
+import SensitiveAction2FAModal from './SensitiveAction2FAModal';
 import { logger } from '@/lib/logger';
 import { rateLimitService } from '@/lib/rate-limit-service';
 import { EnhancedDeviceInfo } from '@/lib/device-fingerprint-pro';
 import { DeviceVerificationCheckV2 } from '@/lib/device-verification-check-v2'; // ← V2!
+import { twoFactorSessionService } from '@/lib/2fa-session-service';
+import { supabase } from '@/lib/supabase';
 
 interface PasswordUnlockModalProps {
   isOpen: boolean;
@@ -42,6 +45,12 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     password: string;
   } | null>(null);
 
+  // 🔐 2FA State for GRADUATED SECURITY
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string>('');
+  const [pending2FAPassword, setPending2FAPassword] = useState<string>('');
+
   // Load current account and reset state when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -56,6 +65,10 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       setIsSwitching(false);
       setShowRecoveryFlow(false);
       setPendingNewEmail(null);
+      setShow2FAModal(false);
+      setPending2FAPassword('');
+      setUserId(null);
+      setUserEmail('');
       
       logger.log('📧 Current account loaded:', account);
     }
@@ -104,7 +117,8 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    // ✅ NEW: Check device verification for email wallets BEFORE unlock (V2!)
+    
+    // ✅ STEP 1: Check device verification for email wallets BEFORE unlock (V2!)
     const isSeedWallet = DeviceVerificationCheckV2.isSeedWallet();
     if (!isSeedWallet) {
       logger.log('📧 [PasswordUnlock] Email wallet detected - checking device verification (V2)...');
@@ -127,8 +141,48 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         return;
       }
       logger.log('✅ [PasswordUnlock] Device verified - proceeding with unlock');
+      
+      // 🔐 STEP 2: GRADUATED SECURITY - Check 2FA session for email wallets
+      const email = localStorage.getItem('wallet_email');
+      const storedUserId = localStorage.getItem('supabase_user_id');
+      
+      if (email && storedUserId) {
+        logger.log('🔐 [PasswordUnlock] Checking 2FA session for email wallet...');
+        
+        // Check if user has 2FA enabled
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('two_factor_enabled')
+          .eq('user_id', storedUserId)
+          .single();
+        
+        if (profile?.two_factor_enabled) {
+          logger.log('🔐 [PasswordUnlock] 2FA is enabled - checking session age...');
+          
+          // Check 2FA session status
+          const sessionStatus = await twoFactorSessionService.checkSession(storedUserId);
+          
+          if (sessionStatus.required) {
+            // 🚨 SESSION EXPIRED or NO SESSION → Require 2FA BEFORE unlock
+            logger.log('⚠️ [PasswordUnlock] 2FA session expired - showing 2FA modal');
+            setUserId(storedUserId);
+            setUserEmail(email);
+            setPending2FAPassword(password);
+            setShow2FAModal(true);
+            return; // Stop here - wait for 2FA verification
+          } else {
+            // ✅ SESSION VALID → Password only
+            logger.log('✅ [PasswordUnlock] 2FA session still valid - password only');
+            if (sessionStatus.isNearExpiry) {
+              logger.log('⚠️ [PasswordUnlock] Session expiring soon:', sessionStatus.secondsRemaining, 'seconds');
+            }
+          }
+        } else {
+          logger.log('ℹ️ [PasswordUnlock] 2FA not enabled for this user');
+        }
+      }
     } else {
-      logger.log('🌱 [PasswordUnlock] Seed wallet - no device verification needed');
+      logger.log('🌱 [PasswordUnlock] Seed wallet - no device verification or 2FA needed');
     }
 
     // Note: Rate limiting is now handled in wallet-store.ts unlockWithPassword()
@@ -243,7 +297,70 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     }
   };
 
-  // Handle account switching
+  // 🔐 Handle successful 2FA verification - then proceed with unlock
+  const handle2FASuccess = async () => {
+    logger.log('✅ [PasswordUnlock] 2FA verified - proceeding with password unlock');
+    setShow2FAModal(false);
+    
+    // Now proceed with the actual unlock using the stored password
+    setIsLoading(true);
+    try {
+      // Check if wallet was created with email
+      const createdWithEmail = localStorage.getItem('wallet_created_with_email') === 'true';
+      const email = localStorage.getItem('wallet_email');
+      
+      if (createdWithEmail && email && pending2FAPassword) {
+        // ✅ FORT KNOX: Use strict authentication with device verification
+        const { strictSignInWithEmail } = await import('@/lib/supabase-auth-strict');
+        const result = await strictSignInWithEmail(email, pending2FAPassword);
+        
+        if (!result.success) {
+          // Check if device verification is required
+          if (result.requiresDeviceVerification && result.deviceVerificationToken && result.deviceInfo) {
+            logger.log('🚫 Device verification required after 2FA');
+            
+            // Show device verification modal
+            setDeviceVerificationData({
+              deviceInfo: result.deviceInfo,
+              deviceToken: result.deviceVerificationToken,
+              email,
+              password: pending2FAPassword,
+            });
+            setShowDeviceVerification(true);
+            return;
+          }
+          throw new Error(result.error || 'Invalid password');
+        }
+        
+        // Wallet is now decrypted and loaded
+        if (result.mnemonic) {
+          const { importWallet } = useWalletStore.getState();
+          await importWallet(result.mnemonic);
+        }
+        
+        // ✅ Save account to recent after successful unlock
+        saveCurrentAccountToRecent();
+        
+        // Set session flag
+        sessionStorage.setItem('wallet_unlocked_this_session', 'true');
+        
+        // ✅ Add small delay to ensure state propagates before calling onComplete
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Clear pending password
+        setPending2FAPassword('');
+        
+        onComplete();
+      }
+    } catch (error: any) {
+      console.error('❌ [PasswordUnlock] Error during unlock after 2FA:', error);
+      setError(error.message || 'Failed to unlock wallet');
+      setPending2FAPassword(''); // Clear password on error
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSelectAccount = async (account: WalletAccount) => {
     logger.log('🔄 Switching account:', account);
     setPassword('');
@@ -578,6 +695,22 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
             onComplete(); // Close unlock modal and go to dashboard
           }}
         />
+
+        {/* 🔐 2FA Modal for Graduated Security */}
+        {show2FAModal && userId && (
+          <SensitiveAction2FAModal
+            isOpen={show2FAModal}
+            onClose={() => {
+              setShow2FAModal(false);
+              setPending2FAPassword('');
+              setError('2FA verification cancelled');
+            }}
+            onSuccess={handle2FASuccess}
+            userId={userId}
+            actionName="Unlock Wallet"
+            actionType="send" // Using "send" type for session creation
+          />
+        )}
       </motion.div>
     </AnimatePresence>
   );
