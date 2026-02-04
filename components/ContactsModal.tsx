@@ -341,11 +341,6 @@ export default function ContactsModal({
                               <span className="flex items-center gap-1">
                                 {CHAINS[contact.chain as keyof typeof CHAINS]?.icon} {CHAINS[contact.chain as keyof typeof CHAINS]?.name}
                               </span>
-                              {contact.usage_count > 0 && (
-                                <span className="flex items-center gap-1">
-                                  <TrendingUp className="w-3 h-3" /> {contact.usage_count}x
-                                </span>
-                              )}
                             </div>
                           </div>
 
