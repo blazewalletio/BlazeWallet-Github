@@ -270,6 +270,45 @@ export default function Dashboard() {
     };
   }, [currentChain, balance, currentState.nativePriceUSD, currentState.change24h, displayAddress]);
   
+  // ✅ FIX: Stable callback for password unlock complete handler
+  // Using useCallback prevents stale closure issues
+  const handlePasswordUnlockComplete = useCallback(() => {
+    console.log('🔐 [Dashboard] ========== onComplete START ==========');
+    console.log('🔐 [Dashboard] Current displayAddress:', displayAddress);
+    console.log('🔐 [Dashboard] Current address:', address);
+    console.log('🔐 [Dashboard] Current solanaAddress:', solanaAddress);
+    console.log('🔐 [Dashboard] Current showPasswordUnlock:', showPasswordUnlock);
+    
+    logger.log('✅ Wallet unlocked successfully');
+    
+    // ✅ FIX: Wait for displayAddress to be available before closing modal
+    // This prevents the modal from staying open on first unlock attempt
+    console.log('🔐 [Dashboard] Starting address check interval...');
+    let checkCount = 0;
+    const checkAddressInterval = setInterval(() => {
+      checkCount++;
+      const currentAddress = getCurrentAddress();
+      console.log(`🔐 [Dashboard] Address check #${checkCount}: ${currentAddress}`);
+      
+      if (currentAddress) {
+        console.log('✅ [Dashboard] displayAddress is now available:', currentAddress);
+        console.log('✅ [Dashboard] Closing modal (setShowPasswordUnlock(false))');
+        setShowPasswordUnlock(false);
+        clearInterval(checkAddressInterval);
+      }
+    }, 50); // Check every 50ms
+    
+    // Safety timeout: close modal after 3 seconds even if address not available
+    setTimeout(() => {
+      console.log('⏰ [Dashboard] Safety timeout reached (3s)');
+      console.log('⏰ [Dashboard] Clearing interval and closing modal');
+      clearInterval(checkAddressInterval);
+      setShowPasswordUnlock(false);
+    }, 3000);
+    
+    console.log('🔐 [Dashboard] ========== onComplete END ==========');
+  }, [displayAddress, address, solanaAddress, showPasswordUnlock, getCurrentAddress]);
+  
   // ✅ Load user preferences from Supabase (cross-device sync)
   useEffect(() => {
     const loadUserPreferences = async () => {
@@ -2948,42 +2987,7 @@ export default function Dashboard() {
       {/* Password Unlock Modal - for lock/unlock flow */}
       <PasswordUnlockModal
         isOpen={showPasswordUnlock}
-        onComplete={() => {
-          console.log('🔐 [Dashboard] ========== onComplete START ==========');
-          console.log('🔐 [Dashboard] Current displayAddress:', displayAddress);
-          console.log('🔐 [Dashboard] Current address:', address);
-          console.log('🔐 [Dashboard] Current solanaAddress:', solanaAddress);
-          console.log('🔐 [Dashboard] Current showPasswordUnlock:', showPasswordUnlock);
-          
-          logger.log('✅ Wallet unlocked successfully');
-          
-          // ✅ FIX: Wait for displayAddress to be available before closing modal
-          // This prevents the modal from staying open on first unlock attempt
-          console.log('🔐 [Dashboard] Starting address check interval...');
-          let checkCount = 0;
-          const checkAddressInterval = setInterval(() => {
-            checkCount++;
-            const currentAddress = getCurrentAddress();
-            console.log(`🔐 [Dashboard] Address check #${checkCount}: ${currentAddress}`);
-            
-            if (currentAddress) {
-              console.log('✅ [Dashboard] displayAddress is now available:', currentAddress);
-              console.log('✅ [Dashboard] Closing modal (setShowPasswordUnlock(false))');
-              setShowPasswordUnlock(false);
-              clearInterval(checkAddressInterval);
-            }
-          }, 50); // Check every 50ms
-          
-          // Safety timeout: close modal after 3 seconds even if address not available
-          setTimeout(() => {
-            console.log('⏰ [Dashboard] Safety timeout reached (3s)');
-            console.log('⏰ [Dashboard] Clearing interval and closing modal');
-            clearInterval(checkAddressInterval);
-            setShowPasswordUnlock(false);
-          }, 3000);
-          
-          console.log('🔐 [Dashboard] ========== onComplete END ==========');
-        }}
+        onComplete={handlePasswordUnlockComplete}
         onFallback={() => {
           // User wants to use recovery phrase instead
           logger.log('⚠️ User requested fallback to recovery phrase');
