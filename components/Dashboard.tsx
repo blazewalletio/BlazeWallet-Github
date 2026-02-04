@@ -2985,15 +2985,18 @@ export default function Dashboard() {
       </AnimatePresence>
       
       {/* Password Unlock Modal - for lock/unlock flow */}
-      <PasswordUnlockModal
-        isOpen={showPasswordUnlock}
-        onComplete={handlePasswordUnlockComplete}
-        onFallback={() => {
-          // User wants to use recovery phrase instead
-          logger.log('⚠️ User requested fallback to recovery phrase');
-          // Keep modal open, user will use recovery phrase option in modal
-        }}
-      />
+      {/* ✅ FIX: Only render when open to ensure fresh callback */}
+      {showPasswordUnlock && (
+        <PasswordUnlockModal
+          isOpen={showPasswordUnlock}
+          onComplete={handlePasswordUnlockComplete}
+          onFallback={() => {
+            // User wants to use recovery phrase instead
+            logger.log('⚠️ User requested fallback to recovery phrase');
+            // Keep modal open, user will use recovery phrase option in modal
+          }}
+        />
+      )}
 
       {/* Smart Scheduler Modals */}
       <AnimatePresence>
