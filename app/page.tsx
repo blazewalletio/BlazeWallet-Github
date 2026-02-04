@@ -408,22 +408,10 @@ export default function Home() {
             />
           )}
           
-          {/* ✅ REACTIVE UNLOCK MODAL: Shows automatically based on wallet store state! */}
-          <PasswordUnlockModal
-            isOpen={shouldShowUnlockModal}
-            onComplete={() => {
-              // Wallet unlocked - store will update automatically
-              logger.log('✅ Wallet unlocked via modal');
-              sessionStorage.setItem('wallet_unlocked_this_session', 'true');
-              sessionStorage.setItem('last_activity', Date.now().toString());
-            }}
-            onFallback={() => {
-              // ✅ Sign out: Return to onboarding screen
-              logger.log('🚪 [Sign Out] Returning to onboarding screen');
-              setHasWallet(false);
-              setShowRecoveryPhrase(false);
-            }}
-          />
+          {/* ✅ REMOVED: Unlock modal moved to Dashboard.tsx to prevent duplicate modals
+              The Dashboard now handles all lock/unlock flows with a single modal instance.
+              This prevents the issue where two modals compete for the same unlock action. */}
+          {/* <PasswordUnlockModal ... /> */}
         </>
       )}
     </>
