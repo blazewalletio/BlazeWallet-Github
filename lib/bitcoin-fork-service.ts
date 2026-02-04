@@ -22,7 +22,7 @@ import * as bip39 from 'bip39';
 import { BIP32Factory } from 'bip32';
 import * as ecc from '@bitcoinerlab/secp256k1';
 import { CHAINS } from './chains';
-import { getCurrencyLogoSync } from './currency-logo-service';
+import { getCurrencyLogo } from './currency-logo-service';
 import { logger } from '@/lib/logger';
 
 // Initialize BIP32 with secp256k1
@@ -442,9 +442,9 @@ export class BitcoinForkService {
       }
 
       const data = await response.json();
-      const transactions: BitcoinForkTransaction[] = [];
-
-      for (const tx of data.txs || []) {
+      
+      // ✅ Fetch logos asynchronously for all transactions
+      const transactionPromises = (data.txs || []).map(async (tx: any) => {
         const isSent = tx.inputs.some((input: any) => 
           input.addresses && input.addresses.includes(address)
         );
@@ -467,7 +467,14 @@ export class BitcoinForkService {
             .reduce((sum: number, output: any) => sum + output.value, 0);
         }
 
-        transactions.push({
+        const symbol = CHAINS[this.chain]?.nativeCurrency.symbol || this.config.symbol;
+        const logoUrl = await getCurrencyLogo(
+          symbol,
+          undefined, // No contract address for native currency
+          this.chain
+        );
+
+        return {
           hash: tx.hash,
           from: tx.inputs.flatMap((input: any) => input.addresses || []),
           to: tx.outputs.flatMap((output: any) => output.addresses || []),
@@ -479,13 +486,14 @@ export class BitcoinForkService {
           isError: false,
           blockNumber: tx.block_height,
           type: isSent ? 'send' : 'receive',
-          // ✅ Native currency metadata with DYNAMIC logo
+          // ✅ Native currency metadata with CoinGecko Pro API logo
           tokenName: CHAINS[this.chain]?.nativeCurrency.name || this.config.name,
-          tokenSymbol: CHAINS[this.chain]?.nativeCurrency.symbol || this.config.symbol,
-          logoUrl: getCurrencyLogoSync(CHAINS[this.chain]?.nativeCurrency.symbol || this.config.symbol), // ✅ Dynamic currency logo
-        });
-      }
+          tokenSymbol: symbol,
+          logoUrl, // ✅ Now from CoinGecko Pro API with caching!
+        };
+      });
 
+      const transactions = await Promise.all(transactionPromises);
       return transactions;
     } catch (error) {
       logger.error(`[${this.config.symbol}] Error fetching transaction history:`, error);

@@ -117,7 +117,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     // ✅ STEP 1: Check device verification for email wallets BEFORE unlock (V2!)
     const isSeedWallet = DeviceVerificationCheckV2.isSeedWallet();
     if (!isSeedWallet) {

@@ -13,7 +13,7 @@ import { derivePath } from 'ed25519-hd-key';
 import * as bip39 from 'bip39';
 import bs58 from 'bs58';
 import { getSPLTokenMetadata, SPLTokenMetadata } from './spl-token-metadata';
-import { getCurrencyLogoSync } from './currency-logo-service';
+import { getCurrencyLogo } from './currency-logo-service';
 import { logger } from '@/lib/logger';
 
 // SPL Token Program IDs (support both legacy and Token-2022!)
@@ -430,8 +430,8 @@ export class SolanaService {
       return splTransfer;
     }
 
-    // Native SOL transfer (System Program)
-    const solTransfer = this.detectSOLTransfer(tx, accountKeys);
+    // Native SOL transfer (System Program) - ✅ NOW with await
+    const solTransfer = await this.detectSOLTransfer(tx, accountKeys);
     if (solTransfer) {
       return solTransfer;
     }
@@ -446,10 +446,10 @@ export class SolanaService {
   /**
    * Detect native SOL transfer
    */
-  private detectSOLTransfer(
+  private async detectSOLTransfer(
     tx: any,
     accountKeys: PublicKey[]
-  ): { from: string; to: string; value: string; type: string; tokenSymbol?: string; tokenName?: string; logoUrl?: string } | null {
+  ): Promise<{ from: string; to: string; value: string; type: string; tokenSymbol?: string; tokenName?: string; logoUrl?: string } | null> {
     // Get pre and post balances to calculate transfer amount
     if (tx.meta?.postBalances && tx.meta?.preBalances && accountKeys.length >= 2) {
       const diff = Math.abs(
@@ -457,6 +457,9 @@ export class SolanaService {
       );
       
       if (diff > 0) {
+        // ✅ EXCLUSIVELY use CoinGecko Pro API for logo
+        const logoUrl = await getCurrencyLogo('SOL', undefined, 'solana');
+        
         return {
           from: accountKeys[0]?.toBase58() || '',
           to: accountKeys[1]?.toBase58() || '',
@@ -464,7 +467,7 @@ export class SolanaService {
           type: 'Transfer',
           tokenSymbol: 'SOL',  // ✅ Native SOL symbol
           tokenName: 'Solana',  // ✅ Native SOL name
-          logoUrl: getCurrencyLogoSync('SOL'), // ✅ Dynamic currency logo
+          logoUrl, // ✅ ONLY from CoinGecko Pro API!
         };
       }
     }
@@ -538,6 +541,13 @@ export class SolanaService {
                 const isSent = parseFloat(postBalance.uiTokenAmount.uiAmountString || '0') < 
                                parseFloat(preBalance.uiTokenAmount.uiAmountString || '0');
                 
+                // ✅ EXCLUSIVELY use CoinGecko Pro API for logo (NO metadata.logoURI fallback!)
+                const logoUrl = await getCurrencyLogo(
+                  metadata.symbol,
+                  mint, // SPL token mint address as contract
+                  'solana'
+                );
+                
                 return {
                   from: isSent ? owner : accountKeys[0]?.toBase58() || '',
                   to: isSent ? accountKeys[1]?.toBase58() || '' : owner,
@@ -546,7 +556,7 @@ export class SolanaService {
                   tokenName: metadata.name,      // ✅ Full token name (e.g., "NPC Solana", "dogwifhat", "ai16z")
                   type: 'Token Transfer',
                   mint: mint,                    // ✅ Store mint for reference
-                  logoUrl: metadata.logoURI || '/crypto-solana.png', // ✅ FIX: Guaranteed fallback!
+                  logoUrl, // ✅ ONLY from CoinGecko Pro API!
                 };
               }
             }
@@ -570,8 +580,14 @@ export class SolanaService {
               logger.log(`✅ [SPL Transfer FALLBACK] Got metadata:`, {
                 symbol: metadata.symbol,
                 name: metadata.name,
-                logoURI: metadata.logoURI
               });
+              
+              // ✅ EXCLUSIVELY use CoinGecko Pro API for logo
+              const logoUrl = await getCurrencyLogo(
+                metadata.symbol,
+                mint,
+                'solana'
+              );
               
               return {
                 from: accountKeys[0]?.toBase58() || '',
@@ -581,7 +597,7 @@ export class SolanaService {
                 tokenName: metadata.name,
                 type: 'Token Transfer',
                 mint: mint,
-                logoUrl: metadata.logoURI || '/crypto-solana.png',
+                logoUrl, // ✅ ONLY from CoinGecko Pro API!
               };
             } catch (metadataError) {
               logger.error(`❌ [SPL Transfer FALLBACK] Metadata fetch failed for ${mint}:`, metadataError);
@@ -603,8 +619,14 @@ export class SolanaService {
               logger.log(`✅ [SPL Transfer FALLBACK POST] Got metadata:`, {
                 symbol: metadata.symbol,
                 name: metadata.name,
-                logoURI: metadata.logoURI
               });
+              
+              // ✅ EXCLUSIVELY use CoinGecko Pro API for logo
+              const logoUrl = await getCurrencyLogo(
+                metadata.symbol,
+                mint,
+                'solana'
+              );
               
               return {
                 from: accountKeys[0]?.toBase58() || '',
@@ -614,7 +636,7 @@ export class SolanaService {
                 tokenName: metadata.name,
                 type: 'Token Transfer',
                 mint: mint,
-                logoUrl: metadata.logoURI || '/crypto-solana.png',
+                logoUrl, // ✅ ONLY from CoinGecko Pro API!
               };
             } catch (metadataError) {
               logger.error(`❌ [SPL Transfer FALLBACK POST] Metadata fetch failed for ${mint}:`, metadataError);
@@ -624,6 +646,10 @@ export class SolanaService {
         
         // Ultimate fallback if we really can't find any token info
         logger.warn(`⚠️ [SPL Transfer] No token balances found, using generic fallback`);
+        
+        // ✅ Even for unknown tokens, try CoinGecko Pro API with 'SPL' symbol
+        const logoUrl = await getCurrencyLogo('SPL', undefined, 'solana');
+        
         return {
           from: accountKeys[0]?.toBase58() || '',
           to: accountKeys[1]?.toBase58() || '',
@@ -631,7 +657,7 @@ export class SolanaService {
           tokenSymbol: 'SPL',
           tokenName: 'Unknown Token',
           type: 'Token Transfer',
-          logoUrl: '/crypto-solana.png',
+          logoUrl, // ✅ From CoinGecko Pro API (will fallback to placeholder internally)
         };
       }
     }

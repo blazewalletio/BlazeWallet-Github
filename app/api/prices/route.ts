@@ -164,9 +164,9 @@ export async function GET(request: Request) {
       logger.log(`🔑 API key first 10 chars: ${apiKey ? apiKey.substring(0, 10) + '...' : 'N/A'}`);
       logger.log(`🌐 URL: ${url.substring(0, 150)}...`);
       
-      if (!apiKey) {
+        if (!apiKey) {
         logger.warn('⚠️ NO COINGECKO_API_KEY FOUND! Using free tier (rate limited to 10-50 calls/min)');
-      }
+        }
       
       // ✅ CRITICAL FIX: Pro API keys must be sent as HEADER, not query parameter!
       // Pro API: Header 'x-cg-pro-api-key'

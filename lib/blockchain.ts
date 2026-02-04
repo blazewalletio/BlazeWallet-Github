@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 import { CHAINS } from './chains';
-import { getCurrencyLogoSync } from './currency-logo-service';
+import { getCurrencyLogo } from './currency-logo-service';
 import { logger } from '@/lib/logger';
 
 export class BlockchainService {
@@ -144,21 +144,35 @@ export class BlockchainService {
               // Get chain config for metadata
               const chainConfig = CHAINS[this.chainKey];
               
-              return data.result.map((tx: any) => ({
-                hash: tx.hash,
-                from: tx.from,
-                to: tx.to,
-                value: ethers.formatEther(tx.value),
-                timestamp: parseInt(tx.timeStamp) * 1000,
-                isError: tx.isError === '1',
-                gasUsed: tx.gasUsed,
-                gasPrice: tx.gasPrice,
-                blockNumber: tx.blockNumber,
-                // ✅ Native currency metadata with DYNAMIC logo fetching
-                tokenName: chainConfig?.nativeCurrency.name || 'ETH',
-                tokenSymbol: chainConfig?.nativeCurrency.symbol || 'ETH',
-                logoUrl: getCurrencyLogoSync(chainConfig?.nativeCurrency.symbol || 'ETH'), // ✅ Dynamic currency logo
-              }));
+              // ✅ Fetch logos asynchronously for all transactions
+              const transactionsWithLogos = await Promise.all(
+                data.result.map(async (tx: any) => {
+                  const symbol = chainConfig?.nativeCurrency.symbol || 'ETH';
+                  const logoUrl = await getCurrencyLogo(
+                    symbol,
+                    undefined, // No contract address for native currency
+                    this.chainKey
+                  );
+                  
+                  return {
+                    hash: tx.hash,
+                    from: tx.from,
+                    to: tx.to,
+                    value: ethers.formatEther(tx.value),
+                    timestamp: parseInt(tx.timeStamp) * 1000,
+                    isError: tx.isError === '1',
+                    gasUsed: tx.gasUsed,
+                    gasPrice: tx.gasPrice,
+                    blockNumber: tx.blockNumber,
+                    // ✅ Native currency metadata with CoinGecko Pro API logo
+                    tokenName: chainConfig?.nativeCurrency.name || 'ETH',
+                    tokenSymbol: symbol,
+                    logoUrl, // ✅ Now from CoinGecko Pro API with caching!
+                  };
+                })
+              );
+              
+              return transactionsWithLogos;
             } else {
               // Silent - this is expected when no API key is configured
               logger.log(`Block explorer API response: ${data.message || 'No data'}`);
