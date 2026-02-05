@@ -21,6 +21,9 @@
     height: 100%;
     position: fixed;
     width: 100%;
+    /* 📱 SMART COMPACT: Smooth scroll behavior for iOS */
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Clean card styles */
@@ -232,6 +235,11 @@
 /* Bottom safe area for mobile */
 .pb-safe {
   padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+/* Sticky button safe area - for keyboard overlays */
+.pb-safe-sticky {
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
 }
 
 /* Left safe area for mobile */

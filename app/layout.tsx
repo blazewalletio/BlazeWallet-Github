@@ -49,6 +49,8 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   themeColor: "#f97316",
+  // 📱 SMART COMPACT: Allow viewport to resize with keyboard (better UX)
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({
