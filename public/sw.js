@@ -1,7 +1,7 @@
 // Custom Service Worker for Blaze Wallet
 // Handles caching with proper POST request filtering
 
-const CACHE_NAME = 'blaze-wallet-v1';
+const CACHE_NAME = 'blaze-wallet-v2';
 const urlsToCache = [
   '/',
   '/manifest.json',

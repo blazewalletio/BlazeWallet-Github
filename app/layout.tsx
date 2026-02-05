@@ -58,6 +58,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <meta name="theme-color" content="#f97316" />
+      </head>
       <body className={inter.className}>
         <CurrencyProvider>
           <MoonPayProviderWrapper>
