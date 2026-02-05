@@ -11,6 +11,7 @@ import BiometricAuthModal from '@/components/BiometricAuthModal';
 import QRLoginModal from '@/components/QRLoginModal';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import { logger } from '@/lib/logger';
+import { supabase } from '@/lib/supabase';
 import { DeviceVerificationCheckV2 } from '@/lib/device-verification-check-v2'; // ← V2!
 
 export default function Home() {
