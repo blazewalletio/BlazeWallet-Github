@@ -130,6 +130,9 @@ export default function Home() {
             logger.warn('⚠️ [DEVICE CHECK] Device not verified:', deviceCheck.reason);
             logger.warn('⚠️ [DEVICE CHECK] User has session + wallet, but device not verified');
             
+            // ✅ Import secureStorage FIRST (before using it in if/else blocks)
+            const { secureStorage } = await import('@/lib/secure-storage');
+            
             // Check if wallet exists in database
             const { data: walletData } = await supabase
               .from('wallets')
@@ -149,7 +152,6 @@ export default function Home() {
               const preservedFingerprintCachedAt = localStorage.getItem('blaze_fingerprint_cached_at');
               
               // 📱 FIX: Use secureStorage (IndexedDB) instead of localStorage!
-              const { secureStorage } = await import('@/lib/secure-storage');
               await secureStorage.setItem('encrypted_wallet', walletData.encrypted_wallet);
               await secureStorage.setItem('has_password', 'true');
               await secureStorage.setItem('wallet_email', session.user.email || '');
