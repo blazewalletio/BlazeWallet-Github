@@ -150,12 +150,17 @@ export async function switchToEmailAccount(
   // Save current account before switching
   saveCurrentAccountToRecent();
   
-  // Update localStorage
+  // Update storage (✅ HYBRID: IndexedDB + localStorage)
+  const { secureStorage } = await import('./secure-storage');
+  
+  // ✅ CRITICAL: Store encrypted wallet in IndexedDB (persistent on iOS PWA)
+  await secureStorage.setItem('encrypted_wallet', encryptedWallet);
+  await secureStorage.setItem('has_password', 'true');
+  
+  // ✅ Non-sensitive metadata can stay in localStorage
   localStorage.setItem('wallet_email', email);
   localStorage.setItem('supabase_user_id', userId);
-  localStorage.setItem('encrypted_wallet', encryptedWallet);
   localStorage.setItem('wallet_created_with_email', 'true');
-  localStorage.setItem('has_password', 'true');
   
   // Clear session flag to require unlock
   sessionStorage.removeItem('wallet_unlocked_this_session');
@@ -182,8 +187,14 @@ export async function switchToSeedWallet(walletId: string): Promise<void> {
     throw new Error('Wallet not found in recent accounts');
   }
   
-  // Update localStorage
-  localStorage.setItem('encrypted_wallet', wallet.encryptedData);
+  // Update storage (✅ HYBRID: IndexedDB + localStorage)
+  const { secureStorage } = await import('./secure-storage');
+  
+  // ✅ CRITICAL: Store encrypted wallet in IndexedDB (persistent on iOS PWA)
+  await secureStorage.setItem('encrypted_wallet', wallet.encryptedData);
+  await secureStorage.setItem('has_password', 'true');
+  
+  // ✅ Clean up email wallet metadata from localStorage
   localStorage.removeItem('wallet_created_with_email');
   localStorage.removeItem('wallet_email');
   localStorage.removeItem('supabase_user_id');

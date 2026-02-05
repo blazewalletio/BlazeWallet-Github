@@ -219,6 +219,28 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       // ✅ SECURITY: Clean up any old unencrypted storage (migration safety)
       localStorage.removeItem('wallet_mnemonic');
       logger.log('✅ Wallet encrypted and stored in IndexedDB');
+      
+      // ✅ HYBRID SYNC: Backup to Supabase for seed phrase wallets
+      // Check if this is a seed phrase wallet (not email-created)
+      const isEmailWallet = localStorage.getItem('wallet_created_with_email') === 'true';
+      const userId = localStorage.getItem('supabase_user_id');
+      
+      if (!isEmailWallet && userId) {
+        // This is a seed phrase wallet with Supabase account - sync it!
+        logger.log('☁️ Syncing seed phrase wallet to Supabase...');
+        const { syncWalletToSupabase } = await import('./wallet-sync-service');
+        const syncResult = await syncWalletToSupabase(
+          userId,
+          JSON.stringify(encryptedWallet),
+          address
+        );
+        
+        if (syncResult.success) {
+          logger.log('✅ Seed phrase wallet synced to Supabase');
+        } else {
+          logger.warn('⚠️ Failed to sync wallet to Supabase (non-critical):', syncResult.error);
+        }
+      }
     }
 
     set({

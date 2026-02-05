@@ -963,11 +963,16 @@ export async function signUpWithEmail(
       logger.error('Failed to save encrypted wallet:', walletError);
     }
 
-    // 6. Store wallet flags locally
+    // 6. Store wallet flags locally (✅ HYBRID: IndexedDB + localStorage)
     if (typeof window !== 'undefined') {
+      const { secureStorage } = await import('./secure-storage');
+      
+      // ✅ CRITICAL: Store encrypted wallet in IndexedDB (persistent on iOS PWA)
+      await secureStorage.setItem('encrypted_wallet', encryptedWallet);
+      await secureStorage.setItem('has_password', 'true');
+      
+      // ✅ Non-sensitive metadata can stay in localStorage
       localStorage.setItem('wallet_email', email);
-      localStorage.setItem('has_password', 'true');
-      localStorage.setItem('encrypted_wallet', encryptedWallet);
       localStorage.setItem('wallet_created_with_email', 'true');
       localStorage.setItem('supabase_user_id', authData.user!.id);
       localStorage.setItem('email_verified', 'false');

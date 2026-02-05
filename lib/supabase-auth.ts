@@ -203,15 +203,19 @@ export async function signUpWithEmail(
       // User is created but wallet save failed - still return success
     }
 
-    // 6. Store wallet flags locally (NOT addresses - they're derived on unlock)
+    // 6. Store wallet flags locally (✅ HYBRID: IndexedDB + localStorage)
     if (typeof window !== 'undefined') {
+      const { secureStorage } = await import('./secure-storage');
+      
+      // ✅ CRITICAL: Store encrypted wallet in IndexedDB (persistent on iOS PWA)
+      await secureStorage.setItem('encrypted_wallet', encryptedWallet);
+      await secureStorage.setItem('has_password', 'true');
+      
+      // ✅ Non-sensitive metadata can stay in localStorage
       localStorage.setItem('wallet_email', email);
-      localStorage.setItem('has_password', 'true'); // Password is already set via email
-      localStorage.setItem('encrypted_wallet', encryptedWallet); // Store encrypted version
-      localStorage.setItem('wallet_created_with_email', 'true'); // Flag to skip password setup modal
-      localStorage.setItem('supabase_user_id', authData.user!.id); // ✅ Store Supabase user ID for biometric binding
-      localStorage.setItem('email_verified', 'false'); // ✅ NEW: Track verification status
-      // Session flag to skip unlock modal in same session
+      localStorage.setItem('wallet_created_with_email', 'true');
+      localStorage.setItem('supabase_user_id', authData.user!.id);
+      localStorage.setItem('email_verified', 'false');
       sessionStorage.setItem('wallet_unlocked_this_session', 'true');
       // ✅ SECURITY: Addresses are NEVER stored - they're derived from mnemonic on unlock
       // ✅ SECURITY: DO NOT store plaintext mnemonic in localStorage for email signups
@@ -465,15 +469,18 @@ export async function signInWithEmail(
     // 5. Decrypt wallet
     const mnemonic = await decryptMnemonic(walletData.encrypted_mnemonic, password);
 
-    // 6. Store wallet flags locally (NOT addresses - they're derived on unlock)
-    // 6. Store wallet flags locally (NOT addresses - they're derived on unlock)
+    // 6. Store wallet flags locally (✅ HYBRID: IndexedDB + localStorage)
     if (typeof window !== 'undefined') {
+      const { secureStorage } = await import('./secure-storage');
+      
+      // ✅ CRITICAL: Store encrypted wallet in IndexedDB (persistent on iOS PWA)
+      await secureStorage.setItem('encrypted_wallet', walletData.encrypted_mnemonic);
+      await secureStorage.setItem('has_password', 'true');
+      
+      // ✅ Non-sensitive metadata can stay in localStorage
       localStorage.setItem('wallet_email', email);
-      localStorage.setItem('has_password', 'true'); // Password is verified
-      localStorage.setItem('encrypted_wallet', walletData.encrypted_mnemonic);
-      localStorage.setItem('wallet_created_with_email', 'true'); // Flag to skip password setup modal
-      localStorage.setItem('supabase_user_id', authData.user!.id); // ✅ NEW: Store Supabase user ID for biometric binding
-      // Session flag to skip unlock modal in same session
+      localStorage.setItem('wallet_created_with_email', 'true');
+      localStorage.setItem('supabase_user_id', authData.user!.id);
       sessionStorage.setItem('wallet_unlocked_this_session', 'true');
       // ✅ SECURITY: Addresses are NEVER stored - they're derived from mnemonic on unlock
       // ✅ SECURITY: NEVER store plaintext mnemonic in localStorage
@@ -534,11 +541,16 @@ export async function completeSignInAfter2FA(
     // Decrypt wallet
     const mnemonic = await decryptMnemonic(walletData.encrypted_mnemonic, password);
 
-    // Store wallet flags locally (NOT addresses - they're derived on unlock)
+    // Store wallet flags locally (✅ HYBRID: IndexedDB + localStorage)
     if (typeof window !== 'undefined') {
+      const { secureStorage } = await import('./secure-storage');
+      
+      // ✅ CRITICAL: Store encrypted wallet in IndexedDB (persistent on iOS PWA)
+      await secureStorage.setItem('encrypted_wallet', walletData.encrypted_mnemonic);
+      await secureStorage.setItem('has_password', 'true');
+      
+      // ✅ Non-sensitive metadata can stay in localStorage
       localStorage.setItem('wallet_email', email);
-      localStorage.setItem('has_password', 'true');
-      localStorage.setItem('encrypted_wallet', walletData.encrypted_mnemonic);
       localStorage.setItem('wallet_created_with_email', 'true');
       localStorage.setItem('supabase_user_id', userId);
       sessionStorage.setItem('wallet_unlocked_this_session', 'true');
@@ -813,30 +825,32 @@ export async function upgradeToEmailAccount(
 
     logger.log('✅ Encrypted wallet saved to cloud');
 
-    // 6. Update localStorage to reflect email account
+    // 6. Update storage to reflect email account (✅ HYBRID: IndexedDB + localStorage)
     if (typeof window !== 'undefined') {
-      // Save old localStorage state for potential rollback
-      const oldEncryptedWallet = localStorage.getItem('encrypted_wallet');
-      const oldHasPassword = localStorage.getItem('has_password');
+      const { secureStorage } = await import('./secure-storage');
+      
+      // Save old state for potential rollback
+      const oldEncryptedWallet = await secureStorage.getItem('encrypted_wallet');
+      const oldHasPassword = await secureStorage.getItem('has_password');
       
       try {
-        // Update to email account flags
-        localStorage.setItem('wallet_email', email);
-        localStorage.setItem('has_password', 'true');
-        localStorage.setItem('encrypted_wallet', encryptedWallet);
-        localStorage.setItem('wallet_created_with_email', 'true'); // ✅ KEY: Mark as email wallet
-        localStorage.setItem('supabase_user_id', authData.user.id); // ✅ Store user ID for biometric binding
-        localStorage.setItem('email_verified', 'false'); // Start as unverified
+        // ✅ CRITICAL: Store encrypted wallet in IndexedDB (persistent on iOS PWA)
+        await secureStorage.setItem('encrypted_wallet', encryptedWallet);
+        await secureStorage.setItem('has_password', 'true');
         
-        // Session flag to skip unlock modal in same session
+        // ✅ Non-sensitive metadata can stay in localStorage
+        localStorage.setItem('wallet_email', email);
+        localStorage.setItem('wallet_created_with_email', 'true');
+        localStorage.setItem('supabase_user_id', authData.user.id);
+        localStorage.setItem('email_verified', 'false');
         sessionStorage.setItem('wallet_unlocked_this_session', 'true');
         
-        logger.log('✅ localStorage updated to email account type');
+        logger.log('✅ Storage updated to email account type');
       } catch (storageError) {
-        logger.error('Failed to update localStorage:', storageError);
+        logger.error('Failed to update storage:', storageError);
         // Attempt rollback
-        if (oldEncryptedWallet) localStorage.setItem('encrypted_wallet', oldEncryptedWallet);
-        if (oldHasPassword) localStorage.setItem('has_password', oldHasPassword);
+        if (oldEncryptedWallet) await secureStorage.setItem('encrypted_wallet', oldEncryptedWallet);
+        if (oldHasPassword) await secureStorage.setItem('has_password', oldHasPassword);
       }
     }
 

@@ -238,36 +238,49 @@ export default function Home() {
         logger.error('❌ Failed to check Supabase session:', err);
       }
       
-      logger.log('🔄 [WALLET CHECK] Proceeding to localStorage check...');
+      logger.log('🔄 [WALLET CHECK] Proceeding to storage check...');
       
-      // ✅ SECOND: Check for encrypted_wallet to detect wallet existence
-      const hasEncryptedWallet = localStorage.getItem('encrypted_wallet');
-      const storedAddress = localStorage.getItem('wallet_address');
-      const hasPasswordStored = localStorage.getItem('has_password') === 'true';
-      const biometricEnabled = localStorage.getItem('biometric_enabled') === 'true';
+      // ✅ HYBRID RECOVERY: Check IndexedDB first, then Supabase fallback
+      const { secureStorage } = await import('@/lib/secure-storage');
+      const hasEncryptedWallet = await secureStorage.getItem('encrypted_wallet');
+      const hasPasswordStored = await secureStorage.getItem('has_password') === 'true';
       
-      logger.log('🔍 Checking wallet state:', { 
-        hasEncryptedWallet: !!hasEncryptedWallet, 
-        storedAddress, 
-        hasPasswordStored, 
-        biometricEnabled, 
+      logger.log('🔍 IndexedDB check:', { 
+        hasEncryptedWallet: !!hasEncryptedWallet,
+        hasPasswordStored,
         isMobile 
       });
       
-      logger.log('🔍 LocalStorage check:', {
-        encrypted_wallet: !!localStorage.getItem('encrypted_wallet'),
-        wallet_address: localStorage.getItem('wallet_address'),
-        wallet_mnemonic: !!localStorage.getItem('wallet_mnemonic'),
-        has_password: localStorage.getItem('has_password'),
-        biometric_enabled: localStorage.getItem('biometric_enabled'),
-        wallet_just_imported: localStorage.getItem('wallet_just_imported'),
-        wallet_just_created: localStorage.getItem('wallet_just_created'),
-        force_password_setup: localStorage.getItem('force_password_setup')
+      // ✅ FALLBACK: If IndexedDB empty, try Supabase recovery
+      if (!hasEncryptedWallet && userId) {
+        logger.log('☁️  [RECOVERY] IndexedDB empty, checking Supabase...');
+        const { syncWalletFromSupabase } = await import('@/lib/wallet-sync-service');
+        const syncResult = await syncWalletFromSupabase(userId);
+        
+        if (syncResult.success && syncResult.synced && syncResult.encryptedWallet) {
+          logger.log('✅ [RECOVERY] Wallet restored from Supabase!');
+          // Wallet is now in IndexedDB, continue normal flow
+          setHasWallet(true);
+          return;
+        } else {
+          logger.log('ℹ️  [RECOVERY] No wallet in Supabase either');
+        }
+      }
+      
+      // ✅ Check localStorage as final fallback (migration path)
+      const localStorageEncrypted = localStorage.getItem('encrypted_wallet');
+      const storedAddress = localStorage.getItem('wallet_address');
+      const localStoragePassword = localStorage.getItem('has_password') === 'true';
+      
+      logger.log('🔍 localStorage fallback check:', {
+        encrypted_wallet: !!localStorageEncrypted,
+        wallet_address: storedAddress,
+        has_password: localStoragePassword
       });
       
       // ✅ Use encrypted_wallet as source of truth for wallet existence
-      if (hasEncryptedWallet || storedAddress) {
-        if (hasPasswordStored) {
+      if (hasEncryptedWallet || localStorageEncrypted || storedAddress) {
+        if (hasPasswordStored || localStoragePassword) {
           // ✅ REACTIVE: Just set hasWallet=true
           // Unlock modal will show automatically based on wallet store state!
           logger.log('✅ [WALLET CHECK] Wallet with password found, setting hasWallet=true');

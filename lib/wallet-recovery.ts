@@ -75,17 +75,17 @@ export async function recoverWallet(
     logger.log('🔐 Encrypting wallet with new password...');
     const encryptedWallet = encryptWallet(cleanMnemonic, newPassword);
 
-    // 6. Update localStorage with new encrypted wallet
+    // 6. Update storage with new encrypted wallet (✅ HYBRID: IndexedDB + localStorage)
     if (typeof window !== 'undefined') {
-      // Store encrypted wallet
-      localStorage.setItem('encrypted_wallet', JSON.stringify(encryptedWallet));
+      const { secureStorage } = await import('./secure-storage');
       
-      // Set password flag
-      localStorage.setItem('has_password', 'true');
+      // ✅ CRITICAL: Store encrypted wallet in IndexedDB (persistent on iOS PWA)
+      await secureStorage.setItem('encrypted_wallet', JSON.stringify(encryptedWallet));
+      await secureStorage.setItem('has_password', 'true');
       
       // Clear any old password-related data
-      localStorage.removeItem('wallet_just_imported'); // Old flag
-      localStorage.removeItem('force_password_setup'); // Old flag
+      localStorage.removeItem('wallet_just_imported');
+      localStorage.removeItem('force_password_setup');
       
       // Mark wallet as unlocked for this session
       sessionStorage.setItem('wallet_unlocked_this_session', 'true');
