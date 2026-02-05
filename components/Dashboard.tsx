@@ -2463,7 +2463,7 @@ export default function Dashboard() {
       <div className="min-h-screen pb-24 relative">
 
         {/* Header with Network Selector */}
-        <div className="sticky top-0 z-30 backdrop-blur-xl bg-white/95 border-b border-gray-200 shadow-sm">
+        <div className="sticky top-0 z-30 backdrop-blur-xl bg-white/95 border-b border-gray-200 shadow-sm pt-safe">
           <div className="max-w-4xl mx-auto px-4 py-4">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
