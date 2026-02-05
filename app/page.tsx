@@ -42,18 +42,17 @@ export default function Home() {
     // Don't show if QR login is showing
     if (showQRLogin) return false;
     
-    // ✅ FIX: Check localStorage for has_password (more reliable than store initial state)
-    const hasPasswordStored = typeof window !== 'undefined' && localStorage.getItem('has_password') === 'true';
+    // ✅ FIX: Check hasPassword from wallet store (derived from IndexedDB)
+    // Don't fall back to localStorage as it's unreliable on iOS
     
     // Show unlock modal if:
     // 1. Wallet has password protection AND
     // 2. Wallet is not unlocked (no address or isLocked)
-    const needsUnlock = hasPasswordStored && (!wallet || !wallet.address || isLocked);
+    const needsUnlock = hasPassword && (!wallet || !wallet.address || isLocked);
     
     logger.log('🔍 [REACTIVE] shouldShowUnlockModal computed:', {
       hasWallet,
       hasPassword,
-      hasPasswordStored,
       walletAddress: wallet?.address?.substring(0, 12) || 'null',
       isLocked,
       needsUnlock,
@@ -149,12 +148,13 @@ export default function Home() {
               const preservedFingerprint = localStorage.getItem('blaze_device_fingerprint');
               const preservedFingerprintCachedAt = localStorage.getItem('blaze_fingerprint_cached_at');
               
-              // Store minimal data for unlock modal
-              localStorage.setItem('encrypted_wallet', walletData.encrypted_wallet);
-              localStorage.setItem('has_password', 'true');
-              localStorage.setItem('wallet_email', session.user.email || '');
-              localStorage.setItem('wallet_created_with_email', 'true');
-              localStorage.setItem('supabase_user_id', session.user.id);
+              // 📱 FIX: Use secureStorage (IndexedDB) instead of localStorage!
+              const { secureStorage } = await import('@/lib/secure-storage');
+              await secureStorage.setItem('encrypted_wallet', walletData.encrypted_wallet);
+              await secureStorage.setItem('has_password', 'true');
+              await secureStorage.setItem('wallet_email', session.user.email || '');
+              await secureStorage.setItem('wallet_created_with_email', 'true');
+              await secureStorage.setItem('supabase_user_id', session.user.id);
               
               // ✅ Sign out to force fresh login with device verification
               await supabase.auth.signOut();
@@ -178,8 +178,8 @@ export default function Home() {
             
             // No wallet found → Truly new user → Show onboarding
             logger.warn('⚠️ [DEVICE CHECK] No wallet found - showing onboarding');
-            localStorage.removeItem('encrypted_wallet');
-            localStorage.removeItem('has_password');
+            await secureStorage.setItem('encrypted_wallet', '');
+            await secureStorage.setItem('has_password', '');
             sessionStorage.clear();
             setHasWallet(false);
             return;
@@ -206,12 +206,13 @@ export default function Home() {
           } else if (walletData && walletData.encrypted_wallet) {
             logger.log('✅ Found encrypted wallet in Supabase for user');
             
-            // Store encrypted wallet in localStorage (for unlock modal)
-            localStorage.setItem('encrypted_wallet', walletData.encrypted_wallet);
-            localStorage.setItem('has_password', 'true');
-            localStorage.setItem('wallet_email', session.user.email || '');
-            localStorage.setItem('wallet_created_with_email', 'true');
-            logger.log('✅ [WALLET CHECK] Data stored in localStorage');
+            // 📱 FIX: Store encrypted wallet in IndexedDB (NOT localStorage!)
+            const { secureStorage } = await import('@/lib/secure-storage');
+            await secureStorage.setItem('encrypted_wallet', walletData.encrypted_wallet);
+            await secureStorage.setItem('has_password', 'true');
+            await secureStorage.setItem('wallet_email', session.user.email || '');
+            await secureStorage.setItem('wallet_created_with_email', 'true');
+            logger.log('✅ [WALLET CHECK] Data stored in IndexedDB (NOT localStorage!)');
             
             // Initialize account in account manager
             logger.log('🔄 [WALLET CHECK] Initializing account manager...');
