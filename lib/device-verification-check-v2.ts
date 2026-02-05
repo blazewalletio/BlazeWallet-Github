@@ -37,11 +37,12 @@ export class DeviceVerificationCheckV2 {
   
   /**
    * Check if current device is verified using 4-layer approach
+   * ✅ NEW: Now uses Trust Anchor (device-challenge API) as primary check
    */
   static async isDeviceVerified(): Promise<DeviceVerificationResult> {
     try {
       logger.log('╔═══════════════════════════════════════════════════════════════');
-      logger.log('║ 🔍 DEVICE VERIFICATION V2 - 4 LAYER SYSTEM                  ║');
+      logger.log('║ 🔍 DEVICE VERIFICATION V2 - TRUST ANCHOR SYSTEM             ║');
       logger.log('╚═══════════════════════════════════════════════════════════════');
       logger.log('🔍 [DeviceCheck V2] Starting verification...');
       logger.log('🔍 [DeviceCheck V2] Timestamp:', new Date().toISOString());
@@ -89,6 +90,123 @@ export class DeviceVerificationCheckV2 {
       
       // Set user ID in debug logger
       debugLogger.setUserId(user.id);
+      
+      // =====================================================================
+      // ✅ NEW: TRUST ANCHOR - USE DEVICE CHALLENGE API
+      // =====================================================================
+      
+      logger.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      logger.log('🎯 [TRUST ANCHOR] DEVICE CHALLENGE API CHECK');
+      logger.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      
+      debugLogger.info('device_verification', '🎯 [TRUST ANCHOR] Calling device-challenge API', {});
+      
+      try {
+        // Get device ID (may be null if localStorage cleared)
+        const { deviceId, isNew } = DeviceIdManager.getOrCreateDeviceId();
+        
+        // Generate fingerprint
+        const fpResult = await getCachedOrGenerateFingerprint();
+        const fingerprint = fpResult.fingerprint;
+        
+        // Generate device info
+        const deviceInfo = await generateEnhancedFingerprint();
+        
+        // Call device-challenge API
+        const csrfResponse = await fetch('/api/csrf-token');
+        const { token: csrfToken } = await csrfResponse.json();
+        
+        const challengeResponse = await fetch('/api/device-challenge', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken,
+          },
+          body: JSON.stringify({
+            userId: user.id,
+            challenge: {
+              deviceId: isNew ? null : deviceId,
+              fingerprint,
+              ipAddress: deviceInfo.ipAddress,
+              timezone: deviceInfo.timezone,
+              browser: deviceInfo.browser,
+              browserVersion: deviceInfo.browserVersion,
+              os: deviceInfo.os,
+              osVersion: deviceInfo.osVersion,
+              screenResolution: deviceInfo.screenResolution,
+              language: deviceInfo.language,
+            },
+          }),
+        });
+        
+        const challengeResult = await challengeResponse.json();
+        
+        logger.log('✅ [TRUST ANCHOR] Device challenge result:', challengeResult);
+        debugLogger.info('device_verification', `[TRUST ANCHOR] Score: ${challengeResult.score}`, {
+          confidence: challengeResult.confidence,
+          score: challengeResult.score,
+          trusted: challengeResult.trusted,
+        });
+        
+        // HIGH CONFIDENCE (score ≥ 60) - AUTO-VERIFY
+        if (challengeResult.trusted) {
+          logger.log('✅ [TRUST ANCHOR] HIGH CONFIDENCE → AUTO-VERIFIED');
+          
+          // Restore device_id to localStorage (if it was cleared)
+          if (challengeResult.deviceId && isNew) {
+            DeviceIdManager.setDeviceId(challengeResult.deviceId);
+            logger.log('✅ [TRUST ANCHOR] Device ID restored to localStorage');
+          }
+          
+          // Store session token
+          if (challengeResult.sessionToken) {
+            sessionStorage.setItem('blaze_session_token', challengeResult.sessionToken);
+            logger.log('✅ [TRUST ANCHOR] Session token stored');
+          }
+          
+          logger.log('╔═══════════════════════════════════════════════════════════════');
+          logger.log('║ ✅ TRUST ANCHOR SUCCESS - DEVICE AUTO-VERIFIED              ║');
+          logger.log('╚═══════════════════════════════════════════════════════════════');
+          
+          return {
+            verified: true,
+            userId: user.id,
+            deviceId: challengeResult.deviceId,
+          };
+        }
+        
+        // MEDIUM CONFIDENCE (score 40-59) - USER CONFIRMATION NEEDED
+        if (challengeResult.requiresConfirmation) {
+          logger.log('⚠️ [TRUST ANCHOR] MEDIUM CONFIDENCE → USER CONFIRMATION NEEDED');
+          return {
+            verified: false,
+            reason: 'device_confirmation_needed',
+            suggestedDevice: challengeResult.suggestedDevice,
+            matchScore: challengeResult.score,
+          };
+        }
+        
+        // LOW CONFIDENCE (score < 40) - EMAIL VERIFICATION REQUIRED
+        logger.log('❌ [TRUST ANCHOR] LOW CONFIDENCE → EMAIL VERIFICATION REQUIRED');
+        return {
+          verified: false,
+          reason: 'device_not_found',
+        };
+        
+      } catch (trustAnchorError) {
+        logger.error('❌ [TRUST ANCHOR] Error:', trustAnchorError);
+        debugLogger.error('device_verification', '❌ Trust Anchor failed, falling back to legacy', { error: trustAnchorError });
+        
+        // Fall through to legacy 4-layer system (backup)
+      }
+      
+      // =====================================================================
+      // LEGACY FALLBACK: 4-LAYER SYSTEM (if Trust Anchor fails)
+      // =====================================================================
+      
+      logger.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      logger.log('⚠️ [LEGACY FALLBACK] Using 4-layer system');
+      logger.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       
       // =====================================================================
       // LAYER 1: PERSISTENT DEVICE ID (Primary Check)

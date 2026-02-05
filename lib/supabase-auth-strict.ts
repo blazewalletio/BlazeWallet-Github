@@ -138,6 +138,9 @@ export interface StrictSignInResult {
   success: boolean;
   error?: string;
   requiresDeviceVerification?: boolean;
+  requiresDeviceConfirmation?: boolean; // ✅ NEW: For medium confidence (1-click verify)
+  suggestedDevice?: any; // ✅ NEW: Suggested device for confirmation modal
+  matchScore?: number; // ✅ NEW: Match score for display
   requires2FA?: boolean;
   deviceVerificationToken?: string;
   deviceInfo?: EnhancedDeviceInfo;
@@ -219,76 +222,116 @@ export async function strictSignInWithEmail(
       };
     }
     
-    // 5. Check if device is already trusted (BY DEVICE_ID - primary identifier!)
-    logger.log('🔍 [StrictAuth] Checking if device is trusted...');
-    const { data: existingDevice, error: deviceError } = await supabase
-      .from('trusted_devices')
-      .select('*')
-      .eq('user_id', data.user.id)
-      .eq('device_id', deviceId)  // ← PRIMARY LOOKUP on device_id!
-      .maybeSingle();
+    // 5. ✅ NEW: USE DEVICE CHALLENGE API (Trust Anchor System)
+    // Server-side scoring with auto-recovery, 1-click confirm, or email verification
+    logger.log('🎯 [StrictAuth] Calling device-challenge API...');
     
-    if (deviceError) {
-      logger.error('❌ [StrictAuth] Error checking device:', deviceError);
-    }
-    
-    // TRUSTED DEVICE - Allow immediate access
-    if (existingDevice && existingDevice.verified_at) {
-      logger.log('✅ [StrictAuth] TRUSTED device detected - allowing login');
-      logger.log(`📱 [StrictAuth] Device last used: ${existingDevice.last_used_at}`);
-      
-      // Update last_used_at + fingerprint (fingerprint can change over time, but device_id stays same)
-      await supabase
-        .from('trusted_devices')
-        .update({ 
-          device_fingerprint: deviceInfo.fingerprint, // ← Update fingerprint (for risk analysis)
-          ip_address: deviceInfo.ipAddress, // ← Update IP (for security monitoring)
-          last_used_at: new Date().toISOString(),
-          is_current: true,
-          device_metadata: { // ← Update metadata (for analytics)
-            location: deviceInfo.location,
-            riskScore: deviceInfo.riskScore,
-            isTor: deviceInfo.isTor,
-            isVPN: deviceInfo.isVPN,
-            timezone: deviceInfo.timezone,
-            language: deviceInfo.language,
-            screenResolution: deviceInfo.screenResolution,
-          }
-        })
-        .eq('id', existingDevice.id);
-      
-      // Fetch and decrypt wallet (via secure server endpoint)
-      // Get CSRF token first
+    try {
+      // Get CSRF token for device-challenge request
       const csrfResponse = await fetch('/api/csrf-token');
       const { token: csrfToken } = await csrfResponse.json();
       
-      const walletResponse = await fetch('/api/get-wallet', {
+      const challengeResponse = await fetch('/api/device-challenge', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'X-CSRF-Token': csrfToken,
         },
-        body: JSON.stringify({ userId: data.user.id }),
+        body: JSON.stringify({
+          userId: data.user.id,
+          challenge: {
+            deviceId: isNewDeviceId ? null : deviceId, // null if localStorage cleared
+            fingerprint: deviceInfo.fingerprint,
+            ipAddress: deviceInfo.ipAddress,
+            timezone: deviceInfo.timezone,
+            browser: deviceInfo.browser,
+            browserVersion: deviceInfo.browserVersion,
+            os: deviceInfo.os,
+            osVersion: deviceInfo.osVersion,
+            screenResolution: deviceInfo.screenResolution,
+            language: deviceInfo.language,
+          },
+        }),
       });
       
-      const walletData = await walletResponse.json();
+      const challengeResult = await challengeResponse.json();
       
-      if (!walletData.success || !walletData.encrypted_mnemonic) {
-        throw new Error('Wallet not found');
+      logger.log('✅ [StrictAuth] Device challenge result:', challengeResult);
+      
+      // CASE 1: TRUSTED (score ≥ 60) - Auto-login
+      if (challengeResult.trusted) {
+        logger.log('✅ [StrictAuth] Device TRUSTED via challenge (auto-login)');
+        
+        // Restore device_id to localStorage (if it was cleared)
+        if (challengeResult.deviceId && isNewDeviceId) {
+          const { DeviceIdManager } = await import('./device-id-manager');
+          DeviceIdManager.setDeviceId(challengeResult.deviceId);
+          logger.log('✅ [StrictAuth] Device ID restored to localStorage');
+        }
+        
+        // Store session token (grace period)
+        if (challengeResult.sessionToken) {
+          sessionStorage.setItem('blaze_session_token', challengeResult.sessionToken);
+          logger.log('✅ [StrictAuth] Session token stored');
+        }
+        
+        // Decrypt wallet
+        const csrfResponse2 = await fetch('/api/csrf-token');
+        const { token: csrfToken2 } = await csrfResponse2.json();
+        
+        const walletResponse = await fetch('/api/get-wallet', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken2,
+          },
+          body: JSON.stringify({ userId: data.user.id }),
+        });
+        
+        const walletData = await walletResponse.json();
+        
+        if (!walletData.success || !walletData.encrypted_mnemonic) {
+          throw new Error('Wallet not found');
+        }
+        
+        const decryptedMnemonic = await decryptMnemonic(
+          walletData.encrypted_mnemonic,
+          password
+        );
+        
+        logger.log('✅ [StrictAuth] Wallet decrypted successfully (Trust Anchor)');
+        
+        return {
+          success: true,
+          user: data.user,
+          mnemonic: decryptedMnemonic,
+        };
       }
       
-      const decryptedMnemonic = await decryptMnemonic(
-        walletData.encrypted_mnemonic,
-        password
-      );
+      // CASE 2: MEDIUM CONFIDENCE (score 40-59) - User confirmation needed
+      if (challengeResult.requiresConfirmation) {
+        logger.log('⚠️ [StrictAuth] Medium confidence - user confirmation needed');
+        
+        // Sign out (require confirmation before allowing access)
+        await supabase.auth.signOut();
+        
+        return {
+          success: false,
+          requiresDeviceConfirmation: true,
+          suggestedDevice: challengeResult.suggestedDevice,
+          matchScore: challengeResult.score,
+          deviceInfo,
+          error: 'Device confirmation required',
+        };
+      }
       
-      logger.log('✅ [StrictAuth] Wallet decrypted successfully');
+      // CASE 3: LOW CONFIDENCE (score < 40) - Email verification required
+      // Fall through to existing email verification flow below
+      logger.log('❌ [StrictAuth] Low confidence - email verification required');
       
-      return {
-        success: true,
-        user: data.user,
-        mnemonic: decryptedMnemonic,
-      };
+    } catch (challengeError) {
+      logger.error('❌ [StrictAuth] Device challenge error:', challengeError);
+      // Fall through to existing email verification flow
     }
     
     // NEW OR UNVERIFIED DEVICE - BLOCK LOGIN AND REQUIRE VERIFICATION
@@ -486,6 +529,142 @@ export async function strictSignInWithEmail(
     return {
       success: false,
       error: error.message || 'Authentication failed',
+    };
+  }
+}
+
+/**
+ * ✅ NEW: Confirm device (1-click verification for medium confidence)
+ * Used when device-challenge returns requiresConfirmation: true
+ */
+export async function confirmDeviceAndSignIn(
+  userId: string,
+  deviceId: string,
+  email: string,
+  password: string
+): Promise<StrictSignInResult> {
+  try {
+    logger.log('🔐 [StrictAuth] Confirming device for user:', userId.substring(0, 8) + '...');
+    logger.log('📱 [StrictAuth] Device ID:', deviceId.substring(0, 12) + '...');
+    
+    // 1. Find device in database
+    const { data: device, error: deviceError } = await supabase
+      .from('trusted_devices')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('id', deviceId) // Device table ID (not device_id!)
+      .maybeSingle();
+    
+    if (deviceError || !device) {
+      logger.error('❌ [StrictAuth] Device not found');
+      return {
+        success: false,
+        error: 'Device not found',
+      };
+    }
+    
+    // 2. Mark device as verified (user confirmed "Yes, this is me")
+    const crypto = await import('crypto');
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+    
+    const { error: updateError } = await supabase
+      .from('trusted_devices')
+      .update({
+        verified_at: new Date().toISOString(), // Mark as verified
+        is_current: true,
+        session_token: sessionToken,
+        last_verified_session_at: new Date().toISOString(),
+        last_used_at: new Date().toISOString(),
+      })
+      .eq('id', device.id);
+    
+    if (updateError) {
+      logger.error('❌ [StrictAuth] Failed to verify device:', updateError);
+      return {
+        success: false,
+        error: 'Failed to verify device',
+      };
+    }
+    
+    logger.log('✅ [StrictAuth] Device confirmed and verified');
+    
+    // 3. Restore device_id to localStorage
+    const { DeviceIdManager } = await import('./device-id-manager');
+    DeviceIdManager.setDeviceId(device.device_id);
+    logger.log('✅ [StrictAuth] Device ID restored to localStorage');
+    
+    // 4. Store session token
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('blaze_session_token', sessionToken);
+      logger.log('✅ [StrictAuth] Session token stored');
+    }
+    
+    // 5. Sign in with Supabase
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    
+    if (authError || !authData.user) {
+      logger.error('❌ [StrictAuth] Sign in failed:', authError);
+      return {
+        success: false,
+        error: 'Failed to complete sign-in',
+      };
+    }
+    
+    logger.log('✅ [StrictAuth] User signed in:', authData.user.id);
+    
+    // 6. Decrypt wallet
+    try {
+      const csrfResponse = await fetch('/api/csrf-token');
+      const { token: csrfToken } = await csrfResponse.json();
+      
+      const walletResponse = await fetch('/api/get-wallet', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
+        body: JSON.stringify({ userId: authData.user.id }),
+      });
+      
+      const walletData = await walletResponse.json();
+      
+      if (!walletData.success) {
+        logger.error('❌ [StrictAuth] Wallet fetch failed:', walletData.error);
+        return {
+          success: false,
+          error: walletData.error || 'Failed to fetch wallet',
+        };
+      }
+      
+      const decryptedMnemonic = await decryptMnemonic(
+        walletData.encrypted_mnemonic,
+        password
+      );
+      
+      logger.log('✅ [StrictAuth] Device confirmation complete - wallet unlocked');
+      
+      return {
+        success: true,
+        user: authData.user,
+        mnemonic: decryptedMnemonic,
+      };
+      
+    } catch (fetchError: any) {
+      logger.error('❌ [StrictAuth] Wallet fetch exception:', fetchError);
+      return {
+        success: false,
+        error: `Wallet fetch failed: ${fetchError.message}`,
+      };
+    }
+    
+  } catch (error: any) {
+    logger.error('❌ [StrictAuth] Confirmation error:', error);
+    return {
+      success: false,
+      error: error.message || 'Confirmation failed',
     };
   }
 }
