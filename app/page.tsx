@@ -240,6 +240,15 @@ export default function Home() {
       
       logger.log('🔄 [WALLET CHECK] Proceeding to storage check...');
       
+      // ✅ Get userId for potential Supabase recovery
+      let userId: string | undefined;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        userId = session?.user?.id;
+      } catch (err) {
+        logger.warn('⚠️ Could not get user ID for recovery:', err);
+      }
+      
       // ✅ HYBRID RECOVERY: Check IndexedDB first, then Supabase fallback
       const { secureStorage } = await import('@/lib/secure-storage');
       const hasEncryptedWallet = await secureStorage.getItem('encrypted_wallet');
@@ -248,6 +257,7 @@ export default function Home() {
       logger.log('🔍 IndexedDB check:', { 
         hasEncryptedWallet: !!hasEncryptedWallet,
         hasPasswordStored,
+        userId: !!userId,
         isMobile 
       });
       
