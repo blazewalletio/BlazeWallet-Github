@@ -51,8 +51,7 @@ export function getAllAccounts(): WalletAccount[] {
  * Get current active account
  */
 /**
- * Get current active wallet account (ASYNC - checks IndexedDB first!)
- * Now checks IndexedDB first, falls back to localStorage for backwards compatibility
+ * Get current active wallet account (ASYNC - reads from IndexedDB)
  */
 export async function getCurrentAccount(): Promise<WalletAccount | null> {
   if (typeof window === 'undefined') return null;
@@ -60,17 +59,11 @@ export async function getCurrentAccount(): Promise<WalletAccount | null> {
   // Import secureStorage for IndexedDB access
   const { secureStorage } = await import('@/lib/secure-storage');
   
-  // ✅ PRIORITY 1: Check IndexedDB (primary storage since Hybrid Storage implementation)
-  let isEmail = await secureStorage.getItem('wallet_created_with_email') === 'true';
-  let email = await secureStorage.getItem('wallet_email');
-  let userId = await secureStorage.getItem('supabase_user_id');
-  let encryptedWallet = await secureStorage.getItem('encrypted_wallet');
-  
-  // ✅ FALLBACK: Check localStorage if IndexedDB is empty (backwards compatibility)
-  if (!email) email = localStorage.getItem('wallet_email');
-  if (!userId) userId = localStorage.getItem('supabase_user_id');
-  if (!encryptedWallet) encryptedWallet = localStorage.getItem('encrypted_wallet');
-  if (!isEmail) isEmail = localStorage.getItem('wallet_created_with_email') === 'true';
+  // Read from IndexedDB (primary and only storage)
+  const isEmail = await secureStorage.getItem('wallet_created_with_email') === 'true';
+  const email = await secureStorage.getItem('wallet_email');
+  const userId = await secureStorage.getItem('supabase_user_id');
+  const encryptedWallet = await secureStorage.getItem('encrypted_wallet');
   
   if (!encryptedWallet) return null;
   
