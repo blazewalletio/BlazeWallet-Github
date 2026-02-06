@@ -102,6 +102,25 @@ export default function Home() {
       logger.log('╚════════════════════════════════════════════════════════════╝');
       logger.log('🔄 [WALLET CHECK] Timestamp:', new Date().toISOString());
       
+      // 🔥 CRITICAL FIX: Check IndexedDB FIRST before Supabase!
+      // This ensures we show unlock modal even if Supabase checks fail
+      const { secureStorage } = await import('@/lib/secure-storage');
+      const hasEncryptedWallet = await secureStorage.getItem('encrypted_wallet');
+      const hasPasswordStored = await secureStorage.getItem('has_password') === 'true';
+      
+      logger.log('🔍 [WALLET CHECK] IndexedDB quick check:', {
+        hasEncryptedWallet: !!hasEncryptedWallet,
+        hasPasswordStored
+      });
+      
+      // 🔥 FIX: If wallet exists in IndexedDB, set hasWallet=true IMMEDIATELY
+      // This ensures unlock modal shows even if subsequent checks fail
+      if (hasEncryptedWallet && hasPasswordStored) {
+        logger.log('✅ [WALLET CHECK] Wallet found in IndexedDB - setting hasWallet=true IMMEDIATELY');
+        setHasWallet(true);
+        // Continue with Supabase checks for sync, but wallet is already loaded
+      }
+      
       // ✅ FIRST: Check for active Supabase session (email wallets)
       try {
         logger.log('📦 [WALLET CHECK] Importing Supabase client...');
