@@ -36,7 +36,7 @@ export default function Home() {
       logger.log('✅ [App] Wallet store initialized:', result);
     };
     init();
-  }, [initializeFromStorage]);
+  }, []); // ✅ Empty deps - run once on mount (initializeFromStorage is stable)
   
   // ✅ REACTIVE: Compute if unlock modal should show based on wallet store state
   const shouldShowUnlockModal = useMemo(() => {
