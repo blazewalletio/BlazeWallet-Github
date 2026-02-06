@@ -28,161 +28,67 @@ export default function Home() {
   // ✅ Read wallet store state (single source of truth)
   const { importWallet, hasPassword, isLocked, wallet, hasBiometric, isBiometricEnabled, setShowUnlockModal, initializeFromStorage } = useWalletStore();
   
-  // 🔥 CRITICAL: Initialize wallet store from IndexedDB on mount
+  // Initialize wallet store from IndexedDB on mount
   useEffect(() => {
     const init = async () => {
       try {
-        console.log('🔄 [App] Initializing wallet store from IndexedDB...');
-        const result = await initializeFromStorage();
-        console.log('✅ [App] Wallet store initialized:', result);
+        await initializeFromStorage();
       } catch (error) {
-        console.error('❌ [App] CRITICAL ERROR initializing wallet store:', error);
-        // Don't block - continue with app load
+        console.error('❌ Failed to initialize wallet store:', error);
       }
     };
     init();
-  }, []); // ✅ Empty deps - run once on mount (initializeFromStorage is stable)
+  }, []);
   
-  // ✅ REACTIVE: Compute if unlock modal should show based on wallet store state
+  // Compute if unlock modal should show based on wallet store state
   const shouldShowUnlockModal = useMemo(() => {
-    // Don't show if no wallet exists yet
     if (hasWallet !== true) return false;
-    
-    // Don't show if password setup is showing
     if (showPasswordSetup) return false;
-    
-    // Don't show if biometric setup is showing
     if (showBiometricSetup) return false;
-    
-    // Don't show if QR login is showing
     if (showQRLogin) return false;
     
-    // ✅ FIX: Check hasPassword from wallet store (derived from IndexedDB)
-    // Don't fall back to localStorage as it's unreliable on iOS
-    
-    // Show unlock modal if:
-    // 1. Wallet has password protection AND
-    // 2. Wallet is not unlocked (no address or isLocked)
+    // Show unlock modal if wallet has password protection AND is locked
     const needsUnlock = hasPassword && (!wallet || !wallet.address || isLocked);
-    
-    console.log('🔍 [REACTIVE] shouldShowUnlockModal computed:', {
-      hasWallet,
-      hasPassword,
-      walletAddress: wallet?.address?.substring(0, 12) || 'null',
-      isLocked,
-      needsUnlock,
-      showPasswordSetup,
-      showBiometricSetup,
-      showQRLogin
-    });
-    
     return needsUnlock;
   }, [hasWallet, hasPassword, wallet, isLocked, showPasswordSetup, showBiometricSetup, showQRLogin]);
   
-  // ✅ Set unlock modal state in store when needed
+  // Set unlock modal state in store when needed
   useEffect(() => {
-    console.log('🔍 [UNLOCK MODAL] useEffect triggered:', {
-      shouldShowUnlockModal,
-      currentShowUnlockModal: useWalletStore.getState().showUnlockModal
-    });
-    
     if (shouldShowUnlockModal) {
-      console.log('✅ [UNLOCK MODAL] Calling setShowUnlockModal(true)...');
       setShowUnlockModal(true);
-      console.log('✅ [UNLOCK MODAL] setShowUnlockModal(true) called!');
-    } else {
-      console.log('⚠️ [UNLOCK MODAL] shouldShowUnlockModal is FALSE - not showing modal');
     }
   }, [shouldShowUnlockModal, setShowUnlockModal]);
 
   useEffect(() => {
-    // Hide splash immediately - no delay
     setShowSplash(false);
     
     // Detect if device is mobile
     const isMobileDevice = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     setIsMobile(isMobileDevice);
-    
-    logger.log('🔍 Device detection:', { 
-      userAgent: navigator.userAgent,
-      isMobile: isMobileDevice
-    });
   }, []);
 
   useEffect(() => {
     const checkWallet = async () => {
-      console.log('╔════════════════════════════════════════════════════════════╗');
-      console.log('║ 🔄 [WALLET CHECK] STARTING WALLET CHECK ON MOUNT         ║');
-      console.log('╚════════════════════════════════════════════════════════════╝');
-      console.log('🔄 [WALLET CHECK] Timestamp:', new Date().toISOString());
-      
-      console.log('🔄 [WALLET CHECK] Step 1: Importing secureStorage...');
-      
-      // 🔥 CRITICAL FIX: Check IndexedDB FIRST before Supabase!
+      // Check IndexedDB FIRST before Supabase
       // This ensures we show unlock modal even if Supabase checks fail
       const { secureStorage } = await import('@/lib/secure-storage');
       
-      console.log('✅ [WALLET CHECK] Step 2: secureStorage imported!');
-      
       let hasEncryptedWallet = await secureStorage.getItem('encrypted_wallet');
-      
-      console.log('✅ [WALLET CHECK] Step 3: Got encrypted_wallet:', !!hasEncryptedWallet);
-      
       let hasPasswordStored = await secureStorage.getItem('has_password') === 'true';
       
-      console.log('✅ [WALLET CHECK] Step 4: Got has_password:', hasPasswordStored);
-      
-      console.log('🔍 [WALLET CHECK] IndexedDB quick check:', {
-        hasEncryptedWallet: !!hasEncryptedWallet,
-        hasPasswordStored
-      });
-      
-      // 🔥 FIX: If wallet exists in IndexedDB, set hasWallet=true IMMEDIATELY
+      // If wallet exists in IndexedDB, set hasWallet=true IMMEDIATELY
       // This ensures unlock modal shows even if subsequent checks fail
       if (hasEncryptedWallet && hasPasswordStored) {
-        console.log('✅ [WALLET CHECK] Wallet found in IndexedDB - setting hasWallet=true IMMEDIATELY');
         setHasWallet(true);
-        console.log('✅ [WALLET CHECK] setHasWallet(true) called!');
         // Continue with Supabase checks for sync, but wallet is already loaded
-      } else {
-        console.log('⚠️ [WALLET CHECK] No wallet in IndexedDB or no password');
       }
       
-      // ✅ FIRST: Check for active Supabase session (email wallets)
+      // Check for active Supabase session (email wallets)
       try {
-        logger.log('📦 [WALLET CHECK] Importing Supabase client...');
-        
         const { supabase } = await import('@/lib/supabase');
-        
-        logger.log('✅ [WALLET CHECK] Supabase client imported successfully');
-        
-        logger.log('🔄 [WALLET CHECK] Calling supabase.auth.getSession()...');
-        
         const { data: { session }, error } = await supabase.auth.getSession();
         
-        logger.log('🔄 [WALLET CHECK] Session check result:', {
-          hasSession: !!session,
-          hasError: !!error,
-          userId: session?.user?.id,
-          email: session?.user?.email,
-          errorMessage: error?.message || 'none'
-        });
-        
         if (session && !error) {
-          logger.log('✅ Active Supabase session found:', {
-            userId: session.user.id,
-            email: session.user.email,
-            expiresAt: new Date(session.expires_at! * 1000).toISOString()
-          });
-          
-          // ✅ NEW: Check if device is verified for email wallets (V2!)
-          logger.log('🔍 [DEVICE CHECK V2] Checking device verification for email wallet...');
-          
-          // 🔥 FIX: If IndexedDB has wallet + password, SKIP device check!
-          // User just logged in successfully, device is implicitly trusted
-          if (hasEncryptedWallet && hasPasswordStored) {
-            logger.log('✅ [DEVICE CHECK V2] SKIPPED - IndexedDB has wallet (user just logged in)');
-          } else {
             const deviceCheck = await DeviceVerificationCheckV2.isDeviceVerified();
             
             logger.log('🔍 [DEVICE CHECK V2] Result:', deviceCheck);
