@@ -17,39 +17,77 @@ const isDebugEnabled = process.env.NEXT_PUBLIC_DEBUG === 'true';
 // Allow debug in production if explicitly enabled
 const showDebugLogs = isDevelopment || isDebugEnabled;
 
+// 🚀 SERVER-SIDE LOGGING FOR PWA DEBUGGING
+async function sendToServer(level: string, message: string, data?: any) {
+  // Only send in browser environment
+  if (typeof window === 'undefined') return;
+  
+  // Only send critical logs or when debug is enabled
+  if (!showDebugLogs && level !== 'error') return;
+  
+  try {
+    await fetch('/api/debug-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        level,
+        message,
+        data: data ? JSON.stringify(data) : null,
+        timestamp: new Date().toISOString(),
+        isPWA: window.matchMedia('(display-mode: standalone)').matches
+      })
+    });
+  } catch (e) {
+    // Silently fail - don't break app if logging fails
+  }
+}
+
 export const logger = {
   /**
-   * Debug/info logs - only in development
+   * Debug/info logs - only in development + SERVER LOGGING
    */
   log: (...args: any[]) => {
     if (showDebugLogs) {
       console.log(...args);
+      // Send to server
+      const message = args[0];
+      const data = args.length > 1 ? args.slice(1) : undefined;
+      sendToServer('log', message, data);
     }
   },
 
   /**
-   * Informational logs - only in development
+   * Informational logs - only in development + SERVER LOGGING
    */
   info: (...args: any[]) => {
     if (showDebugLogs) {
       console.info(...args);
+      const message = args[0];
+      const data = args.length > 1 ? args.slice(1) : undefined;
+      sendToServer('info', message, data);
     }
   },
 
   /**
-   * Warnings - always shown (but can be disabled in production)
+   * Warnings - always shown + SERVER LOGGING
    */
   warn: (...args: any[]) => {
     if (showDebugLogs) {
       console.warn(...args);
+      const message = args[0];
+      const data = args.length > 1 ? args.slice(1) : undefined;
+      sendToServer('warn', message, data);
     }
   },
 
   /**
-   * Errors - ALWAYS shown (critical)
+   * Errors - ALWAYS shown + SERVER LOGGING (CRITICAL!)
    */
   error: (...args: any[]) => {
     console.error(...args);
+    const message = args[0];
+    const data = args.length > 1 ? args.slice(1) : undefined;
+    sendToServer('error', message, data);
   },
 
   /**
