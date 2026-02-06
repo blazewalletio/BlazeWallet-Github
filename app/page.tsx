@@ -89,15 +89,13 @@ export default function Home() {
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (session && !error) {
+          // Skip device verification if IndexedDB already has wallet
+          if (!hasEncryptedWallet || !hasPasswordStored) {
             const deviceCheck = await DeviceVerificationCheckV2.isDeviceVerified();
-            
-            logger.log('🔍 [DEVICE CHECK V2] Result:', deviceCheck);
             
             if (!deviceCheck.verified) {
               logger.warn('⚠️ [DEVICE CHECK] Device not verified:', deviceCheck.reason);
-              logger.warn('⚠️ [DEVICE CHECK] User has session + wallet, but device not verified');
               
-              // ✅ Import secureStorage FIRST (before using it in if/else blocks)
               const { secureStorage } = await import('@/lib/secure-storage');
               
               // Check if wallet exists in database
@@ -108,30 +106,22 @@ export default function Home() {
                 .maybeSingle();
               
               if (walletData && walletData.encrypted_wallet) {
-                // ✅ User has account + wallet → Just need device verification!
-                // Don't clear localStorage, don't show onboarding
-                // The user will get device verification email via signInWithEmail
-                logger.log('✅ [DEVICE CHECK] User has wallet - will require device verification on next login');
-                
-                // ⚠️ CRITICAL: Preserve device_id before signOut (Supabase clears localStorage!)
+                // User has wallet - store it and require device verification on next login
                 const preservedDeviceId = localStorage.getItem('blaze_device_id');
                 const preservedFingerprint = localStorage.getItem('blaze_device_fingerprint');
                 const preservedFingerprintCachedAt = localStorage.getItem('blaze_fingerprint_cached_at');
                 
-                // 📱 FIX: Use secureStorage (IndexedDB) instead of localStorage!
                 await secureStorage.setItem('encrypted_wallet', walletData.encrypted_wallet);
                 await secureStorage.setItem('has_password', 'true');
                 await secureStorage.setItem('wallet_email', session.user.email || '');
                 await secureStorage.setItem('wallet_created_with_email', 'true');
                 await secureStorage.setItem('supabase_user_id', session.user.id);
                 
-                // ✅ Sign out to force fresh login with device verification
                 await supabase.auth.signOut();
                 
-                // ⚠️ CRITICAL: Restore device_id after signOut!
+                // Restore device_id after signOut
                 if (preservedDeviceId) {
                   localStorage.setItem('blaze_device_id', preservedDeviceId);
-                  logger.log('✅ [DEVICE CHECK] Device ID preserved after signOut:', preservedDeviceId.substring(0, 12) + '...');
                 }
                 if (preservedFingerprint) {
                   localStorage.setItem('blaze_device_fingerprint', preservedFingerprint);
@@ -140,13 +130,11 @@ export default function Home() {
                   localStorage.setItem('blaze_fingerprint_cached_at', preservedFingerprintCachedAt);
                 }
                 
-                // Show onboarding (which will show login screen)
                 setHasWallet(false);
                 return;
               }
               
-              // No wallet found → Truly new user → Show onboarding
-              logger.warn('⚠️ [DEVICE CHECK] No wallet found - showing onboarding');
+              // No wallet found - show onboarding
               await secureStorage.setItem('encrypted_wallet', '');
               await secureStorage.setItem('has_password', '');
               sessionStorage.clear();
@@ -155,47 +143,31 @@ export default function Home() {
             }
           }
           
-          logger.log('✅ [DEVICE CHECK] Device is verified - allowing password unlock');
-          
-          // ✅ Load encrypted wallet from Supabase
-          logger.log('🔄 [WALLET CHECK] Loading encrypted wallet from Supabase...');
+          // Device is verified or check skipped - load wallet from Supabase
           const { data: walletData, error: walletError } = await supabase
             .from('wallets')
             .select('encrypted_wallet')
             .eq('user_id', session.user.id)
             .maybeSingle();
           
-          logger.log('🔄 [WALLET CHECK] Wallet data result:', {
-            hasData: !!walletData,
-            hasError: !!walletError,
-            hasEncryptedWallet: !!walletData?.encrypted_wallet
-          });
-          
           if (walletError) {
             logger.error('❌ Error loading wallet from Supabase:', walletError);
           } else if (walletData && walletData.encrypted_wallet) {
-            logger.log('✅ Found encrypted wallet in Supabase for user');
-            
-            // 📱 FIX: Store encrypted wallet in IndexedDB (NOT localStorage!)
+            // Store encrypted wallet in IndexedDB
             const { secureStorage } = await import('@/lib/secure-storage');
             await secureStorage.setItem('encrypted_wallet', walletData.encrypted_wallet);
             await secureStorage.setItem('has_password', 'true');
             await secureStorage.setItem('wallet_email', session.user.email || '');
             await secureStorage.setItem('wallet_created_with_email', 'true');
-            logger.log('✅ [WALLET CHECK] Data stored in IndexedDB (NOT localStorage!)');
             
-            // Initialize account in account manager
-            logger.log('🔄 [WALLET CHECK] Initializing account manager...');
+            // Initialize account manager
             const { switchToEmailAccount } = await import('@/lib/account-manager');
             await switchToEmailAccount(
               session.user.email!,
               session.user.id,
               walletData.encrypted_wallet
             );
-            logger.log('✅ [WALLET CHECK] Account manager initialized');
             
-            // ✅ REACTIVE: Just set hasWallet=true, unlock modal shows automatically!
-            logger.log('✅ [WALLET CHECK] Setting hasWallet=true, unlock modal will show automatically');
             setHasWallet(true);
             return;
           } else {
