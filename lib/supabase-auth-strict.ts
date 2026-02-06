@@ -547,50 +547,99 @@ export async function confirmDeviceAndSignIn(
     logger.log('🔐 [StrictAuth] Confirming device for user:', userId.substring(0, 8) + '...');
     logger.log('📱 [StrictAuth] Device ID:', deviceId.substring(0, 12) + '...');
     
-    // 1. Find device in database
-    const { data: device, error: deviceError } = await supabase
+    // 1. Get current device info
+    const { generateEnhancedFingerprint } = await import('./device-fingerprint-pro');
+    const { DeviceIdManager } = await import('./device-id-manager');
+    const currentDeviceInfo = await generateEnhancedFingerprint();
+    const { deviceId: currentDeviceId } = DeviceIdManager.getOrCreateDeviceId();
+    
+    // 2. Find or create device in database
+    let device;
+    const { data: existingDevice, error: findError } = await supabase
       .from('trusted_devices')
       .select('*')
       .eq('user_id', userId)
-      .eq('id', deviceId) // Device table ID (not device_id!)
+      .eq('device_fingerprint', currentDeviceInfo.fingerprint)
       .maybeSingle();
     
-    if (deviceError || !device) {
-      logger.error('❌ [StrictAuth] Device not found');
+    if (findError && findError.code !== 'PGRST116') {
+      logger.error('❌ [StrictAuth] Error finding device:', findError);
       return {
         success: false,
-        error: 'Device not found',
+        error: 'Failed to find device',
       };
     }
     
-    // 2. Mark device as verified (user confirmed "Yes, this is me")
     const crypto = await import('crypto');
     const sessionToken = crypto.randomBytes(32).toString('hex');
     
-    const { error: updateError } = await supabase
-      .from('trusted_devices')
-      .update({
-        verified_at: new Date().toISOString(), // Mark as verified
-        is_current: true,
-        session_token: sessionToken,
-        last_verified_session_at: new Date().toISOString(),
-        last_used_at: new Date().toISOString(),
-      })
-      .eq('id', device.id);
-    
-    if (updateError) {
-      logger.error('❌ [StrictAuth] Failed to verify device:', updateError);
-      return {
-        success: false,
-        error: 'Failed to verify device',
-      };
+    if (existingDevice) {
+      // Update existing device
+      const { data: updatedDevice, error: updateError } = await supabase
+        .from('trusted_devices')
+        .update({
+          verified_at: new Date().toISOString(),
+          is_current: true,
+          session_token: sessionToken,
+          last_verified_session_at: new Date().toISOString(),
+          last_used_at: new Date().toISOString(),
+          device_id: currentDeviceId,
+          device_name: currentDeviceInfo.deviceName,
+          ip_address: currentDeviceInfo.ipAddress,
+          user_agent: currentDeviceInfo.userAgent,
+          browser: `${currentDeviceInfo.browser}`,
+          os: `${currentDeviceInfo.os}`,
+        })
+        .eq('id', existingDevice.id)
+        .select()
+        .single();
+      
+      if (updateError || !updatedDevice) {
+        logger.error('❌ [StrictAuth] Failed to verify device:', updateError);
+        return {
+          success: false,
+          error: 'Failed to verify device',
+        };
+      }
+      
+      device = updatedDevice;
+    } else {
+      // Create new device
+      const { data: newDevice, error: insertError } = await supabase
+        .from('trusted_devices')
+        .insert({
+          user_id: userId,
+          device_id: currentDeviceId,
+          device_name: currentDeviceInfo.deviceName,
+          device_fingerprint: currentDeviceInfo.fingerprint,
+          ip_address: currentDeviceInfo.ipAddress,
+          user_agent: currentDeviceInfo.userAgent,
+          browser: `${currentDeviceInfo.browser}`,
+          os: `${currentDeviceInfo.os}`,
+          verified_at: new Date().toISOString(),
+          is_current: true,
+          session_token: sessionToken,
+          last_verified_session_at: new Date().toISOString(),
+          last_used_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+      
+      if (insertError || !newDevice) {
+        logger.error('❌ [StrictAuth] Failed to create device:', insertError);
+        return {
+          success: false,
+          error: 'Failed to create device',
+        };
+      }
+      
+      device = newDevice;
     }
     
     logger.log('✅ [StrictAuth] Device confirmed and verified');
     
     // 3. Restore device_id to localStorage
-    const { DeviceIdManager } = await import('./device-id-manager');
-    DeviceIdManager.setDeviceId(device.device_id);
+    DeviceIdManager.setDeviceId(device.device_id || currentDeviceId);
     logger.log('✅ [StrictAuth] Device ID restored to localStorage');
     
     // 4. Store session token

@@ -1,39 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
 
-// 🔍 EXTENSIVE DEBUGGING FOR ENV VAR ISSUES
-console.group('🚀 SUPABASE INITIALIZATION DEBUG');
-// Get environment variables with multiple fallback methods
-// Method 1: process.env (works in Node.js / Server-side / Build time)
-// Method 2: Direct from next.config.mjs env export (for client-side)
-const supabaseUrl = 
-  process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-const supabaseAnonKey = 
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-// Detailed value inspection
-if (supabaseUrl) {
-} else {
-  console.error('❌ NEXT_PUBLIC_SUPABASE_URL is:', supabaseUrl);
-  console.error('❌ Type:', typeof supabaseUrl);
-}
-
-if (supabaseAnonKey) {
-} else {
-  console.error('❌ NEXT_PUBLIC_SUPABASE_ANON_KEY is:', supabaseAnonKey);
-  console.error('❌ Type:', typeof supabaseAnonKey);
-}
+// Get environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 // CRITICAL: Validate environment variables before creating client
 if (!supabaseUrl) {
   console.error('💥 FATAL: NEXT_PUBLIC_SUPABASE_URL is missing!');
-  console.error('💥 All env vars:', process.env);
   throw new Error('NEXT_PUBLIC_SUPABASE_URL is required but not set');
 }
 
 if (!supabaseAnonKey) {
   console.error('💥 FATAL: NEXT_PUBLIC_SUPABASE_ANON_KEY is missing!');
-  console.error('💥 All env vars:', process.env);
   throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is required but not set');
 }
 
@@ -56,15 +35,8 @@ try {
       },
     }
   );
-  console.groupEnd();
 } catch (error) {
   console.error('💥 FATAL ERROR creating Supabase client:', error);
-  console.error('💥 Error details:', {
-    name: error instanceof Error ? error.name : 'Unknown',
-    message: error instanceof Error ? error.message : String(error),
-    stack: error instanceof Error ? error.stack : undefined,
-  });
-  console.groupEnd();
   throw error;
 }
 

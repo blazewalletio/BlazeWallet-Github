@@ -75,8 +75,6 @@ const OnrampTransactionsPanel = dynamic(() => import('./OnrampTransactionsPanel'
 const PurchaseHistorySidebar = dynamic(() => import('./PurchaseHistorySidebar'), { ssr: false });
 
 export default function Dashboard() {
-  console.log('🚀 [DASHBOARD] Component rendering!');
-  
   const { 
     address, // EVM address (for backward compat)
     solanaAddress, // Solana address
@@ -92,13 +90,6 @@ export default function Dashboard() {
     showUnlockModal, // ✅ NEW: Read from store
     setShowUnlockModal // ✅ NEW: Write to store
   } = useWalletStore();
-  
-  console.log('🔍 [DASHBOARD] Wallet store state:', {
-    address: address?.substring(0, 12) || 'null',
-    solanaAddress: solanaAddress?.substring(0, 12) || 'null',
-    showUnlockModal,
-    currentChain
-  });
   
   const { formatUSDSync, symbol } = useCurrency();
   
@@ -2802,15 +2793,6 @@ export default function Dashboard() {
       
       {/* Password Unlock Modal - for lock/unlock flow */}
       {/* ✅ Single modal reading from wallet-store state */}
-      {(() => {
-        console.log('🔍 [DASHBOARD] Checking if unlock modal should render:', { showUnlockModal });
-        if (showUnlockModal) {
-          console.log('✅ [DASHBOARD] Rendering PasswordUnlockModal!');
-        } else {
-          console.log('⚠️ [DASHBOARD] NOT rendering PasswordUnlockModal (showUnlockModal is FALSE)');
-        }
-        return null;
-      })()}
       {showUnlockModal && (
         <PasswordUnlockModal
           isOpen={showUnlockModal}

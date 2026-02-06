@@ -10,6 +10,7 @@ import NewEmailModal from './NewEmailModal';
 import WalletRecoveryFlow from './WalletRecoveryFlow';
 import DeviceVerificationModal from './DeviceVerificationModal';
 import DeviceConfirmationModal from './DeviceConfirmationModal';
+import DeviceVerificationCodeModal from './DeviceVerificationCodeModal';
 import SensitiveAction2FAModal from './SensitiveAction2FAModal';
 import { logger } from '@/lib/logger';
 import { rateLimitService } from '@/lib/rate-limit-service';
@@ -55,6 +56,15 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     email: string;
     password: string;
   } | null>(null);
+  
+  // ✅ NEW: Email Verification Code State
+  const [showVerificationCode, setShowVerificationCode] = useState(false);
+  const [verificationCodeData, setVerificationCodeData] = useState<{
+    email: string;
+    userId: string;
+    deviceInfo: any;
+    password: string;
+  } | null>(null);
 
   // 🔐 2FA State for GRADUATED SECURITY
   const [show2FAModal, setShow2FAModal] = useState(false);
@@ -67,8 +77,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     if (isOpen) {
       const loadAccountData = async () => {
         try {
-          console.log('🔄 [PasswordUnlock] Loading account data...');
-          
           const account = getCurrentAccount();
           setCurrentAccount(account);
           
@@ -76,43 +84,29 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
           const { secureStorage } = await import('@/lib/secure-storage');
           let email = await secureStorage.getItem('wallet_email');
           
-          console.log('📦 [PasswordUnlock] IndexedDB email:', email || 'null');
-          
           // Fallback to localStorage if IndexedDB empty
           if (!email) {
             email = localStorage.getItem('wallet_email');
-            console.log('📦 [PasswordUnlock] localStorage email:', email || 'null');
           }
           
           // 🔥 CRITICAL: If still no email, try to get from Supabase session
           if (!email) {
-            console.warn('⚠️ [PasswordUnlock] Email not in storage - checking Supabase session');
             const { supabase } = await import('@/lib/supabase');
             const { data: { session } } = await supabase.auth.getSession();
-            
-            console.log('📧 [PasswordUnlock] Supabase session:', {
-              hasSession: !!session,
-              hasUser: !!session?.user,
-              email: session?.user?.email || 'null'
-            });
             
             if (session?.user?.email) {
               email = session.user.email;
               // Save it to IndexedDB for next time
               await secureStorage.setItem('wallet_email', email);
               await secureStorage.setItem('supabase_user_id', session.user.id);
-              console.log('✅ [PasswordUnlock] Restored email from Supabase session:', email);
             }
           }
           
           if (email) {
             setUserEmail(email);
-            console.log('✅ [PasswordUnlock] FINAL - Email loaded:', email);
           } else {
             console.error('❌ [PasswordUnlock] FINAL - No email found anywhere!');
           }
-          
-          console.log('📧 [PasswordUnlock] Current account loaded:', account);
         } catch (error) {
           console.error('❌ [PasswordUnlock] Error loading account data:', error);
         }
@@ -149,7 +143,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         
         // ✅ CHECK: Only show biometric on production domain
         if (!webauthnService.isOnProductionDomain()) {
-          console.log('🚫 Biometric disabled: Not on production domain (my.blazewallet.io)');
           setBiometricAvailable(false);
           return;
         }
@@ -162,8 +155,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         }
         
         const hasStoredPassword = biometricStore.hasStoredPassword(walletIdentifier); // ✅ Wallet-specific check
-        
-        console.log(`🔍 Biometric check for wallet ${walletIdentifier.substring(0, 8)}...:`, hasStoredPassword);
         
         // Show biometric button if has stored password for this wallet
         setBiometricAvailable(hasStoredPassword);
@@ -201,8 +192,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       }
       
       if (email && storedUserId) {
-        console.log('🔐 [PasswordUnlock] Checking 2FA session for email wallet...');
-        
         // Check if user has 2FA enabled
         const { data: profile } = await supabase
           .from('user_profiles')
@@ -211,32 +200,19 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
           .single();
         
         if (profile?.two_factor_enabled) {
-          console.log('🔐 [PasswordUnlock] 2FA is enabled - checking session age...');
-          
           // Check 2FA session status
           const sessionStatus = await twoFactorSessionService.checkSession(storedUserId);
           
           if (sessionStatus.required) {
             // 🚨 SESSION EXPIRED or NO SESSION → Require 2FA BEFORE unlock
-            console.log('⚠️ [PasswordUnlock] 2FA session expired - showing 2FA modal');
             setUserId(storedUserId);
             setUserEmail(email);
             setPending2FAPassword(password);
             setShow2FAModal(true);
             return; // Stop here - wait for 2FA verification
-          } else {
-            // ✅ SESSION VALID → Password only
-            console.log('✅ [PasswordUnlock] 2FA session still valid - password only');
-            if (sessionStatus.isNearExpiry) {
-              console.log('⚠️ [PasswordUnlock] Session expiring soon:', sessionStatus.secondsRemaining, 'seconds');
-            }
           }
-        } else {
-          console.log('ℹ️ [PasswordUnlock] 2FA not enabled for this user');
         }
       }
-    } else {
-      console.log('🌱 [PasswordUnlock] Seed wallet - no device verification or 2FA needed');
     }
 
     // Note: Rate limiting is now handled in wallet-store.ts unlockWithPassword()
@@ -253,7 +229,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         if (!result.success) {
           // ✅ NEW: Check if device confirmation is needed (medium confidence)
           if (result.requiresDeviceConfirmation && result.suggestedDevice) {
-            console.log('⚠️ Device confirmation required (medium confidence)');
             
             // Get user ID from Supabase session
             const { data: { user } } = await supabase.auth.getUser();
@@ -272,8 +247,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
           
           // Check if device verification is required
           if (result.requiresDeviceVerification && result.deviceVerificationToken && result.deviceInfo) {
-            console.log('🚫 Device verification required for new email');
-            
             // Show device verification modal
             setDeviceVerificationData({
               deviceInfo: result.deviceInfo,
@@ -330,8 +303,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         if (!result.success) {
           // ✅ NEW: Check if device confirmation is needed (medium confidence)
           if (result.requiresDeviceConfirmation && result.suggestedDevice) {
-            console.log('⚠️ Device confirmation required (medium confidence)');
-            
             // Get user ID from Supabase session
             const { data: { user } } = await supabase.auth.getUser();
             
@@ -349,7 +320,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
           
           // Check if device verification is required
           if (result.requiresDeviceVerification && result.deviceVerificationToken && result.deviceInfo) {
-            console.log('🚫 Device verification required');
             
             // Show device verification modal
             setDeviceVerificationData({
@@ -403,7 +373,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
 
   // 🔐 Handle successful 2FA verification - then proceed with unlock
   const handle2FASuccess = async () => {
-    console.log('✅ [PasswordUnlock] 2FA verified - proceeding with password unlock');
     setShow2FAModal(false);
     
     // Now proceed with the actual unlock using the stored password
@@ -430,7 +399,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       
       if (createdWithEmail && email) {
         // ✅ EMAIL WALLET: Use strictSignInWithEmail (2FA was already verified)
-        console.log('✅ [PasswordUnlock] Email wallet - using strictSignInWithEmail after 2FA');
         const { strictSignInWithEmail } = await import('@/lib/supabase-auth-strict');
         const result = await strictSignInWithEmail(email, pending2FAPassword);
         
@@ -445,12 +413,9 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         }
       } else {
         // ✅ SEED PHRASE WALLET: Use unlockWithPassword
-        console.log('✅ [PasswordUnlock] Seed wallet - using unlockWithPassword after 2FA');
         const { unlockWithPassword } = useWalletStore.getState();
         await unlockWithPassword(pending2FAPassword);
       }
-      
-      console.log('✅ [PasswordUnlock] Wallet unlocked successfully after 2FA');
       
       // ✅ Save account to recent after successful unlock
       saveCurrentAccountToRecent();
@@ -475,7 +440,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   };
 
   const handleSelectAccount = async (account: WalletAccount) => {
-    console.log('🔄 Switching account:', account);
     setPassword('');
     setError('');
     setPendingNewEmail(null);
@@ -492,8 +456,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
           localStorage.setItem('wallet_email', account.email);
           localStorage.setItem('supabase_user_id', account.id);
           localStorage.setItem('wallet_created_with_email', 'true');
-          
-          console.log('✅ Updated localStorage for email account:', account.email);
         }
         
         setCurrentAccount(account);
@@ -519,7 +481,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
 
   // Handle adding new email
   const handleAddNewEmail = async (email: string) => {
-    console.log('➕ Adding new email account:', email);
     setPendingNewEmail(email);
     setCurrentAccount({
       id: 'pending',
@@ -544,15 +505,12 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   const handleSignOut = async () => {
     try {
       setIsLoading(true);
-      console.log('🚪 [Unlock Modal] User initiated sign out');
       // Import supabase
       const { supabase } = await import('@/lib/supabase');
       // ⚠️ CRITICAL: Preserve device_id before clearing localStorage
       const preservedDeviceId = localStorage.getItem('blaze_device_id');
       const preservedFingerprint = localStorage.getItem('blaze_device_fingerprint');
       const preservedFingerprintCachedAt = localStorage.getItem('blaze_fingerprint_cached_at');
-      
-      console.log('🔑 [Unlock Modal] Preserving device_id:', preservedDeviceId?.substring(0, 12) + '...');
       // Sign out from Supabase
       await supabase.auth.signOut();
       // Clear wallet store
@@ -578,7 +536,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       // ✅ CRITICAL: Restore device_id after clearing localStorage
       if (preservedDeviceId) {
         localStorage.setItem('blaze_device_id', preservedDeviceId);
-        console.log('✅ [Unlock Modal] Device ID restored after sign out');
       }
       if (preservedFingerprint) {
         localStorage.setItem('blaze_device_fingerprint', preservedFingerprint);
@@ -587,7 +544,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         localStorage.setItem('blaze_fingerprint_cached_at', preservedFingerprintCachedAt);
       }
       
-      console.log('✅ [Unlock Modal] Sign out complete, redirecting to onboarding');
       // Redirect to onboarding
       onFallback();
       
@@ -824,20 +780,102 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
                 onComplete();
               }
             }}
-            onConfirmNo={() => {
-              // User said "No, not me" → Fall back to email verification
-              console.log('❌ User declined device confirmation → Email verification');
+            onConfirmNo={async () => {
+              // User said "No, not me" → Show email verification code modal
               setShowDeviceConfirmation(false);
               
-              // Show device verification modal instead
-              // (need to trigger email verification flow)
-              // For now, just show error and let user try again
-              setError('Email verification required. Please try again.');
+              // Get current device info for verification
+              const { generateEnhancedFingerprint } = await import('@/lib/device-fingerprint-pro');
+              const deviceInfo = await generateEnhancedFingerprint();
+              
+              setVerificationCodeData({
+                email: deviceConfirmationData.email,
+                userId: deviceConfirmationData.userId,
+                deviceInfo,
+                password: deviceConfirmationData.password,
+              });
+              setShowVerificationCode(true);
               setDeviceConfirmationData(null);
             }}
             onCancel={() => {
               setShowDeviceConfirmation(false);
               setDeviceConfirmationData(null);
+            }}
+          />
+        )}
+
+        {/* Email Verification Code Modal */}
+        {verificationCodeData && (
+          <DeviceVerificationCodeModal
+            isOpen={showVerificationCode}
+            email={verificationCodeData.email}
+            userId={verificationCodeData.userId}
+            deviceInfo={verificationCodeData.deviceInfo}
+            onVerify={async (code: string) => {
+              // Verify code
+              const response = await fetch('/api/verify-device-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  userId: verificationCodeData.userId,
+                  email: verificationCodeData.email,
+                  code,
+                  deviceInfo: verificationCodeData.deviceInfo,
+                }),
+              });
+
+              const data = await response.json();
+
+              if (!data.success) {
+                throw new Error(data.error || 'Invalid verification code');
+              }
+
+              // Device verified - now sign in
+              const { strictSignInWithEmail } = await import('@/lib/supabase-auth-strict');
+              const result = await strictSignInWithEmail(
+                verificationCodeData.email,
+                verificationCodeData.password
+              );
+
+              if (!result.success) {
+                throw new Error(result.error || 'Failed to sign in');
+              }
+
+              // Wallet successfully unlocked
+              if (result.mnemonic) {
+                const { importWallet } = useWalletStore.getState();
+                await importWallet(result.mnemonic);
+
+                // Save to recent and complete
+                saveCurrentAccountToRecent();
+                sessionStorage.setItem('wallet_unlocked_this_session', 'true');
+
+                setShowVerificationCode(false);
+                setVerificationCodeData(null);
+                onComplete();
+              }
+            }}
+            onResend={async () => {
+              // Resend code
+              const response = await fetch('/api/device-verification-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  userId: verificationCodeData.userId,
+                  email: verificationCodeData.email,
+                  deviceInfo: verificationCodeData.deviceInfo,
+                }),
+              });
+
+              const data = await response.json();
+
+              if (!data.success) {
+                throw new Error(data.error || 'Failed to resend code');
+              }
+            }}
+            onCancel={() => {
+              setShowVerificationCode(false);
+              setVerificationCodeData(null);
             }}
           />
         )}

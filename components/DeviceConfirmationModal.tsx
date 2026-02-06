@@ -80,13 +80,19 @@ export default function DeviceConfirmationModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm overflow-y-auto">
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="min-h-screen flex items-center justify-center p-4"
           >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden my-8"
+            >
             {/* Header */}
             <div className="bg-gradient-to-r from-orange-500 to-yellow-500 p-6 text-white">
               <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-white/20 rounded-2xl backdrop-blur">
@@ -210,7 +216,8 @@ export default function DeviceConfirmationModal({
               </button>
             </div>
           </motion.div>
-        </div>
+        </motion.div>
+      </div>
       )}
     </AnimatePresence>
   );
