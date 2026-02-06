@@ -409,84 +409,36 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     // Now proceed with the actual unlock using the stored password
     setIsLoading(true);
     try {
-      // Check if wallet was created with email
-      // 🔥 FIX: Try IndexedDB first, fallback to localStorage
-      const { secureStorage } = await import('@/lib/secure-storage');
-      let createdWithEmailStr = await secureStorage.getItem('wallet_created_with_email');
-      let email = await secureStorage.getItem('wallet_email');
+      // ✅ AFTER 2FA: Just unlock the wallet directly with wallet-store
+      // NO NEED to call strictSignInWithEmail again - we already authenticated during initial unlock!
+      // Device verification and Supabase sign-in happened BEFORE 2FA prompt
+      const { unlockWithPassword } = useWalletStore.getState();
       
-      // Fallback to localStorage if IndexedDB empty
-      if (!createdWithEmailStr) {
-        createdWithEmailStr = localStorage.getItem('wallet_created_with_email');
-      }
-      if (!email) {
-        email = localStorage.getItem('wallet_email');
+      if (!pending2FAPassword) {
+        throw new Error('Password not found');
       }
       
-      const createdWithEmail = createdWithEmailStr === 'true';
+      const success = await unlockWithPassword(pending2FAPassword);
       
-      if (createdWithEmail && email && pending2FAPassword) {
-        // ✅ FORT KNOX: Use strict authentication with device verification
-        const { strictSignInWithEmail } = await import('@/lib/supabase-auth-strict');
-        const result = await strictSignInWithEmail(email, pending2FAPassword);
-        
-        if (!result.success) {
-          // ✅ NEW: Check if device confirmation is needed (medium confidence)
-          if (result.requiresDeviceConfirmation && result.suggestedDevice) {
-            console.log('⚠️ Device confirmation required after 2FA (medium confidence)');
-            
-            // Get user ID from Supabase session
-            const { data: { user } } = await supabase.auth.getUser();
-            
-            // Show device confirmation modal
-            setDeviceConfirmationData({
-              suggestedDevice: result.suggestedDevice,
-              score: result.matchScore || 0,
-              userId: user?.id || '',
-              email,
-              password: pending2FAPassword,
-            });
-            setShowDeviceConfirmation(true);
-            return;
-          }
-          
-          // Check if device verification is required
-          if (result.requiresDeviceVerification && result.deviceVerificationToken && result.deviceInfo) {
-            console.log('🚫 Device verification required after 2FA');
-            
-            // Show device verification modal
-            setDeviceVerificationData({
-              deviceInfo: result.deviceInfo,
-              deviceToken: result.deviceVerificationToken,
-              email,
-              password: pending2FAPassword,
-            });
-            setShowDeviceVerification(true);
-            return;
-          }
-          throw new Error(result.error || 'Invalid password');
-        }
-        
-        // Wallet is now decrypted and loaded
-        if (result.mnemonic) {
-          const { importWallet } = useWalletStore.getState();
-          await importWallet(result.mnemonic);
-        }
-        
-        // ✅ Save account to recent after successful unlock
-        saveCurrentAccountToRecent();
-        
-        // Set session flag
-        sessionStorage.setItem('wallet_unlocked_this_session', 'true');
-        
-        // ✅ Add small delay to ensure state propagates before calling onComplete
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Clear pending password
-        setPending2FAPassword('');
-        
-        onComplete();
+      if (!success) {
+        throw new Error('Invalid password');
       }
+      
+      console.log('✅ [PasswordUnlock] Wallet unlocked successfully after 2FA');
+      
+      // ✅ Save account to recent after successful unlock
+      saveCurrentAccountToRecent();
+      
+      // Set session flag
+      sessionStorage.setItem('wallet_unlocked_this_session', 'true');
+      
+      // ✅ Add small delay to ensure state propagates before calling onComplete
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Clear pending password
+      setPending2FAPassword('');
+      
+      onComplete();
     } catch (error: any) {
       console.error('❌ [PasswordUnlock] Error during unlock after 2FA:', error);
       setError(error.message || 'Failed to unlock wallet');
