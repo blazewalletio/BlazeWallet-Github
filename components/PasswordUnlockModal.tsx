@@ -69,7 +69,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         const account = getCurrentAccount();
         setCurrentAccount(account);
         
-        // 🔥 FIX: Load email from IndexedDB first, fallback to localStorage
+        // 🔥 FIX: Load email from IndexedDB first, fallback to localStorage, then Supabase
         const { secureStorage } = await import('@/lib/secure-storage');
         let email = await secureStorage.getItem('wallet_email');
         
@@ -78,11 +78,26 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
           email = localStorage.getItem('wallet_email');
         }
         
+        // 🔥 CRITICAL: If still no email, try to get from Supabase session
+        if (!email) {
+          logger.warn('⚠️ [PasswordUnlock] Email not in storage - checking Supabase session');
+          const { supabase } = await import('@/lib/supabase');
+          const { data: { session } } = await supabase.auth.getSession();
+          
+          if (session?.user?.email) {
+            email = session.user.email;
+            // Save it to IndexedDB for next time
+            await secureStorage.setItem('wallet_email', email);
+            await secureStorage.setItem('supabase_user_id', session.user.id);
+            logger.log('✅ [PasswordUnlock] Restored email from Supabase session:', email);
+          }
+        }
+        
         if (email) {
           setUserEmail(email);
           logger.log('✅ [PasswordUnlock] Loaded email:', email);
         } else {
-          logger.warn('⚠️ [PasswordUnlock] No email found in storage');
+          logger.error('❌ [PasswordUnlock] No email found anywhere!');
         }
         
         logger.log('📧 Current account loaded:', account);
