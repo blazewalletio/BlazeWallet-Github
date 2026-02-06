@@ -65,10 +65,30 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   // Load current account and reset state when modal opens
   useEffect(() => {
     if (isOpen) {
-      const account = getCurrentAccount();
-      setCurrentAccount(account);
+      const loadAccountData = async () => {
+        const account = getCurrentAccount();
+        setCurrentAccount(account);
+        
+        // 🔥 FIX: Load email from IndexedDB first, fallback to localStorage
+        const { secureStorage } = await import('@/lib/secure-storage');
+        let email = await secureStorage.getItem('wallet_email');
+        
+        // Fallback to localStorage if IndexedDB empty
+        if (!email) {
+          email = localStorage.getItem('wallet_email');
+        }
+        
+        if (email) {
+          setUserEmail(email);
+          logger.log('✅ [PasswordUnlock] Loaded email:', email);
+        } else {
+          logger.warn('⚠️ [PasswordUnlock] No email found in storage');
+        }
+        
+        logger.log('📧 Current account loaded:', account);
+      };
       
-      // ✅ FIX: Reset ALL state when modal opens
+      // ✅ FIX: Reset state EXCEPT userEmail (we just loaded it!)
       setPassword('');
       setError('');
       setIsLoading(false);
@@ -79,9 +99,9 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       setShow2FAModal(false);
       setPending2FAPassword('');
       setUserId(null);
-      setUserEmail('');
+      // DON'T reset userEmail here - loadAccountData sets it!
       
-      logger.log('📧 Current account loaded:', account);
+      loadAccountData();
     }
   }, [isOpen]);
 
@@ -154,8 +174,18 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       logger.log('✅ [PasswordUnlock] Device verified - proceeding with unlock');
       
       // 🔐 STEP 2: GRADUATED SECURITY - Check 2FA session for email wallets
-      const email = localStorage.getItem('wallet_email');
-      const storedUserId = localStorage.getItem('supabase_user_id');
+      // 🔥 FIX: Try IndexedDB first, fallback to localStorage
+      const { secureStorage } = await import('@/lib/secure-storage');
+      let email = await secureStorage.getItem('wallet_email');
+      let storedUserId = await secureStorage.getItem('supabase_user_id');
+      
+      // Fallback to localStorage if IndexedDB empty
+      if (!email) {
+        email = localStorage.getItem('wallet_email');
+      }
+      if (!storedUserId) {
+        storedUserId = localStorage.getItem('supabase_user_id');
+      }
       
       if (email && storedUserId) {
         logger.log('🔐 [PasswordUnlock] Checking 2FA session for email wallet...');
@@ -266,8 +296,20 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       }
 
       // Check if wallet was created with email
-      const createdWithEmail = localStorage.getItem('wallet_created_with_email') === 'true';
-      const email = localStorage.getItem('wallet_email');
+      // 🔥 FIX: Try IndexedDB first, fallback to localStorage
+      const { secureStorage } = await import('@/lib/secure-storage');
+      let createdWithEmailStr = await secureStorage.getItem('wallet_created_with_email');
+      let email = await secureStorage.getItem('wallet_email');
+      
+      // Fallback to localStorage if IndexedDB empty
+      if (!createdWithEmailStr) {
+        createdWithEmailStr = localStorage.getItem('wallet_created_with_email');
+      }
+      if (!email) {
+        email = localStorage.getItem('wallet_email');
+      }
+      
+      const createdWithEmail = createdWithEmailStr === 'true';
       if (createdWithEmail && email) {
         // ✅ FORT KNOX: Use strict authentication with device verification
         const { strictSignInWithEmail } = await import('@/lib/supabase-auth-strict');
@@ -355,8 +397,20 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     setIsLoading(true);
     try {
       // Check if wallet was created with email
-      const createdWithEmail = localStorage.getItem('wallet_created_with_email') === 'true';
-      const email = localStorage.getItem('wallet_email');
+      // 🔥 FIX: Try IndexedDB first, fallback to localStorage
+      const { secureStorage } = await import('@/lib/secure-storage');
+      let createdWithEmailStr = await secureStorage.getItem('wallet_created_with_email');
+      let email = await secureStorage.getItem('wallet_email');
+      
+      // Fallback to localStorage if IndexedDB empty
+      if (!createdWithEmailStr) {
+        createdWithEmailStr = localStorage.getItem('wallet_created_with_email');
+      }
+      if (!email) {
+        email = localStorage.getItem('wallet_email');
+      }
+      
+      const createdWithEmail = createdWithEmailStr === 'true';
       
       if (createdWithEmail && email && pending2FAPassword) {
         // ✅ FORT KNOX: Use strict authentication with device verification

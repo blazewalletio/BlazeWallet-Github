@@ -549,7 +549,12 @@ export async function completeSignInAfter2FA(
       await secureStorage.setItem('encrypted_wallet', walletData.encrypted_mnemonic);
       await secureStorage.setItem('has_password', 'true');
       
-      // ✅ Non-sensitive metadata can stay in localStorage
+      // 🔥 FIX: Store metadata in IndexedDB too (iOS PWA clears localStorage!)
+      await secureStorage.setItem('wallet_email', email);
+      await secureStorage.setItem('wallet_created_with_email', 'true');
+      await secureStorage.setItem('supabase_user_id', userId);
+      
+      // ✅ Also set in localStorage for backward compatibility
       localStorage.setItem('wallet_email', email);
       localStorage.setItem('wallet_created_with_email', 'true');
       localStorage.setItem('supabase_user_id', userId);
