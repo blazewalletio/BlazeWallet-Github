@@ -240,7 +240,7 @@ export async function markAccountAsUpgraded(
   logger.log('🔄 Marking account as upgraded to email:', email);
   
   // Get current account
-  const currentAccount = getCurrentAccount();
+  const currentAccount = await getCurrentAccount();
   
   if (!currentAccount || currentAccount.type !== 'seed') {
     logger.error('Cannot upgrade: Current account is not a seed wallet');
