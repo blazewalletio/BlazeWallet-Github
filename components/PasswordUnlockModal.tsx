@@ -418,11 +418,8 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         throw new Error('Password not found');
       }
       
-      const success = await unlockWithPassword(pending2FAPassword);
-      
-      if (!success) {
-        throw new Error('Invalid password');
-      }
+      // unlockWithPassword throws an error if password is wrong, so we can just await it
+      await unlockWithPassword(pending2FAPassword);
       
       console.log('✅ [PasswordUnlock] Wallet unlocked successfully after 2FA');
       
