@@ -50,13 +50,27 @@ export function getAllAccounts(): WalletAccount[] {
 /**
  * Get current active account
  */
-export function getCurrentAccount(): WalletAccount | null {
+/**
+ * Get current active wallet account (ASYNC - checks IndexedDB first!)
+ * Now checks IndexedDB first, falls back to localStorage for backwards compatibility
+ */
+export async function getCurrentAccount(): Promise<WalletAccount | null> {
   if (typeof window === 'undefined') return null;
   
-  const isEmail = localStorage.getItem('wallet_created_with_email') === 'true';
-  const email = localStorage.getItem('wallet_email');
-  const userId = localStorage.getItem('supabase_user_id');
-  const encryptedWallet = localStorage.getItem('encrypted_wallet');
+  // Import secureStorage for IndexedDB access
+  const { secureStorage } = await import('@/lib/secure-storage');
+  
+  // ✅ PRIORITY 1: Check IndexedDB (primary storage since Hybrid Storage implementation)
+  let isEmail = await secureStorage.getItem('wallet_created_with_email') === 'true';
+  let email = await secureStorage.getItem('wallet_email');
+  let userId = await secureStorage.getItem('supabase_user_id');
+  let encryptedWallet = await secureStorage.getItem('encrypted_wallet');
+  
+  // ✅ FALLBACK: Check localStorage if IndexedDB is empty (backwards compatibility)
+  if (!email) email = localStorage.getItem('wallet_email');
+  if (!userId) userId = localStorage.getItem('supabase_user_id');
+  if (!encryptedWallet) encryptedWallet = localStorage.getItem('encrypted_wallet');
+  if (!isEmail) isEmail = localStorage.getItem('wallet_created_with_email') === 'true';
   
   if (!encryptedWallet) return null;
   
@@ -113,10 +127,10 @@ export function getRecentAccounts(): WalletAccount[] {
 /**
  * Save current account to recent accounts before switching
  */
-export function saveCurrentAccountToRecent(): void {
+export async function saveCurrentAccountToRecent(): Promise<void> {
   if (typeof window === 'undefined') return;
   
-  const currentAccount = getCurrentAccount();
+  const currentAccount = await getCurrentAccount();
   if (!currentAccount) return;
   
   const recentAccounts = getRecentAccounts();

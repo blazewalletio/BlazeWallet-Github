@@ -69,7 +69,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         try {
           console.log('🔄 [PasswordUnlock] Loading account data...');
           
-          const account = getCurrentAccount();
+          const account = await getCurrentAccount();
           setCurrentAccount(account);
           
           // 🔥 FIX: Load email from IndexedDB first, fallback to localStorage, then Supabase
@@ -295,7 +295,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         }
         
         // ✅ FIX: Save account to recent after successful unlock
-        saveCurrentAccountToRecent();
+        await saveCurrentAccountToRecent();
         
         // Set session flag
         sessionStorage.setItem('wallet_unlocked_this_session', 'true');
@@ -370,7 +370,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         }
         
         // ✅ FIX: Save account to recent after successful unlock
-        saveCurrentAccountToRecent();
+        await saveCurrentAccountToRecent();
         
         // Set session flag to skip unlock modal on page refresh during same session
         sessionStorage.setItem('wallet_unlocked_this_session', 'true');
@@ -383,7 +383,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         // For seed phrase wallets, use traditional unlock
         await unlockWithPassword(password);
         // ✅ FIX: Save account to recent after successful unlock
-        saveCurrentAccountToRecent();
+        await saveCurrentAccountToRecent();
         
         // Set session flag
         sessionStorage.setItem('wallet_unlocked_this_session', 'true');
@@ -456,7 +456,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       if (account.type === 'email' && account.email) {
         // ✅ FIX: Update localStorage immediately for email accounts
         // This ensures unlock uses the correct account
-        saveCurrentAccountToRecent(); // Save current first
+        await saveCurrentAccountToRecent(); // Save current first
         
         if (account.id !== 'pending') {
           // Existing email account from recent list
@@ -471,7 +471,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       } else if (account.type === 'seed') {
         // Switching to seed wallet
         await switchToSeedWallet(account.id);
-        const updatedAccount = getCurrentAccount();
+        const updatedAccount = await getCurrentAccount();
         setCurrentAccount(updatedAccount);
       }
     } catch (err: any) {
@@ -479,7 +479,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       setError(err.message || 'Failed to switch account');
       
       // ✅ FIX: Revert to previous account on failure
-      const prevAccount = getCurrentAccount();
+      const prevAccount = await getCurrentAccount();
       if (prevAccount) {
         setCurrentAccount(prevAccount);
       }
@@ -747,7 +747,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
               await importWallet(mnemonic);
               
               // Save to recent and complete
-              saveCurrentAccountToRecent();
+              await saveCurrentAccountToRecent();
               sessionStorage.setItem('wallet_unlocked_this_session', 'true');
               
               setShowDeviceVerification(false);
@@ -788,7 +788,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
                 await importWallet(result.mnemonic);
                 
                 // Save to recent and complete
-                saveCurrentAccountToRecent();
+                await saveCurrentAccountToRecent();
                 sessionStorage.setItem('wallet_unlocked_this_session', 'true');
                 
                 setShowDeviceConfirmation(false);
