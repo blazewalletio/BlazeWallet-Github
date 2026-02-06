@@ -179,31 +179,14 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     e.preventDefault();
     setError('');
 
-    // ✅ STEP 1: Check device verification for email wallets BEFORE unlock (V2!)
+    // ✅ DEVICE CHECK DISABLED IN UNLOCK FLOW
+    // Reason: User already passed device verification during login
+    // If they can see this unlock modal, they're already authenticated!
+    // Checking again causes "device_not_found" errors after device cleanup
+    
+    // 🔐 GRADUATED SECURITY - Check 2FA session for email wallets
     const isSeedWallet = DeviceVerificationCheckV2.isSeedWallet();
     if (!isSeedWallet) {
-      console.log('📧 [PasswordUnlock] Email wallet detected - checking device verification (V2)...');
-      const deviceCheck = await DeviceVerificationCheckV2.isDeviceVerified();
-      if (!deviceCheck.verified) {
-        console.warn('⚠️ [PasswordUnlock] Device not verified:', deviceCheck.reason);
-        setError('Device not recognized. Redirecting to email login...');
-        setIsLoading(true);
-        // Clear local data and redirect to email login
-        setTimeout(() => {
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('encrypted_wallet');
-            localStorage.removeItem('has_password');
-            sessionStorage.clear();
-          }
-          
-          // Reload to show onboarding (email login required)
-          window.location.reload();
-        }, 2000);
-        return;
-      }
-      console.log('✅ [PasswordUnlock] Device verified - proceeding with unlock');
-      
-      // 🔐 STEP 2: GRADUATED SECURITY - Check 2FA session for email wallets
       // 🔥 FIX: Try IndexedDB first, fallback to localStorage
       const { secureStorage } = await import('@/lib/secure-storage');
       let email = await secureStorage.getItem('wallet_email');
