@@ -5,16 +5,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Shield, AlertCircle, Fingerprint } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { getCurrentAccount, switchToEmailAccount, switchToSeedWallet, WalletAccount, saveCurrentAccountToRecent, getAccountsByType } from '@/lib/account-manager';
-import AccountSelectorDropdown from './AccountSelectorDropdown';
+import EmailAccountSelector from './EmailAccountSelector'; // ✅ NEW: IndexedDB-first selector
 import NewEmailModal from './NewEmailModal';
 import WalletRecoveryFlow from './WalletRecoveryFlow';
 import DeviceVerificationModal from './DeviceVerificationModal';
-import DeviceConfirmationModal from './DeviceConfirmationModal'; // ✅ NEW
+import DeviceConfirmationModal from './DeviceConfirmationModal';
 import SensitiveAction2FAModal from './SensitiveAction2FAModal';
 import { logger } from '@/lib/logger';
 import { rateLimitService } from '@/lib/rate-limit-service';
 import { EnhancedDeviceInfo } from '@/lib/device-fingerprint-pro';
-import { DeviceVerificationCheckV2 } from '@/lib/device-verification-check-v2'; // ← V2!
+import { DeviceVerificationCheckV2 } from '@/lib/device-verification-check-v2';
 import { twoFactorSessionService } from '@/lib/2fa-session-service';
 import { supabase } from '@/lib/supabase';
 
@@ -36,7 +36,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   const [pendingNewEmail, setPendingNewEmail] = useState<string | null>(null);
   const [isSwitching, setIsSwitching] = useState(false); // ✅ NEW: Loading state for switching
   const [showRecoveryFlow, setShowRecoveryFlow] = useState(false); // ✅ NEW: Recovery flow state
-  const [existingEmails, setExistingEmails] = useState<string[]>([]); // ✅ NEW: For NewEmailModal
   
   // Device Verification State
   const [showDeviceVerification, setShowDeviceVerification] = useState(false);
@@ -70,12 +69,8 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         try {
           console.log('🔄 [PasswordUnlock] Loading account data...');
           
-          const account = await getCurrentAccount();
+          const account = getCurrentAccount();
           setCurrentAccount(account);
-          
-          // 🔥 Load existing email accounts for NewEmailModal
-          const { emailAccounts } = await getAccountsByType();
-          setExistingEmails(emailAccounts.map(acc => acc.email || ''));
           
           // 🔥 FIX: Load email from IndexedDB first, fallback to localStorage, then Supabase
           const { secureStorage } = await import('@/lib/secure-storage');
@@ -300,7 +295,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         }
         
         // ✅ FIX: Save account to recent after successful unlock
-        await saveCurrentAccountToRecent();
+        saveCurrentAccountToRecent();
         
         // Set session flag
         sessionStorage.setItem('wallet_unlocked_this_session', 'true');
@@ -375,7 +370,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         }
         
         // ✅ FIX: Save account to recent after successful unlock
-        await saveCurrentAccountToRecent();
+        saveCurrentAccountToRecent();
         
         // Set session flag to skip unlock modal on page refresh during same session
         sessionStorage.setItem('wallet_unlocked_this_session', 'true');
@@ -388,7 +383,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         // For seed phrase wallets, use traditional unlock
         await unlockWithPassword(password);
         // ✅ FIX: Save account to recent after successful unlock
-        await saveCurrentAccountToRecent();
+        saveCurrentAccountToRecent();
         
         // Set session flag
         sessionStorage.setItem('wallet_unlocked_this_session', 'true');
@@ -461,7 +456,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       if (account.type === 'email' && account.email) {
         // ✅ FIX: Update localStorage immediately for email accounts
         // This ensures unlock uses the correct account
-        await saveCurrentAccountToRecent(); // Save current first
+        saveCurrentAccountToRecent(); // Save current first
         
         if (account.id !== 'pending') {
           // Existing email account from recent list
@@ -476,7 +471,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       } else if (account.type === 'seed') {
         // Switching to seed wallet
         await switchToSeedWallet(account.id);
-        const updatedAccount = await getCurrentAccount();
+        const updatedAccount = getCurrentAccount();
         setCurrentAccount(updatedAccount);
       }
     } catch (err: any) {
@@ -484,7 +479,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       setError(err.message || 'Failed to switch account');
       
       // ✅ FIX: Revert to previous account on failure
-      const prevAccount = await getCurrentAccount();
+      const prevAccount = getCurrentAccount();
       if (prevAccount) {
         setCurrentAccount(prevAccount);
       }
@@ -639,10 +634,9 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
               </p>
             </div>
 
-            {/* Smart Account Selector */}
+            {/* ✅ NEW: IndexedDB-first Email Account Selector */}
             <div className="mb-6">
-              <AccountSelectorDropdown
-                currentAccount={currentAccount}
+              <EmailAccountSelector
                 onSelectAccount={handleSelectAccount}
                 onAddNewEmail={() => setShowNewEmailModal(true)}
                 onImportSeed={handleImportSeed}
@@ -752,7 +746,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
               await importWallet(mnemonic);
               
               // Save to recent and complete
-              await saveCurrentAccountToRecent();
+              saveCurrentAccountToRecent();
               sessionStorage.setItem('wallet_unlocked_this_session', 'true');
               
               setShowDeviceVerification(false);
@@ -793,7 +787,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
                 await importWallet(result.mnemonic);
                 
                 // Save to recent and complete
-                await saveCurrentAccountToRecent();
+                saveCurrentAccountToRecent();
                 sessionStorage.setItem('wallet_unlocked_this_session', 'true');
                 
                 setShowDeviceConfirmation(false);
@@ -824,7 +818,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
           isOpen={showNewEmailModal}
           onClose={() => setShowNewEmailModal(false)}
           onSubmit={handleAddNewEmail}
-          existingEmails={existingEmails}
+          existingEmails={getAccountsByType().emailAccounts.map(acc => acc.email || '')}
         />
 
         {/* Wallet Recovery Flow */}

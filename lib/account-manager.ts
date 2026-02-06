@@ -20,15 +20,15 @@ const RECENT_ACCOUNTS_KEY = 'recent_wallet_accounts';
 const MAX_RECENT_ACCOUNTS = 10;
 
 /**
- * Get all available wallet accounts (ASYNC - reads from IndexedDB)
+ * Get all available wallet accounts
  */
-export async function getAllAccounts(): Promise<WalletAccount[]> {
+export function getAllAccounts(): WalletAccount[] {
   if (typeof window === 'undefined') return [];
   
   const accounts: WalletAccount[] = [];
   
   // 1. Get current active account
-  const currentAccount = await getCurrentAccount();
+  const currentAccount = getCurrentAccount();
   if (currentAccount) {
     accounts.push({ ...currentAccount, isActive: true });
   }
@@ -50,20 +50,13 @@ export async function getAllAccounts(): Promise<WalletAccount[]> {
 /**
  * Get current active account
  */
-/**
- * Get current active wallet account (ASYNC - reads from IndexedDB)
- */
-export async function getCurrentAccount(): Promise<WalletAccount | null> {
+export function getCurrentAccount(): WalletAccount | null {
   if (typeof window === 'undefined') return null;
   
-  // Import secureStorage for IndexedDB access
-  const { secureStorage } = await import('@/lib/secure-storage');
-  
-  // Read from IndexedDB (primary and only storage)
-  const isEmail = await secureStorage.getItem('wallet_created_with_email') === 'true';
-  const email = await secureStorage.getItem('wallet_email');
-  const userId = await secureStorage.getItem('supabase_user_id');
-  const encryptedWallet = await secureStorage.getItem('encrypted_wallet');
+  const isEmail = localStorage.getItem('wallet_created_with_email') === 'true';
+  const email = localStorage.getItem('wallet_email');
+  const userId = localStorage.getItem('supabase_user_id');
+  const encryptedWallet = localStorage.getItem('encrypted_wallet');
   
   if (!encryptedWallet) return null;
   
@@ -120,10 +113,10 @@ export function getRecentAccounts(): WalletAccount[] {
 /**
  * Save current account to recent accounts before switching
  */
-export async function saveCurrentAccountToRecent(): Promise<void> {
+export function saveCurrentAccountToRecent(): void {
   if (typeof window === 'undefined') return;
   
-  const currentAccount = await getCurrentAccount();
+  const currentAccount = getCurrentAccount();
   if (!currentAccount) return;
   
   const recentAccounts = getRecentAccounts();
@@ -240,7 +233,7 @@ export async function markAccountAsUpgraded(
   logger.log('🔄 Marking account as upgraded to email:', email);
   
   // Get current account
-  const currentAccount = await getCurrentAccount();
+  const currentAccount = getCurrentAccount();
   
   if (!currentAccount || currentAccount.type !== 'seed') {
     logger.error('Cannot upgrade: Current account is not a seed wallet');
@@ -305,13 +298,13 @@ export function getAccountIcon(type: 'email' | 'seed'): string {
 }
 
 /**
- * Get accounts grouped by type (ASYNC)
+ * Get accounts grouped by type
  */
-export async function getAccountsByType(): Promise<{
+export function getAccountsByType(): {
   emailAccounts: WalletAccount[];
   seedAccounts: WalletAccount[];
-}> {
-  const allAccounts = await getAllAccounts();
+} {
+  const allAccounts = getAllAccounts();
   
   return {
     emailAccounts: allAccounts.filter(acc => acc.type === 'email'),
