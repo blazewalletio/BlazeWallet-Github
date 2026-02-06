@@ -406,6 +406,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         return;
       }
 
+      // 🔥 CRITICAL: Re-initialize wallet store from IndexedDB after login
+      // completeSignInAfter2FA() just saved wallet to IndexedDB, now update store state
+      logger.log('🔄 [2FA] Re-initializing wallet store from IndexedDB after login...');
+      const { initializeFromStorage } = useWalletStore.getState();
+      await initializeFromStorage();
+      logger.log('✅ [2FA] Wallet store re-initialized from IndexedDB');
+
       // Initialize wallet locally with the decrypted mnemonic
       if (result.mnemonic) {
         await importWallet(result.mnemonic);
