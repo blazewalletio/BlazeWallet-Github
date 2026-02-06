@@ -165,7 +165,7 @@ export default function Home() {
               logger.warn('⚠️ [DEVICE CHECK] User has session + wallet, but device not verified');
               
               // ✅ Import secureStorage FIRST (before using it in if/else blocks)
-              const { secureStorage } = await import('./secure-storage');
+              const { secureStorage } = await import('@/lib/secure-storage');
               
               // Check if wallet exists in database
               const { data: walletData } = await supabase
