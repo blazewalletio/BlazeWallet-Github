@@ -2,9 +2,15 @@
  * 🔍 DEBUG LOG API
  * Receives client-side logs and outputs them server-side
  * View logs in Vercel deployment logs
+ * 
+ * Note: CSRF protection disabled for debug logs to avoid blocking logging
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+
+// Disable CSRF for this route (debug logs should always work)
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,4 +40,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false }, { status: 500 });
   }
 }
-

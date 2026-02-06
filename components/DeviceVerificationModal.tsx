@@ -161,27 +161,49 @@ export default function DeviceVerificationModal({
         setStep('2fa');
         setTimeout(() => twoFactorInputRefs.current[0]?.focus(), 100);
       } else {
-        logger.log('✅ No 2FA required, completing verification');
-        // No 2FA - complete verification immediately
-        const { verifyDeviceAndSignIn } = await import('@/lib/supabase-auth-strict');
+        logger.log('✅ No 2FA required, signing in directly...');
         
-        const result = await verifyDeviceAndSignIn(
-          deviceToken,
-          code,
-          '', // Empty 2FA code (no 2FA enabled)
+        // ✅ DEVICE ALREADY VERIFIED BY API!
+        // Just sign in with Supabase and decrypt wallet
+        const { supabase } = await import('@/lib/supabase');
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
           email,
+          password,
+        });
+        
+        if (authError || !authData.user) {
+          throw new Error('Failed to sign in');
+        }
+        
+        logger.log('✅ User signed in:', authData.user.id);
+        
+        // Decrypt wallet
+        const csrfResponse = await fetch('/api/csrf-token');
+        const { token: csrfToken } = await csrfResponse.json();
+        
+        const walletResponse = await fetch('/api/get-wallet', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken,
+          },
+          body: JSON.stringify({ userId: authData.user.id }),
+        });
+        
+        const walletData = await walletResponse.json();
+        
+        if (!walletData.success) {
+          throw new Error(walletData.error || 'Failed to fetch wallet');
+        }
+        
+        const { decryptMnemonic } = await import('@/lib/encryption');
+        const decryptedMnemonic = await decryptMnemonic(
+          walletData.encrypted_mnemonic,
           password
         );
         
-        if (!result.success) {
-          throw new Error(result.error || 'Verification failed');
-        }
-        
-        if (result.mnemonic) {
-          onSuccess(result.mnemonic);
-        } else {
-          throw new Error('Failed to decrypt wallet');
-        }
+        logger.log('✅ Wallet unlocked!');
+        onSuccess(decryptedMnemonic);
       }
       
     } catch (error: any) {
