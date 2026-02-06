@@ -36,6 +36,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   const [pendingNewEmail, setPendingNewEmail] = useState<string | null>(null);
   const [isSwitching, setIsSwitching] = useState(false); // ✅ NEW: Loading state for switching
   const [showRecoveryFlow, setShowRecoveryFlow] = useState(false); // ✅ NEW: Recovery flow state
+  const [existingEmails, setExistingEmails] = useState<string[]>([]); // ✅ NEW: For NewEmailModal
   
   // Device Verification State
   const [showDeviceVerification, setShowDeviceVerification] = useState(false);
@@ -71,6 +72,10 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
           
           const account = await getCurrentAccount();
           setCurrentAccount(account);
+          
+          // 🔥 Load existing email accounts for NewEmailModal
+          const { emailAccounts } = await getAccountsByType();
+          setExistingEmails(emailAccounts.map(acc => acc.email || ''));
           
           // 🔥 FIX: Load email from IndexedDB first, fallback to localStorage, then Supabase
           const { secureStorage } = await import('@/lib/secure-storage');
@@ -819,7 +824,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
           isOpen={showNewEmailModal}
           onClose={() => setShowNewEmailModal(false)}
           onSubmit={handleAddNewEmail}
-          existingEmails={getAccountsByType().emailAccounts.map(acc => acc.email || '')}
+          existingEmails={existingEmails}
         />
 
         {/* Wallet Recovery Flow */}
