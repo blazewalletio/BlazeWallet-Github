@@ -61,6 +61,7 @@ export interface WalletState {
   checkAutoLock: () => void;
   getCurrentAddress: () => string | null; // Helper to get current chain address
   getWalletIdentifier: () => string | null; // ✅ NEW: Get identifier for biometric binding
+  initializeFromStorage: () => Promise<{ hasEncryptedWallet: boolean; hasPassword: boolean }>; // 🔥 NEW: Init from IndexedDB
 }
 
 export const useWalletStore = create<WalletState>((set, get) => ({
@@ -88,6 +89,36 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   // ✅ NEW: Unlock modal state
   showUnlockModal: false,
   setShowUnlockModal: (show: boolean) => set({ showUnlockModal: show }),
+  
+  // 🔥 CRITICAL: Initialize from IndexedDB on mount
+  initializeFromStorage: async () => {
+    try {
+      console.log('🔄 [wallet-store] Initializing from IndexedDB...');
+      
+      // Check IndexedDB for encrypted wallet and password flag
+      const encryptedWallet = await secureStorage.getItem('encrypted_wallet');
+      const hasPasswordStored = await secureStorage.getItem('has_password') === 'true';
+      
+      console.log('📦 [wallet-store] IndexedDB check:', {
+        hasEncryptedWallet: !!encryptedWallet,
+        encryptedWalletLength: encryptedWallet?.length || 0,
+        hasPassword: hasPasswordStored
+      });
+      
+      if (hasPasswordStored) {
+        // Update state to reflect that password exists
+        set({ hasPassword: true, isLocked: true });
+        console.log('✅ [wallet-store] Password found in IndexedDB - wallet is locked');
+      } else {
+        console.log('ℹ️  [wallet-store] No password in IndexedDB');
+      }
+      
+      return { hasEncryptedWallet: !!encryptedWallet, hasPassword: hasPasswordStored };
+    } catch (error) {
+      console.error('❌ [wallet-store] Failed to initialize from IndexedDB:', error);
+      return { hasEncryptedWallet: false, hasPassword: false };
+    }
+  },
 
   createWallet: async () => {
     // Generate a new random wallet with 12-word mnemonic

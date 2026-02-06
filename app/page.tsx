@@ -26,7 +26,17 @@ export default function Home() {
   const [setupPassword, setSetupPassword] = useState<string | undefined>(undefined);
   
   // ✅ Read wallet store state (single source of truth)
-  const { importWallet, hasPassword, isLocked, wallet, hasBiometric, isBiometricEnabled, setShowUnlockModal } = useWalletStore();
+  const { importWallet, hasPassword, isLocked, wallet, hasBiometric, isBiometricEnabled, setShowUnlockModal, initializeFromStorage } = useWalletStore();
+  
+  // 🔥 CRITICAL: Initialize wallet store from IndexedDB on mount
+  useEffect(() => {
+    const init = async () => {
+      logger.log('🔄 [App] Initializing wallet store from IndexedDB...');
+      const result = await initializeFromStorage();
+      logger.log('✅ [App] Wallet store initialized:', result);
+    };
+    init();
+  }, [initializeFromStorage]);
   
   // ✅ REACTIVE: Compute if unlock modal should show based on wallet store state
   const shouldShowUnlockModal = useMemo(() => {
