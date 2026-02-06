@@ -255,66 +255,156 @@ export default function Home() {
       
       // ✅ HYBRID RECOVERY: Check IndexedDB first, then Supabase fallback
       const { secureStorage } = await import('@/lib/secure-storage');
+      
+      logger.log('╔════════════════════════════════════════════════════════════╗');
+      logger.log('║ 📱 [DEBUG] CHECKING INDEXEDDB (PRIMARY STORAGE)          ║');
+      logger.log('╚════════════════════════════════════════════════════════════╝');
+      
       const hasEncryptedWallet = await secureStorage.getItem('encrypted_wallet');
       const hasPasswordStored = await secureStorage.getItem('has_password') === 'true';
       
-      logger.log('🔍 IndexedDB check:', { 
+      logger.log('🔍 [DEBUG] IndexedDB results:', { 
         hasEncryptedWallet: !!hasEncryptedWallet,
+        encryptedWalletLength: hasEncryptedWallet ? hasEncryptedWallet.length : 0,
         hasPasswordStored,
         userId: !!userId,
-        isMobile 
+        isMobile,
+        isPWA: typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches
       });
+      
+      if (hasEncryptedWallet) {
+        logger.log('✅ [DEBUG] Wallet found in IndexedDB! Length:', hasEncryptedWallet.length);
+      } else {
+        logger.warn('⚠️ [DEBUG] NO wallet found in IndexedDB!');
+      }
+      
+      if (hasPasswordStored) {
+        logger.log('✅ [DEBUG] Password flag found in IndexedDB!');
+      } else {
+        logger.warn('⚠️ [DEBUG] NO password flag found in IndexedDB!');
+      }
       
       // ✅ FALLBACK: If IndexedDB empty, try Supabase recovery
       if (!hasEncryptedWallet && userId) {
-        logger.log('☁️  [RECOVERY] IndexedDB empty, checking Supabase...');
+        logger.log('╔════════════════════════════════════════════════════════════╗');
+        logger.log('║ ☁️  [DEBUG] INDEXEDDB EMPTY - TRYING SUPABASE RECOVERY   ║');
+        logger.log('╚════════════════════════════════════════════════════════════╝');
+        logger.log('☁️  [RECOVERY] userId:', userId);
+        
         const { syncWalletFromSupabase } = await import('@/lib/wallet-sync-service');
         const syncResult = await syncWalletFromSupabase(userId);
         
+        logger.log('☁️  [RECOVERY] Supabase sync result:', {
+          success: syncResult.success,
+          synced: syncResult.synced,
+          hasEncryptedWallet: !!syncResult.encryptedWallet,
+          encryptedWalletLength: syncResult.encryptedWallet?.length || 0,
+          error: syncResult.error
+        });
+        
         if (syncResult.success && syncResult.synced && syncResult.encryptedWallet) {
-          logger.log('✅ [RECOVERY] Wallet restored from Supabase!');
+          logger.log('✅✅✅ [RECOVERY] WALLET RESTORED FROM SUPABASE!');
+          logger.log('✅ [RECOVERY] Wallet length:', syncResult.encryptedWallet.length);
           // Wallet is now in IndexedDB, continue normal flow
           setHasWallet(true);
           return;
         } else {
-          logger.log('ℹ️  [RECOVERY] No wallet in Supabase either');
+          logger.warn('❌ [RECOVERY] Supabase recovery FAILED or no wallet found');
+          logger.warn('❌ [RECOVERY] Reason:', syncResult.error || 'No wallet in Supabase');
         }
+      } else if (!hasEncryptedWallet && !userId) {
+        logger.warn('⚠️ [RECOVERY] IndexedDB empty AND no userId - cannot try Supabase recovery');
+      } else {
+        logger.log('✅ [RECOVERY] IndexedDB has wallet - skipping Supabase recovery');
       }
       
       // ✅ Check localStorage as final fallback (migration path)
+      logger.log('╔════════════════════════════════════════════════════════════╗');
+      logger.log('║ 📦 [DEBUG] CHECKING LOCALSTORAGE (LEGACY FALLBACK)       ║');
+      logger.log('╚════════════════════════════════════════════════════════════╝');
+      
       const localStorageEncrypted = localStorage.getItem('encrypted_wallet');
       const storedAddress = localStorage.getItem('wallet_address');
       const localStoragePassword = localStorage.getItem('has_password') === 'true';
       
-      logger.log('🔍 localStorage fallback check:', {
+      logger.log('🔍 [DEBUG] localStorage check:', {
         encrypted_wallet: !!localStorageEncrypted,
+        encrypted_wallet_length: localStorageEncrypted?.length || 0,
         wallet_address: storedAddress,
         has_password: localStoragePassword
       });
       
+      if (localStorageEncrypted) {
+        logger.warn('⚠️ [DEBUG] Found wallet in localStorage (legacy) - length:', localStorageEncrypted.length);
+      } else {
+        logger.log('ℹ️  [DEBUG] No wallet in localStorage (expected on iOS PWA)');
+      }
+      
       // ✅ Use encrypted_wallet as source of truth for wallet existence
+      logger.log('╔════════════════════════════════════════════════════════════╗');
+      logger.log('║ 🎯 [DEBUG] FINAL DECISION - WALLET EXISTS?               ║');
+      logger.log('╚════════════════════════════════════════════════════════════╝');
+      
+      logger.log('🎯 [DEBUG] Wallet existence check:', {
+        hasEncryptedWallet_IndexedDB: !!hasEncryptedWallet,
+        localStorageEncrypted_Legacy: !!localStorageEncrypted,
+        storedAddress_Legacy: !!storedAddress,
+        finalDecision: !!(hasEncryptedWallet || localStorageEncrypted || storedAddress)
+      });
+      
       if (hasEncryptedWallet || localStorageEncrypted || storedAddress) {
+        logger.log('✅✅✅ [DEBUG] WALLET EXISTS!');
+        
         if (hasPasswordStored || localStoragePassword) {
           // ✅ REACTIVE: Just set hasWallet=true
           // Unlock modal will show automatically based on wallet store state!
+          logger.log('╔════════════════════════════════════════════════════════════╗');
+          logger.log('║ 🔓 [DEBUG] WALLET HAS PASSWORD - SHOWING UNLOCK MODAL    ║');
+          logger.log('╚════════════════════════════════════════════════════════════╝');
           logger.log('✅ [WALLET CHECK] Wallet with password found, setting hasWallet=true');
           logger.log('✅ [WALLET CHECK] Unlock modal will show automatically (reactive)');
+          logger.log('✅ [DEBUG] Password source:', {
+            fromIndexedDB: hasPasswordStored,
+            fromLocalStorage: localStoragePassword
+          });
+          
           setHasWallet(true);
           
           // Check if wallet is already unlocked from fresh onboarding
           const unlockedThisSession = sessionStorage.getItem('wallet_unlocked_this_session') === 'true';
+          logger.log('🔍 [DEBUG] Session check:', {
+            unlockedThisSession,
+            hasWallet: !!wallet,
+            isLocked,
+            walletAddress: wallet?.address?.substring(0, 12) || 'null'
+          });
+          
           if (unlockedThisSession && wallet && !isLocked) {
-            logger.log('✅ Wallet already unlocked in store (fresh onboarding session)');
+            logger.log('✅ [DEBUG] Wallet already unlocked in store (fresh onboarding session)');
             const now = Date.now();
             sessionStorage.setItem('last_activity', now.toString());
+          } else {
+            logger.log('ℹ️  [DEBUG] Wallet needs unlock (unlock modal will show)');
           }
         } else {
           // Wallet exists but no password set - check for old unencrypted mnemonic
+          logger.log('╔════════════════════════════════════════════════════════════╗');
+          logger.log('║ ⚠️  [DEBUG] WALLET EXISTS BUT NO PASSWORD SET            ║');
+          logger.log('╚════════════════════════════════════════════════════════════╝');
+          
           const storedMnemonic = localStorage.getItem('wallet_mnemonic');
           const justImported = localStorage.getItem('wallet_just_imported') === 'true';
           const justCreated = localStorage.getItem('wallet_just_created') === 'true';
           const forcePasswordSetup = localStorage.getItem('force_password_setup') === 'true';
           const createdWithEmail = localStorage.getItem('wallet_created_with_email') === 'true';
+          
+          logger.log('🔍 [DEBUG] Legacy wallet check:', {
+            storedMnemonic: !!storedMnemonic,
+            justImported,
+            justCreated,
+            forcePasswordSetup,
+            createdWithEmail
+          });
           
           // Skip password setup if wallet was created with email (password already set)
           if (createdWithEmail) {
@@ -353,6 +443,14 @@ export default function Home() {
           }
         }
       } else {
+        logger.log('╔════════════════════════════════════════════════════════════╗');
+        logger.log('║ ❌ [DEBUG] NO WALLET FOUND - SHOWING ONBOARDING          ║');
+        logger.log('╚════════════════════════════════════════════════════════════╝');
+        logger.log('❌ [DEBUG] No wallet in:', {
+          IndexedDB: !hasEncryptedWallet,
+          localStorage: !localStorageEncrypted,
+          wallet_address: !storedAddress
+        });
         logger.log('ℹ️ No wallet found in localStorage');
         setHasWallet(false);
       }
