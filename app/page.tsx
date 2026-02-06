@@ -65,7 +65,7 @@ export default function Home() {
     // 2. Wallet is not unlocked (no address or isLocked)
     const needsUnlock = hasPassword && (!wallet || !wallet.address || isLocked);
     
-    logger.log('🔍 [REACTIVE] shouldShowUnlockModal computed:', {
+    console.log('🔍 [REACTIVE] shouldShowUnlockModal computed:', {
       hasWallet,
       hasPassword,
       walletAddress: wallet?.address?.substring(0, 12) || 'null',
@@ -81,8 +81,17 @@ export default function Home() {
   
   // ✅ Set unlock modal state in store when needed
   useEffect(() => {
+    console.log('🔍 [UNLOCK MODAL] useEffect triggered:', {
+      shouldShowUnlockModal,
+      currentShowUnlockModal: useWalletStore.getState().showUnlockModal
+    });
+    
     if (shouldShowUnlockModal) {
+      console.log('✅ [UNLOCK MODAL] Calling setShowUnlockModal(true)...');
       setShowUnlockModal(true);
+      console.log('✅ [UNLOCK MODAL] setShowUnlockModal(true) called!');
+    } else {
+      console.log('⚠️ [UNLOCK MODAL] shouldShowUnlockModal is FALSE - not showing modal');
     }
   }, [shouldShowUnlockModal, setShowUnlockModal]);
 
