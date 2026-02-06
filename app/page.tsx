@@ -31,9 +31,14 @@ export default function Home() {
   // 🔥 CRITICAL: Initialize wallet store from IndexedDB on mount
   useEffect(() => {
     const init = async () => {
-      logger.log('🔄 [App] Initializing wallet store from IndexedDB...');
-      const result = await initializeFromStorage();
-      logger.log('✅ [App] Wallet store initialized:', result);
+      try {
+        console.log('🔄 [App] Initializing wallet store from IndexedDB...');
+        const result = await initializeFromStorage();
+        console.log('✅ [App] Wallet store initialized:', result);
+      } catch (error) {
+        console.error('❌ [App] CRITICAL ERROR initializing wallet store:', error);
+        // Don't block - continue with app load
+      }
     };
     init();
   }, []); // ✅ Empty deps - run once on mount (initializeFromStorage is stable)
@@ -97,10 +102,10 @@ export default function Home() {
 
   useEffect(() => {
     const checkWallet = async () => {
-      logger.log('╔════════════════════════════════════════════════════════════╗');
-      logger.log('║ 🔄 [WALLET CHECK] STARTING WALLET CHECK ON MOUNT         ║');
-      logger.log('╚════════════════════════════════════════════════════════════╝');
-      logger.log('🔄 [WALLET CHECK] Timestamp:', new Date().toISOString());
+      console.log('╔════════════════════════════════════════════════════════════╗');
+      console.log('║ 🔄 [WALLET CHECK] STARTING WALLET CHECK ON MOUNT         ║');
+      console.log('╚════════════════════════════════════════════════════════════╝');
+      console.log('🔄 [WALLET CHECK] Timestamp:', new Date().toISOString());
       
       // 🔥 CRITICAL FIX: Check IndexedDB FIRST before Supabase!
       // This ensures we show unlock modal even if Supabase checks fail
