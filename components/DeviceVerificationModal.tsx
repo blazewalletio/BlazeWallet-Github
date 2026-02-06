@@ -142,6 +142,19 @@ export default function DeviceVerificationModal({
       
       logger.log('✅ Verification code accepted');
       
+      // ✅ STORE DEVICE ID (returned from API after marking device as verified)
+      if (data.deviceId) {
+        const { DeviceIdManager } = await import('@/lib/device-id-manager');
+        DeviceIdManager.setDeviceId(data.deviceId);
+        logger.log('✅ Device ID stored in localStorage:', data.deviceId.substring(0, 12) + '...');
+      }
+      
+      // ✅ STORE SESSION TOKEN
+      if (data.sessionToken && typeof window !== 'undefined') {
+        sessionStorage.setItem('blaze_session_token', data.sessionToken);
+        logger.log('✅ Session token stored');
+      }
+      
       // Check if 2FA is required
       if (data.requires2FA) {
         logger.log('🔐 2FA is enabled, moving to 2FA step');

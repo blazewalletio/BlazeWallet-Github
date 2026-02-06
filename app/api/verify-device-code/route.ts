@@ -175,14 +175,47 @@ export async function POST(request: NextRequest) {
         );
       }
       
+      // ✅ MARK DEVICE AS VERIFIED!
+      // This is CRITICAL - without this, device stays unverified!
+      const crypto = await import('crypto');
+      const sessionToken = crypto.randomBytes(32).toString('hex');
+      
+      const { error: updateError } = await supabaseAdmin
+        .from('trusted_devices')
+        .update({
+          verified_at: new Date().toISOString(), // ✅ Mark as verified
+          is_current: true,
+          session_token: sessionToken,
+          last_verified_session_at: new Date().toISOString(),
+          last_used_at: new Date().toISOString(),
+          verification_code: null, // Clear code after use
+          verification_token: null, // Clear token after use
+        })
+        .eq('id', device.id);
+      
+      if (updateError) {
+        logger.error('❌ Failed to mark device as verified:', updateError);
+        return NextResponse.json(
+          { error: 'Failed to verify device' },
+          { status: 500 }
+        );
+      }
+      
+      logger.log('✅ Device marked as verified in database!');
+      
+      // Store device_id in localStorage for future use
+      // Return it so client can store it
+      
       // Check if user has 2FA enabled
       const { data: userData } = await supabaseAdmin.auth.admin.getUserById(device.user_id);
       const has2FA = userData?.user?.app_metadata?.two_factor_enabled === true;
       
-      logger.log('✅ Verification code accepted', { has2FA });
+      logger.log('✅ Verification code accepted', { has2FA, deviceId: device.device_id });
       return NextResponse.json({ 
         success: true,
-        requires2FA: has2FA 
+        requires2FA: has2FA,
+        deviceId: device.device_id, // Return device_id for client storage
+        sessionToken, // Return session token for client storage
       });
     }
     
