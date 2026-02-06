@@ -20,15 +20,15 @@ const RECENT_ACCOUNTS_KEY = 'recent_wallet_accounts';
 const MAX_RECENT_ACCOUNTS = 10;
 
 /**
- * Get all available wallet accounts
+ * Get all available wallet accounts (ASYNC - reads from IndexedDB)
  */
-export function getAllAccounts(): WalletAccount[] {
+export async function getAllAccounts(): Promise<WalletAccount[]> {
   if (typeof window === 'undefined') return [];
   
   const accounts: WalletAccount[] = [];
   
   // 1. Get current active account
-  const currentAccount = getCurrentAccount();
+  const currentAccount = await getCurrentAccount();
   if (currentAccount) {
     accounts.push({ ...currentAccount, isActive: true });
   }
@@ -305,13 +305,13 @@ export function getAccountIcon(type: 'email' | 'seed'): string {
 }
 
 /**
- * Get accounts grouped by type
+ * Get accounts grouped by type (ASYNC)
  */
-export function getAccountsByType(): {
+export async function getAccountsByType(): Promise<{
   emailAccounts: WalletAccount[];
   seedAccounts: WalletAccount[];
-} {
-  const allAccounts = getAllAccounts();
+}> {
+  const allAccounts = await getAllAccounts();
   
   return {
     emailAccounts: allAccounts.filter(acc => acc.type === 'email'),

@@ -23,8 +23,18 @@ export default function AccountSelectorDropdown({
 }: AccountSelectorDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [emailAccounts, setEmailAccounts] = useState<WalletAccount[]>([]);
+  const [seedAccounts, setSeedAccounts] = useState<WalletAccount[]>([]);
 
-  const { emailAccounts, seedAccounts } = getAccountsByType();
+  // Load accounts on mount
+  useEffect(() => {
+    const loadAccounts = async () => {
+      const { emailAccounts, seedAccounts } = await getAccountsByType();
+      setEmailAccounts(emailAccounts);
+      setSeedAccounts(seedAccounts);
+    };
+    loadAccounts();
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
