@@ -409,17 +409,46 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     // Now proceed with the actual unlock using the stored password
     setIsLoading(true);
     try {
-      // ✅ AFTER 2FA: Just unlock the wallet directly with wallet-store
-      // NO NEED to call strictSignInWithEmail again - we already authenticated during initial unlock!
-      // Device verification and Supabase sign-in happened BEFORE 2FA prompt
-      const { unlockWithPassword } = useWalletStore.getState();
-      
       if (!pending2FAPassword) {
         throw new Error('Password not found');
       }
+
+      // ✅ FIX: Check if this is an email wallet or seed phrase wallet
+      const { secureStorage } = await import('@/lib/secure-storage');
+      let createdWithEmailStr = await secureStorage.getItem('wallet_created_with_email');
+      let email = await secureStorage.getItem('wallet_email');
       
-      // unlockWithPassword throws an error if password is wrong, so we can just await it
-      await unlockWithPassword(pending2FAPassword);
+      // Fallback to localStorage if IndexedDB empty
+      if (!createdWithEmailStr) {
+        createdWithEmailStr = localStorage.getItem('wallet_created_with_email');
+      }
+      if (!email) {
+        email = localStorage.getItem('wallet_email');
+      }
+      
+      const createdWithEmail = createdWithEmailStr === 'true';
+      
+      if (createdWithEmail && email) {
+        // ✅ EMAIL WALLET: Use strictSignInWithEmail (2FA was already verified)
+        console.log('✅ [PasswordUnlock] Email wallet - using strictSignInWithEmail after 2FA');
+        const { strictSignInWithEmail } = await import('@/lib/supabase-auth-strict');
+        const result = await strictSignInWithEmail(email, pending2FAPassword);
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Invalid password');
+        }
+        
+        // Wallet is now decrypted and loaded
+        if (result.mnemonic) {
+          const { importWallet } = useWalletStore.getState();
+          await importWallet(result.mnemonic);
+        }
+      } else {
+        // ✅ SEED PHRASE WALLET: Use unlockWithPassword
+        console.log('✅ [PasswordUnlock] Seed wallet - using unlockWithPassword after 2FA');
+        const { unlockWithPassword } = useWalletStore.getState();
+        await unlockWithPassword(pending2FAPassword);
+      }
       
       console.log('✅ [PasswordUnlock] Wallet unlocked successfully after 2FA');
       
