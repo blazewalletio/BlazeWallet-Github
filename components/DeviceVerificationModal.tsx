@@ -196,7 +196,7 @@ export default function DeviceVerificationModal({
           throw new Error(walletData.error || 'Failed to fetch wallet');
         }
         
-        const { decryptMnemonic } = await import('@/lib/wallet-crypto');
+        const { decryptMnemonic } = await import('@/lib/supabase-auth');
         const decryptedMnemonic = await decryptMnemonic(
           walletData.encrypted_mnemonic,
           password

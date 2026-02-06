@@ -15,7 +15,7 @@ import { logFeatureUsage } from '@/lib/analytics-tracker';
  * Encrypt wallet mnemonic with user's password
  * Uses AES-256-GCM for encryption
  */
-async function encryptMnemonic(mnemonic: string, password: string): Promise<string> {
+export async function encryptMnemonic(mnemonic: string, password: string): Promise<string> {
   const encoder = new TextEncoder();
   
   // Derive key from password using PBKDF2
@@ -67,7 +67,7 @@ async function encryptMnemonic(mnemonic: string, password: string): Promise<stri
 /**
  * Decrypt wallet mnemonic with user's password
  */
-async function decryptMnemonic(encryptedData: string, password: string): Promise<string> {
+export async function decryptMnemonic(encryptedData: string, password: string): Promise<string> {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
   
