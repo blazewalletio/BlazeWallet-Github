@@ -151,69 +151,75 @@ export default function Home() {
           // ✅ NEW: Check if device is verified for email wallets (V2!)
           logger.log('🔍 [DEVICE CHECK V2] Checking device verification for email wallet...');
           
-          const deviceCheck = await DeviceVerificationCheckV2.isDeviceVerified();
-          
-          logger.log('🔍 [DEVICE CHECK V2] Result:', deviceCheck);
-          
-          if (!deviceCheck.verified) {
-            logger.warn('⚠️ [DEVICE CHECK] Device not verified:', deviceCheck.reason);
-            logger.warn('⚠️ [DEVICE CHECK] User has session + wallet, but device not verified');
+          // 🔥 FIX: If IndexedDB has wallet + password, SKIP device check!
+          // User just logged in successfully, device is implicitly trusted
+          if (hasEncryptedWallet && hasPasswordStored) {
+            logger.log('✅ [DEVICE CHECK V2] SKIPPED - IndexedDB has wallet (user just logged in)');
+          } else {
+            const deviceCheck = await DeviceVerificationCheckV2.isDeviceVerified();
             
-            // ✅ Import secureStorage FIRST (before using it in if/else blocks)
-            const { secureStorage } = await import('@/lib/secure-storage');
+            logger.log('🔍 [DEVICE CHECK V2] Result:', deviceCheck);
             
-            // Check if wallet exists in database
-            const { data: walletData } = await supabase
-              .from('wallets')
-              .select('encrypted_wallet')
-              .eq('user_id', session.user.id)
-              .maybeSingle();
-            
-            if (walletData && walletData.encrypted_wallet) {
-              // ✅ User has account + wallet → Just need device verification!
-              // Don't clear localStorage, don't show onboarding
-              // The user will get device verification email via signInWithEmail
-              logger.log('✅ [DEVICE CHECK] User has wallet - will require device verification on next login');
+            if (!deviceCheck.verified) {
+              logger.warn('⚠️ [DEVICE CHECK] Device not verified:', deviceCheck.reason);
+              logger.warn('⚠️ [DEVICE CHECK] User has session + wallet, but device not verified');
               
-              // ⚠️ CRITICAL: Preserve device_id before signOut (Supabase clears localStorage!)
-              const preservedDeviceId = localStorage.getItem('blaze_device_id');
-              const preservedFingerprint = localStorage.getItem('blaze_device_fingerprint');
-              const preservedFingerprintCachedAt = localStorage.getItem('blaze_fingerprint_cached_at');
+              // ✅ Import secureStorage FIRST (before using it in if/else blocks)
+              const { secureStorage } = await import('./secure-storage');
               
-              // 📱 FIX: Use secureStorage (IndexedDB) instead of localStorage!
-              await secureStorage.setItem('encrypted_wallet', walletData.encrypted_wallet);
-              await secureStorage.setItem('has_password', 'true');
-              await secureStorage.setItem('wallet_email', session.user.email || '');
-              await secureStorage.setItem('wallet_created_with_email', 'true');
-              await secureStorage.setItem('supabase_user_id', session.user.id);
+              // Check if wallet exists in database
+              const { data: walletData } = await supabase
+                .from('wallets')
+                .select('encrypted_wallet')
+                .eq('user_id', session.user.id)
+                .maybeSingle();
               
-              // ✅ Sign out to force fresh login with device verification
-              await supabase.auth.signOut();
-              
-              // ⚠️ CRITICAL: Restore device_id after signOut!
-              if (preservedDeviceId) {
-                localStorage.setItem('blaze_device_id', preservedDeviceId);
-                logger.log('✅ [DEVICE CHECK] Device ID preserved after signOut:', preservedDeviceId.substring(0, 12) + '...');
+              if (walletData && walletData.encrypted_wallet) {
+                // ✅ User has account + wallet → Just need device verification!
+                // Don't clear localStorage, don't show onboarding
+                // The user will get device verification email via signInWithEmail
+                logger.log('✅ [DEVICE CHECK] User has wallet - will require device verification on next login');
+                
+                // ⚠️ CRITICAL: Preserve device_id before signOut (Supabase clears localStorage!)
+                const preservedDeviceId = localStorage.getItem('blaze_device_id');
+                const preservedFingerprint = localStorage.getItem('blaze_device_fingerprint');
+                const preservedFingerprintCachedAt = localStorage.getItem('blaze_fingerprint_cached_at');
+                
+                // 📱 FIX: Use secureStorage (IndexedDB) instead of localStorage!
+                await secureStorage.setItem('encrypted_wallet', walletData.encrypted_wallet);
+                await secureStorage.setItem('has_password', 'true');
+                await secureStorage.setItem('wallet_email', session.user.email || '');
+                await secureStorage.setItem('wallet_created_with_email', 'true');
+                await secureStorage.setItem('supabase_user_id', session.user.id);
+                
+                // ✅ Sign out to force fresh login with device verification
+                await supabase.auth.signOut();
+                
+                // ⚠️ CRITICAL: Restore device_id after signOut!
+                if (preservedDeviceId) {
+                  localStorage.setItem('blaze_device_id', preservedDeviceId);
+                  logger.log('✅ [DEVICE CHECK] Device ID preserved after signOut:', preservedDeviceId.substring(0, 12) + '...');
+                }
+                if (preservedFingerprint) {
+                  localStorage.setItem('blaze_device_fingerprint', preservedFingerprint);
+                }
+                if (preservedFingerprintCachedAt) {
+                  localStorage.setItem('blaze_fingerprint_cached_at', preservedFingerprintCachedAt);
+                }
+                
+                // Show onboarding (which will show login screen)
+                setHasWallet(false);
+                return;
               }
-              if (preservedFingerprint) {
-                localStorage.setItem('blaze_device_fingerprint', preservedFingerprint);
-              }
-              if (preservedFingerprintCachedAt) {
-                localStorage.setItem('blaze_fingerprint_cached_at', preservedFingerprintCachedAt);
-              }
               
-              // Show onboarding (which will show login screen)
+              // No wallet found → Truly new user → Show onboarding
+              logger.warn('⚠️ [DEVICE CHECK] No wallet found - showing onboarding');
+              await secureStorage.setItem('encrypted_wallet', '');
+              await secureStorage.setItem('has_password', '');
+              sessionStorage.clear();
               setHasWallet(false);
               return;
             }
-            
-            // No wallet found → Truly new user → Show onboarding
-            logger.warn('⚠️ [DEVICE CHECK] No wallet found - showing onboarding');
-            await secureStorage.setItem('encrypted_wallet', '');
-            await secureStorage.setItem('has_password', '');
-            sessionStorage.clear();
-            setHasWallet(false);
-            return;
           }
           
           logger.log('✅ [DEVICE CHECK] Device is verified - allowing password unlock');
