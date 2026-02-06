@@ -129,7 +129,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
         setIsLoading(true);
         
         try {
-          const currentAccount = getCurrentAccount();
+          const currentAccount = await getCurrentAccount();
           logger.log('📝 Current account:', currentAccount);
           
           // ✅ CRITICAL: If no account found, create a minimal one from wallet state
@@ -540,9 +540,9 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
     }
   };
   
-  const handleExportAddresses = () => {
+  const handleExportAddresses = async () => {
     try {
-      const account = getCurrentAccount();
+      const account = await getCurrentAccount();
       if (!account) return;
       
       const { address, solanaAddress, bitcoinAddress, litecoinAddress, dogecoinAddress, bitcoincashAddress } = useWalletStore.getState();
