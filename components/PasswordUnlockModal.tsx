@@ -632,11 +632,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
               <p className="text-gray-600">
                 Enter your password to access your wallet
               </p>
-              {userEmail && (
-                <p className="text-sm text-orange-600 font-medium mt-2">
-                  {userEmail}
-                </p>
-              )}
             </div>
 
             {/* Smart Account Selector */}
