@@ -105,8 +105,8 @@ export default function Home() {
       // 🔥 CRITICAL FIX: Check IndexedDB FIRST before Supabase!
       // This ensures we show unlock modal even if Supabase checks fail
       const { secureStorage } = await import('@/lib/secure-storage');
-      const hasEncryptedWallet = await secureStorage.getItem('encrypted_wallet');
-      const hasPasswordStored = await secureStorage.getItem('has_password') === 'true';
+      let hasEncryptedWallet = await secureStorage.getItem('encrypted_wallet');
+      let hasPasswordStored = await secureStorage.getItem('has_password') === 'true';
       
       logger.log('🔍 [WALLET CHECK] IndexedDB quick check:', {
         hasEncryptedWallet: !!hasEncryptedWallet,
@@ -282,15 +282,13 @@ export default function Home() {
         logger.warn('⚠️ Could not get user ID for recovery:', err);
       }
       
-      // ✅ HYBRID RECOVERY: Check IndexedDB first, then Supabase fallback
-      const { secureStorage } = await import('@/lib/secure-storage');
+      // ✅ HYBRID RECOVERY: Re-check IndexedDB (may have been updated by Supabase flow)
+      hasEncryptedWallet = await secureStorage.getItem('encrypted_wallet');
+      hasPasswordStored = await secureStorage.getItem('has_password') === 'true';
       
       logger.log('╔════════════════════════════════════════════════════════════╗');
-      logger.log('║ 📱 [DEBUG] CHECKING INDEXEDDB (PRIMARY STORAGE)          ║');
+      logger.log('║ 📱 [DEBUG] RE-CHECKING INDEXEDDB (PRIMARY STORAGE)       ║');
       logger.log('╚════════════════════════════════════════════════════════════╝');
-      
-      const hasEncryptedWallet = await secureStorage.getItem('encrypted_wallet');
-      const hasPasswordStored = await secureStorage.getItem('has_password') === 'true';
       
       logger.log('🔍 [DEBUG] IndexedDB results:', { 
         hasEncryptedWallet: !!hasEncryptedWallet,
