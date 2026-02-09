@@ -830,8 +830,8 @@ export async function verifyDeviceAndSignIn(
     await supabase
       .from('trusted_devices')
       .update({ is_current: false })
-      .eq('user_id', userId)
-      .neq('device_fingerprint', deviceInfo.fingerprint);
+      .eq('user_id', device.user_id)
+      .neq('device_fingerprint', device.device_fingerprint);
     
     const { error: updateError } = await supabase
       .from('trusted_devices')
