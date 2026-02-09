@@ -163,7 +163,9 @@ export default function DeviceVerificationCodeModal({
       await onVerify(codeString);
       setSuccess(true);
     } catch (err: any) {
-      setError(err.message || 'Invalid verification code');
+      logger.error('❌ Code verification failed:', err);
+      const errorMessage = err.message || 'Invalid verification code';
+      setError(errorMessage);
       setCode(['', '', '', '', '', '']);
       document.getElementById('code-0')?.focus();
     } finally {

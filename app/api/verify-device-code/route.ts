@@ -17,12 +17,54 @@ export async function POST(request: NextRequest) {
   try {
     const { userId, email, code, deviceInfo } = await request.json();
     
-    if (!userId || !email || !code || !deviceInfo) {
+    // Enhanced validation with detailed error messages
+    if (!userId) {
+      logger.error('❌ [VerifyDeviceCode] Missing userId');
       return NextResponse.json(
-        { success: false, error: 'Missing required fields' },
+        { success: false, error: 'Missing required field: userId' },
         { status: 400 }
       );
     }
+    
+    if (!email) {
+      logger.error('❌ [VerifyDeviceCode] Missing email');
+      return NextResponse.json(
+        { success: false, error: 'Missing required field: email' },
+        { status: 400 }
+      );
+    }
+    
+    if (!code) {
+      logger.error('❌ [VerifyDeviceCode] Missing code');
+      return NextResponse.json(
+        { success: false, error: 'Missing required field: code' },
+        { status: 400 }
+      );
+    }
+    
+    if (!deviceInfo) {
+      logger.error('❌ [VerifyDeviceCode] Missing deviceInfo');
+      return NextResponse.json(
+        { success: false, error: 'Missing required field: deviceInfo' },
+        { status: 400 }
+      );
+    }
+    
+    if (!deviceInfo.fingerprint) {
+      logger.error('❌ [VerifyDeviceCode] Missing deviceInfo.fingerprint');
+      logger.error('❌ [VerifyDeviceCode] deviceInfo received:', JSON.stringify(deviceInfo, null, 2));
+      return NextResponse.json(
+        { success: false, error: 'Missing required field: deviceInfo.fingerprint' },
+        { status: 400 }
+      );
+    }
+    
+    logger.log('✅ [VerifyDeviceCode] All required fields present:', {
+      userId: userId.substring(0, 8) + '...',
+      email,
+      codeLength: code.length,
+      hasFingerprint: !!deviceInfo.fingerprint,
+    });
     
     // Find device with matching code
     const { data: device, error: deviceError } = await supabaseAdmin

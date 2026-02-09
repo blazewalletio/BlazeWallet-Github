@@ -8,7 +8,6 @@ import { getCurrentAccount, switchToEmailAccount, switchToSeedWallet, WalletAcco
 import EmailAccountSelector from './EmailAccountSelector'; // ✅ NEW: IndexedDB-first selector
 import NewEmailModal from './NewEmailModal';
 import WalletRecoveryFlow from './WalletRecoveryFlow';
-import DeviceVerificationModal from './DeviceVerificationModal';
 import DeviceVerificationCodeModal from './DeviceVerificationCodeModal';
 import SensitiveAction2FAModal from './SensitiveAction2FAModal';
 import { logger } from '@/lib/logger';
@@ -37,14 +36,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   const [isSwitching, setIsSwitching] = useState(false); // ✅ NEW: Loading state for switching
   const [showRecoveryFlow, setShowRecoveryFlow] = useState(false); // ✅ NEW: Recovery flow state
   
-  // Device Verification State
-  const [showDeviceVerification, setShowDeviceVerification] = useState(false);
-  const [deviceVerificationData, setDeviceVerificationData] = useState<{
-    deviceInfo: EnhancedDeviceInfo;
-    deviceToken: string;
-    email: string;
-    password: string;
-  } | null>(null);
   
   
   // ✅ NEW: Email Verification Code State
@@ -218,15 +209,25 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         
         if (!result.success) {
           // Check if device verification is required
-          if (result.requiresDeviceVerification && result.deviceVerificationToken && result.deviceInfo) {
-            // Show device verification modal
-            setDeviceVerificationData({
-              deviceInfo: result.deviceInfo,
-              deviceToken: result.deviceVerificationToken,
+          if (result.requiresDeviceVerification && result.deviceInfo) {
+            // Generate device info if not complete
+            let deviceInfo = result.deviceInfo;
+            if (!deviceInfo.fingerprint) {
+              const { generateEnhancedFingerprint } = await import('@/lib/device-fingerprint-pro');
+              deviceInfo = await generateEnhancedFingerprint();
+            }
+            
+            // Get user ID from Supabase session
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            // Show device verification code modal
+            setVerificationCodeData({
               email: pendingNewEmail,
+              userId: user?.id || '',
+              deviceInfo,
               password,
             });
-            setShowDeviceVerification(true);
+            setShowVerificationCode(true);
             return;
           }
           
@@ -274,16 +275,25 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         const result = await strictSignInWithEmail(email, password);
         if (!result.success) {
           // Check if device verification is required
-          if (result.requiresDeviceVerification && result.deviceVerificationToken && result.deviceInfo) {
+          if (result.requiresDeviceVerification && result.deviceInfo) {
+            // Generate device info if not complete
+            let deviceInfo = result.deviceInfo;
+            if (!deviceInfo.fingerprint) {
+              const { generateEnhancedFingerprint } = await import('@/lib/device-fingerprint-pro');
+              deviceInfo = await generateEnhancedFingerprint();
+            }
             
-            // Show device verification modal
-            setDeviceVerificationData({
-              deviceInfo: result.deviceInfo,
-              deviceToken: result.deviceVerificationToken,
+            // Get user ID from Supabase session
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            // Show device verification code modal
+            setVerificationCodeData({
               email,
+              userId: user?.id || '',
+              deviceInfo,
               password,
             });
-            setShowDeviceVerification(true);
+            setShowVerificationCode(true);
             return;
           }
           throw new Error(result.error || 'Invalid password');
@@ -328,7 +338,9 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
 
   // 🔐 Handle successful 2FA verification - then proceed with unlock
   const handle2FASuccess = async () => {
+    // Close modal first to prevent onClose from setting error
     setShow2FAModal(false);
+    setError(''); // Clear any previous errors
     
     // Now proceed with the actual unlock using the stored password
     setIsLoading(true);
@@ -387,6 +399,30 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       onComplete();
     } catch (error: any) {
       console.error('❌ [PasswordUnlock] Error during unlock after 2FA:', error);
+      
+      // Check if error is about device verification
+      if (error.message && (error.message.includes('Device verification') || error.message.includes('Failed to update device'))) {
+        // Try to show device verification modal
+        try {
+          const { generateEnhancedFingerprint } = await import('@/lib/device-fingerprint-pro');
+          const deviceInfo = await generateEnhancedFingerprint();
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          const emailToUse = pendingNewEmail || email || '';
+          setVerificationCodeData({
+            email: emailToUse,
+            userId: user?.id || userId || '',
+            deviceInfo,
+            password: pending2FAPassword,
+          });
+          setShowVerificationCode(true);
+          setError(''); // Clear error since we're showing verification modal
+          return;
+        } catch (fingerprintError) {
+          logger.error('Failed to generate fingerprint for verification:', fingerprintError);
+        }
+      }
+      
       setError(error.message || 'Failed to unlock wallet');
       setPending2FAPassword(''); // Clear password on error
     } finally {
@@ -672,37 +708,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
           </div>
         </div>
 
-        {/* Device Verification Modal */}
-        {deviceVerificationData && (
-          <DeviceVerificationModal
-            isOpen={showDeviceVerification}
-            deviceInfo={deviceVerificationData.deviceInfo}
-            deviceToken={deviceVerificationData.deviceToken}
-            email={deviceVerificationData.email}
-            password={deviceVerificationData.password}
-            onSuccess={async (mnemonic) => {
-              // Wallet successfully verified and unlocked
-              const { importWallet } = useWalletStore.getState();
-              await importWallet(mnemonic);
-              
-              // Save to recent and complete
-              saveCurrentAccountToRecent();
-              sessionStorage.setItem('wallet_unlocked_this_session', 'true');
-              
-              setShowDeviceVerification(false);
-              setDeviceVerificationData(null);
-              onComplete();
-            }}
-            onCancel={() => {
-              setShowDeviceVerification(false);
-              setDeviceVerificationData(null);
-              setError('Device verification cancelled');
-            }}
-          />
-        )}
-        
-        {/* ✅ NEW: Device Confirmation Modal (medium confidence - 1-click verify) */}
-
         {/* Email Verification Code Modal */}
         {verificationCodeData && (
           <DeviceVerificationCodeModal
@@ -711,21 +716,43 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
             userId={verificationCodeData.userId}
             deviceInfo={verificationCodeData.deviceInfo}
             onVerify={async (code: string) => {
-              // Verify code
+              // Verify code - ensure all required fields are present
+              if (!verificationCodeData.deviceInfo || !verificationCodeData.deviceInfo.fingerprint) {
+                logger.error('❌ [PasswordUnlock] Missing deviceInfo.fingerprint');
+                throw new Error('Device information is incomplete. Please try again.');
+              }
+
+              const requestBody = {
+                userId: verificationCodeData.userId,
+                email: verificationCodeData.email,
+                code,
+                deviceInfo: {
+                  fingerprint: verificationCodeData.deviceInfo.fingerprint,
+                  deviceName: verificationCodeData.deviceInfo.deviceName || verificationCodeData.deviceInfo.name,
+                  ipAddress: verificationCodeData.deviceInfo.ipAddress,
+                  userAgent: verificationCodeData.deviceInfo.userAgent,
+                  browser: verificationCodeData.deviceInfo.browser,
+                  os: verificationCodeData.deviceInfo.os,
+                },
+              };
+
+              logger.log('🔍 [PasswordUnlock] Verifying code with:', {
+                userId: requestBody.userId?.substring(0, 8) + '...',
+                email: requestBody.email,
+                codeLength: code.length,
+                hasFingerprint: !!requestBody.deviceInfo.fingerprint,
+              });
+
               const response = await fetch('/api/verify-device-code', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  userId: verificationCodeData.userId,
-                  email: verificationCodeData.email,
-                  code,
-                  deviceInfo: verificationCodeData.deviceInfo,
-                }),
+                body: JSON.stringify(requestBody),
               });
 
               const data = await response.json();
 
               if (!data.success) {
+                logger.error('❌ [PasswordUnlock] Code verification failed:', data.error);
                 throw new Error(data.error || 'Invalid verification code');
               }
 

@@ -83,10 +83,9 @@ export default function SensitiveAction2FAModal({
       }
 
       // Call success callback - allow action to proceed
+      // Don't call handleClose() here - let the parent component handle closing
+      // This prevents the "2FA cancelled" error from showing
       onSuccess();
-      
-      // Close modal
-      handleClose();
     } catch (err: any) {
       logger.error('2FA action verification error:', err);
       setError(err.message || 'Verification failed');
