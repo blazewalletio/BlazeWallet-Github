@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     expiryDate.setHours(expiryDate.getHours() + (body.maxWaitHours || 24));
 
     // Insert into Supabase
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('scheduled_transactions')
       .insert({
         user_id: body.userId,
@@ -132,7 +132,7 @@ export async function GET(req: NextRequest) {
       }, { status: 400 });
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from('scheduled_transactions')
       .select('*')
       .eq('user_id', userId)
@@ -174,7 +174,7 @@ export async function DELETE(req: NextRequest) {
       }, { status: 400 });
     }
 
-    const { error } = await supabase
+    const { error } = await getSupabaseAdmin()
       .from('scheduled_transactions')
       .update({ status: 'cancelled', updated_at: new Date().toISOString() })
       .eq('id', id)

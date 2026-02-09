@@ -268,7 +268,7 @@ async function syncSolanaTokens(): Promise<number> {
 
     for (let i = 0; i < tokensToInsert.length; i += chunkSize) {
       const chunk = tokensToInsert.slice(i, i + chunkSize);
-      const { error } = await supabase
+      const { error } = await getSupabaseAdmin()
         .from('token_registry')
         .upsert(chunk, {
           onConflict: 'chain_id,address',
@@ -422,7 +422,7 @@ async function syncEVMChainTokens(chainKey: string): Promise<number> {
     logger.log(`🔷 [Sync] Found ${chainTokens.length} ${chainKey} tokens (${popularTokens.length} with volume/liquidity data)`);
 
     // Upsert tokens
-    const { error } = await supabase
+    const { error } = await getSupabaseAdmin()
       .from('token_registry')
       .upsert(chainTokens, {
         onConflict: 'chain_id,address',

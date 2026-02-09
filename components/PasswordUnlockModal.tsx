@@ -217,13 +217,26 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
               deviceInfo = await generateEnhancedFingerprint();
             }
             
-            // Get user ID from Supabase session
-            const { data: { user } } = await supabase.auth.getUser();
+            // Use userId from result (saved before sign out) or try to get from session
+            let userIdToUse = result.userId;
+            if (!userIdToUse) {
+              try {
+                const { data: { user } } = await supabase.auth.getUser();
+                userIdToUse = user?.id;
+              } catch (userError) {
+                logger.warn('Could not get userId from session:', userError);
+              }
+            }
+            
+            if (!userIdToUse) {
+              logger.error('❌ [PasswordUnlock] No userId available for device verification');
+              throw new Error('Unable to verify device: user ID not available. Please try again.');
+            }
             
             // Show device verification code modal
             setVerificationCodeData({
               email: pendingNewEmail,
-              userId: user?.id || '',
+              userId: userIdToUse,
               deviceInfo,
               password,
             });
@@ -283,13 +296,26 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
               deviceInfo = await generateEnhancedFingerprint();
             }
             
-            // Get user ID from Supabase session
-            const { data: { user } } = await supabase.auth.getUser();
+            // Use userId from result (saved before sign out) or try to get from session
+            let userIdToUse = result.userId;
+            if (!userIdToUse) {
+              try {
+                const { data: { user } } = await supabase.auth.getUser();
+                userIdToUse = user?.id;
+              } catch (userError) {
+                logger.warn('Could not get userId from session:', userError);
+              }
+            }
+            
+            if (!userIdToUse) {
+              logger.error('❌ [PasswordUnlock] No userId available for device verification');
+              throw new Error('Unable to verify device: user ID not available. Please try again.');
+            }
             
             // Show device verification code modal
             setVerificationCodeData({
               email,
-              userId: user?.id || '',
+              userId: userIdToUse,
               deviceInfo,
               password,
             });
@@ -413,12 +439,36 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
           
           const { generateEnhancedFingerprint } = await import('@/lib/device-fingerprint-pro');
           const deviceInfo = await generateEnhancedFingerprint();
-          const { data: { user } } = await supabase.auth.getUser();
+          
+          // Try to get userId from multiple sources
+          let userIdToUse: string | undefined;
+          
+          // First try from Supabase session
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            userIdToUse = user?.id;
+          } catch (userError) {
+            logger.warn('Could not get userId from session:', userError);
+          }
+          
+          // Fallback to state or secureStorage
+          if (!userIdToUse) {
+            userIdToUse = userId || undefined;
+            if (!userIdToUse) {
+              const { secureStorage } = await import('@/lib/secure-storage');
+              userIdToUse = await secureStorage.getItem('supabase_user_id') || undefined;
+            }
+          }
+          
+          if (!userIdToUse) {
+            logger.error('❌ [PasswordUnlock] No userId available for device verification in catch block');
+            throw new Error('Unable to verify device: user ID not available. Please try logging in again.');
+          }
           
           const emailToUse = pendingNewEmail || emailForVerification || '';
           setVerificationCodeData({
             email: emailToUse,
-            userId: user?.id || userId || '',
+            userId: userIdToUse,
             deviceInfo,
             password: pending2FAPassword,
           });

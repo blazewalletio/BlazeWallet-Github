@@ -59,6 +59,23 @@ export default function DeviceVerificationCodeModal({
   const sendCode = async () => {
     try {
       setError('');
+      
+      // Validate required fields before sending
+      if (!userId) {
+        logger.error('❌ [VerifyDeviceCode] Missing userId in sendCode');
+        throw new Error('User ID is required. Please try logging in again.');
+      }
+      
+      if (!email) {
+        logger.error('❌ [VerifyDeviceCode] Missing email in sendCode');
+        throw new Error('Email is required. Please try logging in again.');
+      }
+      
+      if (!deviceInfo || !deviceInfo.fingerprint) {
+        logger.error('❌ [VerifyDeviceCode] Missing deviceInfo.fingerprint in sendCode');
+        throw new Error('Device information is incomplete. Please try again.');
+      }
+      
       const response = await fetch('/api/device-verification-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
