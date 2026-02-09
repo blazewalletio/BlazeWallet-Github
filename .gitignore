@@ -37,3 +37,4 @@ next-env.d.ts
 .vercel
 .cursor/mcp.json
 .env.cron
+.env.vercel
