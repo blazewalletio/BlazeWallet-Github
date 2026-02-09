@@ -51,11 +51,9 @@ interface DeviceChallengeRequest {
  */
 interface DeviceChallengeResponse {
   trusted: boolean;
-  requiresConfirmation?: boolean;
   requiresVerification?: boolean;
   deviceId?: string; // Return device_id for client to restore to localStorage
   sessionToken?: string; // Short-lived token for grace period
-  suggestedDevice?: any; // For confirmation modal
   confidence: 'high' | 'medium' | 'low';
   score: number;
   matchDetails?: {
@@ -333,30 +331,9 @@ export async function POST(request: NextRequest) {
         matchDetails: bestMatchDetails,
       };
       
-    } else if (bestScore >= 40) {
-      // ⚠️ MEDIUM CONFIDENCE - Ask user confirmation
-      logger.log(`⚠️ MEDIUM CONFIDENCE (${bestScore}/100) → USER CONFIRMATION NEEDED`);
-      
-      response = {
-        trusted: false,
-        requiresConfirmation: true,
-        suggestedDevice: {
-          id: bestMatch.id,
-          deviceId: bestMatch.device_id,
-          deviceName: bestMatch.device_name,
-          lastUsedAt: bestMatch.last_used_at,
-          location: bestMatch.device_metadata?.location,
-          browser: bestMatch.browser,
-          os: bestMatch.os,
-        },
-        confidence: 'medium',
-        score: bestScore,
-        matchDetails: bestMatchDetails,
-      };
-      
     } else {
-      // ❌ LOW CONFIDENCE - Email verification required
-      logger.log(`❌ LOW CONFIDENCE (${bestScore}/100) → EMAIL VERIFICATION REQUIRED`);
+      // ❌ BELOW THRESHOLD (< 60%) - Email verification required
+      logger.log(`❌ BELOW THRESHOLD (${bestScore}/100) → EMAIL VERIFICATION REQUIRED`);
       
       response = {
         trusted: false,

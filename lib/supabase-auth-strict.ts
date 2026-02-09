@@ -138,7 +138,6 @@ export interface StrictSignInResult {
   success: boolean;
   error?: string;
   requiresDeviceVerification?: boolean;
-  requiresDeviceConfirmation?: boolean; // ✅ NEW: For medium confidence (1-click verify)
   suggestedDevice?: any; // ✅ NEW: Suggested device for confirmation modal
   matchScore?: number; // ✅ NEW: Match score for display
   requires2FA?: boolean;
@@ -308,26 +307,9 @@ export async function strictSignInWithEmail(
         };
       }
       
-      // CASE 2: MEDIUM CONFIDENCE (score 40-59) - User confirmation needed
-      if (challengeResult.requiresConfirmation) {
-        logger.log('⚠️ [StrictAuth] Medium confidence - user confirmation needed');
-        
-        // Sign out (require confirmation before allowing access)
-        await supabase.auth.signOut();
-        
-        return {
-          success: false,
-          requiresDeviceConfirmation: true,
-          suggestedDevice: challengeResult.suggestedDevice,
-          matchScore: challengeResult.score,
-          deviceInfo,
-          error: 'Device confirmation required',
-        };
-      }
-      
-      // CASE 3: LOW CONFIDENCE (score < 40) - Email verification required
+      // CASE 2: BELOW THRESHOLD (score < 60) - Email verification required
       // Fall through to existing email verification flow below
-      logger.log('❌ [StrictAuth] Low confidence - email verification required');
+      logger.log('❌ [StrictAuth] Below threshold - email verification required');
       
     } catch (challengeError) {
       logger.error('❌ [StrictAuth] Device challenge error:', challengeError);
@@ -380,7 +362,7 @@ export async function strictSignInWithEmail(
           os_version: deviceInfo.osVersion,
           verification_token: deviceToken, // New verification token
           verification_code: verificationCode, // New verification code
-          verification_expires_at: expiresAt.toISOString(),
+          verification_code_expires_at: expiresAt.toISOString(),
           device_metadata: {
             location: deviceInfo.location,
             riskScore: deviceInfo.riskScore,
@@ -423,7 +405,7 @@ export async function strictSignInWithEmail(
           is_current: false, // Not current until verified
           verification_token: deviceToken,
           verification_code: verificationCode,
-          verification_expires_at: expiresAt.toISOString(),
+          verification_code_expires_at: expiresAt.toISOString(),
           device_metadata: {
             location: deviceInfo.location,
             riskScore: deviceInfo.riskScore,
@@ -473,14 +455,16 @@ export async function strictSignInWithEmail(
           'X-CSRF-Token': csrfToken, // CSRF protection
         },
         body: JSON.stringify({
+          userId: data.user.id, // ✅ Required by API
           email: data.user.email,
-          code: verificationCode,
           deviceInfo: {
             deviceName: deviceInfo.deviceName,
-            location: `${deviceInfo.location.city}, ${deviceInfo.location.country}`,
+            fingerprint: deviceInfo.fingerprint, // ✅ Required by API
             ipAddress: deviceInfo.ipAddress,
-            browser: `${deviceInfo.browser} ${deviceInfo.browserVersion}`,
-            os: `${deviceInfo.os} ${deviceInfo.osVersion}`,
+            userAgent: deviceInfo.userAgent,
+            browser: deviceInfo.browser,
+            os: deviceInfo.os,
+            location: deviceInfo.location, // Full location object
           },
         }),
       });

@@ -9,7 +9,6 @@ import EmailAccountSelector from './EmailAccountSelector'; // ✅ NEW: IndexedDB
 import NewEmailModal from './NewEmailModal';
 import WalletRecoveryFlow from './WalletRecoveryFlow';
 import DeviceVerificationModal from './DeviceVerificationModal';
-import DeviceConfirmationModal from './DeviceConfirmationModal';
 import DeviceVerificationCodeModal from './DeviceVerificationCodeModal';
 import SensitiveAction2FAModal from './SensitiveAction2FAModal';
 import { logger } from '@/lib/logger';
@@ -47,15 +46,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     password: string;
   } | null>(null);
   
-  // ✅ NEW: Device Confirmation State (for medium confidence)
-  const [showDeviceConfirmation, setShowDeviceConfirmation] = useState(false);
-  const [deviceConfirmationData, setDeviceConfirmationData] = useState<{
-    suggestedDevice: any;
-    score: number;
-    userId: string;
-    email: string;
-    password: string;
-  } | null>(null);
   
   // ✅ NEW: Email Verification Code State
   const [showVerificationCode, setShowVerificationCode] = useState(false);
@@ -227,24 +217,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         const result = await strictSignInWithEmail(pendingNewEmail, password);
         
         if (!result.success) {
-          // ✅ NEW: Check if device confirmation is needed (medium confidence)
-          if (result.requiresDeviceConfirmation && result.suggestedDevice) {
-            
-            // Get user ID from Supabase session
-            const { data: { user } } = await supabase.auth.getUser();
-            
-            // Show device confirmation modal
-            setDeviceConfirmationData({
-              suggestedDevice: result.suggestedDevice,
-              score: result.matchScore || 0,
-              userId: user?.id || '',
-              email: pendingNewEmail,
-              password,
-            });
-            setShowDeviceConfirmation(true);
-            return;
-          }
-          
           // Check if device verification is required
           if (result.requiresDeviceVerification && result.deviceVerificationToken && result.deviceInfo) {
             // Show device verification modal
@@ -301,17 +273,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         const { strictSignInWithEmail } = await import('@/lib/supabase-auth-strict');
         const result = await strictSignInWithEmail(email, password);
         if (!result.success) {
-          // ✅ NEW: Check if device confirmation is needed (medium confidence)
-          if (result.requiresDeviceConfirmation && result.suggestedDevice) {
-            // Get user ID from Supabase session
-            const { data: { user } } = await supabase.auth.getUser();
-            
-            // Show device confirmation modal
-            setDeviceConfirmationData({
-              suggestedDevice: result.suggestedDevice,
-              score: result.matchScore || 0,
-              userId: user?.id || '',
-              email,
               password,
             });
             setShowDeviceConfirmation(true);
@@ -747,62 +708,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         )}
         
         {/* ✅ NEW: Device Confirmation Modal (medium confidence - 1-click verify) */}
-        {deviceConfirmationData && (
-          <DeviceConfirmationModal
-            isOpen={showDeviceConfirmation}
-            suggestedDevice={deviceConfirmationData.suggestedDevice}
-            score={deviceConfirmationData.score}
-            onConfirmYes={async () => {
-              // User confirmed "Yes, this is me"
-              const { confirmDeviceAndSignIn } = await import('@/lib/supabase-auth-strict');
-              const result = await confirmDeviceAndSignIn(
-                deviceConfirmationData.userId,
-                deviceConfirmationData.suggestedDevice.id,
-                deviceConfirmationData.email,
-                deviceConfirmationData.password
-              );
-              
-              if (!result.success) {
-                throw new Error(result.error || 'Failed to confirm device');
-              }
-              
-              // Wallet successfully unlocked
-              if (result.mnemonic) {
-                const { importWallet } = useWalletStore.getState();
-                await importWallet(result.mnemonic);
-                
-                // Save to recent and complete
-                saveCurrentAccountToRecent();
-                sessionStorage.setItem('wallet_unlocked_this_session', 'true');
-                
-                setShowDeviceConfirmation(false);
-                setDeviceConfirmationData(null);
-                onComplete();
-              }
-            }}
-            onConfirmNo={async () => {
-              // User said "No, not me" → Show email verification code modal
-              setShowDeviceConfirmation(false);
-              
-              // Get current device info for verification
-              const { generateEnhancedFingerprint } = await import('@/lib/device-fingerprint-pro');
-              const deviceInfo = await generateEnhancedFingerprint();
-              
-              setVerificationCodeData({
-                email: deviceConfirmationData.email,
-                userId: deviceConfirmationData.userId,
-                deviceInfo,
-                password: deviceConfirmationData.password,
-              });
-              setShowVerificationCode(true);
-              setDeviceConfirmationData(null);
-            }}
-            onCancel={() => {
-              setShowDeviceConfirmation(false);
-              setDeviceConfirmationData(null);
-            }}
-          />
-        )}
 
         {/* Email Verification Code Modal */}
         {verificationCodeData && (

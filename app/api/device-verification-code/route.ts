@@ -90,12 +90,32 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Generate 6-digit verification code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + 10); // 10 minute expiry
+    // Check if device already exists with a valid verification code
+    const { data: existingDevice, error: checkError } = await supabaseAdmin
+      .from('trusted_devices')
+      .select('verification_code, verification_code_expires_at')
+      .eq('user_id', userId)
+      .eq('device_fingerprint', deviceInfo.fingerprint)
+      .maybeSingle();
     
-    // Store code in database (update existing device or create new)
+    let code: string;
+    let expiresAt: Date;
+    
+    // If device exists with valid (non-expired) code, reuse it
+    if (existingDevice?.verification_code && 
+        existingDevice.verification_code_expires_at && 
+        new Date(existingDevice.verification_code_expires_at) > new Date()) {
+      logger.log('✅ Reusing existing verification code');
+      code = existingDevice.verification_code;
+      expiresAt = new Date(existingDevice.verification_code_expires_at);
+    } else {
+      // Generate new 6-digit verification code
+      code = Math.floor(100000 + Math.random() * 900000).toString();
+      expiresAt = new Date();
+      expiresAt.setMinutes(expiresAt.getMinutes() + 10); // 10 minute expiry
+    }
+    
+    // Store/update code in database
     const { error: deviceError } = await supabaseAdmin
       .from('trusted_devices')
       .upsert({

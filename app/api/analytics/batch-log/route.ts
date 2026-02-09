@@ -62,36 +62,29 @@ export async function POST(request: NextRequest) {
     // Analytics is non-critical and auth token validation is sufficient
     // CSRF protection adds unnecessary complexity for background logging
 
-    // Get authenticated user
+    // Get authenticated user (optional - allow anonymous logging)
     const authHeader = request.headers.get('authorization');
     
-    logger.log('[Analytics API] Request received:', {
-      hasAuth: !!authHeader,
-      origin,
-      method: request.method,
-    });
+    let userId: string | null = null;
     
-    if (!authHeader) {
-      logger.warn('[Analytics API] Missing authorization header');
-      return NextResponse.json(
-        { error: 'Missing authorization header' },
-        { status: 401, headers }
-      );
+    if (authHeader) {
+      try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser(
+          authHeader.replace('Bearer ', '')
+        );
+
+        if (!authError && user) {
+          userId = user.id;
+          logger.log('[Analytics API] User authenticated:', user.id);
+        } else {
+          logger.warn('[Analytics API] Auth failed (continuing anonymously):', authError?.message || 'No user');
+        }
+      } catch (authError: any) {
+        logger.warn('[Analytics API] Auth error (continuing anonymously):', authError?.message);
+      }
+    } else {
+      logger.log('[Analytics API] No auth header (anonymous logging)');
     }
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
-
-    if (authError || !user) {
-      logger.warn('[Analytics API] Auth failed:', authError?.message || 'No user');
-      return NextResponse.json(
-        { error: 'Unauthorized', details: authError?.message },
-        { status: 401, headers }
-      );
-    }
-
-    logger.log('[Analytics API] User authenticated:', user.id);
 
     // Parse request body
     const { events } = await request.json();
@@ -103,38 +96,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    logger.log(`[Analytics] Processing ${events.length} events for user ${user.id}`);
+    if (userId) {
+      logger.log(`[Analytics] Processing ${events.length} events for user ${userId}`);
+    } else {
+      logger.log(`[Analytics] Processing ${events.length} events anonymously (user not authenticated)`);
+    }
 
-    // Process all events in batch
-    const results = await Promise.allSettled(
+    // Process all events in batch (only if user is authenticated)
+    // If no user, silently ignore events (they'll be re-queued on next login)
+    const results = userId ? await Promise.allSettled(
       events.map(async (event: any) => {
         if (event.type === 'transaction_event') {
-          return processTransactionEvent(user.id, event);
+          return processTransactionEvent(userId!, event);
         }
 
         if (event.type === 'feature_usage') {
-          return processFeatureUsage(user.id, event);
+          return processFeatureUsage(userId!, event);
         }
 
         logger.warn(`[Analytics] Unknown event type: ${event.type}`);
         return null;
       })
-    );
+    ) : [];
 
     // Count successes and failures
     const succeeded = results.filter(r => r.status === 'fulfilled').length;
     const failed = results.filter(r => r.status === 'rejected').length;
 
-    if (failed > 0) {
-      logger.warn(`[Analytics] Batch completed with errors: ${succeeded} succeeded, ${failed} failed`);
+    if (userId) {
+      if (failed > 0) {
+        logger.warn(`[Analytics] Batch completed with errors: ${succeeded} succeeded, ${failed} failed`);
+      } else {
+        logger.log(`[Analytics] Batch completed successfully: ${succeeded} events processed`);
+      }
     } else {
-      logger.log(`[Analytics] Batch completed successfully: ${succeeded} events processed`);
+      logger.log(`[Analytics] Events ignored (user not authenticated - will be re-queued on next login)`);
     }
 
     return NextResponse.json({
       success: true,
       processed: succeeded,
       failed,
+      anonymous: !userId,
     }, { headers });
 
   } catch (error: any) {

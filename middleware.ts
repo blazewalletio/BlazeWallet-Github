@@ -53,6 +53,7 @@ export async function middleware(request: NextRequest) {
     '/api/onramper', // Onramper endpoints (quotes, create-transaction, supported-data, checkout-intent)
     '/api/moonpay', // MoonPay endpoints
     '/api/ramp', // Ramp Network endpoints
+    '/api/debug-log', // Debug logging (non-critical, should always work)
   ];
   
   // Check if pathname starts with any public endpoint
