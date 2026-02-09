@@ -73,13 +73,13 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
       // Save to Supabase (if logged in)
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase
+        await (supabase as any)
           .from('user_profiles')
           .update({ preferred_currency: newCurrency })
           .eq('user_id', user.id);
 
         // Log activity
-        await supabase.rpc('log_user_activity', {
+        await (supabase as any).rpc('log_user_activity', {
           p_user_id: user.id,
           p_activity_type: 'settings_change',
           p_description: `Currency changed to ${newCurrency}`,

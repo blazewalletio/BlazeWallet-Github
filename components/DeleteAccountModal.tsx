@@ -69,7 +69,7 @@ export default function DeleteAccountModal({
       if (!user) throw new Error('Not authenticated');
 
       // Log final activity
-      await supabase.rpc('log_user_activity', {
+      await (supabase as any).rpc('log_user_activity', {
         p_user_id: user.id,
         p_activity_type: 'account_deleted',
         p_description: 'Account deletion initiated',
@@ -78,11 +78,11 @@ export default function DeleteAccountModal({
 
       // Delete user data from all tables (RLS will handle permissions)
       await Promise.all([
-        supabase.from('user_profiles').delete().eq('user_id', user.id),
-        supabase.from('user_activity_log').delete().eq('user_id', user.id),
-        supabase.from('trusted_devices').delete().eq('user_id', user.id),
-        supabase.from('user_security_scores').delete().eq('user_id', user.id),
-        supabase.from('user_transaction_stats').delete().eq('user_id', user.id)
+        (supabase as any).from('user_profiles').delete().eq('user_id', user.id),
+        (supabase as any).from('user_activity_log').delete().eq('user_id', user.id),
+        (supabase as any).from('trusted_devices').delete().eq('user_id', user.id),
+        (supabase as any).from('user_security_scores').delete().eq('user_id', user.id),
+        (supabase as any).from('user_transaction_stats').delete().eq('user_id', user.id)
       ]);
 
       // Delete all local data

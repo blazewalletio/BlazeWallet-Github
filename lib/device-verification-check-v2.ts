@@ -257,34 +257,34 @@ export class DeviceVerificationCheckV2 {
         debugLogger.info('database', `[LAYER 1] Database query completed (${layer1Duration}ms)`, {
           hasDevice: !!device,
           hasError: !!deviceError,
-          deviceName: device?.device_name,
-          verifiedAt: device?.verified_at,
-          lastUsedAt: device?.last_used_at,
+          deviceName: (device as any)?.device_name,
+          verifiedAt: (device as any)?.verified_at,
+          lastUsedAt: (device as any)?.last_used_at,
           errorMessage: deviceError?.message,
         });
         
         if (deviceError) {
           logger.error('❌ [Layer 1] Database error:', deviceError);
           debugLogger.error('database', '[LAYER 1] Database error', { error: deviceError });
-        } else if (device && device.verified_at) {
+        } else if (device && (device as any).verified_at) {
           logger.log('✅ [Layer 1] Device ID MATCH! Device is trusted.');
-          logger.log('✅ [Layer 1] Device name:', device.device_name);
-          logger.log('✅ [Layer 1] Verified at:', device.verified_at);
+          logger.log('✅ [Layer 1] Device name:', (device as any).device_name);
+          logger.log('✅ [Layer 1] Verified at:', (device as any).verified_at);
           
           // 🔧 DEBUG: SUCCESS!
           debugLogger.info('device_verification', '✅ [LAYER 1] SUCCESS - DEVICE VERIFIED!', {
-            deviceId: device.id,
-            deviceName: device.device_name,
-            verifiedAt: device.verified_at,
-            lastUsedAt: device.last_used_at,
+            deviceId: (device as any).id,
+            deviceName: (device as any).device_name,
+            verifiedAt: (device as any).verified_at,
+            lastUsedAt: (device as any).last_used_at,
             result: 'VERIFIED',
           });
           
           // Update last_used_at
-          await supabase
+          await (supabase as any)
             .from('trusted_devices')
             .update({ last_used_at: new Date().toISOString() })
-            .eq('id', device.id);
+            .eq('id', (device as any).id);
           
           logger.log('✅ [Layer 1] Updated last_used_at');
           
@@ -301,13 +301,13 @@ export class DeviceVerificationCheckV2 {
           return {
             verified: true,
             userId: user.id,
-            deviceId: device.id,
+            deviceId: (device as any).id,
           };
-        } else if (device && !device.verified_at) {
+        } else if (device && !(device as any).verified_at) {
           logger.log('⚠️ [Layer 1] Device found but NOT verified yet');
           debugLogger.warn('device_verification', '[LAYER 1] Device found but NOT verified', {
-            deviceId: device.id,
-            verifiedAt: device.verified_at,
+            deviceId: (device as any).id,
+            verifiedAt: (device as any).verified_at,
           });
         } else {
           logger.log('⚠️ [Layer 1] Device ID not found in database');
@@ -344,8 +344,8 @@ export class DeviceVerificationCheckV2 {
           .eq('session_token', sessionToken)
           .maybeSingle();
         
-        if (sessionDevice && sessionDevice.verified_at && sessionDevice.last_verified_session_at) {
-          const age = Date.now() - new Date(sessionDevice.last_verified_session_at).getTime();
+        if (sessionDevice && (sessionDevice as any).verified_at && (sessionDevice as any).last_verified_session_at) {
+          const age = Date.now() - new Date((sessionDevice as any).last_verified_session_at).getTime();
           const GRACE_PERIOD = 60 * 60 * 1000; // 1 hour
           const ageMinutes = Math.floor(age / 1000 / 60);
           
@@ -353,8 +353,8 @@ export class DeviceVerificationCheckV2 {
             logger.log(`✅ [Layer 4] Session valid! Verified ${ageMinutes} min ago (< 60 min grace period)`);
             
             // Restore device_id to localStorage
-            if (sessionDevice.device_id) {
-              DeviceIdManager.setDeviceId(sessionDevice.device_id);
+            if ((sessionDevice as any).device_id) {
+              DeviceIdManager.setDeviceId((sessionDevice as any).device_id);
               logger.log('✅ [Layer 4] Device ID restored to localStorage');
             }
             
@@ -365,7 +365,7 @@ export class DeviceVerificationCheckV2 {
             return {
               verified: true,
               userId: user.id,
-              deviceId: sessionDevice.id,
+              deviceId: (sessionDevice as any).id,
             };
           } else {
             logger.log(`⏰ [Layer 4] Session expired (age: ${ageMinutes} min > 60 min)`);
@@ -401,13 +401,13 @@ export class DeviceVerificationCheckV2 {
         .eq('device_fingerprint', fingerprint)
         .maybeSingle();
       
-      if (fpDevice && fpDevice.verified_at) {
+      if (fpDevice && (fpDevice as any).verified_at) {
         logger.log('✅ [Layer 2] Fingerprint EXACT match! Device trusted.');
-        logger.log('✅ [Layer 2] Device name:', fpDevice.device_name);
+        logger.log('✅ [Layer 2] Device name:', (fpDevice as any).device_name);
         
         // Restore device_id to localStorage
-        if (fpDevice.device_id) {
-          DeviceIdManager.setDeviceId(fpDevice.device_id);
+        if ((fpDevice as any).device_id) {
+          DeviceIdManager.setDeviceId((fpDevice as any).device_id);
           logger.log('✅ [Layer 2] Device ID restored to localStorage');
         }
         
@@ -418,7 +418,7 @@ export class DeviceVerificationCheckV2 {
         return {
           verified: true,
           userId: user.id,
-          deviceId: fpDevice.id,
+          deviceId: (fpDevice as any).id,
         };
       } else {
         logger.log('⚠️ [Layer 2] No exact fingerprint match found');
@@ -442,7 +442,7 @@ export class DeviceVerificationCheckV2 {
       if (match.canAutoRecover && match.device) {
         logger.log('✅ [Layer 3] HIGH CONFIDENCE match! Auto-recovering device...');
         logger.log(`✅ [Layer 3] Match score: ${match.score}/170 points (≥120 required)`);
-        logger.log('✅ [Layer 3] Device name:', match.device.device_name);
+        logger.log('✅ [Layer 3] Device name:', (match.device as any)?.device_name);
         
         // Restore device_id to localStorage
         if (match.device.device_id) {
@@ -451,13 +451,13 @@ export class DeviceVerificationCheckV2 {
         }
         
         // Update fingerprint (device evolved)
-        await supabase
+        await (supabase as any)
           .from('trusted_devices')
           .update({
             device_fingerprint: fingerprint,
             last_used_at: new Date().toISOString(),
           })
-          .eq('id', match.device.id);
+          .eq('id', (match.device as any).id);
         
         logger.log('✅ [Layer 3] Device fingerprint updated (device evolved)');
         
@@ -468,7 +468,7 @@ export class DeviceVerificationCheckV2 {
         return {
           verified: true,
           userId: user.id,
-          deviceId: match.device.id,
+          deviceId: (match.device as any).id,
           recoveredViaSmartMatching: true,
         };
       }
@@ -544,14 +544,14 @@ export class DeviceVerificationCheckV2 {
       const fpResult = await getCachedOrGenerateFingerprint();
       const currentFingerprint = fpResult.fingerprint;
       
-      if (device.device_fingerprint === currentFingerprint) {
+      if ((device as any).device_fingerprint === currentFingerprint) {
         // No change
         return;
       }
       
       // Fingerprint changed - calculate similarity
       const similarity = calculateStringSimilarity(
-        device.device_fingerprint,
+        (device as any).device_fingerprint,
         currentFingerprint
       );
       
@@ -561,18 +561,18 @@ export class DeviceVerificationCheckV2 {
       if (similarity < 0.5) {
         // Major change (< 50% similarity) → Suspicious!
         logger.warn('🚨 [Anomaly] SUSPICIOUS: Major fingerprint change detected!');
-        logger.warn(`🚨 [Anomaly] Old: ${device.device_fingerprint.substring(0, 20)}...`);
+        logger.warn(`🚨 [Anomaly] Old: ${(device as any).device_fingerprint.substring(0, 20)}...`);
         logger.warn(`🚨 [Anomaly] New: ${currentFingerprint.substring(0, 20)}...`);
         
         // Log security event
         try {
-          await supabase.rpc('log_security_event', {
+          await (supabase as any).rpc('log_security_event', {
             p_user_id: userId,
-            p_device_id: device.id,
+            p_device_id: (device as any).id,
             p_event_type: 'fingerprint_major_change',
             p_severity: 'medium',
             p_details: {
-              old_fp_preview: device.device_fingerprint.substring(0, 30),
+              old_fp_preview: (device as any).device_fingerprint.substring(0, 30),
               new_fp_preview: currentFingerprint.substring(0, 30),
               similarity: similarity,
               similarity_percent: similarityPercent,
@@ -584,10 +584,10 @@ export class DeviceVerificationCheckV2 {
         }
       } else {
         // Minor change (browser update, settings, etc.) → Update silently
-        await supabase
+        await (supabase as any)
           .from('trusted_devices')
           .update({ device_fingerprint: currentFingerprint })
-          .eq('id', device.id);
+          .eq('id', (device as any).id);
         
         logger.log(`✅ [Anomaly] Fingerprint updated (minor change, ${similarityPercent}% similarity)`);
       }

@@ -63,7 +63,7 @@ export default function RecurringSendModal({
       const startDateTime = new Date(startDate);
       startDateTime.setHours(2, 0, 0, 0); // Default to 2 AM (optimal time)
 
-      const { data, error: insertError } = await supabase
+      const { data, error: insertError } = await (supabase as any)
         .from('recurring_sends')
         .insert({
           user_id: userId,

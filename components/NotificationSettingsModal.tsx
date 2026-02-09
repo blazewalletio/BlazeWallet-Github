@@ -57,7 +57,7 @@ export default function NotificationSettingsModal({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('user_profiles')
         .update({ notifications_enabled: settings.all })
         .eq('user_id', user.id);
@@ -65,7 +65,7 @@ export default function NotificationSettingsModal({
       if (error) throw error;
 
       // Log activity
-      await supabase.rpc('log_user_activity', {
+      await (supabase as any).rpc('log_user_activity', {
         p_user_id: user.id,
         p_activity_type: 'settings_change',
         p_description: `Notifications ${settings.all ? 'enabled' : 'disabled'}`,

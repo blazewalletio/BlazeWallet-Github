@@ -213,12 +213,12 @@ export default function TokenSearchModal({
           
           walletTokensList.push({
             address: nativeAddress,
-            symbol: nativeTokenInfo.symbol,
-            name: nativeTokenInfo.name,
-            decimals: nativeTokenInfo.decimals,
+            symbol: (nativeTokenInfo as any).symbol,
+            name: (nativeTokenInfo as any).name,
+            decimals: (nativeTokenInfo as any).decimals,
             chainId: chainId,
-            logoURI: nativeMetadata?.logo_uri || chainConfig?.logoUrl || '',
-            priceUSD: nativeMetadata?.price_usd?.toString() || '0',
+            logoURI: (nativeMetadata as any)?.logo_uri || chainConfig?.logoUrl || '',
+            priceUSD: (nativeMetadata as any)?.price_usd?.toString() || '0',
           });
         }
         
@@ -394,7 +394,7 @@ export default function TokenSearchModal({
       // ✅ STEP 2: Search Supabase for additional tokens
       // Use Supabase RPC function for full-text search (instant!)
       // Limit to 50 (database will cap it), then deduplicate to ~20-30 best tokens
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .rpc('search_tokens', {
           p_chain_key: chainKey,
           p_query: query,

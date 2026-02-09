@@ -106,38 +106,38 @@ export async function findBestDeviceMatch(
       // 1. FINGERPRINT MATCHING (0-100 points)
       // =====================================================================
       
-      if (device.device_fingerprint === currentFingerprint) {
+      if ((device as any).device_fingerprint === currentFingerprint) {
         // Exact match
         score += 100;
         matchDetails.fingerprintSimilarity = 1.0;
-        logger.log(`  Device ${device.device_name}: Fingerprint EXACT match (+100)`);
+        logger.log(`  Device ${(device as any).device_name}: Fingerprint EXACT match (+100)`);
       } else {
         // Fuzzy match (Levenshtein similarity)
         const similarity = calculateStringSimilarity(
-          device.device_fingerprint,
+          (device as any).device_fingerprint,
           currentFingerprint
         );
         const fpScore = Math.floor(similarity * 90);
         score += fpScore;
         matchDetails.fingerprintSimilarity = similarity;
-        logger.log(`  Device ${device.device_name}: Fingerprint similarity ${(similarity * 100).toFixed(1)}% (+${fpScore})`);
+        logger.log(`  Device ${(device as any).device_name}: Fingerprint similarity ${(similarity * 100).toFixed(1)}% (+${fpScore})`);
       }
       
       // =====================================================================
       // 2. IP ADDRESS MATCHING (0-20 points)
       // =====================================================================
       
-      if (device.ip_address === currentDeviceInfo.ipAddress) {
+      if ((device as any).ip_address === currentDeviceInfo.ipAddress) {
         score += 20;
         matchDetails.ipMatch = true;
-        logger.log(`  Device ${device.device_name}: IP exact match (+20)`);
+        logger.log(`  Device ${(device as any).device_name}: IP exact match (+20)`);
       } else {
         // Check country match (less strict)
-        const deviceCountry = device.device_metadata?.location?.country;
+        const deviceCountry = (device as any).device_metadata?.location?.country;
         if (deviceCountry && deviceCountry === currentDeviceInfo.location.country) {
           score += 10;
           matchDetails.locationMatch = true;
-          logger.log(`  Device ${device.device_name}: Same country (+10)`);
+          logger.log(`  Device ${(device as any).device_name}: Same country (+10)`);
         }
       }
       
@@ -145,77 +145,77 @@ export async function findBestDeviceMatch(
       // 3. BROWSER MATCHING (0-15 points)
       // =====================================================================
       
-      const deviceBrowser = device.browser_version 
-        ? `${device.browser} ${device.browser_version}`
-        : device.browser;
+      const deviceBrowser = (device as any).browser_version 
+        ? `${(device as any).browser} ${(device as any).browser_version}`
+        : (device as any).browser;
       const currentBrowser = `${currentDeviceInfo.browser} ${currentDeviceInfo.browserVersion}`;
       
       if (deviceBrowser === currentBrowser) {
         score += 15;
         matchDetails.browserMatch = true;
-        logger.log(`  Device ${device.device_name}: Browser exact match (+15)`);
-      } else if (device.browser === currentDeviceInfo.browser) {
+        logger.log(`  Device ${(device as any).device_name}: Browser exact match (+15)`);
+      } else if ((device as any).browser === currentDeviceInfo.browser) {
         // Same browser, different version
         score += 8;
-        logger.log(`  Device ${device.device_name}: Same browser (+8)`);
+        logger.log(`  Device ${(device as any).device_name}: Same browser (+8)`);
       }
       
       // =====================================================================
       // 4. OS MATCHING (0-15 points)
       // =====================================================================
       
-      const deviceOS = device.os_version 
-        ? `${device.os} ${device.os_version}`
-        : device.os;
+      const deviceOS = (device as any).os_version 
+        ? `${(device as any).os} ${(device as any).os_version}`
+        : (device as any).os;
       const currentOS = `${currentDeviceInfo.os} ${currentDeviceInfo.osVersion}`;
       
       if (deviceOS === currentOS) {
         score += 15;
         matchDetails.osMatch = true;
-        logger.log(`  Device ${device.device_name}: OS exact match (+15)`);
-      } else if (device.os === currentDeviceInfo.os) {
+        logger.log(`  Device ${(device as any).device_name}: OS exact match (+15)`);
+      } else if ((device as any).os === currentDeviceInfo.os) {
         // Same OS, different version
         score += 8;
-        logger.log(`  Device ${device.device_name}: Same OS (+8)`);
+        logger.log(`  Device ${(device as any).device_name}: Same OS (+8)`);
       }
       
       // =====================================================================
       // 5. SCREEN RESOLUTION (0-10 points)
       // =====================================================================
       
-      if (device.device_metadata?.screenResolution === currentDeviceInfo.screenResolution) {
+      if ((device as any).device_metadata?.screenResolution === currentDeviceInfo.screenResolution) {
         score += 10;
-        logger.log(`  Device ${device.device_name}: Screen resolution match (+10)`);
+        logger.log(`  Device ${(device as any).device_name}: Screen resolution match (+10)`);
       }
       
       // =====================================================================
       // 6. TIMEZONE (0-5 points)
       // =====================================================================
       
-      if (device.device_metadata?.timezone === currentDeviceInfo.timezone) {
+      if ((device as any).device_metadata?.timezone === currentDeviceInfo.timezone) {
         score += 5;
-        logger.log(`  Device ${device.device_name}: Timezone match (+5)`);
+        logger.log(`  Device ${(device as any).device_name}: Timezone match (+5)`);
       }
       
       // =====================================================================
       // 7. RECENTLY USED (0-10 points)
       // =====================================================================
       
-      const daysSinceUse = (Date.now() - new Date(device.last_used_at).getTime()) / (1000 * 60 * 60 * 24);
+      const daysSinceUse = (Date.now() - new Date((device as any).last_used_at).getTime()) / (1000 * 60 * 60 * 24);
       if (daysSinceUse < 7) {
         score += 10;
         matchDetails.recentlyUsed = true;
-        logger.log(`  Device ${device.device_name}: Used ${daysSinceUse.toFixed(1)} days ago (+10)`);
+        logger.log(`  Device ${(device as any).device_name}: Used ${daysSinceUse.toFixed(1)} days ago (+10)`);
       } else if (daysSinceUse < 30) {
         score += 5;
-        logger.log(`  Device ${device.device_name}: Used ${daysSinceUse.toFixed(1)} days ago (+5)`);
+        logger.log(`  Device ${(device as any).device_name}: Used ${daysSinceUse.toFixed(1)} days ago (+5)`);
       }
       
       // =====================================================================
       // TOTAL SCORE
       // =====================================================================
       
-      logger.log(`  Device ${device.device_name}: TOTAL SCORE = ${score}/170`);
+      logger.log(`  Device ${(device as any).device_name}: TOTAL SCORE = ${score}/170`);
       
       if (score > bestScore) {
         bestScore = score;

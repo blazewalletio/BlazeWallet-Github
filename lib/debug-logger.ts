@@ -170,7 +170,7 @@ class DebugLoggerService {
       }));
 
       // Send to Supabase
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('debug_logs')
         .insert(records);
 

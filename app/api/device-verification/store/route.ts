@@ -10,24 +10,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 // Bypass CSRF protection (we use Bearer token authentication instead)
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-// Create admin client (service role - bypasses RLS)
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,7 +34,7 @@ export async function POST(request: NextRequest) {
     const token = authHeader.substring(7);
     
     // 2. Verify the user session
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    const { data: { user }, error: authError } = await getSupabaseAdmin().auth.getUser(token);
     
     if (authError || !user) {
       console.error('❌ [device-verification/store] Invalid session:', authError);
@@ -92,7 +80,7 @@ export async function POST(request: NextRequest) {
       // UPDATE existing device
       console.log('🔄 [device-verification/store] Updating existing device:', existingDeviceId);
       
-      const { data: updateData, error: updateError } = await supabaseAdmin
+      const { data: updateData, error: updateError } = await getSupabaseAdmin()
         .from('trusted_devices')
         .update({
           device_name: deviceInfo.deviceName,
@@ -126,7 +114,7 @@ export async function POST(request: NextRequest) {
       // UPSERT: INSERT or UPDATE if device_fingerprint already exists
       console.log('🔄 [device-verification/store] UPSERT device (insert or update on conflict)');
       
-      const { data: upsertData, error: upsertError } = await supabaseAdmin
+      const { data: upsertData, error: upsertError } = await getSupabaseAdmin()
         .from('trusted_devices')
         .upsert({
           user_id: user.id,

@@ -98,18 +98,18 @@ export class DeviceVerificationCheck {
           logger.log('🔍 [DeviceCheck] Recent devices:');
           allDevices.forEach((d, i) => {
             logger.log(`  Device ${i + 1}:`, {
-              id: d.id,
-              fingerprint_preview: d.device_fingerprint?.substring(0, 20) + '...',
-              verified: !!d.verified_at,
-              created: d.created_at,
+              id: (d as any).id,
+              fingerprint_preview: (d as any).device_fingerprint?.substring(0, 20) + '...',
+              verified: !!(d as any).verified_at,
+              created: (d as any).created_at,
             });
             
             // Compare fingerprints character by character
-            if (d.device_fingerprint && fingerprint) {
+            if ((d as any).device_fingerprint && fingerprint) {
               let matches = 0;
-              const minLen = Math.min(d.device_fingerprint.length, fingerprint.length);
+              const minLen = Math.min((d as any).device_fingerprint.length, fingerprint.length);
               for (let j = 0; j < minLen; j++) {
-                if (d.device_fingerprint[j] === fingerprint[j]) matches++;
+                if ((d as any).device_fingerprint[j] === fingerprint[j]) matches++;
               }
               const matchPercentage = (matches / minLen * 100).toFixed(1);
               logger.log(`    → Fingerprint match: ${matchPercentage}% (${matches}/${minLen} chars)`);
@@ -120,33 +120,33 @@ export class DeviceVerificationCheck {
         return { verified: false, reason: 'device_not_found' };
       }
       
-      logger.log('✅ [DeviceCheck] Device found in database:', device.id);
-      logger.log('✅ [DeviceCheck] Device name:', device.device_name);
-      logger.log('✅ [DeviceCheck] Device created:', device.created_at);
-      logger.log('✅ [DeviceCheck] Device last used:', device.last_used_at);
+      logger.log('✅ [DeviceCheck] Device found in database:', (device as any).id);
+      logger.log('✅ [DeviceCheck] Device name:', (device as any).device_name);
+      logger.log('✅ [DeviceCheck] Device created:', (device as any).created_at);
+      logger.log('✅ [DeviceCheck] Device last used:', (device as any).last_used_at);
       
       // 4. Check if device has been verified (has verified_at timestamp)
-      if (!device.verified_at) {
+      if (!(device as any).verified_at) {
         logger.log('❌ [DeviceCheck] Device exists but not verified yet');
-        logger.log('❌ [DeviceCheck] verification_expires_at:', device.verification_expires_at);
+        logger.log('❌ [DeviceCheck] verification_expires_at:', (device as any).verification_expires_at);
         return { verified: false, reason: 'device_not_verified' };
       }
       
       logger.log('✅ [DeviceCheck] Device is VERIFIED!');
-      logger.log('✅ [DeviceCheck] Verified at:', device.verified_at);
+      logger.log('✅ [DeviceCheck] Verified at:', (device as any).verified_at);
       logger.log('✅ [DeviceCheck] Time since verification:', 
-        Math.round((Date.now() - new Date(device.verified_at).getTime()) / 1000 / 60), 'minutes ago');
+        Math.round((Date.now() - new Date((device as any).verified_at).getTime()) / 1000 / 60), 'minutes ago');
       logger.log('🔍 [DeviceCheck] ═══════════════════════════════════════');
       
       // 5. Update last_used_at timestamp
       try {
-        await supabase
+        await (supabase as any)
           .from('trusted_devices')
           .update({ 
             last_used_at: new Date().toISOString(),
             is_current: true 
           })
-          .eq('id', device.id);
+          .eq('id', (device as any).id);
         
         logger.log('✅ [DeviceCheck] Updated last_used_at');
       } catch (updateError) {
@@ -157,7 +157,7 @@ export class DeviceVerificationCheck {
       return {
         verified: true,
         userId: user.id,
-        deviceId: device.id,
+        deviceId: (device as any).id,
       };
       
     } catch (error: any) {
@@ -242,8 +242,8 @@ export class DeviceVerificationCheck {
         userId: user.id,
         fingerprint: fingerprint.substring(0, 16) + '...',
         deviceFound: !!device,
-        deviceVerified: !!device?.verified_at,
-        verifiedAt: device?.verified_at,
+        deviceVerified: !!(device as any)?.verified_at,
+        verifiedAt: (device as any)?.verified_at,
       };
     } catch (error) {
       logger.error('Error getting device status:', error);

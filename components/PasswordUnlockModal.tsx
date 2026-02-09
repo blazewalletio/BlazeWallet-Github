@@ -273,12 +273,6 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         const { strictSignInWithEmail } = await import('@/lib/supabase-auth-strict');
         const result = await strictSignInWithEmail(email, password);
         if (!result.success) {
-              password,
-            });
-            setShowDeviceConfirmation(true);
-            return;
-          }
-          
           // Check if device verification is required
           if (result.requiresDeviceVerification && result.deviceVerificationToken && result.deviceInfo) {
             

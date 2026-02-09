@@ -9,29 +9,40 @@ import { createClient } from '@supabase/supabase-js';
 import { checkRateLimit, resetRateLimit } from './rate-limiter';
 import crypto from 'crypto';
 
-// Validate environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Get Supabase admin client (lazy initialization to avoid build-time errors)
+function getSupabaseAdmin() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl) {
-  throw new Error('NEXT_PUBLIC_SUPABASE_URL is required for 2FA service');
-}
-
-if (!supabaseServiceKey) {
-  throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for 2FA service');
-}
-
-// Admin client for database operations
-const supabaseAdmin = createClient(
-  supabaseUrl.trim(),
-  supabaseServiceKey.trim(),
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
+  // During build time, use placeholder values
+  if (!supabaseUrl || !supabaseServiceKey) {
+    if (process.env.NODE_ENV !== 'production' && typeof window === 'undefined') {
+      return createClient(
+        'https://placeholder-project.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU',
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false
+          }
+        }
+      );
     }
+    
+    throw new Error('NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required for 2FA service');
   }
-);
+
+  return createClient(
+    supabaseUrl.trim(),
+    supabaseServiceKey.trim(),
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    }
+  );
+}
 
 /**
  * Verify 2FA TOTP code
@@ -61,7 +72,7 @@ export async function verify2FACode(
     }
 
     // Get user's 2FA secret
-    const { data: profile, error: profileError } = await supabaseAdmin
+    const { data: profile, error: profileError } = await getSupabaseAdmin()
       .from('user_profiles')
       .select('two_factor_secret, two_factor_enabled')
       .eq('user_id', userId)
@@ -94,7 +105,7 @@ export async function verify2FACode(
       
       // Log successful 2FA verification
       try {
-        await supabaseAdmin.rpc('log_user_activity', {
+        await getSupabaseAdmin().rpc('log_user_activity', {
           p_user_id: userId,
           p_activity_type: 'security_success',
           p_description: '2FA verification successful',
@@ -109,7 +120,7 @@ export async function verify2FACode(
       
       // Log failed attempt
       try {
-        await supabaseAdmin.rpc('log_user_activity', {
+        await getSupabaseAdmin().rpc('log_user_activity', {
           p_user_id: userId,
           p_activity_type: 'security_alert',
           p_description: 'Failed 2FA verification attempt',
@@ -146,7 +157,7 @@ export async function verifyBackupCode(
     const normalizedCode = code.replace(/-/g, '').toUpperCase();
 
     // Get user's backup codes
-    const { data: profile, error: profileError } = await supabaseAdmin
+    const { data: profile, error: profileError } = await getSupabaseAdmin()
       .from('user_profiles')
       .select('two_factor_backup_codes')
       .eq('user_id', userId)
@@ -176,7 +187,7 @@ export async function verifyBackupCode(
     // Remove used backup code (one-time use)
     const updatedCodes = backupCodes.filter((_: string, i: number) => i !== matchIndex);
 
-    const { error: updateError } = await supabaseAdmin
+    const { error: updateError } = await getSupabaseAdmin()
       .from('user_profiles')
       .update({ two_factor_backup_codes: updatedCodes })
       .eq('user_id', userId);
@@ -190,7 +201,7 @@ export async function verifyBackupCode(
 
     // Log backup code usage
     try {
-      await supabaseAdmin.rpc('log_user_activity', {
+      await getSupabaseAdmin().rpc('log_user_activity', {
         p_user_id: userId,
         p_activity_type: 'security_alert',
         p_description: 'Backup code used for 2FA verification',
@@ -245,7 +256,7 @@ export function hashBackupCodes(codes: string[]): string[] {
  */
 export async function has2FAEnabled(userId: string): Promise<boolean> {
   try {
-    const { data: profile } = await supabaseAdmin
+    const { data: profile } = await getSupabaseAdmin()
       .from('user_profiles')
       .select('two_factor_enabled')
       .eq('user_id', userId)

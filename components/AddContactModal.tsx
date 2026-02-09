@@ -271,7 +271,7 @@ export default function AddContactModal({
             .single();
 
           if (data) {
-            setDuplicateWarning({ show: true, existingName: data.name });
+            setDuplicateWarning({ show: true, existingName: (data as any).name });
           } else {
             setDuplicateWarning(null);
           }
@@ -367,7 +367,7 @@ export default function AddContactModal({
       if (editContact) {
         // Update existing contact
         logger.log('🔄 [AddContactModal] Updating contact:', editContact.id);
-        const { error: updateError } = await supabase
+        const { error: updateError } = await (supabase as any)
           .from('address_book')
           .update({
             name: name.trim(),
@@ -402,7 +402,7 @@ export default function AddContactModal({
         };
         logger.log('📝 [AddContactModal] Contact data:', contactData);
         
-        const { data: insertData, error: insertError } = await supabase
+        const { data: insertData, error: insertError } = await (supabase as any)
           .from('address_book')
           .insert(contactData)
           .select();

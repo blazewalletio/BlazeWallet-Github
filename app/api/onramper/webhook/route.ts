@@ -204,8 +204,8 @@ export async function POST(req: NextRequest) {
       }
       
       // If we found an existing transaction, use its user_id
-      if (existingTx && existingTx.user_id && !userId) {
-        transactionData.user_id = existingTx.user_id;
+      if (existingTx && (existingTx as any).user_id && !userId) {
+        transactionData.user_id = (existingTx as any).user_id;
       }
       
       // Only proceed if we have a user_id

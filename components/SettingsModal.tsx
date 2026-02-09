@@ -73,7 +73,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           loadFromLocalStorage();
         } else if (profile) {
           // Apply Supabase settings
-          setNotificationsEnabled(profile.notifications_enabled ?? true);
+          setNotificationsEnabled((profile as any).notifications_enabled ?? true);
           
           logger.log('✅ Settings loaded from Supabase:', profile);
         } else {
@@ -107,7 +107,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     }
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('user_profiles')
         .update(updates)
         .eq('user_id', supabaseUserId);

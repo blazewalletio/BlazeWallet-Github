@@ -197,7 +197,7 @@ class ContactsService {
         throw new Error('Contact with this address already exists');
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('address_book')
         .insert({
           user_id: user.id,
@@ -231,7 +231,7 @@ class ContactsService {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('address_book')
         .update(updates)
         .eq('id', contactId)
@@ -291,9 +291,9 @@ class ContactsService {
       if (!contact) throw new Error('Contact not found');
 
       // Toggle favorite
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('address_book')
-        .update({ is_favorite: !contact.is_favorite })
+        .update({ is_favorite: !(contact as any).is_favorite })
         .eq('id', contactId)
         .eq('user_id', user.id)
         .select()

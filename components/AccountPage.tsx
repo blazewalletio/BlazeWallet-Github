@@ -198,7 +198,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
               .eq('user_id', user.id)
               .single();
             
-            setIsEmailVerified(verificationStatus?.is_verified || false);
+            setIsEmailVerified((verificationStatus as any)?.is_verified || false);
             
             // Get created date
             if (user.created_at) {
@@ -219,10 +219,10 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             
             if (profile) {
               setUserProfile(profile);
-              setDisplayName(profile.display_name || 'BLAZE User');
+              setDisplayName((profile as any).display_name || 'BLAZE User');
             } else {
               // Create profile if it doesn't exist
-              const { data: newProfile } = await supabase
+              const { data: newProfile } = await (supabase as any)
                 .from('user_profiles')
                 .insert({
                   user_id: user.id,
@@ -238,7 +238,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             }
             
             // Load security score
-            const { data: scoreData } = await supabase.rpc('calculate_security_score', {
+            const { data: scoreData } = await (supabase as any).rpc('calculate_security_score', {
               p_user_id: user.id
             });
             
@@ -339,7 +339,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('user_profiles')
         .update({ display_name: displayName })
         .eq('user_id', user.id);
@@ -397,7 +397,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
         .getPublicUrl(filePath);
       
       // Update profile
-      const { error: updateError } = await supabase
+      const { error: updateError } = await (supabase as any)
         .from('user_profiles')
         .update({ avatar_url: publicUrl })
         .eq('user_id', user.id);
@@ -444,7 +444,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
       
       const newValue = !userProfile.balance_visible;
       
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('user_profiles')
         .update({ balance_visible: newValue })
         .eq('user_id', user.id);
@@ -454,7 +454,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
         // ✅ REMOVED localStorage - all preferences are now in Supabase for cross-device sync
         
         // Log activity
-        await supabase.rpc('log_user_activity', {
+        await (supabase as any).rpc('log_user_activity', {
           p_user_id: user.id,
           p_activity_type: 'settings_change',
           p_description: `Balance visibility ${newValue ? 'enabled' : 'disabled'}`,
@@ -489,7 +489,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
       // Log activity
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase.rpc('log_user_activity', {
+        await (supabase as any).rpc('log_user_activity', {
           p_user_id: user.id,
           p_activity_type: 'security_alert',
           p_description: 'Trusted device removed',
@@ -609,7 +609,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
     }
     
     // Recalculate security score
-    await supabase.rpc('calculate_security_score', {
+            await (supabase as any).rpc('calculate_security_score', {
       p_user_id: user.id
     });
     

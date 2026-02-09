@@ -56,7 +56,7 @@ export default function GasAlerts({ userId, defaultChain = 'ethereum' }: GasAler
 
       if (error) throw error;
 
-      setAlerts(data?.map(a => ({
+      setAlerts((data as any)?.map((a: any) => ({
         id: a.id,
         chain: a.chain,
         targetGasPrice: a.target_gas_price,
@@ -93,7 +93,7 @@ export default function GasAlerts({ userId, defaultChain = 'ethereum' }: GasAler
     try {
       const newStatus = currentStatus === 'active' ? 'paused' : 'active';
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('gas_alerts')
         .update({ status: newStatus })
         .eq('id', alertId);
@@ -258,7 +258,7 @@ function AddAlertModal({ userId, defaultChain, onClose, onSuccess }: AddAlertMod
     setError(null);
 
     try {
-      const { error: insertError } = await supabase
+      const { error: insertError } = await (supabase as any)
         .from('gas_alerts')
         .insert({
           user_id: userId,

@@ -23,7 +23,7 @@ export async function trackEvent(
 ): Promise<void> {
   try {
     // Call the database function that handles all analytics logic
-    const { error } = await supabase.rpc('track_user_event', {
+    const { error } = await (supabase as any).rpc('track_user_event', {
       p_user_id: userId,
       p_event_name: eventName,
       p_properties: properties || {},

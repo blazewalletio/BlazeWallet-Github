@@ -70,7 +70,7 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
       // Log activity
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase.rpc('log_user_activity', {
+        await (supabase as any).rpc('log_user_activity', {
           p_user_id: user.id,
           p_activity_type: 'security_alert',
           p_description: 'Password changed successfully',

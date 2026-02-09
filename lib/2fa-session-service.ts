@@ -50,7 +50,7 @@ class TwoFactorSessionService {
     try {
       logger.log('🔐 Creating new 2FA session for user:', userId.substring(0, 8));
 
-      const { data, error } = await supabase.rpc('create_2fa_session', {
+      const { data, error } = await (supabase as any).rpc('create_2fa_session', {
         p_user_id: userId,
         p_device_fingerprint: deviceFingerprint,
         p_ip_address: ipAddress,
@@ -97,7 +97,7 @@ class TwoFactorSessionService {
         .eq('user_id', userId)
         .single();
 
-      if (!profile?.two_factor_enabled) {
+      if (!profile || !(profile as any).two_factor_enabled) {
         // 2FA not enabled for this user - no session needed
         return { required: false };
       }
@@ -114,7 +114,7 @@ class TwoFactorSessionService {
       }
 
       // Check session in database
-      const { data, error } = await supabase.rpc('check_2fa_session', {
+      const { data, error } = await (supabase as any).rpc('check_2fa_session', {
         p_user_id: userId,
         p_session_token: sessionToken,
       });
@@ -193,7 +193,7 @@ class TwoFactorSessionService {
 
       logger.log('🔄 Extending 2FA session...');
 
-      const { data, error } = await supabase.rpc('extend_2fa_session', {
+      const { data, error } = await (supabase as any).rpc('extend_2fa_session', {
         p_user_id: userId,
         p_session_token: sessionToken,
       });
@@ -232,7 +232,7 @@ class TwoFactorSessionService {
 
       logger.log('🔒 Revoking 2FA session...');
 
-      const { error } = await supabase.rpc('revoke_2fa_session', {
+      const { error } = await (supabase as any).rpc('revoke_2fa_session', {
         p_user_id: userId,
         p_session_token: sessionToken,
       });

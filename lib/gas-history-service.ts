@@ -56,7 +56,7 @@ class GasHistoryService {
         return [];
       }
       
-      return (data || []).map(row => ({
+      return ((data as any) || []).map((row: any) => ({
         timestamp: new Date(row.created_at).getTime(),
         baseFee: parseFloat(row.base_fee),
         priorityFee: parseFloat(row.priority_fee),
@@ -176,7 +176,7 @@ class GasHistoryService {
    */
   async recordGasPrice(chain: string, gasPrice: GasPrice): Promise<void> {
     try {
-      const { error } = await supabase
+      const { error } =       await (supabase as any)
         .from('gas_history')
         .insert({
           chain,

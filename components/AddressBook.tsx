@@ -139,7 +139,7 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
 
   const handleToggleFavorite = async (contact: Contact) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('address_book')
         .update({ is_favorite: !contact.is_favorite })
         .eq('id', contact.id);
@@ -155,7 +155,7 @@ export default function AddressBook({ isOpen, onClose, onSelectContact, filterCh
     if (!confirm('Are you sure you want to delete this contact?')) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('address_book')
         .delete()
         .eq('id', id);

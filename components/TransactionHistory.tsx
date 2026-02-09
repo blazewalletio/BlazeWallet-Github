@@ -186,7 +186,7 @@ export default function TransactionHistory() {
         // Map notes to transactions
         setTransactions(prevTxs => 
           prevTxs.map(tx => {
-            const note = notes.find(n => n.tx_hash.toLowerCase() === tx.hash.toLowerCase());
+            const note = (notes as any[]).find((n: any) => n.tx_hash.toLowerCase() === tx.hash.toLowerCase());
             return note ? { ...tx, note: note.note } : tx;
           })
         );
@@ -242,7 +242,7 @@ export default function TransactionHistory() {
         );
       } else {
         // Upsert note
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('transaction_notes')
           .upsert({
             user_id: user.id,

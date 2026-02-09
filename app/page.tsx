@@ -105,13 +105,13 @@ export default function Home() {
                 .eq('user_id', session.user.id)
                 .maybeSingle();
               
-              if (walletData && walletData.encrypted_wallet) {
+              if (walletData && (walletData as any).encrypted_wallet) {
                 // User has wallet - store it and require device verification on next login
                 const preservedDeviceId = localStorage.getItem('blaze_device_id');
                 const preservedFingerprint = localStorage.getItem('blaze_device_fingerprint');
                 const preservedFingerprintCachedAt = localStorage.getItem('blaze_fingerprint_cached_at');
                 
-                await secureStorage.setItem('encrypted_wallet', walletData.encrypted_wallet);
+                await secureStorage.setItem('encrypted_wallet', (walletData as any).encrypted_wallet);
                 await secureStorage.setItem('has_password', 'true');
                 await secureStorage.setItem('wallet_email', session.user.email || '');
                 await secureStorage.setItem('wallet_created_with_email', 'true');
@@ -152,10 +152,10 @@ export default function Home() {
           
           if (walletError) {
             logger.error('❌ Error loading wallet from Supabase:', walletError);
-          } else if (walletData && walletData.encrypted_wallet) {
+          } else if (walletData && (walletData as any).encrypted_wallet) {
             // Store encrypted wallet in IndexedDB
             const { secureStorage } = await import('@/lib/secure-storage');
-            await secureStorage.setItem('encrypted_wallet', walletData.encrypted_wallet);
+            await secureStorage.setItem('encrypted_wallet', (walletData as any).encrypted_wallet);
             await secureStorage.setItem('has_password', 'true');
             await secureStorage.setItem('wallet_email', session.user.email || '');
             await secureStorage.setItem('wallet_created_with_email', 'true');
@@ -165,7 +165,7 @@ export default function Home() {
             await switchToEmailAccount(
               session.user.email!,
               session.user.id,
-              walletData.encrypted_wallet
+              (walletData as any).encrypted_wallet
             );
             
             setHasWallet(true);

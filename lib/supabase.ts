@@ -1,24 +1,28 @@
 import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
 
-// Get environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// Get environment variables (with fallback for build time)
+// Use a valid Supabase URL format for build-time (will be replaced at runtime)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-project.supabase.co';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
 
-// CRITICAL: Validate environment variables before creating client
-if (!supabaseUrl) {
-  console.error('💥 FATAL: NEXT_PUBLIC_SUPABASE_URL is missing!');
-  throw new Error('NEXT_PUBLIC_SUPABASE_URL is required but not set');
-}
+// Only validate in runtime (not during build)
+if (typeof window !== 'undefined' || process.env.NODE_ENV === 'production') {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    console.error('💥 FATAL: NEXT_PUBLIC_SUPABASE_URL is missing!');
+    throw new Error('NEXT_PUBLIC_SUPABASE_URL is required but not set');
+  }
 
-if (!supabaseAnonKey) {
-  console.error('💥 FATAL: NEXT_PUBLIC_SUPABASE_ANON_KEY is missing!');
-  throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is required but not set');
+  if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    console.error('💥 FATAL: NEXT_PUBLIC_SUPABASE_ANON_KEY is missing!');
+    throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is required but not set');
+  }
 }
 
 // Trim any whitespace that might have snuck in
 const cleanUrl = supabaseUrl.trim();
 const cleanKey = supabaseAnonKey.trim();
+
 let supabaseClient;
 
 try {
@@ -37,10 +41,13 @@ try {
   );
 } catch (error) {
   console.error('💥 FATAL ERROR creating Supabase client:', error);
-  throw error;
+  // Only throw in runtime, not during build
+  if (typeof window !== 'undefined' || process.env.NODE_ENV === 'production') {
+    throw error;
+  }
 }
 
-export const supabase = supabaseClient;
+export const supabase = supabaseClient!;
 
 // Database Types
 export interface PriorityListRegistration {

@@ -39,7 +39,7 @@ export default function AutoLockSettingsModal({
       if (!user) throw new Error('Not authenticated');
 
       // Store in user_profiles (we'll add this column if it doesn't exist)
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('user_profiles')
         .update({ 
           auto_lock_timeout: selectedTimeout
@@ -52,7 +52,7 @@ export default function AutoLockSettingsModal({
       localStorage.setItem('autoLockTimeout', selectedTimeout.toString());
 
       // Log activity
-      await supabase.rpc('log_user_activity', {
+        await (supabase as any).rpc('log_user_activity', {
         p_user_id: user.id,
         p_activity_type: 'settings_change',
         p_description: `Auto-lock timeout set to ${selectedTimeout === 0 ? 'Never' : `${selectedTimeout} minutes`}`,

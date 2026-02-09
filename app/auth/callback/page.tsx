@@ -47,17 +47,17 @@ export default function AuthCallback() {
             }
 
             // TRUSTED DEVICE - Allow immediate access
-            if (existingDevice && existingDevice.verified_at) {
+            if (existingDevice && (existingDevice as any).verified_at) {
               logger.log('✅ [OAuth] TRUSTED device detected');
 
               // Update last_used_at
-              await supabase
+              await (supabase as any)
                 .from('trusted_devices')
                 .update({
                   last_used_at: new Date().toISOString(),
                   is_current: true
                 })
-                .eq('id', existingDevice.id);
+                .eq('id', (existingDevice as any).id);
 
               // Track login
               try {

@@ -69,15 +69,16 @@ export default function GasSavingsDashboard({ userId }: GasSavingsDashboardProps
       }
 
       if (statsData) {
+        const data = statsData as any;
         setStats({
-          totalSavingsUSD: statsData.total_savings_usd || 0,
-          savingsThisMonthUSD: statsData.savings_this_month_usd || 0,
-          averageSavingsPerTxUSD: statsData.average_savings_per_tx_usd || 0,
-          bestSingleSavingUSD: statsData.best_single_saving_usd || 0,
-          totalTransactions: statsData.total_transactions || 0,
-          scheduledTransactions: statsData.scheduled_transactions || 0,
-          percentile: statsData.percentile || 0,
-          savingsPerChain: statsData.savings_per_chain || {},
+          totalSavingsUSD: data.total_savings_usd || 0,
+          savingsThisMonthUSD: data.savings_this_month_usd || 0,
+          averageSavingsPerTxUSD: data.average_savings_per_tx_usd || 0,
+          bestSingleSavingUSD: data.best_single_saving_usd || 0,
+          totalTransactions: data.total_transactions || 0,
+          scheduledTransactions: data.scheduled_transactions || 0,
+          percentile: data.percentile || 0,
+          savingsPerChain: data.savings_per_chain || {},
         });
       } else {
         // No data yet
@@ -106,7 +107,7 @@ export default function GasSavingsDashboard({ userId }: GasSavingsDashboardProps
         throw savingsError;
       }
 
-      setRecentSavings(savingsData?.map(s => ({
+      setRecentSavings((savingsData as any)?.map((s: any) => ({
         id: s.id,
         chain: s.chain,
         savingsUSD: s.savings_usd,

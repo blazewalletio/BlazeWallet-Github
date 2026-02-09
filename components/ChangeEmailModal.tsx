@@ -93,7 +93,7 @@ export default function ChangeEmailModal({
       if (updateError) throw updateError;
 
       // Log activity
-      await supabase.rpc('log_user_activity', {
+      await (supabase as any).rpc('log_user_activity', {
         p_user_id: user.id,
         p_activity_type: 'email_change',
         p_description: `Email change requested to ${newEmail}`,

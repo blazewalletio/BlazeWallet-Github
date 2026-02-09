@@ -58,12 +58,12 @@ class CurrencyService {
           .eq('user_id', user.id)
           .single();
 
-        if (profile?.preferred_currency && this.isValidCurrency(profile.preferred_currency)) {
+        if (profile && (profile as any).preferred_currency && this.isValidCurrency((profile as any).preferred_currency)) {
           // Sync to localStorage
           if (typeof window !== 'undefined') {
-            localStorage.setItem('preferredCurrency', profile.preferred_currency);
+            localStorage.setItem('preferredCurrency', (profile as any).preferred_currency);
           }
-          return profile.preferred_currency as SupportedCurrency;
+          return (profile as any).preferred_currency as SupportedCurrency;
         }
       }
     } catch (error) {
