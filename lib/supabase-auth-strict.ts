@@ -608,6 +608,13 @@ export async function confirmDeviceAndSignIn(
     const sessionToken = crypto.randomBytes(32).toString('hex');
     
     if (existingDevice) {
+      // First, set all other devices to is_current: false (only one device can be current)
+      await supabase
+        .from('trusted_devices')
+        .update({ is_current: false })
+        .eq('user_id', userId)
+        .neq('id', existingDevice.id);
+      
       // Update existing device
       const { data: updatedDevice, error: updateError } = await supabase
         .from('trusted_devices')
@@ -638,6 +645,12 @@ export async function confirmDeviceAndSignIn(
       
       device = updatedDevice;
     } else {
+      // First, set all other devices to is_current: false (only one device can be current)
+      await supabase
+        .from('trusted_devices')
+        .update({ is_current: false })
+        .eq('user_id', userId);
+      
       // Create new device
       const { data: newDevice, error: insertError } = await supabase
         .from('trusted_devices')
@@ -813,6 +826,13 @@ export async function verifyDeviceAndSignIn(
     const crypto = await import('crypto');
     const sessionToken = crypto.randomBytes(32).toString('hex');
     
+    // First, set all other devices to is_current: false (only one device can be current)
+    await supabase
+      .from('trusted_devices')
+      .update({ is_current: false })
+      .eq('user_id', userId)
+      .neq('device_fingerprint', deviceInfo.fingerprint);
+    
     const { error: updateError } = await supabase
       .from('trusted_devices')
       .update({
@@ -980,6 +1000,14 @@ export async function signUpWithEmail(
       
       const { deviceId } = DeviceIdManager.getOrCreateDeviceId();
       const deviceInfo = await generateEnhancedFingerprint();
+      
+      // First, set all other devices to is_current: false (only one device can be current)
+      // (This is the first device, but good practice for consistency)
+      await supabase
+        .from('trusted_devices')
+        .update({ is_current: false })
+        .eq('user_id', authData.user.id)
+        .neq('device_fingerprint', deviceInfo.fingerprint);
       
       const { error: deviceError } = await supabase
         .from('trusted_devices')
