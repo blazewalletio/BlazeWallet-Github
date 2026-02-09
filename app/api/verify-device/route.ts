@@ -1,19 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { sendEmail } from '@/lib/email-service';
 import { logger } from '@/lib/logger';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import crypto from 'crypto';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
 
 function generateDeviceVerificationEmail(deviceName: string, verificationLink: string, location?: string): string {
   const ASSET_BASE_URL = 'https://my.blazewallet.io';
@@ -140,7 +129,7 @@ export async function POST(request: NextRequest) {
     expiresAt.setHours(expiresAt.getHours() + 24); // 24 hour expiry
     
     // Store or update device with verification token
-    const { error: deviceError } = await supabaseAdmin
+    const { error: deviceError } = await getSupabaseAdmin()
       .from('trusted_devices')
       .upsert({
         user_id: userId,
@@ -192,7 +181,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Log security alert
-    await supabaseAdmin.rpc('log_user_activity', {
+    await getSupabaseAdmin().rpc('log_user_activity', {
       p_user_id: userId,
       p_activity_type: 'security_alert',
       p_description: `New device login: ${deviceInfo.deviceName}`,

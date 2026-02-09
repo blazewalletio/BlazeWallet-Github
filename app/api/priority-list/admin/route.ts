@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { logger } from '@/lib/logger';
 
 // Use service role key for admin operations (bypasses RLS)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Admin email whitelist
 const ADMIN_EMAILS_RAW = process.env.ADMIN_EMAILS || '';
@@ -46,7 +43,7 @@ export async function GET(request: NextRequest) {
 
     // Get all registrations
     logger.log('📊 Fetching registrations from Supabase...');
-    const { data: registrations, error: regError } = await supabase
+    const { data: registrations, error: regError } = await getSupabaseAdmin()
       .from('priority_list_registrations')
       .select('*')
       .order('registered_at', { ascending: false });
@@ -78,7 +75,7 @@ export async function GET(request: NextRequest) {
 
     // Get stats
     logger.log('📊 Fetching stats from Supabase...');
-    const { data: stats, error: statsError } = await supabase
+    const { data: stats, error: statsError } = await getSupabaseAdmin()
       .from('priority_list_stats')
       .select('*')
       .single();
@@ -89,7 +86,7 @@ export async function GET(request: NextRequest) {
 
     // Get leaderboard
     logger.log('🏆 Fetching leaderboard from Supabase...');
-    const { data: leaderboard, error: leaderboardError } = await supabase
+    const { data: leaderboard, error: leaderboardError } = await getSupabaseAdmin()
       .from('referral_leaderboard')
       .select('*')
       .limit(20);
@@ -148,7 +145,7 @@ export async function POST(request: NextRequest) {
     // Handle different actions
     switch (action) {
       case 'verify':
-        const { error: verifyError } = await supabase
+        const { error: verifyError } = await getSupabaseAdmin()
           .from('priority_list_registrations')
           .update({ is_verified: true })
           .eq('wallet_address', walletAddress.toLowerCase());
@@ -162,7 +159,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Log admin action
-        await supabase.from('admin_actions').insert({
+        await getSupabaseAdmin().from('admin_actions').insert({
           admin_email: adminEmail,
           action_type: 'verify',
           target_wallet: walletAddress,
@@ -174,7 +171,7 @@ export async function POST(request: NextRequest) {
         });
 
       case 'delete':
-        const { error: deleteError } = await supabase
+        const { error: deleteError } = await getSupabaseAdmin()
           .from('priority_list_registrations')
           .delete()
           .eq('wallet_address', walletAddress.toLowerCase());
@@ -188,7 +185,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Log admin action
-        await supabase.from('admin_actions').insert({
+        await getSupabaseAdmin().from('admin_actions').insert({
           admin_email: adminEmail,
           action_type: 'delete',
           target_wallet: walletAddress,

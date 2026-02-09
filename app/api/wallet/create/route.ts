@@ -1,17 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 /**
  * Create a new wallet for a user
@@ -34,7 +23,7 @@ export async function POST(request: NextRequest) {
     logger.log('✅ [CreateWallet] Creating wallet for user:', userId);
     
     // Insert wallet with admin client (bypasses RLS)
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabaseAdmin()
       .from('wallets')
       .insert({
         user_id: userId,

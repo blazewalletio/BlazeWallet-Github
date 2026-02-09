@@ -6,14 +6,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function GET(req: NextRequest) {
   try {
@@ -31,7 +28,7 @@ export async function GET(req: NextRequest) {
     logger.log(`📋 [History API] Fetching scheduled transactions for ${address} on ${chain || 'all chains'}`);
 
     // Build query
-    let query = supabase
+    let query = getSupabaseAdmin()
       .from('scheduled_transactions')
       .select('*')
       .eq('from_address', address)

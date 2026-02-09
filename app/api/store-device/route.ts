@@ -4,20 +4,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
-
-// Create admin client
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,7 +38,7 @@ export async function POST(request: NextRequest) {
     if (existingDeviceId) {
       // Update existing device
       logger.log('🔄 [store-device] Updating existing device:', existingDeviceId);
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await getSupabaseAdmin()
         .from('trusted_devices')
         .update({
           device_name: deviceInfo.deviceName,
@@ -79,7 +67,7 @@ export async function POST(request: NextRequest) {
     } else {
       // Insert new device
       logger.log('➕ [store-device] Inserting new device');
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await getSupabaseAdmin()
         .from('trusted_devices')
         .insert({
           user_id: userId,

@@ -5,11 +5,9 @@
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { logger } from '@/lib/logger';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,7 +21,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = getSupabaseAdmin();
 
     // Verify ownership and update status
     const { data, error } = await supabase
@@ -56,7 +54,7 @@ export async function POST(req: NextRequest) {
     logger.log('✅ Scheduled transaction cancelled:', transaction_id);
 
     // Create notification
-    await supabase.from('notifications').insert({
+    await getSupabaseAdmin().from('notifications').insert({
       user_id: user_id,
       supabase_user_id: data.supabase_user_id || null,
       type: 'transaction_cancelled',

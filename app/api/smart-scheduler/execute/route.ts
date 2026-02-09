@@ -6,13 +6,11 @@
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { gasPriceService } from '@/lib/gas-price-service';
 import { priceService } from '@/lib/price-service';
 import { logger } from '@/lib/logger';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const CRON_SECRET = (process.env.CRON_SECRET || 'dev-secret-change-in-production').trim();
 
 export async function GET(req: NextRequest) {
@@ -45,7 +43,7 @@ export async function GET(req: NextRequest) {
 
     logger.log('🔄 Smart Scheduler cron job started...');
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = getSupabaseAdmin();
 
     // Get all pending transactions
     const { data: pendingTxs, error: fetchError } = await supabase
@@ -166,7 +164,7 @@ export async function GET(req: NextRequest) {
         }
 
         // Save transaction savings
-        await supabase.from('transaction_savings').insert({
+        await getSupabaseAdmin().from('transaction_savings').insert({
           user_id: tx.user_id,
           supabase_user_id: tx.supabase_user_id,
           chain: tx.chain,
@@ -181,7 +179,7 @@ export async function GET(req: NextRequest) {
         });
 
         // Update user savings stats
-        await supabase.rpc('update_user_savings_stats', {
+        await getSupabaseAdmin().rpc('update_user_savings_stats', {
           p_user_id: tx.user_id,
           p_supabase_user_id: tx.supabase_user_id,
           p_chain: tx.chain,
@@ -190,7 +188,7 @@ export async function GET(req: NextRequest) {
         });
 
         // Create notification
-        await supabase.from('notifications').insert({
+        await getSupabaseAdmin().from('notifications').insert({
           user_id: tx.user_id,
           supabase_user_id: tx.supabase_user_id,
           type: 'transaction_executed',

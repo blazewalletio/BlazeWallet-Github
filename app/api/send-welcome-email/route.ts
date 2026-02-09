@@ -1,20 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { sendEmail, generateWelcomeVerificationEmail } from '@/lib/email-service';
 import { logger } from '@/lib/logger';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import crypto from 'crypto';
-
-// Create admin client for database operations
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,7 +18,7 @@ export async function POST(request: NextRequest) {
     // ✅ Track new user as UNVERIFIED (but they can still login)
     // This allows us to show "Verified" badge only after email verification
     try {
-      const { error: sqlError } = await supabaseAdmin.rpc('track_new_user_email', {
+      const { error: sqlError } = await getSupabaseAdmin().rpc('track_new_user_email', {
         p_user_id: userId,
         p_email: email
       });
@@ -53,7 +41,7 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24);
     
-    const { error: dbError } = await supabaseAdmin
+    const { error: dbError } = await getSupabaseAdmin()
       .from('email_verification_tokens')
       .insert({
         user_id: userId,

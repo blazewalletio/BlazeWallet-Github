@@ -12,19 +12,15 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { gasPriceService } from '@/lib/gas-price-service';
 import { ethers } from 'ethers';
 import { logger, secureLogger } from '@/lib/logger';
 import { apiRateLimiter } from '@/lib/api-rate-limiter';
 import { sanitizeErrorResponse } from '@/lib/error-handler';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes max
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Verify cron secret for security
 const CRON_SECRET = (process.env.CRON_SECRET || 'dev-secret-change-in-production').trim();
@@ -117,7 +113,7 @@ export async function GET(req: NextRequest) {
     logger.log('🔔 Triggered by:', isVercelCron ? 'Vercel Cron' : isEasyCron ? 'EasyCron' : 'Manual/Unknown');
 
     // Get all pending scheduled transactions
-    const { data: pendingTxs, error: fetchError } = await supabase
+    const { data: pendingTxs, error: fetchError } = await getSupabaseAdmin()
       .from('scheduled_transactions')
       .select('*')
       .eq('status', 'pending')
@@ -164,7 +160,7 @@ export async function GET(req: NextRequest) {
           // Check if we should expire it
           const maxWaitReached = new Date() > new Date(tx.expires_at);
           if (maxWaitReached) {
-            await supabase
+            await getSupabaseAdmin()
               .from('scheduled_transactions')
               .update({ status: 'expired', updated_at: new Date().toISOString() })
               .eq('id', tx.id);
@@ -176,7 +172,7 @@ export async function GET(req: NextRequest) {
         }
 
         // Mark as executing
-        await supabase
+        await getSupabaseAdmin()
           .from('scheduled_transactions')
           .update({ status: 'executing', updated_at: new Date().toISOString() })
           .eq('id', tx.id);
@@ -186,7 +182,7 @@ export async function GET(req: NextRequest) {
 
         if (result.success) {
           // Update as completed
-          await supabase
+          await getSupabaseAdmin()
             .from('scheduled_transactions')
             .update({
               status: 'completed',
@@ -239,7 +235,7 @@ export async function GET(req: NextRequest) {
 
         if (newRetryCount >= maxRetries) {
           // Mark as failed after max retries
-          await supabase
+          await getSupabaseAdmin()
             .from('scheduled_transactions')
             .update({
               status: 'failed',
@@ -251,7 +247,7 @@ export async function GET(req: NextRequest) {
           logger.log(`   ❌ Transaction failed after ${maxRetries} retries: ${fullErrorMessage}`);
         } else {
           // Mark as pending for retry
-          await supabase
+          await getSupabaseAdmin()
             .from('scheduled_transactions')
             .update({
               status: 'pending',
@@ -324,7 +320,7 @@ async function executeTransaction(tx: any, currentGasPrice: number): Promise<{
 
     // ✅ SECURITY: Delete encrypted keys after successful execution
     if (result.success) {
-      await supabase
+      await getSupabaseAdmin()
         .from('scheduled_transactions')
         .update({
           encrypted_mnemonic: null,
@@ -354,7 +350,7 @@ async function trackSavings(tx: any, actualGasPrice: number, actualGasCostUSD: n
     const savingsPercentage = (savings / tx.estimated_gas_cost_usd) * 100;
 
     // Insert transaction savings record
-    await supabase
+    await getSupabaseAdmin()
       .from('transaction_savings')
       .insert({
         user_id: tx.user_id,
@@ -372,7 +368,7 @@ async function trackSavings(tx: any, actualGasPrice: number, actualGasCostUSD: n
       });
 
     // Update user aggregate stats (using stored procedure)
-    await supabase.rpc('update_user_savings_stats', {
+    await getSupabaseAdmin().rpc('update_user_savings_stats', {
       p_user_id: tx.user_id,
       p_supabase_user_id: tx.supabase_user_id,
       p_chain: tx.chain,
@@ -393,7 +389,7 @@ async function trackSavings(tx: any, actualGasPrice: number, actualGasCostUSD: n
 async function sendNotification(tx: any, result: any) {
   try {
     // Store notification in database for client to fetch
-    await supabase
+    await getSupabaseAdmin()
       .from('notifications')
       .insert({
         user_id: tx.user_id,

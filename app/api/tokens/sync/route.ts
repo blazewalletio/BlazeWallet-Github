@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { CHAINS } from '@/lib/chains';
 import { getLiFiChainId } from '@/lib/lifi-chain-ids';
 import { isOfficialToken } from '@/lib/official-tokens';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes max
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // CoinGecko platform mappings for EVM chains
 const COINGECKO_PLATFORMS: Record<string, string> = {

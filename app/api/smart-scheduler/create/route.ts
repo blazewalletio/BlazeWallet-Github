@@ -5,14 +5,11 @@
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { encryptEphemeralKeySymmetric } from '@/lib/scheduled-tx-crypto';
 import { apiRateLimiter } from '@/lib/api-rate-limiter';
 import { sanitizeError, sanitizeErrorResponse } from '@/lib/error-handler';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 interface CreateScheduleRequest {
   user_id: string;
@@ -91,7 +88,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Initialize Supabase with service role key (bypasses RLS for write)
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = getSupabaseAdmin();
 
     logger.log('🔑 Supabase client initialized with service role key');
 

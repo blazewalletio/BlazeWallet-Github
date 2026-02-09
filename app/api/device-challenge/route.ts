@@ -6,26 +6,14 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
 import { calculateStringSimilarity } from '@/lib/device-matcher';
 import { checkRateLimit, getClientIP } from '@/lib/rate-limiter';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import crypto from 'crypto';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-// Create admin client for querying trusted devices
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
 
 /**
  * Device Challenge Request
@@ -102,7 +90,7 @@ export async function POST(request: NextRequest) {
     // STEP 1: GET ALL TRUSTED DEVICES FOR USER
     // =========================================================================
     
-    const { data: trustedDevices, error: devicesError } = await supabaseAdmin
+    const { data: trustedDevices, error: devicesError } = await getSupabaseAdmin()
       .from('trusted_devices')
       .select('*')
       .eq('user_id', userId)
@@ -307,7 +295,7 @@ export async function POST(request: NextRequest) {
       const sessionToken = crypto.randomBytes(32).toString('hex');
       
       // Update device: last_used_at, session_token
-      await supabaseAdmin
+      await getSupabaseAdmin()
         .from('trusted_devices')
         .update({ 
           last_used_at: new Date().toISOString(),

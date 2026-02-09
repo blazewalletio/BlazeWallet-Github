@@ -6,12 +6,10 @@
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import OpenAI from 'openai';
 import { logger } from '@/lib/logger';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const openaiKey = process.env.GAS_OPTIMIZER_API_KEY!;
 
 // In-memory cache for predictions (15 min TTL)
@@ -66,7 +64,7 @@ export async function POST(req: NextRequest) {
     logger.log('📡 Cache miss, fetching fresh prediction...');
 
     // 1. Fetch 7-day historical gas data
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = getSupabaseAdmin();
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
     const { data: historicalData, error: histError } = await supabase
