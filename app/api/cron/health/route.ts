@@ -6,20 +6,16 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 10;
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
 export async function GET(req: NextRequest) {
   try {
     // Get pending transactions count
-    const { count: pendingCount, error: countError } = await supabase
+    const { count: pendingCount, error: countError } = await getSupabaseAdmin()
       .from('scheduled_transactions')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'pending')
@@ -28,14 +24,14 @@ export async function GET(req: NextRequest) {
 
     // Get recent executions (last hour)
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-    const { count: recentExecutions, error: execError } = await supabase
+    const { count: recentExecutions, error: execError } = await getSupabaseAdmin()
       .from('scheduled_transactions')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'completed')
       .gte('executed_at', oneHourAgo);
 
     // Get failed transactions (last hour)
-    const { count: recentFailures, error: failError } = await supabase
+    const { count: recentFailures, error: failError } = await getSupabaseAdmin()
       .from('scheduled_transactions')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'failed')
@@ -51,8 +47,8 @@ export async function GET(req: NextRequest) {
         recent_failures: recentFailures || 0,
       },
       system: {
-        supabase_url: supabaseUrl ? 'configured' : 'missing',
-        service_key: supabaseServiceKey ? 'configured' : 'missing',
+        supabase_url: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'configured' : 'missing',
+        service_key: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'configured' : 'missing',
       }
     };
 

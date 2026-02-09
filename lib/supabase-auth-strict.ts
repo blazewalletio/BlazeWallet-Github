@@ -513,7 +513,7 @@ export async function strictSignInWithEmail(
       deviceVerificationToken: deviceToken,
       deviceInfo: {
         ...deviceInfo,
-        fingerprint: deviceInfo.fingerprint || deviceInfo.deviceFingerprint || '', // Ensure fingerprint exists
+        fingerprint: deviceInfo.fingerprint || '', // Ensure fingerprint exists
       },
       error: 'Device verification required',
     };

@@ -1,18 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
-
-// Admin client with service role (bypasses RLS)
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  }
-);
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 /**
  * GET /api/cron/aggregate-analytics
@@ -93,7 +81,7 @@ async function updateUserCohorts() {
   logger.log('[Analytics Cron] Task 1: Updating user cohorts...');
 
   // Get all users with activity in last 90 days
-  const { data: events, error } = await supabaseAdmin
+  const { data: events, error } = await getSupabaseAdmin()
     .from('transaction_events')
     .select('user_id, created_at')
     .gte('created_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString());
@@ -135,7 +123,7 @@ async function updateUserCohorts() {
       segment = 'churned';
     }
 
-    await supabaseAdmin
+    await getSupabaseAdmin()
       .from('user_cohorts')
       .update({
         user_segment: segment,
@@ -155,7 +143,7 @@ async function updateUserCohorts() {
 async function calculateEngagementScores() {
   logger.log('[Analytics Cron] Task 2: Calculating engagement scores...');
 
-  const { data: cohorts } = await supabaseAdmin
+  const { data: cohorts } = await getSupabaseAdmin()
     .from('user_cohorts')
     .select('*');
 
@@ -194,7 +182,7 @@ async function calculateEngagementScores() {
 
     const engagementScore = Math.min(100, recencyScore + frequencyScore + volumeScore);
 
-    await supabaseAdmin
+    await getSupabaseAdmin()
       .from('user_cohorts')
       .update({
         engagement_score: engagementScore,
@@ -216,7 +204,7 @@ async function updateRealtimeMetrics() {
   const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
   // Metric 1: Active users (last 24h)
-  const { count: activeUsers } = await supabaseAdmin
+  const { count: activeUsers } = await getSupabaseAdmin()
     .from('transaction_events')
     .select('user_id', { count: 'exact', head: true })
     .gte('created_at', last24h.toISOString());
@@ -224,7 +212,7 @@ async function updateRealtimeMetrics() {
   await insertRealtimeMetric('active_users_24h', activeUsers || 0);
 
   // Metric 2: Total transactions (last 24h)
-  const { count: totalTxs } = await supabaseAdmin
+  const { count: totalTxs } = await getSupabaseAdmin()
     .from('transaction_events')
     .select('*', { count: 'exact', head: true })
     .eq('status', 'success')
@@ -233,7 +221,7 @@ async function updateRealtimeMetrics() {
   await insertRealtimeMetric('transactions_24h', totalTxs || 0);
 
   // Metric 3: Total volume (last 24h)
-  const { data: volumeData } = await supabaseAdmin
+  const { data: volumeData } = await getSupabaseAdmin()
     .from('transaction_events')
     .select('value_usd')
     .eq('status', 'success')
@@ -243,7 +231,7 @@ async function updateRealtimeMetrics() {
   await insertRealtimeMetric('volume_24h', totalVolume);
 
   // Metric 4: Failed transaction rate
-  const { count: failedTxs } = await supabaseAdmin
+  const { count: failedTxs } = await getSupabaseAdmin()
     .from('transaction_events')
     .select('*', { count: 'exact', head: true })
     .eq('status', 'failed')
@@ -259,7 +247,7 @@ async function updateRealtimeMetrics() {
  * Helper: Insert realtime metric
  */
 async function insertRealtimeMetric(key: string, value: number) {
-  await supabaseAdmin
+  await getSupabaseAdmin()
     .from('realtime_metrics')
     .insert({
       metric_key: key,
@@ -279,14 +267,14 @@ async function checkForAnomalies() {
   const lastHour = new Date(Date.now() - 60 * 60 * 1000);
 
   // Anomaly 1: High volume user (>$10k in 24h)
-  const { data: highVolumeUsers, error: rpcError } = await supabaseAdmin.rpc(
+  const { data: highVolumeUsers, error: rpcError } = await getSupabaseAdmin().rpc(
     'get_high_volume_users',
     { threshold_usd: 10000, hours: 24 }
   );
 
   // If RPC doesn't exist or fails, use manual query
   if (rpcError || !highVolumeUsers) {
-    const { data: events } = await supabaseAdmin
+    const { data: events } = await getSupabaseAdmin()
       .from('transaction_events')
       .select('user_id, value_usd')
       .gte('created_at', last24h.toISOString())
@@ -311,7 +299,7 @@ async function checkForAnomalies() {
   }
 
   // Anomaly 2: Failed transactions spike (>50 in last hour)
-  const { count: failedCount } = await supabaseAdmin
+  const { count: failedCount } = await getSupabaseAdmin()
     .from('transaction_events')
     .select('*', { count: 'exact', head: true })
     .eq('status', 'failed')
@@ -328,7 +316,7 @@ async function checkForAnomalies() {
 
   // Anomaly 3: New user spike (>100 new signups today)
   const today = new Date().toISOString().split('T')[0];
-  const { count: newUsersToday } = await supabaseAdmin
+  const { count: newUsersToday } = await getSupabaseAdmin()
     .from('user_cohorts')
     .select('*', { count: 'exact', head: true })
     .eq('signup_date', today);
@@ -357,7 +345,7 @@ async function createAlert(alert: {
   metadata?: any;
 }) {
   // Check if similar alert already exists (prevent spam)
-  const { data: existing } = await supabaseAdmin
+  const { data: existing } = await getSupabaseAdmin()
     .from('admin_alerts')
     .select('id')
     .eq('alert_type', alert.alertType)
@@ -370,7 +358,7 @@ async function createAlert(alert: {
     return;
   }
 
-  await supabaseAdmin
+  await getSupabaseAdmin()
     .from('admin_alerts')
     .insert({
       alert_type: alert.alertType,
@@ -391,7 +379,7 @@ async function cleanupExpiredData() {
   logger.log('[Analytics Cron] Task 5: Cleaning up expired data...');
 
   // Cleanup expired realtime metrics
-  const { error } = await supabaseAdmin.rpc('cleanup_expired_realtime_metrics');
+  const { error } = await getSupabaseAdmin().rpc('cleanup_expired_realtime_metrics');
 
   if (error) {
     logger.error('[Analytics Cron] Cleanup failed:', error);

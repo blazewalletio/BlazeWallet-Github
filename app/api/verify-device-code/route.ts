@@ -1,17 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(request: NextRequest) {
   try {
@@ -67,7 +56,7 @@ export async function POST(request: NextRequest) {
     });
     
     // Find device with matching code
-    const { data: device, error: deviceError } = await supabaseAdmin
+    const { data: device, error: deviceError } = await getSupabaseAdmin()
       .from('trusted_devices')
       .select('*')
       .eq('user_id', userId)
@@ -91,7 +80,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Mark device as verified
-    const { error: updateError } = await supabaseAdmin
+    const { error: updateError } = await getSupabaseAdmin()
       .from('trusted_devices')
       .update({
         verified_at: new Date().toISOString(),

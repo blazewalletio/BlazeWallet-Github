@@ -1,17 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 // Export transaction history as CSV
 export async function GET(request: NextRequest) {
@@ -28,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Get user's activity log (transactions)
-    const { data: activities, error: activitiesError } = await supabaseAdmin
+    const { data: activities, error: activitiesError } = await getSupabaseAdmin()
       .from('user_activity_log')
       .select('*')
       .eq('user_id', userId)
@@ -44,7 +33,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Get transaction stats
-    const { data: stats } = await supabaseAdmin
+    const { data: stats } = await getSupabaseAdmin()
       .from('user_transaction_stats')
       .select('*')
       .eq('user_id', userId)
@@ -100,7 +89,7 @@ export async function GET(request: NextRequest) {
     const csvContent = csvRows.join('\n');
     
     // Log the export
-    await supabaseAdmin.rpc('log_user_activity', {
+    await getSupabaseAdmin().rpc('log_user_activity', {
       p_user_id: userId,
       p_activity_type: 'settings_change',
       p_description: 'Exported transaction history (CSV)',

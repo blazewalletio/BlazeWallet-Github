@@ -1,17 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 /**
  * Server-side endpoint to fetch user's wallet
@@ -31,7 +20,7 @@ export async function POST(request: NextRequest) {
     logger.log('✅ [GetWallet] Fetching wallet for user:', userId);
     
     // Fetch wallet with detailed error logging (using admin client)
-    const { data: wallet, error: walletError } = await supabaseAdmin
+    const { data: wallet, error: walletError } = await getSupabaseAdmin()
       .from('wallets')
       .select('encrypted_wallet')
       .eq('user_id', userId)

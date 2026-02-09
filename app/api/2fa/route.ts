@@ -1,20 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { authenticator } from 'otplib';
 import QRCode from 'qrcode';
 import { logger } from '@/lib/logger';
 import { generateBackupCodes, hashBackupCodes } from '@/lib/2fa-service';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 // Generate 2FA secret and QR code
 export async function POST(request: NextRequest) {
@@ -45,7 +34,7 @@ export async function POST(request: NextRequest) {
       const qrCode = await QRCode.toDataURL(otpauthUrl);
       
       // Store secret (encrypted) in database
-      const { error: updateError } = await supabaseAdmin
+      const { error: updateError } = await getSupabaseAdmin()
         .from('user_profiles')
         .update({ 
           two_factor_secret: secret,
@@ -80,7 +69,7 @@ export async function POST(request: NextRequest) {
       }
       
       // Get stored secret
-      const { data: profile, error: profileError } = await supabaseAdmin
+      const { data: profile, error: profileError } = await getSupabaseAdmin()
         .from('user_profiles')
         .select('two_factor_secret')
         .eq('user_id', userId)
@@ -107,7 +96,7 @@ export async function POST(request: NextRequest) {
       }
       
       // Enable 2FA
-      const { error: enableError } = await supabaseAdmin
+      const { error: enableError } = await getSupabaseAdmin()
         .from('user_profiles')
         .update({ two_factor_enabled: true })
         .eq('user_id', userId);
@@ -125,7 +114,7 @@ export async function POST(request: NextRequest) {
       const hashedCodes = hashBackupCodes(backupCodes);
       
       // Store hashed backup codes
-      const { error: backupError } = await supabaseAdmin
+      const { error: backupError } = await getSupabaseAdmin()
         .from('user_profiles')
         .update({ two_factor_backup_codes: hashedCodes })
         .eq('user_id', userId);
@@ -136,7 +125,7 @@ export async function POST(request: NextRequest) {
       }
       
       // Log activity
-      await supabaseAdmin.rpc('log_user_activity', {
+      await getSupabaseAdmin().rpc('log_user_activity', {
         p_user_id: userId,
         p_activity_type: 'security_alert',
         p_description: 'Two-factor authentication enabled',
@@ -144,7 +133,7 @@ export async function POST(request: NextRequest) {
       });
       
       // Recalculate security score
-      await supabaseAdmin.rpc('calculate_security_score', {
+      await getSupabaseAdmin().rpc('calculate_security_score', {
         p_user_id: userId
       });
       
@@ -166,7 +155,7 @@ export async function POST(request: NextRequest) {
       }
       
       // Get stored secret
-      const { data: profile, error: profileError } = await supabaseAdmin
+      const { data: profile, error: profileError } = await getSupabaseAdmin()
         .from('user_profiles')
         .select('two_factor_secret')
         .eq('user_id', userId)
@@ -193,7 +182,7 @@ export async function POST(request: NextRequest) {
       }
       
       // Disable 2FA
-      const { error: disableError } = await supabaseAdmin
+      const { error: disableError } = await getSupabaseAdmin()
         .from('user_profiles')
         .update({ 
           two_factor_enabled: false,
@@ -211,7 +200,7 @@ export async function POST(request: NextRequest) {
       }
       
       // Log activity
-      await supabaseAdmin.rpc('log_user_activity', {
+      await getSupabaseAdmin().rpc('log_user_activity', {
         p_user_id: userId,
         p_activity_type: 'security_alert',
         p_description: 'Two-factor authentication disabled',
@@ -219,7 +208,7 @@ export async function POST(request: NextRequest) {
       });
       
       // Recalculate security score
-      await supabaseAdmin.rpc('calculate_security_score', {
+      await getSupabaseAdmin().rpc('calculate_security_score', {
         p_user_id: userId
       });
       

@@ -4,29 +4,39 @@ import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
 import crypto from 'crypto';
 
-// Validate environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl) {
-  throw new Error('NEXT_PUBLIC_SUPABASE_URL is required');
-}
-
-if (!supabaseServiceKey) {
-  throw new Error('SUPABASE_SERVICE_ROLE_KEY is required');
-}
-
-// Admin client with service role (bypasses RLS)
-const supabaseAdmin = createClient(
-  supabaseUrl.trim(),
-  supabaseServiceKey.trim(),
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
+// Admin client with service role (bypasses RLS) - lazy initialization
+function getSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!url || !key) {
+    // During build time, use placeholder values
+    if (process.env.NODE_ENV !== 'production' && typeof window === 'undefined') {
+      return createClient(
+        'https://placeholder-project.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU',
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          },
+        }
+      );
+    }
+    throw new Error('NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
   }
-);
+  
+  return createClient(
+    url.trim(),
+    key.trim(),
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  );
+}
 
 // Regular client for auth - use central client
 // (imported from @/lib/supabase above)
@@ -186,7 +196,7 @@ async function processTransactionEvent(userId: string, event: any) {
   const hashedReferenceId = referenceId ? hashString(referenceId) : null;
 
   // Insert event into database
-  const { error } = await supabaseAdmin
+  const { error } = await getSupabaseAdmin()
     .from('transaction_events')
     .insert({
       user_id: userId,
@@ -220,7 +230,7 @@ async function processFeatureUsage(userId: string, event: any) {
   const today = new Date().toISOString().split('T')[0];
 
   // Call increment function (handles upsert logic)
-  const { error } = await supabaseAdmin.rpc('increment_feature_usage', {
+  const { error } = await getSupabaseAdmin().rpc('increment_feature_usage', {
     p_date: today,
     p_feature_name: featureName,
     p_user_id: userId,

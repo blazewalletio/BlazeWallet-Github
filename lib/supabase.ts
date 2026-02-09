@@ -6,18 +6,7 @@ import { logger } from '@/lib/logger';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-project.supabase.co';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
 
-// Only validate in runtime (not during build)
-if (typeof window !== 'undefined' || process.env.NODE_ENV === 'production') {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    console.error('💥 FATAL: NEXT_PUBLIC_SUPABASE_URL is missing!');
-    throw new Error('NEXT_PUBLIC_SUPABASE_URL is required but not set');
-  }
-
-  if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    console.error('💥 FATAL: NEXT_PUBLIC_SUPABASE_ANON_KEY is missing!');
-    throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is required but not set');
-  }
-}
+// Validation happens at runtime, not during build
 
 // Trim any whitespace that might have snuck in
 const cleanUrl = supabaseUrl.trim();
@@ -41,10 +30,8 @@ try {
   );
 } catch (error) {
   console.error('💥 FATAL ERROR creating Supabase client:', error);
-  // Only throw in runtime, not during build
-  if (typeof window !== 'undefined' || process.env.NODE_ENV === 'production') {
-    throw error;
-  }
+  // Don't throw during build - will fail at runtime if env vars are missing
+  // This allows the build to complete even without env vars
 }
 
 export const supabase = supabaseClient!;

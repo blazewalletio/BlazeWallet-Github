@@ -1,19 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { sendEmail } from '@/lib/email-service';
 import { logger } from '@/lib/logger';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import crypto from 'crypto';
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
 
 function generateVerificationCodeEmail(deviceName: string, code: string, location?: string): string {
   return `
@@ -91,7 +80,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if device already exists with a valid verification code
-    const { data: existingDevice, error: checkError } = await supabaseAdmin
+    const { data: existingDevice, error: checkError } = await getSupabaseAdmin()
       .from('trusted_devices')
       .select('verification_code, verification_code_expires_at')
       .eq('user_id', userId)
@@ -116,7 +105,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Store/update code in database
-    const { error: deviceError } = await supabaseAdmin
+    const { error: deviceError } = await getSupabaseAdmin()
       .from('trusted_devices')
       .upsert({
         user_id: userId,

@@ -1,18 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
-
-// Create admin client with service role key for admin operations
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,7 +16,7 @@ export async function POST(request: NextRequest) {
     logger.log('🔐 Verifying email with token:', token.substring(0, 8) + '...');
 
     // Lookup token in database
-    const { data: tokenData, error: tokenError } = await supabaseAdmin
+    const { data: tokenData, error: tokenError } = await getSupabaseAdmin()
       .from('email_verification_tokens')
       .select('*')
       .eq('token', token)
@@ -53,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user from Supabase using admin client
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(tokenData.user_id);
+    const { data: { user }, error: userError } = await getSupabaseAdmin().auth.admin.getUserById(tokenData.user_id);
 
     if (userError || !user) {
       logger.error('❌ User not found:', userError);
@@ -73,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if already verified in our CUSTOM tracking table
-    const { data: verificationStatus } = await supabaseAdmin
+    const { data: verificationStatus } = await getSupabaseAdmin()
       .from('user_email_verification_status')
       .select('is_verified')
       .eq('user_id', tokenData.user_id)
@@ -81,7 +69,7 @@ export async function POST(request: NextRequest) {
 
     if (verificationStatus?.is_verified) {
       // Already verified, just mark token as used
-      await supabaseAdmin
+      await getSupabaseAdmin()
         .from('email_verification_tokens')
         .update({ used_at: new Date().toISOString() })
         .eq('token', token);
@@ -94,7 +82,7 @@ export async function POST(request: NextRequest) {
     }
 
     // ✅ Mark user as VERIFIED in our custom tracking table
-    const { error: verifyError } = await supabaseAdmin.rpc('mark_email_verified', {
+    const { error: verifyError } = await getSupabaseAdmin().rpc('mark_email_verified', {
       p_user_id: tokenData.user_id
     });
 
@@ -107,13 +95,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Also update security score
-    await supabaseAdmin
+    await getSupabaseAdmin()
       .from('user_security_scores')
       .update({ email_verified: true, updated_at: new Date().toISOString() })
       .eq('user_id', tokenData.user_id);
 
     // Mark token as used
-    await supabaseAdmin
+    await getSupabaseAdmin()
       .from('email_verification_tokens')
       .update({ used_at: new Date().toISOString() })
       .eq('token', token);

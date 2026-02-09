@@ -404,11 +404,18 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       if (error.message && (error.message.includes('Device verification') || error.message.includes('Failed to update device'))) {
         // Try to show device verification modal
         try {
+          // Get email again (might not be in scope)
+          const { secureStorage } = await import('@/lib/secure-storage');
+          let emailForVerification = await secureStorage.getItem('wallet_email');
+          if (!emailForVerification) {
+            emailForVerification = localStorage.getItem('wallet_email') || '';
+          }
+          
           const { generateEnhancedFingerprint } = await import('@/lib/device-fingerprint-pro');
           const deviceInfo = await generateEnhancedFingerprint();
           const { data: { user } } = await supabase.auth.getUser();
           
-          const emailToUse = pendingNewEmail || email || '';
+          const emailToUse = pendingNewEmail || emailForVerification || '';
           setVerificationCodeData({
             email: emailToUse,
             userId: user?.id || userId || '',
