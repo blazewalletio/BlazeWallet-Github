@@ -67,6 +67,12 @@ export async function POST(request: NextRequest) {
     } else {
       // Insert new device
       logger.log('➕ [store-device] Inserting new device');
+      // First, set all other devices to is_current: false (only one device can be current)
+      await getSupabaseAdmin()
+        .from('trusted_devices')
+        .update({ is_current: false })
+        .eq('user_id', userId);
+      
       const { data, error } = await getSupabaseAdmin()
         .from('trusted_devices')
         .insert({

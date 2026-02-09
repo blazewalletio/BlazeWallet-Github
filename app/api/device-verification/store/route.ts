@@ -114,6 +114,13 @@ export async function POST(request: NextRequest) {
       // UPSERT: INSERT or UPDATE if device_fingerprint already exists
       console.log('🔄 [device-verification/store] UPSERT device (insert or update on conflict)');
       
+      // First, set all other devices to is_current: false (only one device can be current)
+      await getSupabaseAdmin()
+        .from('trusted_devices')
+        .update({ is_current: false })
+        .eq('user_id', user.id)
+        .neq('device_fingerprint', deviceInfo.fingerprint);
+      
       const { data: upsertData, error: upsertError } = await getSupabaseAdmin()
         .from('trusted_devices')
         .upsert({

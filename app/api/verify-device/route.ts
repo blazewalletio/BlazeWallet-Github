@@ -128,6 +128,13 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24); // 24 hour expiry
     
+    // First, set all other devices to is_current: false (only one device can be current)
+    await getSupabaseAdmin()
+      .from('trusted_devices')
+      .update({ is_current: false })
+      .eq('user_id', userId)
+      .neq('device_fingerprint', deviceInfo.fingerprint);
+    
     // Store or update device with verification token
     const { error: deviceError } = await getSupabaseAdmin()
       .from('trusted_devices')

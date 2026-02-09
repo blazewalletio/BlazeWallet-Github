@@ -79,7 +79,14 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Mark device as verified
+    // First, set all other devices to is_current: false (only one device can be current)
+    await getSupabaseAdmin()
+      .from('trusted_devices')
+      .update({ is_current: false })
+      .eq('user_id', userId)
+      .neq('id', device.id);
+    
+    // Mark device as verified and set as current
     const { error: updateError } = await getSupabaseAdmin()
       .from('trusted_devices')
       .update({
