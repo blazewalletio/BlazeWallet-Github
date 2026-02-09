@@ -32,13 +32,22 @@ export default function DeviceVerificationCodeModal({
   const [codeSent, setCodeSent] = useState(false);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [isSending, setIsSending] = useState(false);
 
-  // Send code on mount
+  // Send code on mount (only once when modal opens)
   useEffect(() => {
-    if (isOpen && !codeSent) {
+    if (isOpen && !codeSent && !isSending) {
       sendCode();
     }
-  }, [isOpen]);
+    // Reset codeSent when modal closes
+    if (!isOpen) {
+      setCodeSent(false);
+      setCode(['', '', '', '', '', '']);
+      setError('');
+      setIsSending(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]); // Only depend on isOpen to avoid re-triggers when codeSent/isSending changes
 
   // Countdown timer
   useEffect(() => {
@@ -57,7 +66,19 @@ export default function DeviceVerificationCodeModal({
   }, [expiresAt]);
 
   const sendCode = async () => {
+    // Prevent multiple simultaneous calls
+    if (isSending) {
+      logger.log('⏳ [VerifyDeviceCode] Code send already in progress, skipping...');
+      return;
+    }
+    
+    if (codeSent) {
+      logger.log('✅ [VerifyDeviceCode] Code already sent, skipping...');
+      return;
+    }
+    
     try {
+      setIsSending(true);
       setError('');
       
       // Validate required fields before sending
@@ -98,6 +119,9 @@ export default function DeviceVerificationCodeModal({
     } catch (err: any) {
       logger.error('Failed to send code:', err);
       setError(err.message || 'Failed to send verification code');
+      setCodeSent(false); // Reset on error so user can retry
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -105,6 +129,7 @@ export default function DeviceVerificationCodeModal({
     setIsResending(true);
     setError('');
     setCode(['', '', '', '', '', '']);
+    setCodeSent(false); // Reset so sendCode can run again
     
     try {
       await onResend();
