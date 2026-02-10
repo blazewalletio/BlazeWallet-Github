@@ -282,7 +282,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <div className="bg-red-50 border border-red-300 rounded-xl p-4">
                     <p className="text-red-900 text-sm font-semibold mb-1 flex items-center gap-2">
                       <AlertTriangle className="w-4 h-4" />
-                      Security Warning
+                      Security warning
                     </p>
                     <p className="text-red-800 text-xs">
                       Your recovery phrase is EXTREMELY sensitive. Only reveal it in a secure, private location. 

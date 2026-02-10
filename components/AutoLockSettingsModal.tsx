@@ -166,7 +166,7 @@ export default function AutoLockSettingsModal({
               <div className="p-4 bg-red-50 border-2 border-red-200 rounded-xl flex items-start gap-3">
                 <Lock className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-red-700">
-                  <span className="font-semibold">Security Warning:</span> Disabling auto-lock
+                  <span className="font-semibold">Security warning:</span> Disabling auto-lock
                   reduces your wallet's security. Anyone with access to your device can access your
                   funds.
                 </div>
