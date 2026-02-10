@@ -162,6 +162,9 @@ export default function Dashboard() {
   const [showVesting, setShowVesting] = useState(false);
   const [showProfile, setShowProfile] = useState(false); // NEW: Profile/Account page
   const [copiedAddress, setCopiedAddress] = useState(false); // Track copy state for visual feedback
+  const [isLongPressing, setIsLongPressing] = useState(false); // Track long-press state for visual feedback
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartTimeRef = useRef<number | null>(null);
   
   // ✅ PHASE 1: Chain-Scoped State Management
   // Per-chain state to prevent cross-chain contamination
@@ -1570,10 +1573,8 @@ export default function Dashboard() {
   const formattedAddress = displayAddress ? BlockchainService.formatAddress(displayAddress) : '';
   const isPositiveChange = change24h >= 0;
 
-  // ✅ Copy address to clipboard function
-  const handleCopyAddress = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent chain selector from opening
-    
+  // ✅ Copy address to clipboard function (shared logic)
+  const copyAddressToClipboard = async () => {
     if (!displayAddress) {
       toast.error('No address available');
       return;
@@ -1610,6 +1611,76 @@ export default function Dashboard() {
       toast.error('Failed to copy address');
     }
   };
+
+  // ✅ Desktop: Click handler for copy button
+  const handleCopyAddress = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent chain selector from opening
+    await copyAddressToClipboard();
+  };
+
+  // ✅ Mobile: Long-press handler (industry standard: 500ms)
+  const handleTouchStart = (e: React.TouchEvent) => {
+    // Don't prevent default - allow normal touch behavior
+    touchStartTimeRef.current = Date.now();
+    setIsLongPressing(false);
+    
+    // Start long-press timer (500ms is industry standard)
+    longPressTimerRef.current = setTimeout(() => {
+      setIsLongPressing(true);
+      
+      // Haptic feedback when long-press is detected
+      if ('vibrate' in navigator) {
+        navigator.vibrate(30); // Subtle vibration to indicate long-press detected
+      }
+      
+      // Copy address after long-press
+      copyAddressToClipboard();
+    }, 500);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    // Clear long-press timer if user lifts finger before 500ms
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    
+    // Reset long-press state after a short delay for visual feedback
+    setTimeout(() => {
+      setIsLongPressing(false);
+    }, 100);
+    
+    touchStartTimeRef.current = null;
+  };
+
+  const handleTouchCancel = (e: React.TouchEvent) => {
+    // Clear timer on touch cancel (e.g., scroll)
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    
+    setIsLongPressing(false);
+    touchStartTimeRef.current = null;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    // Cancel long-press if user moves finger (scrolling)
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    setIsLongPressing(false);
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+      }
+    };
+  }, []);
 
   // Render content based on active tab
   const renderTabContent = () => {
@@ -2651,19 +2722,38 @@ export default function Dashboard() {
                   <div className="text-left min-w-0 flex-1">
                     <div className="text-xs sm:text-sm font-semibold text-gray-900">{chain.shortName}</div>
                     <div className="flex items-center gap-1.5">
-                      <div className="text-xs text-gray-500 font-mono truncate">{formattedAddress}</div>
+                      <motion.div
+                        onTouchStart={handleTouchStart}
+                        onTouchEnd={handleTouchEnd}
+                        onTouchCancel={handleTouchCancel}
+                        onTouchMove={handleTouchMove}
+                        animate={isLongPressing ? { scale: 0.95 } : { scale: 1 }}
+                        className={`text-xs text-gray-500 font-mono truncate select-none cursor-pointer sm:cursor-default ${
+                          isLongPressing ? 'text-orange-600 font-semibold bg-orange-50 rounded px-1' : ''
+                        } ${copiedAddress ? 'text-green-600' : ''} transition-all duration-200`}
+                        style={{ 
+                          userSelect: 'none',
+                          WebkitUserSelect: 'none',
+                          WebkitTouchCallout: 'none',
+                          touchAction: 'manipulation', // Prevent double-tap zoom
+                        }}
+                        title="Long-press to copy (mobile)"
+                      >
+                        {formattedAddress}
+                      </motion.div>
+                      {/* Desktop: Show copy button, Mobile: Hidden (use long-press) */}
                       {displayAddress && (
                         <motion.button
                           whileTap={{ scale: 0.9 }}
                           onClick={handleCopyAddress}
-                          className="flex-shrink-0 p-1 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors group"
+                          className="hidden sm:flex flex-shrink-0 p-1 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors group"
                           title="Copy address"
                           aria-label="Copy wallet address"
                         >
                           {copiedAddress ? (
-                            <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-green-600" />
+                            <Check className="w-3.5 h-3.5 text-green-600" />
                           ) : (
-                            <Copy className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-400 group-hover:text-orange-600 transition-colors" />
+                            <Copy className="w-3.5 h-3.5 text-gray-400 group-hover:text-orange-600 transition-colors" />
                           )}
                         </motion.button>
                       )}
