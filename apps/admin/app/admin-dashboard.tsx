@@ -1656,53 +1656,235 @@ function getDeviceVerificationEmailHTML(
       function: 'sendSecurityAlertEmail',
       apiRoutes: ['/api/security-alert'],
       code: `// File: app/api/security-alert/route.ts
-// ⚠️ NOTE: This email is NOT YET IMPLEMENTED - only logs to console
-async function sendSecurityAlertEmail(
-  email: string,
-  deviceInfo: EnhancedDeviceInfo,
-  alertType: string
-) {
+function generateSecurityAlertEmail(
+  alertType: string,
+  deviceInfo: {
+    deviceName: string;
+    location: { city: string; country: string };
+    ipAddress: string;
+    riskScore: number;
+    isTor: boolean;
+    isVPN: boolean;
+    browser: string;
+    os: string;
+  }
+): string {
+  const ASSET_BASE_URL = 'https://my.blazewallet.io';
+  const logoUrl = \`\${ASSET_BASE_URL}/icons/icon-512x512.png\`;
+
   // Format alert message based on type
-  let subject = '';
   let title = '';
   let message = '';
   let action = '';
+  let alertColor = '#f97316';
+  let alertBg = '#fff7ed';
+  let alertBorder = '#f97316';
   
   switch (alertType) {
     case 'suspicious_login_blocked':
-      subject = '🚨 Suspicious Login Blocked - BLAZE Wallet';
-      title = 'Suspicious Login Blocked';
+      title = '🚨 Suspicious Login Blocked';
       message = \`We blocked a suspicious login attempt to your BLAZE Wallet account from a high-risk device (Risk Score: \${deviceInfo.riskScore}/100).\`;
       action = 'If this was you, please contact support. If not, your account is safe.';
+      alertColor = '#dc2626';
+      alertBg = '#fee2e2';
+      alertBorder = '#dc2626';
       break;
     case 'new_device_login':
-      subject = '🔔 New Device Login - BLAZE Wallet';
-      title = 'New Device Detected';
+      title = '🔔 New Device Detected';
       message = 'A new device was used to access your BLAZE Wallet account.';
       action = 'If this wasn\\'t you, change your password immediately and contact support.';
+      alertColor = '#f59e0b';
+      alertBg = '#fef3c7';
+      alertBorder = '#f59e0b';
       break;
     case 'password_changed':
-      subject = '✅ Password Changed - BLAZE Wallet';
-      title = 'Password Changed';
+      title = '✅ Password Changed';
       message = 'Your BLAZE Wallet password was successfully changed.';
       action = 'If you didn\\'t make this change, contact support immediately.';
+      alertColor = '#10b981';
+      alertBg = '#d1fae5';
+      alertBorder = '#10b981';
       break;
   }
+
+  return \`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security Alert - BLAZE Wallet</title>
+  <!--[if mso]>
+    <style type="text/css">
+      body, table, td {font-family: Arial, Helvetica, sans-serif !important;}
+      img {border: 0 !important; outline: none !important; text-decoration: none !important;}
+    </style>
+  <![endif]-->
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5;">
   
-  // TODO: Implement actual email sending
-  // For now, log to console
-  console.log('🚨 SECURITY ALERT');
-  console.log(\`To: \${email}\`);
-  console.log(\`Subject: \${subject}\`);
-  console.log(\`Title: \${title}\`);
-  console.log(\`Message: \${message}\`);
-  console.log(\`Device: \${deviceInfo.deviceName}\`);
-  console.log(\`Location: \${deviceInfo.location.city}, \${deviceInfo.location.country}\`);
-  console.log(\`IP: \${deviceInfo.ipAddress}\`);
-  console.log(\`Risk Score: \${deviceInfo.riskScore}/100\`);
-  console.log(\`TOR: \${deviceInfo.isTor}, VPN: \${deviceInfo.isVPN}\`);
-  
-  return true;
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #f5f5f5; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="640" cellpadding="0" cellspacing="0" border="0" style="max-width: 640px; background: white; box-shadow: 0 2px 24px rgba(0,0,0,0.08);">
+          
+          <!-- Header -->
+          <tr>
+            <td style="padding: 48px 48px 40px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding-bottom: 24px; border-bottom: 2px solid #f97316;">
+                    <img src="\${logoUrl}" alt="BLAZE Wallet" width="56" height="56" style="display: block; border-radius: 12px;" />
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Hero -->
+          <tr>
+            <td style="padding: 0 48px 40px;">
+              <h1 style="margin: 0 0 24px; font-size: 38px; font-weight: 700; color: #111827; line-height: 1.2; letter-spacing: -0.02em;">
+                Security Alert
+              </h1>
+              
+              <div style="width: 60px; height: 4px; background: linear-gradient(90deg, #f97316 0%, #fb923c 100%); border-radius: 2px; margin-bottom: 32px;"></div>
+              
+              <div style="background: \${alertBg}; border-left: 4px solid \${alertBorder}; padding: 20px; margin-bottom: 32px; border-radius: 8px;">
+                <h2 style="margin: 0 0 12px; font-size: 24px; font-weight: 700; color: \${alertColor}; letter-spacing: -0.01em;">
+                  \${title}
+                </h2>
+                <p style="margin: 0 0 16px; font-size: 17px; line-height: 1.7; color: #374151;">
+                  \${message}
+                </p>
+                <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #6b7280;">
+                  \${action}
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Device Details -->
+          <tr>
+            <td style="padding: 0 48px 48px;">
+              <h2 style="margin: 0 0 20px; font-size: 24px; font-weight: 700; color: #111827; letter-spacing: -0.01em;">Device Details</h2>
+              
+              <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin-bottom: 32px;">
+                <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
+                      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td width="140" style="font-weight: 600; color: #6b7280; font-size: 16px; padding-right: 12px;">Device:</td>
+                          <td style="color: #111827; font-size: 16px;">\${deviceInfo.deviceName}</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
+                      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td width="140" style="font-weight: 600; color: #6b7280; font-size: 16px; padding-right: 12px;">Location:</td>
+                          <td style="color: #111827; font-size: 16px;">\${deviceInfo.location.city}, \${deviceInfo.location.country}</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
+                      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td width="140" style="font-weight: 600; color: #6b7280; font-size: 16px; padding-right: 12px;">IP Address:</td>
+                          <td style="color: #111827; font-size: 16px;">\${deviceInfo.ipAddress}</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
+                      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td width="140" style="font-weight: 600; color: #6b7280; font-size: 16px; padding-right: 12px;">Risk Score:</td>
+                          <td style="color: #111827; font-size: 16px;">\${deviceInfo.riskScore}/100</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0;">
+                      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td width="140" style="font-weight: 600; color: #6b7280; font-size: 16px; padding-right: 12px;">Time:</td>
+                          <td style="color: #111827; font-size: 16px;">\${new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+
+              <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 12px; padding: 20px; margin-bottom: 32px;">
+                <p style="margin: 0 0 12px; font-size: 16px; font-weight: 600; color: #92400e;">⚠️ Security Recommendations</p>
+                <ul style="margin: 0; padding-left: 20px; color: #78350f; font-size: 16px; line-height: 1.8;">
+                  <li>Review your trusted devices in account settings</li>
+                  <li>Enable two-factor authentication if not already enabled</li>
+                  <li>Change your password if you suspect unauthorized access</li>
+                  <li>Contact support immediately if this activity is suspicious</li>
+                </ul>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Support -->
+          <tr>
+            <td style="background: #fafafa; padding: 40px 48px; text-align: center;">
+              <p style="margin: 0 0 8px; font-size: 17px; line-height: 1.7; color: #374151;">
+                Questions? Our support team is available 24/7
+              </p>
+              <a href="mailto:support@blazewallet.io" style="font-size: 17px; font-weight: 600; color: #f97316; text-decoration: none;">
+                support@blazewallet.io
+              </a>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background: #111827; padding: 32px 48px; text-align: center;">
+              <div style="margin-bottom: 20px;">
+                <div style="font-size: 14px; font-weight: 600; color: white; margin-bottom: 6px; letter-spacing: 0.5px;">
+                  BLAZE WALLET
+                </div>
+                <div style="font-size: 13px; color: #9ca3af;">
+                  The future of multi-chain crypto management
+                </div>
+              </div>
+              
+              <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto 20px;">
+                <tr>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/wallet" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Wallet</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/about" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">About</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/security" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Security</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/support" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Support</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/privacy" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Privacy policy</a></td>
+                </tr>
+              </table>
+              
+              <div style="font-size: 12px; color: #6b7280; line-height: 1.6;">
+                © \${new Date().getFullYear()} BLAZE Wallet. All rights reserved.<br />
+                This email was sent because you created an account at my.blazewallet.io
+              </div>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
+  \`;
 }`
     },
     {
@@ -1714,9 +1896,112 @@ async function sendSecurityAlertEmail(
       function: 'generateUserConfirmationEmail',
       apiRoutes: ['Used by lib/priority-list-service.ts'],
       code: `// File: lib/email-service.ts
-// ⚠️ NOTE: This is a STUB - not fully implemented
 export function generateUserConfirmationEmail(params: any): string {
-  return \`<html><body><h1>Thank you for registering!</h1><p>Wallet: \${params.walletAddress}</p></body></html>\`;
+  const ASSET_BASE_URL = 'https://my.blazewallet.io';
+  const logoUrl = \`\${ASSET_BASE_URL}/icons/icon-512x512.png\`;
+
+  return \`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to BLAZE Priority List - BLAZE Wallet</title>
+  <!--[if mso]>
+    <style type="text/css">
+      body, table, td {font-family: Arial, Helvetica, sans-serif !important;}
+      img {border: 0 !important; outline: none !important; text-decoration: none !important;}
+    </style>
+  <![endif]-->
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5;">
+  
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #f5f5f5; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="640" cellpadding="0" cellspacing="0" border="0" style="max-width: 640px; background: white; box-shadow: 0 2px 24px rgba(0,0,0,0.08);">
+          
+          <!-- Header -->
+          <tr>
+            <td style="padding: 48px 48px 40px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding-bottom: 24px; border-bottom: 2px solid #f97316;">
+                    <img src="\${logoUrl}" alt="BLAZE Wallet" width="56" height="56" style="display: block; border-radius: 12px;" />
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Hero -->
+          <tr>
+            <td style="padding: 0 48px 40px;">
+              <h1 style="margin: 0 0 24px; font-size: 38px; font-weight: 700; color: #111827; line-height: 1.2; letter-spacing: -0.02em;">
+                Welcome to BLAZE Priority List
+              </h1>
+              
+              <div style="width: 60px; height: 4px; background: linear-gradient(90deg, #f97316 0%, #fb923c 100%); border-radius: 2px; margin-bottom: 32px;"></div>
+              
+              <p style="margin: 0 0 20px; font-size: 19px; line-height: 1.7; color: #374151;">
+                Thank you for registering for the BLAZE Priority List! We're excited to have you on board.
+              </p>
+              
+              <p style="margin: 0; font-size: 19px; line-height: 1.7; color: #374151;">
+                Your wallet address: <strong style="color: #111827;">\${params.walletAddress || 'N/A'}</strong>
+              </p>
+            </td>
+          </tr>
+
+          <!-- Support -->
+          <tr>
+            <td style="background: #fafafa; padding: 40px 48px; text-align: center;">
+              <p style="margin: 0 0 8px; font-size: 17px; line-height: 1.7; color: #374151;">
+                Questions? Our support team is available 24/7
+              </p>
+              <a href="mailto:support@blazewallet.io" style="font-size: 17px; font-weight: 600; color: #f97316; text-decoration: none;">
+                support@blazewallet.io
+              </a>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background: #111827; padding: 32px 48px; text-align: center;">
+              <div style="margin-bottom: 20px;">
+                <div style="font-size: 14px; font-weight: 600; color: white; margin-bottom: 6px; letter-spacing: 0.5px;">
+                  BLAZE WALLET
+                </div>
+                <div style="font-size: 13px; color: #9ca3af;">
+                  The future of multi-chain crypto management
+                </div>
+              </div>
+              
+              <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto 20px;">
+                <tr>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/wallet" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Wallet</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/about" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">About</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/security" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Security</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/support" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Support</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/privacy" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Privacy policy</a></td>
+                </tr>
+              </table>
+              
+              <div style="font-size: 12px; color: #6b7280; line-height: 1.6;">
+                © \${new Date().getFullYear()} BLAZE Wallet. All rights reserved.<br />
+                This email was sent because you created an account at my.blazewallet.io
+              </div>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
+  \`;
 }`
     },
     {
@@ -1728,9 +2013,114 @@ export function generateUserConfirmationEmail(params: any): string {
       function: 'generateAdminNotificationEmail',
       apiRoutes: ['Used by lib/priority-list-service.ts'],
       code: `// File: lib/email-service.ts
-// ⚠️ NOTE: This is a STUB - not fully implemented
 export function generateAdminNotificationEmail(params: any): string {
-  return \`<html><body><h1>New Registration</h1><p>Wallet: \${params.walletAddress}</p></body></html>\`;
+  const ASSET_BASE_URL = 'https://my.blazewallet.io';
+  const logoUrl = \`\${ASSET_BASE_URL}/icons/icon-512x512.png\`;
+
+  return \`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Priority List Registration - BLAZE Wallet</title>
+  <!--[if mso]>
+    <style type="text/css">
+      body, table, td {font-family: Arial, Helvetica, sans-serif !important;}
+      img {border: 0 !important; outline: none !important; text-decoration: none !important;}
+    </style>
+  <![endif]-->
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5;">
+  
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #f5f5f5; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="640" cellpadding="0" cellspacing="0" border="0" style="max-width: 640px; background: white; box-shadow: 0 2px 24px rgba(0,0,0,0.08);">
+          
+          <!-- Header -->
+          <tr>
+            <td style="padding: 48px 48px 40px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding-bottom: 24px; border-bottom: 2px solid #f97316;">
+                    <img src="\${logoUrl}" alt="BLAZE Wallet" width="56" height="56" style="display: block; border-radius: 12px;" />
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Hero -->
+          <tr>
+            <td style="padding: 0 48px 40px;">
+              <h1 style="margin: 0 0 24px; font-size: 38px; font-weight: 700; color: #111827; line-height: 1.2; letter-spacing: -0.02em;">
+                New Priority List Registration
+              </h1>
+              
+              <div style="width: 60px; height: 4px; background: linear-gradient(90deg, #f97316 0%, #fb923c 100%); border-radius: 2px; margin-bottom: 32px;"></div>
+              
+              <p style="margin: 0 0 20px; font-size: 19px; line-height: 1.7; color: #374151;">
+                A new user has registered for the BLAZE Priority List.
+              </p>
+              
+              <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin-bottom: 32px;">
+                <p style="margin: 0; font-size: 17px; line-height: 1.7; color: #374151;">
+                  <strong style="color: #111827;">Wallet Address:</strong> \${params.walletAddress || 'N/A'}
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Support -->
+          <tr>
+            <td style="background: #fafafa; padding: 40px 48px; text-align: center;">
+              <p style="margin: 0 0 8px; font-size: 17px; line-height: 1.7; color: #374151;">
+                Questions? Our support team is available 24/7
+              </p>
+              <a href="mailto:support@blazewallet.io" style="font-size: 17px; font-weight: 600; color: #f97316; text-decoration: none;">
+                support@blazewallet.io
+              </a>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background: #111827; padding: 32px 48px; text-align: center;">
+              <div style="margin-bottom: 20px;">
+                <div style="font-size: 14px; font-weight: 600; color: white; margin-bottom: 6px; letter-spacing: 0.5px;">
+                  BLAZE WALLET
+                </div>
+                <div style="font-size: 13px; color: #9ca3af;">
+                  The future of multi-chain crypto management
+                </div>
+              </div>
+              
+              <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto 20px;">
+                <tr>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/wallet" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Wallet</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/about" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">About</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/security" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Security</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/support" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Support</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/privacy" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Privacy policy</a></td>
+                </tr>
+              </table>
+              
+              <div style="font-size: 12px; color: #6b7280; line-height: 1.6;">
+                © \${new Date().getFullYear()} BLAZE Wallet. All rights reserved.<br />
+                This email was sent because you created an account at my.blazewallet.io
+              </div>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
+  \`;
 }`
     }
   ];
@@ -1908,8 +2298,15 @@ function EmailPreviewModal({ email, onClose }: { email: any; onClose: () => void
     .replace(/\$\{deviceInfo\.deviceName\}/g, 'iPhone 15 Pro')
     .replace(/\$\{deviceInfo\.browser\}/g, 'Safari 17.0')
     .replace(/\$\{deviceInfo\.os\}/g, 'iOS 17.1')
+    .replace(/\$\{deviceInfo\.location\.city\}/g, 'Amsterdam')
+    .replace(/\$\{deviceInfo\.location\.country\}/g, 'Netherlands')
     .replace(/\$\{deviceInfo\.location\}/g, 'Amsterdam, Netherlands')
     .replace(/\$\{deviceInfo\.ipAddress\}/g, '192.168.1.1')
+    .replace(/\$\{deviceInfo\.riskScore\}/g, '75')
+    .replace(/\$\{deviceInfo\.isTor\}/g, 'false')
+    .replace(/\$\{deviceInfo\.isVPN\}/g, 'false')
+    .replace(/\$\{params\.walletAddress\}/g, '0x742d35Cc6634C0532925a3b844Bc9e5C3D3E8D3F5')
+    .replace(/\$\{alertType\}/g, 'suspicious_login_blocked')
     .replace(/\$\{new Date\(\)\.getFullYear\(\)\}/g, new Date().getFullYear().toString())
     .replace(/\$\{new Date\(\)\.toLocaleString\([^)]+\)\}/g, new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' }))
     .replace(/\$\{CACHE_BUST\}/g, Date.now().toString());
