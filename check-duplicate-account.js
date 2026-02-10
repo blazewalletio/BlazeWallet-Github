@@ -72,7 +72,7 @@ async function checkDuplicateAccount() {
       console.log(`    ⚠️  DUPLICATE USERS DETECTED!`);
     }
 
-    // 2. Check wallets
+    // 2. Check wallets - THIS IS THE KEY CHECK!
     console.log('\n2️⃣ WALLETS:');
     console.log('----------------------------------------');
     const { data: wallets, error: walletsError } = await supabase
@@ -84,7 +84,17 @@ async function checkDuplicateAccount() {
     if (walletsError) {
       console.error('❌ Error fetching wallets:', walletsError);
     } else {
-      console.log(`Found ${wallets.length} wallet(s):`);
+      console.log(`Found ${wallets.length} wallet(s) for user(s) with email ${email}:`);
+      
+      if (wallets.length === 0) {
+        console.log('  ⚠️  No wallets found!');
+      } else if (wallets.length === 1) {
+        console.log('  ✅ Only 1 wallet found (this is normal)');
+      } else {
+        console.log(`  ⚠️  PROBLEM: Found ${wallets.length} wallets for the same user!`);
+        console.log('  This means multiple wallets were created, possibly from duplicate signup attempts.');
+      }
+      
       wallets.forEach((wallet, idx) => {
         console.log(`\n  Wallet ${idx + 1}:`);
         console.log(`    ID: ${wallet.id}`);
@@ -92,6 +102,36 @@ async function checkDuplicateAccount() {
         console.log(`    Wallet Address: ${wallet.wallet_address || 'NULL'}`);
         console.log(`    Created: ${wallet.created_at}`);
         console.log(`    Updated: ${wallet.updated_at}`);
+        
+        // Check if this wallet address is unique
+        if (wallet.wallet_address) {
+          const otherWalletsWithSameAddress = wallets.filter(w => 
+            w.wallet_address === wallet.wallet_address && w.id !== wallet.id
+          );
+          if (otherWalletsWithSameAddress.length > 0) {
+            console.log(`    ⚠️  DUPLICATE ADDRESS: This address also exists in wallet(s): ${otherWalletsWithSameAddress.map(w => w.id).join(', ')}`);
+          }
+        }
+      });
+      
+      // Group by user_id to see if one user has multiple wallets
+      const walletsByUserId = {};
+      wallets.forEach(w => {
+        if (!walletsByUserId[w.user_id]) {
+          walletsByUserId[w.user_id] = [];
+        }
+        walletsByUserId[w.user_id].push(w);
+      });
+      
+      Object.keys(walletsByUserId).forEach(userId => {
+        if (walletsByUserId[userId].length > 1) {
+          console.log(`\n  🚨 CRITICAL: User ${userId} has ${walletsByUserId[userId].length} wallets!`);
+          console.log('  This violates the UNIQUE(user_id) constraint and will cause errors!');
+          console.log('  Wallets:');
+          walletsByUserId[userId].forEach((w, idx) => {
+            console.log(`    ${idx + 1}. Wallet ${w.id} - Address: ${w.wallet_address || 'NULL'} - Created: ${w.created_at}`);
+          });
+        }
       });
 
       // Check for multiple wallets per user
@@ -261,26 +301,86 @@ async function checkDuplicateAccount() {
       }
     }
     
-    // Check UNIQUE constraint on user_id
+    // Check UNIQUE constraint on user_id - THIS IS CRITICAL!
     const { data: userIdCheck, error: userIdCheckErr } = await supabase
       .from('wallets')
-      .select('user_id')
+      .select('user_id, id, wallet_address, created_at')
       .in('user_id', userIds);
     
     if (!userIdCheckErr && userIdCheck) {
       const userIdCounts = {};
       userIdCheck.forEach(w => {
-        userIdCounts[w.user_id] = (userIdCounts[w.user_id] || 0) + 1;
+        if (!userIdCounts[w.user_id]) {
+          userIdCounts[w.user_id] = [];
+        }
+        userIdCounts[w.user_id].push(w);
       });
       
-      const violations = Object.entries(userIdCounts).filter(([id, count]) => count > 1);
+      const violations = Object.entries(userIdCounts).filter(([id, wallets]) => wallets.length > 1);
       if (violations.length > 0) {
-        console.log(`⚠️  UNIQUE constraint violation: Multiple wallets per user_id:`);
-        violations.forEach(([userId, count]) => {
-          console.log(`    - User ${userId} has ${count} wallets`);
+        console.log(`\n🚨 CRITICAL: UNIQUE constraint violation detected!`);
+        violations.forEach(([userId, walletList]) => {
+          console.log(`\n  User ${userId} has ${walletList.length} wallets (should be max 1):`);
+          walletList.forEach((w, idx) => {
+            console.log(`    ${idx + 1}. Wallet ${w.id}`);
+            console.log(`       Address: ${w.wallet_address || 'NULL'}`);
+            console.log(`       Created: ${w.created_at}`);
+          });
         });
       } else {
         console.log('✅ No UNIQUE constraint violations on user_id');
+      }
+    }
+    
+    // 10. Check ALL wallets in database to see if there are any with this user_id that we missed
+    console.log('\n🔟 DEEP CHECK: All wallets for this user_id (including any edge cases):');
+    console.log('----------------------------------------');
+    const { data: allWalletsForUser, error: allWalletsForUserErr } = await supabase
+      .from('wallets')
+      .select('*')
+      .eq('user_id', oldestUser.id);
+    
+    if (!allWalletsForUserErr) {
+      console.log(`Found ${allWalletsForUser.length} wallet(s) directly linked to user_id ${oldestUser.id}:`);
+      if (allWalletsForUser.length > 1) {
+        console.log('\n  🚨 PROBLEM: Multiple wallets found for same user_id!');
+        allWalletsForUser.forEach((w, idx) => {
+          console.log(`\n  Wallet ${idx + 1}:`);
+          console.log(`    ID: ${w.id}`);
+          console.log(`    Address: ${w.wallet_address || 'NULL'}`);
+          console.log(`    Created: ${w.created_at}`);
+          console.log(`    Updated: ${w.updated_at}`);
+        });
+      } else if (allWalletsForUser.length === 1) {
+        console.log('  ✅ Only 1 wallet found (normal)');
+      } else {
+        console.log('  ⚠️  No wallets found for this user!');
+      }
+    }
+    
+    // 11. Check wallet_sync_logs to see if there were multiple wallet creation attempts
+    console.log('\n1️⃣1️⃣ WALLET SYNC LOGS (to see creation history):');
+    console.log('----------------------------------------');
+    const { data: syncLogs, error: syncLogsErr } = await supabase
+      .from('wallet_sync_logs')
+      .select('*')
+      .in('user_id', userIds)
+      .order('synced_at', { ascending: false })
+      .limit(20);
+    
+    if (!syncLogsErr && syncLogs) {
+      console.log(`Found ${syncLogs.length} sync log entry/entries:`);
+      if (syncLogs.length > 0) {
+        syncLogs.forEach((log, idx) => {
+          console.log(`\n  Log ${idx + 1}:`);
+          console.log(`    Type: ${log.sync_type}`);
+          console.log(`    Wallet ID: ${log.wallet_id || 'N/A'}`);
+          console.log(`    Success: ${log.success}`);
+          console.log(`    Error: ${log.error_message || 'None'}`);
+          console.log(`    Synced At: ${log.synced_at}`);
+        });
+      } else {
+        console.log('  No sync logs found');
       }
     }
 
