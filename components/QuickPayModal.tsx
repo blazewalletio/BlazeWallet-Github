@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Zap, CreditCard, Scan, Check, Camera, AlertCircle, ArrowRight, Copy, User, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, AlertTriangle, ChevronDown } from 'lucide-react';
+import { X, Zap, CreditCard, Scan, Check, Camera, AlertCircle, ArrowRight, Copy, User, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, AlertTriangle, ChevronDown, Search } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import QRCode from 'qrcode';
@@ -84,6 +84,8 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   const [selectedToken, setSelectedToken] = useState<Token | null>(null); // 🆕 Selected token for sending
   const [showTokenDropdown, setShowTokenDropdown] = useState(false); // 🆕 Token dropdown visibility
   const [availableTokens, setAvailableTokens] = useState<Token[]>([]); // 🆕 All available tokens (native + ERC20/SPL)
+  const [tokenSearchQuery, setTokenSearchQuery] = useState(''); // 🆕 Search query for token filter
+  const tokenDropdownRef = useRef<HTMLDivElement>(null); // 🆕 Ref for dropdown click outside detection
   const [cryptoAmount, setCryptoAmount] = useState<string>('');
   const [nativePrice, setNativePrice] = useState<number>(0);
   const [estimatedGas, setEstimatedGas] = useState<number>(0);
@@ -407,6 +409,21 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       stopCamera();
     };
   }, []);
+
+  // ✅ Click outside detection for token dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (tokenDropdownRef.current && !tokenDropdownRef.current.contains(event.target as Node)) {
+        setShowTokenDropdown(false);
+        setTokenSearchQuery('');
+      }
+    };
+
+    if (showTokenDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showTokenDropdown]);
 
   const generateLightningQR = async () => {
     if (!amount) return;
@@ -1534,10 +1551,12 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   animate={{ opacity: 1, x: 0 }}
                   className="space-y-6"
                 >
-                  {/* Token Selector - Only show for 'manual' method */}
+                  {/* ✅ Industry Standard Token Selector - Compact Dropdown with Search */}
                   {paymentMethod === 'manual' && (
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-700 mb-2">Select token to send</h3>
+                    <div className="relative" ref={tokenDropdownRef}>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Select token to send
+                      </label>
                       
                       {isFetchingTokens ? (
                         <div className="glass-card p-4 flex items-center justify-center gap-3">
@@ -1545,88 +1564,181 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                           <span className="text-gray-600">Loading tokens...</span>
                         </div>
                       ) : (
-                        <div className="space-y-2 max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
-                          {availableTokens.map((token) => {
-                            const isSelected = selectedToken?.symbol === token.symbol;
-                            return (
-                              <motion.button
-                                key={token.symbol}
-                                whileTap={{ scale: 0.98 }}
-                                onClick={() => setSelectedToken(token)}
-                                className={`w-full glass-card p-3 hover:bg-white/50 transition-all duration-200 border-2 ${
-                                  isSelected 
-                                    ? 'border-orange-500 bg-orange-50/50' 
-                                    : 'border-transparent hover:border-gray-200'
-                                }`}
-                              >
-                                <div className="flex items-center gap-3">
-                                  {/* Token Icon - Clean circular logo */}
+                        <>
+                          {/* Compact Token Selector Button */}
+                          <motion.button
+                            type="button"
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => {
+                              setShowTokenDropdown(!showTokenDropdown);
+                              if (!showTokenDropdown) {
+                                setTokenSearchQuery('');
+                              }
+                            }}
+                            className="w-full glass-card p-4 flex items-center justify-between gap-3 hover:bg-white/70 transition-all border-2 border-gray-200 hover:border-orange-300 rounded-xl"
+                          >
+                            {selectedToken ? (
+                              <>
+                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                  {/* Token Icon */}
                                   <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden bg-gray-100">
-                                    {token.logo ? (
-                                      <img src={token.logo} alt={token.symbol} className="w-full h-full object-cover" />
+                                    {selectedToken.logo ? (
+                                      <img src={selectedToken.logo} alt={selectedToken.symbol} className="w-full h-full object-cover" />
                                     ) : (
-                                      <span className="text-gray-700 font-bold text-sm">{token.symbol.slice(0, 2)}</span>
+                                      <span className="text-gray-700 font-bold text-sm">{selectedToken.symbol.slice(0, 2)}</span>
                                     )}
                                   </div>
-
+                                  
                                   {/* Token Info */}
-                                  <div className="flex-1 text-left">
+                                  <div className="flex-1 text-left min-w-0">
                                     <div className="flex items-center gap-2">
-                                      <span className="font-semibold text-gray-900">{token.symbol}</span>
-                                      {token.address === 'native' && (
-                                        <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-orange-100 text-orange-700 rounded">
+                                      <span className="font-semibold text-gray-900">{selectedToken.symbol}</span>
+                                      {selectedToken.address === 'native' && (
+                                        <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-orange-100 text-orange-700 rounded flex-shrink-0">
                                           NATIVE
                                         </span>
                                       )}
                                     </div>
-                                    <div className="text-xs text-gray-500 mt-0.5">
-                                      {parseFloat(token.balance || '0').toLocaleString('en-US', { 
+                                    <div className="text-xs text-gray-500 truncate">
+                                      {parseFloat(selectedToken.balance || '0').toLocaleString('en-US', { 
                                         minimumFractionDigits: 2, 
                                         maximumFractionDigits: 6 
-                                      })} {token.symbol}
+                                      })} {selectedToken.symbol}
+                                      {selectedToken.priceUSD && selectedToken.priceUSD > 0 && (
+                                        <span className="ml-1">• {formatUSDSync(parseFloat(selectedToken.balanceUSD || '0'))}</span>
+                                      )}
                                     </div>
                                   </div>
-
-                                  {/* Token Price & USD Value */}
-                                  <div className="text-right">
-                                    {token.priceUSD && token.priceUSD > 0 ? (
-                                      <>
-                                        <div className="text-sm font-semibold text-gray-900">
-                                          {formatUSDSync(parseFloat(token.balanceUSD || '0'))}
-                                        </div>
-                                        <div className="flex items-center justify-end gap-1 mt-0.5">
-                                          <span className="text-xs text-gray-500">
-                                            {token.priceUSD >= 0.01 
-                                              ? formatUSDSync(token.priceUSD) 
-                                              : `${symbol}${token.priceUSD.toFixed(6)}`}
-                                          </span>
-                                          {token.change24h !== undefined && token.change24h !== 0 && (
-                                            <span className={`text-xs font-medium ${
-                                              token.change24h > 0 ? 'text-green-600' : 'text-red-600'
-                                            }`}>
-                                              {token.change24h > 0 ? '+' : ''}{token.change24h.toFixed(2)}%
-                                            </span>
-                                          )}
-                                        </div>
-                                      </>
-                                    ) : (
-                                      <div className="text-sm font-semibold text-gray-900">
-                                        {parseFloat(token.balance || '0').toFixed(4)} {token.symbol}
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Selected Checkmark */}
-                                  {isSelected && (
-                                    <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center flex-shrink-0">
-                                      <ArrowRight className="w-4 h-4 text-white" />
-                                    </div>
-                                  )}
                                 </div>
-                              </motion.button>
-                            );
-                          })}
-                        </div>
+                                
+                                {/* Chevron */}
+                                <ChevronDown className={`w-5 h-5 text-gray-400 flex-shrink-0 transition-transform ${showTokenDropdown ? 'rotate-180' : ''}`} />
+                              </>
+                            ) : (
+                              <div className="w-full flex items-center justify-between">
+                                <span className="text-gray-500">Select a token</span>
+                                <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${showTokenDropdown ? 'rotate-180' : ''}`} />
+                              </div>
+                            )}
+                          </motion.button>
+
+                          {/* Dropdown Modal with Search */}
+                          <AnimatePresence>
+                            {showTokenDropdown && (
+                              <motion.div
+                                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                                transition={{ duration: 0.15 }}
+                                className="absolute top-full left-0 right-0 mt-2 z-50 bg-white rounded-xl shadow-2xl border-2 border-gray-200 overflow-hidden"
+                              >
+                                {/* Search Bar */}
+                                <div className="p-3 border-b border-gray-200 bg-gray-50">
+                                  <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                    <input
+                                      type="text"
+                                      placeholder="Search tokens..."
+                                      value={tokenSearchQuery}
+                                      onChange={(e) => setTokenSearchQuery(e.target.value)}
+                                      className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
+                                      autoFocus
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* Token List */}
+                                <div className="max-h-[320px] overflow-y-auto custom-scrollbar">
+                                  {(() => {
+                                    // Filter tokens based on search query
+                                    const filteredTokens = availableTokens.filter(token => {
+                                      if (!tokenSearchQuery.trim()) return true;
+                                      const query = tokenSearchQuery.toLowerCase();
+                                      return (
+                                        token.symbol.toLowerCase().includes(query) ||
+                                        token.name?.toLowerCase().includes(query) ||
+                                        token.address?.toLowerCase().includes(query)
+                                      );
+                                    });
+
+                                    if (filteredTokens.length === 0) {
+                                      return (
+                                        <div className="p-8 text-center">
+                                          <p className="text-gray-500 text-sm">No tokens found</p>
+                                        </div>
+                                      );
+                                    }
+
+                                    return filteredTokens.map((token) => {
+                                      const isSelected = selectedToken?.symbol === token.symbol;
+                                      return (
+                                        <motion.button
+                                          key={token.symbol}
+                                          whileTap={{ scale: 0.98 }}
+                                          onClick={() => {
+                                            setSelectedToken(token);
+                                            setShowTokenDropdown(false);
+                                            setTokenSearchQuery('');
+                                          }}
+                                          className={`w-full p-3 flex items-center gap-3 hover:bg-gray-50 transition-all border-b border-gray-100 last:border-b-0 ${
+                                            isSelected ? 'bg-orange-50/50' : ''
+                                          }`}
+                                        >
+                                          {/* Token Icon */}
+                                          <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden bg-gray-100">
+                                            {token.logo ? (
+                                              <img src={token.logo} alt={token.symbol} className="w-full h-full object-cover" />
+                                            ) : (
+                                              <span className="text-gray-700 font-bold text-sm">{token.symbol.slice(0, 2)}</span>
+                                            )}
+                                          </div>
+
+                                          {/* Token Info */}
+                                          <div className="flex-1 text-left min-w-0">
+                                            <div className="flex items-center gap-2">
+                                              <span className="font-semibold text-gray-900">{token.symbol}</span>
+                                              {token.address === 'native' && (
+                                                <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-orange-100 text-orange-700 rounded flex-shrink-0">
+                                                  NATIVE
+                                                </span>
+                                              )}
+                                            </div>
+                                            <div className="text-xs text-gray-500 truncate">
+                                              {parseFloat(token.balance || '0').toLocaleString('en-US', { 
+                                                minimumFractionDigits: 2, 
+                                                maximumFractionDigits: 6 
+                                              })} {token.symbol}
+                                            </div>
+                                          </div>
+
+                                          {/* Token Value */}
+                                          <div className="text-right flex-shrink-0">
+                                            {token.priceUSD && token.priceUSD > 0 ? (
+                                              <div className="text-sm font-semibold text-gray-900">
+                                                {formatUSDSync(parseFloat(token.balanceUSD || '0'))}
+                                              </div>
+                                            ) : (
+                                              <div className="text-sm font-semibold text-gray-900">
+                                                {parseFloat(token.balance || '0').toFixed(4)}
+                                              </div>
+                                            )}
+                                          </div>
+
+                                          {/* Selected Checkmark */}
+                                          {isSelected && (
+                                            <div className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center flex-shrink-0">
+                                              <Check className="w-3 h-3 text-white" />
+                                            </div>
+                                          )}
+                                        </motion.button>
+                                      );
+                                    });
+                                  })()}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </>
                       )}
                     </div>
                   )}
