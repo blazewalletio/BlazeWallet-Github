@@ -95,6 +95,9 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [memberSince, setMemberSince] = useState('Nov 2024');
   const [userEmail, setUserEmail] = useState('');
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isResendingVerification, setIsResendingVerification] = useState(false);
+  const [verificationResendMessage, setVerificationResendMessage] = useState<string | null>(null);
   
   // Security
   const [securityScore, setSecurityScore] = useState<SecurityScore | null>(null);
@@ -312,6 +315,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             logger.log('📝 Seed wallet detected - using defaults');
             logger.log('📝 Account display name:', currentAccount?.displayName);
             setUserEmail(''); // No email
+            setUserId(null); // No user ID for seed wallets
             setIsEmailVerified(false);
             setMemberSince('N/A');
             setDisplayName(currentAccount?.displayName || 'Seed Wallet User');
@@ -433,6 +437,46 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
       logger.error('Failed to copy address:', error);
       alert('Failed to copy address. Please try again.');
     });
+  };
+
+  const handleResendVerification = async () => {
+    if (!userEmail || !userId) {
+      setVerificationResendMessage('Email or user ID not available');
+      setTimeout(() => setVerificationResendMessage(null), 3000);
+      return;
+    }
+
+    setIsResendingVerification(true);
+    setVerificationResendMessage(null);
+
+    try {
+      const response = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: userEmail,
+          userId: userId,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setVerificationResendMessage('Verification email sent! Check your inbox.');
+        setTimeout(() => setVerificationResendMessage(null), 5000);
+      } else {
+        setVerificationResendMessage(result.error || 'Failed to send email');
+        setTimeout(() => setVerificationResendMessage(null), 5000);
+      }
+    } catch (error: any) {
+      logger.error('Failed to resend verification email:', error);
+      setVerificationResendMessage('Failed to send email. Please try again.');
+      setTimeout(() => setVerificationResendMessage(null), 5000);
+    } finally {
+      setIsResendingVerification(false);
+    }
   };
 
   const handleToggleBalance = async () => {
@@ -923,9 +967,39 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <div className="text-xs text-center font-medium text-gray-900 mb-1">
                   Email Verified
                 </div>
-                <div className="text-xs text-center font-bold text-gray-600">
+                <div className="text-xs text-center font-bold text-gray-600 mb-2">
                   +25 pts
                 </div>
+                {/* ✅ Resend Verification Button - Only show if not verified and user has email */}
+                {!securityScore?.email_verified && userEmail && userId && (
+                  <button
+                    onClick={handleResendVerification}
+                    disabled={isResendingVerification}
+                    className="w-full mt-2 px-3 py-1.5 text-xs font-medium bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                  >
+                    {isResendingVerification ? (
+                      <>
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        <span>Sending...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-3 h-3" />
+                        <span>Resend Email</span>
+                      </>
+                    )}
+                  </button>
+                )}
+                {/* Success/Error Message */}
+                {verificationResendMessage && (
+                  <div className={`mt-2 text-xs text-center ${
+                    verificationResendMessage.includes('success') || verificationResendMessage.includes('sent')
+                      ? 'text-green-600'
+                      : 'text-red-600'
+                  }`}>
+                    {verificationResendMessage}
+                  </div>
+                )}
               </div>
               
               {/* 2FA Enabled */}
