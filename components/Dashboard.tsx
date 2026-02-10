@@ -1669,10 +1669,14 @@ export default function Dashboard() {
     await copyAddressToClipboard();
   };
 
-  // ✅ Mobile: Long-press handler - Copy on touchEnd if long-press was detected
+  // ✅ Mobile: Long-press handler - Copy directly when long-press detected
   const handleTouchStart = (e: React.TouchEvent) => {
+    e.stopPropagation(); // Prevent chain selector
     touchStartTimeRef.current = Date.now();
     setIsLongPressing(false);
+    
+    // Store touch event for clipboard (needs user gesture)
+    const touchEvent = e.nativeEvent;
     
     // Start long-press timer
     longPressTimerRef.current = setTimeout(() => {
@@ -1682,6 +1686,12 @@ export default function Dashboard() {
       if ('vibrate' in navigator) {
         navigator.vibrate(30);
       }
+      
+      // ✅ CRITICAL: Copy IMMEDIATELY when long-press detected (still in touch context)
+      // Use requestAnimationFrame to ensure it's still within user gesture
+      requestAnimationFrame(() => {
+        performCopy();
+      });
     }, 500);
   };
   
@@ -1791,6 +1801,8 @@ export default function Dashboard() {
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
+    e.stopPropagation(); // Always prevent chain selector
+    
     // Check if long-press was completed
     const wasLongPress = isLongPressing;
     
@@ -1800,29 +1812,14 @@ export default function Dashboard() {
       longPressTimerRef.current = null;
     }
     
-    // ✅ CRITICAL: If long-press was detected, copy NOW and prevent chain selector
+    // ✅ CRITICAL: If long-press was detected, prevent chain selector
     if (wasLongPress) {
       e.preventDefault(); // Prevent any default behavior
-      e.stopPropagation(); // Prevent chain selector from opening
       e.nativeEvent.stopImmediatePropagation(); // Stop all event propagation
-      
-      // Copy directly in touchEnd event (still within user gesture context)
-      const success = performCopy();
-      
-      // Only reset state if copy succeeded
-      if (success) {
-        setTimeout(() => {
-          setIsLongPressing(false);
-        }, 100);
-      } else {
-        setIsLongPressing(false);
-      }
-      
-      touchStartTimeRef.current = null;
-      return; // Exit early to prevent chain selector
+      // Copy already happened in touchStart setTimeout, just prevent chain selector
     }
     
-    // Reset state if no long-press
+    // Reset state
     setTimeout(() => {
       setIsLongPressing(false);
     }, 100);
