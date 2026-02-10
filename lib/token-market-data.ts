@@ -280,15 +280,15 @@ export function formatLargeNumber(value: number | undefined): string {
   }
 
   if (value >= 1_000_000_000_000) {
-    return `$${(value / 1_000_000_000_000).toFixed(2)}T`;
+    return `$${(value / 1_000_000_000_000).toFixed(0)}T`;
   } else if (value >= 1_000_000_000) {
-    return `$${(value / 1_000_000_000).toFixed(2)}B`;
+    return `$${(value / 1_000_000_000).toFixed(0)}B`;
   } else if (value >= 1_000_000) {
-    return `$${(value / 1_000_000).toFixed(2)}M`;
+    return `$${(value / 1_000_000).toFixed(0)}M`;
   } else if (value >= 1_000) {
-    return `$${(value / 1_000).toFixed(2)}K`;
+    return `$${(value / 1_000).toFixed(0)}K`;
   } else {
-    return `$${value.toFixed(2)}`;
+    return `$${value.toFixed(0)}`;
   }
 }
 
@@ -301,13 +301,13 @@ export function formatSupply(value: number | undefined): string {
   }
 
   if (value >= 1_000_000_000_000) {
-    return `${(value / 1_000_000_000_000).toFixed(2)}T`;
+    return `${(value / 1_000_000_000_000).toFixed(0)}T`;
   } else if (value >= 1_000_000_000) {
-    return `${(value / 1_000_000_000).toFixed(2)}B`;
+    return `${(value / 1_000_000_000).toFixed(0)}B`;
   } else if (value >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(2)}M`;
+    return `${(value / 1_000_000).toFixed(0)}M`;
   } else if (value >= 1_000) {
-    return `${(value / 1_000).toFixed(2)}K`;
+    return `${(value / 1_000).toFixed(0)}K`;
   } else {
     return value.toFixed(0);
   }
