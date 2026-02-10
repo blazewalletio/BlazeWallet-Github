@@ -162,9 +162,6 @@ export default function Dashboard() {
   const [showVesting, setShowVesting] = useState(false);
   const [showProfile, setShowProfile] = useState(false); // NEW: Profile/Account page
   const [copiedAddress, setCopiedAddress] = useState(false); // Track copy state for visual feedback
-  const [isLongPressing, setIsLongPressing] = useState(false); // Track long-press state for visual feedback
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const touchStartTimeRef = useRef<number | null>(null);
   
   // ✅ PHASE 1: Chain-Scoped State Management
   // Per-chain state to prevent cross-chain contamination
@@ -2912,51 +2909,15 @@ export default function Dashboard() {
                   <div className="text-left min-w-0 flex-1">
                     <div className="text-xs sm:text-sm font-semibold text-gray-900">{chain.shortName}</div>
                     <div className="flex items-center gap-1.5">
-                      <motion.div
-                        onTouchStart={(e) => {
-                          e.stopPropagation(); // Prevent chain selector
-                          handleTouchStart(e);
-                        }}
-                        onTouchEnd={(e) => {
-                          e.stopPropagation(); // Prevent chain selector
-                          e.nativeEvent.stopImmediatePropagation(); // Stop all propagation
-                          handleTouchEnd(e);
-                        }}
-                        onTouchCancel={(e) => {
-                          e.stopPropagation();
-                          handleTouchCancel(e);
-                        }}
-                        onTouchMove={(e) => {
-                          e.stopPropagation();
-                          handleTouchMove(e);
-                        }}
-                        onClick={(e) => {
-                          // Prevent click from opening chain selector on mobile after long-press
-                          if (isLongPressing || copiedAddress) {
-                            e.stopPropagation();
-                            e.preventDefault();
-                          }
-                        }}
-                        animate={isLongPressing ? { scale: 0.95 } : { scale: 1 }}
-                        className={`text-xs text-gray-500 font-mono truncate select-none cursor-pointer sm:cursor-default ${
-                          isLongPressing ? 'text-orange-600 font-semibold bg-orange-50 rounded px-1' : ''
-                        } ${copiedAddress ? 'text-green-600' : ''} transition-all duration-200`}
-                        style={{ 
-                          userSelect: 'none',
-                          WebkitUserSelect: 'none',
-                          WebkitTouchCallout: 'none',
-                          touchAction: 'manipulation', // Prevent double-tap zoom
-                        }}
-                        title="Long-press to copy (mobile)"
-                      >
+                      <div className="text-xs text-gray-500 font-mono truncate">
                         {formattedAddress}
-                      </motion.div>
-                      {/* Desktop: Show copy button, Mobile: Hidden (use long-press) */}
+                      </div>
+                      {/* Copy button - visible on both desktop and mobile */}
                       {displayAddress && (
                         <motion.button
                           whileTap={{ scale: 0.9 }}
                           onClick={handleCopyAddress}
-                          className="hidden sm:flex flex-shrink-0 p-1 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors group"
+                          className="flex-shrink-0 p-1 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors group"
                           title="Copy address"
                           aria-label="Copy wallet address"
                         >
