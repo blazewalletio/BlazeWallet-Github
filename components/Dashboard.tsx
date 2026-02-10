@@ -9,7 +9,8 @@ import {
   Repeat, Wallet as WalletIcon, TrendingDown, PieChart, Rocket, CreditCard,
   Lock, Gift, Vote, Users, User, Palette, LogOut,
   Sparkles, Shield, Brain, MessageSquare, Send, Download, ShoppingCart,
-  BarChart3, DollarSign, Flame, Target, Clock, CheckCircle2, XCircle, Inbox
+  BarChart3, DollarSign, Flame, Target, Clock, CheckCircle2, XCircle, Inbox,
+  Copy, Check
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useCurrency } from '@/contexts/CurrencyContext';
@@ -26,6 +27,7 @@ import { logger } from '@/lib/logger';
 import { supabase } from '@/lib/supabase';
 import ChainSelector from './ChainSelector';
 import TokenSelector from './TokenSelector';
+import toast from 'react-hot-toast';
 import PasswordUnlockModal from './PasswordUnlockModal';
 import AnimatedNumber from './AnimatedNumber';
 import TransactionHistory from './TransactionHistory';
@@ -159,6 +161,7 @@ export default function Dashboard() {
   const [showPresale, setShowPresale] = useState(false);
   const [showVesting, setShowVesting] = useState(false);
   const [showProfile, setShowProfile] = useState(false); // NEW: Profile/Account page
+  const [copiedAddress, setCopiedAddress] = useState(false); // Track copy state for visual feedback
   
   // ✅ PHASE 1: Chain-Scoped State Management
   // Per-chain state to prevent cross-chain contamination
@@ -1567,6 +1570,47 @@ export default function Dashboard() {
   const formattedAddress = displayAddress ? BlockchainService.formatAddress(displayAddress) : '';
   const isPositiveChange = change24h >= 0;
 
+  // ✅ Copy address to clipboard function
+  const handleCopyAddress = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent chain selector from opening
+    
+    if (!displayAddress) {
+      toast.error('No address available');
+      return;
+    }
+
+    try {
+      // Copy to clipboard
+      await navigator.clipboard.writeText(displayAddress);
+      
+      // Visual feedback
+      setCopiedAddress(true);
+      
+      // Haptic feedback for mobile devices
+      if ('vibrate' in navigator) {
+        navigator.vibrate(50); // Short vibration
+      }
+      
+      // Toast notification
+      toast.success('Address copied!', {
+        duration: 2000,
+        icon: '✓',
+        style: {
+          background: 'rgba(16, 185, 129, 0.95)',
+          color: '#fff',
+        },
+      });
+      
+      // Reset visual feedback after 2 seconds
+      setTimeout(() => {
+        setCopiedAddress(false);
+      }, 2000);
+    } catch (error) {
+      logger.error('Failed to copy address:', error);
+      toast.error('Failed to copy address');
+    }
+  };
+
   // Render content based on active tab
   const renderTabContent = () => {
     switch (activeTab) {
@@ -2604,9 +2648,26 @@ export default function Dashboard() {
                       chain.icon
                     )}
                       </div>
-                  <div className="text-left min-w-0">
+                  <div className="text-left min-w-0 flex-1">
                     <div className="text-xs sm:text-sm font-semibold text-gray-900">{chain.shortName}</div>
-                    <div className="text-xs text-gray-500 font-mono truncate">{formattedAddress}</div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="text-xs text-gray-500 font-mono truncate">{formattedAddress}</div>
+                      {displayAddress && (
+                        <motion.button
+                          whileTap={{ scale: 0.9 }}
+                          onClick={handleCopyAddress}
+                          className="flex-shrink-0 p-1 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors group"
+                          title="Copy address"
+                          aria-label="Copy wallet address"
+                        >
+                          {copiedAddress ? (
+                            <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-green-600" />
+                          ) : (
+                            <Copy className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-400 group-hover:text-orange-600 transition-colors" />
+                          )}
+                        </motion.button>
+                      )}
+                    </div>
                         </div>
                   <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 flex-shrink-0" />
                 </motion.button>
