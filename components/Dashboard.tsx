@@ -1743,16 +1743,26 @@ export default function Dashboard() {
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
+    // Check if long-press was completed (user held for 500ms+)
+    const wasLongPress = isLongPressing;
+    
     // Clear long-press timer if user lifts finger before 500ms
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
     
-    // Reset long-press state after a short delay for visual feedback
-    setTimeout(() => {
+    // If long-press was completed, copy happened already in setTimeout
+    // Just reset the state
+    if (wasLongPress) {
+      // Copy already happened, just reset visual state
+      setTimeout(() => {
+        setIsLongPressing(false);
+      }, 100);
+    } else {
+      // User lifted finger too early, reset immediately
       setIsLongPressing(false);
-    }, 100);
+    }
     
     touchStartTimeRef.current = null;
   };
