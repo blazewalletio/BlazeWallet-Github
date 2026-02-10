@@ -29,6 +29,9 @@ export interface WalletState {
   chainTokens: Map<string, Token[]>; // Per-chain token storage
   tokens: Token[]; // Deprecated, kept for backward compatibility
   
+  // ✅ NEW: Hidden tokens (soft hide - can be shown again)
+  hiddenTokens: Map<string, Set<string>>; // chain -> Set<tokenAddress>
+  
   hasPassword: boolean;
   lastActivity: number;
   hasBiometric: boolean;
@@ -57,6 +60,12 @@ export interface WalletState {
   getChainTokens: (chain: string) => Token[]; // Get tokens for specific chain
   
   removeToken: (tokenAddress: string) => void;
+  
+  // ✅ NEW: Hide/Show token functions (soft hide)
+  hideToken: (chain: string, tokenAddress: string) => void;
+  showToken: (chain: string, tokenAddress: string) => void;
+  isTokenHidden: (chain: string, tokenAddress: string) => boolean;
+  
   updateActivity: () => void;
   checkAutoLock: () => void;
   getCurrentAddress: () => string | null; // Helper to get current chain address
@@ -80,6 +89,28 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   // ✅ PHASE 3: Initialize chain-specific token storage
   chainTokens: new Map(),
   tokens: [], // Deprecated, kept for backward compatibility
+  
+  // ✅ NEW: Initialize hidden tokens from localStorage
+  hiddenTokens: (() => {
+    const hidden = new Map<string, Set<string>>();
+    if (typeof window !== 'undefined') {
+      try {
+        // Load hidden tokens for all chains from localStorage
+        const chains = Object.keys(CHAINS);
+        chains.forEach(chain => {
+          const stored = localStorage.getItem(`hidden_tokens_${chain}`);
+          if (stored) {
+            const addresses = JSON.parse(stored) as string[];
+            hidden.set(chain, new Set(addresses.map(addr => addr.toLowerCase())));
+            logger.log(`📦 Loaded ${addresses.length} hidden tokens for chain ${chain}`);
+          }
+        });
+      } catch (err) {
+        logger.error('Failed to load hidden tokens:', err);
+      }
+    }
+    return hidden;
+  })(),
   
   hasPassword: false,
   lastActivity: Date.now(),
@@ -679,6 +710,12 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       localStorage.removeItem('wallet_just_imported');
       localStorage.removeItem('force_password_setup');
       
+      // ✅ NEW: Clean up hidden tokens for all chains
+      const chains = Object.keys(CHAINS);
+      chains.forEach(chain => {
+        localStorage.removeItem(`hidden_tokens_${chain}`);
+      });
+      
       // ✅ NEW: Clean up old biometric format
       localStorage.removeItem('biometric_enabled');
       localStorage.removeItem('biometric_protected_password');
@@ -711,6 +748,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       bitcoincashAddress: null, // ✅ NEW: Clear Bitcoin Cash address
       balance: '0',
       isLocked: false,
+      hiddenTokens: new Map(), // ✅ NEW: Clear hidden tokens,
       mnemonic: null,
       currentChain: DEFAULT_CHAIN,
       
@@ -874,6 +912,64 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     if (typeof window !== 'undefined') {
       localStorage.setItem('custom_tokens', JSON.stringify(newTokens));
     }
+  },
+
+  // ✅ NEW: Hide token (soft hide - can be shown again)
+  hideToken: (chain: string, tokenAddress: string) => {
+    const { hiddenTokens } = get();
+    const updated = new Map(hiddenTokens);
+    
+    // Get or create Set for this chain
+    const chainHidden = updated.get(chain) || new Set<string>();
+    chainHidden.add(tokenAddress.toLowerCase());
+    updated.set(chain, chainHidden);
+    
+    set({ hiddenTokens: updated });
+    
+    // Save to localStorage
+    if (typeof window !== 'undefined') {
+      const addresses = Array.from(chainHidden);
+      localStorage.setItem(`hidden_tokens_${chain}`, JSON.stringify(addresses));
+      logger.log(`✅ Hidden token ${tokenAddress.substring(0, 8)}... on chain ${chain}`);
+    }
+  },
+
+  // ✅ NEW: Show token (unhide)
+  showToken: (chain: string, tokenAddress: string) => {
+    const { hiddenTokens } = get();
+    const updated = new Map(hiddenTokens);
+    
+    const chainHidden = updated.get(chain);
+    if (chainHidden) {
+      chainHidden.delete(tokenAddress.toLowerCase());
+      if (chainHidden.size === 0) {
+        updated.delete(chain);
+      } else {
+        updated.set(chain, chainHidden);
+      }
+    }
+    
+    set({ hiddenTokens: updated });
+    
+    // Update localStorage
+    if (typeof window !== 'undefined') {
+      const chainHidden = updated.get(chain);
+      if (chainHidden && chainHidden.size > 0) {
+        const addresses = Array.from(chainHidden);
+        localStorage.setItem(`hidden_tokens_${chain}`, JSON.stringify(addresses));
+      } else {
+        localStorage.removeItem(`hidden_tokens_${chain}`);
+      }
+      logger.log(`✅ Shown token ${tokenAddress.substring(0, 8)}... on chain ${chain}`);
+    }
+  },
+
+  // ✅ NEW: Check if token is hidden
+  isTokenHidden: (chain: string, tokenAddress: string): boolean => {
+    const { hiddenTokens } = get();
+    const chainHidden = hiddenTokens.get(chain);
+    if (!chainHidden) return false;
+    return chainHidden.has(tokenAddress.toLowerCase());
   },
 
   getCurrentAddress: () => {

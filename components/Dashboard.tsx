@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic'; // ✅ PERFORMANCE: Code splitting
 import { 
   ArrowUpRight, ArrowDownLeft, ArrowLeft, RefreshCw, Settings, 
-  TrendingUp, Eye, EyeOff, Plus, Zap, ChevronRight,
+  TrendingUp, Eye, EyeOff, Plus, Zap, ChevronRight, ChevronUp, ChevronDown,
   Repeat, Wallet as WalletIcon, TrendingDown, PieChart, Rocket, CreditCard,
   Lock, Gift, Vote, Users, User, Palette, LogOut,
   Sparkles, Shield, Brain, MessageSquare, Send, Download, ShoppingCart,
@@ -88,7 +88,10 @@ export default function Dashboard() {
     lockWallet,
     getCurrentAddress, // ✅ NEW: Get correct address for current chain
     showUnlockModal, // ✅ NEW: Read from store
-    setShowUnlockModal // ✅ NEW: Write to store
+    setShowUnlockModal, // ✅ NEW: Write to store
+    isTokenHidden, // ✅ NEW: Check if token is hidden
+    showToken, // ✅ NEW: Show token (unhide)
+    getChainTokens // ✅ NEW: Get tokens for specific chain
   } = useWalletStore();
   
   const { formatUSDSync, symbol } = useCurrency();
@@ -109,6 +112,9 @@ export default function Dashboard() {
   const isFounder = address && founderAddresses.includes(address.toLowerCase());
   
   const [showBalance, setShowBalance] = useState(true);
+  // ✅ NEW: State for showing/hiding hidden tokens section
+  const [showHiddenTokens, setShowHiddenTokens] = useState(false);
+  
   const [hideDust, setHideDust] = useState(() => {
     // Load from localStorage, default to TRUE (dust filter ON by default)
     if (typeof window !== 'undefined') {
@@ -1948,6 +1954,10 @@ export default function Dashboard() {
           <AnimatePresence>
             {tokens
               .filter(token => {
+                // ✅ NEW: Filter out hidden tokens
+                if (token.address && isTokenHidden(currentChain, token.address)) {
+                  return false;
+                }
                 // Apply dust filter if enabled
                 if (!hideDust) return true;
                 const balanceUSD = parseFloat(token.balanceUSD || '0');
@@ -2080,6 +2090,111 @@ export default function Dashboard() {
               </button>
             </div>
           )}
+
+          {/* ✅ NEW: Hidden Tokens Section */}
+          {(() => {
+            // Get all tokens for current chain (including hidden ones)
+            const allChainTokens = getChainTokens(currentChain);
+            const hiddenTokensList = allChainTokens.filter(token => 
+              token.address && isTokenHidden(currentChain, token.address)
+            );
+
+            if (hiddenTokensList.length === 0) return null;
+
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-6 pt-6 border-t border-gray-200/50"
+              >
+                <button
+                  onClick={() => setShowHiddenTokens(!showHiddenTokens)}
+                  className="flex items-center justify-between w-full mb-4 text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <EyeOff className="w-4 h-4 text-gray-400" />
+                    <h4 className="text-sm font-semibold text-gray-400">
+                      Hidden Tokens ({hiddenTokensList.length})
+                    </h4>
+                  </div>
+                  {showHiddenTokens ? (
+                    <ChevronUp className="w-4 h-4 text-gray-400" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                  )}
+                </button>
+
+                <AnimatePresence>
+                  {showHiddenTokens && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="space-y-3">
+                        {hiddenTokensList.map((token, index) => (
+                          <motion.div
+                            key={token.address}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20 }}
+                            transition={{ delay: index * 0.05 }}
+                            className="glass p-4 rounded-xl flex items-center justify-between hover:bg-white/10 transition-colors opacity-60"
+                          >
+                            <div className="flex items-center gap-4 flex-1 min-w-0">
+                              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xl overflow-hidden flex-shrink-0">
+                                {token.logo ? (
+                                  <img 
+                                    src={token.logo} 
+                                    alt={token.symbol}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = 'none';
+                                      e.currentTarget.parentElement!.textContent = token.symbol[0];
+                                    }}
+                                  />
+                                ) : (
+                                  <span className="text-gray-600 font-bold">{token.symbol[0]}</span>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <div className="font-semibold text-gray-400 truncate">
+                                    {token.name || token.symbol}
+                                  </div>
+                                </div>
+                                <div className="text-sm text-gray-500 truncate">
+                                  {parseFloat(token.balance || '0').toFixed(4)} {token.symbol}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <motion.button
+                              whileTap={{ scale: 0.9 }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (token.address) {
+                                  showToken(currentChain, token.address);
+                                  logger.log(`✅ Token ${token.symbol} shown on chain ${currentChain}`);
+                                }
+                              }}
+                              className="ml-2 p-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white transition-all flex items-center gap-2 flex-shrink-0"
+                              title="Show token"
+                            >
+                              <Eye className="w-4 h-4" />
+                              <span className="text-sm font-medium">Show</span>
+                            </motion.button>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            );
+          })()}
         </div>
       </motion.div>
     </div>

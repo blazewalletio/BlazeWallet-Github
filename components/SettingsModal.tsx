@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Shield, Key, Trash2, 
+  Key, Trash2, 
   Eye, EyeOff, Copy, Check, Bell, Settings, Fingerprint, CheckCircle, XCircle, Bug,
   AlertTriangle, Lock, ChevronDown, DollarSign
 } from 'lucide-react';
@@ -21,8 +21,7 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const { mnemonic, resetWallet, address, getCurrentAddress } = useWalletStore();
-  const displayAddress = getCurrentAddress(); // ✅ Get correct address for current chain
+  const { mnemonic, resetWallet } = useWalletStore();
   const [showMnemonic, setShowMnemonic] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -270,18 +269,6 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </div>
 
           <div className="max-w-2xl mx-auto space-y-6">
-            {/* Account Info */}
-            <div className="glass-card p-6 border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Shield className="w-5 h-5 text-orange-500" />
-                Account
-              </h3>
-              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                <div className="text-sm text-gray-600 mb-2 font-medium">Wallet address</div>
-                <div className="font-mono text-sm break-all text-gray-900">{displayAddress}</div>
-              </div>
-            </div>
-
             {/* Recovery Phrase */}
             <div className="glass-card p-6 border border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">

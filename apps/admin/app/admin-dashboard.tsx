@@ -6,7 +6,7 @@ import {
   Users, TrendingUp, AlertTriangle, RefreshCw, DollarSign, Activity, 
   Shield, LogOut, User, Bell, ArrowUpRight, ArrowDownLeft, Repeat,
   ShoppingCart, Zap, Clock, CheckCircle2, XCircle, Target, BarChart3,
-  Search, Filter, ChevronRight, Eye, Calendar, Wallet, Mail
+  Search, Filter, ChevronRight, Eye, Calendar, Wallet, Mail, X
 } from 'lucide-react';
 import { logger } from '@/lib/logger';
 
@@ -818,6 +818,7 @@ function SegmentBadge({ segment }: { segment: string }) {
 function EmailsTab() {
   const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [previewEmail, setPreviewEmail] = useState<string | null>(null);
 
   const emails = [
     {
@@ -1658,9 +1659,21 @@ export function generateAdminNotificationEmail(params: any): string {
                     </div>
                   </div>
                 </div>
-                <ChevronRight 
-                  className={`w-5 h-5 text-gray-400 transition-transform ${selectedEmail === email.id ? 'rotate-90' : ''}`}
-                />
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPreviewEmail(email.id);
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="Preview email"
+                  >
+                    <Eye className="w-5 h-5 text-primary-600" />
+                  </button>
+                  <ChevronRight 
+                    className={`w-5 h-5 text-gray-400 transition-transform ${selectedEmail === email.id ? 'rotate-90' : ''}`}
+                  />
+                </div>
               </div>
             </div>
             
@@ -1715,6 +1728,93 @@ export function generateAdminNotificationEmail(params: any): string {
               <li>Security Alert: <code className="bg-blue-100 px-1 rounded">app/api/security-alert/route.ts</code> (needs implementation)</li>
             </ul>
           </div>
+        </div>
+      </div>
+
+      {/* Email Preview Modal */}
+      {previewEmail && (
+        <EmailPreviewModal
+          email={emails.find(e => e.id === previewEmail)!}
+          onClose={() => setPreviewEmail(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Email Preview Modal Component
+function EmailPreviewModal({ email, onClose }: { email: any; onClose: () => void }) {
+  // Extract HTML from the code string
+  const extractHTML = (code: string): string => {
+    // Try to find the HTML content between the return statement and the closing backtick
+    const htmlMatch = code.match(/return\s+`([\s\S]*?)`/);
+    if (htmlMatch && htmlMatch[1]) {
+      return htmlMatch[1].trim();
+    }
+    
+    // Fallback: try to find HTML between backticks
+    const backtickMatch = code.match(/`([\s\S]*?)`/);
+    if (backtickMatch && backtickMatch[1]) {
+      return backtickMatch[1].trim();
+    }
+    
+    // If no match, return the full code (might be plain HTML)
+    return code;
+  };
+
+  const htmlContent = extractHTML(email.code);
+  
+  // Replace template variables with sample data for preview
+  const previewHTML = htmlContent
+    .replace(/\$\{verificationLink\}/g, '#')
+    .replace(/\$\{logoUrl\}/g, 'https://my.blazewallet.io/icons/icon-512x512.png')
+    .replace(/\$\{ASSET_BASE_URL\}/g, 'https://my.blazewallet.io')
+    .replace(/\$\{code\}/g, '123456')
+    .replace(/\$\{deviceName\}/g, 'iPhone 15 Pro')
+    .replace(/\$\{location\}/g, 'Amsterdam, Netherlands')
+    .replace(/\$\{deviceInfo\.deviceName\}/g, 'iPhone 15 Pro')
+    .replace(/\$\{deviceInfo\.browser\}/g, 'Safari 17.0')
+    .replace(/\$\{deviceInfo\.os\}/g, 'iOS 17.1')
+    .replace(/\$\{deviceInfo\.location\}/g, 'Amsterdam, Netherlands')
+    .replace(/\$\{deviceInfo\.ipAddress\}/g, '192.168.1.1')
+    .replace(/\$\{new Date\(\)\.getFullYear\(\)\}/g, new Date().getFullYear().toString())
+    .replace(/\$\{new Date\(\)\.toLocaleString\([^)]+\)\}/g, new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' }))
+    .replace(/\$\{CACHE_BUST\}/g, Date.now().toString());
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div>
+            <h3 className="text-xl font-bold text-gray-900">{email.name}</h3>
+            <p className="text-sm text-gray-500 mt-1">{email.subject}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-600" />
+          </button>
+        </div>
+
+        {/* Preview Content */}
+        <div className="flex-1 overflow-auto p-6 bg-gray-50">
+          <div className="bg-white rounded-lg shadow-lg max-w-2xl mx-auto">
+            <iframe
+              srcDoc={previewHTML}
+              className="w-full h-[600px] border-0 rounded-lg"
+              title="Email Preview"
+              sandbox="allow-same-origin"
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
+          <p className="text-xs text-gray-500 text-center">
+            This is a preview with sample data. Actual emails may vary.
+          </p>
         </div>
       </div>
     </div>

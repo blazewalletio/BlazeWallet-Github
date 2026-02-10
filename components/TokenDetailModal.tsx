@@ -90,7 +90,7 @@ export default function TokenDetailModal({
   nativeChange24h,
   walletAddress,
 }: TokenDetailModalProps) {
-  const { currentChain, getCurrentAddress } = useWalletStore();
+  const { currentChain, getCurrentAddress, hideToken, isTokenHidden } = useWalletStore();
   const { formatUSDSync, symbol } = useCurrency();
   const chain = CHAINS[currentChain];
   const displayAddress = walletAddress || getCurrentAddress();
@@ -693,11 +693,24 @@ export default function TokenDetailModal({
                         
                         <motion.button
                           whileTap={{ scale: 0.98 }}
-                          className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-gray-50 transition-colors text-left"
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent event bubbling
+                            if (token.address) {
+                              hideToken(currentChain, token.address);
+                              // Show success feedback
+                              logger.log(`✅ Token ${token.symbol} hidden on chain ${currentChain}`);
+                              // Close modal immediately
+                              onClose();
+                            }
+                          }}
+                          disabled={!token.address || isTokenHidden(currentChain, token.address || '')}
+                          className="flex items-center gap-3 w-full p-3 rounded-lg hover:bg-gray-50 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <EyeOff className="w-5 h-5 text-gray-600" />
                           <div>
-                            <div className="font-medium text-gray-900 text-sm">Hide token</div>
+                            <div className="font-medium text-gray-900 text-sm">
+                              {!token.address ? 'Cannot hide native token' : isTokenHidden(currentChain, token.address) ? 'Already hidden' : 'Hide token'}
+                            </div>
                             <div className="text-xs text-gray-500">Remove from assets list</div>
                           </div>
                         </motion.button>
