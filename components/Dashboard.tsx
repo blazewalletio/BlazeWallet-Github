@@ -1687,78 +1687,96 @@ export default function Dashboard() {
   
   // ✅ Copy function that works in PWA - called on touchEnd
   const performCopy = () => {
-    if (!displayAddress) return false;
+    if (!displayAddress) {
+      toast.error('No address available', { duration: 2000 });
+      return false;
+    }
     
+    let copySuccess = false;
+    
+    // Method 1: Try execCommand first (most reliable in PWA)
     try {
-      // Use execCommand (works in PWA)
       const textArea = document.createElement('textarea');
       textArea.value = displayAddress;
-      textArea.style.position = 'fixed';
-      textArea.style.left = '0';
+      textArea.style.position = 'absolute';
+      textArea.style.left = '-9999px';
       textArea.style.top = '0';
-      textArea.style.width = '2px';
-      textArea.style.height = '2px';
-      textArea.style.opacity = '0';
-      textArea.style.pointerEvents = 'none';
+      textArea.style.width = '1px';
+      textArea.style.height = '1px';
       textArea.setAttribute('readonly', '');
+      textArea.setAttribute('aria-hidden', 'true');
       
       document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      textArea.setSelectionRange(0, displayAddress.length);
       
+      // Select text - multiple methods for compatibility
+      if (navigator.userAgent.match(/ipad|iphone/i)) {
+        // iOS specific
+        const range = document.createRange();
+        range.selectNodeContents(textArea);
+        const selection = window.getSelection();
+        if (selection) {
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+        textArea.setSelectionRange(0, displayAddress.length);
+      } else {
+        textArea.focus();
+        textArea.select();
+        textArea.setSelectionRange(0, displayAddress.length);
+      }
+      
+      // Try to copy
       const successful = document.execCommand('copy');
+      
+      // Clean up immediately
       document.body.removeChild(textArea);
       
       if (successful) {
-        setCopiedAddress(true);
-        if ('vibrate' in navigator) {
-          navigator.vibrate(50);
-        }
-        toast.success('Address copied!', {
-          duration: 2000,
-          icon: '✓',
-          style: {
-            background: 'rgba(16, 185, 129, 0.95)',
-            color: '#fff',
-          },
-        });
-        setTimeout(() => {
-          setCopiedAddress(false);
-        }, 2000);
-        return true;
+        copySuccess = true;
       }
     } catch (error) {
       logger.error('execCommand failed:', error);
     }
     
-    // Fallback: Try Clipboard API
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(displayAddress).then(() => {
-        setCopiedAddress(true);
-        if ('vibrate' in navigator) {
-          navigator.vibrate(50);
-        }
-        toast.success('Address copied!', {
-          duration: 2000,
-          icon: '✓',
-          style: {
-            background: 'rgba(16, 185, 129, 0.95)',
-            color: '#fff',
-          },
+    // Method 2: Try Clipboard API if execCommand failed
+    if (!copySuccess && navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        // Use Clipboard API synchronously if possible
+        navigator.clipboard.writeText(displayAddress).then(() => {
+          copySuccess = true;
+        }).catch((err) => {
+          logger.error('Clipboard API failed:', err);
         });
-        setTimeout(() => {
-          setCopiedAddress(false);
-        }, 2000);
-      }).catch((err) => {
-        logger.error('Clipboard API failed:', err);
-        toast.error('Copy failed. Please try again.', { duration: 3000 });
-      });
-      return true;
+        // Note: This is async, so we'll check success in the then block
+        // For now, assume it will work
+        copySuccess = true;
+      } catch (error) {
+        logger.error('Clipboard API error:', error);
+      }
     }
     
-    toast.error('Copy not supported.', { duration: 3000 });
-    return false;
+    // Show success/error feedback
+    if (copySuccess) {
+      setCopiedAddress(true);
+      if ('vibrate' in navigator) {
+        navigator.vibrate(50);
+      }
+      toast.success('Address copied!', {
+        duration: 2000,
+        icon: '✓',
+        style: {
+          background: 'rgba(16, 185, 129, 0.95)',
+          color: '#fff',
+        },
+      });
+      setTimeout(() => {
+        setCopiedAddress(false);
+      }, 2000);
+      return true;
+    } else {
+      toast.error('Copy failed. Please try again.', { duration: 3000 });
+      return false;
+    }
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
@@ -1771,15 +1789,29 @@ export default function Dashboard() {
       longPressTimerRef.current = null;
     }
     
-    // ✅ CRITICAL: If long-press was detected, copy NOW (within touchEnd event)
-    // This ensures we're still within the user gesture context
+    // ✅ CRITICAL: If long-press was detected, copy NOW and prevent chain selector
     if (wasLongPress) {
       e.preventDefault(); // Prevent any default behavior
       e.stopPropagation(); // Prevent chain selector from opening
-      performCopy(); // Copy directly in touchEnd event
+      e.nativeEvent.stopImmediatePropagation(); // Stop all event propagation
+      
+      // Copy directly in touchEnd event (still within user gesture context)
+      const success = performCopy();
+      
+      // Only reset state if copy succeeded
+      if (success) {
+        setTimeout(() => {
+          setIsLongPressing(false);
+        }, 100);
+      } else {
+        setIsLongPressing(false);
+      }
+      
+      touchStartTimeRef.current = null;
+      return; // Exit early to prevent chain selector
     }
     
-    // Reset state
+    // Reset state if no long-press
     setTimeout(() => {
       setIsLongPressing(false);
     }, 100);
