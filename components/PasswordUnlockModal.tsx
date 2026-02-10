@@ -560,7 +560,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       // Import supabase
       const { supabase } = await import('@/lib/supabase');
       
-      // ⚠️ CRITICAL: Preserve device_id before clearing localStorage
+      // ⚠️ CRITICAL: Preserve device_id before clearing storage
       const preservedDeviceId = localStorage.getItem('blaze_device_id');
       const preservedFingerprint = localStorage.getItem('blaze_device_fingerprint');
       const preservedFingerprintCachedAt = localStorage.getItem('blaze_fingerprint_cached_at');
@@ -573,6 +573,11 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       const { resetWallet } = useWalletStore.getState();
       resetWallet();
       logger.log('✅ [Sign Out] Wallet store reset');
+      
+      // ✅ CRITICAL: Clear IndexedDB (secure storage) - this is where encrypted_wallet is stored!
+      const { secureStorage } = await import('@/lib/secure-storage');
+      await secureStorage.clear();
+      logger.log('✅ [Sign Out] IndexedDB cleared');
       
       // Clear all wallet-related localStorage (but preserve device tracking)
       const keysToRemove = [
@@ -591,7 +596,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       
       // Clear sessionStorage
       sessionStorage.clear();
-      logger.log('✅ [Sign Out] Storage cleared');
+      logger.log('✅ [Sign Out] localStorage and sessionStorage cleared');
       
       // ✅ CRITICAL: Restore device_id after clearing localStorage
       if (preservedDeviceId) {

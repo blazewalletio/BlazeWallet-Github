@@ -2801,14 +2801,34 @@ export default function Dashboard() {
             // User clicked "Sign out" - reset everything and reload page
             logger.log('⚠️ User requested sign out - resetting wallet and reloading');
             try {
+              // ⚠️ CRITICAL: Preserve device_id before clearing storage
+              const preservedDeviceId = localStorage.getItem('blaze_device_id');
+              const preservedFingerprint = localStorage.getItem('blaze_device_fingerprint');
+              const preservedFingerprintCachedAt = localStorage.getItem('blaze_fingerprint_cached_at');
+              
               // Reset wallet store
               const { resetWallet } = useWalletStore.getState();
               resetWallet();
+              
+              // ✅ CRITICAL: Clear IndexedDB (secure storage) - this is where encrypted_wallet is stored!
+              const { secureStorage } = await import('@/lib/secure-storage');
+              await secureStorage.clear();
               
               // Clear all storage
               if (typeof window !== 'undefined') {
                 localStorage.clear();
                 sessionStorage.clear();
+              }
+              
+              // ✅ CRITICAL: Restore device_id after clearing localStorage
+              if (preservedDeviceId) {
+                localStorage.setItem('blaze_device_id', preservedDeviceId);
+              }
+              if (preservedFingerprint) {
+                localStorage.setItem('blaze_device_fingerprint', preservedFingerprint);
+              }
+              if (preservedFingerprintCachedAt) {
+                localStorage.setItem('blaze_fingerprint_cached_at', preservedFingerprintCachedAt);
               }
               
               // Reload page to go back to onboarding
