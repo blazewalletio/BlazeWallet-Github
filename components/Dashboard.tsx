@@ -2797,10 +2797,27 @@ export default function Dashboard() {
         <PasswordUnlockModal
           isOpen={showUnlockModal}
           onComplete={handlePasswordUnlockComplete}
-          onFallback={() => {
-            // User wants to use recovery phrase instead
-            logger.log('⚠️ User requested fallback to recovery phrase');
-            // Keep modal open, user will use recovery phrase option in modal
+          onFallback={async () => {
+            // User clicked "Sign out" - reset everything and reload page
+            logger.log('⚠️ User requested sign out - resetting wallet and reloading');
+            try {
+              // Reset wallet store
+              const { resetWallet } = useWalletStore.getState();
+              resetWallet();
+              
+              // Clear all storage
+              if (typeof window !== 'undefined') {
+                localStorage.clear();
+                sessionStorage.clear();
+              }
+              
+              // Reload page to go back to onboarding
+              window.location.href = '/';
+            } catch (error) {
+              logger.error('❌ Error during sign out:', error);
+              // Fallback: just reload
+              window.location.href = '/';
+            }
           }}
         />
       )}

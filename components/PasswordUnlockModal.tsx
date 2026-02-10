@@ -553,17 +553,27 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   const handleSignOut = async () => {
     try {
       setIsLoading(true);
+      setError(''); // Clear any previous errors
+      
+      logger.log('🚪 [Sign Out] Starting sign out process...');
+      
       // Import supabase
       const { supabase } = await import('@/lib/supabase');
+      
       // ⚠️ CRITICAL: Preserve device_id before clearing localStorage
       const preservedDeviceId = localStorage.getItem('blaze_device_id');
       const preservedFingerprint = localStorage.getItem('blaze_device_fingerprint');
       const preservedFingerprintCachedAt = localStorage.getItem('blaze_fingerprint_cached_at');
+      
       // Sign out from Supabase
       await supabase.auth.signOut();
+      logger.log('✅ [Sign Out] Signed out from Supabase');
+      
       // Clear wallet store
       const { resetWallet } = useWalletStore.getState();
       resetWallet();
+      logger.log('✅ [Sign Out] Wallet store reset');
+      
       // Clear all wallet-related localStorage (but preserve device tracking)
       const keysToRemove = [
         'wallet_email',
@@ -581,6 +591,8 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
       
       // Clear sessionStorage
       sessionStorage.clear();
+      logger.log('✅ [Sign Out] Storage cleared');
+      
       // ✅ CRITICAL: Restore device_id after clearing localStorage
       if (preservedDeviceId) {
         localStorage.setItem('blaze_device_id', preservedDeviceId);
@@ -592,14 +604,14 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         localStorage.setItem('blaze_fingerprint_cached_at', preservedFingerprintCachedAt);
       }
       
-      // Redirect to onboarding
+      logger.log('✅ [Sign Out] Sign out complete, calling onFallback...');
+      
+      // Call onFallback to handle redirect/reload
       onFallback();
       
     } catch (error: any) {
-      console.error('❌ [SIGN OUT] Error:', error);
-      console.error('❌ [Unlock Modal] Sign out error:', error);
+      logger.error('❌ [SIGN OUT] Error:', error);
       setError('Failed to sign out. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };
