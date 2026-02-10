@@ -150,6 +150,68 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     }
   }, [isOpen]);
 
+  // ✅ Mobile keyboard scroll fix: Scroll password input into view when focused
+  useEffect(() => {
+    const passwordInput = passwordInputRef.current;
+    if (!passwordInput || !isOpen) return;
+
+    const handleFocus = () => {
+      // Small delay to ensure keyboard is opening
+      setTimeout(() => {
+        // Use scrollIntoView with smooth behavior and center alignment
+        passwordInput.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+          inline: 'nearest',
+        });
+      }, 300); // Wait for keyboard animation
+    };
+
+    const handleTouchStart = () => {
+      // Also handle touch events for better mobile support
+      setTimeout(() => {
+        passwordInput.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+          inline: 'nearest',
+        });
+      }, 300);
+    };
+
+    // Listen to focus events
+    passwordInput.addEventListener('focus', handleFocus);
+    passwordInput.addEventListener('touchstart', handleTouchStart);
+
+    // Also handle visual viewport changes (mobile keyboard)
+    if (typeof window !== 'undefined' && 'visualViewport' in window) {
+      const handleViewportChange = () => {
+        // Check if input is focused and viewport height changed (keyboard opened)
+        if (document.activeElement === passwordInput) {
+          setTimeout(() => {
+            passwordInput.scrollIntoView({
+              behavior: 'smooth',
+              block: 'center',
+              inline: 'nearest',
+            });
+          }, 100);
+        }
+      };
+
+      window.visualViewport?.addEventListener('resize', handleViewportChange);
+
+      return () => {
+        passwordInput.removeEventListener('focus', handleFocus);
+        passwordInput.removeEventListener('touchstart', handleTouchStart);
+        window.visualViewport?.removeEventListener('resize', handleViewportChange);
+      };
+    }
+
+    return () => {
+      passwordInput.removeEventListener('focus', handleFocus);
+      passwordInput.removeEventListener('touchstart', handleTouchStart);
+    };
+  }, [isOpen]); // Re-run when modal opens
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -671,9 +733,9 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: -100 }}
         transition={{ duration: 0.3 }}
-        className="fixed inset-0 bg-gray-50 z-50 overflow-y-auto flex items-start justify-center p-4 pt-safe"
+        className="fixed inset-0 bg-gray-50 z-50 overflow-y-auto flex items-start justify-center p-4 pt-safe pb-safe"
       >
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-md my-auto">
           <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-8">
             <div className="text-center mb-6">
               <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
