@@ -1140,64 +1140,140 @@ export function generateWalletStyleEmail(data: WalletWelcomeEmailParams): string
       apiRoutes: ['/api/device-verification-code'],
       code: `// File: app/api/device-verification-code/route.ts
 function generateVerificationCodeEmail(deviceName: string, code: string, location?: string): string {
+  const ASSET_BASE_URL = 'https://my.blazewallet.io';
+  const logoUrl = \`\${ASSET_BASE_URL}/icons/icon-512x512.png\`;
+
   return \`
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Device Verification Code - BLAZE Wallet</title>
+  <!--[if mso]>
+    <style type="text/css">
+      body, table, td {font-family: Arial, Helvetica, sans-serif !important;}
+      img {border: 0 !important; outline: none !important; text-decoration: none !important;}
+    </style>
+  <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); min-height: 100vh;">
-  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5;">
+  
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #f5f5f5; padding: 40px 20px;">
     <tr>
-      <td align="center" style="padding: 40px 20px;">
-        <table role="presentation" style="max-width: 600px; width: 100%; background: white; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden;">
+      <td align="center">
+        <table width="640" cellpadding="0" cellspacing="0" border="0" style="max-width: 640px; background: white; box-shadow: 0 2px 24px rgba(0,0,0,0.08);">
           
           <!-- Header -->
           <tr>
-            <td style="background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); padding: 40px 30px; text-align: center;">
-              <h1 style="margin: 0; color: #FFFFFF; font-size: 28px; font-weight: bold;">Device Verification Code</h1>
+            <td style="padding: 48px 48px 40px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding-bottom: 24px; border-bottom: 2px solid #f97316;">
+                    <img src="\${logoUrl}" alt="BLAZE Wallet" width="56" height="56" style="display: block; border-radius: 12px;" />
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
-          
-          <!-- Content -->
+
+          <!-- Hero -->
           <tr>
-            <td style="padding: 40px 30px;">
-              <div style="background: #FEF3C7; border-left: 4px solid #F59E0B; padding: 16px; margin-bottom: 30px; border-radius: 8px;">
-                <p style="margin: 0; color: #92400E; font-size: 14px; font-weight: 600;">🔐 Security Verification</p>
-                <p style="margin: 8px 0 0 0; color: #92400E; font-size: 14px;">A login attempt was made from a new device.</p>
+            <td style="padding: 0 48px 40px;">
+              <h1 style="margin: 0 0 24px; font-size: 38px; font-weight: 700; color: #111827; line-height: 1.2; letter-spacing: -0.02em;">
+                Device Verification Code
+              </h1>
+              
+              <div style="width: 60px; height: 4px; background: linear-gradient(90deg, #f97316 0%, #fb923c 100%); border-radius: 2px; margin-bottom: 32px;"></div>
+              
+              <div style="background: #fff7ed; border-left: 4px solid #f97316; padding: 16px; margin-bottom: 32px; border-radius: 8px;">
+                <p style="margin: 0; color: #92400e; font-size: 16px; font-weight: 600;">🔐 Security Verification</p>
+                <p style="margin: 8px 0 0 0; color: #78350f; font-size: 16px; line-height: 1.6;">A login attempt was made from a new device. Please verify this device with the code below.</p>
               </div>
-              
-              <h2 style="margin: 0 0 20px 0; color: #1F2937; font-size: 20px;">Enter this code to verify:</h2>
-              
-              <div style="background: #F9FAFB; border: 2px solid #E5E7EB; border-radius: 12px; padding: 30px; margin-bottom: 30px; text-align: center;">
-                <div style="font-size: 48px; font-weight: bold; color: #FF6B35; letter-spacing: 8px; font-family: 'Courier New', monospace;">
+            </td>
+          </tr>
+
+          <!-- Verification Code -->
+          <tr>
+            <td style="padding: 0 48px 48px;">
+              <div style="background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border: 2px solid #f97316; border-radius: 12px; padding: 40px; margin-bottom: 32px; text-align: center;">
+                <p style="margin: 0 0 16px; font-size: 16px; font-weight: 600; color: #78350f;">Enter this code to verify:</p>
+                <div style="font-size: 48px; font-weight: 700; color: #f97316; letter-spacing: 12px; font-family: 'Courier New', monospace; margin: 20px 0;">
                   \${code}
                 </div>
+                <p style="margin: 16px 0 0; font-size: 14px; color: #92400e;">Code expires in 10 minutes</p>
               </div>
               
-              <div style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
-                <p style="margin: 0 0 12px 0; color: #6B7280; font-size: 14px;">
-                  <strong style="color: #1F2937;">Device:</strong> \${deviceName}
+              <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin-bottom: 32px;">
+                <p style="margin: 0 0 12px; font-size: 16px; color: #374151; line-height: 1.6;">
+                  <strong style="color: #111827;">Device:</strong> \${deviceName}
                 </p>
-                \${location ? \`<p style="margin: 0 0 12px 0; color: #6B7280; font-size: 14px;">
-                  <strong style="color: #1F2937;">Location:</strong> \${location}
+                \${location ? \`<p style="margin: 0 0 12px; font-size: 16px; color: #374151; line-height: 1.6;">
+                  <strong style="color: #111827;">Location:</strong> \${location}
                 </p>\` : ''}
-                <p style="margin: 0; color: #6B7280; font-size: 14px;">
-                  <strong style="color: #1F2937;">Code expires in:</strong> 10 minutes
+                <p style="margin: 0; font-size: 16px; color: #374151; line-height: 1.6;">
+                  <strong style="color: #111827;">Time:</strong> \${new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}
                 </p>
               </div>
               
-              <p style="margin: 0; color: #6B7280; font-size: 14px; text-align: center;">
-                If you didn't attempt to log in, please ignore this email or contact support immediately.
+              <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 12px; padding: 20px; margin-bottom: 32px;">
+                <p style="margin: 0; font-size: 16px; color: #92400e; line-height: 1.6;">
+                  <strong>⚠️ Didn't attempt to log in?</strong> If you didn't try to access your wallet from this device, please ignore this email or contact support immediately.
+                </p>
+              </div>
+              
+              <p style="margin: 0; font-size: 16px; line-height: 1.7; color: #6b7280; text-align: center;">
+                After entering this code, you'll be asked to provide your 2FA code from your authenticator app.
               </p>
             </td>
           </tr>
+
+          <!-- Support -->
+          <tr>
+            <td style="background: #fafafa; padding: 40px 48px; text-align: center;">
+              <p style="margin: 0 0 8px; font-size: 17px; line-height: 1.7; color: #374151;">
+                Questions? Our support team is available 24/7
+              </p>
+              <a href="mailto:support@blazewallet.io" style="font-size: 17px; font-weight: 600; color: #f97316; text-decoration: none;">
+                support@blazewallet.io
+              </a>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background: #111827; padding: 32px 48px; text-align: center;">
+              <div style="margin-bottom: 20px;">
+                <div style="font-size: 14px; font-weight: 600; color: white; margin-bottom: 6px; letter-spacing: 0.5px;">
+                  BLAZE WALLET
+                </div>
+                <div style="font-size: 13px; color: #9ca3af;">
+                  The future of multi-chain crypto management
+                </div>
+              </div>
+              
+              <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto 20px;">
+                <tr>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/wallet" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Wallet</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/about" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">About</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/security" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Security</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/support" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Support</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/privacy" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Privacy policy</a></td>
+                </tr>
+              </table>
+              
+              <div style="font-size: 12px; color: #6b7280; line-height: 1.6;">
+                © \${new Date().getFullYear()} BLAZE Wallet. All rights reserved.<br />
+                This email was sent because you created an account at my.blazewallet.io
+              </div>
+            </td>
+          </tr>
+
         </table>
       </td>
     </tr>
   </table>
+
 </body>
 </html>
   \`.trim();
@@ -1214,78 +1290,96 @@ function generateVerificationCodeEmail(deviceName: string, code: string, locatio
       code: `// File: app/api/verify-device/route.ts
 function generateDeviceVerificationEmail(deviceName: string, verificationLink: string, location?: string): string {
   const ASSET_BASE_URL = 'https://my.blazewallet.io';
-  const CACHE_BUST = Date.now();
+  const logoUrl = \`\${ASSET_BASE_URL}/icons/icon-512x512.png\`;
   
   return \`
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>New Device Login - BLAZE Wallet</title>
+  <!--[if mso]>
+    <style type="text/css">
+      body, table, td {font-family: Arial, Helvetica, sans-serif !important;}
+      img {border: 0 !important; outline: none !important; text-decoration: none !important;}
+    </style>
+  <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
-  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5;">
+  
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #f5f5f5; padding: 40px 20px;">
     <tr>
-      <td align="center" style="padding: 40px 20px;">
-        <table role="presentation" style="max-width: 600px; width: 100%; background: white; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden;">
+      <td align="center">
+        <table width="640" cellpadding="0" cellspacing="0" border="0" style="max-width: 640px; background: white; box-shadow: 0 2px 24px rgba(0,0,0,0.08);">
           
-          <!-- Header with gradient -->
+          <!-- Header -->
           <tr>
-            <td style="background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); padding: 40px 30px; text-align: center;">
-              <img src="\${ASSET_BASE_URL}/email/blaze-icon-white.png?v=\${CACHE_BUST}" alt="BLAZE" style="width: 80px; height: 80px; margin-bottom: 20px;" />
-              <h1 style="margin: 0; color: #FFFFFF; font-size: 28px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">New Device Login Detected</h1>
+            <td style="padding: 48px 48px 40px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding-bottom: 24px; border-bottom: 2px solid #f97316;">
+                    <img src="\${logoUrl}" alt="BLAZE Wallet" width="56" height="56" style="display: block; border-radius: 12px;" />
+                  </td>
+                </tr>
+              </table>
             </td>
           </tr>
-          
-          <!-- Alert Section -->
+
+          <!-- Hero -->
           <tr>
-            <td style="padding: 40px 30px;">
-              <div style="background: #FEF3C7; border-left: 4px solid #F59E0B; padding: 16px; margin-bottom: 30px; border-radius: 8px;">
-                <p style="margin: 0; color: #92400E; font-size: 14px; font-weight: 600;">🔐 Security Alert</p>
-                <p style="margin: 8px 0 0 0; color: #92400E; font-size: 14px;">We detected a login from a new device.</p>
+            <td style="padding: 0 48px 40px;">
+              <h1 style="margin: 0 0 24px; font-size: 38px; font-weight: 700; color: #111827; line-height: 1.2; letter-spacing: -0.02em;">
+                New Device Login Detected
+              </h1>
+              
+              <div style="width: 60px; height: 4px; background: linear-gradient(90deg, #f97316 0%, #fb923c 100%); border-radius: 2px; margin-bottom: 32px;"></div>
+              
+              <div style="background: #fff7ed; border-left: 4px solid #f97316; padding: 16px; margin-bottom: 32px; border-radius: 8px;">
+                <p style="margin: 0; color: #92400e; font-size: 16px; font-weight: 600;">🔐 Security Alert</p>
+                <p style="margin: 8px 0 0 0; color: #78350f; font-size: 16px; line-height: 1.6;">We detected a login from a new device. Please verify this device to add it to your trusted devices list.</p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Device Details -->
+          <tr>
+            <td style="padding: 0 48px 48px;">
+              <h2 style="margin: 0 0 20px; font-size: 24px; font-weight: 700; color: #111827; letter-spacing: -0.01em;">Device Details</h2>
+              
+              <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin-bottom: 32px;">
+                <p style="margin: 0 0 12px; font-size: 16px; color: #374151; line-height: 1.6;">
+                  <strong style="color: #111827;">Device:</strong> \${deviceName}
+                </p>
+                \${location ? \`<p style="margin: 0 0 12px; font-size: 16px; color: #374151; line-height: 1.6;">
+                  <strong style="color: #111827;">Location:</strong> \${location}
+                </p>\` : ''}
+                <p style="margin: 0; font-size: 16px; color: #374151; line-height: 1.6;">
+                  <strong style="color: #111827;">Time:</strong> \${new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}
+                </p>
               </div>
               
-              <h2 style="margin: 0 0 20px 0; color: #1F2937; font-size: 20px;">Device Details:</h2>
-              
-              <div style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
-                <p style="margin: 0 0 12px 0; color: #6B7280; font-size: 14px;">
-                  <strong style="color: #1F2937;">Device:</strong> \${deviceName}
-                </p>
-                \${location ? \`
-                <p style="margin: 0 0 12px 0; color: #6B7280; font-size: 14px;">
-                  <strong style="color: #1F2937;">Location:</strong> \${location}
-                </p>
-                \` : ''}
-                <p style="margin: 0; color: #6B7280; font-size: 14px;">
-                  <strong style="color: #1F2937;">Time:</strong> \${new Date().toLocaleString('en-US', { 
-                    dateStyle: 'long', 
-                    timeStyle: 'short' 
-                  })}
-                </p>
-              </div>
-              
-              <p style="margin: 0 0 24px 0; color: #1F2937; font-size: 16px; line-height: 1.6; font-weight: 500;">
+              <p style="margin: 0 0 32px; font-size: 17px; line-height: 1.7; color: #374151;">
                 If this was you, please verify this device by clicking the button below. This will add it to your trusted devices list.
               </p>
               
               <!-- CTA Button -->
-              <table role="presentation" style="width: 100%; margin-bottom: 30px;">
+              <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto 32px;">
                 <tr>
-                  <td align="center">
-                    <a href="\${verificationLink}" style="display: inline-block; padding: 16px 48px; background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); color: #FFFFFF; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4); text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
-                      Verify This Device
+                  <td style="background: #111827; border-radius: 10px;">
+                    <a href="\${verificationLink}" style="display: block; padding: 18px 48px; color: white; text-decoration: none; font-weight: 600; font-size: 17px; letter-spacing: -0.01em;">
+                      Verify This Device →
                     </a>
                   </td>
                 </tr>
               </table>
               
-              <div style="background: #FEE2E2; border: 1px solid #FCA5A5; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
-                <p style="margin: 0 0 8px 0; color: #991B1B; font-size: 14px; font-weight: 600;">⚠️ Wasn't you?</p>
-                <p style="margin: 0; color: #991B1B; font-size: 14px; line-height: 1.6;">
+              <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 12px; padding: 20px; margin-bottom: 32px;">
+                <p style="margin: 0 0 12px; font-size: 16px; font-weight: 600; color: #92400e;">⚠️ Wasn't you?</p>
+                <p style="margin: 0 0 12px; font-size: 16px; color: #78350f; line-height: 1.6;">
                   If you didn't attempt to log in, your account may be compromised. Please:
                 </p>
-                <ul style="margin: 12px 0 0 0; padding-left: 20px; color: #991B1B; font-size: 14px;">
+                <ul style="margin: 0; padding-left: 20px; color: #78350f; font-size: 16px; line-height: 1.8;">
                   <li>Change your password immediately</li>
                   <li>Enable two-factor authentication</li>
                   <li>Review your trusted devices</li>
@@ -1293,28 +1387,58 @@ function generateDeviceVerificationEmail(deviceName: string, verificationLink: s
                 </ul>
               </div>
               
-              <p style="margin: 0; color: #6B7280; font-size: 14px; line-height: 1.6;">
+              <p style="margin: 0; font-size: 16px; line-height: 1.7; color: #6b7280; text-align: center;">
                 This verification link will expire in <strong>24 hours</strong>. Unverified devices will be automatically removed.
               </p>
             </td>
           </tr>
-          
-          <!-- Footer -->
+
+          <!-- Support -->
           <tr>
-            <td style="background: #F9FAFB; padding: 30px; text-align: center; border-top: 1px solid #E5E7EB;">
-              <p style="margin: 0 0 8px 0; color: #6B7280; font-size: 14px;">
-                Need help? Visit <a href="https://my.blazewallet.io/support" style="color: #FF6B35; text-decoration: none;">BLAZE Support</a>
+            <td style="background: #fafafa; padding: 40px 48px; text-align: center;">
+              <p style="margin: 0 0 8px; font-size: 17px; line-height: 1.7; color: #374151;">
+                Questions? Our support team is available 24/7
               </p>
-              <p style="margin: 0; color: #9CA3AF; font-size: 12px;">
-                © 2024 BLAZE Wallet. All rights reserved.
-              </p>
+              <a href="mailto:support@blazewallet.io" style="font-size: 17px; font-weight: 600; color: #f97316; text-decoration: none;">
+                support@blazewallet.io
+              </a>
             </td>
           </tr>
-          
+
+          <!-- Footer -->
+          <tr>
+            <td style="background: #111827; padding: 32px 48px; text-align: center;">
+              <div style="margin-bottom: 20px;">
+                <div style="font-size: 14px; font-weight: 600; color: white; margin-bottom: 6px; letter-spacing: 0.5px;">
+                  BLAZE WALLET
+                </div>
+                <div style="font-size: 13px; color: #9ca3af;">
+                  The future of multi-chain crypto management
+                </div>
+              </div>
+              
+              <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto 20px;">
+                <tr>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/wallet" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Wallet</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/about" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">About</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/security" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Security</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/support" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Support</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/privacy" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Privacy policy</a></td>
+                </tr>
+              </table>
+              
+              <div style="font-size: 12px; color: #6b7280; line-height: 1.6;">
+                © \${new Date().getFullYear()} BLAZE Wallet. All rights reserved.<br />
+                This email was sent because you created an account at my.blazewallet.io
+              </div>
+            </td>
+          </tr>
+
         </table>
       </td>
     </tr>
   </table>
+
 </body>
 </html>
   \`.trim();
@@ -1339,176 +1463,185 @@ function getDeviceVerificationEmailHTML(
     os: string;
   }
 ): string {
+  const ASSET_BASE_URL = 'https://my.blazewallet.io';
+  const logoUrl = \`\${ASSET_BASE_URL}/icons/icon-512x512.png\`;
+
   return \`
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Verify Your Device - BLAZE Wallet</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background-color: #f9fafb;
-    }
-    .container {
-      max-width: 600px;
-      margin: 0 auto;
-      padding: 40px 20px;
-    }
-    .card {
-      background: white;
-      border-radius: 24px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-      overflow: hidden;
-    }
-    .header {
-      background: linear-gradient(135deg, #f97316 0%, #eab308 100%);
-      padding: 40px 30px;
-      text-align: center;
-      color: white;
-    }
-    .header h1 {
-      margin: 0;
-      font-size: 28px;
-      font-weight: 700;
-    }
-    .content {
-      padding: 40px 30px;
-    }
-    .code-box {
-      background: linear-gradient(135deg, #f97316 0%, #eab308 100%);
-      color: white;
-      padding: 30px;
-      border-radius: 16px;
-      text-align: center;
-      margin: 30px 0;
-    }
-    .code {
-      font-size: 48px;
-      font-weight: 700;
-      letter-spacing: 8px;
-      margin: 10px 0;
-      font-family: 'Courier New', monospace;
-    }
-    .device-info {
-      background: #f9fafb;
-      border-radius: 12px;
-      padding: 20px;
-      margin: 20px 0;
-    }
-    .device-row {
-      display: flex;
-      padding: 8px 0;
-      border-bottom: 1px solid #e5e7eb;
-    }
-    .device-row:last-child {
-      border-bottom: none;
-    }
-    .device-label {
-      font-weight: 600;
-      color: #6b7280;
-      min-width: 100px;
-    }
-    .device-value {
-      color: #111827;
-    }
-    .warning {
-      background: #fef3c7;
-      border: 2px solid #fbbf24;
-      border-radius: 12px;
-      padding: 20px;
-      margin: 20px 0;
-    }
-    .warning-title {
-      font-weight: 700;
-      color: #92400e;
-      margin: 0 0 10px 0;
-    }
-    .warning-text {
-      color: #92400e;
-      margin: 0;
-    }
-    .footer {
-      text-align: center;
-      padding: 30px;
-      color: #6b7280;
-      font-size: 14px;
-    }
-    @media (max-width: 600px) {
-      .code {
-        font-size: 36px;
-        letter-spacing: 4px;
-      }
-    }
-  </style>
+  <!--[if mso]>
+    <style type="text/css">
+      body, table, td {font-family: Arial, Helvetica, sans-serif !important;}
+      img {border: 0 !important; outline: none !important; text-decoration: none !important;}
+    </style>
+  <![endif]-->
 </head>
-<body>
-  <div class="container">
-    <div class="card">
-      <div class="header">
-        <h1>🔐 Verify Your Device</h1>
-      </div>
-      
-      <div class="content">
-        <p style="font-size: 16px; color: #374151; line-height: 1.6;">
-          We detected a login attempt from a new device. To keep your wallet secure, please verify this device with the code below:
-        </p>
-        
-        <div class="code-box">
-          <div style="font-size: 14px; color: white; opacity: 0.9; margin-bottom: 5px;">Your Verification Code</div>
-          <div style="font-size: 48px; font-weight: 700; letter-spacing: 8px; margin: 10px 0; font-family: 'Courier New', monospace; color: white;">\${code}</div>
-          <div style="font-size: 14px; color: white; opacity: 0.9; margin-top: 5px;">Valid for 15 minutes</div>
-        </div>
-        
-        <p style="font-size: 16px; color: #374151; line-height: 1.6;">
-          After entering this code, you'll be asked to provide your 2FA code from your authenticator app.
-        </p>
-        
-        <div class="device-info">
-          <div style="font-weight: 700; color: #111827; margin-bottom: 12px;">📱 Device Details</div>
-          <div class="device-row">
-            <div class="device-label">Device:</div>
-            <div class="device-value">\${deviceInfo.deviceName}</div>
-          </div>
-          <div class="device-row">
-            <div class="device-label">Browser:</div>
-            <div class="device-value">\${deviceInfo.browser}</div>
-          </div>
-          <div class="device-row">
-            <div class="device-label">OS:</div>
-            <div class="device-value">\${deviceInfo.os}</div>
-          </div>
-          <div class="device-row">
-            <div class="device-label">Location:</div>
-            <div class="device-value">\${deviceInfo.location}</div>
-          </div>
-          <div class="device-row">
-            <div class="device-label">IP Address:</div>
-            <div class="device-value">\${deviceInfo.ipAddress}</div>
-          </div>
-        </div>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5;">
+  
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #f5f5f5; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="640" cellpadding="0" cellspacing="0" border="0" style="max-width: 640px; background: white; box-shadow: 0 2px 24px rgba(0,0,0,0.08);">
+          
+          <!-- Header -->
+          <tr>
+            <td style="padding: 48px 48px 40px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding-bottom: 24px; border-bottom: 2px solid #f97316;">
+                    <img src="\${logoUrl}" alt="BLAZE Wallet" width="56" height="56" style="display: block; border-radius: 12px;" />
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
 
-        <div class="warning">
-          <div class="warning-title">⚠️ Didn't try to log in?</div>
-          <p class="warning-text">
-            If you didn't attempt to access your wallet from this device, someone may be trying to access your account. Please change your password immediately and enable additional security measures.
-          </p>
-        </div>
-      </div>
+          <!-- Hero -->
+          <tr>
+            <td style="padding: 0 48px 40px;">
+              <h1 style="margin: 0 0 24px; font-size: 38px; font-weight: 700; color: #111827; line-height: 1.2; letter-spacing: -0.02em;">
+                Verify Your Device
+              </h1>
+              
+              <div style="width: 60px; height: 4px; background: linear-gradient(90deg, #f97316 0%, #fb923c 100%); border-radius: 2px; margin-bottom: 32px;"></div>
+              
+              <p style="margin: 0 0 32px; font-size: 19px; line-height: 1.7; color: #374151;">
+                We detected a login attempt from a new device. To keep your wallet secure, please verify this device with the code below.
+              </p>
+            </td>
+          </tr>
 
-      <div class="footer">
-        <p style="margin: 0 0 10px 0;">
-          This is an automated security email from BLAZE Wallet.
-        </p>
-        <p style="margin: 0;">
-          © \${new Date().getFullYear()} BLAZE Wallet. All rights reserved.
-        </p>
-      </div>
-    </div>
-  </div>
+          <!-- Verification Code -->
+          <tr>
+            <td style="padding: 0 48px 48px;">
+              <div style="background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); border: 2px solid #f97316; border-radius: 12px; padding: 40px; margin-bottom: 32px; text-align: center;">
+                <p style="margin: 0 0 16px; font-size: 16px; font-weight: 600; color: #78350f;">Your Verification Code</p>
+                <div style="font-size: 48px; font-weight: 700; color: #f97316; letter-spacing: 12px; font-family: 'Courier New', monospace; margin: 20px 0;">
+                  \${code}
+                </div>
+                <p style="margin: 16px 0 0; font-size: 14px; color: #92400e;">Valid for 15 minutes</p>
+              </div>
+              
+              <p style="margin: 0 0 32px; font-size: 17px; line-height: 1.7; color: #374151;">
+                After entering this code, you'll be asked to provide your 2FA code from your authenticator app.
+              </p>
+              
+              <h2 style="margin: 0 0 20px; font-size: 24px; font-weight: 700; color: #111827; letter-spacing: -0.01em;">Device Details</h2>
+              
+              <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; margin-bottom: 32px;">
+                <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
+                      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td width="120" style="font-weight: 600; color: #6b7280; font-size: 16px; padding-right: 12px;">Device:</td>
+                          <td style="color: #111827; font-size: 16px;">\${deviceInfo.deviceName}</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
+                      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td width="120" style="font-weight: 600; color: #6b7280; font-size: 16px; padding-right: 12px;">Browser:</td>
+                          <td style="color: #111827; font-size: 16px;">\${deviceInfo.browser}</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
+                      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td width="120" style="font-weight: 600; color: #6b7280; font-size: 16px; padding-right: 12px;">OS:</td>
+                          <td style="color: #111827; font-size: 16px;">\${deviceInfo.os}</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
+                      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td width="120" style="font-weight: 600; color: #6b7280; font-size: 16px; padding-right: 12px;">Location:</td>
+                          <td style="color: #111827; font-size: 16px;">\${deviceInfo.location}</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0;">
+                      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td width="120" style="font-weight: 600; color: #6b7280; font-size: 16px; padding-right: 12px;">IP Address:</td>
+                          <td style="color: #111827; font-size: 16px;">\${deviceInfo.ipAddress}</td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+
+              <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 12px; padding: 20px; margin-bottom: 32px;">
+                <p style="margin: 0 0 12px; font-size: 16px; font-weight: 600; color: #92400e;">⚠️ Didn't try to log in?</p>
+                <p style="margin: 0; font-size: 16px; color: #78350f; line-height: 1.6;">
+                  If you didn't attempt to access your wallet from this device, someone may be trying to access your account. Please change your password immediately and enable additional security measures.
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Support -->
+          <tr>
+            <td style="background: #fafafa; padding: 40px 48px; text-align: center;">
+              <p style="margin: 0 0 8px; font-size: 17px; line-height: 1.7; color: #374151;">
+                Questions? Our support team is available 24/7
+              </p>
+              <a href="mailto:support@blazewallet.io" style="font-size: 17px; font-weight: 600; color: #f97316; text-decoration: none;">
+                support@blazewallet.io
+              </a>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background: #111827; padding: 32px 48px; text-align: center;">
+              <div style="margin-bottom: 20px;">
+                <div style="font-size: 14px; font-weight: 600; color: white; margin-bottom: 6px; letter-spacing: 0.5px;">
+                  BLAZE WALLET
+                </div>
+                <div style="font-size: 13px; color: #9ca3af;">
+                  The future of multi-chain crypto management
+                </div>
+              </div>
+              
+              <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto 20px;">
+                <tr>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/wallet" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Wallet</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/about" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">About</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/security" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Security</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/support" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Support</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/privacy" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Privacy policy</a></td>
+                </tr>
+              </table>
+              
+              <div style="font-size: 12px; color: #6b7280; line-height: 1.6;">
+                © \${new Date().getFullYear()} BLAZE Wallet. All rights reserved.<br />
+                This email was sent because you created an account at my.blazewallet.io
+              </div>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
 </body>
 </html>
   \`;
