@@ -1695,43 +1695,77 @@ export default function Dashboard() {
     }, 500);
   };
   
-  // ✅ Copy function that works in PWA - called on touchEnd
+  // ✅ Copy function that works in PWA - SIMPLE & RELIABLE
   const performCopy = () => {
     if (!displayAddress) {
       toast.error('No address available', { duration: 2000 });
       return false;
     }
     
-    // ✅ SIMPLE & RELIABLE: Use execCommand with proper setup
+    // ✅ Method 1: Try Clipboard API first (works in modern PWA)
+    if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+      navigator.clipboard.writeText(displayAddress).then(() => {
+        setCopiedAddress(true);
+        if ('vibrate' in navigator) {
+          navigator.vibrate(50);
+        }
+        toast.success('Address copied!', {
+          duration: 2000,
+          icon: '✓',
+          style: {
+            background: 'rgba(16, 185, 129, 0.95)',
+            color: '#fff',
+          },
+        });
+        setTimeout(() => {
+          setCopiedAddress(false);
+        }, 2000);
+      }).catch((err) => {
+        logger.error('Clipboard API failed, trying execCommand:', err);
+        // Fall through to execCommand
+        tryExecCommand();
+      });
+      return true; // Assume it will work (async)
+    }
+    
+    // ✅ Method 2: Fallback to execCommand
+    return tryExecCommand();
+  };
+  
+  // ✅ execCommand fallback
+  const tryExecCommand = () => {
+    if (!displayAddress) return false;
+    
     try {
       const textArea = document.createElement('textarea');
       textArea.value = displayAddress;
       
-      // ✅ Critical: Textarea must be in viewport for iOS/PWA
+      // ✅ Textarea styling for maximum compatibility
       textArea.style.position = 'fixed';
       textArea.style.top = '0';
       textArea.style.left = '0';
-      textArea.style.width = '2em';
-      textArea.style.height = '2em';
+      textArea.style.width = '2px';
+      textArea.style.height = '2px';
       textArea.style.padding = '0';
+      textArea.style.margin = '0';
       textArea.style.border = 'none';
       textArea.style.outline = 'none';
       textArea.style.boxShadow = 'none';
       textArea.style.background = 'transparent';
       textArea.style.opacity = '0';
-      textArea.style.zIndex = '-1';
+      textArea.style.zIndex = '-9999';
       textArea.setAttribute('readonly', '');
       textArea.setAttribute('aria-hidden', 'true');
       
       document.body.appendChild(textArea);
       
-      // ✅ Select text properly
+      // ✅ Select text - try multiple methods
       textArea.focus();
       textArea.select();
       textArea.setSelectionRange(0, displayAddress.length);
       
-      // ✅ For iOS, also use selection API
-      if (navigator.userAgent.match(/ipad|iphone/i)) {
+      // ✅ For iOS/Safari
+      if (navigator.userAgent.match(/ipad|iphone|safari/i) && !navigator.userAgent.match(/chrome|crios|fxios/i)) {
         const range = document.createRange();
         range.selectNodeContents(textArea);
         const selection = window.getSelection();
@@ -1741,7 +1775,7 @@ export default function Dashboard() {
         }
       }
       
-      // ✅ Execute copy command
+      // ✅ Execute copy
       const successful = document.execCommand('copy');
       
       // Clean up
@@ -1769,33 +1803,7 @@ export default function Dashboard() {
       }
     } catch (error) {
       logger.error('execCommand failed:', error);
-      
-      // ✅ Fallback: Try Clipboard API
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(displayAddress).then(() => {
-          setCopiedAddress(true);
-          if ('vibrate' in navigator) {
-            navigator.vibrate(50);
-          }
-          toast.success('Address copied!', {
-            duration: 2000,
-            icon: '✓',
-            style: {
-              background: 'rgba(16, 185, 129, 0.95)',
-              color: '#fff',
-            },
-          });
-          setTimeout(() => {
-            setCopiedAddress(false);
-          }, 2000);
-        }).catch((err) => {
-          logger.error('Clipboard API also failed:', err);
-          toast.error('Copy failed. Please select and copy manually.', { duration: 3000 });
-        });
-        return true; // Assume it will work (async)
-      }
-      
-      toast.error('Copy not supported. Please select and copy manually.', { duration: 3000 });
+      toast.error('Copy failed. Please try again.', { duration: 3000 });
       return false;
     }
   };
