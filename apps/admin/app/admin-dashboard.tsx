@@ -6,7 +6,7 @@ import {
   Users, TrendingUp, AlertTriangle, RefreshCw, DollarSign, Activity, 
   Shield, LogOut, User, Bell, ArrowUpRight, ArrowDownLeft, Repeat,
   ShoppingCart, Zap, Clock, CheckCircle2, XCircle, Target, BarChart3,
-  Search, Filter, ChevronRight, Eye, Calendar, Wallet
+  Search, Filter, ChevronRight, Eye, Calendar, Wallet, Mail
 } from 'lucide-react';
 import { logger } from '@/lib/logger';
 
@@ -75,7 +75,7 @@ export default function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
-  const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'users' | 'onramp'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'users' | 'onramp' | 'emails'>('overview');
 
   useEffect(() => {
     loadUserInfo();
@@ -275,6 +275,9 @@ export default function AdminDashboard() {
             </TabButton>
             <TabButton active={activeTab === 'onramp'} onClick={() => setActiveTab('onramp')} icon={<ShoppingCart className="w-4 h-4" />}>
               Onramp
+            </TabButton>
+            <TabButton active={activeTab === 'emails'} onClick={() => setActiveTab('emails')} icon={<Mail className="w-4 h-4" />}>
+              Emails
             </TabButton>
           </div>
         </div>
@@ -613,6 +616,11 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* Emails Tab */}
+        {activeTab === 'emails' && (
+          <EmailsTab />
+        )}
+
         {/* System Status */}
         <div className="mt-8 flex items-center justify-between p-4 bg-white rounded-xl border border-gray-200">
           <div className="flex items-center gap-3">
@@ -803,5 +811,912 @@ function SegmentBadge({ segment }: { segment: string }) {
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${style.bg} ${style.text}`}>
       {style.label}
     </span>
+  );
+}
+
+// Emails Tab Component
+function EmailsTab() {
+  const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const emails = [
+    {
+      id: 'welcome-verification',
+      name: 'Welcome & Email Verification',
+      description: 'Sent when user signs up with email wallet. Includes verification link.',
+      subject: '🔥 Welcome to BLAZE Wallet - Verify Your Email',
+      location: 'lib/email-template.ts',
+      function: 'generateWalletStyleEmail',
+      apiRoutes: ['/api/send-welcome-email', '/api/auth/resend-verification'],
+      code: `// File: lib/email-template.ts
+export function generateWalletStyleEmail(data: WalletWelcomeEmailParams): string {
+  const { verificationLink } = data;
+  const logoUrl = \`\${ASSET_BASE_URL}/icons/icon-512x512.png\`;
+
+  return \`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to BLAZE Wallet</title>
+  <!--[if mso]>
+    <style type="text/css">
+      body, table, td {font-family: Arial, Helvetica, sans-serif !important;}
+      img {border: 0 !important; outline: none !important; text-decoration: none !important;}
+    </style>
+  <![endif]-->
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5;">
+  
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #f5f5f5; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="640" cellpadding="0" cellspacing="0" border="0" style="max-width: 640px; background: white; box-shadow: 0 2px 24px rgba(0,0,0,0.08);">
+          
+          <!-- Header -->
+          <tr>
+            <td style="padding: 48px 48px 40px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding-bottom: 24px; border-bottom: 2px solid #f97316;">
+                    <img src="\${logoUrl}" alt="BLAZE Wallet" width="56" height="56" style="display: block; border-radius: 12px;" />
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Hero -->
+          <tr>
+            <td style="padding: 0 48px 40px;">
+              <h1 style="margin: 0 0 24px; font-size: 38px; font-weight: 700; color: #111827; line-height: 1.2; letter-spacing: -0.02em;">
+                Welcome to the new era of crypto
+              </h1>
+              
+              <div style="width: 60px; height: 4px; background: linear-gradient(90deg, #f97316 0%, #fb923c 100%); border-radius: 2px; margin-bottom: 32px;"></div>
+              
+              <p style="margin: 0 0 20px; font-size: 19px; line-height: 1.7; color: #374151;">
+                Thank you for choosing BLAZE—the most advanced multi-chain wallet built for serious crypto users who demand more.
+              </p>
+              
+              <p style="margin: 0 0 20px; font-size: 19px; line-height: 1.7; color: #374151;">
+                You're joining thousands of users who've discovered that managing crypto doesn't have to be complicated, insecure, or unrewarding. With BLAZE, you get the perfect balance: enterprise-level security meets consumer-grade simplicity.
+              </p>
+
+              <p style="margin: 0; font-size: 19px; line-height: 1.7; color: #374151;">
+                Here's what sets us apart from every other wallet on the market:
+              </p>
+            </td>
+          </tr>
+
+          <!-- Features -->
+          <tr>
+            <td style="padding: 0 48px 48px;">
+              
+              <!-- Feature 1 -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 36px; padding-bottom: 36px; border-bottom: 1px solid #f3f4f6;">
+                <tr>
+                  <td width="80" valign="top" style="padding-right: 20px;">
+                    <div style="font-size: 32px; font-weight: 800; color: #3b82f6; opacity: 0.3; font-family: monospace;">01</div>
+                  </td>
+                  <td>
+                    <h3 style="margin: 0 0 12px; font-size: 21px; font-weight: 700; color: #111827; letter-spacing: -0.01em;">
+                      True multi-chain freedom
+                    </h3>
+                    <p style="margin: 0; font-size: 16px; line-height: 1.7; color: #6b7280;">
+                      Stop juggling multiple wallets. BLAZE natively supports 18+ blockchains including Ethereum, Bitcoin, Solana, Polygon, Arbitrum, Optimism, and more. One seed phrase. One interface. Total control.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+              
+              <!-- Feature 2 -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 36px; padding-bottom: 36px; border-bottom: 1px solid #f3f4f6;">
+                <tr>
+                  <td width="80" valign="top" style="padding-right: 20px;">
+                    <div style="font-size: 32px; font-weight: 800; color: #8b5cf6; opacity: 0.3; font-family: monospace;">02</div>
+                  </td>
+                  <td>
+                    <h3 style="margin: 0 0 12px; font-size: 21px; font-weight: 700; color: #111827; letter-spacing: -0.01em;">
+                      AI-powered intelligence
+                    </h3>
+                    <p style="margin: 0; font-size: 16px; line-height: 1.7; color: #6b7280;">
+                      Our AI doesn't just sit there—it actively protects you from scams, suggests portfolio optimizations, schedules transactions during low-gas periods, and provides insights that help you make smarter decisions.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+              
+              <!-- Feature 3 -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 36px; padding-bottom: 36px; border-bottom: 1px solid #f3f4f6;">
+                <tr>
+                  <td width="80" valign="top" style="padding-right: 20px;">
+                    <div style="font-size: 32px; font-weight: 800; color: #10b981; opacity: 0.3; font-family: monospace;">03</div>
+                  </td>
+                  <td>
+                    <h3 style="margin: 0 0 12px; font-size: 21px; font-weight: 700; color: #111827; letter-spacing: -0.01em;">
+                      Rewards that actually matter
+                    </h3>
+                    <p style="margin: 0; font-size: 16px; line-height: 1.7; color: #6b7280;">
+                      Earn 2% cashback in BLAZE tokens on every transaction. Stake your tokens for up to 20% APY. Participate in governance. Most wallets take from you—BLAZE gives back.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+              
+              <!-- Feature 4 -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td width="80" valign="top" style="padding-right: 20px;">
+                    <div style="font-size: 32px; font-weight: 800; color: #f59e0b; opacity: 0.3; font-family: monospace;">04</div>
+                  </td>
+                  <td>
+                    <h3 style="margin: 0 0 12px; font-size: 21px; font-weight: 700; color: #111827; letter-spacing: -0.01em;">
+                      Security without compromise
+                    </h3>
+                    <p style="margin: 0; font-size: 16px; line-height: 1.7; color: #6b7280;">
+                      Face ID, hardware encryption, WebAuthn, optional hardware wallet integration. Your private keys never leave your device. We have zero access to your funds. Ever.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- Verification CTA -->
+          \${verificationLink ? \`
+          <tr>
+            <td style="background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); padding: 48px; text-align: center;">
+              <h2 style="margin: 0 0 16px; font-size: 28px; font-weight: 700; color: #111827; letter-spacing: -0.01em;">
+                Ready to get started?
+              </h2>
+              <p style="margin: 0 0 32px; font-size: 17px; line-height: 1.6; color: #78350f; max-width: 480px; margin-left: auto; margin-right: auto;">
+                First, let's verify your email address to ensure your account is secure and you can access all features.
+              </p>
+              <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
+                <tr>
+                  <td style="background: #111827; border-radius: 10px;">
+                    <a href="\${verificationLink}" style="display: block; padding: 18px 48px; color: white; text-decoration: none; font-weight: 600; font-size: 17px; letter-spacing: -0.01em;">
+                      Verify email address →
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin: 24px 0 0; font-size: 14px; color: #92400e;">
+                Verification link expires in 24 hours
+              </p>
+            </td>
+          </tr>
+          \` : ''}
+
+          <!-- Getting Started -->
+          <tr>
+            <td style="padding: 48px;">
+              <h3 style="margin: 0 0 28px; font-size: 24px; font-weight: 700; color: #111827; letter-spacing: -0.01em;">
+                Your BLAZE journey in 4 steps
+              </h3>
+              
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="padding-bottom: 24px;">
+                    <table cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="padding-right: 20px;" valign="top">
+                          <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #f97316 0%, #fb923c 100%); border-radius: 8px; color: white; font-weight: 700; font-size: 16px; text-align: center; line-height: 36px;">1</div>
+                        </td>
+                        <td style="padding-top: 2px;">
+                          <div style="font-size: 17px; font-weight: 600; color: #111827; margin-bottom: 6px;">Verify your email</div>
+                          <div style="font-size: 16px; color: #6b7280; line-height: 1.6;">Click the button above to activate your account</div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                
+                <tr>
+                  <td style="padding-bottom: 24px;">
+                    <table cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="padding-right: 20px;" valign="top">
+                          <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #f97316 0%, #fb923c 100%); border-radius: 8px; color: white; font-weight: 700; font-size: 16px; text-align: center; line-height: 36px;">2</div>
+                        </td>
+                        <td style="padding-top: 2px;">
+                          <div style="font-size: 17px; font-weight: 600; color: #111827; margin-bottom: 6px;">Add your first assets</div>
+                          <div style="font-size: 16px; color: #6b7280; line-height: 1.6;">Transfer from an exchange, buy with a card, or receive from another wallet</div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                
+                <tr>
+                  <td style="padding-bottom: 24px;">
+                    <table cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="padding-right: 20px;" valign="top">
+                          <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #f97316 0%, #fb923c 100%); border-radius: 8px; color: white; font-weight: 700; font-size: 16px; text-align: center; line-height: 36px;">3</div>
+                        </td>
+                        <td style="padding-top: 2px;">
+                          <div style="font-size: 17px; font-weight: 600; color: #111827; margin-bottom: 6px;">Explore AI features</div>
+                          <div style="font-size: 16px; color: #6b7280; line-height: 1.6;">Let our Portfolio Advisor analyze your holdings and suggest optimizations</div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                
+                <tr>
+                  <td>
+                    <table cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td style="padding-right: 20px;" valign="top">
+                          <div style="width: 36px; height: 36px; background: linear-gradient(135deg, #f97316 0%, #fb923c 100%); border-radius: 8px; color: white; font-weight: 700; font-size: 16px; text-align: center; line-height: 36px;">4</div>
+                        </td>
+                        <td style="padding-top: 2px;">
+                          <div style="font-size: 17px; font-weight: 600; color: #111827; margin-bottom: 6px;">Activate rewards</div>
+                          <div style="font-size: 16px; color: #6b7280; line-height: 1.6;">Enable staking to start earning up to 20% APY on BLAZE tokens</div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Support -->
+          <tr>
+            <td style="background: #fafafa; padding: 40px 48px; text-align: center;">
+              <p style="margin: 0 0 8px; font-size: 17px; line-height: 1.7; color: #374151;">
+                Questions? Our support team is available 24/7
+              </p>
+              <a href="mailto:support@blazewallet.io" style="font-size: 17px; font-weight: 600; color: #f97316; text-decoration: none;">
+                support@blazewallet.io
+              </a>
+            </td>
+          </tr>
+
+          <!-- Signature -->
+          <tr>
+            <td style="padding: 40px 48px;">
+              <p style="margin: 0 0 8px; font-size: 18px; color: #374151;">
+                Welcome aboard,
+              </p>
+              <p style="margin: 0; font-size: 18px; font-weight: 600; color: #111827;">
+                The BLAZE team
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background: #111827; padding: 32px 48px; text-align: center;">
+              <div style="margin-bottom: 20px;">
+                <div style="font-size: 14px; font-weight: 600; color: white; margin-bottom: 6px; letter-spacing: 0.5px;">
+                  BLAZE WALLET
+                </div>
+                <div style="font-size: 13px; color: #9ca3af;">
+                  The future of multi-chain crypto management
+                </div>
+              </div>
+              
+              <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto 20px;">
+                <tr>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/wallet" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Wallet</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/about" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">About</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/security" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Security</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/support" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Support</a></td>
+                  <td style="padding: 0 10px;"><a href="https://my.blazewallet.io/privacy" style="color: #9ca3af; text-decoration: none; font-size: 13px; font-weight: 500;">Privacy policy</a></td>
+                </tr>
+              </table>
+              
+              <div style="font-size: 12px; color: #6b7280; line-height: 1.6;">
+                © 2025 BLAZE Wallet. All rights reserved.<br />
+                This email was sent because you created an account at my.blazewallet.io
+              </div>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
+\`;
+}`
+    },
+    {
+      id: 'device-verification-code',
+      name: 'Device Verification Code (6-digit)',
+      description: 'Sent when user needs to verify a new device with a 6-digit code.',
+      subject: '🔐 Device Verification Code - BLAZE Wallet',
+      location: 'app/api/device-verification-code/route.ts',
+      function: 'generateVerificationCodeEmail',
+      apiRoutes: ['/api/device-verification-code'],
+      code: `// File: app/api/device-verification-code/route.ts
+function generateVerificationCodeEmail(deviceName: string, code: string, location?: string): string {
+  return \`
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Device Verification Code - BLAZE Wallet</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); min-height: 100vh;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" style="max-width: 600px; width: 100%; background: white; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden;">
+          
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); padding: 40px 30px; text-align: center;">
+              <h1 style="margin: 0; color: #FFFFFF; font-size: 28px; font-weight: bold;">Device Verification Code</h1>
+            </td>
+          </tr>
+          
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px 30px;">
+              <div style="background: #FEF3C7; border-left: 4px solid #F59E0B; padding: 16px; margin-bottom: 30px; border-radius: 8px;">
+                <p style="margin: 0; color: #92400E; font-size: 14px; font-weight: 600;">🔐 Security Verification</p>
+                <p style="margin: 8px 0 0 0; color: #92400E; font-size: 14px;">A login attempt was made from a new device.</p>
+              </div>
+              
+              <h2 style="margin: 0 0 20px 0; color: #1F2937; font-size: 20px;">Enter this code to verify:</h2>
+              
+              <div style="background: #F9FAFB; border: 2px solid #E5E7EB; border-radius: 12px; padding: 30px; margin-bottom: 30px; text-align: center;">
+                <div style="font-size: 48px; font-weight: bold; color: #FF6B35; letter-spacing: 8px; font-family: 'Courier New', monospace;">
+                  \${code}
+                </div>
+              </div>
+              
+              <div style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
+                <p style="margin: 0 0 12px 0; color: #6B7280; font-size: 14px;">
+                  <strong style="color: #1F2937;">Device:</strong> \${deviceName}
+                </p>
+                \${location ? \`<p style="margin: 0 0 12px 0; color: #6B7280; font-size: 14px;">
+                  <strong style="color: #1F2937;">Location:</strong> \${location}
+                </p>\` : ''}
+                <p style="margin: 0; color: #6B7280; font-size: 14px;">
+                  <strong style="color: #1F2937;">Code expires in:</strong> 10 minutes
+                </p>
+              </div>
+              
+              <p style="margin: 0; color: #6B7280; font-size: 14px; text-align: center;">
+                If you didn't attempt to log in, please ignore this email or contact support immediately.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  \`.trim();
+}`
+    },
+    {
+      id: 'device-verification-link',
+      name: 'Device Verification Link',
+      description: 'Sent when user needs to verify a new device via link (legacy flow).',
+      subject: '🔐 New Device Login - BLAZE Wallet',
+      location: 'app/api/verify-device/route.ts',
+      function: 'generateDeviceVerificationEmail',
+      apiRoutes: ['/api/verify-device'],
+      code: `// File: app/api/verify-device/route.ts
+function generateDeviceVerificationEmail(deviceName: string, verificationLink: string, location?: string): string {
+  const ASSET_BASE_URL = 'https://my.blazewallet.io';
+  const CACHE_BUST = Date.now();
+  
+  return \`
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Device Login - BLAZE Wallet</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" style="max-width: 600px; width: 100%; background: white; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden;">
+          
+          <!-- Header with gradient -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); padding: 40px 30px; text-align: center;">
+              <img src="\${ASSET_BASE_URL}/email/blaze-icon-white.png?v=\${CACHE_BUST}" alt="BLAZE" style="width: 80px; height: 80px; margin-bottom: 20px;" />
+              <h1 style="margin: 0; color: #FFFFFF; font-size: 28px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">New Device Login Detected</h1>
+            </td>
+          </tr>
+          
+          <!-- Alert Section -->
+          <tr>
+            <td style="padding: 40px 30px;">
+              <div style="background: #FEF3C7; border-left: 4px solid #F59E0B; padding: 16px; margin-bottom: 30px; border-radius: 8px;">
+                <p style="margin: 0; color: #92400E; font-size: 14px; font-weight: 600;">🔐 Security Alert</p>
+                <p style="margin: 8px 0 0 0; color: #92400E; font-size: 14px;">We detected a login from a new device.</p>
+              </div>
+              
+              <h2 style="margin: 0 0 20px 0; color: #1F2937; font-size: 20px;">Device Details:</h2>
+              
+              <div style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
+                <p style="margin: 0 0 12px 0; color: #6B7280; font-size: 14px;">
+                  <strong style="color: #1F2937;">Device:</strong> \${deviceName}
+                </p>
+                \${location ? \`
+                <p style="margin: 0 0 12px 0; color: #6B7280; font-size: 14px;">
+                  <strong style="color: #1F2937;">Location:</strong> \${location}
+                </p>
+                \` : ''}
+                <p style="margin: 0; color: #6B7280; font-size: 14px;">
+                  <strong style="color: #1F2937;">Time:</strong> \${new Date().toLocaleString('en-US', { 
+                    dateStyle: 'long', 
+                    timeStyle: 'short' 
+                  })}
+                </p>
+              </div>
+              
+              <p style="margin: 0 0 24px 0; color: #1F2937; font-size: 16px; line-height: 1.6; font-weight: 500;">
+                If this was you, please verify this device by clicking the button below. This will add it to your trusted devices list.
+              </p>
+              
+              <!-- CTA Button -->
+              <table role="presentation" style="width: 100%; margin-bottom: 30px;">
+                <tr>
+                  <td align="center">
+                    <a href="\${verificationLink}" style="display: inline-block; padding: 16px 48px; background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%); color: #FFFFFF; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4); text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                      Verify This Device
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              
+              <div style="background: #FEE2E2; border: 1px solid #FCA5A5; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
+                <p style="margin: 0 0 8px 0; color: #991B1B; font-size: 14px; font-weight: 600;">⚠️ Wasn't you?</p>
+                <p style="margin: 0; color: #991B1B; font-size: 14px; line-height: 1.6;">
+                  If you didn't attempt to log in, your account may be compromised. Please:
+                </p>
+                <ul style="margin: 12px 0 0 0; padding-left: 20px; color: #991B1B; font-size: 14px;">
+                  <li>Change your password immediately</li>
+                  <li>Enable two-factor authentication</li>
+                  <li>Review your trusted devices</li>
+                  <li>Contact support if needed</li>
+                </ul>
+              </div>
+              
+              <p style="margin: 0; color: #6B7280; font-size: 14px; line-height: 1.6;">
+                This verification link will expire in <strong>24 hours</strong>. Unverified devices will be automatically removed.
+              </p>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="background: #F9FAFB; padding: 30px; text-align: center; border-top: 1px solid #E5E7EB;">
+              <p style="margin: 0 0 8px 0; color: #6B7280; font-size: 14px;">
+                Need help? Visit <a href="https://my.blazewallet.io/support" style="color: #FF6B35; text-decoration: none;">BLAZE Support</a>
+              </p>
+              <p style="margin: 0; color: #9CA3AF; font-size: 12px;">
+                © 2024 BLAZE Wallet. All rights reserved.
+              </p>
+            </td>
+          </tr>
+          
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  \`.trim();
+}`
+    },
+    {
+      id: 'device-verification-service',
+      name: 'Device Verification Email (via email-service)',
+      description: 'Alternative device verification email template in email-service.ts (used by sendDeviceVerificationEmail function).',
+      subject: '🔐 Verify Your New Device - BLAZE Wallet',
+      location: 'lib/email-service.ts',
+      function: 'getDeviceVerificationEmailHTML',
+      apiRoutes: ['Used by sendDeviceVerificationEmail()'],
+      code: `// File: lib/email-service.ts
+function getDeviceVerificationEmailHTML(
+  code: string,
+  deviceInfo: {
+    deviceName: string;
+    location: string;
+    ipAddress: string;
+    browser: string;
+    os: string;
+  }
+): string {
+  return \`
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify Your Device - BLAZE Wallet</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f9fafb;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 24px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #f97316 0%, #eab308 100%);
+      padding: 40px 30px;
+      text-align: center;
+      color: white;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 700;
+    }
+    .content {
+      padding: 40px 30px;
+    }
+    .code-box {
+      background: linear-gradient(135deg, #f97316 0%, #eab308 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 16px;
+      text-align: center;
+      margin: 30px 0;
+    }
+    .code {
+      font-size: 48px;
+      font-weight: 700;
+      letter-spacing: 8px;
+      margin: 10px 0;
+      font-family: 'Courier New', monospace;
+    }
+    .device-info {
+      background: #f9fafb;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    .device-row {
+      display: flex;
+      padding: 8px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .device-row:last-child {
+      border-bottom: none;
+    }
+    .device-label {
+      font-weight: 600;
+      color: #6b7280;
+      min-width: 100px;
+    }
+    .device-value {
+      color: #111827;
+    }
+    .warning {
+      background: #fef3c7;
+      border: 2px solid #fbbf24;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    .warning-title {
+      font-weight: 700;
+      color: #92400e;
+      margin: 0 0 10px 0;
+    }
+    .warning-text {
+      color: #92400e;
+      margin: 0;
+    }
+    .footer {
+      text-align: center;
+      padding: 30px;
+      color: #6b7280;
+      font-size: 14px;
+    }
+    @media (max-width: 600px) {
+      .code {
+        font-size: 36px;
+        letter-spacing: 4px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div class="header">
+        <h1>🔐 Verify Your Device</h1>
+      </div>
+      
+      <div class="content">
+        <p style="font-size: 16px; color: #374151; line-height: 1.6;">
+          We detected a login attempt from a new device. To keep your wallet secure, please verify this device with the code below:
+        </p>
+        
+        <div class="code-box">
+          <div style="font-size: 14px; color: white; opacity: 0.9; margin-bottom: 5px;">Your Verification Code</div>
+          <div style="font-size: 48px; font-weight: 700; letter-spacing: 8px; margin: 10px 0; font-family: 'Courier New', monospace; color: white;">\${code}</div>
+          <div style="font-size: 14px; color: white; opacity: 0.9; margin-top: 5px;">Valid for 15 minutes</div>
+        </div>
+        
+        <p style="font-size: 16px; color: #374151; line-height: 1.6;">
+          After entering this code, you'll be asked to provide your 2FA code from your authenticator app.
+        </p>
+        
+        <div class="device-info">
+          <div style="font-weight: 700; color: #111827; margin-bottom: 12px;">📱 Device Details</div>
+          <div class="device-row">
+            <div class="device-label">Device:</div>
+            <div class="device-value">\${deviceInfo.deviceName}</div>
+          </div>
+          <div class="device-row">
+            <div class="device-label">Browser:</div>
+            <div class="device-value">\${deviceInfo.browser}</div>
+          </div>
+          <div class="device-row">
+            <div class="device-label">OS:</div>
+            <div class="device-value">\${deviceInfo.os}</div>
+          </div>
+          <div class="device-row">
+            <div class="device-label">Location:</div>
+            <div class="device-value">\${deviceInfo.location}</div>
+          </div>
+          <div class="device-row">
+            <div class="device-label">IP Address:</div>
+            <div class="device-value">\${deviceInfo.ipAddress}</div>
+          </div>
+        </div>
+
+        <div class="warning">
+          <div class="warning-title">⚠️ Didn't try to log in?</div>
+          <p class="warning-text">
+            If you didn't attempt to access your wallet from this device, someone may be trying to access your account. Please change your password immediately and enable additional security measures.
+          </p>
+        </div>
+      </div>
+
+      <div class="footer">
+        <p style="margin: 0 0 10px 0;">
+          This is an automated security email from BLAZE Wallet.
+        </p>
+        <p style="margin: 0;">
+          © \${new Date().getFullYear()} BLAZE Wallet. All rights reserved.
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+  \`;
+}`
+    },
+    {
+      id: 'security-alert',
+      name: 'Security Alert Email',
+      description: 'Sent for suspicious login attempts, new device logins, or password changes. Currently only logs to console (not implemented).',
+      subject: '🚨 Suspicious Login Blocked - BLAZE Wallet | 🔔 New Device Login - BLAZE Wallet | ✅ Password Changed - BLAZE Wallet',
+      location: 'app/api/security-alert/route.ts',
+      function: 'sendSecurityAlertEmail',
+      apiRoutes: ['/api/security-alert'],
+      code: `// File: app/api/security-alert/route.ts
+// ⚠️ NOTE: This email is NOT YET IMPLEMENTED - only logs to console
+async function sendSecurityAlertEmail(
+  email: string,
+  deviceInfo: EnhancedDeviceInfo,
+  alertType: string
+) {
+  // Format alert message based on type
+  let subject = '';
+  let title = '';
+  let message = '';
+  let action = '';
+  
+  switch (alertType) {
+    case 'suspicious_login_blocked':
+      subject = '🚨 Suspicious Login Blocked - BLAZE Wallet';
+      title = 'Suspicious Login Blocked';
+      message = \`We blocked a suspicious login attempt to your BLAZE Wallet account from a high-risk device (Risk Score: \${deviceInfo.riskScore}/100).\`;
+      action = 'If this was you, please contact support. If not, your account is safe.';
+      break;
+    case 'new_device_login':
+      subject = '🔔 New Device Login - BLAZE Wallet';
+      title = 'New Device Detected';
+      message = 'A new device was used to access your BLAZE Wallet account.';
+      action = 'If this wasn\\'t you, change your password immediately and contact support.';
+      break;
+    case 'password_changed':
+      subject = '✅ Password Changed - BLAZE Wallet';
+      title = 'Password Changed';
+      message = 'Your BLAZE Wallet password was successfully changed.';
+      action = 'If you didn\\'t make this change, contact support immediately.';
+      break;
+  }
+  
+  // TODO: Implement actual email sending
+  // For now, log to console
+  console.log('🚨 SECURITY ALERT');
+  console.log(\`To: \${email}\`);
+  console.log(\`Subject: \${subject}\`);
+  console.log(\`Title: \${title}\`);
+  console.log(\`Message: \${message}\`);
+  console.log(\`Device: \${deviceInfo.deviceName}\`);
+  console.log(\`Location: \${deviceInfo.location.city}, \${deviceInfo.location.country}\`);
+  console.log(\`IP: \${deviceInfo.ipAddress}\`);
+  console.log(\`Risk Score: \${deviceInfo.riskScore}/100\`);
+  console.log(\`TOR: \${deviceInfo.isTor}, VPN: \${deviceInfo.isVPN}\`);
+  
+  return true;
+}`
+    },
+    {
+      id: 'priority-list-user',
+      name: 'Priority List User Confirmation',
+      description: 'Sent to users who register for priority list with email. Currently a stub (not fully implemented).',
+      subject: '🔥 Welcome to BLAZE Priority List - Confirm Your Email!',
+      location: 'lib/email-service.ts',
+      function: 'generateUserConfirmationEmail',
+      apiRoutes: ['Used by lib/priority-list-service.ts'],
+      code: `// File: lib/email-service.ts
+// ⚠️ NOTE: This is a STUB - not fully implemented
+export function generateUserConfirmationEmail(params: any): string {
+  return \`<html><body><h1>Thank you for registering!</h1><p>Wallet: \${params.walletAddress}</p></body></html>\`;
+}`
+    },
+    {
+      id: 'priority-list-admin',
+      name: 'Priority List Admin Notification',
+      description: 'Sent to admin (info@blazewallet.io) when someone registers for priority list. Currently a stub (not fully implemented).',
+      subject: '🔥 New Priority List Registration #X - [wallet]',
+      location: 'lib/email-service.ts',
+      function: 'generateAdminNotificationEmail',
+      apiRoutes: ['Used by lib/priority-list-service.ts'],
+      code: `// File: lib/email-service.ts
+// ⚠️ NOTE: This is a STUB - not fully implemented
+export function generateAdminNotificationEmail(params: any): string {
+  return \`<html><body><h1>New Registration</h1><p>Wallet: \${params.walletAddress}</p></body></html>\`;
+}`
+    }
+  ];
+
+  const handleCopy = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(id);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white rounded-2xl p-6 shadow-soft border border-gray-200">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center">
+            <Mail className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h3 className="font-bold text-gray-900">Email Templates Overview</h3>
+            <p className="text-sm text-gray-500">All emails sent from BLAZE Wallet with exact code</p>
+          </div>
+        </div>
+        <p className="text-sm text-gray-600 mb-4">
+          This page shows all email templates used in BLAZE Wallet. Each template includes the exact code, location, and API routes that trigger it.
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        {emails.map((email) => (
+          <div key={email.id} className="bg-white rounded-2xl shadow-soft border border-gray-200 overflow-hidden">
+            <div 
+              className="p-6 cursor-pointer hover:bg-gray-50 transition-colors"
+              onClick={() => setSelectedEmail(selectedEmail === email.id ? null : email.id)}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h4 className="text-lg font-bold text-gray-900">{email.name}</h4>
+                    {email.id === 'security-alert' && (
+                      <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded">Not Implemented</span>
+                    )}
+                    {(email.id === 'priority-list-user' || email.id === 'priority-list-admin') && (
+                      <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded">Stub</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">{email.description}</p>
+                  <div className="flex flex-wrap gap-4 text-xs text-gray-500">
+                    <div>
+                      <span className="font-medium">Subject:</span> {email.subject}
+                    </div>
+                    <div>
+                      <span className="font-medium">Location:</span> {email.location}
+                    </div>
+                    <div>
+                      <span className="font-medium">Function:</span> {email.function}
+                    </div>
+                    <div>
+                      <span className="font-medium">API Routes:</span> {email.apiRoutes.join(', ')}
+                    </div>
+                  </div>
+                </div>
+                <ChevronRight 
+                  className={`w-5 h-5 text-gray-400 transition-transform ${selectedEmail === email.id ? 'rotate-90' : ''}`}
+                />
+              </div>
+            </div>
+            
+            {selectedEmail === email.id && (
+              <div className="border-t border-gray-200 bg-gray-50 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h5 className="font-semibold text-gray-900">Email Template Code</h5>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopy(email.code, email.id);
+                    }}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors text-sm"
+                  >
+                    {copied === email.id ? (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-4 h-4" />
+                        Copy Code
+                      </>
+                    )}
+                  </button>
+                </div>
+                <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-xs font-mono">
+                  <code>{email.code}</code>
+                </pre>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+            <Mail className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <h4 className="font-semibold text-blue-900 mb-2">Email Management</h4>
+            <p className="text-sm text-blue-800 mb-3">
+              To edit email templates, modify the source files directly. Changes will be reflected immediately after deployment.
+            </p>
+            <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
+              <li>Welcome/Verification: <code className="bg-blue-100 px-1 rounded">lib/email-template.ts</code></li>
+              <li>Device Verification Code: <code className="bg-blue-100 px-1 rounded">app/api/device-verification-code/route.ts</code></li>
+              <li>Device Verification Link: <code className="bg-blue-100 px-1 rounded">app/api/verify-device/route.ts</code></li>
+              <li>Device Verification (Service): <code className="bg-blue-100 px-1 rounded">lib/email-service.ts</code></li>
+              <li>Security Alert: <code className="bg-blue-100 px-1 rounded">app/api/security-alert/route.ts</code> (needs implementation)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
