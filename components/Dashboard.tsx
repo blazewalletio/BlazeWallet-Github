@@ -1701,6 +1701,7 @@ export default function Dashboard() {
   };
 
   // ✅ Mobile: Long-press handler (industry standard: 500ms)
+  // ✅ CRITICAL: Store touch event for clipboard API (needs user gesture)
   const handleTouchStart = (e: React.TouchEvent) => {
     // Don't prevent default - allow normal touch behavior
     touchStartTimeRef.current = Date.now();
@@ -1715,7 +1716,8 @@ export default function Dashboard() {
         navigator.vibrate(30); // Subtle vibration to indicate long-press detected
       }
       
-      // Copy address after long-press
+      // ✅ CRITICAL: Copy address immediately while touch event is still "active"
+      // This ensures clipboard API works in PWA (needs to be within user gesture context)
       copyAddressToClipboard();
     }, 500);
   };
