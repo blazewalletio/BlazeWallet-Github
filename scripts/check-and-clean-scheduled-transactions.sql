@@ -46,3 +46,4 @@ WHERE status IN ('pending', 'executing', 'ready')
 GROUP BY chain, status
 ORDER BY chain, status;
 
+

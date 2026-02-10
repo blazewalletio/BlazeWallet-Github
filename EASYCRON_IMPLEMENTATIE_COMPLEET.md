@@ -201,3 +201,4 @@ Als er problemen zijn:
 **Laatste update**: 29 december 2025  
 **Status**: ✅ Code klaar, wacht op EasyCron configuratie
 
+

@@ -12,3 +12,4 @@ WHERE verification_code_expires_at IS NOT NULL;
 -- Add comment
 COMMENT ON COLUMN trusted_devices.verification_code_expires_at IS 'Expiry timestamp for email verification code (6-digit code)';
 
+

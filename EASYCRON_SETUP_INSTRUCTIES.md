@@ -210,3 +210,4 @@ Als er problemen zijn:
 **Laatste update**: 29 december 2025
 **Status**: Klaar voor implementatie ✅
 
+

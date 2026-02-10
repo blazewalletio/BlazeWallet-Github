@@ -190,3 +190,4 @@ LIMIT 1;
 **Laatste update**: 29 december 2025, 11:40 UTC
 **Status**: Wacht op error_message check en environment variable verificatie
 
+

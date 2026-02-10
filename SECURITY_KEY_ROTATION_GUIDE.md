@@ -111,3 +111,4 @@ git push origin main
 **Laatste update**: 29 december 2025  
 **Status**: Documentatie compleet
 
+

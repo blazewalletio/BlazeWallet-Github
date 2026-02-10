@@ -520,3 +520,4 @@ Documentatie + security comments (implementatie later)
 **Laatste update**: 29 december 2025, 14:05 UTC  
 **Status**: ✅ Finaal voorstel compleet - Klaar voor implementatie
 
+

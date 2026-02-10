@@ -185,3 +185,4 @@ if (toTokenAccounts.value.length === 0) {
 **Laatste update**: 29 december 2025, 11:45 UTC  
 **Status**: ✅ Diagnose compleet - Code fix nodig in `lib/transaction-executor.ts`
 
+

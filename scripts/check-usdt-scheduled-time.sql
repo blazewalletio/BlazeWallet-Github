@@ -24,3 +24,4 @@ WHERE token_symbol = 'USDT'
 ORDER BY created_at DESC
 LIMIT 1;
 
+

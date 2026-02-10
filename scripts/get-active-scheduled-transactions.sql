@@ -39,3 +39,4 @@ FROM scheduled_transactions
 WHERE status IN ('pending', 'executing', 'ready')
 GROUP BY status;
 
+

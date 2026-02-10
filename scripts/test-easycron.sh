@@ -78,3 +78,4 @@ echo "   2. Wait 5 minutes for automatic execution"
 echo "   3. Check EasyCron execution history"
 echo "   4. Check Vercel logs for execution logs"
 
+

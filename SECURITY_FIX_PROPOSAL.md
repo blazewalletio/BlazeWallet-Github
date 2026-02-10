@@ -354,3 +354,4 @@ export function sanitizeError(error: any, isDevelopment: boolean): {
 **Laatste update**: 29 december 2025, 14:00 UTC  
 **Status**: Finaal voorstel compleet - Klaar voor implementatie
 
+

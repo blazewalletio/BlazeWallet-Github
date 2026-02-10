@@ -406,3 +406,4 @@ feePerByte: req.gasPrice, // gasPrice is fee per byte for Bitcoin
 **Laatste update**: 29 december 2025, 12:45 UTC  
 **Status**: Analyse compleet - Geen code aangepast (zoals gevraagd)
 
+

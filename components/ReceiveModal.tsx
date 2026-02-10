@@ -7,6 +7,7 @@ import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import QRCode from 'qrcode';
 import { logger } from '@/lib/logger';
+import { CHAINS } from '@/lib/chains';
 
 interface ReceiveModalProps {
   isOpen: boolean;
@@ -14,11 +15,14 @@ interface ReceiveModalProps {
 }
 
 export default function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
-  const { getCurrentAddress } = useWalletStore();
+  const { getCurrentAddress, currentChain } = useWalletStore();
   const displayAddress = getCurrentAddress(); // ✅ Get correct address for current chain
   const [copied, setCopied] = useState(false);
   const [qrDataURL, setQrDataURL] = useState('');
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  // Get current chain info
+  const chain = CHAINS[currentChain as keyof typeof CHAINS];
 
   // Block body scroll when overlay is open
   useBlockBodyScroll(isOpen);
@@ -97,16 +101,41 @@ export default function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
 
           {/* Header */}
           <div className="mb-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center">
-                <ArrowDownLeft className="w-6 h-6 text-white" />
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-2">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <ArrowDownLeft className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-2xl font-bold text-gray-900">Receive crypto</h2>
+                  <p className="text-sm text-gray-600">
+                    Share your wallet address or QR code
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Receive crypto</h2>
-                <p className="text-sm text-gray-600">
-                  Share your wallet address or QR code
-                </p>
-              </div>
+              {/* Chain Badge */}
+              {chain && (
+                <div className="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-white rounded-xl border border-gray-200 shadow-sm self-start sm:self-auto">
+                  {chain.logoUrl ? (
+                    <img 
+                      src={chain.logoUrl} 
+                      alt={chain.name}
+                      className="w-5 h-5 sm:w-6 sm:h-6 rounded-full flex-shrink-0"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        const fallback = e.currentTarget.parentElement?.querySelector('.chain-icon-fallback');
+                        if (fallback) fallback.classList.remove('hidden');
+                      }}
+                    />
+                  ) : null}
+                  <span className={`text-lg sm:text-xl ${chain.logoUrl ? 'hidden' : ''} chain-icon-fallback`}>
+                    {chain.icon}
+                  </span>
+                  <span className="text-sm sm:text-base font-semibold text-gray-900 whitespace-nowrap">
+                    {chain.name}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -134,7 +163,32 @@ export default function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
 
             {/* Address Section */}
             <div className="glass-card p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Your wallet address</h3>
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <h3 className="text-lg font-semibold text-gray-900">Your wallet address</h3>
+                {/* Chain Badge (also shown here for better visibility) */}
+                {chain && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-gray-200 shadow-sm">
+                    {chain.logoUrl ? (
+                      <img 
+                        src={chain.logoUrl} 
+                        alt={chain.name}
+                        className="w-4 h-4 rounded-full flex-shrink-0"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          const fallback = e.currentTarget.parentElement?.querySelector('.chain-icon-fallback-2');
+                          if (fallback) fallback.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <span className={`text-base ${chain.logoUrl ? 'hidden' : ''} chain-icon-fallback-2`}>
+                      {chain.icon}
+                    </span>
+                    <span className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">
+                      {chain.name}
+                    </span>
+                  </div>
+                )}
+              </div>
               <div className="bg-gray-50 p-4 rounded-xl mb-4 border border-gray-200">
                 <div className="font-mono text-sm break-all text-gray-900">
                   {displayAddress}

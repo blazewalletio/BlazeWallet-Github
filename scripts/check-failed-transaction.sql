@@ -46,3 +46,4 @@ WHERE status IN ('pending', 'executing', 'failed')
 ORDER BY updated_at DESC
 LIMIT 10;
 
+
