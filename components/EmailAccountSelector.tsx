@@ -34,17 +34,25 @@ export default function EmailAccountSelector({
     try {
       setIsLoading(true);
       
-      // Load current account
+      // ✅ OPTIMIZATION: Load current account first (most important)
+      // This allows us to show the email immediately while other accounts load in background
       const account = await getCurrentAccountAsync();
-      setCurrentAccount(account);
+      if (account) {
+        setCurrentAccount(account);
+        setIsLoading(false); // ✅ Show content immediately after current account loads
+      } else {
+        // No account found - stop loading
+        setIsLoading(false);
+        return;
+      }
 
-      // Load all accounts
+      // Load all accounts in background (for dropdown) - don't block UI
+      // This happens after we've already shown the current account
       const { emailAccounts: emails, seedAccounts: seeds } = await getAccountsByTypeAsync();
       setEmailAccounts(emails);
       setSeedAccounts(seeds);
     } catch (error) {
       console.error('Failed to load accounts:', error);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -81,7 +89,9 @@ export default function EmailAccountSelector({
     return `${Math.floor(days / 30)} months ago`;
   };
 
-  if (isLoading) {
+  // ✅ FIX: Don't show loading skeleton if we have currentAccount
+  // This prevents the gray flash when modal opens
+  if (isLoading && !currentAccount) {
     return (
       <div className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl animate-pulse">
         <div className="h-12 bg-gray-200 rounded"></div>
