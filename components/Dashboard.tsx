@@ -1581,8 +1581,29 @@ export default function Dashboard() {
     }
 
     try {
-      // Copy to clipboard
-      await navigator.clipboard.writeText(displayAddress);
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(displayAddress);
+      } else {
+        // Fallback for older browsers/PWA: use execCommand
+        const textArea = document.createElement('textarea');
+        textArea.value = displayAddress;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+          const successful = document.execCommand('copy');
+          if (!successful) {
+            throw new Error('execCommand failed');
+          }
+        } finally {
+          document.body.removeChild(textArea);
+        }
+      }
       
       // Visual feedback
       setCopiedAddress(true);
