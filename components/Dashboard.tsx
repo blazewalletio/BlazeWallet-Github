@@ -1574,37 +1574,96 @@ export default function Dashboard() {
   const isPositiveChange = change24h >= 0;
 
   // ✅ Copy address to clipboard function (shared logic)
+  // Industry standard: Try clipboard API first, fallback to execCommand with better PWA support
   const copyAddressToClipboard = async () => {
     if (!displayAddress) {
-      toast.error('No address available');
+      toast.error('No address available', { duration: 2000 });
       return;
     }
 
-    try {
-      // Try modern clipboard API first
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(displayAddress);
-      } else {
-        // Fallback for older browsers/PWA: use execCommand
+    let copySuccess = false;
+
+    // Method 1: Try modern Clipboard API (works in secure contexts)
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        // ✅ CRITICAL: Check if we're in a secure context
+        if (window.isSecureContext) {
+          await navigator.clipboard.writeText(displayAddress);
+          copySuccess = true;
+        }
+      } catch (clipboardError) {
+        logger.log('Clipboard API failed, trying fallback:', clipboardError);
+      }
+    }
+
+    // Method 2: Fallback to execCommand (works in PWA/mobile)
+    if (!copySuccess) {
+      try {
+        // ✅ Industry standard: Create textarea that's temporarily visible for better compatibility
         const textArea = document.createElement('textarea');
         textArea.value = displayAddress;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '-999999px';
-        textArea.style.top = '-999999px';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
         
-        try {
-          const successful = document.execCommand('copy');
-          if (!successful) {
-            throw new Error('execCommand failed');
+        // ✅ Better PWA support: Use styles that work across all browsers
+        textArea.style.position = 'fixed';
+        textArea.style.top = '0';
+        textArea.style.left = '0';
+        textArea.style.width = '2em';
+        textArea.style.height = '2em';
+        textArea.style.padding = '0';
+        textArea.style.border = 'none';
+        textArea.style.outline = 'none';
+        textArea.style.boxShadow = 'none';
+        textArea.style.background = 'transparent';
+        textArea.style.opacity = '0';
+        textArea.style.pointerEvents = 'none';
+        textArea.setAttribute('readonly', '');
+        textArea.setAttribute('aria-hidden', 'true');
+        
+        document.body.appendChild(textArea);
+        
+        // ✅ CRITICAL: For iOS Safari/PWA, we need to select the text properly
+        if (navigator.userAgent.match(/ipad|iphone/i)) {
+          const range = document.createRange();
+          range.selectNodeContents(textArea);
+          const selection = window.getSelection();
+          if (selection) {
+            selection.removeAllRanges();
+            selection.addRange(range);
           }
-        } finally {
-          document.body.removeChild(textArea);
+          textArea.setSelectionRange(0, 999999);
+        } else {
+          textArea.select();
+          textArea.setSelectionRange(0, 999999); // For mobile devices
         }
+        
+        const successful = document.execCommand('copy');
+        
+        if (successful) {
+          copySuccess = true;
+        } else {
+          throw new Error('execCommand copy failed');
+        }
+        
+        document.body.removeChild(textArea);
+      } catch (execError) {
+        logger.error('execCommand fallback failed:', execError);
       }
-      
+    }
+
+    // Method 3: Last resort - show address in prompt for manual copy
+    if (!copySuccess) {
+      logger.warn('All copy methods failed, showing manual copy option');
+      // Show a modal or prompt with the address for manual copying
+      const userConfirmed = window.confirm(
+        `Copy this address manually:\n\n${displayAddress}\n\nClick OK to continue.`
+      );
+      if (userConfirmed) {
+        // User can manually copy from the prompt
+        copySuccess = true;
+      }
+    }
+
+    if (copySuccess) {
       // Visual feedback
       setCopiedAddress(true);
       
@@ -1627,10 +1686,10 @@ export default function Dashboard() {
       setTimeout(() => {
         setCopiedAddress(false);
       }, 2000);
-    } catch (error) {
-      logger.error('Failed to copy address:', error);
-      toast.error('Failed to copy address', {
-        duration: 3000, // ✅ Fix: Explicit duration so toast disappears
+    } else {
+      logger.error('Failed to copy address: All methods failed');
+      toast.error('Failed to copy address. Please try again.', {
+        duration: 3000,
       });
     }
   };
