@@ -2159,12 +2159,6 @@ export function generateAdminNotificationEmail(params: any): string {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h4 className="text-lg font-bold text-gray-900">{email.name}</h4>
-                    {email.id === 'security-alert' && (
-                      <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded">Not Implemented</span>
-                    )}
-                    {(email.id === 'priority-list-user' || email.id === 'priority-list-admin') && (
-                      <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs font-medium rounded">Stub</span>
-                    )}
                   </div>
                   <p className="text-sm text-gray-600 mb-3">{email.description}</p>
                   <div className="flex flex-wrap gap-4 text-xs text-gray-500">
