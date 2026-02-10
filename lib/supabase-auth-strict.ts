@@ -958,6 +958,33 @@ export async function signUpWithEmail(
     const ethers = await import('ethers');
     const { trackAuth } = await import('./analytics');
 
+    // ✅ 0. Check if email already exists before attempting signup
+    try {
+      const { getSupabaseAdmin } = await import('./supabase-admin');
+      const supabaseAdmin = getSupabaseAdmin();
+      
+      // Use admin API to check if user with this email already exists
+      const { data: existingUsers, error: checkError } = await supabaseAdmin.auth.admin.listUsers();
+      
+      if (!checkError && existingUsers) {
+        const emailLower = email.toLowerCase().trim();
+        const existingUser = existingUsers.users.find(
+          (u: any) => u.email && u.email.toLowerCase().trim() === emailLower
+        );
+        
+        if (existingUser) {
+          logger.warn('⚠️ [StrictAuth] Email already exists:', email);
+          return { 
+            success: false, 
+            error: 'An account with this email address already exists. Please sign in instead or use a different email address.' 
+          };
+        }
+      }
+    } catch (checkErr: any) {
+      // If check fails, log but continue (better to try signup than block user)
+      logger.warn('⚠️ [StrictAuth] Could not check if email exists:', checkErr.message);
+    }
+
     // 1. Create Supabase user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
@@ -971,6 +998,15 @@ export async function signUpWithEmail(
     });
 
     if (authError) {
+      // Check if error is due to existing email
+      if (authError.message.includes('already registered') || 
+          authError.message.includes('already exists') ||
+          authError.message.includes('User already registered')) {
+        return { 
+          success: false, 
+          error: 'An account with this email address already exists. Please sign in instead or use a different email address.' 
+        };
+      }
       return { success: false, error: authError.message };
     }
 
