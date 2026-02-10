@@ -31,7 +31,6 @@ export default function TokenPriceChart({
 }: TokenPriceChartProps) {
   const { formatUSDSync, symbol } = useCurrency();
   const [selectedTimeframe, setSelectedTimeframe] = useState<Timeframe>('1D');
-  const [chartType, setChartType] = useState<ChartType>('line');
   const [priceHistory, setPriceHistory] = useState<Array<{ timestamp: number; price: number; time: string }>>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [minValue, setMinValue] = useState(0);
@@ -580,46 +579,14 @@ export default function TokenPriceChart({
 
   return (
     <div className="w-full">
-      {/* Header with Chart Type Toggle */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          {isPositiveChange ? (
-            <TrendingUp className="w-5 h-5 text-green-500" />
-          ) : (
-            <TrendingDown className="w-5 h-5 text-red-500" />
-          )}
-          <h4 className="font-semibold text-gray-900">Price chart</h4>
-        </div>
-
-        {/* Chart Type Toggle */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 bg-white rounded-lg p-1 border border-gray-200">
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setChartType('line')}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all ${
-                chartType === 'line'
-                  ? 'bg-gray-900 text-white'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-              title="Line chart"
-            >
-              <BarChart3 className="w-3.5 h-3.5" />
-            </motion.button>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setChartType('candlestick')}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all ${
-                chartType === 'candlestick'
-                  ? 'bg-gray-900 text-white'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-              title="Candlestick chart"
-            >
-              <BarChart3 className="w-3.5 h-3.5 rotate-90" />
-            </motion.button>
-          </div>
-        </div>
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-4">
+        {isPositiveChange ? (
+          <TrendingUp className="w-5 h-5 text-green-500" />
+        ) : (
+          <TrendingDown className="w-5 h-5 text-red-500" />
+        )}
+        <h4 className="font-semibold text-gray-900">Price chart</h4>
       </div>
 
       {/* Timeframe Selector */}
@@ -672,79 +639,44 @@ export default function TokenPriceChart({
             </div>
 
             <ResponsiveContainer width="100%" height={400}>
-              {chartType === 'line' ? (
-                <AreaChart 
-                  data={priceHistory} 
-                  margin={{ top: 20, right: 20, left: 0, bottom: 20 }}
-                >
-                  <defs>
-                    <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={lineColor} stopOpacity={0.4} />
-                      <stop offset="100%" stopColor={lineColor} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis
-                    dataKey="time"
-                    tickLine={false}
-                    axisLine={false}
-                    hide={true}
-                    // ✅ No labels on X-axis (saves space, cleaner look like CoinGecko)
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    domain={[minValue, maxValue]}
-                    hide={true}
-                    // ✅ No labels on Y-axis (saves space, cleaner look like CoinGecko)
-                  />
-                  <Tooltip 
-                    content={<CustomTooltip />}
-                    cursor={{ stroke: lineColor, strokeWidth: 1, strokeDasharray: '3 3' }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="price"
-                    stroke={lineColor}
-                    strokeWidth={3}
-                    fill={`url(#${gradientId})`}
-                    dot={false}
-                    activeDot={{ r: 6, fill: lineColor, strokeWidth: 2, stroke: '#fff' }}
-                  />
-                </AreaChart>
-              ) : (
-                // Candlestick chart - using line chart with thicker strokes
-                <LineChart 
-                  data={priceHistory} 
-                  margin={{ top: 20, right: 20, left: 0, bottom: 20 }}
-                >
-                  <XAxis
-                    dataKey="time"
-                    tickLine={false}
-                    axisLine={false}
-                    hide={true}
-                    // ✅ No labels on X-axis (saves space, cleaner look like CoinGecko)
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    domain={[minValue, maxValue]}
-                    hide={true}
-                    // ✅ No labels on Y-axis (saves space, cleaner look like CoinGecko)
-                  />
-                  <Tooltip 
-                    content={<CustomTooltip />}
-                    cursor={{ stroke: lineColor, strokeWidth: 1, strokeDasharray: '3 3' }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="price"
-                    stroke={lineColor}
-                    strokeWidth={3}
-                    dot={false}
-                    activeDot={{ r: 6, fill: lineColor, strokeWidth: 2, stroke: '#fff' }}
-                  />
-                </LineChart>
-              )}
+              <AreaChart 
+                data={priceHistory} 
+                margin={{ top: 20, right: 20, left: 0, bottom: 20 }}
+              >
+                <defs>
+                  <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={lineColor} stopOpacity={0.4} />
+                    <stop offset="100%" stopColor={lineColor} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="time"
+                  tickLine={false}
+                  axisLine={false}
+                  hide={true}
+                  // ✅ No labels on X-axis (saves space, cleaner look like CoinGecko)
+                />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  domain={[minValue, maxValue]}
+                  hide={true}
+                  // ✅ No labels on Y-axis (saves space, cleaner look like CoinGecko)
+                />
+                <Tooltip 
+                  content={<CustomTooltip />}
+                  cursor={{ stroke: lineColor, strokeWidth: 1, strokeDasharray: '3 3' }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="price"
+                  stroke={lineColor}
+                  strokeWidth={3}
+                  fill={`url(#${gradientId})`}
+                  dot={false}
+                  activeDot={{ r: 6, fill: lineColor, strokeWidth: 2, stroke: '#fff' }}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </>
         ) : (
