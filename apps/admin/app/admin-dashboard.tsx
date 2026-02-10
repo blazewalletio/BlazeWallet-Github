@@ -1650,7 +1650,7 @@ function getDeviceVerificationEmailHTML(
     {
       id: 'security-alert',
       name: 'Security Alert Email',
-      description: 'Sent for suspicious login attempts, new device logins, or password changes. Currently only logs to console (not implemented).',
+      description: 'Sent for suspicious login attempts, new device logins, or password changes. Fully implemented with uniform styling.',
       subject: '🚨 Suspicious Login Blocked - BLAZE Wallet | 🔔 New Device Login - BLAZE Wallet | ✅ Password Changed - BLAZE Wallet',
       location: 'app/api/security-alert/route.ts',
       function: 'sendSecurityAlertEmail',
@@ -1890,7 +1890,7 @@ function generateSecurityAlertEmail(
     {
       id: 'priority-list-user',
       name: 'Priority List User Confirmation',
-      description: 'Sent to users who register for priority list with email. Currently a stub (not fully implemented).',
+      description: 'Sent to users who register for priority list with email. Fully implemented with uniform styling.',
       subject: '🔥 Welcome to BLAZE Priority List - Confirm Your Email!',
       location: 'lib/email-service.ts',
       function: 'generateUserConfirmationEmail',
@@ -2007,7 +2007,7 @@ export function generateUserConfirmationEmail(params: any): string {
     {
       id: 'priority-list-admin',
       name: 'Priority List Admin Notification',
-      description: 'Sent to admin (info@blazewallet.io) when someone registers for priority list. Currently a stub (not fully implemented).',
+      description: 'Sent to admin (info@blazewallet.io) when someone registers for priority list. Fully implemented with uniform styling.',
       subject: '🔥 New Priority List Registration #X - [wallet]',
       location: 'lib/email-service.ts',
       function: 'generateAdminNotificationEmail',
