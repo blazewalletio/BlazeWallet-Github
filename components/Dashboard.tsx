@@ -1669,7 +1669,7 @@ export default function Dashboard() {
     await copyAddressToClipboard();
   };
 
-  // ✅ Mobile: Long-press handler - Copy happens DIRECTLY in touch event for PWA compatibility
+  // ✅ Mobile: Long-press handler - Copy on touchEnd if long-press was detected
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartTimeRef.current = Date.now();
     setIsLongPressing(false);
@@ -1678,91 +1678,111 @@ export default function Dashboard() {
     longPressTimerRef.current = setTimeout(() => {
       setIsLongPressing(true);
       
-      // Haptic feedback
+      // Haptic feedback when long-press is detected
       if ('vibrate' in navigator) {
         navigator.vibrate(30);
       }
-      
-      // ✅ CRITICAL: Copy directly using execCommand (synchronous, works in PWA)
-      // This MUST be synchronous and happen within the touch event context
-      if (!displayAddress) return;
-      
-      try {
-        const textArea = document.createElement('textarea');
-        textArea.value = displayAddress;
-        textArea.style.position = 'fixed';
-        textArea.style.left = '0';
-        textArea.style.top = '0';
-        textArea.style.width = '1px';
-        textArea.style.height = '1px';
-        textArea.style.opacity = '0';
-        textArea.style.pointerEvents = 'none';
-        textArea.setAttribute('readonly', '');
-        
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        textArea.setSelectionRange(0, displayAddress.length);
-        
-        const successful = document.execCommand('copy');
-        document.body.removeChild(textArea);
-        
-        if (successful) {
-          setCopiedAddress(true);
-          if ('vibrate' in navigator) {
-            navigator.vibrate(50);
-          }
-          toast.success('Address copied!', {
-            duration: 2000,
-            icon: '✓',
-            style: {
-              background: 'rgba(16, 185, 129, 0.95)',
-              color: '#fff',
-            },
-          });
-          setTimeout(() => {
-            setCopiedAddress(false);
-          }, 2000);
-        } else {
-          // Fallback to async clipboard API
-          if (navigator.clipboard?.writeText) {
-            navigator.clipboard.writeText(displayAddress).then(() => {
-              setCopiedAddress(true);
-              toast.success('Address copied!', { duration: 2000 });
-              setTimeout(() => setCopiedAddress(false), 2000);
-            }).catch(() => {
-              toast.error('Copy failed. Please try again.', { duration: 3000 });
-            });
-          }
-        }
-      } catch (error) {
-        logger.error('Copy failed:', error);
-        toast.error('Copy failed. Please try again.', { duration: 3000 });
-      }
     }, 500);
+  };
+  
+  // ✅ Copy function that works in PWA - called on touchEnd
+  const performCopy = () => {
+    if (!displayAddress) return false;
+    
+    try {
+      // Use execCommand (works in PWA)
+      const textArea = document.createElement('textarea');
+      textArea.value = displayAddress;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '0';
+      textArea.style.top = '0';
+      textArea.style.width = '2px';
+      textArea.style.height = '2px';
+      textArea.style.opacity = '0';
+      textArea.style.pointerEvents = 'none';
+      textArea.setAttribute('readonly', '');
+      
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      textArea.setSelectionRange(0, displayAddress.length);
+      
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      if (successful) {
+        setCopiedAddress(true);
+        if ('vibrate' in navigator) {
+          navigator.vibrate(50);
+        }
+        toast.success('Address copied!', {
+          duration: 2000,
+          icon: '✓',
+          style: {
+            background: 'rgba(16, 185, 129, 0.95)',
+            color: '#fff',
+          },
+        });
+        setTimeout(() => {
+          setCopiedAddress(false);
+        }, 2000);
+        return true;
+      }
+    } catch (error) {
+      logger.error('execCommand failed:', error);
+    }
+    
+    // Fallback: Try Clipboard API
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(displayAddress).then(() => {
+        setCopiedAddress(true);
+        if ('vibrate' in navigator) {
+          navigator.vibrate(50);
+        }
+        toast.success('Address copied!', {
+          duration: 2000,
+          icon: '✓',
+          style: {
+            background: 'rgba(16, 185, 129, 0.95)',
+            color: '#fff',
+          },
+        });
+        setTimeout(() => {
+          setCopiedAddress(false);
+        }, 2000);
+      }).catch((err) => {
+        logger.error('Clipboard API failed:', err);
+        toast.error('Copy failed. Please try again.', { duration: 3000 });
+      });
+      return true;
+    }
+    
+    toast.error('Copy not supported.', { duration: 3000 });
+    return false;
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    // Check if long-press was completed (user held for 500ms+)
+    // Check if long-press was completed
     const wasLongPress = isLongPressing;
     
-    // Clear long-press timer if user lifts finger before 500ms
+    // Clear long-press timer
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
     
-    // If long-press was completed, copy happened already in setTimeout
-    // Just reset the state
+    // ✅ CRITICAL: If long-press was detected, copy NOW (within touchEnd event)
+    // This ensures we're still within the user gesture context
     if (wasLongPress) {
-      // Copy already happened, just reset visual state
-      setTimeout(() => {
-        setIsLongPressing(false);
-      }, 100);
-    } else {
-      // User lifted finger too early, reset immediately
-      setIsLongPressing(false);
+      e.preventDefault(); // Prevent any default behavior
+      e.stopPropagation(); // Prevent chain selector from opening
+      performCopy(); // Copy directly in touchEnd event
     }
+    
+    // Reset state
+    setTimeout(() => {
+      setIsLongPressing(false);
+    }, 100);
     
     touchStartTimeRef.current = null;
   };
