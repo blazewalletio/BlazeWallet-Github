@@ -19,7 +19,6 @@ interface TokenPriceChartProps {
 }
 
 type Timeframe = 'LIVE' | '1D' | '7D' | '30D' | '1J' | 'ALLES';
-type ChartType = 'line' | 'candlestick';
 
 export default function TokenPriceChart({
   tokenSymbol,
