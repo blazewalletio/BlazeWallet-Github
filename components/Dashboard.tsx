@@ -1812,11 +1812,13 @@ export default function Dashboard() {
       longPressTimerRef.current = null;
     }
     
-    // ✅ CRITICAL: If long-press was detected, prevent chain selector
+    // ✅ CRITICAL: If long-press was detected, copy NOW (direct in touchEnd event)
     if (wasLongPress) {
       e.preventDefault(); // Prevent any default behavior
       e.nativeEvent.stopImmediatePropagation(); // Stop all event propagation
-      // Copy already happened in touchStart setTimeout, just prevent chain selector
+      
+      // Copy directly in touchEnd (still within user gesture context)
+      performCopy();
     }
     
     // Reset state
