@@ -1608,7 +1608,9 @@ export default function Dashboard() {
       }, 2000);
     } catch (error) {
       logger.error('Failed to copy address:', error);
-      toast.error('Failed to copy address');
+      toast.error('Failed to copy address', {
+        duration: 3000, // ✅ Fix: Explicit duration so toast disappears
+      });
     }
   };
 
