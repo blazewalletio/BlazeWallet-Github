@@ -1674,9 +1674,6 @@ export default function Dashboard() {
     touchStartTimeRef.current = Date.now();
     setIsLongPressing(false);
     
-    // Store the touch event for clipboard (must be within user gesture)
-    const touchEvent = e.nativeEvent;
-    
     // Start long-press timer
     longPressTimerRef.current = setTimeout(() => {
       setIsLongPressing(true);
@@ -1686,9 +1683,62 @@ export default function Dashboard() {
         navigator.vibrate(30);
       }
       
-      // ✅ CRITICAL: Copy MUST happen synchronously within the touch event context
-      // Don't use async/await here - execCommand needs to be called immediately
-      copyAddressToClipboard();
+      // ✅ CRITICAL: Copy directly using execCommand (synchronous, works in PWA)
+      // This MUST be synchronous and happen within the touch event context
+      if (!displayAddress) return;
+      
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = displayAddress;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '0';
+        textArea.style.top = '0';
+        textArea.style.width = '1px';
+        textArea.style.height = '1px';
+        textArea.style.opacity = '0';
+        textArea.style.pointerEvents = 'none';
+        textArea.setAttribute('readonly', '');
+        
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        textArea.setSelectionRange(0, displayAddress.length);
+        
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        
+        if (successful) {
+          setCopiedAddress(true);
+          if ('vibrate' in navigator) {
+            navigator.vibrate(50);
+          }
+          toast.success('Address copied!', {
+            duration: 2000,
+            icon: '✓',
+            style: {
+              background: 'rgba(16, 185, 129, 0.95)',
+              color: '#fff',
+            },
+          });
+          setTimeout(() => {
+            setCopiedAddress(false);
+          }, 2000);
+        } else {
+          // Fallback to async clipboard API
+          if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(displayAddress).then(() => {
+              setCopiedAddress(true);
+              toast.success('Address copied!', { duration: 2000 });
+              setTimeout(() => setCopiedAddress(false), 2000);
+            }).catch(() => {
+              toast.error('Copy failed. Please try again.', { duration: 3000 });
+            });
+          }
+        }
+      } catch (error) {
+        logger.error('Copy failed:', error);
+        toast.error('Copy failed. Please try again.', { duration: 3000 });
+      }
     }, 500);
   };
 
