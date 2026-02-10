@@ -1757,6 +1757,35 @@ export default function Dashboard() {
                 </div>
               </div>
 
+              {/* ✅ Wallet Address Section */}
+              <div className="mt-4 pt-4 border-t border-gray-200/50">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs text-gray-500 mb-1.5">Wallet address</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-700 font-mono truncate">
+                        {displayAddress ? BlockchainService.formatAddress(displayAddress) : 'No address'}
+                      </span>
+                    </div>
+                  </div>
+                  {displayAddress && (
+                    <motion.button
+                      whileTap={{ scale: 0.9 }}
+                      onClick={handleCopyAddress}
+                      className="flex-shrink-0 p-2 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors group"
+                      title="Copy address"
+                      aria-label="Copy wallet address"
+                    >
+                      {copiedAddress ? (
+                        <Check className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <Copy className="w-4 h-4 text-gray-400 group-hover:text-orange-600 transition-colors" />
+                      )}
+                    </motion.button>
+                  )}
+                </div>
+              </div>
+
             </div>
           </motion.div>
 
