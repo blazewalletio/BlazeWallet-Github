@@ -2482,6 +2482,7 @@ export default function Dashboard() {
                   >
                     <Lock className="w-8 h-8 text-white/60 mb-2" />
                   </motion.div>
+                  <span className="text-xs sm:text-sm font-semibold text-white/90 mb-1">Staking</span>
                   <span className="text-[10px] font-bold text-white/80 tracking-wider">UNLOCKING SOON</span>
                 </div>
               </motion.div>
@@ -2516,6 +2517,7 @@ export default function Dashboard() {
                   >
                     <Lock className="w-8 h-8 text-white/60 mb-2" />
                   </motion.div>
+                  <span className="text-xs sm:text-sm font-semibold text-white/90 mb-1">Cashback</span>
                   <span className="text-[10px] font-bold text-white/80 tracking-wider">UNLOCKING SOON</span>
                 </div>
               </motion.div>
@@ -2550,6 +2552,7 @@ export default function Dashboard() {
                   >
                     <Lock className="w-8 h-8 text-white/60 mb-2" />
                   </motion.div>
+                  <span className="text-xs sm:text-sm font-semibold text-white/90 mb-1">Governance</span>
                   <span className="text-[10px] font-bold text-white/80 tracking-wider">UNLOCKING SOON</span>
                 </div>
               </motion.div>
@@ -2584,6 +2587,7 @@ export default function Dashboard() {
                   >
                     <Lock className="w-8 h-8 text-white/60 mb-2" />
                   </motion.div>
+                  <span className="text-xs sm:text-sm font-semibold text-white/90 mb-1">Launchpad</span>
                   <span className="text-[10px] font-bold text-white/80 tracking-wider">UNLOCKING SOON</span>
                 </div>
               </motion.div>
@@ -2618,6 +2622,7 @@ export default function Dashboard() {
                   >
                     <Lock className="w-8 h-8 text-white/60 mb-2" />
                   </motion.div>
+                  <span className="text-xs sm:text-sm font-semibold text-white/90 mb-1">Referrals</span>
                   <span className="text-[10px] font-bold text-white/80 tracking-wider">UNLOCKING SOON</span>
                 </div>
               </motion.div>
@@ -2652,6 +2657,7 @@ export default function Dashboard() {
                   >
                     <Lock className="w-8 h-8 text-white/60 mb-2" />
                   </motion.div>
+                  <span className="text-xs sm:text-sm font-semibold text-white/90 mb-1">NFT Skins</span>
                   <span className="text-[10px] font-bold text-white/80 tracking-wider">UNLOCKING SOON</span>
                 </div>
               </motion.div>
