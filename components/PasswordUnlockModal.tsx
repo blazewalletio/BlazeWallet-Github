@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, Shield, AlertCircle, Fingerprint } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
@@ -52,6 +52,9 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [pending2FAPassword, setPending2FAPassword] = useState<string>('');
+
+  // ✅ Mobile keyboard scroll fix: Ref for password input
+  const passwordInputRef = useRef<HTMLInputElement>(null);
 
   // Load current account and reset state when modal opens
   useEffect(() => {
@@ -668,7 +671,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: -100 }}
         transition={{ duration: 0.3 }}
-        className="fixed inset-0 bg-gray-50 z-50 overflow-y-auto flex items-center justify-center p-4"
+        className="fixed inset-0 bg-gray-50 z-50 overflow-y-auto flex items-start justify-center p-4 pt-safe"
       >
         <div className="w-full max-w-md">
           <div className="bg-white rounded-3xl shadow-xl border border-gray-200 p-8">
@@ -701,6 +704,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
                 </label>
                 <div className="relative">
                   <input
+                    ref={passwordInputRef}
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
