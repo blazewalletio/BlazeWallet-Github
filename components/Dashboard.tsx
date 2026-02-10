@@ -2895,10 +2895,30 @@ export default function Dashboard() {
                     <div className="text-xs sm:text-sm font-semibold text-gray-900">{chain.shortName}</div>
                     <div className="flex items-center gap-1.5">
                       <motion.div
-                        onTouchStart={handleTouchStart}
-                        onTouchEnd={handleTouchEnd}
-                        onTouchCancel={handleTouchCancel}
-                        onTouchMove={handleTouchMove}
+                        onTouchStart={(e) => {
+                          e.stopPropagation(); // Prevent chain selector
+                          handleTouchStart(e);
+                        }}
+                        onTouchEnd={(e) => {
+                          e.stopPropagation(); // Prevent chain selector
+                          e.nativeEvent.stopImmediatePropagation(); // Stop all propagation
+                          handleTouchEnd(e);
+                        }}
+                        onTouchCancel={(e) => {
+                          e.stopPropagation();
+                          handleTouchCancel(e);
+                        }}
+                        onTouchMove={(e) => {
+                          e.stopPropagation();
+                          handleTouchMove(e);
+                        }}
+                        onClick={(e) => {
+                          // Prevent click from opening chain selector on mobile after long-press
+                          if (isLongPressing || copiedAddress) {
+                            e.stopPropagation();
+                            e.preventDefault();
+                          }
+                        }}
                         animate={isLongPressing ? { scale: 0.95 } : { scale: 1 }}
                         className={`text-xs text-gray-500 font-mono truncate select-none cursor-pointer sm:cursor-default ${
                           isLongPressing ? 'text-orange-600 font-semibold bg-orange-50 rounded px-1' : ''
