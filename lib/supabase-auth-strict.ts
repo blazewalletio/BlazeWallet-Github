@@ -960,25 +960,22 @@ export async function signUpWithEmail(
 
     // ✅ 0. Check if email already exists before attempting signup
     try {
-      const { getSupabaseAdmin } = await import('./supabase-admin');
-      const supabaseAdmin = getSupabaseAdmin();
-      
-      // Use admin API to check if user with this email already exists
-      const { data: existingUsers, error: checkError } = await supabaseAdmin.auth.admin.listUsers();
-      
-      if (!checkError && existingUsers) {
-        const emailLower = email.toLowerCase().trim();
-        const existingUser = existingUsers.users.find(
-          (u: any) => u.email && u.email.toLowerCase().trim() === emailLower
-        );
-        
-        if (existingUser) {
-          logger.warn('⚠️ [StrictAuth] Email already exists:', email);
-          return { 
-            success: false, 
-            error: 'An account with this email address already exists. Please sign in instead or use a different email address.' 
-          };
-        }
+      const checkResponse = await fetch('/api/auth/check-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const checkResult = await checkResponse.json();
+
+      if (checkResult.success && checkResult.exists) {
+        logger.warn('⚠️ [StrictAuth] Email already exists:', email);
+        return { 
+          success: false, 
+          error: checkResult.message || 'An account with this email address already exists. Please sign in instead or use a different email address.' 
+        };
       }
     } catch (checkErr: any) {
       // If check fails, log but continue (better to try signup than block user)
