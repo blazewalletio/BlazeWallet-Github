@@ -1573,125 +1573,94 @@ export default function Dashboard() {
   const formattedAddress = displayAddress ? BlockchainService.formatAddress(displayAddress) : '';
   const isPositiveChange = change24h >= 0;
 
-  // ✅ Copy address to clipboard function (shared logic)
-  // Industry standard: Try clipboard API first, fallback to execCommand with better PWA support
-  const copyAddressToClipboard = async () => {
+  // ✅ Copy address to clipboard function - SIMPLE & WORKS IN PWA
+  const copyAddressToClipboard = () => {
     if (!displayAddress) {
       toast.error('No address available', { duration: 2000 });
-      return;
+      return false;
     }
 
-    let copySuccess = false;
-
-    // Method 1: Try modern Clipboard API (works in secure contexts)
+    try {
+      // ✅ SIMPLE & RELIABLE: Use execCommand which works everywhere including PWA
+      const textArea = document.createElement('textarea');
+      textArea.value = displayAddress;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '0';
+      textArea.style.top = '0';
+      textArea.style.width = '1px';
+      textArea.style.height = '1px';
+      textArea.style.opacity = '0';
+      textArea.style.pointerEvents = 'none';
+      textArea.setAttribute('readonly', '');
+      
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      textArea.setSelectionRange(0, displayAddress.length);
+      
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      if (successful) {
+        // Visual feedback
+        setCopiedAddress(true);
+        
+        // Haptic feedback
+        if ('vibrate' in navigator) {
+          navigator.vibrate(50);
+        }
+        
+        // Toast notification
+        toast.success('Address copied!', {
+          duration: 2000,
+          icon: '✓',
+          style: {
+            background: 'rgba(16, 185, 129, 0.95)',
+            color: '#fff',
+          },
+        });
+        
+        setTimeout(() => {
+          setCopiedAddress(false);
+        }, 2000);
+        
+        return true;
+      }
+    } catch (error) {
+      logger.error('Copy failed:', error);
+    }
+    
+    // If execCommand fails, try Clipboard API as fallback
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      try {
-        // ✅ CRITICAL: Check if we're in a secure context
-        if (window.isSecureContext) {
-          await navigator.clipboard.writeText(displayAddress);
-          copySuccess = true;
+      navigator.clipboard.writeText(displayAddress).then(() => {
+        setCopiedAddress(true);
+        if ('vibrate' in navigator) {
+          navigator.vibrate(50);
         }
-      } catch (clipboardError) {
-        logger.log('Clipboard API failed, trying fallback:', clipboardError);
-      }
-    }
-
-    // Method 2: Fallback to execCommand (works in PWA/mobile)
-    if (!copySuccess) {
-      try {
-        // ✅ Industry standard: Create textarea that's temporarily visible for better compatibility
-        const textArea = document.createElement('textarea');
-        textArea.value = displayAddress;
-        
-        // ✅ Better PWA support: Use styles that work across all browsers
-        textArea.style.position = 'fixed';
-        textArea.style.top = '0';
-        textArea.style.left = '0';
-        textArea.style.width = '2em';
-        textArea.style.height = '2em';
-        textArea.style.padding = '0';
-        textArea.style.border = 'none';
-        textArea.style.outline = 'none';
-        textArea.style.boxShadow = 'none';
-        textArea.style.background = 'transparent';
-        textArea.style.opacity = '0';
-        textArea.style.pointerEvents = 'none';
-        textArea.setAttribute('readonly', '');
-        textArea.setAttribute('aria-hidden', 'true');
-        
-        document.body.appendChild(textArea);
-        
-        // ✅ CRITICAL: For iOS Safari/PWA, we need to select the text properly
-        if (navigator.userAgent.match(/ipad|iphone/i)) {
-          const range = document.createRange();
-          range.selectNodeContents(textArea);
-          const selection = window.getSelection();
-          if (selection) {
-            selection.removeAllRanges();
-            selection.addRange(range);
-          }
-          textArea.setSelectionRange(0, 999999);
-        } else {
-          textArea.select();
-          textArea.setSelectionRange(0, 999999); // For mobile devices
-        }
-        
-        const successful = document.execCommand('copy');
-        
-        if (successful) {
-          copySuccess = true;
-        } else {
-          throw new Error('execCommand copy failed');
-        }
-        
-        document.body.removeChild(textArea);
-      } catch (execError) {
-        logger.error('execCommand fallback failed:', execError);
-      }
-    }
-
-    // Method 3: Last resort - show address in prompt for manual copy
-    if (!copySuccess) {
-      logger.warn('All copy methods failed, showing manual copy option');
-      // Show a modal or prompt with the address for manual copying
-      const userConfirmed = window.confirm(
-        `Copy this address manually:\n\n${displayAddress}\n\nClick OK to continue.`
-      );
-      if (userConfirmed) {
-        // User can manually copy from the prompt
-        copySuccess = true;
-      }
-    }
-
-    if (copySuccess) {
-      // Visual feedback
-      setCopiedAddress(true);
-      
-      // Haptic feedback for mobile devices
-      if ('vibrate' in navigator) {
-        navigator.vibrate(50); // Short vibration
-      }
-      
-      // Toast notification
-      toast.success('Address copied!', {
-        duration: 2000,
-        icon: '✓',
-        style: {
-          background: 'rgba(16, 185, 129, 0.95)',
-          color: '#fff',
-        },
+        toast.success('Address copied!', {
+          duration: 2000,
+          icon: '✓',
+          style: {
+            background: 'rgba(16, 185, 129, 0.95)',
+            color: '#fff',
+          },
+        });
+        setTimeout(() => {
+          setCopiedAddress(false);
+        }, 2000);
+      }).catch((err) => {
+        logger.error('Clipboard API also failed:', err);
+        toast.error('Failed to copy. Please select and copy manually.', {
+          duration: 3000,
+        });
       });
-      
-      // Reset visual feedback after 2 seconds
-      setTimeout(() => {
-        setCopiedAddress(false);
-      }, 2000);
-    } else {
-      logger.error('Failed to copy address: All methods failed');
-      toast.error('Failed to copy address. Please try again.', {
-        duration: 3000,
-      });
+      return true; // Assume it will work
     }
+    
+    toast.error('Copy not supported. Please select and copy manually.', {
+      duration: 3000,
+    });
+    return false;
   };
 
   // ✅ Desktop: Click handler for copy button
@@ -1700,24 +1669,25 @@ export default function Dashboard() {
     await copyAddressToClipboard();
   };
 
-  // ✅ Mobile: Long-press handler (industry standard: 500ms)
-  // ✅ CRITICAL: Store touch event for clipboard API (needs user gesture)
+  // ✅ Mobile: Long-press handler - Copy happens DIRECTLY in touch event for PWA compatibility
   const handleTouchStart = (e: React.TouchEvent) => {
-    // Don't prevent default - allow normal touch behavior
     touchStartTimeRef.current = Date.now();
     setIsLongPressing(false);
     
-    // Start long-press timer (500ms is industry standard)
+    // Store the touch event for clipboard (must be within user gesture)
+    const touchEvent = e.nativeEvent;
+    
+    // Start long-press timer
     longPressTimerRef.current = setTimeout(() => {
       setIsLongPressing(true);
       
-      // Haptic feedback when long-press is detected
+      // Haptic feedback
       if ('vibrate' in navigator) {
-        navigator.vibrate(30); // Subtle vibration to indicate long-press detected
+        navigator.vibrate(30);
       }
       
-      // ✅ CRITICAL: Copy address immediately while touch event is still "active"
-      // This ensures clipboard API works in PWA (needs to be within user gesture context)
+      // ✅ CRITICAL: Copy MUST happen synchronously within the touch event context
+      // Don't use async/await here - execCommand needs to be called immediately
       copyAddressToClipboard();
     }, 500);
   };
