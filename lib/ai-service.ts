@@ -72,7 +72,7 @@ class AIService {
       try {
         return await fn();
       } catch (error: any) {
-        if (error.message?.includes('Te veel requests')) {
+        if (error.message?.includes('Too many requests')) {
           // Record the failure for future calls
           this.recordFailure();
           
@@ -442,7 +442,7 @@ class AIService {
 
     if (largestPercentage > 80) {
       insights.push(`💎 ${largestPercentage.toFixed(0)}% van je portfolio zit in ${largestHolding.symbol}`);
-      recommendations.push('Overweeg te diversifiëren naar andere assets voor lagere risico');
+      recommendations.push('Consider diversifying into other assets to reduce risk.');
       riskScore += 20;
     } else if (largestPercentage > 50) {
       insights.push(`Je grootste holding is ${largestHolding.symbol} (${largestPercentage.toFixed(0)}%)`);
@@ -461,11 +461,11 @@ class AIService {
 
     if (stablePercentage < 10) {
       insights.push('⚠️ Je hebt weinig stablecoins voor volatiliteit bescherming');
-      recommendations.push('Overweeg 10-20% in stablecoins aan te houden als buffer');
+      recommendations.push('Consider keeping 10-20% in stablecoins as a safety buffer.');
       riskScore += 15;
     } else if (stablePercentage > 70) {
       insights.push('💵 Veel stablecoins - conservatieve strategie');
-      recommendations.push('Als je meer risico aankan, overweeg exposure naar growth assets');
+      recommendations.push('If you can handle more risk, consider adding exposure to growth assets.');
       riskScore -= 15;
     } else {
       insights.push(`✅ Gezonde stablecoin allocatie (${stablePercentage.toFixed(0)}%)`);
@@ -475,13 +475,13 @@ class AIService {
     if (totalValue < 100) {
       recommendations.push('💡 Begin klein en leer de basics voordat je meer investeert');
     } else if (totalValue > 10000) {
-      recommendations.push('💼 Overweeg hardware wallet voor extra security bij grote bedragen');
+      recommendations.push('💼 Consider a hardware wallet for extra security on larger balances.');
     }
 
     // Token count
     if (tokens.length > 15) {
       insights.push('📊 Je hebt veel verschillende tokens');
-      recommendations.push('Overweeg te consolideren naar je top holdings voor beter overzicht');
+      recommendations.push('Consider consolidating into your top holdings for a clearer portfolio overview.');
     }
 
     return {
@@ -542,7 +542,7 @@ class AIService {
       return {
         recommendation: 'wait_short',
         estimatedSavings,
-        message: `💡 Overweeg ${hoursToWait}u te wachten voor ~20% lagere gas kosten`,
+        message: `💡 Consider waiting ${hoursToWait}h for approximately 20% lower gas fees`,
         optimalTime: 'Over een paar uur',
       };
     } catch (error) {

@@ -269,7 +269,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         // DO NOT store addresses - they will be derived on unlock
       }
     } catch (error) {
-      throw new Error('Ongeldige recovery phrase. Controleer je woorden en checksum.');
+      throw new Error('Invalid recovery phrase. Please check your words and checksum.');
     }
   },
 
@@ -278,7 +278,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     
     // ✅ SECURITY: Mnemonic should ONLY be in memory at this point
     if (!mnemonic || !address || !wallet) {
-      throw new Error('Geen wallet gevonden. Maak eerst een wallet aan of importeer een bestaande.');
+      throw new Error('No wallet found. Create a wallet first or import an existing one.');
     }
     
     // Encrypt the mnemonic with the password IMMEDIATELY
@@ -709,7 +709,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         showUnlockModal: false, // ✅ Close modal after successful unlock
       });
     } catch (error) {
-      throw new Error('Ongeldige recovery phrase. Controleer je woorden en checksum.');
+      throw new Error('Invalid recovery phrase. Please check your words and checksum.');
     }
   },
 

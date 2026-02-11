@@ -24,7 +24,7 @@ const aiTools = [
   {
     id: 'scam-detector',
     title: 'Scam Detector',
-    description: 'Real-time risico scanning',
+    description: 'Real-time risk scanning',
     icon: Shield,
     gradient: 'from-theme-primary to-theme-primary',
     status: 'active',
@@ -32,7 +32,7 @@ const aiTools = [
   {
     id: 'portfolio-advisor',
     title: 'Portfolio Advisor',
-    description: 'Gepersonaliseerde tips',
+    description: 'Personalized insights',
     icon: Brain,
     gradient: 'from-theme-primary to-theme-primary',
     status: 'active',
@@ -40,7 +40,7 @@ const aiTools = [
   {
     id: 'gas-optimizer',
     title: 'Gas Optimizer',
-    description: 'Bespaar op gas fees',
+    description: 'Save on gas fees',
     icon: Zap,
     gradient: 'from-theme-primary to-theme-primary',
     status: 'active',

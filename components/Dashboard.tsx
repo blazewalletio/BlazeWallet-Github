@@ -2371,7 +2371,7 @@ export default function Dashboard() {
                     <Shield className="w-5 h-5 text-white" />
                   </div>
                   <div className="font-semibold mb-1">Scam detector</div>
-                  <div className="text-xs text-slate-400">Real-time risico scanning</div>
+                  <div className="text-xs text-slate-400">Real-time risk scanning</div>
                 </motion.button>
 
                 {/* AI Portfolio Advisor */}
@@ -2384,7 +2384,7 @@ export default function Dashboard() {
                     <PieChart className="w-5 h-5 text-white" />
                   </div>
                   <div className="font-semibold mb-1">Portfolio advisor</div>
-                  <div className="text-xs text-slate-400">Gepersonaliseerde tips</div>
+                  <div className="text-xs text-slate-400">Personalized insights</div>
                 </motion.button>
 
                 {/* AI Gas Optimizer */}
@@ -2397,7 +2397,7 @@ export default function Dashboard() {
                     <Zap className="w-5 h-5 text-white" />
                   </div>
                   <div className="font-semibold mb-1">Gas optimizer</div>
-                  <div className="text-xs text-slate-400">Bespaar op gas fees</div>
+                  <div className="text-xs text-slate-400">Save on gas fees</div>
                 </motion.button>
 
                 {/* AI Chat Assistant */}
@@ -2432,7 +2432,7 @@ export default function Dashboard() {
                     <Brain className="w-5 h-5 text-white" />
                   </div>
                   <div className="font-semibold mb-1">AI Brain</div>
-                  <div className="text-xs text-slate-400">Alles in één interface</div>
+                  <div className="text-xs text-slate-400">All-in-one interface</div>
                   </div>
                   
                   {/* Frosted Overlay with Lock */}

@@ -244,7 +244,7 @@ export default function TabContent({
             <Lock className="w-6 h-6 text-blue-600" />
           </div>
           <div className="font-semibold text-gray-900 mb-1">Scam Detector</div>
-          <div className="text-sm text-gray-600">Real-time risico scanning</div>
+          <div className="text-sm text-gray-600">Real-time risk scanning</div>
         </motion.div>
 
         <motion.div
@@ -255,7 +255,7 @@ export default function TabContent({
             <PieChart className="w-6 h-6 text-purple-600" />
           </div>
           <div className="font-semibold text-gray-900 mb-1">Portfolio Advisor</div>
-          <div className="text-sm text-gray-600">Gepersonaliseerde tips</div>
+          <div className="text-sm text-gray-600">Personalized insights</div>
         </motion.div>
 
         <motion.div
@@ -266,7 +266,7 @@ export default function TabContent({
             <Zap className="w-6 h-6 text-green-600" />
           </div>
           <div className="font-semibold text-gray-900 mb-1">Gas Optimizer</div>
-          <div className="text-sm text-gray-600">Bespaar op gas fees</div>
+          <div className="text-sm text-gray-600">Save on gas fees</div>
         </motion.div>
       </div>
     </div>

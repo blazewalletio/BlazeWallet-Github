@@ -99,7 +99,7 @@ class AIService {
       try {
         return await fn();
       } catch (error: any) {
-        if (error.message?.includes('Te veel requests')) {
+        if (error.message?.includes('Too many requests')) {
           // Record the failure for future calls
           this.recordFailure();
           
@@ -367,7 +367,7 @@ class AIService {
             messages: [
               {
                 role: 'system',
-                content: `Je bent een AI assistent voor BlazeWallet. Parse user commands and extract transaction intent.
+                content: `You are an AI assistant for BlazeWallet. Parse user commands and extract transaction intent.
                 Context: Balance: ${context.balance}, Chain: ${context.chain}
                 Return JSON: { "type": "send|swap|info", "params": {...}, "message": "explanation" }`,
               },
@@ -386,16 +386,16 @@ class AIService {
           const errorData = await response.json().catch(() => ({}));
           
           if (response.status === 401) {
-            throw new Error('API key is ongeldig. Controleer je OpenAI API key.');
+            throw new Error('API key is invalid. Please check your OpenAI API key.');
           } else if (response.status === 429) {
             // Check if it's a quota error
             if (errorData.error?.code === 'insufficient_quota') {
-              throw new Error('Je OpenAI account heeft geen credits meer. Voeg een betaalmethod toe of upgrade je plan op platform.openai.com/account/billing');
+              throw new Error('Your OpenAI account has no credits left. Add a payment method or upgrade your plan at platform.openai.com/account/billing');
             } else {
-              throw new Error('Te veel requests. Wacht even en probeer opnieuw.');
+              throw new Error('Too many requests. Please wait and try again.');
             }
           } else if (response.status === 404) {
-            throw new Error('OpenAI API endpoint niet gevonden. Controleer je API key.');
+            throw new Error('OpenAI API endpoint not found. Please check your API key.');
           } else {
             throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
           }
@@ -406,7 +406,7 @@ class AIService {
 
         if (!data.choices || !data.choices[0] || !data.choices[0].message) {
           logger.error('❌ Invalid OpenAI response structure:', data);
-          throw new Error('OpenAI gaf een onverwacht antwoord.');
+          throw new Error('OpenAI returned an unexpected response.');
         }
 
         const result = JSON.parse(data.choices[0].message.content);
@@ -545,7 +545,7 @@ class AIService {
 
     if (largestPercentage > 80) {
       insights.push(`💎 ${largestPercentage.toFixed(0)}% van je portfolio zit in ${largestHolding.symbol}`);
-      recommendations.push('Overweeg te diversifiëren naar andere assets voor lagere risico');
+      recommendations.push('Consider diversifying into other assets to reduce risk.');
       riskScore += 20;
     } else if (largestPercentage > 50) {
       insights.push(`Je grootste holding is ${largestHolding.symbol} (${largestPercentage.toFixed(0)}%)`);
@@ -564,11 +564,11 @@ class AIService {
 
     if (stablePercentage < 10) {
       insights.push('⚠️ Je hebt weinig stablecoins voor volatiliteit bescherming');
-      recommendations.push('Overweeg 10-20% in stablecoins aan te houden als buffer');
+      recommendations.push('Consider keeping 10-20% in stablecoins as a safety buffer.');
       riskScore += 15;
     } else if (stablePercentage > 70) {
       insights.push('💵 Veel stablecoins - conservatieve strategie');
-      recommendations.push('Als je meer risico aankan, overweeg exposure naar growth assets');
+      recommendations.push('If you can handle more risk, consider adding exposure to growth assets.');
       riskScore -= 15;
     } else {
       insights.push(`✅ Gezonde stablecoin allocatie (${stablePercentage.toFixed(0)}%)`);
@@ -578,13 +578,13 @@ class AIService {
     if (totalValue < 100) {
       recommendations.push('💡 Begin klein en leer de basics voordat je meer investeert');
     } else if (totalValue > 10000) {
-      recommendations.push('💼 Overweeg hardware wallet voor extra security bij grote bedragen');
+      recommendations.push('💼 Consider a hardware wallet for extra security on larger balances.');
     }
 
     // Token count
     if (tokens.length > 15) {
       insights.push('📊 Je hebt veel verschillende tokens');
-      recommendations.push('Overweeg te consolideren naar je top holdings voor beter overzicht');
+      recommendations.push('Consider consolidating into your top holdings for a clearer portfolio overview.');
     }
 
     return {
@@ -645,7 +645,7 @@ class AIService {
       return {
         recommendation: 'wait_short',
         estimatedSavings,
-        message: `💡 Overweeg ${hoursToWait}u te wachten voor ~20% lagere gas kosten`,
+        message: `💡 Consider waiting ${hoursToWait}h for approximately 20% lower gas fees`,
         optimalTime: 'Over een paar uur',
       };
     } catch (error) {
@@ -745,16 +745,16 @@ class AIService {
             const errorData = await response.json().catch(() => ({}));
             
             if (response.status === 401) {
-              throw new Error('API key is ongeldig. Controleer je OpenAI API key in de instellingen.');
+              throw new Error('API key is invalid. Please check your OpenAI API key in settings.');
             } else if (response.status === 429) {
               // Check if it's a quota error
               if (errorData.error?.code === 'insufficient_quota') {
-                throw new Error('Je OpenAI account heeft geen credits meer. Voeg een betaalmethod toe of upgrade je plan op platform.openai.com/account/billing');
+                throw new Error('Your OpenAI account has no credits left. Add a payment method or upgrade your plan at platform.openai.com/account/billing');
               } else {
-                throw new Error('Te veel requests. Wacht even en probeer opnieuw.');
+                throw new Error('Too many requests. Please wait and try again.');
               }
             } else if (response.status === 404) {
-              throw new Error('OpenAI API endpoint niet gevonden. Controleer je API key.');
+              throw new Error('OpenAI API endpoint not found. Please check your API key.');
             } else {
               throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
             }
@@ -765,7 +765,7 @@ class AIService {
 
           if (!data.choices || !data.choices[0] || !data.choices[0].message) {
             logger.error('❌ Invalid OpenAI response structure:', data);
-            throw new Error('OpenAI gaf een onverwacht antwoord. Probeer opnieuw.');
+            throw new Error('OpenAI returned an unexpected response. Please try again.');
           }
 
           const assistantMessage = data.choices[0].message.content;
@@ -787,12 +787,12 @@ class AIService {
       logger.error('Chat error:', error);
       
       // Provide helpful fallback responses when OpenAI is unavailable
-      if (error.message?.includes('Te veel requests')) {
-        return 'OpenAI API heeft momenteel te veel requests. Probeer het over een paar minuten opnieuw, of stel je vraag anders.';
+      if (error.message?.includes('Too many requests')) {
+        return 'OpenAI API is currently receiving too many requests. Please try again in a few minutes, or rephrase your question.';
       } else if (error.message?.includes('API key')) {
-        return 'Er is een probleem met de OpenAI API key. Controleer de instellingen.';
+        return 'There is an issue with the OpenAI API key. Please check your settings.';
       } else {
-        return 'Sorry, er ging iets fout. Probeer het opnieuw of stel een eenvoudigere vraag.';
+        return 'Sorry, something went wrong. Please try again or ask a simpler question.';
       }
     }
   }
