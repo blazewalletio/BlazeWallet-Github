@@ -424,24 +424,48 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
                               {searchResults.map((token) => (
                                 <div
                                   key={`${currentChain}-${token.address}`}
-                                  className="px-3 py-2.5 flex items-center justify-between gap-3 hover:bg-gray-50/80"
+                                  className="px-3 py-3 flex items-center justify-between gap-3 hover:bg-gray-50/80 transition-colors"
                                 >
-                                  <div className="min-w-0">
-                                    <div className="text-sm font-semibold text-gray-900 truncate">
-                                      {token.symbol}
+                                  <div className="min-w-0 flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs font-semibold text-gray-600 overflow-hidden flex-shrink-0">
+                                      <img
+                                        src={token.logoURI || getCurrencyLogoSync(token.symbol) || '/crypto-placeholder.png'}
+                                        alt={token.symbol}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                          e.currentTarget.style.display = 'none';
+                                          if (e.currentTarget.parentElement) {
+                                            e.currentTarget.parentElement.textContent = token.symbol?.slice(0, 1)?.toUpperCase() || '?';
+                                          }
+                                        }}
+                                      />
                                     </div>
-                                    <div className="text-xs text-gray-500 truncate">
-                                      {token.name}
+                                    <div className="min-w-0">
+                                      <div className="text-sm font-semibold text-gray-900 truncate">
+                                        {token.symbol}
+                                      </div>
+                                      <div className="text-xs text-gray-500 truncate">
+                                        {token.name}
+                                      </div>
                                     </div>
                                   </div>
                                   <motion.button
                                     whileTap={{ scale: 0.97 }}
                                     onClick={() => handleAddFromSearch(token)}
                                     disabled={isLoading || isTokenAlreadyAdded(token.address)}
-                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-orange-500 to-yellow-500 text-white hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
+                                    className="px-3.5 py-2 rounded-xl text-xs font-semibold border border-orange-200 bg-white text-orange-600 hover:bg-orange-50 hover:border-orange-300 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5 shadow-sm"
                                   >
-                                    <Plus className="w-3 h-3" />
-                                    {isTokenAlreadyAdded(token.address) ? 'Added' : 'Add'}
+                                    {isTokenAlreadyAdded(token.address) ? (
+                                      <>
+                                        <CheckCircle className="w-3.5 h-3.5" />
+                                        Added
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Plus className="w-3.5 h-3.5" />
+                                        Add token
+                                      </>
+                                    )}
                                   </motion.button>
                                 </div>
                               ))}
