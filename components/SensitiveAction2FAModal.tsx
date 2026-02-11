@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Key, Loader2, AlertTriangle, ArrowLeft, Clock } from 'lucide-react';
+import { Shield, Key, Loader2, AlertTriangle, ArrowLeft, Clock, Lock } from 'lucide-react';
 import { logger } from '@/lib/logger';
 import { twoFactorSessionService } from '@/lib/2fa-session-service';
 
@@ -34,6 +34,7 @@ export default function SensitiveAction2FAModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [useBackupCode, setUseBackupCode] = useState(false);
+  const isCriticalAction = ['wallet_export', '2fa_disable', 'password_change'].includes(actionType);
 
   const handleVerify = async () => {
     if (!useBackupCode && verificationCode.length !== 6) {
@@ -121,22 +122,6 @@ export default function SensitiveAction2FAModal({
     }
   };
 
-  const getActionColor = () => {
-    switch (actionType) {
-      case 'wallet_export':
-      case '2fa_disable':
-      case 'password_change':
-        return 'from-red-500 to-orange-500'; // Critical actions = red
-      case 'send':
-      case 'swap':
-        return amountUSD && amountUSD > 1000
-          ? 'from-yellow-500 to-orange-500' // Large amounts = orange
-          : 'from-green-500 to-emerald-500'; // Normal = green
-      default:
-        return 'from-blue-500 to-cyan-500';
-    }
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -145,7 +130,7 @@ export default function SensitiveAction2FAModal({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+        className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-4"
         onClick={handleClose}
       >
         <motion.div
@@ -153,30 +138,40 @@ export default function SensitiveAction2FAModal({
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
           onClick={(e) => e.stopPropagation()}
-          className="glass-card rounded-2xl max-w-md w-full"
+          className="glass-card rounded-3xl w-full max-w-[560px] border border-white/60 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col"
         >
           {/* Header */}
-          <div className={`bg-gradient-to-r ${getActionColor()} bg-opacity-10 border-b border-gray-100 px-6 py-4`}>
+          <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-4 border-b border-gray-100/80 bg-white/75 backdrop-blur-sm flex-shrink-0">
             <div className="flex items-center gap-3">
-              <div className={`w-12 h-12 bg-gradient-to-br ${getActionColor()} rounded-xl flex items-center justify-center shadow-lg`}>
-                <Shield className="w-6 h-6 text-white" />
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${
+                isCriticalAction
+                  ? 'bg-gradient-to-br from-red-500 to-orange-500 shadow-red-500/25'
+                  : 'bg-gradient-to-br from-orange-500 to-yellow-500 shadow-orange-500/25'
+              }`}>
+                <Shield className="w-5 h-5 text-white" />
               </div>
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">Security Verification</h2>
-                <p className="text-xs text-gray-600">{actionName}</p>
+              <div className="min-w-0">
+                <h2 className="text-xl font-bold text-gray-900">Security verification</h2>
+                <p className="text-xs text-gray-500 mt-0.5 truncate">{actionName}</p>
               </div>
             </div>
           </div>
 
           {/* Content */}
-          <div className="p-6 space-y-4">
+          <div className="p-5 sm:p-6 space-y-4 bg-white/70 overflow-y-auto">
             {/* Info */}
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
               <div className="flex items-start gap-3">
-                <Shield className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className={`w-9 h-9 rounded-xl border flex items-center justify-center flex-shrink-0 ${
+                  isCriticalAction
+                    ? 'bg-red-50 border-red-100'
+                    : 'bg-orange-50 border-orange-100'
+                }`}>
+                  <Lock className={`w-4 h-4 ${isCriticalAction ? 'text-red-600' : 'text-orange-600'}`} />
+                </div>
                 <div>
-                  <h3 className="font-semibold text-blue-900 mb-1">2FA Required</h3>
-                  <p className="text-sm text-blue-800">
+                  <h3 className="font-semibold text-gray-900 mb-1">2FA required</h3>
+                  <p className="text-sm text-gray-600">
                     {getActionMessage()}
                   </p>
                 </div>
@@ -184,17 +179,17 @@ export default function SensitiveAction2FAModal({
             </div>
 
             {/* Session info for non-critical actions */}
-            {!['wallet_export', '2fa_disable', 'password_change'].includes(actionType) && (
-              <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-start gap-2">
-                <Clock className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                <p className="text-xs text-green-800">
+            {!isCriticalAction && (
+              <div className="bg-orange-50/60 border border-orange-200 rounded-xl p-3 flex items-start gap-2">
+                <Clock className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-orange-900">
                   After verification, you won't need 2FA again for 30 minutes
                 </p>
               </div>
             )}
 
             {/* Critical action warning */}
-            {['wallet_export', '2fa_disable', 'password_change'].includes(actionType) && (
+            {isCriticalAction && (
               <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
                 <p className="text-xs text-red-800">
@@ -223,7 +218,10 @@ export default function SensitiveAction2FAModal({
                     setError('');
                   }}
                   placeholder={useBackupCode ? 'XXXX-XXXX' : '000000'}
-                  className="w-full p-4 text-center text-2xl font-mono bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none tracking-widest"
+                  className="w-full p-4 text-center text-3xl font-mono bg-white border-2 border-gray-200 rounded-2xl focus:outline-none shadow-sm"
+                  style={{
+                    letterSpacing: useBackupCode ? '0.12em' : '0.38em',
+                  }}
                   maxLength={useBackupCode ? 20 : 6}
                   autoFocus
                   onKeyDown={(e) => {
@@ -259,7 +257,7 @@ export default function SensitiveAction2FAModal({
                   setVerificationCode('');
                   setError('');
                 }}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2 mx-auto"
+                className="text-sm text-orange-600 hover:text-orange-700 font-medium flex items-center gap-2 mx-auto transition-colors"
               >
                 {useBackupCode ? (
                   <>
@@ -276,18 +274,22 @@ export default function SensitiveAction2FAModal({
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3 pt-2">
+            <div className="grid grid-cols-2 gap-3 pt-2">
               <button
                 onClick={handleClose}
                 disabled={isLoading}
-                className="flex-1 p-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-all disabled:opacity-50"
+                className="flex-1 p-4 bg-gray-100/90 hover:bg-gray-200 text-gray-700 rounded-2xl font-semibold transition-all disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleVerify}
                 disabled={isLoading || verificationCode.length < (useBackupCode ? 8 : 6)}
-                className={`flex-1 p-4 bg-gradient-to-r ${getActionColor()} hover:opacity-90 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
+                className={`flex-1 p-4 text-white rounded-2xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg ${
+                  isCriticalAction
+                    ? 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 shadow-red-500/20'
+                    : 'bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 shadow-orange-500/20'
+                }`}
               >
                 {isLoading ? (
                   <>
