@@ -56,7 +56,7 @@ class CurrencyService {
           .from('user_profiles')
           .select('preferred_currency')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         if (profile && (profile as any).preferred_currency && this.isValidCurrency((profile as any).preferred_currency)) {
           // Sync to localStorage

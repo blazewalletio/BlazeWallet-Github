@@ -316,7 +316,7 @@ export default function Dashboard() {
           .from('user_profiles')
           .select('balance_visible')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
         
         if (profile) {
           setShowBalance(profile.balance_visible ?? true);

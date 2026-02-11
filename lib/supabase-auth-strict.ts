@@ -180,8 +180,9 @@ export async function strictSignInWithEmail(
     logger.log('📱 [StrictAuth] Getting device ID...');
     const { DeviceIdManager } = await import('./device-id-manager');
     const { deviceId, isNew: isNewDeviceId } = DeviceIdManager.getOrCreateDeviceId();
+    let activeDeviceId = deviceId;
     
-    logger.log(`✅ [StrictAuth] Device ID: ${deviceId.substring(0, 12)}... (${isNewDeviceId ? 'NEW' : 'EXISTING'})`);
+    logger.log(`✅ [StrictAuth] Device ID: ${activeDeviceId.substring(0, 12)}... (${isNewDeviceId ? 'NEW' : 'EXISTING'})`);
     
     // 3. Generate enhanced device fingerprint (for metadata/risk analysis)
     logger.log('📱 [StrictAuth] Generating device fingerprint...');
@@ -338,7 +339,7 @@ export async function strictSignInWithEmail(
       .from('trusted_devices')
       .select('*')
       .eq('user_id', data.user.id)
-      .eq('device_id', deviceId)
+      .eq('device_id', activeDeviceId)
       .maybeSingle();
     
     if (deviceCheckError) {
@@ -357,7 +358,7 @@ export async function strictSignInWithEmail(
         .upsert({
           id: existingDeviceById.id, // Use existing ID
           user_id: data.user.id,
-          device_id: deviceId, // Ensure device_id is set
+          device_id: activeDeviceId, // Ensure device_id is set
           device_name: deviceInfo.deviceName,
           device_fingerprint: deviceInfo.fingerprint, // Update fingerprint (can change)
           ip_address: deviceInfo.ipAddress,
@@ -402,7 +403,7 @@ export async function strictSignInWithEmail(
         .from('trusted_devices')
         .insert({
           user_id: data.user.id,
-          device_id: deviceId, // ← Persistent device ID!
+          device_id: activeDeviceId, // ← Persistent device ID!
           device_name: deviceInfo.deviceName,
           device_fingerprint: deviceInfo.fingerprint,
           ip_address: deviceInfo.ipAddress,
@@ -429,13 +430,65 @@ export async function strictSignInWithEmail(
         .select();
       
       if (insertError) {
-        logger.error('❌ [StrictAuth] Failed to insert device:', insertError);
-        logger.error('❌ [StrictAuth] Insert error details:', JSON.stringify(insertError, null, 2));
-        throw new Error('Failed to register device for verification');
+        const isLegacyGlobalDeviceIdConflict =
+          (insertError as any)?.code === '23505' &&
+          String((insertError as any)?.message || '').includes('unique_device_id');
+
+        // Backward-compatible fallback for environments where device_id is globally unique.
+        // Rotate to a fresh UUID and retry insert once so unlock is never blocked.
+        if (isLegacyGlobalDeviceIdConflict) {
+          logger.warn('⚠️ [StrictAuth] device_id conflict on legacy unique_device_id constraint - rotating device ID and retrying insert');
+          activeDeviceId = DeviceIdManager.rotateDeviceId();
+
+          const { data: retriedDevice, error: retryInsertError } = await supabase
+            .from('trusted_devices')
+            .insert({
+              user_id: data.user.id,
+              device_id: activeDeviceId,
+              device_name: deviceInfo.deviceName,
+              device_fingerprint: deviceInfo.fingerprint,
+              ip_address: deviceInfo.ipAddress,
+              user_agent: deviceInfo.userAgent,
+              browser: `${deviceInfo.browser}`,
+              browser_version: deviceInfo.browserVersion,
+              os: `${deviceInfo.os}`,
+              os_version: deviceInfo.osVersion,
+              is_current: false,
+              verification_token: deviceToken,
+              verification_code: verificationCode,
+              verification_code_expires_at: expiresAt.toISOString(),
+              device_metadata: {
+                location: deviceInfo.location,
+                riskScore: deviceInfo.riskScore,
+                isTor: deviceInfo.isTor,
+                isVPN: deviceInfo.isVPN,
+                timezone: deviceInfo.timezone,
+                language: deviceInfo.language,
+                screenResolution: deviceInfo.screenResolution,
+              },
+              last_used_at: new Date().toISOString(),
+            })
+            .select();
+
+          if (retryInsertError) {
+            logger.error('❌ [StrictAuth] Retry insert after device_id rotation failed:', retryInsertError);
+            logger.error('❌ [StrictAuth] Retry insert error details:', JSON.stringify(retryInsertError, null, 2));
+            throw new Error('Failed to register device for verification');
+          }
+
+          insertedDevice = retriedDevice;
+          logger.log('✅ [StrictAuth] Device inserted successfully after rotating device ID');
+        } else {
+          logger.error('❌ [StrictAuth] Failed to insert device:', insertError);
+          logger.error('❌ [StrictAuth] Insert error details:', JSON.stringify(insertError, null, 2));
+          throw new Error('Failed to register device for verification');
+        }
       }
-      
-      insertedDevice = newDevice;
-      logger.log('✅ [StrictAuth] New device inserted successfully');
+
+      if (newDevice) {
+        insertedDevice = newDevice;
+        logger.log('✅ [StrictAuth] New device inserted successfully');
+      }
     }
     
     if (!insertedDevice || insertedDevice.length === 0) {
@@ -446,7 +499,7 @@ export async function strictSignInWithEmail(
     logger.log('✅ [StrictAuth] Device record ready:', {
       id: insertedDevice[0]?.id,
       verification_code: insertedDevice[0]?.verification_code,
-      device_id: deviceId.substring(0, 12) + '...',
+      device_id: activeDeviceId.substring(0, 12) + '...',
     });
     
     logger.log('✅ [StrictAuth] Device stored, sending verification email...');

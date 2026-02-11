@@ -243,7 +243,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
           .from('user_profiles')
           .select('two_factor_enabled')
           .eq('user_id', storedUserId)
-          .single();
+          .maybeSingle();
         
         if (profile?.two_factor_enabled) {
           // Check 2FA session status
