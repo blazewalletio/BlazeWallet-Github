@@ -203,6 +203,30 @@ export class BitcoinForkService {
    * Get balance for an address
    */
   async getBalance(address: string): Promise<{ confirmed: number; unconfirmed: number; total: number }> {
+    // Route browser requests through our own API to avoid third-party CORS/rate-limit issues.
+    if (typeof window !== 'undefined') {
+      try {
+        const response = await fetch(
+          `/api/utxo/balance?chain=${this.chain}&address=${encodeURIComponent(address)}`
+        );
+        const payload = await response.json();
+
+        if (response.ok && payload?.success) {
+          return {
+            confirmed: payload.confirmed || 0,
+            unconfirmed: payload.unconfirmed || 0,
+            total: payload.total || 0,
+          };
+        }
+
+        logger.warn(`[${this.config.symbol}] Internal balance API failed, returning 0`);
+        return { confirmed: 0, unconfirmed: 0, total: 0 };
+      } catch (error) {
+        logger.error(`[${this.config.symbol}] Internal balance API error:`, error);
+        return { confirmed: 0, unconfirmed: 0, total: 0 };
+      }
+    }
+
     try {
       const response = await fetch(`${this.config.apiBaseUrl}/addrs/${address}/balance`);
       

@@ -174,6 +174,29 @@ export class BitcoinService {
     unconfirmed: number;
     total: number;
   }> {
+    // Route browser requests through our own API to avoid third-party CORS/rate-limit issues.
+    if (typeof window !== 'undefined') {
+      try {
+        const response = await fetch(
+          `/api/utxo/balance?chain=bitcoin&address=${encodeURIComponent(address)}`
+        );
+        const payload = await response.json();
+
+        if (response.ok && payload?.success) {
+          return {
+            confirmed: payload.confirmed || 0,
+            unconfirmed: payload.unconfirmed || 0,
+            total: payload.total || 0,
+          };
+        }
+
+        throw new Error(payload?.error || `Internal API error (${response.status})`);
+      } catch (error) {
+        logger.error('Error fetching Bitcoin balance via internal API:', error);
+        throw error;
+      }
+    }
+
     try {
       const response = await fetch(`${this.apiBaseUrl}/address/${address}`);
       
