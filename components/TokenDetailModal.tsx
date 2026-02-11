@@ -396,22 +396,22 @@ export default function TokenDetailModal({
           <div className="max-w-2xl mx-auto space-y-4">
             {/* Token Name */}
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden">
+              <div className="w-10 h-10 flex items-center justify-center flex-shrink-0 overflow-hidden">
                 {token.logo && (token.logo.startsWith('http') || token.logo.startsWith('/') || token.logo.startsWith('data:') || token.logo.startsWith('blob:')) ? (
                   <img 
                     src={token.logo} 
                     alt={token.symbol}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
                       const parent = e.currentTarget.parentElement;
                       if (parent) {
-                        parent.innerHTML = '<span class="text-white text-lg font-bold">' + token.symbol[0] + '</span>';
+                        parent.innerHTML = '<span class="text-gray-500 text-base font-semibold">' + token.symbol[0] + '</span>';
                       }
                     }}
                   />
                 ) : (
-                  <span className="text-white text-lg font-bold">{token.symbol[0]}</span>
+                  <span className="text-gray-500 text-base font-semibold">{token.symbol[0]}</span>
                 )}
               </div>
               <div>
