@@ -9,7 +9,9 @@ import { Token } from '@/lib/types';
 import { ethers } from 'ethers';
 import { PublicKey } from '@solana/web3.js';
 import { getSPLTokenMetadata } from '@/lib/spl-token-metadata';
-import { getCurrencyLogoSync } from '@/lib/currency-logo-service';
+import { getCurrencyLogo, getCurrencyLogoSync } from '@/lib/currency-logo-service';
+import { PriceService } from '@/lib/price-service';
+import { SolanaService } from '@/lib/solana-service';
 import { logger } from '@/lib/logger';
 
 interface TokenSelectorProps {
@@ -26,7 +28,7 @@ interface SearchableToken {
 }
 
 export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
-  const { currentChain, addToken, tokens } = useWalletStore();
+  const { currentChain, addToken, tokens, getCurrentAddress } = useWalletStore();
   const [customAddress, setCustomAddress] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchableToken[]>([]);
@@ -133,9 +135,9 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
     setSuccess(false);
     try {
       if (isSolana) {
-        await handleAddSolanaToken(candidate.address);
+        await handleAddSolanaToken(candidate.address, candidate);
       } else if (isEVM) {
-        await handleAddEVMToken(candidate.address);
+        await handleAddEVMToken(candidate.address, candidate);
       } else {
         setError('Token imports not supported for this chain');
       }
@@ -181,7 +183,7 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
     }
   };
 
-  const handleAddSolanaToken = async (address: string) => {
+  const handleAddSolanaToken = async (address: string, candidate?: SearchableToken) => {
     try {
       // Validate Solana address
       const mintAddress = new PublicKey(address);
@@ -191,15 +193,69 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
       // Fetch metadata using our 7-tier system
       const metadata = await getSPLTokenMetadata(mintAddress.toBase58());
       
-      // Get proper logo using our currency logo service
-      const logo = getCurrencyLogoSync(metadata.symbol) || metadata.logoURI || '/crypto-solana.png';
+      const mint = mintAddress.toBase58();
+      const currentAddress = getCurrentAddress();
+      const priceService = new PriceService();
+
+      // Get proper logo using dynamic logo service first, then fallbacks
+      let logo = metadata.logoURI || candidate?.logoURI || '';
+      try {
+        const dynamicLogo = await getCurrencyLogo(metadata.symbol, mint, currentChain);
+        if (dynamicLogo && dynamicLogo !== '/crypto-placeholder.png') {
+          logo = dynamicLogo;
+        }
+      } catch (logoErr) {
+        logger.warn('⚠️ Failed to fetch dynamic Solana logo, using fallback');
+      }
+      if (!logo) {
+        logo = getCurrencyLogoSync(metadata.symbol) || '/crypto-solana.png';
+      }
+
+      // Fetch live balance for current wallet (if available)
+      let balance = '0';
+      if (currentAddress) {
+        try {
+          const solanaService = new SolanaService(chainConfig.rpcUrl);
+          const balances = await solanaService.getSPLTokenBalances(currentAddress);
+          const found = balances.find((t: any) => t.address === mint);
+          balance = found?.balance || '0';
+        } catch (balanceErr) {
+          logger.warn('⚠️ Failed to fetch SPL balance during token add:', balanceErr);
+        }
+      }
+
+      // Fetch live price data by mint (best for Solana), fallback by symbol
+      let priceUSD = 0;
+      let change24h = 0;
+      try {
+        const mintPrices = await priceService.getPricesByMints([mint]);
+        const mintPrice = mintPrices.get(mint);
+        if (mintPrice) {
+          priceUSD = mintPrice.price || 0;
+          change24h = mintPrice.change24h || 0;
+        } else {
+          const symbolPrices = await priceService.getMultiplePrices([metadata.symbol]);
+          const symbolPrice = symbolPrices[metadata.symbol];
+          if (symbolPrice) {
+            priceUSD = symbolPrice.price || 0;
+            change24h = symbolPrice.change24h || 0;
+          }
+        }
+      } catch (priceErr) {
+        logger.warn('⚠️ Failed to fetch price during Solana token add:', priceErr);
+      }
+      const balanceUSD = (parseFloat(balance || '0') * priceUSD).toFixed(2);
       
       const token: Token = {
-        address: mintAddress.toBase58(),
+        address: mint,
         symbol: metadata.symbol,
         name: metadata.name,
         decimals: metadata.decimals,
         logo,
+        balance,
+        priceUSD,
+        change24h,
+        balanceUSD,
       };
 
       logger.log('✅ SPL token metadata fetched:', token);
@@ -218,7 +274,7 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
     }
   };
 
-  const handleAddEVMToken = async (address: string) => {
+  const handleAddEVMToken = async (address: string, candidate?: SearchableToken) => {
     try {
       // Validate and checksum EVM address
       if (!ethers.isAddress(address)) {
@@ -249,8 +305,49 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
         tokenContract.decimals(),
       ]);
 
-      // Get proper logo using our currency logo service
-      const logo = getCurrencyLogoSync(symbol) || '/crypto-eth.png';
+      const currentAddress = getCurrentAddress();
+      const priceService = new PriceService();
+
+      // Fetch live token balance for current wallet
+      let balance = '0';
+      if (currentAddress) {
+        try {
+          const rawBalance = await tokenContract.balanceOf(currentAddress);
+          balance = ethers.formatUnits(rawBalance, Number(decimals));
+        } catch (balanceErr) {
+          logger.warn('⚠️ Failed to fetch ERC20 balance during token add:', balanceErr);
+        }
+      }
+
+      // Fetch live token price data by contract
+      let priceUSD = 0;
+      let change24h = 0;
+      try {
+        const prices = await priceService.getPricesByAddresses([checksummedAddress], currentChain);
+        const priceData = prices.get(checksummedAddress.toLowerCase());
+        if (priceData) {
+          priceUSD = priceData.price || 0;
+          change24h = priceData.change24h || 0;
+        }
+      } catch (priceErr) {
+        logger.warn('⚠️ Failed to fetch ERC20 price during token add:', priceErr);
+      }
+
+      // Get proper logo using dynamic service first, then fallbacks
+      let logo = candidate?.logoURI || '';
+      try {
+        const dynamicLogo = await getCurrencyLogo(symbol, checksummedAddress, currentChain);
+        if (dynamicLogo && dynamicLogo !== '/crypto-placeholder.png') {
+          logo = dynamicLogo;
+        }
+      } catch (logoErr) {
+        logger.warn('⚠️ Failed to fetch dynamic ERC20 logo, using fallback');
+      }
+      if (!logo) {
+        logo = getCurrencyLogoSync(symbol) || '/crypto-eth.png';
+      }
+
+      const balanceUSD = (parseFloat(balance || '0') * priceUSD).toFixed(2);
 
       const token: Token = {
         address: checksummedAddress,
@@ -258,6 +355,10 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
         name,
         decimals: Number(decimals),
         logo,
+        balance,
+        priceUSD,
+        change24h,
+        balanceUSD,
       };
 
       logger.log('✅ ERC20 token metadata fetched:', token);
