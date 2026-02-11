@@ -31,6 +31,8 @@ export interface WalletState {
   
   // ✅ NEW: Hidden tokens (soft hide - can be shown again)
   hiddenTokens: Map<string, Set<string>>; // chain -> Set<tokenAddress>
+  // ✅ NEW: Deleted tokens (hard remove - stays removed until re-added)
+  deletedTokens: Map<string, Set<string>>; // chain -> Set<tokenAddress>
   
   hasPassword: boolean;
   lastActivity: number;
@@ -65,6 +67,9 @@ export interface WalletState {
   hideToken: (chain: string, tokenAddress: string) => void;
   showToken: (chain: string, tokenAddress: string) => void;
   isTokenHidden: (chain: string, tokenAddress: string) => boolean;
+  deleteToken: (chain: string, tokenAddress: string) => void;
+  restoreDeletedToken: (chain: string, tokenAddress: string) => void;
+  isTokenDeleted: (chain: string, tokenAddress: string) => boolean;
   
   updateActivity: () => void;
   checkAutoLock: () => void;
@@ -110,6 +115,25 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       }
     }
     return hidden;
+  })(),
+  deletedTokens: (() => {
+    const deleted = new Map<string, Set<string>>();
+    if (typeof window !== 'undefined') {
+      try {
+        const chains = Object.keys(CHAINS);
+        chains.forEach(chain => {
+          const stored = localStorage.getItem(`deleted_tokens_${chain}`);
+          if (stored) {
+            const addresses = JSON.parse(stored) as string[];
+            deleted.set(chain, new Set(addresses.map(addr => addr.toLowerCase())));
+            logger.log(`📦 Loaded ${addresses.length} deleted tokens for chain ${chain}`);
+          }
+        });
+      } catch (err) {
+        logger.error('Failed to load deleted tokens:', err);
+      }
+    }
+    return deleted;
   })(),
   
   hasPassword: false,
@@ -714,6 +738,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       const chains = Object.keys(CHAINS);
       chains.forEach(chain => {
         localStorage.removeItem(`hidden_tokens_${chain}`);
+        localStorage.removeItem(`deleted_tokens_${chain}`);
       });
       
       // ✅ NEW: Clean up old biometric format
@@ -749,6 +774,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       balance: '0',
       isLocked: false,
       hiddenTokens: new Map(), // ✅ NEW: Clear hidden tokens,
+      deletedTokens: new Map(), // ✅ NEW: Clear deleted tokens
       mnemonic: null,
       currentChain: DEFAULT_CHAIN,
       
@@ -771,7 +797,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   },
 
   addToken: (token: Token) => {
-    const { currentChain } = get();
+    const { currentChain, deletedTokens } = get();
     
     // Load existing custom tokens for this chain
     let customTokens: Token[] = [];
@@ -802,12 +828,28 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       const { tokens } = get();
       const updatedTokens = [...tokens, token];
       set({ tokens: updatedTokens });
+
+      // Re-adding a token should remove it from deleted list.
+      const updatedDeleted = new Map(deletedTokens);
+      const chainDeleted = updatedDeleted.get(currentChain);
+      if (chainDeleted) {
+        chainDeleted.delete(token.address.toLowerCase());
+        if (chainDeleted.size === 0) {
+          updatedDeleted.delete(currentChain);
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem(`deleted_tokens_${currentChain}`);
+          }
+        } else if (typeof window !== 'undefined') {
+          localStorage.setItem(`deleted_tokens_${currentChain}`, JSON.stringify(Array.from(chainDeleted)));
+        }
+        set({ deletedTokens: updatedDeleted });
+      }
     }
   },
 
   // ✅ PHASE 3: Chain-specific token update
   updateTokens: (chain: string, tokens: Token[]) => {
-    const { chainTokens, currentChain } = get();
+    const { chainTokens, currentChain, deletedTokens } = get();
     
     // Load custom tokens for this chain
     let customTokens: Token[] = [];
@@ -835,15 +877,21 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       }
     });
     
+    // Filter out hard-deleted tokens for this chain.
+    const chainDeleted = deletedTokens.get(chain);
+    const finalTokens = chainDeleted
+      ? mergedTokens.filter(t => !chainDeleted.has(t.address.toLowerCase()))
+      : mergedTokens;
+    
     const updated = new Map(chainTokens);
-    updated.set(chain, mergedTokens);
+    updated.set(chain, finalTokens);
     
     // Update chain-specific storage
     set({ chainTokens: updated });
     
     // Also update deprecated tokens array for backward compatibility (use current chain)
     if (chain === currentChain) {
-      set({ tokens: mergedTokens });
+      set({ tokens: finalTokens });
     }
   },
 
@@ -903,15 +951,9 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   },
 
   removeToken: (tokenAddress: string) => {
-    const { tokens } = get();
-    const newTokens = tokens.filter(
-      t => t.address.toLowerCase() !== tokenAddress.toLowerCase()
-    );
-    set({ tokens: newTokens });
-    
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('custom_tokens', JSON.stringify(newTokens));
-    }
+    // Backward-compatible wrapper: treat as hard delete on current chain.
+    const { currentChain } = get();
+    get().deleteToken(currentChain, tokenAddress);
   },
 
   // ✅ NEW: Hide token (soft hide - can be shown again)
@@ -970,6 +1012,102 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     const chainHidden = hiddenTokens.get(chain);
     if (!chainHidden) return false;
     return chainHidden.has(tokenAddress.toLowerCase());
+  },
+
+  deleteToken: (chain: string, tokenAddress: string) => {
+    const normalized = tokenAddress.toLowerCase();
+    const { deletedTokens, hiddenTokens, chainTokens, currentChain, tokens } = get();
+
+    // Mark as deleted for this chain.
+    const updatedDeleted = new Map(deletedTokens);
+    const chainDeleted = updatedDeleted.get(chain) || new Set<string>();
+    chainDeleted.add(normalized);
+    updatedDeleted.set(chain, chainDeleted);
+
+    // Remove from hidden list too (delete supersedes hide).
+    const updatedHidden = new Map(hiddenTokens);
+    const chainHidden = updatedHidden.get(chain);
+    if (chainHidden) {
+      chainHidden.delete(normalized);
+      if (chainHidden.size === 0) {
+        updatedHidden.delete(chain);
+      } else {
+        updatedHidden.set(chain, chainHidden);
+      }
+    }
+
+    // Remove from chain token state immediately.
+    const updatedChainTokens = new Map(chainTokens);
+    const currentChainTokens = updatedChainTokens.get(chain) || [];
+    updatedChainTokens.set(
+      chain,
+      currentChainTokens.filter(t => t.address.toLowerCase() !== normalized)
+    );
+
+    const patch: Partial<WalletState> = {
+      deletedTokens: updatedDeleted,
+      hiddenTokens: updatedHidden,
+      chainTokens: updatedChainTokens,
+    };
+
+    if (chain === currentChain) {
+      patch.tokens = tokens.filter(t => t.address.toLowerCase() !== normalized);
+    }
+
+    set(patch);
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`deleted_tokens_${chain}`, JSON.stringify(Array.from(chainDeleted)));
+      const remainingHidden = updatedHidden.get(chain);
+      if (remainingHidden && remainingHidden.size > 0) {
+        localStorage.setItem(`hidden_tokens_${chain}`, JSON.stringify(Array.from(remainingHidden)));
+      } else {
+        localStorage.removeItem(`hidden_tokens_${chain}`);
+      }
+
+      // Also remove from persisted custom list for this chain.
+      try {
+        const stored = localStorage.getItem(`custom_tokens_${chain}`);
+        if (stored) {
+          const parsed = JSON.parse(stored) as Token[];
+          const filtered = parsed.filter(t => t.address.toLowerCase() !== normalized);
+          localStorage.setItem(`custom_tokens_${chain}`, JSON.stringify(filtered));
+        }
+      } catch (err) {
+        logger.error('Failed to update custom token storage after delete:', err);
+      }
+      logger.log(`🗑️ Deleted token ${tokenAddress.substring(0, 8)}... on chain ${chain}`);
+    }
+  },
+
+  restoreDeletedToken: (chain: string, tokenAddress: string) => {
+    const normalized = tokenAddress.toLowerCase();
+    const { deletedTokens } = get();
+    const updated = new Map(deletedTokens);
+    const chainDeleted = updated.get(chain);
+    if (chainDeleted) {
+      chainDeleted.delete(normalized);
+      if (chainDeleted.size === 0) {
+        updated.delete(chain);
+      } else {
+        updated.set(chain, chainDeleted);
+      }
+      set({ deletedTokens: updated });
+      if (typeof window !== 'undefined') {
+        if (chainDeleted.size > 0) {
+          localStorage.setItem(`deleted_tokens_${chain}`, JSON.stringify(Array.from(chainDeleted)));
+        } else {
+          localStorage.removeItem(`deleted_tokens_${chain}`);
+        }
+      }
+    }
+  },
+
+  isTokenDeleted: (chain: string, tokenAddress: string): boolean => {
+    const { deletedTokens } = get();
+    const chainDeleted = deletedTokens.get(chain);
+    if (!chainDeleted) return false;
+    return chainDeleted.has(tokenAddress.toLowerCase());
   },
 
   getCurrentAddress: () => {
