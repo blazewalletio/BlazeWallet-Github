@@ -51,6 +51,7 @@ export async function middleware(request: NextRequest) {
     '/api/verify-device-code', // Device verification code validation
     '/api/security-alert', // Security alert emails
     '/api/export-csv', // Transaction export (has auth check)
+    '/api/history/logos', // History logo resolution (CoinGecko Pro, no user state)
     '/api/onramper', // Onramper endpoints (quotes, create-transaction, supported-data, checkout-intent)
     '/api/moonpay', // MoonPay endpoints
     '/api/ramp', // Ramp Network endpoints

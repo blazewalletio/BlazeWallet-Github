@@ -13,8 +13,8 @@ import { derivePath } from 'ed25519-hd-key';
 import * as bip39 from 'bip39';
 import bs58 from 'bs58';
 import { getSPLTokenMetadata, SPLTokenMetadata } from './spl-token-metadata';
-import { getCurrencyLogo } from './currency-logo-service';
 import { logger } from '@/lib/logger';
+import { getHistoryLogo } from '@/lib/history-logo-service';
 
 // SPL Token Program IDs (support both legacy and Token-2022!)
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
@@ -458,7 +458,7 @@ export class SolanaService {
       
       if (diff > 0) {
         // ✅ EXCLUSIVELY use CoinGecko Pro API for logo
-        const logoUrl = await getCurrencyLogo('SOL', undefined, 'solana');
+        const logoUrl = await getHistoryLogo('solana', { isNative: true });
         
         return {
           from: accountKeys[0]?.toBase58() || '',
@@ -542,11 +542,10 @@ export class SolanaService {
                                parseFloat(preBalance.uiTokenAmount.uiAmountString || '0');
                 
                 // ✅ EXCLUSIVELY use CoinGecko Pro API for logo (NO metadata.logoURI fallback!)
-                const logoUrl = await getCurrencyLogo(
-                  metadata.symbol,
-                  mint, // SPL token mint address as contract
-                  'solana'
-                );
+                const logoUrl = await getHistoryLogo('solana', {
+                  isNative: false,
+                  address: mint, // SPL token mint address as contract
+                });
                 
                 return {
                   from: isSent ? owner : accountKeys[0]?.toBase58() || '',
@@ -583,11 +582,10 @@ export class SolanaService {
               });
               
               // ✅ EXCLUSIVELY use CoinGecko Pro API for logo
-              const logoUrl = await getCurrencyLogo(
-                metadata.symbol,
-                mint,
-                'solana'
-              );
+              const logoUrl = await getHistoryLogo('solana', {
+                isNative: false,
+                address: mint,
+              });
               
               return {
                 from: accountKeys[0]?.toBase58() || '',
@@ -622,11 +620,10 @@ export class SolanaService {
               });
               
               // ✅ EXCLUSIVELY use CoinGecko Pro API for logo
-              const logoUrl = await getCurrencyLogo(
-                metadata.symbol,
-                mint,
-                'solana'
-              );
+              const logoUrl = await getHistoryLogo('solana', {
+                isNative: false,
+                address: mint,
+              });
               
               return {
                 from: accountKeys[0]?.toBase58() || '',
@@ -648,7 +645,7 @@ export class SolanaService {
         logger.warn(`⚠️ [SPL Transfer] No token balances found, using generic fallback`);
         
         // ✅ Even for unknown tokens, try CoinGecko Pro API with 'SPL' symbol
-        const logoUrl = await getCurrencyLogo('SPL', undefined, 'solana');
+        const logoUrl = await getHistoryLogo('solana', { isNative: false });
         
         return {
           from: accountKeys[0]?.toBase58() || '',

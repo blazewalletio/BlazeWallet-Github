@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import { CHAINS } from './chains';
-import { getCurrencyLogo } from './currency-logo-service';
 import { logger } from '@/lib/logger';
+import { getHistoryLogo } from '@/lib/history-logo-service';
 
 export class BlockchainService {
   private provider: ethers.JsonRpcProvider;
@@ -148,11 +148,7 @@ export class BlockchainService {
               const transactionsWithLogos = await Promise.all(
                 data.result.map(async (tx: any) => {
                   const symbol = chainConfig?.nativeCurrency.symbol || 'ETH';
-                  const logoUrl = await getCurrencyLogo(
-                    symbol,
-                    undefined, // No contract address for native currency
-                    this.chainKey
-                  );
+                  const logoUrl = await getHistoryLogo(this.chainKey, { isNative: true });
                   
                   return {
                     hash: tx.hash,
@@ -167,7 +163,7 @@ export class BlockchainService {
                     // ✅ Native currency metadata with CoinGecko Pro API logo
                     tokenName: chainConfig?.nativeCurrency.name || 'ETH',
                     tokenSymbol: symbol,
-                    logoUrl, // ✅ Now from CoinGecko Pro API with caching!
+                    logoUrl: logoUrl || undefined,
                   };
                 })
               );

@@ -3,6 +3,7 @@ import { BitcoinService } from '@/lib/bitcoin-service';
 import { BitcoinForkService, BitcoinForkChain } from '@/lib/bitcoin-fork-service';
 import { apiRateLimiter } from '@/lib/api-rate-limiter';
 import { logger } from '@/lib/logger';
+import { resolveCoinGeckoHistoryLogo } from '@/lib/server/coingecko-logo-resolver';
 
 type SupportedChain = 'bitcoin' | 'litecoin' | 'dogecoin' | 'bitcoincash';
 
@@ -66,10 +67,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const transactions =
+    const transactionsRaw =
       chain === 'bitcoin'
         ? await new BitcoinService('mainnet').getTransactionHistory(address, limit)
         : await new BitcoinForkService(chain as BitcoinForkChain).getTransactionHistory(address, limit);
+
+    const nativeLogoUrl = await resolveCoinGeckoHistoryLogo({
+      chainKey: chain,
+      isNative: true,
+    });
+
+    const transactions = (transactionsRaw || []).map((tx: any) => ({
+      ...tx,
+      logoUrl: nativeLogoUrl || undefined,
+    }));
 
     historyCache.set(cacheKey, {
       transactions,

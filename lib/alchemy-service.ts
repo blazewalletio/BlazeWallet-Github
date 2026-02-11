@@ -2,6 +2,7 @@ import { Alchemy, Network, AssetTransfersCategory, SortingOrder } from 'alchemy-
 import { ethers } from 'ethers';
 import { Token } from './types';
 import { logger } from '@/lib/logger';
+import { getHistoryLogosBatch } from '@/lib/history-logo-service';
 
 const ALCHEMY_API_KEY = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY || 'V9A0m8eB58qyWJpajjs6Y';
 
@@ -229,46 +230,30 @@ export class AlchemyService {
 
       logger.log(`✅ [AlchemyService] Found ${limitedTransfers.length} transactions`);
 
-      // ✅ NEW: Fetch logos for ERC20 tokens on-demand
-      const transactionsWithLogos = await Promise.all(
-        limitedTransfers.map(async (tx) => {
-          let logoUrl = null;
-          
-          // Native currency
-          if (tx.category === AssetTransfersCategory.EXTERNAL || tx.asset === 'ETH') {
-            logoUrl = '/crypto-eth.png';
-          } 
-          // ERC20/ERC721/ERC1155 - Fetch logo
-          else if (tx.rawContract?.address) {
-            try {
-              const metadata = await this.alchemy.core.getTokenMetadata(tx.rawContract.address);
-              logoUrl = metadata.logo || '/crypto-placeholder.png';
-              logger.log(`🔮 [AlchemyService] Fetched logo for ${tx.asset || 'token'}: ${logoUrl ? 'found' : 'using placeholder'}`);
-            } catch (error) {
-              logger.warn(`⚠️ [AlchemyService] Failed to fetch logo for ${tx.rawContract.address}`);
-              logoUrl = '/crypto-placeholder.png';
-            }
-          } else {
-            logoUrl = '/crypto-placeholder.png';
-          }
+      // Resolve all history logos through strict CoinGecko Pro API batch endpoint.
+      const logoRequests = limitedTransfers.map((tx, idx) => ({
+        key: String(idx),
+        isNative: tx.category === AssetTransfersCategory.EXTERNAL || tx.asset === 'ETH',
+        address: tx.rawContract?.address ? String(tx.rawContract.address).toLowerCase() : undefined,
+      }));
 
-          return {
-            hash: tx.hash,
-            from: tx.from,
-            to: tx.to || '',
-            value: tx.value?.toString() || '0',
-            timestamp: tx.metadata.blockTimestamp 
-              ? new Date(tx.metadata.blockTimestamp).getTime() 
-              : Date.now(),
-            tokenSymbol: tx.asset || 'ETH',
-            tokenName: this.getTokenName(tx),
-            type: tx.category,
-            blockNumber: parseInt(tx.blockNum, 16).toString(),
-            isError: false,
-            logoUrl,
-          };
-        })
-      );
+      const logoMap = await getHistoryLogosBatch(this.chainKey, logoRequests);
+
+      const transactionsWithLogos = limitedTransfers.map((tx, idx) => ({
+        hash: tx.hash,
+        from: tx.from,
+        to: tx.to || '',
+        value: tx.value?.toString() || '0',
+        timestamp: tx.metadata.blockTimestamp
+          ? new Date(tx.metadata.blockTimestamp).getTime()
+          : Date.now(),
+        tokenSymbol: tx.asset || 'ETH',
+        tokenName: this.getTokenName(tx),
+        type: tx.category,
+        blockNumber: parseInt(tx.blockNum, 16).toString(),
+        isError: false,
+        logoUrl: logoMap[String(idx)] || undefined,
+      }));
 
       return transactionsWithLogos;
     } catch (error) {
