@@ -134,6 +134,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [showChangeEmail, setShowChangeEmail] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const hasEmailSession = Boolean(userEmail);
 
   useEffect(() => {
     const loadAccountData = async () => {
@@ -1236,7 +1237,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             </div>
             
             {/* 2FA Button */}
-            {account?.type === 'email' && (
+            {hasEmailSession && (
               <div className="space-y-3">
                 <button
                   onClick={handle2FAActionClick}
