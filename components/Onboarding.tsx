@@ -488,9 +488,48 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               className="w-full max-w-md sm:max-w-lg lg:max-w-xl mx-auto"
             >
               <div className="bg-white/80 backdrop-blur-md border border-gray-200/80 rounded-3xl shadow-xl p-5 sm:p-6 lg:p-8 mb-6">
-                <div className="flex items-center justify-center mb-5">
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-orange-500/10 to-yellow-500/10 border border-orange-200/80 flex items-center justify-center p-3">
-                    <BlazeLogoImage className="w-full h-full" />
+                <div className="relative h-52 sm:h-56 lg:h-60 mb-5">
+                  {/* Floating crypto circles (kept from original hero style, without carousel) */}
+                  <motion.div
+                    animate={{ y: [0, -10, 0] }}
+                    transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut', delay: 0.1 }}
+                    className="absolute top-2 left-2 sm:left-4 w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-white border border-orange-200 shadow-lg flex items-center justify-center"
+                  >
+                    <img src="/crypto-bitcoin.png" alt="Bitcoin" className="w-8 h-8 sm:w-10 sm:h-10 object-contain" />
+                  </motion.div>
+
+                  <motion.div
+                    animate={{ y: [0, -12, 0] }}
+                    transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+                    className="absolute top-0 right-3 sm:right-6 w-[52px] h-[52px] sm:w-[60px] sm:h-[60px] rounded-full bg-white border border-orange-200 shadow-lg flex items-center justify-center"
+                  >
+                    <img src="/crypto-eth.png" alt="Ethereum" className="w-7 h-7 sm:w-9 sm:h-9 object-contain" />
+                  </motion.div>
+
+                  <motion.div
+                    animate={{ y: [0, -10, 0] }}
+                    transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut', delay: 0.9 }}
+                    className="absolute bottom-3 left-3 sm:left-6 w-[60px] h-[60px] sm:w-[68px] sm:h-[68px] rounded-full bg-white border border-orange-200 shadow-lg flex items-center justify-center"
+                  >
+                    <img src="/crypto-doge.png" alt="Doge" className="w-9 h-9 sm:w-10 sm:h-10 object-contain" />
+                  </motion.div>
+
+                  <motion.div
+                    animate={{ y: [0, -11, 0] }}
+                    transition={{ duration: 3.4, repeat: Infinity, ease: 'easeInOut', delay: 1.25 }}
+                    className="absolute bottom-1 right-1 sm:right-4 w-12 h-12 sm:w-[56px] sm:h-[56px] rounded-full bg-white border border-orange-200 shadow-lg flex items-center justify-center"
+                  >
+                    <img src="/crypto-solana.png" alt="Solana" className="w-7 h-7 sm:w-8 sm:h-8 object-contain" />
+                  </motion.div>
+
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <motion.div
+                      animate={{ scale: [1, 1.03, 1] }}
+                      transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                      className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-white border-4 border-orange-200/90 shadow-2xl flex items-center justify-center p-4"
+                    >
+                      <BlazeLogoImage className="w-full h-full" />
+                    </motion.div>
                   </div>
                 </div>
 
