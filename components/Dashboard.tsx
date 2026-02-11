@@ -1868,114 +1868,88 @@ export default function Dashboard() {
 
           {/* Quick Actions */}
           <div className="grid grid-cols-4 gap-3">
-            {/* Buy (Buy3) - Official Buy button */}
-            <motion.button
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.1 }}
-              whileTap={{ scale: 0.95 }}
-              whileHover={{ scale: 1.02 }}
-              onClick={() => setShowBuyModal3(true)}
-              className="group relative overflow-hidden rounded-2xl aspect-square border border-white/40 bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg hover:shadow-xl transition-all"
-            >
-              <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute -left-8 top-2 h-12 w-[140%] rounded-[100%] bg-white/26 transition-transform duration-300 group-hover:translate-x-2" />
-                <div className="absolute -left-10 top-9 h-16 w-[150%] rounded-[100%] bg-white/14 transition-transform duration-300 group-hover:translate-x-3" />
-                <div className="absolute -left-10 top-20 h-16 w-[145%] rounded-[100%] bg-white/10 transition-transform duration-300 group-hover:translate-x-4" />
-              </div>
-              <div className="relative z-10 h-full w-full flex flex-col items-center justify-center">
-                <CreditCard className="w-8 h-8 text-white mb-2 drop-shadow-sm" />
-                <div className="text-sm font-bold text-white text-center drop-shadow-sm">Buy</div>
-              </div>
-            </motion.button>
+            {[
+              {
+                key: 'buy',
+                label: 'Buy',
+                icon: <CreditCard className="w-7 h-7 text-white mb-2 drop-shadow-sm" />,
+                onClick: () => setShowBuyModal3(true),
+                gradient: 'from-blue-500 via-blue-500 to-blue-600',
+                delay: 0.1,
+              },
+              {
+                key: 'send',
+                label: 'Send',
+                icon: <ArrowUpRight className="w-7 h-7 text-white mb-2 drop-shadow-sm" />,
+                onClick: () => setShowSendModal(true),
+                gradient: 'from-rose-500 via-orange-500 to-amber-500',
+                delay: 0.15,
+              },
+              {
+                key: 'receive',
+                label: 'Receive',
+                icon: <ArrowDownLeft className="w-7 h-7 text-white mb-2 drop-shadow-sm" />,
+                onClick: () => setShowReceiveModal(true),
+                gradient: 'from-emerald-500 via-teal-500 to-cyan-500',
+                delay: 0.2,
+              },
+              {
+                key: 'swap',
+                label: 'Swap',
+                icon: <Repeat className="w-7 h-7 text-white mb-2 drop-shadow-sm" />,
+                onClick: () => setShowSwapModal(true),
+                gradient: 'from-purple-500 via-fuchsia-500 to-pink-500',
+                delay: 0.25,
+              },
+            ].map((action) => (
+              <motion.button
+                key={action.key}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: action.delay }}
+                whileTap={{ scale: 0.96 }}
+                whileHover={{ scale: 1.01 }}
+                onClick={action.onClick}
+                className={`group relative overflow-hidden rounded-2xl aspect-square border border-white/45 bg-gradient-to-br ${action.gradient} shadow-lg hover:shadow-xl transition-all`}
+              >
+                {/* True wave overlay using SVG curves (static = performant, clean on all screens) */}
+                <svg
+                  className="absolute inset-0 w-full h-full pointer-events-none"
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M0,18 C12,30 28,31 44,24 C62,15 78,3 100,4 L100,0 L0,0 Z"
+                    fill="rgba(255,255,255,0.28)"
+                    className="transition-transform duration-300 group-hover:translate-x-[1px]"
+                  />
+                  <path
+                    d="M0,26 C16,38 35,40 52,31 C68,22 82,14 100,15 L100,8 C82,8 66,17 52,24 C35,33 18,32 0,20 Z"
+                    fill="rgba(255,255,255,0.16)"
+                    className="transition-transform duration-300 group-hover:translate-x-[2px]"
+                  />
+                  <path
+                    d="M0,72 C15,62 32,58 48,66 C64,74 80,77 100,66 L100,100 L0,100 Z"
+                    fill="rgba(255,255,255,0.16)"
+                    className="transition-transform duration-300 group-hover:translate-x-[2px]"
+                  />
+                  <path
+                    d="M0,66 C15,74 34,80 52,77 C69,74 83,62 100,54 L100,57 C83,65 69,76 52,80 C34,83 15,77 0,69 Z"
+                    fill="rgba(255,255,255,0.11)"
+                    className="transition-transform duration-300 group-hover:translate-x-[3px]"
+                  />
+                </svg>
 
-            {/* Buy - Temporarily disabled */}
-            {/* <motion.button
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.1 }}
-              whileTap={{ scale: 0.95 }}
-              whileHover={{ scale: 1.05 }}
-              onClick={() => setShowBuyModal(true)}
-              className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl aspect-square flex flex-col items-center justify-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
-            >
-              <CreditCard className="w-8 h-8 text-white mb-2" />
-              <div className="text-sm font-bold text-white text-center">Buy</div>
-            </motion.button> */}
+                {/* Subtle top edge highlight */}
+                <div className="absolute inset-0 rounded-2xl ring-1 ring-white/18 pointer-events-none" />
 
-            {/* Buy2 - Temporarily disabled */}
-            {/* <motion.button
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.12 }}
-              whileTap={{ scale: 0.95 }}
-              whileHover={{ scale: 1.05 }}
-              onClick={() => setShowBuyModal2(true)}
-              className="bg-gradient-to-br from-indigo-500 to-blue-500 rounded-xl aspect-square flex flex-col items-center justify-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
-            >
-              <CreditCard className="w-8 h-8 text-white mb-2" />
-              <div className="text-sm font-bold text-white text-center">Buy2</div>
-            </motion.button> */}
-
-            <motion.button
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.15 }}
-              whileTap={{ scale: 0.95 }}
-              whileHover={{ scale: 1.02 }}
-              onClick={() => setShowSendModal(true)}
-              className="group relative overflow-hidden rounded-2xl aspect-square border border-white/40 bg-gradient-to-br from-rose-500 to-orange-500 shadow-lg hover:shadow-xl transition-all"
-            >
-              <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute -left-8 top-2 h-12 w-[140%] rounded-[100%] bg-white/26 transition-transform duration-300 group-hover:translate-x-2" />
-                <div className="absolute -left-10 top-9 h-16 w-[150%] rounded-[100%] bg-white/14 transition-transform duration-300 group-hover:translate-x-3" />
-                <div className="absolute -left-10 top-20 h-16 w-[145%] rounded-[100%] bg-white/10 transition-transform duration-300 group-hover:translate-x-4" />
-              </div>
-              <div className="relative z-10 h-full w-full flex flex-col items-center justify-center">
-                <ArrowUpRight className="w-8 h-8 text-white mb-2 drop-shadow-sm" />
-                <div className="text-sm font-bold text-white text-center drop-shadow-sm">Send</div>
-              </div>
-            </motion.button>
-
-            <motion.button
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-              whileTap={{ scale: 0.95 }}
-              whileHover={{ scale: 1.02 }}
-              onClick={() => setShowReceiveModal(true)}
-              className="group relative overflow-hidden rounded-2xl aspect-square border border-white/40 bg-gradient-to-br from-emerald-500 to-teal-500 shadow-lg hover:shadow-xl transition-all"
-            >
-              <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute -left-8 top-2 h-12 w-[140%] rounded-[100%] bg-white/26 transition-transform duration-300 group-hover:translate-x-2" />
-                <div className="absolute -left-10 top-9 h-16 w-[150%] rounded-[100%] bg-white/14 transition-transform duration-300 group-hover:translate-x-3" />
-                <div className="absolute -left-10 top-20 h-16 w-[145%] rounded-[100%] bg-white/10 transition-transform duration-300 group-hover:translate-x-4" />
-              </div>
-              <div className="relative z-10 h-full w-full flex flex-col items-center justify-center">
-                <ArrowDownLeft className="w-8 h-8 text-white mb-2 drop-shadow-sm" />
-                <div className="text-sm font-bold text-white text-center drop-shadow-sm">Receive</div>
-              </div>
-            </motion.button>
-
-            <motion.button
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.25 }}
-              whileTap={{ scale: 0.95 }}
-              whileHover={{ scale: 1.02 }}
-              onClick={() => setShowSwapModal(true)}
-              className="group relative overflow-hidden rounded-2xl aspect-square border border-white/40 bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg hover:shadow-xl transition-all"
-            >
-              <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute -left-8 top-2 h-12 w-[140%] rounded-[100%] bg-white/26 transition-transform duration-300 group-hover:translate-x-2" />
-                <div className="absolute -left-10 top-9 h-16 w-[150%] rounded-[100%] bg-white/14 transition-transform duration-300 group-hover:translate-x-3" />
-                <div className="absolute -left-10 top-20 h-16 w-[145%] rounded-[100%] bg-white/10 transition-transform duration-300 group-hover:translate-x-4" />
-              </div>
-              <div className="relative z-10 h-full w-full flex flex-col items-center justify-center">
-                <Repeat className="w-8 h-8 text-white mb-2 drop-shadow-sm" />
-                <div className="text-sm font-bold text-white text-center drop-shadow-sm">Swap</div>
-              </div>
-            </motion.button>
+                <div className="relative z-10 h-full w-full flex flex-col items-center justify-center">
+                  {action.icon}
+                  <div className="text-sm font-bold text-white text-center drop-shadow-sm">{action.label}</div>
+                </div>
+              </motion.button>
+            ))}
           </div>
 
           {/* ⚡ Lightning Network Button - Only for Bitcoin */}
