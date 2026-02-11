@@ -177,7 +177,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
               setAccount({
                 id: 'temp-seed-wallet',
                 type: 'seed',
-                displayName: 'Seed Wallet',
+                displayName: 'Seed wallet',
                 lastUsed: new Date(),
                 isActive: true
               });
@@ -328,7 +328,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             setUserEmail(''); // No email
             setIsEmailVerified(false);
             setMemberSince('N/A');
-            setDisplayName(currentAccount?.displayName || 'Seed Wallet User');
+            setDisplayName(currentAccount?.displayName || 'Seed wallet user');
             // Security score, activity, devices, stats remain empty (default state)
           }
           
@@ -936,7 +936,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <Settings className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h2 className="text-3xl font-black text-gray-900 mb-1">Account Settings</h2>
+                <h2 className="text-3xl font-black text-gray-900 mb-1">Account settings</h2>
                 <p className="text-sm text-gray-600">
                   Manage your wallet preferences
                 </p>
@@ -1086,7 +1086,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
               
               {/* Volume */}
               <div>
-                <div className="text-xs text-gray-600 mb-1">Total Volume</div>
+                <div className="text-xs text-gray-600 mb-1">Total volume</div>
                 <div className="text-2xl font-bold text-gray-900">
                   {transactionStats ? (
                     `$${(parseFloat(transactionStats.total_sent) + parseFloat(transactionStats.total_received)).toFixed(2)}`
@@ -1136,7 +1136,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                   )}
                 </div>
                 <div className="text-xs text-center font-medium text-gray-900 mb-1">
-                  Email Verified
+                  Email verified
                 </div>
                 <div className="text-xs text-center font-bold text-gray-600 mb-2">
                   +25 pts
@@ -1183,7 +1183,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                   )}
                 </div>
                 <div className="text-xs text-center font-medium text-gray-900 mb-1">
-                  Biometric Unlock
+                  Biometric unlock
                 </div>
                 <div className="text-xs text-center font-bold text-gray-600">
                   +25 pts
@@ -1225,7 +1225,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 >
                   <div className="flex items-center gap-2">
                     <Lock className={`w-4 h-4 ${userProfile?.two_factor_enabled ? 'text-green-600' : 'text-orange-500'}`} />
-                    <span className="text-sm font-medium text-gray-900">Two-Factor Authentication</span>
+                    <span className="text-sm font-medium text-gray-900">Two-factor authentication</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span
@@ -1392,7 +1392,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                   <Activity className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Recent Activity</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Recent activity</h3>
                   <p className="text-xs text-gray-600">
                     {activityLog.length > 0 ? `Last ${activityLog.length} actions` : 'No activity yet'}
                   </p>
@@ -1413,7 +1413,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                   <Smartphone className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Trusted Devices</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Trusted devices</h3>
                   <p className="text-xs text-gray-600">
                     {trustedDevices.length} {trustedDevices.length === 1 ? 'device' : 'devices'} verified
                   </p>
@@ -1427,7 +1427,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
           <div className="glass-card p-6 border border-gray-200 mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Zap className="w-5 h-5 text-orange-500" />
-              Quick Actions
+              Quick actions
             </h3>
             
             <div className="grid grid-cols-3 gap-3">
@@ -1446,7 +1446,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 className="p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
               >
                 <FileDown className="w-5 h-5 text-orange-500 mx-auto mb-2" />
-                <div className="text-xs font-medium text-gray-900">Export Addresses</div>
+                <div className="text-xs font-medium text-gray-900">Export addresses</div>
               </button>
               
               {/* Lock Wallet */}
@@ -1455,7 +1455,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 className="p-4 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
               >
                 <Lock className="w-5 h-5 text-orange-500 mx-auto mb-2" />
-                <div className="text-xs font-medium text-gray-900">Lock Wallet</div>
+                <div className="text-xs font-medium text-gray-900">Lock wallet</div>
               </button>
             </div>
           </div>
