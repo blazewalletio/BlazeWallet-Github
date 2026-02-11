@@ -1123,15 +1123,10 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
               {/* Email Verified */}
               <div
-                onClick={() => {
-                  if (!securityScore?.email_verified && !isResendingVerification && verificationResendCooldown === 0) {
-                    handleResendVerification();
-                  }
-                }}
                 className={`p-3 rounded-lg border-2 transition-colors ${
                 securityScore?.email_verified 
                   ? 'border-green-200 bg-green-50' 
-                  : 'border-gray-200 bg-gray-50 hover:border-orange-300 hover:bg-orange-50/40 cursor-pointer'
+                  : 'border-gray-200 bg-gray-50'
               }`}>
                 <div className="flex items-center justify-center mb-2">
                   {securityScore?.email_verified ? (
@@ -1146,62 +1141,9 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <div className="text-xs text-center font-bold text-gray-600 mb-2">
                   +25 pts
                 </div>
-                {/* Compact status + mini action (Option 2) */}
                 {!securityScore?.email_verified && (
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full border border-orange-200 bg-orange-50 text-[10px] font-semibold text-orange-700">
-                      {verificationResendCooldown > 0 ? (
-                        <>
-                          <Clock className={`w-3 h-3 ${verificationResendCooldown <= 3 ? 'animate-pulse' : ''}`} />
-                          Not verified
-                        </>
-                      ) : (
-                        <>
-                          <Mail className={`w-3 h-3 ${showResendReadyPulse ? 'animate-pulse' : ''}`} />
-                          Not verified
-                        </>
-                      )}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!isResendingVerification && verificationResendCooldown === 0) {
-                          handleResendVerification();
-                        }
-                      }}
-                      disabled={isResendingVerification || verificationResendCooldown > 0}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-gray-200 bg-white text-[10px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {isResendingVerification ? (
-                        <>
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                          Sending...
-                        </>
-                      ) : verificationResendCooldown > 0 ? (
-                        <>
-                          <Clock className="w-3 h-3" />
-                          {verificationResendCooldown}s
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="w-3 h-3" />
-                          Resend
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
-                {/* Success/Error Message */}
-                {verificationResendMessage && (
-                  <div className={`mt-2 text-xs text-center ${
-                    verificationResendMessage.toLowerCase().includes('success') ||
-                    verificationResendMessage.toLowerCase().includes('sent') ||
-                    verificationResendMessage.toLowerCase().includes('verified')
-                      ? 'text-green-600'
-                      : 'text-red-600'
-                  }`}>
-                    {verificationResendMessage}
+                  <div className="mt-2 text-[10px] text-center font-semibold text-orange-700">
+                    Not verified
                   </div>
                 )}
               </div>
@@ -1374,21 +1316,68 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
 
             {/* Biometric Button */}
             {onOpenSettings && (
-              <button
-                onClick={onOpenSettings}
-                className="w-full mt-3 flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <Smartphone className="w-4 h-4 text-orange-500" />
-                  <span className="text-sm font-medium text-gray-900">Biometric unlock</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-600">
-                    {biometricEnabled ? 'Enabled' : 'Not enabled'}
-                  </span>
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
-                </div>
-              </button>
+              <>
+                <button
+                  onClick={onOpenSettings}
+                  className="w-full mt-3 flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-orange-500" />
+                    <span className="text-sm font-medium text-gray-900">Biometric unlock</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-600">
+                      {biometricEnabled ? 'Enabled' : 'Not enabled'}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                  </div>
+                </button>
+
+                {hasEmailSession && !securityScore?.email_verified && (
+                  <button
+                    onClick={handleResendVerification}
+                    disabled={isResendingVerification || verificationResendCooldown > 0}
+                    className="w-full mt-3 flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    <div className="flex items-center gap-2">
+                      {isResendingVerification ? (
+                        <Loader2 className="w-4 h-4 text-orange-500 animate-spin" />
+                      ) : (
+                        <Mail className={`w-4 h-4 text-orange-500 ${showResendReadyPulse ? 'animate-pulse' : ''}`} />
+                      )}
+                      <span className="text-sm font-medium text-gray-900">Email verification</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border ${
+                          verificationResendCooldown > 0
+                            ? 'bg-white text-gray-600 border-gray-200'
+                            : 'bg-orange-50 text-orange-700 border-orange-200'
+                        }`}
+                      >
+                        {isResendingVerification
+                          ? 'Sending...'
+                          : verificationResendCooldown > 0
+                            ? `Resend in ${verificationResendCooldown}s`
+                            : 'Resend email'}
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-gray-400" />
+                    </div>
+                  </button>
+                )}
+
+                {hasEmailSession && verificationResendMessage && (
+                  <div className={`mt-2 text-xs font-medium text-center ${
+                    verificationResendMessage.toLowerCase().includes('success') ||
+                    verificationResendMessage.toLowerCase().includes('sent') ||
+                    verificationResendMessage.toLowerCase().includes('verified')
+                      ? 'text-green-600'
+                      : 'text-red-600'
+                  }`}>
+                    {verificationResendMessage}
+                  </div>
+                )}
+              </>
             )}
           </div>
 

@@ -234,6 +234,15 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     window.location.reload();
   };
 
+  const handleToggleMnemonic = () => {
+    if (showMnemonic) {
+      setShowMnemonic(false);
+      return;
+    }
+    // Require password verification before revealing recovery phrase.
+    setShowPasswordVerification(true);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -295,7 +304,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <div className="text-sm font-semibold text-gray-900">Recovery phrase</div>
                   <motion.button
                     whileTap={{ scale: 0.9 }}
-                    onClick={() => setShowMnemonic(!showMnemonic)}
+                    onClick={handleToggleMnemonic}
                     className="text-orange-600 hover:text-orange-700 text-sm flex items-center gap-1 font-semibold"
                   >
                     {showMnemonic ? (
@@ -306,7 +315,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     ) : (
                       <>
                         <Eye className="w-4 h-4" />
-                        Show (Be careful!)
+                        Show (be careful!)
                       </>
                     )}
                   </motion.button>
@@ -552,6 +561,14 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             }}
           />
         )}
+
+        <PasswordVerificationModal
+          isOpen={showPasswordVerification}
+          onClose={() => setShowPasswordVerification(false)}
+          onSuccess={() => setShowMnemonic(true)}
+          title="Reveal recovery phrase"
+          description="Enter your wallet password to reveal your recovery phrase."
+        />
       </motion.div>
     </AnimatePresence>
   );
