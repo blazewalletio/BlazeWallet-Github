@@ -1872,7 +1872,7 @@ export default function Dashboard() {
               {
                 key: 'buy',
                 label: 'Buy',
-                icon: <CreditCard className="w-7 h-7 text-white mb-2 drop-shadow-sm" />,
+                icon: <CreditCard className="w-7 h-7 text-white mb-2 md:mb-0 drop-shadow-sm" />,
                 onClick: () => setShowBuyModal3(true),
                 gradient: 'from-blue-500 via-blue-500 to-blue-600',
                 delay: 0.1,
@@ -1880,7 +1880,7 @@ export default function Dashboard() {
               {
                 key: 'send',
                 label: 'Send',
-                icon: <ArrowUpRight className="w-7 h-7 text-white mb-2 drop-shadow-sm" />,
+                icon: <ArrowUpRight className="w-7 h-7 text-white mb-2 md:mb-0 drop-shadow-sm" />,
                 onClick: () => setShowSendModal(true),
                 gradient: 'from-rose-500 via-orange-500 to-amber-500',
                 delay: 0.15,
@@ -1888,7 +1888,7 @@ export default function Dashboard() {
               {
                 key: 'receive',
                 label: 'Receive',
-                icon: <ArrowDownLeft className="w-7 h-7 text-white mb-2 drop-shadow-sm" />,
+                icon: <ArrowDownLeft className="w-7 h-7 text-white mb-2 md:mb-0 drop-shadow-sm" />,
                 onClick: () => setShowReceiveModal(true),
                 gradient: 'from-emerald-500 via-teal-500 to-cyan-500',
                 delay: 0.2,
@@ -1896,7 +1896,7 @@ export default function Dashboard() {
               {
                 key: 'swap',
                 label: 'Swap',
-                icon: <Repeat className="w-7 h-7 text-white mb-2 drop-shadow-sm" />,
+                icon: <Repeat className="w-7 h-7 text-white mb-2 md:mb-0 drop-shadow-sm" />,
                 onClick: () => setShowSwapModal(true),
                 gradient: 'from-purple-500 via-fuchsia-500 to-pink-500',
                 delay: 0.25,
@@ -1910,7 +1910,7 @@ export default function Dashboard() {
                 whileTap={{ scale: 0.96 }}
                 whileHover={{ scale: 1.01 }}
                 onClick={action.onClick}
-                className={`group relative overflow-hidden rounded-2xl aspect-square border border-white/45 bg-gradient-to-br ${action.gradient} shadow-lg hover:shadow-xl transition-all`}
+                className={`group relative overflow-hidden rounded-2xl aspect-square md:aspect-auto md:h-24 border border-white/45 bg-gradient-to-br ${action.gradient} shadow-lg hover:shadow-xl transition-all`}
               >
                 {/* True wave overlay using SVG curves (static = performant, clean on all screens) */}
                 <svg
@@ -1944,9 +1944,9 @@ export default function Dashboard() {
                 {/* Subtle top edge highlight */}
                 <div className="absolute inset-0 rounded-2xl ring-1 ring-white/18 pointer-events-none" />
 
-                <div className="relative z-10 h-full w-full flex flex-col items-center justify-center">
+                <div className="relative z-10 h-full w-full flex flex-col md:flex-row items-center justify-center md:gap-2">
                   {action.icon}
-                  <div className="text-sm font-bold text-white text-center drop-shadow-sm">{action.label}</div>
+                  <div className="text-sm md:text-base font-bold text-white text-center drop-shadow-sm">{action.label}</div>
                 </div>
               </motion.button>
             ))}
