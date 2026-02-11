@@ -756,6 +756,7 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
                 onAddNewEmail={() => setShowNewEmailModal(true)}
                 onImportSeed={handleImportSeed}
                 disabled={isLoading || isSwitching}
+                selectedAccount={currentAccount}
               />
             </div>
 

@@ -10,6 +10,7 @@ interface EmailAccountSelectorProps {
   onAddNewEmail: () => void;
   onImportSeed: () => void;
   disabled?: boolean;
+  selectedAccount?: WalletAccount | null;
 }
 
 export default function EmailAccountSelector({
@@ -17,6 +18,7 @@ export default function EmailAccountSelector({
   onAddNewEmail,
   onImportSeed,
   disabled = false,
+  selectedAccount = null,
 }: EmailAccountSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentAccount, setCurrentAccount] = useState<WalletAccount | null>(null);
@@ -70,6 +72,13 @@ export default function EmailAccountSelector({
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [isOpen]);
+
+  // Keep selector display in sync with externally selected/pending account
+  useEffect(() => {
+    if (selectedAccount) {
+      setCurrentAccount(selectedAccount);
+    }
+  }, [selectedAccount]);
 
   const handleSelectAccount = (account: WalletAccount) => {
     setIsOpen(false);
