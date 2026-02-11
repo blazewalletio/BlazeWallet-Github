@@ -373,8 +373,8 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
                     <div className="text-sm text-gray-700">
                       <p className="font-semibold mb-1">How to add a token</p>
                       <p className="text-xs text-gray-600">
-                        {isSolana && 'Enter the SPL token mint address below. The token will appear in your Assets after adding.'}
-                        {isEVM && 'Enter the ERC20 contract address below. The token will appear in your Assets after adding.'}
+                        {isSolana && 'Search by token name or ticker first. If your token is not listed, add it by SPL mint address below.'}
+                        {isEVM && 'Search by token name or ticker first. If your token is not listed, add it by contract address below.'}
                       </p>
                     </div>
                   </div>

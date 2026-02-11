@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { ethers } from 'ethers';
 import { apiRateLimiter } from '@/lib/api-rate-limiter';
+import { CHAINS } from '@/lib/chains';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,13 +35,15 @@ const COINGECKO_PLATFORM_BY_CHAIN: Record<string, string | null> = {
   zksync: 'zksync',
   linea: 'linea',
   solana: 'solana',
-  sepolia: null,
-  bscTestnet: null,
+  sepolia: 'ethereum',
+  bscTestnet: 'binance-smart-chain',
   bitcoin: null,
   litecoin: null,
   dogecoin: null,
   bitcoincash: null,
 };
+
+const TESTNET_CHAINS = new Set(['sepolia', 'bscTestnet']);
 
 let coinListCache: { expiresAt: number; data: CoinListItem[] } = {
   expiresAt: 0,
@@ -110,6 +113,69 @@ async function getCoinList(): Promise<CoinListItem[]> {
     expiresAt: Date.now() + LIST_CACHE_TTL_MS,
   };
   return coinListCache.data;
+}
+
+async function hasContractCode(rpcUrl: string, address: string): Promise<boolean> {
+  try {
+    const response = await fetch(rpcUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'eth_getCode',
+        params: [address, 'latest'],
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (!response.ok) return false;
+    const payload = await response.json();
+    const code = typeof payload?.result === 'string' ? payload.result : '0x';
+    return code !== '0x' && code !== '0x0';
+  } catch {
+    return false;
+  }
+}
+
+async function filterTestnetDeployments(
+  chainKey: string,
+  tokens: Array<{
+    id: string;
+    address: string;
+    symbol: string;
+    name: string;
+    decimals: number;
+    logoURI: string;
+    marketCapRank: number;
+  }>,
+  targetLimit: number
+) {
+  const rpcUrl = CHAINS[chainKey]?.rpcUrl;
+  if (!rpcUrl) return tokens.slice(0, targetLimit);
+
+  const sample = tokens.slice(0, Math.min(220, Math.max(targetLimit * 8, 80)));
+  const deployed: typeof sample = [];
+
+  for (let i = 0; i < sample.length; i += 12) {
+    const chunk = sample.slice(i, i + 12);
+    const results = await Promise.all(
+      chunk.map(async (token) => ({
+        token,
+        deployed: await hasContractCode(rpcUrl, token.address),
+      }))
+    );
+
+    for (const result of results) {
+      if (result.deployed) {
+        deployed.push(result.token);
+      }
+    }
+
+    if (deployed.length >= targetLimit) break;
+  }
+
+  return deployed.slice(0, targetLimit);
 }
 
 export async function GET(request: NextRequest) {
@@ -187,13 +253,20 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const ranked = Array.from(deduped.values())
+    const preRanked = Array.from(deduped.values())
       .sort((a, b) => {
         const aSym = a.symbol.toLowerCase();
         const bSym = b.symbol.toLowerCase();
         const aName = a.name.toLowerCase();
         const bName = b.name.toLowerCase();
 
+        // Popularity first (lower market cap rank is better)
+        const aKnownRank = a.marketCapRank < 999999;
+        const bKnownRank = b.marketCapRank < 999999;
+        if (aKnownRank !== bKnownRank) return aKnownRank ? -1 : 1;
+        if (a.marketCapRank !== b.marketCapRank) return a.marketCapRank - b.marketCapRank;
+
+        // Then relevance tie-breakers
         const aExact = aSym === query;
         const bExact = bSym === query;
         if (aExact !== bExact) return aExact ? -1 : 1;
@@ -206,16 +279,27 @@ export async function GET(request: NextRequest) {
         const bNameStarts = bName.startsWith(query);
         if (aNameStarts !== bNameStarts) return aNameStarts ? -1 : 1;
 
-        if (a.marketCapRank !== b.marketCapRank) return a.marketCapRank - b.marketCapRank;
         return aSym.localeCompare(bSym);
-      })
-      .slice(0, limit)
-      .map(({ marketCapRank, ...token }) => token);
+      });
+
+    const rankedSource = TESTNET_CHAINS.has(chainKey)
+      ? await filterTestnetDeployments(chainKey, preRanked, limit)
+      : preRanked.slice(0, limit);
+
+    const ranked = rankedSource.map(({ marketCapRank, ...token }) => token);
 
     logger.log(`✅ [TokenSearch] Found ${ranked.length} tokens on ${chainKey}`);
 
     return NextResponse.json(
-      { tokens: ranked },
+      {
+        tokens: ranked,
+        ...(TESTNET_CHAINS.has(chainKey)
+          ? {
+              info:
+                'Showing tokens verified as deployed on this testnet. If your token is missing, use add by address.',
+            }
+          : {}),
+      },
       {
         headers: {
           'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=300',
