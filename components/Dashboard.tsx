@@ -2744,22 +2744,6 @@ export default function Dashboard() {
                       <div className="text-xs text-gray-500 font-mono truncate">
                         {formattedAddress}
                       </div>
-                      {/* Copy button - visible on both desktop and mobile */}
-                      {displayAddress && (
-                        <motion.button
-                          whileTap={{ scale: 0.9 }}
-                          onClick={handleCopyAddress}
-                          className="flex-shrink-0 p-1 rounded-md hover:bg-gray-100 active:bg-gray-200 transition-colors group"
-                          title="Copy address"
-                          aria-label="Copy wallet address"
-                        >
-                          {copiedAddress ? (
-                            <Check className="w-3.5 h-3.5 text-green-600" />
-                          ) : (
-                            <Copy className="w-3.5 h-3.5 text-gray-400 group-hover:text-orange-600 transition-colors" />
-                          )}
-                        </motion.button>
-                      )}
                     </div>
                         </div>
                   <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 flex-shrink-0" />
