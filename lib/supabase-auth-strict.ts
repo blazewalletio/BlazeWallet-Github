@@ -149,6 +149,113 @@ export interface StrictSignInResult {
   userId?: string; // User ID before sign out (needed for device verification)
 }
 
+type TrustedDeviceRow = {
+  id: string;
+  user_id: string;
+  device_id: string | null;
+  device_fingerprint: string | null;
+  is_current: boolean | null;
+  verified_at: string | null;
+  last_used_at: string | null;
+  created_at?: string | null;
+};
+
+function getDeviceRecencyScore(device: TrustedDeviceRow): number {
+  const ts = device.last_used_at || device.verified_at || device.created_at || null;
+  if (!ts) return 0;
+  const parsed = Date.parse(ts);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+async function normalizeLegacyTrustedDevices(
+  userId: string,
+  activeDeviceId: string,
+  fingerprint: string
+): Promise<string> {
+  try {
+    const { data: devices, error } = await supabase
+      .from('trusted_devices')
+      .select('id,user_id,device_id,device_fingerprint,is_current,verified_at,last_used_at,created_at')
+      .eq('user_id', userId);
+
+    if (error || !devices) {
+      logger.warn('⚠️ [StrictAuth] Skipping legacy device normalization (read failed):', error);
+      return activeDeviceId;
+    }
+
+    const userDevices = devices as TrustedDeviceRow[];
+    if (userDevices.length === 0) return activeDeviceId;
+
+    const nowIso = new Date().toISOString();
+    const activeById = userDevices.find((d) => d.device_id === activeDeviceId);
+    const matchesByFingerprint = userDevices
+      .filter((d) => d.device_fingerprint === fingerprint)
+      .sort((a, b) => getDeviceRecencyScore(b) - getDeviceRecencyScore(a));
+
+    // Backfill missing device_id for same fingerprint (legacy rows).
+    if (!activeById && matchesByFingerprint.length > 0) {
+      const bestFingerprintMatch = matchesByFingerprint[0];
+
+      if (!bestFingerprintMatch.device_id) {
+        const { error: backfillError } = await supabase
+          .from('trusted_devices')
+          .update({
+            device_id: activeDeviceId,
+            last_used_at: nowIso,
+          })
+          .eq('id', bestFingerprintMatch.id);
+
+        if (backfillError) {
+          logger.warn('⚠️ [StrictAuth] Failed to backfill missing device_id on legacy row:', backfillError);
+        } else {
+          logger.log('✅ [StrictAuth] Backfilled missing legacy device_id from fingerprint match');
+        }
+      } else if (bestFingerprintMatch.verified_at) {
+        // If this fingerprint is already verified under a legacy device_id, adopt it
+        // to preserve trust continuity and avoid duplicate registration flows.
+        activeDeviceId = bestFingerprintMatch.device_id;
+        try {
+          const { DeviceIdManager } = await import('./device-id-manager');
+          DeviceIdManager.setDeviceId(activeDeviceId);
+          logger.log('✅ [StrictAuth] Adopted verified legacy device_id for current fingerprint');
+        } catch (syncError) {
+          logger.warn('⚠️ [StrictAuth] Failed to sync adopted legacy device_id locally:', syncError);
+        }
+      }
+    }
+
+    // Normalize multiple "current" flags to a single row (idempotent cleanup).
+    const refreshedActive = userDevices.find((d) => d.device_id === activeDeviceId);
+    const currentRows = userDevices.filter((d) => d.is_current);
+    if (currentRows.length > 1) {
+      const keepId =
+        refreshedActive?.id ||
+        currentRows.sort((a, b) => getDeviceRecencyScore(b) - getDeviceRecencyScore(a))[0]?.id;
+
+      if (keepId) {
+        const idsToDisable = currentRows.filter((d) => d.id !== keepId).map((d) => d.id);
+        if (idsToDisable.length > 0) {
+          const { error: disableError } = await supabase
+            .from('trusted_devices')
+            .update({ is_current: false })
+            .in('id', idsToDisable);
+
+          if (disableError) {
+            logger.warn('⚠️ [StrictAuth] Failed to normalize multiple current devices:', disableError);
+          } else {
+            logger.log(`✅ [StrictAuth] Normalized ${idsToDisable.length} legacy current-device duplicates`);
+          }
+        }
+      }
+    }
+
+    return activeDeviceId;
+  } catch (normalizationError) {
+    logger.warn('⚠️ [StrictAuth] Legacy device normalization failed (non-blocking):', normalizationError);
+    return activeDeviceId;
+  }
+}
+
 /**
  * Strict sign-in with mandatory device verification for new devices
  */
@@ -194,6 +301,13 @@ export async function strictSignInWithEmail(
       location: deviceInfo.location ? `${deviceInfo.location.city}, ${deviceInfo.location.country}` : 'Unknown',
       riskScore: deviceInfo.riskScore,
     });
+
+    // 3.5 Legacy cleanup: normalize older trusted_devices rows for this user/device.
+    activeDeviceId = await normalizeLegacyTrustedDevices(
+      data.user.id,
+      activeDeviceId,
+      deviceInfo.fingerprint
+    );
     
     // 4. Check risk score - block high-risk logins immediately
     if (deviceInfo.riskScore >= 70) {
