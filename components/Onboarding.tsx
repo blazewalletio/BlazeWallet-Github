@@ -14,8 +14,7 @@ interface OnboardingProps {
 }
 
 export default function Onboarding({ onComplete }: OnboardingProps) {
-  const [step, setStep] = useState<'carousel' | 'create-options' | 'add-wallet' | 'import-options' | 'mnemonic' | 'verify' | 'import-seed' | 'email-auth' | 'device-verification' | 'biometric-setup'>('carousel');
-  const [carouselPage, setCarouselPage] = useState(0);
+  const [step, setStep] = useState<'carousel' | 'create-options' | 'add-wallet' | 'mnemonic' | 'verify' | 'import-seed' | 'email-auth' | 'device-verification' | 'biometric-setup'>('carousel');
   const [mnemonic, setMnemonic] = useState<string>('');
   const [importInput, setImportInput] = useState<string>('');
   const [verifyWords, setVerifyWords] = useState<{ [key: number]: string }>({});
@@ -48,6 +47,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   // ✅ NEW: Device verification state
   const [deviceVerificationCode, setDeviceVerificationCode] = useState('');
   const [deviceVerificationToken, setDeviceVerificationToken] = useState('');
+  const [deviceResendCooldown, setDeviceResendCooldown] = useState(0);
+  const [isResendingDeviceCode, setIsResendingDeviceCode] = useState(false);
   
   // ✅ NEW: 2FA state
   const [show2FAModal, setShow2FAModal] = useState(false);
@@ -174,6 +175,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       logger.log('📱 Device detection:', { isMobile });
     }
   }, []);
+
+  useEffect(() => {
+    if (deviceResendCooldown <= 0) return;
+    const timer = window.setTimeout(() => setDeviceResendCooldown((prev) => prev - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [deviceResendCooldown]);
 
   // Scroll to top on step change
   useEffect(() => {
@@ -432,28 +439,35 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     }
   };
 
+  const handleResendDeviceCode = async () => {
+    if (isResendingDeviceCode || deviceResendCooldown > 0) return;
+
+    try {
+      setError('');
+      setIsResendingDeviceCode(true);
+
+      const result = await signInWithEmail(email, password);
+      if (!result.success) {
+        setError(result.error || 'Failed to resend verification code. Please try again.');
+        return;
+      }
+
+      if (result.requiresDeviceVerification && result.deviceVerificationToken) {
+        setDeviceVerificationToken(result.deviceVerificationToken);
+        setDeviceResendCooldown(60);
+        setDeviceVerificationCode('');
+      } else {
+        setError('This session no longer requires device verification. Please continue signing in.');
+      }
+    } catch (err) {
+      logger.error('Error resending device verification code:', err);
+      setError('Failed to resend verification code. Please try again.');
+    } finally {
+      setIsResendingDeviceCode(false);
+    }
+  };
+
   const words = mnemonic.split(' ');
-
-    // Simplified floating animation - CSS only for better performance
-    const FloatingIcon = ({ children, delay = 0, className = '' }: { children: React.ReactNode, delay?: number, className?: string }) => (
-      <div 
-        className={`absolute ${className}`}
-        style={{
-          animation: `float 4s ease-in-out infinite`,
-          animationDelay: `${delay}s`,
-        }}
-      >
-        {children}
-      </div>
-    );
-
-  // Real crypto logos
-  const cryptoLogos = [
-    { name: 'Bitcoin', image: '/crypto-bitcoin.png', gradient: 'from-orange-400 to-orange-600' },
-    { name: 'Ethereum', image: '/crypto-eth.png', gradient: 'from-blue-400 to-blue-600' },
-    { name: 'Doge', image: '/crypto-doge.png', gradient: 'from-yellow-400 to-yellow-600' },
-    { name: 'Solana', image: '/crypto-solana.png', gradient: 'from-purple-400 to-purple-600' },
-  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative flex items-center justify-center py-8 sm:py-12 lg:py-16">
@@ -463,7 +477,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       {/* 🎯 CONTENT WRAPPER - Perfect centering for all screen sizes */}
       <div className="w-full max-w-md sm:max-w-lg lg:max-w-2xl xl:max-w-3xl relative z-10 px-4 sm:px-6 lg:px-8">
         <AnimatePresence mode="wait">
-          {/* CAROUSEL WELCOME SCREEN - SWIPEABLE SECTIONS */}
+          {/* Welcome screen */}
           {step === 'carousel' && (
           <motion.div
               key="carousel"
@@ -471,249 +485,37 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-lg lg:max-w-2xl mx-auto"
+              className="w-full max-w-md sm:max-w-lg lg:max-w-xl mx-auto"
             >
-              {/* Swipeable Content Container - AUTO HEIGHT, NO SCROLL */}
-              <div 
-                className="mb-6 lg:mb-8"
-                onTouchStart={(e) => {
-                  const touch = e.touches[0];
-                  e.currentTarget.setAttribute('data-touch-start', touch.clientX.toString());
-                  e.currentTarget.setAttribute('data-touch-start-y', touch.clientY.toString());
-                }}
-                onTouchMove={(e) => {
-                  const touchStartX = parseFloat(e.currentTarget.getAttribute('data-touch-start') || '0');
-                  const touchStartY = parseFloat(e.currentTarget.getAttribute('data-touch-start-y') || '0');
-                  const touchCurrentX = e.touches[0].clientX;
-                  const touchCurrentY = e.touches[0].clientY;
-                  
-                  const diffX = Math.abs(touchStartX - touchCurrentX);
-                  const diffY = Math.abs(touchStartY - touchCurrentY);
-                  
-                  // Only allow horizontal swipe if horizontal movement is greater than vertical
-                  if (diffX > diffY && diffX > 10) {
-                    e.preventDefault();
-                  }
-                }}
-                onTouchEnd={(e) => {
-                  const touchStart = parseFloat(e.currentTarget.getAttribute('data-touch-start') || '0');
-                  const touchEnd = e.changedTouches[0].clientX;
-                  const diff = touchStart - touchEnd;
-                  
-                  if (Math.abs(diff) > 50) {
-                    if (diff > 0 && carouselPage < 3) {
-                      setCarouselPage(prev => prev + 1);
-                    } else if (diff < 0 && carouselPage > 0) {
-                      setCarouselPage(prev => prev - 1);
-                    }
-                  }
-                }}
-              >
-                <AnimatePresence mode="wait">
-              <motion.div
-                    key={carouselPage}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="flex flex-col items-center justify-center min-h-[400px] sm:min-h-[450px] lg:min-h-[500px] gpu-accelerated"
-                  >
-                    {carouselPage === 0 && (
-                      <div className="flex flex-col items-center w-full px-4 py-4">
-                        {/* Floating Crypto Icons - RESPONSIVE CONTAINER */}
-                        <div className="relative h-48 sm:h-56 lg:h-64 xl:h-72 w-full max-w-sm lg:max-w-md mx-auto mb-6 lg:mb-8">
-                          <FloatingIcon delay={0} className="top-0 left-0 sm:top-2 sm:left-2 lg:top-4 lg:left-4">
-                            <img src={cryptoLogos[0].image} alt={cryptoLogos[0].name} className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 xl:w-20 xl:h-20 object-contain" />
-                          </FloatingIcon>
-                          
-                          <FloatingIcon delay={0.5} className="top-0 right-0 sm:top-2 sm:right-2 lg:top-4 lg:right-4">
-                            <img src={cryptoLogos[1].image} alt={cryptoLogos[1].name} className="w-11 h-11 sm:w-13 sm:h-13 lg:w-15 lg:h-15 xl:w-18 xl:h-18 object-contain" />
-                          </FloatingIcon>
-                          
-                          <FloatingIcon delay={1} className="bottom-0 left-0 sm:bottom-2 sm:left-2 lg:bottom-4 lg:left-4">
-                            <img src={cryptoLogos[2].image} alt={cryptoLogos[2].name} className="w-14 h-14 sm:w-16 sm:h-16 lg:w-18 lg:h-18 xl:w-22 xl:h-22 object-contain" />
-                          </FloatingIcon>
-                          
-                          <FloatingIcon delay={1.5} className="bottom-0 right-0 sm:bottom-2 sm:right-2 lg:bottom-4 lg:right-4">
-                            <img src={cryptoLogos[3].image} alt={cryptoLogos[3].name} className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 xl:w-16 xl:h-16 object-contain" />
-                          </FloatingIcon>
+              <div className="bg-white/80 backdrop-blur-md border border-gray-200/80 rounded-3xl shadow-xl p-5 sm:p-6 lg:p-8 mb-6">
+                <div className="flex items-center justify-center mb-5">
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-orange-500/10 to-yellow-500/10 border border-orange-200/80 flex items-center justify-center p-3">
+                    <BlazeLogoImage className="w-full h-full" />
+                  </div>
+                </div>
 
-                          {/* Center Logo - BLAZE LOGO (RESPONSIVE SIZING) */}
-                          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                            <div 
-                              className="w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 xl:w-40 xl:h-40 bg-white rounded-full flex items-center justify-center shadow-2xl border-4 border-orange-500/20 gpu-accelerated p-3 sm:p-4 lg:p-5 xl:p-6"
-                              style={{
-                                animation: 'pulse-subtle 3s ease-in-out infinite'
-                              }}
-                            >
-                              <img src="/crypto-blaze.png" alt="Blaze Wallet" className="w-full h-full object-contain" />
-                            </div>
-                          </div>
-                        </div>
+                <div className="text-center mb-5">
+                  <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Welcome to Blaze</h1>
+                  <p className="text-gray-600 text-sm sm:text-base">The crypto wallet built for speed, security, and clarity.</p>
+                </div>
 
-                        {/* Title - RESPONSIVE TYPOGRAPHY */}
-                        <div className="text-center px-4">
-                          <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-gray-900 mb-3 sm:mb-4 lg:mb-5 leading-tight">
-                            Welcome to Blaze
-                          </h1>
-                          <p className="text-gray-600 text-sm sm:text-base lg:text-lg xl:text-xl font-medium">
-                            Your secure gateway to Web3
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {carouselPage === 1 && (
-                      <div className="w-full max-w-md lg:max-w-4xl mx-auto">
-                        {/* Header - Direct op achtergrond */}
-                        <div className="text-center mb-6 lg:mb-8">
-                          <div className="inline-flex items-center justify-center w-16 h-16 lg:w-20 lg:h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl mb-3 lg:mb-4 shadow-lg">
-                            <Brain className="w-8 h-8 lg:w-10 lg:h-10 text-white" />
-                          </div>
-                          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">AI-Powered Tools</h2>
-                          <p className="text-gray-600 text-sm lg:text-base">Smart features that work for you</p>
-                        </div>
-                        
-                        {/* Features - Direct op achtergrond - GRID OP DESKTOP */}
-                        <div className="space-y-3 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-4 px-2">
-                          <div className="flex items-start gap-3 p-4 lg:p-5 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200 shadow-sm hover:shadow-md transition-shadow">
-                            <div className="w-10 h-10 lg:w-12 lg:h-12 bg-purple-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                              <Shield className="w-5 h-5 lg:w-6 lg:h-6 text-purple-600" />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-gray-900 text-sm lg:text-base mb-0.5 lg:mb-1">Risk Scanner</p>
-                              <p className="text-xs lg:text-sm text-gray-600">Detect scams before you transact</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3 p-4 lg:p-5 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200 shadow-sm hover:shadow-md transition-shadow">
-                            <div className="w-10 h-10 lg:w-12 lg:h-12 bg-purple-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                              <Sparkles className="w-5 h-5 lg:w-6 lg:h-6 text-purple-600" />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-gray-900 text-sm lg:text-base mb-0.5 lg:mb-1">Portfolio Advisor</p>
-                              <p className="text-xs lg:text-sm text-gray-600">Get personalized investment insights</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3 p-4 lg:p-5 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-200 shadow-sm hover:shadow-md transition-shadow">
-                            <div className="w-10 h-10 lg:w-12 lg:h-12 bg-purple-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                              <Zap className="w-5 h-5 lg:w-6 lg:h-6 text-purple-600" />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-gray-900 text-sm lg:text-base mb-0.5 lg:mb-1">Gas Optimizer</p>
-                              <p className="text-xs lg:text-sm text-gray-600">Save on transaction fees automatically</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {carouselPage === 2 && (
-                      <div className="w-full max-w-md lg:max-w-4xl mx-auto">
-                        {/* Header - Direct op achtergrond */}
-                        <div className="text-center mb-6 lg:mb-8">
-                          <div className="inline-flex items-center justify-center w-16 h-16 lg:w-20 lg:h-20 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl mb-3 lg:mb-4 shadow-lg">
-                            <Flame className="w-8 h-8 lg:w-10 lg:h-10 text-white" />
-                          </div>
-                          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">DeFi Features</h2>
-                          <p className="text-gray-600 text-sm lg:text-base">Earn, govern, and invest</p>
-                        </div>
-                        
-                        {/* Features - Direct op achtergrond - GRID OP DESKTOP */}
-                        <div className="space-y-3 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-4 px-2">
-                          <div className="flex items-start gap-3 p-4 lg:p-5 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200 shadow-sm hover:shadow-md transition-shadow">
-                            <div className="w-10 h-10 lg:w-12 lg:h-12 bg-blue-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                              <Lock className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-gray-900 text-sm lg:text-base mb-0.5 lg:mb-1">Staking</p>
-                              <p className="text-xs lg:text-sm text-gray-600">Earn passive rewards on your crypto</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3 p-4 lg:p-5 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200 shadow-sm hover:shadow-md transition-shadow">
-                            <div className="w-10 h-10 lg:w-12 lg:h-12 bg-blue-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                              <Vote className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-gray-900 text-sm lg:text-base mb-0.5 lg:mb-1">Governance</p>
-                              <p className="text-xs lg:text-sm text-gray-600">Vote on protocol decisions</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3 p-4 lg:p-5 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200 shadow-sm hover:shadow-md transition-shadow">
-                            <div className="w-10 h-10 lg:w-12 lg:h-12 bg-blue-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                              <Rocket className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600" />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-gray-900 text-sm lg:text-base mb-0.5 lg:mb-1">Launchpad</p>
-                              <p className="text-xs lg:text-sm text-gray-600">Early access to new projects</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {carouselPage === 3 && (
-                      <div className="w-full max-w-md lg:max-w-4xl mx-auto">
-                        {/* Header - Direct op achtergrond */}
-                        <div className="text-center mb-6 lg:mb-8">
-                          <div className="inline-flex items-center justify-center w-16 h-16 lg:w-20 lg:h-20 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl mb-3 lg:mb-4 shadow-lg">
-                            <Gift className="w-8 h-8 lg:w-10 lg:h-10 text-white" />
-                          </div>
-                          <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Exclusive Perks</h2>
-                          <p className="text-gray-600 text-sm lg:text-base">More benefits, more rewards</p>
-                        </div>
-                        
-                        {/* Features - Direct op achtergrond - GRID OP DESKTOP */}
-                        <div className="space-y-3 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-4 px-2">
-                          <div className="flex items-start gap-3 p-4 lg:p-5 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200 shadow-sm hover:shadow-md transition-shadow">
-                            <div className="w-10 h-10 lg:w-12 lg:h-12 bg-green-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                              <CreditCard className="w-5 h-5 lg:w-6 lg:h-6 text-green-600" />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-gray-900 text-sm lg:text-base mb-0.5 lg:mb-1">Cashback</p>
-                              <p className="text-xs lg:text-sm text-gray-600">Get crypto back on every transaction</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3 p-4 lg:p-5 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200 shadow-sm hover:shadow-md transition-shadow">
-                            <div className="w-10 h-10 lg:w-12 lg:h-12 bg-green-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                              <Users className="w-5 h-5 lg:w-6 lg:h-6 text-green-600" />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-gray-900 text-sm lg:text-base mb-0.5 lg:mb-1">Referrals</p>
-                              <p className="text-xs lg:text-sm text-gray-600">Earn rewards by inviting friends</p>
-                            </div>
-                          </div>
-                          <div className="flex items-start gap-3 p-4 lg:p-5 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200 shadow-sm hover:shadow-md transition-shadow">
-                            <div className="w-10 h-10 lg:w-12 lg:h-12 bg-green-500/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                              <Palette className="w-5 h-5 lg:w-6 lg:h-6 text-green-600" />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-gray-900 text-sm lg:text-base mb-0.5 lg:mb-1">NFT Skins</p>
-                              <p className="text-xs lg:text-sm text-gray-600">Customize your wallet with exclusive NFTs</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </motion.div>
-                </AnimatePresence>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-1">
+                  <div className="rounded-xl border border-orange-200/70 bg-orange-50/70 px-3 py-2">
+                    <p className="text-xs font-semibold text-gray-900">Self-custody</p>
+                    <p className="text-[11px] text-gray-600 mt-0.5">You keep full control</p>
+                  </div>
+                  <div className="rounded-xl border border-orange-200/70 bg-orange-50/70 px-3 py-2">
+                    <p className="text-xs font-semibold text-gray-900">Multi-chain</p>
+                    <p className="text-[11px] text-gray-600 mt-0.5">All your assets in one place</p>
+                  </div>
+                  <div className="rounded-xl border border-orange-200/70 bg-orange-50/70 px-3 py-2">
+                    <p className="text-xs font-semibold text-gray-900">Private by default</p>
+                    <p className="text-[11px] text-gray-600 mt-0.5">Encrypted local security</p>
+                  </div>
+                </div>
               </div>
 
-              {/* Page Indicators - ALWAYS VISIBLE */}
-              <div className="flex justify-center gap-2 mb-6 lg:mb-8">
-                {[0, 1, 2, 3].map((page) => (
-                  <button
-                    key={page}
-                    onClick={() => setCarouselPage(page)}
-                    className={`h-2 lg:h-2.5 rounded-full transition-all ${
-                      page === carouselPage ? 'w-6 lg:w-8 bg-orange-500' : 'w-2 lg:w-2.5 bg-gray-300'
-                    }`}
-                    aria-label={`Go to page ${page + 1}`}
-                  />
-                ))}
-              </div>
-
-              {/* Action Buttons - CONSISTENT STYLING */}
-              <div className="space-y-3 sm:space-y-4 lg:space-y-5 pb-4">
+              <div className="space-y-3 sm:space-y-4 pb-3">
                 <button
                   onClick={() => setStep('create-options')}
                   className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white font-bold py-4 sm:py-5 lg:py-6 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all active:scale-95 lg:hover:scale-[1.02] text-base sm:text-lg"
@@ -839,7 +641,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               transition={{ duration: 0.3 }}
               className="w-full max-w-md lg:max-w-xl mx-auto"
             >
-              {/* Back button - UNIFORM POSITION */}
+              {/* Back button */}
               <div className="mb-8 lg:mb-10">
                 <button
                   onClick={() => setStep('carousel')}
@@ -850,7 +652,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 </button>
               </div>
 
-              {/* Header - centered, geen card */}
+              {/* Header */}
               <div className="text-center mb-8 lg:mb-10">
                 <div className="w-20 h-20 lg:w-24 lg:h-24 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-2xl flex items-center justify-center mx-auto mb-4 lg:mb-5 shadow-lg">
                   <Download className="w-10 h-10 lg:w-12 lg:h-12 text-white" />
@@ -859,7 +661,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <p className="text-gray-600 text-sm lg:text-base">Login or import an existing wallet</p>
               </div>
 
-              {/* Buttons - direct, geen card */}
+              {/* Actions */}
               <div className="space-y-3 lg:space-y-4">
                 <button
                   onClick={() => {
@@ -1311,7 +1113,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               transition={{ duration: 0.3 }}
               className="w-full max-w-md lg:max-w-xl mx-auto"
             >
-              {/* Back button - UNIFORM POSITION */}
+              {/* Back button */}
               <div className="mb-8">
                 <button
                   onClick={() => setStep('add-wallet')}
@@ -1323,7 +1125,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 </button>
               </div>
 
-              {/* Header - centered, geen card */}
+              {/* Header */}
               <div className="text-center mb-8">
                 <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                   <Download className="w-10 h-10 text-white" />
@@ -1332,7 +1134,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <p className="text-gray-600 text-sm">Enter your 12-word recovery phrase</p>
               </div>
 
-              {/* Textarea - direct, geen card */}
+              {/* Textarea */}
               <div className="space-y-4 mb-6">
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-sm font-semibold text-gray-900">
@@ -1403,7 +1205,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               transition={{ duration: 0.3 }}
               className="max-w-2xl mx-auto"
             >
-              {/* 🔒 CRITICAL SECURITY WARNING - BLIJFT ZOALS HET IS */}
+              {/* Critical security warning */}
               <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-3xl p-1 mb-6 shadow-2xl">
                 <div className="bg-white rounded-[22px] p-5 sm:p-6">
                   <div className="flex items-start gap-3 sm:gap-4">
@@ -1458,7 +1260,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 </div>
             </div>
 
-              {/* Header - geen card, direct */}
+              {/* Header */}
               <div className="text-center mb-6">
                 <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Save your recovery phrase</h2>
                 <p className="text-gray-600 text-sm sm:text-base">Write down these 12 words in order on paper. Do NOT take a screenshot!</p>
@@ -1577,7 +1379,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               transition={{ duration: 0.3 }}
               className="max-w-md lg:max-w-xl mx-auto w-full"
             >
-              {/* Header - geen card, direct */}
+              {/* Header */}
             <div className="text-center mb-8">
                 <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                   <CheckCircle2 className="w-10 h-10 text-white" />
@@ -1794,16 +1596,18 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   )}
               </button>
 
-                {/* Resend link */}
+                {/* Resend action */}
                 <div className="mt-4 text-center">
                   <button
-                    onClick={async () => {
-                      // TODO: Implement resend verification code
-                      setError('Resend feature coming soon. Please check your email for the code.');
-                    }}
-                    className="text-sm text-orange-500 hover:text-orange-600 font-semibold transition-colors"
+                    onClick={handleResendDeviceCode}
+                    disabled={isResendingDeviceCode || deviceResendCooldown > 0}
+                    className="text-sm text-orange-500 hover:text-orange-600 disabled:text-gray-400 disabled:cursor-not-allowed font-semibold transition-colors"
                   >
-                    Didn't receive the code? Resend
+                    {isResendingDeviceCode
+                      ? 'Resending...'
+                      : deviceResendCooldown > 0
+                        ? `Resend available in ${deviceResendCooldown}s`
+                        : "Didn't receive the code? Resend"}
                   </button>
                 </div>
               </div>
