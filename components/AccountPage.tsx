@@ -96,9 +96,9 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [memberSince, setMemberSince] = useState('Nov 2024');
   const [userEmail, setUserEmail] = useState('');
-  const [userId, setUserId] = useState<string | null>(null);
   const [isResendingVerification, setIsResendingVerification] = useState(false);
   const [verificationResendMessage, setVerificationResendMessage] = useState<string | null>(null);
+  const [verificationResendCooldown, setVerificationResendCooldown] = useState(0);
   
   // Security
   const [securityScore, setSecurityScore] = useState<SecurityScore | null>(null);
@@ -323,7 +323,6 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             logger.log('📝 Seed wallet detected - using defaults');
             logger.log('📝 Account display name:', currentAccount?.displayName);
             setUserEmail(''); // No email
-            setUserId(null); // No user ID for seed wallets
             setIsEmailVerified(false);
             setMemberSince('N/A');
             setDisplayName(currentAccount?.displayName || 'Seed Wallet User');
@@ -343,6 +342,14 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
 
     loadAccountData();
   }, [isOpen]);
+
+  useEffect(() => {
+    if (verificationResendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setVerificationResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [verificationResendCooldown]);
 
   const handleSaveDisplayName = async () => {
     if (!account) return;
@@ -448,8 +455,8 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
   };
 
   const handleResendVerification = async () => {
-    if (!userEmail || !userId) {
-      setVerificationResendMessage('Email or user ID not available');
+    if (verificationResendCooldown > 0) {
+      setVerificationResendMessage(`Please wait ${verificationResendCooldown}s before resending`);
       setTimeout(() => setVerificationResendMessage(null), 3000);
       return;
     }
@@ -458,24 +465,32 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
     setVerificationResendMessage(null);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setVerificationResendMessage('Session expired. Please sign in again.');
+        setTimeout(() => setVerificationResendMessage(null), 4000);
+        return;
+      }
+
       const response = await fetch('/api/auth/resend-verification', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({
-          email: userEmail,
-          userId: userId,
-        }),
       });
 
       const result = await response.json();
 
       if (result.success) {
-        setVerificationResendMessage('Verification email sent! Check your inbox.');
+        setVerificationResendMessage(result.message || 'Verification email sent! Check your inbox.');
+        setVerificationResendCooldown(result.cooldownSeconds || 60);
         setTimeout(() => setVerificationResendMessage(null), 5000);
       } else {
         setVerificationResendMessage(result.error || 'Failed to send email');
+        if (response.status === 429 && typeof result.retryAfterSeconds === 'number') {
+          setVerificationResendCooldown(result.retryAfterSeconds);
+        }
         setTimeout(() => setVerificationResendMessage(null), 5000);
       }
     } catch (error: any) {
@@ -1083,10 +1098,16 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             {/* Security Score Grid - 4 items horizontal */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
               {/* Email Verified */}
-              <div className={`p-3 rounded-lg border-2 ${
+              <div
+                onClick={() => {
+                  if (!securityScore?.email_verified && !isResendingVerification && verificationResendCooldown === 0) {
+                    handleResendVerification();
+                  }
+                }}
+                className={`p-3 rounded-lg border-2 transition-colors ${
                 securityScore?.email_verified 
                   ? 'border-green-200 bg-green-50' 
-                  : 'border-gray-200 bg-gray-50'
+                  : 'border-gray-200 bg-gray-50 hover:border-orange-300 hover:bg-orange-50/40 cursor-pointer'
               }`}>
                 <div className="flex items-center justify-center mb-2">
                   {securityScore?.email_verified ? (
@@ -1101,30 +1122,33 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <div className="text-xs text-center font-bold text-gray-600 mb-2">
                   +25 pts
                 </div>
-                {/* ✅ Resend Verification Button - Only show if not verified and user has email */}
-                {!securityScore?.email_verified && userEmail && userId && (
-                  <button
-                    onClick={handleResendVerification}
-                    disabled={isResendingVerification}
-                    className="w-full mt-2 px-3 py-1.5 text-xs font-medium bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
-                  >
+                {/* ✅ Resend Verification CTA (card is also clickable) */}
+                {!securityScore?.email_verified && (
+                  <div className="w-full mt-2 px-3 py-1.5 text-xs font-medium bg-orange-500/10 text-orange-700 rounded-lg border border-orange-200 flex items-center justify-center gap-1">
                     {isResendingVerification ? (
                       <>
                         <Loader2 className="w-3 h-3 animate-spin" />
-                        <span>Sending...</span>
+                        <span>Sending verification email...</span>
+                      </>
+                    ) : verificationResendCooldown > 0 ? (
+                      <>
+                        <Clock className="w-3 h-3" />
+                        <span>Resend in {verificationResendCooldown}s</span>
                       </>
                     ) : (
                       <>
                         <Mail className="w-3 h-3" />
-                        <span>Resend Email</span>
+                        <span>Tap card to resend verification email</span>
                       </>
                     )}
-                  </button>
+                  </div>
                 )}
                 {/* Success/Error Message */}
                 {verificationResendMessage && (
                   <div className={`mt-2 text-xs text-center ${
-                    verificationResendMessage.includes('success') || verificationResendMessage.includes('sent')
+                    verificationResendMessage.toLowerCase().includes('success') ||
+                    verificationResendMessage.toLowerCase().includes('sent') ||
+                    verificationResendMessage.toLowerCase().includes('verified')
                       ? 'text-green-600'
                       : 'text-red-600'
                   }`}>
