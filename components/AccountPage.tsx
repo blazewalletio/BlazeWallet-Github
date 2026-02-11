@@ -86,6 +86,7 @@ interface TransactionStats {
 
 export default function AccountPage({ isOpen, onClose, onOpenSettings }: AccountPageProps) {
   const { currentChain, lockWallet, address } = useWalletStore(); // ✅ Get address from wallet store
+  const activeChain = CHAINS[currentChain];
   const [account, setAccount] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState('');
@@ -101,6 +102,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
   
   // Security
   const [securityScore, setSecurityScore] = useState<SecurityScore | null>(null);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [activityLog, setActivityLog] = useState<ActivityLog[]>([]);
   const [trustedDevices, setTrustedDevices] = useState<TrustedDevice[]>([]);
   
@@ -114,6 +116,12 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
   const [showDevices, setShowDevices] = useState(false);
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showDisable2FAConfirm, setShowDisable2FAConfirm] = useState(false);
+  const [disable2FAPassword, setDisable2FAPassword] = useState('');
+  const [disable2FACode, setDisable2FACode] = useState('');
+  const [disable2FAError, setDisable2FAError] = useState('');
+  const [isDisabling2FA, setIsDisabling2FA] = useState(false);
+  const [showDisablePassword, setShowDisablePassword] = useState(false);
   
   // Modal states
   const [show2FAModal, setShow2FAModal] = useState(false);
@@ -668,6 +676,79 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
     }
   };
 
+  const resetDisable2FAState = () => {
+    setShowDisable2FAConfirm(false);
+    setDisable2FAPassword('');
+    setDisable2FACode('');
+    setDisable2FAError('');
+    setShowDisablePassword(false);
+  };
+
+  const handle2FAActionClick = () => {
+    if (userProfile?.two_factor_enabled) {
+      setShowDisable2FAConfirm((prev) => !prev);
+      setDisable2FAError('');
+      return;
+    }
+
+    setShow2FAModal(true);
+  };
+
+  const handleDisable2FA = async () => {
+    if (!disable2FAPassword.trim()) {
+      setDisable2FAError('Please enter your password');
+      return;
+    }
+
+    if (disable2FACode.length !== 6) {
+      setDisable2FAError('Please enter a valid 6-digit 2FA code');
+      return;
+    }
+
+    setIsDisabling2FA(true);
+    setDisable2FAError('');
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.id || !user?.email) {
+        throw new Error('Not authenticated');
+      }
+
+      // Re-authenticate with password before allowing 2FA disable.
+      const { error: passwordError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: disable2FAPassword
+      });
+
+      if (passwordError) {
+        throw new Error('Incorrect password');
+      }
+
+      const response = await fetch('/api/2fa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          email: user.email,
+          action: 'disable',
+          token: disable2FACode
+        })
+      });
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to disable 2FA');
+      }
+
+      resetDisable2FAState();
+      await handleReloadData();
+    } catch (error: any) {
+      setDisable2FAError(error.message || 'Failed to disable 2FA');
+    } finally {
+      setIsDisabling2FA(false);
+    }
+  };
+
   const getSecurityScoreColor = (score: number) => {
     if (score >= 80) return 'text-green-600';
     if (score >= 60) return 'text-yellow-600';
@@ -679,6 +760,51 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
     if (score >= 60) return 'from-yellow-500 to-orange-500';
     return 'from-red-500 to-pink-500';
   };
+
+  // Replace "Recovery phrase +25" with "Biometric unlock +25" in displayed score.
+  const displaySecurityScore = Math.max(
+    0,
+    Math.min(
+      100,
+      (securityScore?.score || 0) -
+        (securityScore?.recovery_phrase_backed_up ? 25 : 0) +
+        (biometricEnabled ? 25 : 0)
+    )
+  );
+
+  useEffect(() => {
+    const checkBiometricStatus = async () => {
+      if (!isOpen || typeof window === 'undefined') {
+        setBiometricEnabled(false);
+        return;
+      }
+
+      try {
+        const { BiometricStore } = await import('@/lib/biometric-store');
+        const { WebAuthnService } = await import('@/lib/webauthn-service');
+
+        const webauthnService = WebAuthnService.getInstance();
+        if (!webauthnService.isOnProductionDomain()) {
+          setBiometricEnabled(false);
+          return;
+        }
+
+        const walletIdentifier = useWalletStore.getState().getWalletIdentifier();
+        if (!walletIdentifier) {
+          setBiometricEnabled(false);
+          return;
+        }
+
+        const biometricStore = BiometricStore.getInstance();
+        setBiometricEnabled(biometricStore.hasStoredPassword(walletIdentifier));
+      } catch (error) {
+        logger.error('Failed to check biometric status:', error);
+        setBiometricEnabled(false);
+      }
+    };
+
+    checkBiometricStatus();
+  }, [isOpen, address]);
 
   const formatActivityTime = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -878,7 +1004,12 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs text-gray-600 font-medium mb-1">Wallet address</div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="text-xs text-gray-600 font-medium">Wallet address</div>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-white border border-gray-200 text-[10px] font-semibold text-gray-600 uppercase tracking-wide">
+                      {activeChain?.shortName || activeChain?.name || currentChain}
+                    </span>
+                  </div>
                   <code className="text-sm font-mono text-gray-900 block truncate">
                     {address || useWalletStore.getState().getCurrentAddress()}
                   </code>
@@ -927,8 +1058,8 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
               {/* Security Score */}
               <div>
                 <div className="text-xs text-gray-600 mb-1">Security</div>
-                <div className={`text-2xl font-bold ${getSecurityScoreColor(securityScore?.score || 0)}`}>
-                  {securityScore?.score || 0}/100
+                <div className={`text-2xl font-bold ${getSecurityScoreColor(displaySecurityScore)}`}>
+                  {displaySecurityScore}/100
                 </div>
               </div>
             </div>
@@ -942,8 +1073,8 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 Security
               </h3>
               <div className="text-right">
-                <div className={`text-2xl font-bold ${getSecurityScoreColor(securityScore?.score || 0)}`}>
-                  {securityScore?.score || 0}
+                <div className={`text-2xl font-bold ${getSecurityScoreColor(displaySecurityScore)}`}>
+                  {displaySecurityScore}
                 </div>
                 <div className="text-xs text-gray-600">/100 pts</div>
               </div>
@@ -1023,21 +1154,21 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 </div>
               </div>
               
-              {/* Recovery Phrase */}
+              {/* Biometric Unlock */}
               <div className={`p-3 rounded-lg border-2 ${
-                securityScore?.recovery_phrase_backed_up 
+                biometricEnabled
                   ? 'border-green-200 bg-green-50' 
                   : 'border-gray-200 bg-gray-50'
               }`}>
                 <div className="flex items-center justify-center mb-2">
-                  {securityScore?.recovery_phrase_backed_up ? (
+                  {biometricEnabled ? (
                     <CheckCircle className="w-5 h-5 text-green-600" />
                   ) : (
-                    <Key className="w-5 h-5 text-gray-400" />
+                    <Smartphone className="w-5 h-5 text-gray-400" />
                   )}
                 </div>
                 <div className="text-xs text-center font-medium text-gray-900 mb-1">
-                  Recovery Phrase
+                  Biometric Unlock
                 </div>
                 <div className="text-xs text-center font-bold text-gray-600">
                   +25 pts
@@ -1068,17 +1199,119 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             
             {/* 2FA Button */}
             {account?.type === 'email' && (
+              <div className="space-y-3">
+                <button
+                  onClick={handle2FAActionClick}
+                  className={`w-full flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                    userProfile?.two_factor_enabled
+                      ? 'bg-green-50 border-green-200 hover:bg-green-100'
+                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Lock className={`w-4 h-4 ${userProfile?.two_factor_enabled ? 'text-green-600' : 'text-orange-500'}`} />
+                    <span className="text-sm font-medium text-gray-900">Two-Factor Authentication</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border ${
+                        userProfile?.two_factor_enabled
+                          ? 'bg-white text-green-700 border-green-200'
+                          : 'bg-white text-gray-600 border-gray-200'
+                      }`}
+                    >
+                      {userProfile?.two_factor_enabled ? 'Enabled' : 'Not enabled'}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                  </div>
+                </button>
+
+                {/* Inline confirm-sheet for disabling 2FA */}
+                {userProfile?.two_factor_enabled && showDisable2FAConfirm && (
+                  <div className="rounded-xl border border-red-200 bg-red-50/80 p-4">
+                    <div className="flex items-start gap-2 mb-3">
+                      <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <div className="text-sm font-semibold text-red-900">Disable 2FA</div>
+                        <p className="text-xs text-red-800 mt-0.5">
+                          This lowers account security. Confirm with your password and current 2FA code.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <input
+                          type={showDisablePassword ? 'text' : 'password'}
+                          value={disable2FAPassword}
+                          onChange={(e) => {
+                            setDisable2FAPassword(e.target.value);
+                            setDisable2FAError('');
+                          }}
+                          placeholder="Current password"
+                          className="w-full rounded-lg border border-red-200 bg-white px-3 py-2.5 pr-10 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowDisablePassword((prev) => !prev)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                        >
+                          {showDisablePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={disable2FACode}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                          setDisable2FACode(value);
+                          setDisable2FAError('');
+                        }}
+                        placeholder="Current 2FA code (6 digits)"
+                        className="w-full rounded-lg border border-red-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-300"
+                        maxLength={6}
+                      />
+                    </div>
+
+                    {disable2FAError && (
+                      <div className="mt-2 text-xs font-medium text-red-700">{disable2FAError}</div>
+                    )}
+
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        onClick={resetDisable2FAState}
+                        className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleDisable2FA}
+                        disabled={isDisabling2FA}
+                        className="flex-1 rounded-lg bg-red-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {isDisabling2FA ? 'Disabling...' : 'Disable 2FA'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Biometric Button */}
+            {onOpenSettings && (
               <button
-                onClick={() => setShow2FAModal(true)}
-                className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-colors"
+                onClick={onOpenSettings}
+                className="w-full mt-3 flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-orange-500" />
-                  <span className="text-sm font-medium text-gray-900">Two-Factor Authentication</span>
+                  <Smartphone className="w-4 h-4 text-orange-500" />
+                  <span className="text-sm font-medium text-gray-900">Biometric unlock</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-600">
-                    {userProfile?.two_factor_enabled ? 'Enabled' : 'Not enabled'}
+                    {biometricEnabled ? 'Enabled' : 'Not enabled'}
                   </span>
                   <ChevronRight className="w-4 h-4 text-gray-400" />
                 </div>

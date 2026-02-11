@@ -306,7 +306,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     ) : (
                       <>
                         <Eye className="w-4 h-4" />
-                        Show (Be Careful!)
+                        Show (Be careful!)
                       </>
                     )}
                   </motion.button>
@@ -528,7 +528,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   Blaze v2.0
                 </span>
               </div>
-              <div className="text-sm text-gray-600">Lightning fast crypto</div>
+              <div className="text-sm text-gray-600">The crypto wallet.</div>
             </div>
           </div>
         </div>
