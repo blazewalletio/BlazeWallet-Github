@@ -824,10 +824,26 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         logger.log(`✅ Saved custom token ${token.symbol} for chain ${currentChain}`);
       }
       
-      // Update current tokens state with the new token
-      const { tokens } = get();
-      const updatedTokens = [...tokens, token];
-      set({ tokens: updatedTokens });
+      // Update both backward-compatible `tokens` and chain-scoped `chainTokens`
+      // so UI sections (including Hidden Tokens) react immediately without refresh.
+      const { tokens, chainTokens } = get();
+      const normalizedAddress = token.address.toLowerCase();
+
+      const updatedTokens = tokens.some(t => t.address.toLowerCase() === normalizedAddress)
+        ? tokens
+        : [...tokens, token];
+
+      const updatedChainTokens = new Map(chainTokens);
+      const currentChainTokens = updatedChainTokens.get(currentChain) || [];
+      const mergedChainTokens = currentChainTokens.some(t => t.address.toLowerCase() === normalizedAddress)
+        ? currentChainTokens
+        : [...currentChainTokens, token];
+      updatedChainTokens.set(currentChain, mergedChainTokens);
+
+      set({
+        tokens: updatedTokens,
+        chainTokens: updatedChainTokens,
+      });
 
       // Re-adding a token should remove it from deleted list.
       const updatedDeleted = new Map(deletedTokens);
