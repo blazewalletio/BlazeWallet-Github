@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Key, Loader2, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Shield, Key, Loader2, AlertTriangle, ArrowLeft, Clock, Lock } from 'lucide-react';
 import { logger } from '@/lib/logger';
 import { twoFactorSessionService } from '@/lib/2fa-session-service';
 
@@ -25,6 +25,25 @@ export default function TwoFactorLoginModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [useBackupCode, setUseBackupCode] = useState(false);
+  const [isCompactHeight, setIsCompactHeight] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || typeof window === 'undefined') return;
+
+    const updateCompactMode = () => {
+      const viewportHeight = window.visualViewport?.height || window.innerHeight;
+      setIsCompactHeight(viewportHeight < 760);
+    };
+
+    updateCompactMode();
+    window.addEventListener('resize', updateCompactMode);
+    window.visualViewport?.addEventListener('resize', updateCompactMode);
+
+    return () => {
+      window.removeEventListener('resize', updateCompactMode);
+      window.visualViewport?.removeEventListener('resize', updateCompactMode);
+    };
+  }, [isOpen]);
 
   const handleVerify = async () => {
     if (!useBackupCode && verificationCode.length !== 6) {
@@ -98,7 +117,9 @@ export default function TwoFactorLoginModal({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+        className={`fixed inset-0 z-[70] bg-black/60 backdrop-blur-md flex justify-center ${
+          isCompactHeight ? 'items-start p-2 sm:p-3' : 'items-center p-3 sm:p-4'
+        }`}
         onClick={handleClose}
       >
         <motion.div
@@ -106,37 +127,51 @@ export default function TwoFactorLoginModal({
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
           onClick={(e) => e.stopPropagation()}
-          className="glass-card rounded-2xl max-w-md w-full"
+          className={`glass-card w-full max-w-[560px] border border-white/60 shadow-2xl overflow-hidden flex flex-col ${
+            isCompactHeight ? 'rounded-2xl mt-2' : 'rounded-3xl'
+          }`}
+          style={{ maxHeight: isCompactHeight ? '96vh' : '92vh' }}
         >
           {/* Header */}
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-100 px-6 py-4">
+          <div className={`border-b border-gray-100/80 bg-white/75 backdrop-blur-sm flex-shrink-0 ${
+            isCompactHeight ? 'px-4 sm:px-5 pt-4 pb-3' : 'px-5 sm:px-6 pt-5 sm:pt-6 pb-4'
+          }`}>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg">
-                <Shield className="w-6 h-6 text-white" />
+              <div className={`${isCompactHeight ? 'w-10 h-10' : 'w-12 h-12'} rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-orange-500 to-yellow-500 shadow-orange-500/25`}>
+                <Shield className={`${isCompactHeight ? 'w-4 h-4' : 'w-5 h-5'} text-white`} />
               </div>
-              <div>
-                <h2 className="text-lg font-bold text-gray-900">Two-Factor Authentication</h2>
-                <p className="text-xs text-gray-600">{email}</p>
+              <div className="min-w-0">
+                <h2 className={`${isCompactHeight ? 'text-lg' : 'text-xl'} font-bold text-gray-900`}>Security verification</h2>
+                <p className="text-xs text-gray-500 mt-0.5 truncate">{email}</p>
               </div>
             </div>
           </div>
 
           {/* Content */}
-          <div className="p-6 space-y-4">
+          <div className={`${isCompactHeight ? 'p-4 sm:p-5 space-y-3.5' : 'p-5 sm:p-6 space-y-4'} bg-white/70 overflow-y-auto`}>
             {/* Info */}
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
               <div className="flex items-start gap-3">
-                <Shield className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="w-9 h-9 rounded-xl border flex items-center justify-center flex-shrink-0 bg-orange-50 border-orange-100">
+                  <Lock className="w-4 h-4 text-orange-600" />
+                </div>
                 <div>
-                  <h3 className="font-semibold text-blue-900 mb-1">Security Check</h3>
-                  <p className="text-sm text-blue-800">
+                  <h3 className="font-semibold text-gray-900 mb-1">2FA required</h3>
+                  <p className="text-sm text-gray-600">
                     {useBackupCode 
                       ? 'Enter one of your backup codes to continue'
-                      : 'Enter the 6-digit code from your authenticator app to continue'
+                      : 'Verify your identity with your authenticator code to continue'
                     }
                   </p>
                 </div>
               </div>
+            </div>
+
+            <div className="bg-orange-50/60 border border-orange-200 rounded-xl p-3 flex items-start gap-2">
+              <Clock className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-orange-900">
+                After verification, you will not need 2FA again for 30 minutes
+              </p>
             </div>
 
             {/* Input */}
@@ -161,7 +196,12 @@ export default function TwoFactorLoginModal({
                     setError('');
                   }}
                   placeholder={useBackupCode ? 'XXXX-XXXX' : '000000'}
-                  className="w-full p-4 text-center text-2xl font-mono bg-gray-50 border-2 border-gray-200 rounded-xl focus:border-green-500 focus:outline-none tracking-widest"
+                  className={`w-full text-center font-mono bg-white border-2 border-gray-200 rounded-2xl focus:outline-none shadow-sm ${
+                    isCompactHeight ? 'p-3.5 text-2xl' : 'p-4 text-3xl'
+                  }`}
+                  style={{
+                    letterSpacing: useBackupCode ? '0.12em' : '0.38em',
+                  }}
                   maxLength={useBackupCode ? 20 : 6}
                   autoFocus
                   onKeyDown={(e) => {
@@ -174,7 +214,7 @@ export default function TwoFactorLoginModal({
               <p className="text-xs text-gray-500 text-center">
                 {useBackupCode 
                   ? 'Each backup code can only be used once'
-                  : 'The code refreshes every 30 seconds'
+                  : 'Enter the 6-digit code from your authenticator app'
                 }
               </p>
             </div>
@@ -197,7 +237,7 @@ export default function TwoFactorLoginModal({
                   setVerificationCode('');
                   setError('');
                 }}
-                className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2 mx-auto"
+                className="text-sm text-orange-600 hover:text-orange-700 font-medium flex items-center gap-2 mx-auto transition-colors"
               >
                 {useBackupCode ? (
                   <>
@@ -214,18 +254,22 @@ export default function TwoFactorLoginModal({
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3 pt-2">
+            <div className={`grid grid-cols-2 gap-3 ${isCompactHeight ? 'pt-1' : 'pt-2'}`}>
               <button
                 onClick={handleClose}
                 disabled={isLoading}
-                className="flex-1 p-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-all disabled:opacity-50"
+                className={`flex-1 bg-gray-100/90 hover:bg-gray-200 text-gray-700 rounded-2xl font-semibold transition-all disabled:opacity-50 ${
+                  isCompactHeight ? 'p-3.5' : 'p-4'
+                }`}
               >
                 Cancel
               </button>
               <button
                 onClick={handleVerify}
                 disabled={isLoading || verificationCode.length < (useBackupCode ? 8 : 6)}
-                className="flex-1 p-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className={`flex-1 text-white rounded-2xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 shadow-orange-500/20 ${
+                  isCompactHeight ? 'p-3.5' : 'p-4'
+                }`}
               >
                 {isLoading ? (
                   <>
@@ -235,7 +279,7 @@ export default function TwoFactorLoginModal({
                 ) : (
                   <>
                     <Key className="w-5 h-5" />
-                    Continue
+                    Verify & Continue
                   </>
                 )}
               </button>
