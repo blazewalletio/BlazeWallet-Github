@@ -225,6 +225,24 @@ export class BitcoinService {
    * Get UTXOs for address (needed for transactions)
    */
   async getUTXOs(address: string): Promise<BitcoinUTXO[]> {
+    if (typeof window !== 'undefined') {
+      try {
+        const response = await fetch(
+          `/api/utxo/utxos?chain=bitcoin&address=${encodeURIComponent(address)}`
+        );
+        const payload = await response.json();
+
+        if (response.ok && payload?.success) {
+          return payload.utxos || [];
+        }
+
+        throw new Error(payload?.error || `Internal API error (${response.status})`);
+      } catch (error) {
+        logger.error('Error fetching Bitcoin UTXOs via internal API:', error);
+        throw error;
+      }
+    }
+
     try {
       const response = await fetch(`${this.apiBaseUrl}/address/${address}/utxo`);
       
@@ -254,6 +272,26 @@ export class BitcoinService {
     utxos?: BitcoinUTXO[],
     outputs: number = 1
   ): Promise<BitcoinFeeEstimate> {
+    if (typeof window !== 'undefined') {
+      try {
+        const response = await fetch('/api/utxo/fees', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chain: 'bitcoin', utxos, outputs }),
+        });
+        const payload = await response.json();
+
+        if (response.ok && payload?.success) {
+          return payload.fees as BitcoinFeeEstimate;
+        }
+
+        return this.getDefaultFees(utxos || [], outputs);
+      } catch (error) {
+        logger.error('Error estimating Bitcoin fees via internal API:', error);
+        return this.getDefaultFees(utxos || [], outputs);
+      }
+    }
+
     try {
       const response = await fetch(`${this.apiBaseUrl}/fee-estimates`);
       
@@ -471,6 +509,24 @@ export class BitcoinService {
     address: string,
     limit: number = 25
   ): Promise<BitcoinTransaction[]> {
+    if (typeof window !== 'undefined') {
+      try {
+        const response = await fetch(
+          `/api/utxo/history?chain=bitcoin&address=${encodeURIComponent(address)}&limit=${limit}`
+        );
+        const payload = await response.json();
+
+        if (response.ok && payload?.success) {
+          return payload.transactions || [];
+        }
+
+        return [];
+      } catch (error) {
+        logger.error('Error fetching Bitcoin history via internal API:', error);
+        return [];
+      }
+    }
+
     try {
       const response = await fetch(`${this.apiBaseUrl}/address/${address}/txs`);
       

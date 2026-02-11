@@ -252,6 +252,24 @@ export class BitcoinForkService {
    * Get UTXOs for an address
    */
   async getUTXOs(address: string): Promise<BitcoinForkUTXO[]> {
+    if (typeof window !== 'undefined') {
+      try {
+        const response = await fetch(
+          `/api/utxo/utxos?chain=${this.chain}&address=${encodeURIComponent(address)}`
+        );
+        const payload = await response.json();
+
+        if (response.ok && payload?.success) {
+          return payload.utxos || [];
+        }
+
+        return [];
+      } catch (error) {
+        logger.error(`[${this.config.symbol}] Internal UTXO API error:`, error);
+        return [];
+      }
+    }
+
     try {
       const response = await fetch(`${this.config.apiBaseUrl}/addrs/${address}?unspentOnly=true`);
       
@@ -278,6 +296,32 @@ export class BitcoinForkService {
    * Estimate transaction fees
    */
   async estimateFees(utxos?: BitcoinForkUTXO[], outputs?: number): Promise<BitcoinForkFeeEstimate> {
+    if (typeof window !== 'undefined') {
+      try {
+        const response = await fetch('/api/utxo/fees', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chain: this.chain, utxos, outputs }),
+        });
+        const payload = await response.json();
+
+        if (response.ok && payload?.success) {
+          return payload.fees as BitcoinForkFeeEstimate;
+        }
+      } catch (error) {
+        logger.error(`[${this.config.symbol}] Internal fees API error:`, error);
+      }
+
+      return {
+        slow: 10,
+        standard: 20,
+        fast: 40,
+        slowTotal: 0,
+        standardTotal: 0,
+        fastTotal: 0,
+      };
+    }
+
     try {
       // Fetch current fee rates from BlockCypher
       const response = await fetch(this.config.apiBaseUrl);
@@ -457,6 +501,24 @@ export class BitcoinForkService {
    * Get transaction history
    */
   async getTransactionHistory(address: string, limit: number = 50): Promise<BitcoinForkTransaction[]> {
+    if (typeof window !== 'undefined') {
+      try {
+        const response = await fetch(
+          `/api/utxo/history?chain=${this.chain}&address=${encodeURIComponent(address)}&limit=${limit}`
+        );
+        const payload = await response.json();
+
+        if (response.ok && payload?.success) {
+          return payload.transactions || [];
+        }
+
+        return [];
+      } catch (error) {
+        logger.error(`[${this.config.symbol}] Internal history API error:`, error);
+        return [];
+      }
+    }
+
     try {
       const response = await fetch(`${this.config.apiBaseUrl}/addrs/${address}/full?limit=${limit}`);
       
