@@ -10,9 +10,6 @@ import { ethers } from 'ethers';
 import { PublicKey } from '@solana/web3.js';
 import { getSPLTokenMetadata } from '@/lib/spl-token-metadata';
 import { getCurrencyLogoSync } from '@/lib/currency-logo-service';
-import { getPopularTokens } from '@/lib/popular-tokens';
-import { tokenCache } from '@/lib/token-cache';
-import { JupiterService } from '@/lib/jupiter-service';
 import { logger } from '@/lib/logger';
 
 interface TokenSelectorProps {
@@ -34,6 +31,7 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchableToken[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchInfo, setSearchInfo] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -50,6 +48,7 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
       setCustomAddress('');
       setSearchQuery('');
       setSearchResults([]);
+      setSearchInfo(null);
       setError(null);
       setSuccess(false);
     }
@@ -77,6 +76,7 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
     const query = searchQuery.trim();
     if (query.length < 2) {
       setSearchResults([]);
+      setSearchInfo(null);
       return;
     }
 
@@ -84,101 +84,29 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
     const runSearch = async () => {
       setIsSearching(true);
       setError(null);
+      setSearchInfo(null);
       try {
-        const queryLower = query.toLowerCase();
-        const merged = new Map<string, SearchableToken>();
+        const response = await fetch(
+          `/api/tokens/search?chain=${encodeURIComponent(currentChain)}&q=${encodeURIComponent(query)}&limit=40`,
+          { signal: AbortSignal.timeout(12000) }
+        );
+        const payload = await response.json();
 
-        // 1) Curated per-chain list (fast fallback for all chains)
-        const curated = getPopularTokens(currentChain);
-        for (const token of curated) {
-          if (isNativeTokenAddress(token.address)) continue;
-          const symbol = (token.symbol || '').toLowerCase();
-          const name = (token.name || '').toLowerCase();
-          if (!symbol.includes(queryLower) && !name.includes(queryLower)) continue;
-          if (isTokenAlreadyAdded(token.address)) continue;
-          const key = normalizeAddress(token.address);
-          if (!merged.has(key)) {
-            merged.set(key, {
-              address: token.address,
-              symbol: token.symbol,
-              name: token.name,
-              decimals: token.decimals,
-              logoURI: token.logoURI,
-            });
-          }
-        }
-
-        // 2) IndexedDB token cache (if preloaded for this chain)
-        if (typeof window !== 'undefined' && chainConfig?.id) {
-          const cached = await tokenCache.searchTokens(chainConfig.id, query, 60);
-          for (const token of cached) {
-            if (isNativeTokenAddress(token.address)) continue;
-            if (isTokenAlreadyAdded(token.address)) continue;
-            const key = normalizeAddress(token.address);
-            if (!merged.has(key)) {
-              merged.set(key, {
-                address: token.address,
-                symbol: token.symbol,
-                name: token.name,
-                decimals: token.decimals,
-                logoURI: token.logoURI,
-              });
-            }
-          }
-        }
-
-        // 3) Solana fallback: Jupiter token search for broader results
-        if (isSolana && merged.size < 20) {
-          const jupiterResults = await JupiterService.searchTokens(query);
-          for (const token of jupiterResults.slice(0, 80)) {
-            if (isNativeTokenAddress(token.address)) continue;
-            if (isTokenAlreadyAdded(token.address)) continue;
-            const key = normalizeAddress(token.address);
-            if (!merged.has(key)) {
-              merged.set(key, {
-                address: token.address,
-                symbol: token.symbol,
-                name: token.name,
-                decimals: token.decimals,
-                logoURI: token.logoURI,
-              });
-            }
-          }
-        }
-
-        const sortedResults = Array.from(merged.values())
-          .sort((a, b) => {
-            const aSym = a.symbol.toLowerCase();
-            const bSym = b.symbol.toLowerCase();
-            const aName = a.name.toLowerCase();
-            const bName = b.name.toLowerCase();
-
-            const aExact = aSym === queryLower;
-            const bExact = bSym === queryLower;
-            if (aExact && !bExact) return -1;
-            if (!aExact && bExact) return 1;
-
-            const aStarts = aSym.startsWith(queryLower);
-            const bStarts = bSym.startsWith(queryLower);
-            if (aStarts && !bStarts) return -1;
-            if (!aStarts && bStarts) return 1;
-
-            const aNameStarts = aName.startsWith(queryLower);
-            const bNameStarts = bName.startsWith(queryLower);
-            if (aNameStarts && !bNameStarts) return -1;
-            if (!aNameStarts && bNameStarts) return 1;
-
-            return a.symbol.localeCompare(b.symbol);
-          })
-          .slice(0, 40);
+        const apiTokens = Array.isArray(payload?.tokens) ? payload.tokens : [];
+        const info = typeof payload?.info === 'string' ? payload.info : null;
+        const sortedResults = apiTokens
+          .filter((token: SearchableToken) => !isNativeTokenAddress(token.address))
+          .filter((token: SearchableToken) => !isTokenAlreadyAdded(token.address));
 
         if (!isCancelled) {
           setSearchResults(sortedResults);
+          setSearchInfo(info);
         }
       } catch (searchError) {
         logger.error('❌ Token search failed:', searchError);
         if (!isCancelled) {
           setSearchResults([]);
+          setSearchInfo('Search temporarily unavailable. You can still add by contract address.');
         }
       } finally {
         if (!isCancelled) {
@@ -192,29 +120,31 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
       isCancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [searchQuery, isOpen, currentChain, isBitcoinFork, isSolana, chainConfig?.id, tokens]);
+  }, [searchQuery, isOpen, currentChain, isBitcoinFork, tokens]);
 
-  const handleAddFromSearch = (candidate: SearchableToken) => {
+  const handleAddFromSearch = async (candidate: SearchableToken) => {
     if (isTokenAlreadyAdded(candidate.address)) {
       setError('This token has already been added to your wallet');
       return;
     }
-
-    const fallbackLogo = isSolana ? '/crypto-solana.png' : '/crypto-eth.png';
-    const token: Token = {
-      address: candidate.address,
-      symbol: candidate.symbol,
-      name: candidate.name,
-      decimals: candidate.decimals,
-      logo: getCurrencyLogoSync(candidate.symbol) || candidate.logoURI || fallbackLogo,
-    };
-
-    addToken(token);
-    setSuccess(true);
+    
+    setIsLoading(true);
     setError(null);
-    setSearchQuery('');
-    setSearchResults([]);
-    setTimeout(() => onClose(), 1200);
+    setSuccess(false);
+    try {
+      if (isSolana) {
+        await handleAddSolanaToken(candidate.address);
+      } else if (isEVM) {
+        await handleAddEVMToken(candidate.address);
+      } else {
+        setError('Token imports not supported for this chain');
+      }
+    } catch (err: any) {
+      logger.error('❌ Error adding token from search:', err);
+      setError(err.message || 'Failed to add token');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleAddCustomToken = async () => {
@@ -507,7 +437,7 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
                                   <motion.button
                                     whileTap={{ scale: 0.97 }}
                                     onClick={() => handleAddFromSearch(token)}
-                                    disabled={isTokenAlreadyAdded(token.address)}
+                                    disabled={isLoading || isTokenAlreadyAdded(token.address)}
                                     className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-orange-500 to-yellow-500 text-white hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
                                   >
                                     <Plus className="w-3 h-3" />
@@ -522,6 +452,9 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
                             </div>
                           )}
                         </div>
+                      )}
+                      {searchInfo && (
+                        <p className="text-xs text-gray-500 mt-2">{searchInfo}</p>
                       )}
                     </div>
                   )}
