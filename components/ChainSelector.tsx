@@ -1,11 +1,10 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, Zap } from 'lucide-react';
+import { X, Check } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { CHAINS } from '@/lib/chains';
 import { useEffect, useRef } from 'react';
-import { logger } from '@/lib/logger';
 
 interface ChainSelectorProps {
   isOpen: boolean;
@@ -121,9 +120,6 @@ export default function ChainSelector({ isOpen, onClose }: ChainSelectorProps) {
     return orderA - orderB;
   });
   
-  // L2 chains for badge display
-  const l2Chains = ['polygon', 'arbitrum', 'base', 'optimism'];
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -175,7 +171,6 @@ export default function ChainSelector({ isOpen, onClose }: ChainSelectorProps) {
                 <div className="px-2 py-2 space-y-2">
                   {chains.map(([key, chain]) => {
                     const isSelected = currentChain === key;
-                    const isL2 = l2Chains.includes(key);
                     
                     return (
                       <motion.button
@@ -215,17 +210,6 @@ export default function ChainSelector({ isOpen, onClose }: ChainSelectorProps) {
                               isSelected ? 'text-primary-300' : ''
                             }`}>
                               {chain.name}
-                              {chain.isTestnet && (
-                                <span className="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full">
-                                  Testnet
-                                </span>
-                              )}
-                              {isL2 && !chain.isTestnet && (
-                                <span className="text-xs bg-green-500/20 text-green-300 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                  <Zap className="w-3 h-3" />
-                                  Fast
-                                </span>
-                              )}
                             </div>
                             <div className="text-sm text-theme-text-secondary">{chain.nativeCurrency.symbol}</div>
                           </div>
@@ -248,14 +232,6 @@ export default function ChainSelector({ isOpen, onClose }: ChainSelectorProps) {
                 </div>
               </div>
 
-              {/* Bottom Tip - Fixed at bottom */}
-              <div className="flex-shrink-0 px-2 pb-2 pt-2">
-                <div className="glass-card bg-theme-primary/10 border-theme-border/20">
-                  <p className="text-theme-primary text-sm">
-                    💡 Use Polygon or Base for low-fee transactions
-                  </p>
-                </div>
-              </div>
             </div>
           </motion.div>
         </>
