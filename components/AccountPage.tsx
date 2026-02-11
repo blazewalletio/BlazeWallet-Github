@@ -487,11 +487,20 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
         return;
       }
 
+      // CSRF-protected endpoint: fetch token and include it in header.
+      const csrfResponse = await fetch('/api/csrf-token');
+      const csrfData = await csrfResponse.json();
+      const csrfToken = csrfData?.token;
+      if (!csrfToken) {
+        throw new Error('Security token initialization failed');
+      }
+
       const response = await fetch('/api/auth/resend-verification', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
+          'X-CSRF-Token': csrfToken,
         },
       });
 
@@ -1137,25 +1146,50 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <div className="text-xs text-center font-bold text-gray-600 mb-2">
                   +25 pts
                 </div>
-                {/* ✅ Resend Verification CTA (card is also clickable) */}
+                {/* Compact status + mini action (Option 2) */}
                 {!securityScore?.email_verified && (
-                  <div className="w-full mt-2 px-3 py-1.5 text-xs font-medium bg-orange-500/10 text-orange-700 rounded-lg border border-orange-200 flex items-center justify-center gap-1">
-                    {isResendingVerification ? (
-                      <>
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        <span>Sending verification email...</span>
-                      </>
-                    ) : verificationResendCooldown > 0 ? (
-                      <>
-                        <Clock className={`w-3 h-3 ${verificationResendCooldown <= 3 ? 'animate-pulse' : ''}`} />
-                        <span>Resend in {verificationResendCooldown}s</span>
-                      </>
-                    ) : (
-                      <>
-                        <Mail className={`w-3 h-3 ${showResendReadyPulse ? 'animate-pulse' : ''}`} />
-                        <span>Tap card to resend verification email</span>
-                      </>
-                    )}
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full border border-orange-200 bg-orange-50 text-[10px] font-semibold text-orange-700">
+                      {verificationResendCooldown > 0 ? (
+                        <>
+                          <Clock className={`w-3 h-3 ${verificationResendCooldown <= 3 ? 'animate-pulse' : ''}`} />
+                          Not verified
+                        </>
+                      ) : (
+                        <>
+                          <Mail className={`w-3 h-3 ${showResendReadyPulse ? 'animate-pulse' : ''}`} />
+                          Not verified
+                        </>
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!isResendingVerification && verificationResendCooldown === 0) {
+                          handleResendVerification();
+                        }
+                      }}
+                      disabled={isResendingVerification || verificationResendCooldown > 0}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-gray-200 bg-white text-[10px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {isResendingVerification ? (
+                        <>
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          Sending...
+                        </>
+                      ) : verificationResendCooldown > 0 ? (
+                        <>
+                          <Clock className="w-3 h-3" />
+                          {verificationResendCooldown}s
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="w-3 h-3" />
+                          Resend
+                        </>
+                      )}
+                    </button>
                   </div>
                 )}
                 {/* Success/Error Message */}
