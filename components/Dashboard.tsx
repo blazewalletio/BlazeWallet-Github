@@ -2370,7 +2370,7 @@ export default function Dashboard() {
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-lg flex items-center justify-center mb-3">
                     <Shield className="w-5 h-5 text-white" />
                   </div>
-                  <div className="font-semibold mb-1">Scam Detector</div>
+                  <div className="font-semibold mb-1">Scam detector</div>
                   <div className="text-xs text-slate-400">Real-time risico scanning</div>
                 </motion.button>
 
@@ -2383,7 +2383,7 @@ export default function Dashboard() {
                   <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-pink-500 rounded-lg flex items-center justify-center mb-3">
                     <PieChart className="w-5 h-5 text-white" />
                   </div>
-                  <div className="font-semibold mb-1">Portfolio Advisor</div>
+                  <div className="font-semibold mb-1">Portfolio advisor</div>
                   <div className="text-xs text-slate-400">Gepersonaliseerde tips</div>
                 </motion.button>
 
@@ -2396,7 +2396,7 @@ export default function Dashboard() {
                   <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center mb-3">
                     <Zap className="w-5 h-5 text-white" />
                   </div>
-                  <div className="font-semibold mb-1">Gas Optimizer</div>
+                  <div className="font-semibold mb-1">Gas optimizer</div>
                   <div className="text-xs text-slate-400">Bespaar op gas fees</div>
                 </motion.button>
 
@@ -2409,7 +2409,7 @@ export default function Dashboard() {
                   <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-lg flex items-center justify-center mb-3">
                     <MessageSquare className="w-5 h-5 text-white" />
                   </div>
-                  <div className="font-semibold mb-1">Crypto Expert</div>
+                  <div className="font-semibold mb-1">Crypto expert</div>
                   <div className="text-xs text-slate-400">24/7 AI support</div>
                 </motion.button>
 
@@ -2443,6 +2443,7 @@ export default function Dashboard() {
                     >
                       <Lock className="w-8 h-8 text-white/60 mb-2" />
                     </motion.div>
+                    <span className="text-xs sm:text-sm font-semibold text-white/90 mb-1">AI Brain</span>
                     <span className="text-[10px] font-bold text-white/80 tracking-wider">UNLOCKING SOON</span>
                   </div>
                 </motion.div>
