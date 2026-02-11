@@ -5,6 +5,7 @@
 
 import { logger } from '@/lib/logger';
 import { secureStorage } from '@/lib/secure-storage';
+import { resolveCurrentIdentity, selfHealIdentityFromSession } from '@/lib/account-identity';
 
 export interface WalletAccount {
   id: string;
@@ -28,18 +29,19 @@ export async function getCurrentAccountAsync(): Promise<WalletAccount | null> {
       return null;
     }
 
-    // Check if it's an email wallet
-    const isEmail = await secureStorage.getItem('wallet_created_with_email') === 'true';
-    const email = await secureStorage.getItem('wallet_email');
-    const userId = await secureStorage.getItem('supabase_user_id');
+    // Resolve identity across secure storage/local/session and self-heal mismatches.
+    let identity = await resolveCurrentIdentity();
+    if (!identity) {
+      identity = await selfHealIdentityFromSession();
+    }
 
-    if (isEmail && email && userId) {
+    if (identity) {
       // Email wallet
       return {
-        id: userId,
+        id: identity.userId,
         type: 'email',
-        displayName: email,
-        email: email,
+        displayName: identity.email,
+        email: identity.email,
         lastUsed: new Date(),
         isActive: true,
       };

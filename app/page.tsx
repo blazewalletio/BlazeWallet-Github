@@ -13,6 +13,7 @@ import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import { logger } from '@/lib/logger';
 import { supabase } from '@/lib/supabase';
 import { DeviceVerificationCheckV2 } from '@/lib/device-verification-check-v2'; // ← V2!
+import { persistEmailIdentity, selfHealIdentityFromSession } from '@/lib/account-identity';
 
 export default function Home() {
   // ✅ REACTIVE APPROACH: Minimal local state, derive everything from wallet store
@@ -72,6 +73,7 @@ export default function Home() {
       // Check IndexedDB FIRST before Supabase
       // This ensures we show unlock modal even if Supabase checks fail
       const { secureStorage } = await import('@/lib/secure-storage');
+      await selfHealIdentityFromSession();
       
       let hasEncryptedWallet = await secureStorage.getItem('encrypted_wallet');
       let hasPasswordStored = await secureStorage.getItem('has_password') === 'true';
@@ -113,9 +115,10 @@ export default function Home() {
                 
                 await secureStorage.setItem('encrypted_wallet', (walletData as any).encrypted_wallet);
                 await secureStorage.setItem('has_password', 'true');
-                await secureStorage.setItem('wallet_email', session.user.email || '');
-                await secureStorage.setItem('wallet_created_with_email', 'true');
-                await secureStorage.setItem('supabase_user_id', session.user.id);
+                await persistEmailIdentity({
+                  email: session.user.email || '',
+                  userId: session.user.id,
+                });
                 
                 await supabase.auth.signOut();
                 
@@ -157,8 +160,10 @@ export default function Home() {
             const { secureStorage } = await import('@/lib/secure-storage');
             await secureStorage.setItem('encrypted_wallet', (walletData as any).encrypted_wallet);
             await secureStorage.setItem('has_password', 'true');
-            await secureStorage.setItem('wallet_email', session.user.email || '');
-            await secureStorage.setItem('wallet_created_with_email', 'true');
+            await persistEmailIdentity({
+              email: session.user.email || '',
+              userId: session.user.id,
+            });
             
             // Initialize account manager
             const { switchToEmailAccount } = await import('@/lib/account-manager');

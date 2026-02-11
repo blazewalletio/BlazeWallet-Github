@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { generateEnhancedFingerprint } from '@/lib/device-fingerprint-pro';
 import { logger } from '@/lib/logger';
+import { persistEmailIdentity } from '@/lib/account-identity';
 
 export default function AuthCallback() {
   const router = useRouter();
@@ -29,6 +30,12 @@ export default function AuthCallback() {
 
           if (session) {
             logger.log('✅ [OAuth] Session established for user:', session.user.id);
+            if (session.user.email) {
+              await persistEmailIdentity({
+                email: session.user.email,
+                userId: session.user.id,
+              });
+            }
 
             // ✅ DEVICE VERIFICATION for OAuth logins
             logger.log('📱 [OAuth] Generating device fingerprint...');

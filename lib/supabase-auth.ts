@@ -6,6 +6,7 @@ import * as bip39 from 'bip39';
 import { ethers } from 'ethers';
 import { logger } from '@/lib/logger';
 import { logFeatureUsage } from '@/lib/analytics-tracker';
+import { persistEmailIdentity } from '@/lib/account-identity';
 
 // =============================================================================
 // ENCRYPTION UTILITIES
@@ -244,10 +245,10 @@ export async function signUpWithEmail(
       await secureStorage.setItem('encrypted_wallet', encryptedWallet);
       await secureStorage.setItem('has_password', 'true');
       
-      // ✅ Non-sensitive metadata can stay in localStorage
-      localStorage.setItem('wallet_email', email);
-      localStorage.setItem('wallet_created_with_email', 'true');
-      localStorage.setItem('supabase_user_id', authData.user!.id);
+      await persistEmailIdentity({
+        email,
+        userId: authData.user!.id,
+      });
       localStorage.setItem('email_verified', 'false');
       sessionStorage.setItem('wallet_unlocked_this_session', 'true');
       // ✅ SECURITY: Addresses are NEVER stored - they're derived from mnemonic on unlock
@@ -510,11 +511,11 @@ export async function signInWithEmail(
       await secureStorage.setItem('encrypted_wallet', walletData.encrypted_mnemonic);
       await secureStorage.setItem('has_password', 'true');
       
-      // ✅ Non-sensitive metadata can stay in localStorage
-      localStorage.setItem('wallet_email', email);
-      localStorage.setItem('wallet_created_with_email', 'true');
-      localStorage.setItem('supabase_user_id', authData.user!.id);
-      sessionStorage.setItem('wallet_unlocked_this_session', 'true');
+      await persistEmailIdentity({
+        email,
+        userId: authData.user!.id,
+        markSessionUnlocked: true,
+      });
       // ✅ SECURITY: Addresses are NEVER stored - they're derived from mnemonic on unlock
       // ✅ SECURITY: NEVER store plaintext mnemonic in localStorage
       // Mnemonic is returned directly and handled in memory only
@@ -582,16 +583,11 @@ export async function completeSignInAfter2FA(
       await secureStorage.setItem('encrypted_wallet', walletData.encrypted_mnemonic);
       await secureStorage.setItem('has_password', 'true');
       
-      // 🔥 FIX: Store metadata in IndexedDB too (iOS PWA clears localStorage!)
-      await secureStorage.setItem('wallet_email', email);
-      await secureStorage.setItem('wallet_created_with_email', 'true');
-      await secureStorage.setItem('supabase_user_id', userId);
-      
-      // ✅ Also set in localStorage for backward compatibility
-      localStorage.setItem('wallet_email', email);
-      localStorage.setItem('wallet_created_with_email', 'true');
-      localStorage.setItem('supabase_user_id', userId);
-      sessionStorage.setItem('wallet_unlocked_this_session', 'true');
+      await persistEmailIdentity({
+        email,
+        userId,
+        markSessionUnlocked: true,
+      });
     }
 
     // Track successful login with 2FA
@@ -876,10 +872,10 @@ export async function upgradeToEmailAccount(
         await secureStorage.setItem('encrypted_wallet', encryptedWallet);
         await secureStorage.setItem('has_password', 'true');
         
-        // ✅ Non-sensitive metadata can stay in localStorage
-        localStorage.setItem('wallet_email', email);
-        localStorage.setItem('wallet_created_with_email', 'true');
-        localStorage.setItem('supabase_user_id', authData.user.id);
+        await persistEmailIdentity({
+          email,
+          userId: authData.user.id,
+        });
         localStorage.setItem('email_verified', 'false');
         sessionStorage.setItem('wallet_unlocked_this_session', 'true');
         

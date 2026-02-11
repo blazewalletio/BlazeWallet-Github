@@ -5,6 +5,7 @@
  */
 
 import { logger } from '@/lib/logger';
+import { persistEmailIdentity } from '@/lib/account-identity';
 
 export interface WalletAccount {
   id: string;                    // supabase_user_id or wallet hash
@@ -157,10 +158,10 @@ export async function switchToEmailAccount(
   await secureStorage.setItem('encrypted_wallet', encryptedWallet);
   await secureStorage.setItem('has_password', 'true');
   
-  // ✅ Non-sensitive metadata can stay in localStorage
-  localStorage.setItem('wallet_email', email);
-  localStorage.setItem('supabase_user_id', userId);
-  localStorage.setItem('wallet_created_with_email', 'true');
+  await persistEmailIdentity({
+    email,
+    userId,
+  });
   
   // Clear session flag to require unlock
   sessionStorage.removeItem('wallet_unlocked_this_session');
@@ -243,10 +244,10 @@ export async function markAccountAsUpgraded(
   // Remove old seed wallet from recent accounts (will be replaced by email account)
   removeAccount(currentAccount.id);
   
-  // Update localStorage flags (already done in upgradeToEmailAccount, but ensure consistency)
-  localStorage.setItem('wallet_email', email);
-  localStorage.setItem('supabase_user_id', userId);
-  localStorage.setItem('wallet_created_with_email', 'true');
+  await persistEmailIdentity({
+    email,
+    userId,
+  });
   
   logger.log('✅ Account upgraded: seed wallet → email account');
   

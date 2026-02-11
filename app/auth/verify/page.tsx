@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { logger } from '@/lib/logger';
+import { selfHealIdentityFromSession } from '@/lib/account-identity';
 
 // Force dynamic rendering for this page
 export const dynamic = 'force-dynamic';
@@ -43,6 +44,9 @@ function EmailVerifyContent() {
         if (typeof window !== 'undefined') {
           localStorage.setItem('email_verified', 'true');
         }
+
+        // Keep account identity consistent after verify redirects.
+        await selfHealIdentityFromSession();
 
         setStatus('success');
         setMessage('Email verified successfully!');

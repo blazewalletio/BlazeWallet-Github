@@ -7,6 +7,7 @@
 import { supabase } from './supabase';
 import { generateEnhancedFingerprint, EnhancedDeviceInfo } from './device-fingerprint-pro';
 import { logger } from './logger';
+import { persistEmailIdentity } from './account-identity';
 
 // =============================================================================
 // ENCRYPTION UTILITIES
@@ -1115,10 +1116,10 @@ export async function signUpWithEmail(
       await secureStorage.setItem('encrypted_wallet', encryptedWallet);
       await secureStorage.setItem('has_password', 'true');
       
-      // ✅ Non-sensitive metadata can stay in localStorage
-      localStorage.setItem('wallet_email', email);
-      localStorage.setItem('wallet_created_with_email', 'true');
-      localStorage.setItem('supabase_user_id', authData.user!.id);
+      await persistEmailIdentity({
+        email,
+        userId: authData.user!.id,
+      });
       localStorage.setItem('email_verified', 'false');
       sessionStorage.setItem('wallet_unlocked_this_session', 'true');
     }
