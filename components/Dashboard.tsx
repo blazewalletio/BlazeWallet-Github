@@ -1867,72 +1867,131 @@ export default function Dashboard() {
           />
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-4 gap-3">
-            {[
-              {
-                key: 'buy',
-                label: 'Buy',
-                icon: CreditCard,
-                onClick: () => setShowBuyModal3(true),
-                delay: 0.1,
-                gradient: 'from-blue-400 via-blue-500 to-blue-600',
-                shadow: 'shadow-blue-400/40',
-              },
-              {
-                key: 'send',
-                label: 'Send',
-                icon: ArrowUpRight,
-                onClick: () => setShowSendModal(true),
-                delay: 0.15,
-                gradient: 'from-orange-400 via-orange-500 to-orange-600',
-                shadow: 'shadow-orange-400/40',
-              },
-              {
-                key: 'receive',
-                label: 'Receive',
-                icon: ArrowDownLeft,
-                onClick: () => setShowReceiveModal(true),
-                delay: 0.2,
-                gradient: 'from-emerald-400 via-teal-500 to-cyan-500',
-                shadow: 'shadow-emerald-400/40',
-              },
-              {
-                key: 'swap',
-                label: 'Swap',
-                icon: Repeat,
-                onClick: () => setShowSwapModal(true),
-                delay: 0.25,
-                gradient: 'from-violet-400 via-purple-500 to-purple-600',
-                shadow: 'shadow-violet-400/40',
-              },
-            ].map((action) => {
-              const Icon = action.icon;
-              return (
-                <motion.button
-                  key={action.key}
-                  initial={{ opacity: 0, scale: 0.92 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: action.delay }}
-                  whileTap={{ scale: 0.96 }}
-                  whileHover={{ scale: 1.03 }}
-                  onClick={action.onClick}
-                  className={`relative overflow-hidden rounded-2xl border border-white/40 aspect-square flex flex-col items-center justify-center bg-gradient-to-br ${action.gradient} shadow-lg ${action.shadow} hover:brightness-105 transition-all`}
-                >
-                  {/* Wave overlays */}
-                  <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute -top-8 -left-4 w-[140%] h-16 bg-white/22 rounded-[100%] rotate-6" />
-                    <div className="absolute top-7 -left-6 w-[140%] h-14 bg-white/14 rounded-[100%] -rotate-3" />
-                    <div className="absolute -bottom-7 -left-3 w-[135%] h-16 bg-white/18 rounded-[100%] rotate-3" />
-                    <div className="absolute top-1 right-1 w-16 h-16 bg-white/18 blur-xl rounded-full" />
-                  </div>
+          <div className="grid grid-cols-4 md:grid-cols-2 gap-3 md:gap-4">
+            {/* Buy (Buy3) - Official Buy button */}
+            <motion.button
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 }}
+              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.05 }}
+              onClick={() => setShowBuyModal3(true)}
+              className="relative rounded-2xl md:rounded-3xl aspect-square md:aspect-[2.8/1] border border-white/40 shadow-lg hover:shadow-xl transition-all overflow-hidden"
+            >
+              <div
+                className="absolute inset-0 md:hidden bg-cover bg-center"
+                style={{ backgroundImage: "url('/buttons-blaze/knop-blauw-vierkant.png')" }}
+              />
+              <div
+                className="absolute inset-0 hidden md:block bg-cover bg-center"
+                style={{ backgroundImage: "url('/buttons-blaze/knop-blauw-breed.png')" }}
+              />
+              <div className="absolute inset-0 bg-black/10 md:bg-black/5" />
+              <div className="relative z-10 flex h-full w-full flex-col md:flex-row items-center justify-center md:justify-start md:px-6 gap-1.5 md:gap-3">
+                <CreditCard className="w-6 h-6 md:w-7 md:h-7 text-white drop-shadow-sm" />
+                <div className="text-xs md:text-lg font-bold text-white text-center drop-shadow-sm">Buy</div>
+              </div>
+            </motion.button>
 
-                  <div className="relative z-10 flex flex-col items-center">
-                    <Icon className="w-8 h-8 text-white mb-2 drop-shadow-sm" />
-                    <div className="text-sm font-bold text-white text-center tracking-wide">{action.label}</div>
-                  </div>
-                </motion.button>
-              );
-            })}
+            {/* Buy - Temporarily disabled */}
+            {/* <motion.button
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 }}
+              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.05 }}
+              onClick={() => setShowBuyModal(true)}
+              className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl aspect-square flex flex-col items-center justify-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+            >
+              <CreditCard className="w-8 h-8 text-white mb-2" />
+              <div className="text-sm font-bold text-white text-center">Buy</div>
+            </motion.button> */}
+
+            {/* Buy2 - Temporarily disabled */}
+            {/* <motion.button
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.12 }}
+              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.05 }}
+              onClick={() => setShowBuyModal2(true)}
+              className="bg-gradient-to-br from-indigo-500 to-blue-500 rounded-xl aspect-square flex flex-col items-center justify-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+            >
+              <CreditCard className="w-8 h-8 text-white mb-2" />
+              <div className="text-sm font-bold text-white text-center">Buy2</div>
+            </motion.button> */}
+
+            <motion.button
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.15 }}
+              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.05 }}
+              onClick={() => setShowSendModal(true)}
+              className="relative rounded-2xl md:rounded-3xl aspect-square md:aspect-[2.8/1] border border-white/40 shadow-lg hover:shadow-xl transition-all overflow-hidden"
+            >
+              <div
+                className="absolute inset-0 md:hidden bg-cover bg-center"
+                style={{ backgroundImage: "url('/buttons-blaze/knop-oranje-vierkant.png')" }}
+              />
+              <div
+                className="absolute inset-0 hidden md:block bg-cover bg-center"
+                style={{ backgroundImage: "url('/buttons-blaze/knop-rood-breed.png')" }}
+              />
+              <div className="absolute inset-0 bg-black/10 md:bg-black/5" />
+              <div className="relative z-10 flex h-full w-full flex-col md:flex-row items-center justify-center md:justify-start md:px-6 gap-1.5 md:gap-3">
+                <ArrowUpRight className="w-6 h-6 md:w-7 md:h-7 text-white drop-shadow-sm" />
+                <div className="text-xs md:text-lg font-bold text-white text-center drop-shadow-sm">Send</div>
+              </div>
+            </motion.button>
+
+            <motion.button
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.05 }}
+              onClick={() => setShowReceiveModal(true)}
+              className="relative rounded-2xl md:rounded-3xl aspect-square md:aspect-[2.8/1] border border-white/40 shadow-lg hover:shadow-xl transition-all overflow-hidden"
+            >
+              <div
+                className="absolute inset-0 md:hidden bg-cover bg-center"
+                style={{ backgroundImage: "url('/buttons-blaze/knop-groen-vierkant.png')" }}
+              />
+              <div
+                className="absolute inset-0 hidden md:block bg-cover bg-center"
+                style={{ backgroundImage: "url('/buttons-blaze/knop-groen-breed.png')" }}
+              />
+              <div className="absolute inset-0 bg-black/10 md:bg-black/5" />
+              <div className="relative z-10 flex h-full w-full flex-col md:flex-row items-center justify-center md:justify-start md:px-6 gap-1.5 md:gap-3">
+                <ArrowDownLeft className="w-6 h-6 md:w-7 md:h-7 text-white drop-shadow-sm" />
+                <div className="text-xs md:text-lg font-bold text-white text-center drop-shadow-sm">Receive</div>
+              </div>
+            </motion.button>
+
+            <motion.button
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.25 }}
+              whileTap={{ scale: 0.95 }}
+              whileHover={{ scale: 1.05 }}
+              onClick={() => setShowSwapModal(true)}
+              className="relative rounded-2xl md:rounded-3xl aspect-square md:aspect-[2.8/1] border border-white/40 shadow-lg hover:shadow-xl transition-all overflow-hidden"
+            >
+              <div
+                className="absolute inset-0 md:hidden bg-cover bg-center"
+                style={{ backgroundImage: "url('/buttons-blaze/knop-paars-vierkant.png')" }}
+              />
+              <div
+                className="absolute inset-0 hidden md:block bg-cover bg-center"
+                style={{ backgroundImage: "url('/buttons-blaze/knop-paars-breed.png')" }}
+              />
+              <div className="absolute inset-0 bg-black/10 md:bg-black/5" />
+              <div className="relative z-10 flex h-full w-full flex-col md:flex-row items-center justify-center md:justify-start md:px-6 gap-1.5 md:gap-3">
+                <Repeat className="w-6 h-6 md:w-7 md:h-7 text-white drop-shadow-sm" />
+                <div className="text-xs md:text-lg font-bold text-white text-center drop-shadow-sm">Swap</div>
+              </div>
+            </motion.button>
           </div>
 
           {/* ⚡ Lightning Network Button - Only for Bitcoin */}

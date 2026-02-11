@@ -566,31 +566,29 @@ export default function WalletTab() {
         </motion.div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-6 gap-3">
+        <div className="grid grid-cols-4 md:grid-cols-2 gap-3 md:gap-4">
           <motion.button
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.1 }}
             whileTap={{ scale: 0.95 }}
             whileHover={{ scale: 1.05 }}
-            onClick={() => setShowBuyModal(true)}
-            className="bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl aspect-square flex flex-col items-center justify-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+            onClick={() => setShowBuyModal3(true)}
+            className="relative rounded-2xl md:rounded-3xl aspect-square md:aspect-[2.8/1] border border-white/40 shadow-lg hover:shadow-xl transition-all overflow-hidden"
           >
-            <CreditCard className="w-8 h-8 text-white mb-2" />
-            <div className="text-sm font-bold text-white text-center">Buy</div>
-          </motion.button>
-
-          <motion.button
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.12 }}
-            whileTap={{ scale: 0.95 }}
-            whileHover={{ scale: 1.05 }}
-            onClick={() => setShowBuyModal2(true)}
-            className="bg-gradient-to-br from-indigo-500 to-blue-500 rounded-xl aspect-square flex flex-col items-center justify-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
-          >
-            <CreditCard className="w-8 h-8 text-white mb-2" />
-            <div className="text-sm font-bold text-white text-center">Buy2</div>
+            <div
+              className="absolute inset-0 md:hidden bg-cover bg-center"
+              style={{ backgroundImage: "url('/buttons-blaze/knop-blauw-vierkant.png')" }}
+            />
+            <div
+              className="absolute inset-0 hidden md:block bg-cover bg-center"
+              style={{ backgroundImage: "url('/buttons-blaze/knop-blauw-breed.png')" }}
+            />
+            <div className="absolute inset-0 bg-black/10 md:bg-black/5" />
+            <div className="relative z-10 flex h-full w-full flex-col md:flex-row items-center justify-center md:justify-start md:px-6 gap-1.5 md:gap-3">
+              <CreditCard className="w-6 h-6 md:w-7 md:h-7 text-white drop-shadow-sm" />
+              <div className="text-xs md:text-lg font-bold text-white text-center drop-shadow-sm">Buy</div>
+            </div>
           </motion.button>
 
           <motion.button
@@ -600,10 +598,21 @@ export default function WalletTab() {
             whileTap={{ scale: 0.95 }}
             whileHover={{ scale: 1.05 }}
             onClick={() => setShowSendModal(true)}
-            className="bg-gradient-to-br from-rose-500 to-orange-500 rounded-xl aspect-square flex flex-col items-center justify-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+            className="relative rounded-2xl md:rounded-3xl aspect-square md:aspect-[2.8/1] border border-white/40 shadow-lg hover:shadow-xl transition-all overflow-hidden"
           >
-            <ArrowUpRight className="w-8 h-8 text-white mb-2" />
-            <div className="text-sm font-bold text-white text-center">Send</div>
+            <div
+              className="absolute inset-0 md:hidden bg-cover bg-center"
+              style={{ backgroundImage: "url('/buttons-blaze/knop-oranje-vierkant.png')" }}
+            />
+            <div
+              className="absolute inset-0 hidden md:block bg-cover bg-center"
+              style={{ backgroundImage: "url('/buttons-blaze/knop-rood-breed.png')" }}
+            />
+            <div className="absolute inset-0 bg-black/10 md:bg-black/5" />
+            <div className="relative z-10 flex h-full w-full flex-col md:flex-row items-center justify-center md:justify-start md:px-6 gap-1.5 md:gap-3">
+              <ArrowUpRight className="w-6 h-6 md:w-7 md:h-7 text-white drop-shadow-sm" />
+              <div className="text-xs md:text-lg font-bold text-white text-center drop-shadow-sm">Send</div>
+            </div>
           </motion.button>
 
           <motion.button
@@ -613,10 +622,21 @@ export default function WalletTab() {
             whileTap={{ scale: 0.95 }}
             whileHover={{ scale: 1.05 }}
             onClick={() => setShowReceiveModal(true)}
-            className="bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl aspect-square flex flex-col items-center justify-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+            className="relative rounded-2xl md:rounded-3xl aspect-square md:aspect-[2.8/1] border border-white/40 shadow-lg hover:shadow-xl transition-all overflow-hidden"
           >
-            <ArrowDownLeft className="w-8 h-8 text-white mb-2" />
-            <div className="text-sm font-bold text-white text-center">Receive</div>
+            <div
+              className="absolute inset-0 md:hidden bg-cover bg-center"
+              style={{ backgroundImage: "url('/buttons-blaze/knop-groen-vierkant.png')" }}
+            />
+            <div
+              className="absolute inset-0 hidden md:block bg-cover bg-center"
+              style={{ backgroundImage: "url('/buttons-blaze/knop-groen-breed.png')" }}
+            />
+            <div className="absolute inset-0 bg-black/10 md:bg-black/5" />
+            <div className="relative z-10 flex h-full w-full flex-col md:flex-row items-center justify-center md:justify-start md:px-6 gap-1.5 md:gap-3">
+              <ArrowDownLeft className="w-6 h-6 md:w-7 md:h-7 text-white drop-shadow-sm" />
+              <div className="text-xs md:text-lg font-bold text-white text-center drop-shadow-sm">Receive</div>
+            </div>
           </motion.button>
 
           <motion.button
@@ -626,10 +646,21 @@ export default function WalletTab() {
             whileTap={{ scale: 0.95 }}
             whileHover={{ scale: 1.05 }}
             onClick={() => setShowSwapModal(true)}
-            className="bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl aspect-square flex flex-col items-center justify-center shadow-lg hover:shadow-xl hover:brightness-110 transition-all"
+            className="relative rounded-2xl md:rounded-3xl aspect-square md:aspect-[2.8/1] border border-white/40 shadow-lg hover:shadow-xl transition-all overflow-hidden"
           >
-            <Repeat className="w-8 h-8 text-white mb-2" />
-            <div className="text-sm font-bold text-white text-center">Swap</div>
+            <div
+              className="absolute inset-0 md:hidden bg-cover bg-center"
+              style={{ backgroundImage: "url('/buttons-blaze/knop-paars-vierkant.png')" }}
+            />
+            <div
+              className="absolute inset-0 hidden md:block bg-cover bg-center"
+              style={{ backgroundImage: "url('/buttons-blaze/knop-paars-breed.png')" }}
+            />
+            <div className="absolute inset-0 bg-black/10 md:bg-black/5" />
+            <div className="relative z-10 flex h-full w-full flex-col md:flex-row items-center justify-center md:justify-start md:px-6 gap-1.5 md:gap-3">
+              <Repeat className="w-6 h-6 md:w-7 md:h-7 text-white drop-shadow-sm" />
+              <div className="text-xs md:text-lg font-bold text-white text-center drop-shadow-sm">Swap</div>
+            </div>
           </motion.button>
         </div>
 
