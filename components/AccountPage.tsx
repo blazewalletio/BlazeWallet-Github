@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   User, Mail, Calendar, Shield, Settings, Copy, Check, 
@@ -99,6 +99,8 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
   const [isResendingVerification, setIsResendingVerification] = useState(false);
   const [verificationResendMessage, setVerificationResendMessage] = useState<string | null>(null);
   const [verificationResendCooldown, setVerificationResendCooldown] = useState(0);
+  const [showResendReadyPulse, setShowResendReadyPulse] = useState(false);
+  const prevResendCooldownRef = useRef(0);
   
   // Security
   const [securityScore, setSecurityScore] = useState<SecurityScore | null>(null);
@@ -349,6 +351,18 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
       setVerificationResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
+  }, [verificationResendCooldown]);
+
+  useEffect(() => {
+    const prevCooldown = prevResendCooldownRef.current;
+    // Trigger a short pulse when cooldown transitions from >0 to 0.
+    if (prevCooldown > 0 && verificationResendCooldown === 0) {
+      setShowResendReadyPulse(true);
+      const timer = setTimeout(() => setShowResendReadyPulse(false), 1800);
+      prevResendCooldownRef.current = verificationResendCooldown;
+      return () => clearTimeout(timer);
+    }
+    prevResendCooldownRef.current = verificationResendCooldown;
   }, [verificationResendCooldown]);
 
   const handleSaveDisplayName = async () => {
@@ -1132,12 +1146,12 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                       </>
                     ) : verificationResendCooldown > 0 ? (
                       <>
-                        <Clock className="w-3 h-3" />
+                        <Clock className={`w-3 h-3 ${verificationResendCooldown <= 3 ? 'animate-pulse' : ''}`} />
                         <span>Resend in {verificationResendCooldown}s</span>
                       </>
                     ) : (
                       <>
-                        <Mail className="w-3 h-3" />
+                        <Mail className={`w-3 h-3 ${showResendReadyPulse ? 'animate-pulse' : ''}`} />
                         <span>Tap card to resend verification email</span>
                       </>
                     )}
