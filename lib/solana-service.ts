@@ -467,7 +467,7 @@ export class SolanaService {
           type: 'Transfer',
           tokenSymbol: 'SOL',  // ✅ Native SOL symbol
           tokenName: 'Solana',  // ✅ Native SOL name
-          logoUrl, // ✅ ONLY from CoinGecko Pro API!
+          logoUrl: logoUrl || undefined, // ✅ ONLY from CoinGecko Pro API!
         };
       }
     }
@@ -555,7 +555,7 @@ export class SolanaService {
                   tokenName: metadata.name,      // ✅ Full token name (e.g., "NPC Solana", "dogwifhat", "ai16z")
                   type: 'Token Transfer',
                   mint: mint,                    // ✅ Store mint for reference
-                  logoUrl, // ✅ ONLY from CoinGecko Pro API!
+                  logoUrl: logoUrl || undefined, // ✅ ONLY from CoinGecko Pro API!
                 };
               }
             }
@@ -595,7 +595,7 @@ export class SolanaService {
                 tokenName: metadata.name,
                 type: 'Token Transfer',
                 mint: mint,
-                logoUrl, // ✅ ONLY from CoinGecko Pro API!
+                logoUrl: logoUrl || undefined, // ✅ ONLY from CoinGecko Pro API!
               };
             } catch (metadataError) {
               logger.error(`❌ [SPL Transfer FALLBACK] Metadata fetch failed for ${mint}:`, metadataError);
@@ -633,7 +633,7 @@ export class SolanaService {
                 tokenName: metadata.name,
                 type: 'Token Transfer',
                 mint: mint,
-                logoUrl, // ✅ ONLY from CoinGecko Pro API!
+                logoUrl: logoUrl || undefined, // ✅ ONLY from CoinGecko Pro API!
               };
             } catch (metadataError) {
               logger.error(`❌ [SPL Transfer FALLBACK POST] Metadata fetch failed for ${mint}:`, metadataError);
@@ -654,7 +654,7 @@ export class SolanaService {
           tokenSymbol: 'SPL',
           tokenName: 'Unknown Token',
           type: 'Token Transfer',
-          logoUrl, // ✅ From CoinGecko Pro API (will fallback to placeholder internally)
+          logoUrl: logoUrl || undefined, // ✅ From CoinGecko Pro API (will fallback to placeholder internally)
         };
       }
     }
