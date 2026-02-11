@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { EnhancedDeviceInfo } from '@/lib/device-fingerprint-pro';
+import { generateSecurityAlertEmailTemplate, sendEmail } from '@/lib/email-service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -75,25 +76,24 @@ async function sendSecurityAlertEmail(
         action = 'If you didn\'t make this change, contact support immediately.';
         break;
     }
-    
-    // TODO: Implement actual email sending
-    // For now, log to console
-    console.log('='.repeat(60));
-    console.log('🚨 SECURITY ALERT');
-    console.log('='.repeat(60));
-    console.log(`To: ${email}`);
-    console.log(`Subject: ${subject}`);
-    console.log(`Title: ${title}`);
-    console.log(`Message: ${message}`);
-    console.log(`Device: ${deviceInfo.deviceName}`);
-    console.log(`Location: ${deviceInfo.location.city}, ${deviceInfo.location.country}`);
-    console.log(`IP: ${deviceInfo.ipAddress}`);
-    console.log(`Risk Score: ${deviceInfo.riskScore}/100`);
-    console.log(`TOR: ${deviceInfo.isTor}, VPN: ${deviceInfo.isVPN}`);
-    console.log('='.repeat(60));
-    
-    logger.log('✅ Security alert logged');
-    
+
+    const emailHtml = generateSecurityAlertEmailTemplate({
+      alertTitle: title,
+      alertMessage: message,
+      actionMessage: action,
+      deviceName: deviceInfo.deviceName,
+      location: deviceInfo.location,
+      ipAddress: deviceInfo.ipAddress,
+      riskScore: deviceInfo.riskScore,
+    });
+
+    await sendEmail({
+      to: email,
+      subject,
+      html: emailHtml,
+    });
+
+    logger.log('✅ Security alert email sent');
     return true;
     
   } catch (error) {
