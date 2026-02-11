@@ -67,21 +67,23 @@ export default function NewEmailModal({ isOpen, onClose, onSubmit, existingEmail
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+        className="fixed inset-0 bg-slate-950/45 backdrop-blur-md z-[60] flex items-center justify-center p-4"
         onClick={handleClose}
       >
         <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          initial={{ opacity: 0, scale: 0.96, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9, y: 20 }}
+          exit={{ opacity: 0, scale: 0.96, y: 16 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-md bg-white rounded-2xl shadow-2xl border-2 border-gray-200 p-6"
+          className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-gray-200 p-6 sm:p-7"
         >
+          <div className="h-1.5 w-16 rounded-full bg-gradient-to-r from-orange-500 to-yellow-500 mx-auto mb-5" />
+
           {/* Header */}
           <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+              <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-2xl flex items-center justify-center shadow-md">
                 <Mail className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -115,8 +117,8 @@ export default function NewEmailModal({ isOpen, onClose, onSubmit, existingEmail
                   setEmail(e.target.value);
                   setError('');
                 }}
-                placeholder="your@email.com"
-                className="w-full bg-gray-50 border-2 border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                placeholder="name@email.com"
+                className="w-full bg-gray-50 border-2 border-gray-300 rounded-2xl px-4 py-3.5 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
                 required
                 autoFocus
                 disabled={isLoading}
@@ -136,9 +138,9 @@ export default function NewEmailModal({ isOpen, onClose, onSubmit, existingEmail
             )}
 
             {/* Info */}
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-              <p className="text-xs text-blue-700">
-                You'll need to enter your password on the next screen to unlock your wallet.
+            <div className="bg-orange-50/70 border border-orange-200 rounded-2xl p-3.5">
+              <p className="text-xs text-orange-700">
+                Continue to the password step for this email wallet.
               </p>
             </div>
 
@@ -155,7 +157,7 @@ export default function NewEmailModal({ isOpen, onClose, onSubmit, existingEmail
               <button
                 type="submit"
                 disabled={isLoading || !email.trim()}
-                className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 flex items-center justify-center shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                className="flex-1 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 flex items-center justify-center shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
               >
                 {isLoading ? (
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
