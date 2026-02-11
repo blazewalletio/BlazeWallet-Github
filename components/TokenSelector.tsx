@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
+import { X, AlertCircle, Loader2, CheckCircle, Search, Plus } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { CHAINS } from '@/lib/chains';
 import { Token } from '@/lib/types';
@@ -10,6 +10,9 @@ import { ethers } from 'ethers';
 import { PublicKey } from '@solana/web3.js';
 import { getSPLTokenMetadata } from '@/lib/spl-token-metadata';
 import { getCurrencyLogoSync } from '@/lib/currency-logo-service';
+import { getPopularTokens } from '@/lib/popular-tokens';
+import { tokenCache } from '@/lib/token-cache';
+import { JupiterService } from '@/lib/jupiter-service';
 import { logger } from '@/lib/logger';
 
 interface TokenSelectorProps {
@@ -17,9 +20,20 @@ interface TokenSelectorProps {
   onClose: () => void;
 }
 
+interface SearchableToken {
+  address: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  logoURI?: string;
+}
+
 export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
   const { currentChain, addToken, tokens } = useWalletStore();
   const [customAddress, setCustomAddress] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchableToken[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -34,15 +48,173 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
   useEffect(() => {
     if (isOpen) {
       setCustomAddress('');
+      setSearchQuery('');
+      setSearchResults([]);
       setError(null);
       setSuccess(false);
     }
   }, [isOpen]);
 
+  const normalizeAddress = (address: string): string => {
+    return isSolana ? address : address.toLowerCase();
+  };
+
+  const isNativeTokenAddress = (address: string): boolean => {
+    if (address === '0x0000000000000000000000000000000000000000') return true;
+    if (isSolana && address === 'So11111111111111111111111111111111111111112') return true;
+    return false;
+  };
+
   // Check if token already exists
   const isTokenAlreadyAdded = (address: string): boolean => {
-    const normalizedAddress = address.toLowerCase();
-    return tokens.some(token => token.address.toLowerCase() === normalizedAddress);
+    const normalizedAddress = normalizeAddress(address);
+    return tokens.some(token => normalizeAddress(token.address) === normalizedAddress);
+  };
+
+  useEffect(() => {
+    if (!isOpen || isBitcoinFork) return;
+
+    const query = searchQuery.trim();
+    if (query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    let isCancelled = false;
+    const runSearch = async () => {
+      setIsSearching(true);
+      setError(null);
+      try {
+        const queryLower = query.toLowerCase();
+        const merged = new Map<string, SearchableToken>();
+
+        // 1) Curated per-chain list (fast fallback for all chains)
+        const curated = getPopularTokens(currentChain);
+        for (const token of curated) {
+          if (isNativeTokenAddress(token.address)) continue;
+          const symbol = (token.symbol || '').toLowerCase();
+          const name = (token.name || '').toLowerCase();
+          if (!symbol.includes(queryLower) && !name.includes(queryLower)) continue;
+          if (isTokenAlreadyAdded(token.address)) continue;
+          const key = normalizeAddress(token.address);
+          if (!merged.has(key)) {
+            merged.set(key, {
+              address: token.address,
+              symbol: token.symbol,
+              name: token.name,
+              decimals: token.decimals,
+              logoURI: token.logoURI,
+            });
+          }
+        }
+
+        // 2) IndexedDB token cache (if preloaded for this chain)
+        if (typeof window !== 'undefined' && chainConfig?.id) {
+          const cached = await tokenCache.searchTokens(chainConfig.id, query, 60);
+          for (const token of cached) {
+            if (isNativeTokenAddress(token.address)) continue;
+            if (isTokenAlreadyAdded(token.address)) continue;
+            const key = normalizeAddress(token.address);
+            if (!merged.has(key)) {
+              merged.set(key, {
+                address: token.address,
+                symbol: token.symbol,
+                name: token.name,
+                decimals: token.decimals,
+                logoURI: token.logoURI,
+              });
+            }
+          }
+        }
+
+        // 3) Solana fallback: Jupiter token search for broader results
+        if (isSolana && merged.size < 20) {
+          const jupiterResults = await JupiterService.searchTokens(query);
+          for (const token of jupiterResults.slice(0, 80)) {
+            if (isNativeTokenAddress(token.address)) continue;
+            if (isTokenAlreadyAdded(token.address)) continue;
+            const key = normalizeAddress(token.address);
+            if (!merged.has(key)) {
+              merged.set(key, {
+                address: token.address,
+                symbol: token.symbol,
+                name: token.name,
+                decimals: token.decimals,
+                logoURI: token.logoURI,
+              });
+            }
+          }
+        }
+
+        const sortedResults = Array.from(merged.values())
+          .sort((a, b) => {
+            const aSym = a.symbol.toLowerCase();
+            const bSym = b.symbol.toLowerCase();
+            const aName = a.name.toLowerCase();
+            const bName = b.name.toLowerCase();
+
+            const aExact = aSym === queryLower;
+            const bExact = bSym === queryLower;
+            if (aExact && !bExact) return -1;
+            if (!aExact && bExact) return 1;
+
+            const aStarts = aSym.startsWith(queryLower);
+            const bStarts = bSym.startsWith(queryLower);
+            if (aStarts && !bStarts) return -1;
+            if (!aStarts && bStarts) return 1;
+
+            const aNameStarts = aName.startsWith(queryLower);
+            const bNameStarts = bName.startsWith(queryLower);
+            if (aNameStarts && !bNameStarts) return -1;
+            if (!aNameStarts && bNameStarts) return 1;
+
+            return a.symbol.localeCompare(b.symbol);
+          })
+          .slice(0, 40);
+
+        if (!isCancelled) {
+          setSearchResults(sortedResults);
+        }
+      } catch (searchError) {
+        logger.error('❌ Token search failed:', searchError);
+        if (!isCancelled) {
+          setSearchResults([]);
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsSearching(false);
+        }
+      }
+    };
+
+    const timeoutId = setTimeout(runSearch, 250);
+    return () => {
+      isCancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [searchQuery, isOpen, currentChain, isBitcoinFork, isSolana, chainConfig?.id, tokens]);
+
+  const handleAddFromSearch = (candidate: SearchableToken) => {
+    if (isTokenAlreadyAdded(candidate.address)) {
+      setError('This token has already been added to your wallet');
+      return;
+    }
+
+    const fallbackLogo = isSolana ? '/crypto-solana.png' : '/crypto-eth.png';
+    const token: Token = {
+      address: candidate.address,
+      symbol: candidate.symbol,
+      name: candidate.name,
+      decimals: candidate.decimals,
+      logo: getCurrencyLogoSync(candidate.symbol) || candidate.logoURI || fallbackLogo,
+    };
+
+    addToken(token);
+    setSuccess(true);
+    setError(null);
+    setSearchQuery('');
+    setSearchResults([]);
+    setTimeout(() => onClose(), 1200);
   };
 
   const handleAddCustomToken = async () => {
@@ -282,6 +454,86 @@ export default function TokenSelector({ isOpen, onClose }: TokenSelectorProps) {
               {/* Custom Token Address */}
               {!isBitcoinFork && (
                 <div className="space-y-4">
+                  {/* Search tokens by name/symbol */}
+                  {!success && (
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-900 mb-2">
+                        Search token by name or ticker
+                      </label>
+                      <div className="relative">
+                        <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input aria-label="Search token"
+                          type="text"
+                          value={searchQuery}
+                          onChange={(e) => {
+                            setSearchQuery(e.target.value);
+                            setError(null);
+                            setSuccess(false);
+                          }}
+                          placeholder="e.g. USDC, Tether, BONK"
+                          className="input-field text-sm pl-10"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="off"
+                          spellCheck="false"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Search is scoped to the selected network: {chainConfig?.name || currentChain}
+                      </p>
+
+                      {searchQuery.trim().length >= 2 && (
+                        <div className="mt-3 glass-card border border-gray-200 overflow-hidden">
+                          {isSearching ? (
+                            <div className="p-4 flex items-center justify-center gap-2 text-sm text-gray-600">
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Searching tokens...</span>
+                            </div>
+                          ) : searchResults.length > 0 ? (
+                            <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
+                              {searchResults.map((token) => (
+                                <div
+                                  key={`${currentChain}-${token.address}`}
+                                  className="px-3 py-2.5 flex items-center justify-between gap-3 hover:bg-gray-50/80"
+                                >
+                                  <div className="min-w-0">
+                                    <div className="text-sm font-semibold text-gray-900 truncate">
+                                      {token.symbol}
+                                    </div>
+                                    <div className="text-xs text-gray-500 truncate">
+                                      {token.name}
+                                    </div>
+                                  </div>
+                                  <motion.button
+                                    whileTap={{ scale: 0.97 }}
+                                    onClick={() => handleAddFromSearch(token)}
+                                    disabled={isTokenAlreadyAdded(token.address)}
+                                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-orange-500 to-yellow-500 text-white hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                    {isTokenAlreadyAdded(token.address) ? 'Added' : 'Add'}
+                                  </motion.button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="p-4 text-center text-xs text-gray-500">
+                              No tokens found on this network for "{searchQuery.trim()}".
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {!success && (
+                    <div className="flex items-center gap-2">
+                      <div className="h-px bg-gray-200 flex-1" />
+                      <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">or add by address</span>
+                      <div className="h-px bg-gray-200 flex-1" />
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-sm font-semibold text-gray-900 mb-2">
                       {isSolana && 'SPL Token Mint Address'}
