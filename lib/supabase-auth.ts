@@ -133,6 +133,33 @@ export interface SignInResult {
   deviceVerificationToken?: string; // ✅ Device verification token
 }
 
+type SignupAttribution = {
+  visitorId?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  twclid?: string;
+};
+
+function getSignupAttribution(): SignupAttribution {
+  if (typeof window === 'undefined') {
+    return {};
+  }
+
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      visitorId: params.get('bw_vid') || undefined,
+      utmSource: params.get('utm_source') || undefined,
+      utmMedium: params.get('utm_medium') || undefined,
+      utmCampaign: params.get('utm_campaign') || undefined,
+      twclid: params.get('twclid') || undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
 /**
  * Sign up with email and password
  * Creates new wallet and uploads encrypted version to Supabase
@@ -256,6 +283,7 @@ export async function signUpWithEmail(
       // It will be returned to user for backup, but not persisted locally
     }
 
+<<<<<<< HEAD
     // 6.5. ✅ NEW: Store first device as VERIFIED (no email verification needed for sign-up)
     logger.log('📱 [SignUp] Storing first device as verified...');
     try {
@@ -295,6 +323,9 @@ export async function signUpWithEmail(
         hasWallet: true
       });
     }
+=======
+    const attribution = getSignupAttribution();
+>>>>>>> 59b97d42 (Track wallet signups to website attribution webhook)
 
     // 7. Send custom welcome + verification email via API route
     try {
@@ -306,6 +337,11 @@ export async function signUpWithEmail(
         body: JSON.stringify({
           email,
           userId: authData.user.id, // Send user ID to generate secure token server-side
+          visitorId: attribution.visitorId,
+          utmSource: attribution.utmSource,
+          utmMedium: attribution.utmMedium,
+          utmCampaign: attribution.utmCampaign,
+          twclid: attribution.twclid,
         }),
       });
       
@@ -888,6 +924,8 @@ export async function upgradeToEmailAccount(
       }
     }
 
+    const attribution = getSignupAttribution();
+
     // 7. Send custom welcome + verification email via API route
     try {
       const response = await fetch('/api/send-welcome-email', {
@@ -898,6 +936,11 @@ export async function upgradeToEmailAccount(
         body: JSON.stringify({
           email,
           userId: authData.user.id,
+          visitorId: attribution.visitorId,
+          utmSource: attribution.utmSource,
+          utmMedium: attribution.utmMedium,
+          utmCampaign: attribution.utmCampaign,
+          twclid: attribution.twclid,
         }),
       });
       

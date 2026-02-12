@@ -4,9 +4,64 @@ import { logger } from '@/lib/logger';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import crypto from 'crypto';
 
+<<<<<<< HEAD
+=======
+// Create admin client for database operations
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
+
+async function trackWalletSignupOnWebsite(data: {
+  email: string;
+  visitorId?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  twclid?: string;
+}) {
+  const secret = process.env.WALLET_SIGNUP_TRACKING_SECRET;
+  const websiteBaseUrl = process.env.WEBSITE_ANALYTICS_BASE_URL || 'https://www.blazewallet.io';
+
+  if (!secret) {
+    logger.warn('Skipping wallet-signup tracking: WALLET_SIGNUP_TRACKING_SECRET is not configured');
+    return;
+  }
+
+  const endpoint = `${websiteBaseUrl.replace(/\/$/, '')}/api/analytics/wallet-signup`;
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      secret,
+      email: data.email,
+      visitorId: data.visitorId,
+      utmSource: data.utmSource,
+      utmMedium: data.utmMedium,
+      utmCampaign: data.utmCampaign,
+      twclid: data.twclid,
+    }),
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Website wallet-signup tracking failed (${response.status}): ${text}`);
+  }
+}
+
+>>>>>>> 59b97d42 (Track wallet signups to website attribution webhook)
 export async function POST(request: NextRequest) {
   try {
-    const { email, userId } = await request.json();
+    const { email, userId, visitorId, utmSource, utmMedium, utmCampaign, twclid } = await request.json();
 
     if (!email || !userId) {
       return NextResponse.json(
@@ -84,7 +139,25 @@ export async function POST(request: NextRequest) {
     }
 
     logger.log('✅ Welcome email sent to:', email);
+<<<<<<< HEAD
     return NextResponse.json({ success: true });
+=======
+    try {
+      await trackWalletSignupOnWebsite({
+        email,
+        visitorId,
+        utmSource,
+        utmMedium,
+        utmCampaign,
+        twclid,
+      });
+      logger.log('✅ Website wallet signup tracking sent');
+    } catch (trackingError) {
+      logger.error('Failed to track wallet signup on website:', trackingError);
+    }
+
+    return NextResponse.json({ success: true, messageId: result.messageId });
+>>>>>>> 59b97d42 (Track wallet signups to website attribution webhook)
   } catch (error) {
     logger.error('Error in send-welcome-email API:', error);
     return NextResponse.json(
