@@ -150,6 +150,17 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     return firstSupported || 'ethereum';
   }, [currentChain, isChainLiFiEligible]);
 
+  const isSourceSwapEligible = useCallback((chainKey: string): boolean => {
+    // BTC source is supported via ChangeNOW route engine.
+    if (chainKey === 'bitcoin') return true;
+    return isChainLiFiEligible(chainKey);
+  }, [isChainLiFiEligible]);
+
+  const getPreferredFromChain = useCallback((): string => {
+    if (isSourceSwapEligible(currentChain)) return currentChain;
+    return getFallbackLiFiChain();
+  }, [currentChain, isSourceSwapEligible, getFallbackLiFiChain]);
+
   const getSuggestedSourceChain = useCallback((): string => {
     const preferredOrder = ['ethereum', 'base', 'arbitrum', 'polygon', 'optimism', 'bsc', 'avalanche', 'solana'];
 
@@ -242,13 +253,15 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       setIsExecuting(false);
       setExecutionStep(0);
       setTotalSteps(0);
+      const preferredFromChain = getPreferredFromChain();
       const fallbackChain = getFallbackLiFiChain();
-      setFromChain(fallbackChain);
-      setToChain(fallbackChain);
+      setFromChain(preferredFromChain);
+      // Keep destination on a supported LiFi chain for selection UX.
+      setToChain(preferredFromChain === 'bitcoin' ? fallbackChain : preferredFromChain);
       setShowFromChainDropdown(false);
       setShowToChainDropdown(false);
     }
-  }, [isOpen, currentChain, getFallbackLiFiChain]);
+  }, [isOpen, currentChain, getFallbackLiFiChain, getPreferredFromChain]);
 
   // Keep UI clean when unsupported pairs are selected.
   useEffect(() => {
