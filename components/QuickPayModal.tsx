@@ -1125,11 +1125,25 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
+          let csrfToken = '';
+          try {
+            const csrfResponse = await fetch('/api/csrf-token');
+            if (csrfResponse.ok) {
+              const csrfData = await csrfResponse.json();
+              csrfToken = csrfData?.token || '';
+            }
+          } catch {
+            // Best-effort telemetry only
+          }
+
           const currentAddress = getCurrentAddress();
             
           await fetch('/api/transactions/track', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+            },
             body: JSON.stringify({
               userId: user.id,
               chainKey: currentChain,

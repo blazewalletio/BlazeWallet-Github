@@ -643,13 +643,27 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
+          let csrfToken = '';
+          try {
+            const csrfResponse = await fetch('/api/csrf-token');
+            if (csrfResponse.ok) {
+              const csrfData = await csrfResponse.json();
+              csrfToken = csrfData?.token || '';
+            }
+          } catch {
+            // Keep best-effort behavior; tracking should never block transaction UX.
+          }
+
           const currentAddress = selectedChain === 'solana' 
             ? useWalletStore.getState().solanaAddress 
             : useWalletStore.getState().address;
             
           await fetch('/api/transactions/track', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+            },
             body: JSON.stringify({
               userId: user.id,
               chainKey: selectedChain,
@@ -1358,7 +1372,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
 
               <button
                 onClick={handleClose}
-                className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold text-lg transition-all shadow-lg hover:shadow-xl"
+                className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold text-lg text-white transition-all shadow-lg hover:shadow-xl"
               >
                 Close
               </button>
