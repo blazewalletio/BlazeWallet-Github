@@ -81,6 +81,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
 
   // ✅ Use singleton instance (prevents re-initialization)
   const blockchain = MultiChainService.getInstance(selectedChain);
+  const chainRequiresMnemonic = selectedChain === 'solana' || ['bitcoin', 'litecoin', 'dogecoin', 'bitcoincash'].includes(selectedChain);
 
   useBlockBodyScroll(isOpen);
 
@@ -299,8 +300,14 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
   };
 
   const fetchGasPrice = async () => {
-    const prices = await blockchain.getGasPrice();
-    setGasPrice(prices);
+    try {
+      const prices = await blockchain.getGasPrice();
+      setGasPrice(prices);
+    } catch (gasError) {
+      logger.error('❌ Failed to fetch gas/fee estimates:', gasError);
+      setError('Failed to load network fee estimates. Please try again.');
+      setGasPrice(null);
+    }
   };
 
   // ✅ Real-time balance validation
@@ -431,18 +438,22 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
       return;
     }
 
+    if (chainRequiresMnemonic && !mnemonic) {
+      setError(`${CHAINS[selectedChain]?.name || 'This chain'} transactions require your recovery phrase wallet. Please unlock with your recovery phrase account.`);
+      return;
+    }
+
     setStep('confirm');
   };
 
   const handleSend = async () => {
     if (!gasPrice || !selectedAsset) return;
     
-    const isSolana = selectedChain === 'solana';
-    if (isSolana && !mnemonic) {
-      setError('Mnemonic required for Solana transactions');
+    if (chainRequiresMnemonic && !mnemonic) {
+      setError(`${CHAINS[selectedChain]?.name || 'This chain'} transactions require your recovery phrase wallet. Please unlock with your recovery phrase account.`);
       return;
     }
-    if (!isSolana && !wallet) {
+    if (!chainRequiresMnemonic && !wallet) {
       setError('Wallet not initialized');
       return;
     }
@@ -479,8 +490,13 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
   // 🔐 Separated send logic (called after 2FA if needed)
   const executeSendTransaction = async () => {
     if (!gasPrice || !selectedAsset) return;
+    if (chainRequiresMnemonic && !mnemonic) {
+      setError(`${CHAINS[selectedChain]?.name || 'This chain'} transactions require your recovery phrase wallet. Please unlock with your recovery phrase account.`);
+      setStep('confirm');
+      return;
+    }
     
-    const isSolana = selectedChain === 'solana';
+    const signerInput = chainRequiresMnemonic ? mnemonic! : wallet!;
 
     setStep('sending');
     setError('');
@@ -507,7 +523,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
       if (selectedAsset.isNative) {
         // Send native currency (ETH, SOL, etc.)
         tx = await blockchain.sendTransaction(
-          isSolana ? mnemonic! : wallet!,
+          signerInput,
           toAddress,
           amount,
           gas
@@ -518,7 +534,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
           throw new Error('Token address is required for token transfers');
         }
         tx = await blockchain.sendTokenTransaction(
-          isSolana ? mnemonic! : wallet!,
+          signerInput,
           selectedAsset.address,
           toAddress,
           amount,
