@@ -151,6 +151,7 @@ export default function Dashboard() {
   // ✅ REMOVED: showPasswordUnlock now managed by wallet-store
   const [showQuickPay, setShowQuickPay] = useState(false);
   const [quickPayInitialMethod, setQuickPayInitialMethod] = useState<'scanqr' | 'manual' | 'lightning' | undefined>(undefined); // ⚡ Control which method to auto-select
+  const SHOW_LIGHTNING_CTA = false; // Keep feature code, hide dashboard entry until fully ready.
   const [showFounderDeploy, setShowFounderDeploy] = useState(false);
   const [showStaking, setShowStaking] = useState(false);
   const [showGovernance, setShowGovernance] = useState(false);
@@ -1952,8 +1953,8 @@ export default function Dashboard() {
             ))}
           </div>
 
-          {/* ⚡ Lightning Network Button - Only for Bitcoin */}
-          {currentChain === 'bitcoin' && (
+          {/* ⚡ Lightning Network Button - Only for Bitcoin (temporarily hidden) */}
+          {SHOW_LIGHTNING_CTA && currentChain === 'bitcoin' && (
             <motion.button
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
