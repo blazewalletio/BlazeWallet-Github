@@ -544,7 +544,10 @@ export class LiFiService {
         headers['x-lifi-api-key'] = apiKey;
       }
 
-      const response = await fetch(`${BASE_URL}/tokens?${params.toString()}`, { headers });
+      const response = await fetch(`${BASE_URL}/tokens?${params.toString()}`, {
+        headers,
+        cache: 'no-store',
+      });
       if (!response.ok) {
         logger.error('❌ Li.Fi tokens API error:', {
           httpStatus: response.status,
