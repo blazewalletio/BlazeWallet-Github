@@ -26,8 +26,8 @@ import { supabase } from '@/lib/supabase';
 
 interface Transaction {
   hash: string;
-  from: string;
-  to: string;
+  from: string | string[] | { address?: string } | null | undefined;
+  to: string | string[] | { address?: string } | null | undefined;
   value: string;
   timestamp: number;
   isError: boolean;
@@ -289,6 +289,28 @@ export default function TransactionHistory() {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
+  const toAddressList = (value: Transaction['from']): string[] => {
+    if (!value) return [];
+
+    if (Array.isArray(value)) {
+      return value
+        .filter((entry): entry is string => typeof entry === 'string' && entry.length > 0)
+        .map((entry) => entry.trim());
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed ? [trimmed] : [];
+    }
+
+    if (typeof value === 'object' && value.address && typeof value.address === 'string') {
+      const trimmed = value.address.trim();
+      return trimmed ? [trimmed] : [];
+    }
+
+    return [];
+  };
+
   if (loading) {
     return (
       <div className="space-y-3">
@@ -326,8 +348,13 @@ export default function TransactionHistory() {
     <div className="space-y-3">
       <AnimatePresence>
         {transactions.map((tx, index) => {
-            const isSent = tx.from.toLowerCase() === displayAddress?.toLowerCase();
-            const otherAddress = isSent ? tx.to : tx.from;
+            const fromAddresses = toAddressList(tx.from);
+            const toAddresses = toAddressList(tx.to);
+            const normalizedCurrentAddress = (displayAddress || '').toLowerCase();
+            const isSent = normalizedCurrentAddress
+              ? fromAddresses.some((address) => address.toLowerCase() === normalizedCurrentAddress)
+              : false;
+            const otherAddress = isSent ? (toAddresses[0] || '') : (fromAddresses[0] || '');
             const value = parseFloat(tx.value);
             const symbol = tx.tokenSymbol || chain.nativeCurrency.symbol;
             
