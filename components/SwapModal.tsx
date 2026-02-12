@@ -114,6 +114,11 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   const [pendingSwapData, setPendingSwapData] = useState<any>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
+  const getChainListLabel = useCallback((chainKey: string): string => {
+    if (chainKey === 'bsc') return 'BNB Chain';
+    return CHAINS[chainKey]?.name || chainKey;
+  }, []);
+
   const isChainLiFiEligible = useCallback((chainKey: string): boolean => {
     const chain = CHAINS[chainKey];
     if (!chain) return false;
@@ -1124,7 +1129,9 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                                       ) : (
                                         <span className="text-xl">{chain.icon}</span>
                                       )}
-                                      <span className="font-medium text-gray-900 text-sm">{chain.name}</span>
+                                      <span className="font-medium text-gray-900 text-sm truncate max-w-[130px] sm:max-w-[150px]">
+                                        {getChainListLabel(chainKey)}
+                                      </span>
                                     </div>
                                     {fromChain === chainKey && (
                                       <Check className="w-5 h-5 text-orange-500" />
@@ -1271,7 +1278,9 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                                       ) : (
                                         <span className="text-xl">{chain.icon}</span>
                                       )}
-                                      <span className="font-medium text-gray-900 text-sm">{chain.name}</span>
+                                      <span className="font-medium text-gray-900 text-sm truncate max-w-[130px] sm:max-w-[150px]">
+                                        {getChainListLabel(chainKey)}
+                                      </span>
                                     </div>
                                     {toChain === chainKey && (
                                       <Check className="w-5 h-5 text-orange-500" />
