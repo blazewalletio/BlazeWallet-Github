@@ -133,7 +133,7 @@ export default function CurrencyModal({
               disabled={isLoading}
               className="flex-1 p-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? 'Saving...' : 'Save Currency'}
+              {isLoading ? 'Saving...' : 'Save currency'}
             </button>
           </div>
         </motion.div>

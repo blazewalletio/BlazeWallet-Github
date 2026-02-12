@@ -88,7 +88,7 @@ export default function AutoLockSettingsModal({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+        className="fixed inset-0 z-[60] bg-black/45 backdrop-blur-md flex items-center justify-center p-4"
         onClick={onClose}
       >
         <motion.div
@@ -96,30 +96,30 @@ export default function AutoLockSettingsModal({
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
           onClick={(e) => e.stopPropagation()}
-          className="glass-card rounded-2xl max-w-md w-full"
+          className="glass-card rounded-3xl max-w-md w-full border border-white/70 shadow-2xl overflow-hidden"
         >
           {/* Header */}
-          <div className="border-b border-gray-100 px-6 py-4 flex items-center justify-between">
+          <div className="border-b border-gray-200/80 px-6 py-5 flex items-center justify-between bg-white/80">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
+              <div className="w-11 h-11 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-2xl flex items-center justify-center shadow-md shadow-orange-500/20">
                 <Clock className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-gray-900">Auto-Lock</h2>
-                <p className="text-xs text-gray-600">Set wallet lock timeout</p>
+                <h2 className="text-2xl font-bold text-gray-900">Auto-lock</h2>
+                <p className="text-sm text-gray-600">Set wallet lock timeout</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2.5 hover:bg-gray-100 rounded-xl transition-colors"
             >
               <X className="w-5 h-5 text-gray-500" />
             </button>
           </div>
 
           {/* Content */}
-          <div className="p-6 space-y-3">
-            <div className="text-sm text-gray-600 mb-4">
+          <div className="p-6 space-y-3 bg-white/90">
+            <div className="text-sm text-gray-700 mb-4 leading-relaxed">
               Your wallet will automatically lock after the selected period of inactivity.
             </div>
 
@@ -127,19 +127,19 @@ export default function AutoLockSettingsModal({
               <button
                 key={option.value}
                 onClick={() => setSelectedTimeout(option.value)}
-                className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
+                className={`w-full p-4 rounded-2xl border-2 transition-all text-left ${
                   selectedTimeout === option.value
-                    ? 'border-orange-500 bg-orange-50'
-                    : 'border-gray-200 bg-white hover:border-orange-300'
+                    ? 'border-orange-500/90 bg-gradient-to-r from-orange-50 to-amber-50 shadow-sm'
+                    : 'border-gray-200/90 bg-white hover:border-orange-300 hover:bg-orange-50/40'
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      className={`w-11 h-11 rounded-xl flex items-center justify-center ${
                         selectedTimeout === option.value
-                          ? 'bg-gradient-to-br from-orange-500 to-red-500'
-                          : 'bg-gray-100'
+                          ? 'bg-gradient-to-br from-orange-500 to-yellow-500 shadow-md shadow-orange-500/20'
+                          : 'bg-gray-100 border border-gray-200'
                       }`}
                     >
                       {selectedTimeout === option.value ? (
@@ -154,7 +154,7 @@ export default function AutoLockSettingsModal({
                     </div>
                     <div>
                       <div
-                        className={`font-semibold ${
+                        className={`font-semibold text-2xl ${
                           selectedTimeout === option.value ? 'text-orange-600' : 'text-gray-900'
                         }`}
                       >
@@ -164,8 +164,8 @@ export default function AutoLockSettingsModal({
                     </div>
                   </div>
                   {selectedTimeout === option.value && (
-                    <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
-                      <div className="w-2 h-2 bg-white rounded-full" />
+                    <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center shadow-sm">
+                      <Check className="w-4 h-4 text-white" />
                     </div>
                   )}
                 </div>
@@ -185,7 +185,7 @@ export default function AutoLockSettingsModal({
           </div>
 
           {/* Footer */}
-          <div className="border-t border-gray-100 px-6 py-4 flex gap-3">
+          <div className="border-t border-gray-200/80 px-6 py-4 flex gap-3 bg-white/85">
             <button
               onClick={onClose}
               className="flex-1 p-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-all"
@@ -195,9 +195,9 @@ export default function AutoLockSettingsModal({
             <button
               onClick={handleSave}
               disabled={isLoading}
-              className="flex-1 p-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 p-3 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-amber-500 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? 'Saving...' : 'Apply Settings'}
+              {isLoading ? 'Saving...' : 'Apply settings'}
             </button>
           </div>
         </motion.div>
