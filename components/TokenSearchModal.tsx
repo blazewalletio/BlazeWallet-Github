@@ -123,8 +123,8 @@ export default function TokenSearchModal({
       }
       
       const data = await response.json();
-      const chainKey = String(lifiChainId);
-      const tokensData = data.tokens?.[chainKey] || [];
+      const chainIdKey = String(lifiChainId);
+      const tokensData = data.tokens?.[chainIdKey] || [];
       
       // Create a map of address -> logoURI
       const logoMap: Record<string, string> = {};
