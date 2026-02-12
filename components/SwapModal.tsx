@@ -129,6 +129,44 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     return firstSupported || 'ethereum';
   }, [currentChain, isChainLiFiEligible]);
 
+  const getSuggestedSourceChain = useCallback((): string => {
+    const preferredOrder = ['ethereum', 'base', 'arbitrum', 'polygon', 'optimism', 'bsc', 'avalanche', 'solana'];
+
+    for (const chainKey of preferredOrder) {
+      if (chainKey !== toChain && isChainLiFiEligible(chainKey)) {
+        return chainKey;
+      }
+    }
+
+    if (isChainLiFiEligible(currentChain) && currentChain !== toChain) {
+      return currentChain;
+    }
+
+    const firstAlternative = Object.keys(CHAINS).find(
+      (chainKey) => chainKey !== toChain && isChainLiFiEligible(chainKey)
+    );
+
+    return firstAlternative || getFallbackLiFiChain();
+  }, [currentChain, toChain, isChainLiFiEligible, getFallbackLiFiChain]);
+
+  const fromChainSupported = isChainLiFiEligible(fromChain);
+  const toChainSupported = isChainLiFiEligible(toChain);
+  const hasUnsupportedPair = !fromChainSupported || !toChainSupported;
+  const suggestedSourceChain = getSuggestedSourceChain();
+
+  const handleSwitchToSupportedSourceChain = useCallback(() => {
+    setFromChain(suggestedSourceChain);
+    setFromToken('native');
+
+    if (!toChainSupported) {
+      setToChain(getFallbackLiFiChain());
+      setToToken('native');
+    }
+
+    setQuote(null);
+    setQuoteError(null);
+  }, [suggestedSourceChain, toChainSupported, getFallbackLiFiChain]);
+
   // ✅ CRITICAL FIX: Reset toToken when toChain changes
   // This prevents using wrong token address (e.g. Ethereum USDC on BSC)
   useEffect(() => {
@@ -181,26 +219,14 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     }
   }, [isOpen, currentChain, getFallbackLiFiChain]);
 
-  // Prevent unsupported chains (e.g. BTC native UTXO) from entering LiFi flow.
+  // Keep UI clean when unsupported pairs are selected.
   useEffect(() => {
     if (!isOpen) return;
-
-    const fallbackChain = getFallbackLiFiChain();
-
-    if (!isChainLiFiEligible(fromChain)) {
-      setFromChain(fallbackChain);
-      setFromToken('native');
+    if (hasUnsupportedPair) {
       setQuote(null);
       setQuoteError(null);
     }
-
-    if (!isChainLiFiEligible(toChain)) {
-      setToChain(fallbackChain);
-      setToToken('native');
-      setQuote(null);
-      setQuoteError(null);
-    }
-  }, [isOpen, fromChain, toChain, isChainLiFiEligible, getFallbackLiFiChain]);
+  }, [isOpen, hasUnsupportedPair]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -229,7 +255,9 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       toToken &&
       amount &&
       parseFloat(amount) > 0 &&
-      walletAddress
+      walletAddress &&
+      isChainLiFiEligible(fromChain) &&
+      isChainLiFiEligible(toChain)
     ) {
       const debounceTimer = setTimeout(() => {
         fetchQuote();
@@ -237,7 +265,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
 
       return () => clearTimeout(debounceTimer);
     }
-  }, [fromToken, toToken, amount, fromChain, toChain, slippage, walletAddress, isOpen, step]);
+  }, [fromToken, toToken, amount, fromChain, toChain, slippage, walletAddress, isOpen, step, isChainLiFiEligible]);
 
   const fetchQuote = async () => {
     if (!fromToken || !toToken || !amount || !walletAddress) return;
@@ -1262,6 +1290,40 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                       </button>
                     </div>
 
+                    {hasUnsupportedPair && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="px-4 py-3 bg-amber-50 rounded-xl border-2 border-amber-200 space-y-2.5"
+                      >
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-amber-800">
+                              Unsupported route in current selection
+                            </div>
+                            <p className="text-xs text-amber-700 mt-0.5">
+                              {!fromChainSupported
+                                ? `${CHAINS[fromChain]?.name || fromChain} is not supported as a source chain in this Li.Fi flow.`
+                                : `${CHAINS[toChain]?.name || toChain} is not supported as a destination chain in this Li.Fi flow.`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-semibold bg-white border border-amber-200 text-amber-800">
+                            Suggested source: {CHAINS[suggestedSourceChain]?.shortName || suggestedSourceChain}
+                          </span>
+                          <button
+                            onClick={handleSwitchToSupportedSourceChain}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-orange-500 to-yellow-500 text-white shadow hover:from-orange-600 hover:to-yellow-600 transition-all"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            Switch source chain
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+
                     {/* Quote Display - Enhanced */}
                     {isLoadingQuote && (
                       <motion.div
@@ -1369,10 +1431,12 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                         setStep('review');
                       }
                     }}
-                    disabled={!quote || isLoadingQuote || !amount || parseFloat(amount) <= 0}
+                    disabled={hasUnsupportedPair || !quote || isLoadingQuote || !amount || parseFloat(amount) <= 0}
                     className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 text-white font-bold rounded-xl hover:from-orange-600 hover:to-yellow-600 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl text-base sm:text-lg"
                   >
-                    {isLoadingQuote ? (
+                    {hasUnsupportedPair ? (
+                      'Unsupported route'
+                    ) : isLoadingQuote ? (
                       <span className="flex items-center justify-center gap-2">
                         <Loader2 className="w-5 h-5 animate-spin" />
                         Finding best rate...
