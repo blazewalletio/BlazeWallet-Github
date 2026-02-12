@@ -77,10 +77,23 @@ export async function GET(request: NextRequest) {
       isNative: true,
     });
 
-    const transactions = (transactionsRaw || []).map((tx: any) => ({
-      ...tx,
-      logoUrl: nativeLogoUrl || undefined,
-    }));
+    const transactions = (transactionsRaw || []).map((tx: any) => {
+      // Normalize UTXO values to native units for consistent UI rendering.
+      const normalizedValue =
+        typeof tx?.valueBTC === 'string'
+          ? tx.valueBTC
+          : typeof tx?.valueNative === 'string'
+            ? tx.valueNative
+            : typeof tx?.value === 'number'
+              ? (tx.value / 100000000).toFixed(8)
+              : tx?.value;
+
+      return {
+        ...tx,
+        value: normalizedValue,
+        logoUrl: nativeLogoUrl || undefined,
+      };
+    });
 
     historyCache.set(cacheKey, {
       transactions,

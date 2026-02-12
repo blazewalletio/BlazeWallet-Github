@@ -28,7 +28,9 @@ interface Transaction {
   hash: string;
   from: string | string[] | { address?: string } | null | undefined;
   to: string | string[] | { address?: string } | null | undefined;
-  value: string;
+  value: string | number;
+  valueBTC?: string;
+  valueNative?: string;
   timestamp: number;
   isError: boolean;
   tokenSymbol?: string;
@@ -311,6 +313,30 @@ export default function TransactionHistory() {
     return [];
   };
 
+  const getDisplayValue = (tx: Transaction): number => {
+    // Prefer explicit native-unit fields from UTXO providers when available.
+    if (typeof tx.valueBTC === 'string') {
+      const parsed = parseFloat(tx.valueBTC);
+      if (!isNaN(parsed)) return parsed;
+    }
+
+    if (typeof tx.valueNative === 'string') {
+      const parsed = parseFloat(tx.valueNative);
+      if (!isNaN(parsed)) return parsed;
+    }
+
+    if (typeof tx.value === 'number') {
+      return tx.value;
+    }
+
+    if (typeof tx.value === 'string') {
+      const parsed = parseFloat(tx.value);
+      if (!isNaN(parsed)) return parsed;
+    }
+
+    return 0;
+  };
+
   if (loading) {
     return (
       <div className="space-y-3">
@@ -355,7 +381,7 @@ export default function TransactionHistory() {
               ? fromAddresses.some((address) => address.toLowerCase() === normalizedCurrentAddress)
               : false;
             const otherAddress = isSent ? (toAddresses[0] || '') : (fromAddresses[0] || '');
-            const value = parseFloat(tx.value);
+            const value = getDisplayValue(tx);
             const symbol = tx.tokenSymbol || chain.nativeCurrency.symbol;
             
             // Determine logo URL: tx.logoUrl (SPL tokens) or chain.logoUrl (native)
