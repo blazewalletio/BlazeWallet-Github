@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabase';
 import BiometricSetupModal from './BiometricSetupModal';
 import PasswordVerificationModal from './PasswordVerificationModal';
 import CurrencyModal from './CurrencyModal';
+import AutoLockSettingsModal from './AutoLockSettingsModal';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { logger } from '@/lib/logger';
 
@@ -21,6 +22,8 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+  const AUTO_LOCK_TIMEOUT_KEY_PRIMARY = 'blaze_auto_lock_timeout_min';
+  const AUTO_LOCK_TIMEOUT_KEY_LEGACY = 'autoLockTimeout';
   const { mnemonic, resetWallet } = useWalletStore();
   const [showMnemonic, setShowMnemonic] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -32,14 +35,29 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [showBiometricSetup, setShowBiometricSetup] = useState(false);
   const [showPasswordVerification, setShowPasswordVerification] = useState(false);
   const [showCurrency, setShowCurrency] = useState(false); // ✅ NEW: Currency modal state
+  const [showAutoLock, setShowAutoLock] = useState(false);
   const { selectedCurrency, symbol } = useCurrency(); // ✅ NEW: Currency context
   
   // ✅ NEW: Notifications state
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [autoLockTimeout, setAutoLockTimeout] = useState(5);
   
   // Supabase user ID (for syncing settings)
   const [supabaseUserId, setSupabaseUserId] = useState<string | null>(null);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+
+  const getLocalAutoLockTimeout = () => {
+    if (typeof window === 'undefined') return 5;
+    const raw = localStorage.getItem(AUTO_LOCK_TIMEOUT_KEY_PRIMARY) ?? localStorage.getItem(AUTO_LOCK_TIMEOUT_KEY_LEGACY);
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 5;
+  };
+
+  const formatAutoLockLabel = (minutes: number) => {
+    if (minutes === 0) return 'Never';
+    if (minutes === 1) return '1 minute';
+    return `${minutes} minutes`;
+  };
 
   // Load all settings from Supabase (or localStorage fallback)
   useEffect(() => {
@@ -62,7 +80,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         // Load from Supabase
         const { data: profile, error } = await supabase
           .from('user_profiles')
-          .select('notifications_enabled')
+          .select('notifications_enabled, auto_lock_timeout')
           .eq('user_id', user.id)
           .single();
         
@@ -73,6 +91,14 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         } else if (profile) {
           // Apply Supabase settings
           setNotificationsEnabled((profile as any).notifications_enabled ?? true);
+          const timeoutFromProfile = Number((profile as any).auto_lock_timeout);
+          if (Number.isFinite(timeoutFromProfile) && timeoutFromProfile >= 0) {
+            setAutoLockTimeout(timeoutFromProfile);
+            localStorage.setItem(AUTO_LOCK_TIMEOUT_KEY_PRIMARY, String(timeoutFromProfile));
+            localStorage.setItem(AUTO_LOCK_TIMEOUT_KEY_LEGACY, String(timeoutFromProfile));
+          } else {
+            setAutoLockTimeout(getLocalAutoLockTimeout());
+          }
           
           logger.log('✅ Settings loaded from Supabase:', profile);
         } else {
@@ -96,6 +122,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const loadFromLocalStorage = () => {
     if (typeof window !== 'undefined') {
       setNotificationsEnabled(localStorage.getItem('notifications_enabled') !== 'false');
+      setAutoLockTimeout(getLocalAutoLockTimeout());
     }
   };
 
@@ -484,6 +511,22 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </div>
                   <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg]" />
                 </button>
+
+                <button
+                  onClick={() => setShowAutoLock(true)}
+                  className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <Lock className="w-5 h-5 text-orange-500" />
+                    <div className="text-left">
+                      <div className="font-semibold text-sm text-gray-900">Auto-lock</div>
+                      <div className="text-xs text-gray-600">
+                        {formatAutoLockLabel(autoLockTimeout)} inactivity timeout
+                      </div>
+                    </div>
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-gray-400 rotate-[-90deg]" />
+                </button>
               </div>
             </div>
 
@@ -560,6 +603,17 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             }}
           />
         )}
+
+        <AutoLockSettingsModal
+          isOpen={showAutoLock}
+          onClose={() => setShowAutoLock(false)}
+          currentTimeout={autoLockTimeout}
+          onSuccess={async () => {
+            const updated = getLocalAutoLockTimeout();
+            setAutoLockTimeout(updated);
+            await loadAllSettings();
+          }}
+        />
 
         <PasswordVerificationModal
           isOpen={showPasswordVerification}
