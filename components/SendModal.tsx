@@ -310,6 +310,31 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
     }
   };
 
+  const getEstimatedNativeFeeAmount = (isSendingNative: boolean): number => {
+    if (!gasPrice) return 0;
+
+    const gasValue = parseFloat(gasPrice[selectedGas]);
+    if (isNaN(gasValue) || gasValue <= 0) return 0;
+
+    const isUTXOChain = ['bitcoin', 'litecoin', 'dogecoin', 'bitcoincash'].includes(selectedChain);
+
+    if (isUTXOChain) {
+      // UTXO chains use sat/vB style fee rates in UI.
+      // Typical tx size estimate: 210 vBytes for 1 input + 2 outputs.
+      const estimatedVBytes = 210;
+      return (gasValue * estimatedVBytes) / 100000000;
+    }
+
+    if (selectedChain === 'solana') {
+      // Solana fixed low fees; token transfers can be higher when ATA creation is needed.
+      return isSendingNative ? 0.000005 : 0.002;
+    }
+
+    // EVM fee approximation in native token.
+    const gasUnits = isSendingNative ? 21000 : 65000;
+    return (gasValue * gasUnits) / 1e9;
+  };
+
   // ✅ Real-time balance validation
   useEffect(() => {
     if (!amount || !selectedAsset || !gasPrice) {
@@ -326,21 +351,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
         }
 
         const chainConfig = CHAINS[selectedChain];
-        const isSolana = selectedChain === 'solana';
-        
-        let estimatedGasAmount: number;
-        
-        if (isSolana) {
-          // Solana has fixed low fees (~0.000005 SOL for simple transfers)
-          // For SPL tokens with account creation: ~0.002 SOL
-          estimatedGasAmount = selectedAsset.isNative ? 0.000005 : 0.002;
-        } else {
-          // EVM chains: calculate based on gas price
-          const gas = gasPrice[selectedGas];
-          estimatedGasAmount = selectedAsset.isNative
-            ? (parseFloat(gas) * 21000 / 1e9)
-            : (parseFloat(gas) * 65000 / 1e9);
-        }
+        const estimatedGasAmount = getEstimatedNativeFeeAmount(selectedAsset.isNative);
 
         // For SPL/ERC20 tokens: check if we have enough native currency for gas
         if (!selectedAsset.isNative) {
@@ -404,11 +415,13 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
   }, [amount, selectedAsset, gasPrice, selectedGas, availableAssets, selectedChain]);
 
   const handleMaxAmount = () => {
-    if (!selectedAsset) return;
+    if (!selectedAsset || !gasPrice) return;
     
     if (selectedAsset.isNative) {
-      const max = Math.max(0, parseFloat(selectedAsset.balance) - 0.001);
-      setAmount(max.toFixed(6));
+      const estimatedFeeAmount = getEstimatedNativeFeeAmount(true);
+      const max = Math.max(0, parseFloat(selectedAsset.balance) - estimatedFeeAmount);
+      const decimals = Math.min(8, selectedAsset.decimals || 8);
+      setAmount(max.toFixed(decimals));
     } else {
       setAmount(selectedAsset.balance);
     }
@@ -704,9 +717,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
   };
 
   const estimatedFee = gasPrice && selectedAsset
-    ? selectedAsset.isNative
-      ? (parseFloat(gasPrice[selectedGas]) * 21000 / 1e9).toFixed(6)
-      : (parseFloat(gasPrice[selectedGas]) * 65000 / 1e9).toFixed(6)
+    ? getEstimatedNativeFeeAmount(selectedAsset.isNative).toFixed(6)
     : '0';
 
   const getExplorerUrl = (hash: string) => {
