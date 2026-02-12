@@ -707,7 +707,19 @@ export default function TokenSearchModal({
   };
 
   const handleSelectToken = (token: LiFiToken) => {
-    onSelectToken(token);
+    const zeroAddress = '0x0000000000000000000000000000000000000000';
+    const nativeAddressForChain = chainConfig ? LiFiService.getNativeTokenAddress(chainId) : '';
+    const isNativeMarker =
+      token.address === zeroAddress ||
+      token.address === nativeAddressForChain ||
+      (chainKey === 'solana' && token.address === 'So11111111111111111111111111111111111111112') ||
+      Boolean((token as any).isNative);
+
+    if (isNativeMarker) {
+      onSelectToken('native');
+    } else {
+      onSelectToken(token);
+    }
     onClose();
   };
 

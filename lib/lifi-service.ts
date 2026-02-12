@@ -147,6 +147,27 @@ export interface LiFiStatus {
 }
 
 export class LiFiService {
+  private static isZeroAddress(address?: string): boolean {
+    if (!address) return false;
+    return address.toLowerCase() === '0x0000000000000000000000000000000000000000';
+  }
+
+  private static isNativeTokenInput(token: string, chainId: string | number): boolean {
+    if (!token) return true;
+    if (token === 'native') return true;
+    if (LiFiService.isZeroAddress(token)) return true;
+
+    const nativeForChain = LiFiService.getNativeTokenAddress(chainId);
+    if (token === nativeForChain) return true;
+
+    // wSOL representation should also be treated as native SOL for quote requests.
+    if (isSolanaChainId(chainId) && token === 'So11111111111111111111111111111111111111112') {
+      return true;
+    }
+
+    return false;
+  }
+
   /**
    * Get swap quote from Li.Fi
    * 
@@ -208,10 +229,10 @@ export class LiFiService {
       };
 
       // Convert native token to Li.Fi format
-      const fromTokenAddress = fromToken === 'native' || !fromToken 
+      const fromTokenAddress = LiFiService.isNativeTokenInput(fromToken, fromChain)
         ? getNativeTokenAddress(fromChain)
         : fromToken;
-      const toTokenAddress = toToken === 'native' || !toToken 
+      const toTokenAddress = LiFiService.isNativeTokenInput(toToken, toChain)
         ? getNativeTokenAddress(toChain)
         : toToken;
 
