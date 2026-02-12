@@ -67,23 +67,22 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   
   // 📱 SMART COMPACT: Keyboard & focus state
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [keyboardInset, setKeyboardInset] = useState(0);
   const [activeField, setActiveField] = useState<string | null>(null);
   const formContainerRef = useRef<HTMLDivElement>(null);
 
   const { createWallet, importWallet } = useWalletStore();
 
-  // ✅ NEW: Smooth scroll to field (only within onboarding, no impact on rest of app!)
-  const scrollToField = (ref: React.RefObject<HTMLInputElement>) => {
+  // Keep focused fields visible above the mobile keyboard.
+  const ensureFieldVisible = (ref: React.RefObject<HTMLInputElement>) => {
     if (!ref.current) return;
-    
-    ref.current.scrollIntoView({
-      behavior: 'smooth',
-      block: 'center',
-      inline: 'nearest'
-    });
-    
-    // Small delay for smooth UX, then focus
-    setTimeout(() => ref.current?.focus(), 400);
+    window.setTimeout(() => {
+      ref.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+        inline: 'nearest',
+      });
+    }, 180);
   };
 
   // ✅ NEW: Email validation
@@ -137,29 +136,36 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   // 📱 SMART COMPACT: Keyboard detection (mobile)
   useEffect(() => {
     if (typeof window === 'undefined' || !isMobileDevice) return;
-    
-    let lastHeight = window.visualViewport?.height || window.innerHeight;
-    
+
     const handleResize = () => {
-      const currentHeight = window.visualViewport?.height || window.innerHeight;
-      const heightDiff = lastHeight - currentHeight;
-      
-      // Keyboard is open if viewport shrinks by more than 150px (typical keyboard)
-      if (heightDiff > 150) {
-        setIsKeyboardOpen(true);
-      } else if (heightDiff < -100) {
-        // Keyboard closed
-        setIsKeyboardOpen(false);
+      const viewport = window.visualViewport;
+      const visibleHeight = viewport?.height ?? window.innerHeight;
+      const offsetTop = viewport?.offsetTop ?? 0;
+      const inset = Math.max(0, window.innerHeight - visibleHeight - offsetTop);
+      const keyboardVisible = inset > 120;
+
+      setKeyboardInset(keyboardVisible ? inset : 0);
+      setIsKeyboardOpen(keyboardVisible);
+
+      if (!keyboardVisible) {
         setActiveField(null);
       }
-      
-      lastHeight = currentHeight;
     };
+
+    handleResize();
     
     // Listen to visual viewport resize (more reliable for keyboard detection)
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', handleResize);
-      return () => window.visualViewport?.removeEventListener('resize', handleResize);
+      window.visualViewport.addEventListener('scroll', handleResize);
+      window.addEventListener('resize', handleResize);
+      window.addEventListener('orientationchange', handleResize);
+      return () => {
+        window.visualViewport?.removeEventListener('resize', handleResize);
+        window.visualViewport?.removeEventListener('scroll', handleResize);
+        window.removeEventListener('resize', handleResize);
+        window.removeEventListener('orientationchange', handleResize);
+      };
     } else {
       window.addEventListener('resize', handleResize);
       return () => window.removeEventListener('resize', handleResize);
@@ -738,7 +744,10 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-md sm:max-w-lg lg:max-w-xl xl:max-w-2xl mx-auto"
+              className={`w-full max-w-md sm:max-w-lg lg:max-w-xl xl:max-w-2xl mx-auto ${
+                isMobileDevice ? 'max-h-[calc(100vh-0.75rem)] overflow-y-auto overscroll-contain pb-2' : ''
+              }`}
+              style={isMobileDevice && isKeyboardOpen ? { paddingBottom: `${keyboardInset + 16}px` } : undefined}
               ref={formContainerRef}
             >
               {/* 📱 SMART COMPACT: Dynamic Header - Shrinks on keyboard open */}
@@ -848,15 +857,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       }}
                       onFocus={() => {
                         setActiveField('email');
-                        // 📱 SMART COMPACT: Auto-scroll on focus (mobile)
-                        if (isMobileDevice) {
-                          setTimeout(() => {
-                            emailRef.current?.scrollIntoView({ 
-                              behavior: 'smooth', 
-                              block: 'center' 
-                            });
-                          }, 300); // Delay for keyboard animation
-                        }
+                        if (isMobileDevice) ensureFieldVisible(emailRef);
                       }}
                       onBlur={() => setActiveField(null)}
                       onKeyPress={(e) => {
@@ -922,15 +923,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       }}
                       onFocus={() => {
                         setActiveField('password');
-                        // 📱 SMART COMPACT: Auto-scroll on focus (mobile)
-                        if (isMobileDevice) {
-                          setTimeout(() => {
-                            passwordRef.current?.scrollIntoView({ 
-                              behavior: 'smooth', 
-                              block: 'center' 
-                            });
-                          }, 300);
-                        }
+                        if (isMobileDevice) ensureFieldVisible(passwordRef);
                       }}
                       onBlur={() => setActiveField(null)}
                       onKeyPress={(e) => {
@@ -1021,15 +1014,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                         }}
                         onFocus={() => {
                           setActiveField('confirmPassword');
-                          // 📱 SMART COMPACT: Auto-scroll on focus (mobile)
-                          if (isMobileDevice) {
-                            setTimeout(() => {
-                              confirmPasswordRef.current?.scrollIntoView({ 
-                                behavior: 'smooth', 
-                                block: 'center' 
-                              });
-                            }, 300);
-                          }
+                          if (isMobileDevice) ensureFieldVisible(confirmPasswordRef);
                         }}
                         onBlur={() => setActiveField(null)}
                         placeholder="Confirm your password"
@@ -1086,8 +1071,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 {/* 📱 SMART COMPACT: Sticky Submit Button (fixed on mobile when keyboard open) */}
               <div 
                   className={`
-                    ${isKeyboardOpen && isMobileDevice ? 'fixed bottom-0 left-0 right-0 p-4 pb-safe bg-white border-t border-gray-200 shadow-2xl z-50' : ''}
+                    ${isKeyboardOpen && isMobileDevice ? 'fixed left-0 right-0 p-4 pb-safe bg-white/95 backdrop-blur-sm border-t border-gray-200 shadow-2xl z-50' : ''}
                   `}
+                  style={isKeyboardOpen && isMobileDevice ? { bottom: `${keyboardInset}px` } : undefined}
                 >
                   <button
                   type="submit"
@@ -1106,7 +1092,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 </div>
 
                 {/* 📱 SMART COMPACT: Spacer to prevent content from hiding behind sticky button (mobile only) */}
-                {isKeyboardOpen && isMobileDevice && <div className="h-20" />}
+                {isKeyboardOpen && isMobileDevice && <div style={{ height: `${96 + keyboardInset}px` }} />}
 
                 {/* Toggle login/signup */}
                 <button
