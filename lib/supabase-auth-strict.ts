@@ -9,6 +9,34 @@ import { generateEnhancedFingerprint, EnhancedDeviceInfo } from './device-finger
 import { logger } from './logger';
 import { persistEmailIdentity } from './account-identity';
 
+const AUTO_LOCK_TIMEOUT_KEY_PRIMARY = 'blaze_auto_lock_timeout_min';
+const AUTO_LOCK_TIMEOUT_KEY_LEGACY = 'autoLockTimeout';
+
+async function syncAutoLockTimeoutForUser(userId: string): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    const { data: profile, error } = await supabase
+      .from('user_profiles')
+      .select('auto_lock_timeout')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) {
+      logger.warn('⚠️ [StrictAuth] Failed to fetch auto-lock timeout:', error);
+      return;
+    }
+
+    const timeout = Number((profile as any)?.auto_lock_timeout);
+    if (Number.isFinite(timeout) && timeout >= 0) {
+      localStorage.setItem(AUTO_LOCK_TIMEOUT_KEY_PRIMARY, String(timeout));
+      localStorage.setItem(AUTO_LOCK_TIMEOUT_KEY_LEGACY, String(timeout));
+      logger.log('✅ [StrictAuth] Synced auto-lock timeout from profile:', timeout);
+    }
+  } catch (syncError) {
+    logger.warn('⚠️ [StrictAuth] Failed to sync auto-lock timeout (non-blocking):', syncError);
+  }
+}
+
 // =============================================================================
 // ENCRYPTION UTILITIES
 // =============================================================================
@@ -416,6 +444,7 @@ export async function strictSignInWithEmail(
         );
         
         logger.log('✅ [StrictAuth] Wallet decrypted successfully (Trust Anchor)');
+        await syncAutoLockTimeoutForUser(data.user.id);
         
         return {
           success: true,
@@ -909,6 +938,7 @@ export async function confirmDeviceAndSignIn(
       );
       
       logger.log('✅ [StrictAuth] Device confirmation complete - wallet unlocked');
+      await syncAutoLockTimeoutForUser(authData.user.id);
       
       return {
         success: true,
@@ -1086,6 +1116,7 @@ export async function verifyDeviceAndSignIn(
       );
       
       logger.log('✅ [StrictAuth] Device verification complete - wallet unlocked');
+      await syncAutoLockTimeoutForUser(authData.user.id);
       
       return {
         success: true,
@@ -1289,6 +1320,7 @@ export async function signUpWithEmail(
       });
       localStorage.setItem('email_verified', 'false');
       sessionStorage.setItem('wallet_unlocked_this_session', 'true');
+      await syncAutoLockTimeoutForUser(authData.user!.id);
     }
 
     // Track successful signup

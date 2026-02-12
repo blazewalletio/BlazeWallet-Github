@@ -36,6 +36,25 @@ export default function Home() {
   // ✅ Read wallet store state (single source of truth)
   const { importWallet, hasPassword, isLocked, wallet, hasBiometric, isBiometricEnabled, setShowUnlockModal, initializeFromStorage } = useWalletStore();
 
+  const syncAutoLockTimeoutFromProfile = async (userId: string) => {
+    try {
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('auto_lock_timeout')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      const timeout = Number((profile as any)?.auto_lock_timeout);
+      if (Number.isFinite(timeout) && timeout >= 0) {
+        localStorage.setItem(AUTO_LOCK_TIMEOUT_KEY_PRIMARY, String(timeout));
+        localStorage.setItem(AUTO_LOCK_TIMEOUT_KEY_LEGACY, String(timeout));
+        logger.log('✅ [AutoLock] Synced timeout from Supabase profile:', timeout);
+      }
+    } catch (syncError) {
+      logger.warn('⚠️ [AutoLock] Failed to sync timeout from profile (non-blocking):', syncError);
+    }
+  };
+
   const hasValidSessionLease = useMemo(() => {
     if (typeof window === 'undefined') return false;
     const unlockedThisSession = sessionStorage.getItem(SESSION_UNLOCK_FLAG_KEY) === 'true';
@@ -122,6 +141,8 @@ export default function Home() {
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (session && !error) {
+          await syncAutoLockTimeoutFromProfile(session.user.id);
+
           // Skip device verification if IndexedDB already has wallet
           if (!hasEncryptedWallet || !hasPasswordStored) {
             const deviceCheck = await DeviceVerificationCheckV2.isDeviceVerified();
