@@ -24,6 +24,7 @@ import { LiFiService, LiFiToken, LiFiQuote } from '@/lib/lifi-service';
 import { isLiFiSupported } from '@/lib/popular-tokens';
 import { logger } from '@/lib/logger';
 import { logTransactionEvent, logFeatureUsage } from '@/lib/analytics-tracker';
+import { getTransactionExplorerUrl } from '@/lib/explorer-links';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { apiPost } from '@/lib/api-client';
 import { ethers } from 'ethers';
@@ -1610,7 +1611,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                     </p>
                     {txHash && (
                       <a
-                        href={`${CHAINS[fromChain]?.explorerUrl}/tx/${txHash}`}
+                        href={getTransactionExplorerUrl(fromChain, txHash)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 text-sm text-orange-600 hover:text-orange-700 font-semibold"

@@ -18,6 +18,7 @@ import { logger } from '@/lib/logger';
 import { logTransactionEvent } from '@/lib/analytics-tracker';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { twoFactorSessionService } from '@/lib/2fa-session-service';
+import { getTransactionExplorerUrl } from '@/lib/explorer-links';
 
 interface Asset {
   symbol: string;
@@ -654,9 +655,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
             // Keep best-effort behavior; tracking should never block transaction UX.
           }
 
-          const currentAddress = selectedChain === 'solana' 
-            ? useWalletStore.getState().solanaAddress 
-            : useWalletStore.getState().address;
+          const currentAddress = getAddressForChain(selectedChain);
             
           await fetch('/api/transactions/track', {
             method: 'POST',
@@ -800,8 +799,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
     : '0';
 
   const getExplorerUrl = (hash: string) => {
-    const chainConfig = CHAINS[selectedChain];
-    return `${chainConfig.explorerUrl}/tx/${hash}`;
+    return getTransactionExplorerUrl(selectedChain, hash);
   };
 
   if (!isOpen) return null;

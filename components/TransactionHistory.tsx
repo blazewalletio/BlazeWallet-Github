@@ -23,6 +23,7 @@ import { transactionCache } from '@/lib/transaction-cache';
 import { apiQueue } from '@/lib/api-queue';
 import { logger } from '@/lib/logger';
 import { supabase } from '@/lib/supabase';
+import { getTransactionExplorerUrl } from '@/lib/explorer-links';
 
 interface Transaction {
   hash: string;
@@ -547,7 +548,7 @@ export default function TransactionHistory() {
                       {isSent ? '-' : '+'}{value.toFixed(6)} {symbol}
                     </div>
                     <a
-                      href={`${chain.explorerUrl}/tx/${tx.hash}`}
+                      href={getTransactionExplorerUrl(currentChain, tx.hash)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-xs text-orange-500 hover:text-orange-600 opacity-0 group-hover:opacity-100 transition-opacity"
