@@ -19,6 +19,7 @@ const SESSION_UNLOCK_FLAG_KEY = 'wallet_unlocked_this_session';
 const SESSION_LAST_ACTIVITY_KEY = 'last_activity';
 const SESSION_UNLOCK_EXPIRY_KEY = 'blaze_soft_unlock_expires_at';
 const SESSION_ADDRESS_SNAPSHOT_KEY = 'blaze_session_addresses';
+const SESSION_MNEMONIC_KEY = 'blaze_session_mnemonic';
 const AUTO_LOCK_WARNING_SHOWN_KEY = 'auto_lock_warning_shown';
 
 type SessionAddressSnapshot = {
@@ -91,7 +92,19 @@ const clearSessionLease = () => {
   sessionStorage.removeItem(SESSION_LAST_ACTIVITY_KEY);
   sessionStorage.removeItem(SESSION_UNLOCK_EXPIRY_KEY);
   sessionStorage.removeItem(SESSION_ADDRESS_SNAPSHOT_KEY);
+  sessionStorage.removeItem(SESSION_MNEMONIC_KEY);
   sessionStorage.removeItem(AUTO_LOCK_WARNING_SHOWN_KEY);
+};
+
+const persistSessionMnemonic = (mnemonic: string) => {
+  if (typeof window === 'undefined') return;
+  sessionStorage.setItem(SESSION_MNEMONIC_KEY, mnemonic);
+};
+
+const readSessionMnemonic = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  const mnemonic = sessionStorage.getItem(SESSION_MNEMONIC_KEY);
+  return mnemonic && mnemonic.trim().length > 0 ? mnemonic : null;
 };
 
 const isSessionLeaseValid = (): boolean => {
@@ -272,26 +285,53 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       
       if (hasPasswordStored) {
         const sessionValid = isSessionLeaseValid();
-        const sessionSnapshot = readSessionAddressSnapshot();
-        const savedChain = typeof window !== 'undefined'
-          ? localStorage.getItem('current_chain') || DEFAULT_CHAIN
-          : DEFAULT_CHAIN;
+        const savedChain = localStorage.getItem('current_chain') || DEFAULT_CHAIN;
+        const sessionMnemonic = readSessionMnemonic();
 
         // Restore unlocked state on refresh when session lease is still valid.
-        if (sessionValid && sessionSnapshot) {
+        if (sessionValid && sessionMnemonic && bip39.validateMnemonic(sessionMnemonic.trim().toLowerCase())) {
+          const cleanMnemonic = sessionMnemonic.trim().toLowerCase();
+          const wallet = ethers.Wallet.fromPhrase(cleanMnemonic);
+
+          const solanaService = new SolanaService();
+          const solanaAddress = solanaService.getAddressFromMnemonic(cleanMnemonic);
+
+          const { BitcoinService } = await import('./bitcoin-service');
+          const bitcoinService = new BitcoinService('mainnet');
+          const { address: bitcoinAddress } = bitcoinService.deriveBitcoinAddress(cleanMnemonic, 'native-segwit');
+
+          const { BitcoinForkService } = await import('./bitcoin-fork-service');
+          const litecoinService = new BitcoinForkService('litecoin');
+          const dogecoinService = new BitcoinForkService('dogecoin');
+          const bitcoincashService = new BitcoinForkService('bitcoincash');
+          const { address: litecoinAddress } = litecoinService.deriveAddress(cleanMnemonic, 'legacy');
+          const { address: dogecoinAddress } = dogecoinService.deriveAddress(cleanMnemonic, 'legacy');
+          const { address: bitcoincashAddress } = bitcoincashService.deriveAddress(cleanMnemonic, 'legacy');
+
           const lastActivity = Number(sessionStorage.getItem(SESSION_LAST_ACTIVITY_KEY) || `${Date.now()}`);
           set({
             hasPassword: true,
             isLocked: false,
             showUnlockModal: false,
+            wallet,
+            mnemonic: cleanMnemonic,
             currentChain: savedChain,
-            address: sessionSnapshot.address,
-            solanaAddress: sessionSnapshot.solanaAddress,
-            bitcoinAddress: sessionSnapshot.bitcoinAddress,
-            litecoinAddress: sessionSnapshot.litecoinAddress,
-            dogecoinAddress: sessionSnapshot.dogecoinAddress,
-            bitcoincashAddress: sessionSnapshot.bitcoincashAddress,
+            address: wallet.address,
+            solanaAddress,
+            bitcoinAddress,
+            litecoinAddress,
+            dogecoinAddress,
+            bitcoincashAddress,
             lastActivity: Number.isFinite(lastActivity) ? lastActivity : Date.now(),
+          });
+
+          persistSessionAddressSnapshot({
+            address: wallet.address,
+            solanaAddress,
+            bitcoinAddress,
+            litecoinAddress,
+            dogecoinAddress,
+            bitcoincashAddress,
           });
         } else {
           // Update state to reflect that password exists and unlock is required.
@@ -354,6 +394,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         bitcoincashAddress,
       });
       refreshSessionLease();
+      persistSessionMnemonic(mnemonic);
     }
 
     // ✅ SECURITY: DO NOT store addresses in localStorage
@@ -426,6 +467,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           bitcoincashAddress,
         });
         refreshSessionLease();
+        persistSessionMnemonic(cleanMnemonic);
       }
 
       // ✅ SECURITY: DO NOT store addresses in localStorage
@@ -595,6 +637,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           bitcoincashAddress,
         });
         refreshSessionLease();
+        persistSessionMnemonic(cleanMnemonic);
       }
 
     } catch (error) {
@@ -705,6 +748,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
             bitcoincashAddress,
           });
           refreshSessionLease();
+          persistSessionMnemonic(result.mnemonic);
         }
 
         secureLog.info('Email wallet unlocked with biometrics');
@@ -785,6 +829,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
             bitcoincashAddress,
           });
           refreshSessionLease();
+          persistSessionMnemonic(mnemonic);
         }
 
         secureLog.info('Seed phrase wallet unlocked with biometrics');
@@ -906,6 +951,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
           bitcoincashAddress,
         });
         refreshSessionLease();
+        persistSessionMnemonic(cleanMnemonic);
       }
     } catch (error) {
       throw new Error('Invalid recovery phrase. Please check your words and checksum.');
