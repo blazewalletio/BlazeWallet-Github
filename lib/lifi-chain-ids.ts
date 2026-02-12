@@ -42,8 +42,8 @@ export const LIFI_CHAIN_IDS: Record<string, string | number> = {
 /**
  * Get Li.Fi chain ID for a chain key
  */
-export function getLiFiChainId(chainKey: string): string | number {
-  return LIFI_CHAIN_IDS[chainKey] || 1; // Default to Ethereum
+export function getLiFiChainId(chainKey: string): string | number | undefined {
+  return LIFI_CHAIN_IDS[chainKey];
 }
 
 /**

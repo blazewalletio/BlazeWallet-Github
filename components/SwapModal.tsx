@@ -114,6 +114,21 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   const [pendingSwapData, setPendingSwapData] = useState<any>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
+  const isChainLiFiEligible = useCallback((chainKey: string): boolean => {
+    const chain = CHAINS[chainKey];
+    if (!chain) return false;
+    return !chain.isTestnet && chain.chainType !== 'UTXO' && isLiFiSupported(chainKey);
+  }, []);
+
+  const getFallbackLiFiChain = useCallback((): string => {
+    if (isChainLiFiEligible(currentChain)) return currentChain;
+
+    if (isChainLiFiEligible('ethereum')) return 'ethereum';
+
+    const firstSupported = Object.keys(CHAINS).find((chainKey) => isChainLiFiEligible(chainKey));
+    return firstSupported || 'ethereum';
+  }, [currentChain, isChainLiFiEligible]);
+
   // ✅ CRITICAL FIX: Reset toToken when toChain changes
   // This prevents using wrong token address (e.g. Ethereum USDC on BSC)
   useEffect(() => {
@@ -158,12 +173,34 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       setIsExecuting(false);
       setExecutionStep(0);
       setTotalSteps(0);
-      setFromChain(currentChain);
-      setToChain(currentChain);
+      const fallbackChain = getFallbackLiFiChain();
+      setFromChain(fallbackChain);
+      setToChain(fallbackChain);
       setShowFromChainDropdown(false);
       setShowToChainDropdown(false);
     }
-  }, [isOpen, currentChain]);
+  }, [isOpen, currentChain, getFallbackLiFiChain]);
+
+  // Prevent unsupported chains (e.g. BTC native UTXO) from entering LiFi flow.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fallbackChain = getFallbackLiFiChain();
+
+    if (!isChainLiFiEligible(fromChain)) {
+      setFromChain(fallbackChain);
+      setFromToken('native');
+      setQuote(null);
+      setQuoteError(null);
+    }
+
+    if (!isChainLiFiEligible(toChain)) {
+      setToChain(fallbackChain);
+      setToToken('native');
+      setQuote(null);
+      setQuoteError(null);
+    }
+  }, [isOpen, fromChain, toChain, isChainLiFiEligible, getFallbackLiFiChain]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -209,6 +246,10 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     setQuoteError(null);
 
     try {
+      if (!isChainLiFiEligible(fromChain) || !isChainLiFiEligible(toChain)) {
+        throw new Error('This network pair is not supported for Li.Fi swaps yet. Please use Ethereum, Solana, or another supported EVM chain.');
+      }
+
       // ⚠️ FANTOM CHECK: Li.Fi doesn't support Fantom (Chain ID 250)
       // See COMPLETE_CHAIN_ANALYSIS.md for details
       if (fromChain === 'fantom' || toChain === 'fantom') {
@@ -217,6 +258,10 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
 
       const fromChainId = getLiFiChainId(fromChain);
       const toChainId = getLiFiChainId(toChain);
+
+      if (!fromChainId || !toChainId) {
+        throw new Error('Selected network is not available for Li.Fi quotes. Please switch to a supported chain.');
+      }
       
       // Check if cross-chain
       setIsCrossChain(fromChainId !== toChainId);

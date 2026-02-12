@@ -112,6 +112,10 @@ export default function TokenSearchModal({
       logger.log(`🎨 [TokenSearchModal] Fetching logos from Li.Fi for ${addresses.length} tokens on chain ${chainId}...`);
       
       const lifiChainId = getLiFiChainId(chainKey);
+      if (!lifiChainId) {
+        logger.warn(`⚠️ [TokenSearchModal] Chain ${chainKey} has no Li.Fi chain id mapping`);
+        return {};
+      }
       const response = await fetch(`https://li.quest/v1/tokens?chains=${lifiChainId}`);
       
       if (!response.ok) {
