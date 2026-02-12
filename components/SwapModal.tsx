@@ -48,6 +48,12 @@ interface SwapModalProps {
 }
 
 type SwapStep = 'input' | 'review' | 'executing' | 'success' | 'error';
+type SwapCompletionStatusTone = 'pending' | 'success' | 'warning' | 'error';
+interface SwapCompletionStatus {
+  label: string;
+  detail: string;
+  tone: SwapCompletionStatusTone;
+}
 
 export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalProps) {
   useBlockBodyScroll(isOpen);
@@ -124,6 +130,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isCrossChain, setIsCrossChain] = useState(false);
+  const [completionStatus, setCompletionStatus] = useState<SwapCompletionStatus | null>(null);
 
   // 🔐 2FA SESSION SHIELD states
   const [show2FAModal, setShow2FAModal] = useState(false);
@@ -272,6 +279,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       setTxHash(null);
       setChangeNowQuote(null);
       setChangeNowOrderId(null);
+      setCompletionStatus(null);
       setIsExecuting(false);
       setExecutionStep(0);
       setTotalSteps(0);
@@ -629,6 +637,11 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         );
 
         setTxHash(sentTxHash as string);
+        setCompletionStatus({
+          label: 'Swap in progress',
+          detail: 'BTC deposit sent. Waiting for destination payout on the target chain.',
+          tone: 'pending',
+        });
         setStep('success');
 
         await logTransactionEvent({
@@ -660,10 +673,20 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                 const currentStatus = statusData.status.status.toLowerCase();
                 if (['finished', 'completed', 'success'].includes(currentStatus)) {
                   logger.log('✅ ChangeNOW order completed:', order.id);
+                  setCompletionStatus({
+                    label: 'Swap completed',
+                    detail: 'Destination payout completed successfully.',
+                    tone: 'success',
+                  });
                   return;
                 }
                 if (['failed', 'refunded', 'expired'].includes(currentStatus)) {
                   logger.warn('⚠️ ChangeNOW order ended with non-success status:', statusData.status.status);
+                  setCompletionStatus({
+                    label: 'Swap requires attention',
+                    detail: `Provider status: ${statusData.status.status}. Check order details or contact support.`,
+                    tone: 'warning',
+                  });
                   return;
                 }
               }
@@ -1014,8 +1037,21 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         // If this is the last step and it's cross-chain, start status polling
         if (i === steps.length - 1 && isCrossChain && stepTxHash) {
           // Start polling for cross-chain status
+          setCompletionStatus({
+            label: 'Bridge in progress',
+            detail: 'Source transaction sent. Waiting for destination-chain completion.',
+            tone: 'pending',
+          });
           pollTransactionStatus(stepTxHash, step.tool || 'unknown');
         }
+      }
+
+      if (!isCrossChain) {
+        setCompletionStatus({
+          label: 'Swap submitted',
+          detail: 'Transaction is submitted to the network and finalizing.',
+          tone: 'success',
+        });
       }
 
       setStep('success');
@@ -1093,6 +1129,11 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     const poll = async () => {
       if (attempts >= maxAttempts) {
         logger.warn('⏱️ Status polling timeout');
+        setCompletionStatus({
+          label: 'Still processing',
+          detail: 'Bridge is taking longer than expected. Funds are usually delivered once the route confirms.',
+          tone: 'warning',
+        });
         return;
       }
 
@@ -1115,8 +1156,18 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           if (data.success && data.status) {
             if (data.status.status === 'DONE') {
               logger.log('✅ Cross-chain swap completed');
+              setCompletionStatus({
+                label: 'Swap completed',
+                detail: 'Destination-chain transfer completed successfully.',
+                tone: 'success',
+              });
               return;
             } else if (data.status.status === 'FAILED') {
+              setCompletionStatus({
+                label: 'Swap failed',
+                detail: 'Cross-chain route failed. Please contact support with the transaction hash.',
+                tone: 'error',
+              });
               throw new Error('Cross-chain swap failed');
             }
           }
@@ -1860,6 +1911,36 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                     <p className="text-sm text-gray-600 mb-4">
                       Your swap has been completed successfully.
                     </p>
+                    {completionStatus && (
+                      <div
+                        className={`mb-4 rounded-xl border px-3 py-2 text-left ${
+                          completionStatus.tone === 'success'
+                            ? 'bg-emerald-50 border-emerald-200'
+                            : completionStatus.tone === 'warning'
+                              ? 'bg-amber-50 border-amber-200'
+                              : completionStatus.tone === 'error'
+                                ? 'bg-red-50 border-red-200'
+                                : 'bg-blue-50 border-blue-200'
+                        }`}
+                      >
+                        <div
+                          className={`text-xs font-semibold ${
+                            completionStatus.tone === 'success'
+                              ? 'text-emerald-700'
+                              : completionStatus.tone === 'warning'
+                                ? 'text-amber-700'
+                                : completionStatus.tone === 'error'
+                                  ? 'text-red-700'
+                                  : 'text-blue-700'
+                          }`}
+                        >
+                          {completionStatus.label}
+                        </div>
+                        <div className="text-xs text-gray-600 mt-0.5">
+                          {completionStatus.detail}
+                        </div>
+                      </div>
+                    )}
                     {routeEngine === 'changenow' && changeNowOrderId && (
                       <div className="text-xs text-gray-500 mb-3">
                         Partner order: <span className="font-mono text-gray-700">{changeNowOrderId}</span>
