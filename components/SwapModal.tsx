@@ -232,6 +232,15 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     }
   }, [toChain]);
 
+  // UX polish: for BTC source routes, default destination token to native
+  // so users get an immediate quote without extra token selection.
+  useEffect(() => {
+    if (!isOpen) return;
+    if (fromChain === 'bitcoin' && toToken === null) {
+      setToToken('native');
+    }
+  }, [isOpen, fromChain, toToken]);
+
   // Initialize with prefill data
   useEffect(() => {
     if (isOpen && prefillData) {
