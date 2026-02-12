@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Zap, CreditCard, Scan, Check, Camera, AlertCircle, ArrowRight, Copy, User, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, AlertTriangle, ChevronDown, Search } from 'lucide-react';
+import { X, Zap, CreditCard, Scan, Check, Camera, AlertCircle, ArrowRight, Copy, User, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, AlertTriangle, ChevronDown, Search, Lock } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import QRCode from 'qrcode';
@@ -32,6 +32,7 @@ interface QuickPayModalProps {
 }
 
 const PRESET_AMOUNTS_EUR = [5, 10, 20, 50, 100];
+const LIGHTNING_UNLOCKING_SOON = true;
 
 export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickPayModalProps) {
   // Main flow: 'method' | 'amount' | 'address' | 'scan' | 'chain-switch' | 'lightning' | 'lightning-send' | 'lightning-receive' | 'confirm' | 'processing' | 'success'
@@ -649,6 +650,13 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   };
 
   const handleMethodSelect = (method: 'scanqr' | 'manual' | 'lightning') => {
+    if (method === 'lightning' && LIGHTNING_UNLOCKING_SOON) {
+      toast('Lightning payment is unlocking soon', {
+        icon: '🔒',
+      });
+      return;
+    }
+
     // ⚡ NEW: Check if Lightning requires chain switch
     if (method === 'lightning' && currentChain !== 'bitcoin') {
       setPaymentMethod(method);
@@ -696,6 +704,15 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   // ⚡ NEW: Auto-select method on open (must be after handleMethodSelect definition)
   useEffect(() => {
     if (isOpen && initialMethod) {
+      if (initialMethod === 'lightning' && LIGHTNING_UNLOCKING_SOON) {
+        setMode('method');
+        setPaymentMethod(null);
+        setLightningAction(null);
+        toast('Lightning payment is unlocking soon', {
+          icon: '🔒',
+        });
+        return;
+      }
       handleMethodSelect(initialMethod);
     } else if (isOpen && !initialMethod) {
       // Reset to method selection when opening without initialMethod
@@ -1538,23 +1555,36 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     </div>
                   </motion.button>
 
-                  {/* Lightning Payment */}
-                  <motion.button
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => handleMethodSelect('lightning')}
-                    className="w-full glass-card p-5 hover:bg-white/10 transition-all duration-200 group"
+                  {/* Lightning Payment - UNLOCKING SOON */}
+                  <motion.div
+                    className="relative overflow-hidden w-full glass-card p-5 transition-all duration-200 group"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
-                        <Zap className="w-7 h-7 text-white" />
-                      </div>
-                      <div className="text-left flex-1">
-                        <div className="font-semibold text-gray-900 text-base mb-0.5">Lightning payment</div>
-                        <div className="text-sm text-gray-600">Generate Lightning invoice → Receive crypto</div>
+                    {/* Content Layer (faded) */}
+                    <div className="relative z-0 opacity-40">
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                          <Zap className="w-7 h-7 text-white" />
                         </div>
-                      <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-purple-500 transition-colors flex-shrink-0" />
+                        <div className="text-left flex-1">
+                          <div className="font-semibold text-gray-900 text-base mb-0.5">Lightning payment</div>
+                          <div className="text-sm text-gray-600">Generate Lightning invoice → Receive crypto</div>
+                        </div>
+                        <ArrowRight className="w-5 h-5 text-gray-400 transition-colors flex-shrink-0" />
+                      </div>
                     </div>
-                  </motion.button>
+
+                    {/* Frosted Overlay with Lock - same pattern as other unlocking cards */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-black/30 via-black/20 to-black/30 backdrop-blur-md z-10">
+                      <motion.div
+                        animate={{ opacity: [0.4, 0.7, 0.4] }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
+                      >
+                        <Lock className="w-8 h-8 text-white/60 mb-2" />
+                      </motion.div>
+                      <span className="text-xs sm:text-sm font-semibold text-white/90 mb-1">Lightning payment</span>
+                      <span className="text-[10px] font-bold text-white/80 tracking-wider">UNLOCKING SOON</span>
+                    </div>
+                  </motion.div>
                 </motion.div>
               )}
 
