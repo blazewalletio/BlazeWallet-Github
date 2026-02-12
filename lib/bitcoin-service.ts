@@ -494,7 +494,10 @@ export class BitcoinService {
         throw new Error(`Failed to broadcast transaction: ${error}`);
       }
 
-      const txid = await response.text();
+      const txid = (await response.text()).trim().replace(/^"+|"+$/g, '');
+      if (!txid) {
+        throw new Error('Broadcast succeeded but no txid was returned');
+      }
       return txid;
     } catch (error) {
       logger.error('Error broadcasting transaction:', error);

@@ -163,7 +163,8 @@ export class MultiChainService {
           amountSats,
           feeRate
         );
-        return result.txid; // Return transaction ID as string
+        // Broadcast transaction and return network txid
+        return await this.bitcoinService.broadcastTransaction(result.txHex);
       }
       throw new Error('Bitcoin requires mnemonic for transaction signing');
     } else if (this.isBitcoinFork() && this.bitcoinForkService) {
