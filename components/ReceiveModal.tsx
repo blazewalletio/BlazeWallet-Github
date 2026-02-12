@@ -151,10 +151,10 @@ export default function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
                   <img
                     src={qrDataURL}
                     alt="QR Code"
-                    className="w-64 h-64 mx-auto"
+                    className="w-64 max-w-[70vw] aspect-square h-auto mx-auto object-contain"
                   />
                 ) : (
-                  <div className="w-64 h-64 mx-auto bg-gray-100 rounded-lg flex items-center justify-center">
+                  <div className="w-64 max-w-[70vw] aspect-square h-auto mx-auto bg-gray-100 rounded-lg flex items-center justify-center">
                     <div className="text-gray-400">Loading QR code...</div>
                   </div>
                 )}

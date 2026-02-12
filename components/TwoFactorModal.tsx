@@ -292,9 +292,9 @@ export default function TwoFactorModal({ isOpen, onClose, isEnabled, onSuccess }
                   <h3 className="font-semibold text-gray-900">1. Scan QR Code</h3>
                   <div className="bg-white border-2 border-gray-200 rounded-xl p-6 flex justify-center">
                     {qrCode ? (
-                      <img src={qrCode} alt="QR Code" className="w-48 h-48" />
+                      <img src={qrCode} alt="QR Code" className="w-48 max-w-[70vw] aspect-square h-auto object-contain" />
                     ) : (
-                      <div className="w-48 h-48 flex items-center justify-center">
+                      <div className="w-48 max-w-[70vw] aspect-square h-auto flex items-center justify-center">
                         <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
                       </div>
                     )}

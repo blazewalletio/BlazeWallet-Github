@@ -2640,8 +2640,8 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                       </div>
                       <img 
                         src={lightningQR} 
-                          alt="Lightning Invoice QR" 
-                        className="mx-auto rounded-xl"
+                        alt="Lightning Invoice QR" 
+                        className="w-64 max-w-[70vw] aspect-square h-auto mx-auto rounded-xl object-contain"
                       />
                         
                         {/* Invoice String */}

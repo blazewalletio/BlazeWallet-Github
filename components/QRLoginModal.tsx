@@ -157,7 +157,7 @@ export default function QRLoginModal({ isOpen, onSuccess, onCancel }: QRLoginMod
             <div className="space-y-4">
               <div className="flex justify-center">
                 <div className="bg-theme-bg-card p-4 rounded-xl">
-                  <img src={qrCode} alt="QR Code" className="w-48 h-48" />
+                  <img src={qrCode} alt="QR Code" className="w-48 max-w-[70vw] aspect-square h-auto object-contain" />
                 </div>
               </div>
               
