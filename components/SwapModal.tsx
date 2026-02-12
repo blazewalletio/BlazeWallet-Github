@@ -27,6 +27,8 @@ import { logTransactionEvent, logFeatureUsage } from '@/lib/analytics-tracker';
 import { getTransactionExplorerUrl } from '@/lib/explorer-links';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import { apiPost } from '@/lib/api-client';
+import { priceService } from '@/lib/price-service';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { ethers } from 'ethers';
 import { Connection, Transaction, VersionedTransaction, MessageV0 } from '@solana/web3.js';
 import { SolanaService } from '@/lib/solana-service';
@@ -130,12 +132,14 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   const [txHash, setTxHash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isCrossChain, setIsCrossChain] = useState(false);
+  const [symbolPricesUSD, setSymbolPricesUSD] = useState<Record<string, number>>({});
   const [completionStatus, setCompletionStatus] = useState<SwapCompletionStatus | null>(null);
 
   // 🔐 2FA SESSION SHIELD states
   const [show2FAModal, setShow2FAModal] = useState(false);
   const [pendingSwapData, setPendingSwapData] = useState<any>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const { formatUSDSync } = useCurrency();
 
   const getChainListLabel = useCallback((chainKey: string): string => {
     if (chainKey === 'bsc') return 'BNB Chain';
@@ -1312,6 +1316,71 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   const fromTokenDisplay = getTokenDisplay(fromToken, fromChain);
   const toTokenDisplay = getTokenDisplay(toToken, toChain);
 
+  // Load USD prices for visible from/to symbols (used as fallback when quote USD values are missing).
+  useEffect(() => {
+    const loadSymbolPrices = async () => {
+      const symbols = new Set<string>();
+      if (fromTokenDisplay?.symbol) symbols.add(fromTokenDisplay.symbol.toUpperCase());
+      if (toTokenDisplay?.symbol && toTokenDisplay.symbol !== 'Select') symbols.add(toTokenDisplay.symbol.toUpperCase());
+      if (symbols.size === 0) return;
+
+      try {
+        const prices = await priceService.getMultiplePrices(Array.from(symbols));
+        const mapped: Record<string, number> = {};
+        Object.entries(prices || {}).forEach(([symbol, payload]: [string, any]) => {
+          const value = Number(payload?.price || 0);
+          if (Number.isFinite(value) && value > 0) {
+            mapped[symbol.toUpperCase()] = value;
+          }
+        });
+        setSymbolPricesUSD((prev) => ({ ...prev, ...mapped }));
+      } catch (priceErr) {
+        logger.warn('⚠️ Failed to load swap symbol prices:', priceErr);
+      }
+    };
+
+    if (isOpen) {
+      loadSymbolPrices();
+    }
+  }, [isOpen, fromTokenDisplay?.symbol, toTokenDisplay?.symbol]);
+
+  const getEstimatedToAmountNumeric = (): number => {
+    if (!quote) return 0;
+    try {
+      const toDecimals = toToken === 'native'
+        ? CHAINS[toChain]?.nativeCurrency?.decimals || 18
+        : (toToken as LiFiToken)?.decimals || 18;
+      const formatted = ethers.formatUnits(quote.estimate?.toAmount || '0', toDecimals);
+      const parsed = parseFloat(formatted);
+      return Number.isFinite(parsed) ? parsed : 0;
+    } catch {
+      return 0;
+    }
+  };
+
+  const fromAmountNum = parseFloat(amount || '0');
+  const fromSymbolPrice = symbolPricesUSD[fromTokenDisplay.symbol?.toUpperCase() || ''] || 0;
+  const toSymbolPrice = symbolPricesUSD[toTokenDisplay.symbol?.toUpperCase() || ''] || 0;
+  const estimatedToAmountNum = getEstimatedToAmountNumeric();
+
+  const fromFiatUSD = (() => {
+    const quoteFromUSD = Number(quote?.estimate?.fromAmountUSD || 0);
+    if (Number.isFinite(quoteFromUSD) && quoteFromUSD > 0) return quoteFromUSD;
+    if (Number.isFinite(fromAmountNum) && fromAmountNum > 0 && fromSymbolPrice > 0) {
+      return fromAmountNum * fromSymbolPrice;
+    }
+    return 0;
+  })();
+
+  const toFiatUSD = (() => {
+    const quoteToUSD = Number(quote?.estimate?.toAmountUSD || 0);
+    if (Number.isFinite(quoteToUSD) && quoteToUSD > 0) return quoteToUSD;
+    if (estimatedToAmountNum > 0 && toSymbolPrice > 0) {
+      return estimatedToAmountNum * toSymbolPrice;
+    }
+    return 0;
+  })();
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -1493,6 +1562,11 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                         MAX
                       </button>
                     </div>
+                    {fromFiatUSD > 0 && (
+                      <div className="text-xs text-gray-500 mt-1.5">
+                        ≈ {formatUSDSync(fromFiatUSD)}
+                      </div>
+                    )}
                   </div>
 
                   {/* Swap Direction Button */}
@@ -1696,9 +1770,9 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                               : (toToken as LiFiToken)?.decimals || 18
                           )} {toTokenDisplay.symbol}
                         </div>
-                        {quote.estimate?.toAmountUSD && parseFloat(quote.estimate.toAmountUSD) > 0 && (
+                        {toFiatUSD > 0 && (
                           <div className="text-sm text-gray-600">
-                            ≈ ${parseFloat(quote.estimate.toAmountUSD).toFixed(2)} USD
+                            ≈ {formatUSDSync(toFiatUSD)}
                           </div>
                         )}
                         <div className="pt-2 mt-2 border-t border-orange-200 space-y-1">
@@ -1798,20 +1872,34 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                   <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 space-y-3 border-2 border-gray-200">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-600">From</span>
-                      <span className="text-sm font-semibold text-gray-900">
-                        {amount} {fromTokenDisplay.symbol}
-                      </span>
+                      <div className="text-right">
+                        <div className="text-sm font-semibold text-gray-900">
+                          {amount} {fromTokenDisplay.symbol}
+                        </div>
+                        {fromFiatUSD > 0 && (
+                          <div className="text-xs text-gray-500 mt-0.5">
+                            ≈ {formatUSDSync(fromFiatUSD)}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-gray-600">To</span>
-                      <span className="text-sm font-semibold text-gray-900">
-                        {formatAmount(
-                          quote.estimate?.toAmount || '0',
-                          toToken === 'native' 
-                            ? CHAINS[toChain]?.nativeCurrency?.decimals || 18
-                            : (toToken as LiFiToken)?.decimals || 18
-                        )} {toTokenDisplay.symbol}
-                      </span>
+                      <div className="text-right">
+                        <div className="text-sm font-semibold text-gray-900">
+                          {formatAmount(
+                            quote.estimate?.toAmount || '0',
+                            toToken === 'native' 
+                              ? CHAINS[toChain]?.nativeCurrency?.decimals || 18
+                              : (toToken as LiFiToken)?.decimals || 18
+                          )} {toTokenDisplay.symbol}
+                        </div>
+                        {toFiatUSD > 0 && (
+                          <div className="text-xs text-gray-500 mt-0.5">
+                            ≈ {formatUSDSync(toFiatUSD)}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     {isCrossChain && (
                       <div className="flex items-center justify-between pt-2 border-t border-gray-200">
@@ -1907,7 +1995,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                     </div>
                   </motion.div>
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">Swap Successful!</h3>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Swap successful!</h3>
                     <p className="text-sm text-gray-600 mb-4">
                       Your swap has been completed successfully.
                     </p>

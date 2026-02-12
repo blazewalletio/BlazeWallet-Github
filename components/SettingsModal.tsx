@@ -534,10 +534,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <div className="text-center py-8">
               <div className="mb-3">
                 <span className="text-2xl font-bold bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">
-                  Blaze v2.0
+                  Blaze v2.0.0
                 </span>
               </div>
-              <div className="text-sm text-gray-600">The crypto wallet.</div>
             </div>
           </div>
         </div>

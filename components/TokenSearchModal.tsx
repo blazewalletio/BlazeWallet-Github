@@ -116,14 +116,15 @@ export default function TokenSearchModal({
         logger.warn(`⚠️ [TokenSearchModal] Chain ${chainKey} has no Li.Fi chain id mapping`);
         return {};
       }
-      const response = await fetch(`https://li.quest/v1/tokens?chains=${lifiChainId}`);
+      const response = await fetch(`/api/lifi/tokens?chainIds=${lifiChainId}`);
       
       if (!response.ok) {
         throw new Error(`Li.Fi API error: ${response.status}`);
       }
       
       const data = await response.json();
-      const tokensData = data.tokens?.[lifiChainId] || [];
+      const chainKey = String(lifiChainId);
+      const tokensData = data.tokens?.[chainKey] || [];
       
       // Create a map of address -> logoURI
       const logoMap: Record<string, string> = {};
