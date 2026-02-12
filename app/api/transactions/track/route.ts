@@ -36,8 +36,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Track transaction using database function
-    const { data, error } = await getSupabaseAdmin().rpc('track_user_transaction', {
+    const supabaseAdmin = getSupabaseAdmin();
+
+    // Primary path: database RPC (kept for backwards compatibility)
+    const { data, error } = await supabaseAdmin.rpc('track_user_transaction', {
       p_user_id: userId,
       p_chain_key: chainKey,
       p_tx_hash: txHash,
@@ -60,27 +62,81 @@ export async function POST(request: NextRequest) {
       p_metadata: metadata
     });
 
-    if (error) {
-      logger.error('Failed to track transaction:', error);
-      return NextResponse.json(
-        { success: false, error: 'Failed to track transaction' },
-        { status: 500 }
-      );
+    if (!error) {
+      logger.log(`✅ Transaction tracked: ${txHash} (${direction} ${amountUSD ? `$${amountUSD}` : ''})`);
+      return NextResponse.json({
+        success: true,
+        transactionId: data,
+        method: 'rpc',
+      });
     }
 
-    logger.log(`✅ Transaction tracked: ${txHash} (${direction} ${amountUSD ? `$${amountUSD}` : ''})`);
+    // Fallback path: direct upsert when RPC is unavailable/broken.
+    // Important: This endpoint is best-effort telemetry and should never break UX.
+    logger.warn('⚠️ track_user_transaction RPC failed, falling back to direct upsert:', error);
 
+    const parsedAmount = Number(amount);
+    const parsedAmountUSD = amountUSD === undefined || amountUSD === null ? null : Number(amountUSD);
+    const parsedGasUsed = gasUsed === undefined || gasUsed === null ? null : Number(gasUsed);
+    const parsedGasPrice = gasPrice === undefined || gasPrice === null ? null : Number(gasPrice);
+    const parsedGasCostUSD = gasCostUSD === undefined || gasCostUSD === null ? null : Number(gasCostUSD);
+    const parsedBlockNumber = blockNumber === undefined || blockNumber === null ? null : Number(blockNumber);
+    const parsedTokenDecimals = Number(tokenDecimals ?? 18);
+
+    const { data: upsertData, error: upsertError } = await supabaseAdmin
+      .from('user_transactions')
+      .upsert(
+        {
+          user_id: userId,
+          chain_key: chainKey,
+          tx_hash: txHash,
+          transaction_type: transactionType,
+          direction,
+          from_address: fromAddress,
+          to_address: toAddress,
+          token_symbol: tokenSymbol || null,
+          token_address: tokenAddress || null,
+          token_decimals: Number.isFinite(parsedTokenDecimals) ? parsedTokenDecimals : 18,
+          is_native: Boolean(isNative),
+          amount: Number.isFinite(parsedAmount) ? parsedAmount : 0,
+          amount_usd: Number.isFinite(parsedAmountUSD as number) ? parsedAmountUSD : null,
+          gas_used: Number.isFinite(parsedGasUsed as number) ? parsedGasUsed : null,
+          gas_price: Number.isFinite(parsedGasPrice as number) ? parsedGasPrice : null,
+          gas_cost_usd: Number.isFinite(parsedGasCostUSD as number) ? parsedGasCostUSD : null,
+          status,
+          block_number: Number.isFinite(parsedBlockNumber as number) ? parsedBlockNumber : null,
+          timestamp: timestamp || new Date().toISOString(),
+          metadata: metadata && typeof metadata === 'object' ? metadata : {},
+        },
+        { onConflict: 'user_id,chain_key,tx_hash' }
+      )
+      .select('id')
+      .maybeSingle();
+
+    if (upsertError) {
+      logger.error('❌ Transaction tracking fallback upsert failed:', upsertError);
+      return NextResponse.json({
+        success: true,
+        tracked: false,
+        warning: 'tracking_temporarily_unavailable',
+      });
+    }
+
+    logger.log(`✅ Transaction tracked via fallback upsert: ${txHash}`);
     return NextResponse.json({
       success: true,
-      transactionId: data
+      tracked: true,
+      transactionId: upsertData?.id || null,
+      method: 'upsert-fallback',
     });
 
   } catch (error: any) {
     logger.error('Transaction tracking API error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      success: true,
+      tracked: false,
+      warning: 'tracking_exception',
+    });
   }
 }
 
