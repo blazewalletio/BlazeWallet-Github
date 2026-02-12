@@ -1221,7 +1221,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                 </button>
                 <button
                   onClick={handleSend}
-                  className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl"
+                  className="flex-1 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl"
                 >
                   Send
                 </button>
