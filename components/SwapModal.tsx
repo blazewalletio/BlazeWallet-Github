@@ -183,12 +183,25 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
 
   const fromChainSupported = isChainLiFiEligible(fromChain);
   const toChainSupported = isChainLiFiEligible(toChain);
-  const isChangeNowEligibleRoute =
-    fromChain === 'bitcoin' &&
-    fromToken === 'native' &&
-    !!toToken &&
+  const isBitcoinSourceRoute = fromChain === 'bitcoin' && fromToken === 'native';
+  const isChangeNowDestinationEligible =
     toChain !== 'bitcoin' &&
-    !CHAINS[toChain]?.isTestnet;
+    !CHAINS[toChain]?.isTestnet &&
+    [
+      'ethereum',
+      'solana',
+      'base',
+      'polygon',
+      'bsc',
+      'optimism',
+      'avalanche',
+      'arbitrum',
+      'zksync',
+      'linea',
+      'fantom',
+      'cronos',
+    ].includes(toChain);
+  const isChangeNowEligibleRoute = isBitcoinSourceRoute && isChangeNowDestinationEligible;
   const hasSupportedRoute = isChangeNowEligibleRoute || (fromChainSupported && toChainSupported);
   const hasUnsupportedPair = !hasSupportedRoute;
   const routeEngine: 'lifi' | 'changenow' = isChangeNowEligibleRoute ? 'changenow' : 'lifi';
