@@ -6,7 +6,6 @@ import { Download, CheckCircle2, Copy, Check, Sparkles, Shield, Zap, Lock, Alert
 import { useWalletStore } from '@/lib/wallet-store';
 import { signUpWithEmail, signInWithEmail, completeSignInAfter2FA, signInWithGoogle, signInWithApple } from '@/lib/supabase-auth';
 import TwoFactorLoginModal from './TwoFactorLoginModal';
-import BlazeLogoImage from './BlazeLogoImage';
 import { logger } from '@/lib/logger';
 
 interface OnboardingProps {
@@ -526,9 +525,15 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     <motion.div
                       animate={{ scale: [1, 1.03, 1] }}
                       transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                      className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 border-4 border-orange-200/90 shadow-2xl flex items-center justify-center p-4"
+                      className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500 shadow-2xl flex items-center justify-center p-[6px]"
                     >
-                      <BlazeLogoImage className="w-full h-full drop-shadow-[0_4px_10px_rgba(255,255,255,0.25)]" />
+                      <div className="w-full h-full rounded-full bg-white flex items-center justify-center">
+                        <img
+                          src="/crypto-blaze.png"
+                          alt="Blaze"
+                          className="w-14 h-14 sm:w-16 sm:h-16 object-contain"
+                        />
+                      </div>
                     </motion.div>
                   </div>
                 </div>
