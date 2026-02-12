@@ -4,20 +4,6 @@ import { logger } from '@/lib/logger';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import crypto from 'crypto';
 
-<<<<<<< HEAD
-=======
-// Create admin client for database operations
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
-
 async function trackWalletSignupOnWebsite(data: {
   email: string;
   visitorId?: string;
@@ -58,7 +44,6 @@ async function trackWalletSignupOnWebsite(data: {
   }
 }
 
->>>>>>> 59b97d42 (Track wallet signups to website attribution webhook)
 export async function POST(request: NextRequest) {
   try {
     const { email, userId, visitorId, utmSource, utmMedium, utmCampaign, twclid } = await request.json();
@@ -70,38 +55,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ Track new user as UNVERIFIED (but they can still login)
-    // This allows us to show "Verified" badge only after email verification
+    // Track new user as unverified; verification badge is enabled after email confirmation.
     try {
       const { error: sqlError } = await getSupabaseAdmin().rpc('track_new_user_email', {
         p_user_id: userId,
         p_email: email
       });
-      
+
       if (sqlError) {
         logger.error('Failed to track user email via RPC:', sqlError);
-        // Continue anyway - not critical
       }
-      
-      logger.log('✅ User tracked as unverified - can login but needs verification for badge');
+
+      logger.log('User tracked as unverified - login allowed until badge verification');
     } catch (err) {
       logger.error('Error tracking user email:', err);
-      // Continue anyway - user can still login
     }
 
-    // Generate secure random token (32 bytes = 64 hex characters)
     const token = crypto.randomBytes(32).toString('hex');
-    
-    // Store token in database with 24 hour expiry
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24);
-    
+
     const { error: dbError } = await getSupabaseAdmin()
       .from('email_verification_tokens')
       .insert({
         user_id: userId,
-        token: token,
-        email: email,
+        token,
+        email,
         expires_at: expiresAt.toISOString(),
       });
 
@@ -113,23 +92,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate verification link with secure token
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://my.blazewallet.io';
     const verificationLink = `${baseUrl}/auth/verify?token=${token}`;
 
-    // Generate email HTML
     const emailHtml = generateWelcomeVerificationEmail({
       email,
       verificationLink,
     });
 
-    // Send email
+    let messageId: string | undefined;
     try {
-      await sendEmail({
+      const sendResult = await sendEmail({
         to: email,
         subject: '🔥 Welcome to BLAZE Wallet - Verify Your Email',
         html: emailHtml,
       });
+      messageId = sendResult?.messageId;
     } catch (error: any) {
       logger.error('Failed to send welcome email:', error);
       return NextResponse.json(
@@ -138,10 +116,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    logger.log('✅ Welcome email sent to:', email);
-<<<<<<< HEAD
-    return NextResponse.json({ success: true });
-=======
+    logger.log('Welcome email sent to:', email);
+
     try {
       await trackWalletSignupOnWebsite({
         email,
@@ -151,13 +127,12 @@ export async function POST(request: NextRequest) {
         utmCampaign,
         twclid,
       });
-      logger.log('✅ Website wallet signup tracking sent');
+      logger.log('Website wallet signup tracking sent');
     } catch (trackingError) {
       logger.error('Failed to track wallet signup on website:', trackingError);
     }
 
-    return NextResponse.json({ success: true, messageId: result.messageId });
->>>>>>> 59b97d42 (Track wallet signups to website attribution webhook)
+    return NextResponse.json({ success: true, messageId });
   } catch (error) {
     logger.error('Error in send-welcome-email API:', error);
     return NextResponse.json(
@@ -166,4 +141,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

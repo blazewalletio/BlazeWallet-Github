@@ -283,7 +283,6 @@ export async function signUpWithEmail(
       // It will be returned to user for backup, but not persisted locally
     }
 
-<<<<<<< HEAD
     // 6.5. ✅ NEW: Store first device as VERIFIED (no email verification needed for sign-up)
     logger.log('📱 [SignUp] Storing first device as verified...');
     try {
@@ -323,9 +322,7 @@ export async function signUpWithEmail(
         hasWallet: true
       });
     }
-=======
     const attribution = getSignupAttribution();
->>>>>>> 59b97d42 (Track wallet signups to website attribution webhook)
 
     // 7. Send custom welcome + verification email via API route
     try {
