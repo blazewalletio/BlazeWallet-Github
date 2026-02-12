@@ -171,9 +171,15 @@ class BlockchairService {
     });
 
     let balance = 0;
+    let received = 0;
+    let spent = 0;
     if (summaryResponse.ok) {
       const summary = await summaryResponse.json();
-      balance = summary.chain_stats?.funded_txo_sum || 0;
+      const confirmedFunded = summary.chain_stats?.funded_txo_sum || 0;
+      const confirmedSpent = summary.chain_stats?.spent_txo_sum || 0;
+      received = confirmedFunded;
+      spent = confirmedSpent;
+      balance = Math.max(0, confirmedFunded - confirmedSpent);
     }
 
     // Get current block height once (for confirmations calculation)
@@ -197,8 +203,8 @@ class BlockchairService {
 
     const info: AddressInfo = {
       balance,
-      received: balance, // Approximate
-      spent: 0, // Not available from Blockstream UTXO endpoint
+      received,
+      spent,
       unspent_output_count: utxos.length,
       transaction_count: 0, // Not available
     };
