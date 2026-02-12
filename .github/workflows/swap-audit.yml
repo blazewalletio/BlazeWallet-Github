@@ -1,0 +1,45 @@
+name: Swap Audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lifi-swap-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build app
+        run: npm run build
+
+      - name: Run local LI.FI swap audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev >/tmp/next-dev.log 2>&1 &
+          DEV_PID=$!
+
+          cleanup() {
+            kill "$DEV_PID" >/dev/null 2>&1 || true
+            echo "----- Last Next.js dev logs -----"
+            tail -n 200 /tmp/next-dev.log || true
+          }
+          trap cleanup EXIT
+
+          node scripts/audit-lifi-swap-local.js
+
