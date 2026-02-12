@@ -310,10 +310,29 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
     }
   };
 
-  const getEstimatedNativeFeeAmount = (isSendingNative: boolean): number => {
-    if (!gasPrice) return 0;
+  const getAddressForChain = (chain: string): string => {
+    const state = useWalletStore.getState();
+    if (chain === 'solana') return state.solanaAddress || '';
+    if (chain === 'bitcoin') return state.bitcoinAddress || '';
+    if (chain === 'litecoin') return state.litecoinAddress || '';
+    if (chain === 'dogecoin') return state.dogecoinAddress || '';
+    if (chain === 'bitcoincash') return state.bitcoincashAddress || '';
+    return state.address || '';
+  };
 
-    const gasValue = parseFloat(gasPrice[selectedGas]);
+  const formatAmountWithDecimals = (value: number, decimals: number): string => {
+    const fixed = value.toFixed(Math.max(0, decimals));
+    return fixed.replace(/\.?0+$/, '');
+  };
+
+  const getEstimatedNativeFeeAmount = (
+    isSendingNative: boolean,
+    effectiveGasPrice: { slow: string; standard: string; fast: string } | null = gasPrice,
+    speed: 'slow' | 'standard' | 'fast' = selectedGas
+  ): number => {
+    if (!effectiveGasPrice) return 0;
+
+    const gasValue = parseFloat(effectiveGasPrice[speed]);
     if (isNaN(gasValue) || gasValue <= 0) return 0;
 
     const isUTXOChain = ['bitcoin', 'litecoin', 'dogecoin', 'bitcoincash'].includes(selectedChain);
@@ -414,14 +433,56 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
     checkBalance();
   }, [amount, selectedAsset, gasPrice, selectedGas, availableAssets, selectedChain]);
 
-  const handleMaxAmount = () => {
-    if (!selectedAsset || !gasPrice) return;
+  const handleMaxAmount = async () => {
+    if (!selectedAsset) return;
     
     if (selectedAsset.isNative) {
-      const estimatedFeeAmount = getEstimatedNativeFeeAmount(true);
+      let effectiveGasPrice = gasPrice;
+      if (!effectiveGasPrice) {
+        try {
+          const prices = await blockchain.getGasPrice();
+          setGasPrice(prices);
+          effectiveGasPrice = prices;
+        } catch {
+          // Fallback to zero fee estimate if pricing is temporarily unavailable.
+          effectiveGasPrice = null;
+        }
+      }
+
+      let estimatedFeeAmount = getEstimatedNativeFeeAmount(true, effectiveGasPrice, selectedGas);
+
+      // For UTXO chains, use real UTXO-aware fee estimate for accurate MAX amount.
+      if (['bitcoin', 'litecoin', 'dogecoin', 'bitcoincash'].includes(selectedChain)) {
+        try {
+          const fromAddress = getAddressForChain(selectedChain);
+          if (fromAddress) {
+            const utxosRes = await fetch(
+              `/api/utxo/utxos?chain=${selectedChain}&address=${encodeURIComponent(fromAddress)}`
+            );
+            const utxosPayload = await utxosRes.json();
+            const utxos = Array.isArray(utxosPayload?.utxos) ? utxosPayload.utxos : [];
+
+            const feesRes = await fetch('/api/utxo/fees', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ chain: selectedChain, utxos, outputs: 2 }),
+            });
+            const feesPayload = await feesRes.json();
+            const speedTotalKey = `${selectedGas}Total` as 'slowTotal' | 'standardTotal' | 'fastTotal';
+            const totalFeeSats = Number(feesPayload?.fees?.[speedTotalKey] ?? 0);
+            if (!isNaN(totalFeeSats) && totalFeeSats > 0) {
+              estimatedFeeAmount = totalFeeSats / 100000000;
+            }
+          }
+        } catch (utxoFeeError) {
+          logger.warn('⚠️ [SendModal] UTXO-aware MAX fee estimate failed, using fallback estimate:', utxoFeeError);
+        }
+      }
+
       const max = Math.max(0, parseFloat(selectedAsset.balance) - estimatedFeeAmount);
-      const decimals = Math.min(8, selectedAsset.decimals || 8);
-      setAmount(max.toFixed(decimals));
+      const chainDecimals = CHAINS[selectedChain]?.nativeCurrency?.decimals ?? selectedAsset.decimals ?? 8;
+      const amountDecimals = Math.min(chainDecimals, 12);
+      setAmount(formatAmountWithDecimals(max, amountDecimals));
     } else {
       setAmount(selectedAsset.balance);
     }
@@ -716,8 +777,12 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
     onClose();
   };
 
+  const nativeDisplayDecimals = Math.min(8, CHAINS[selectedChain]?.nativeCurrency?.decimals ?? 8);
+  const isUTXOChain = ['bitcoin', 'litecoin', 'dogecoin', 'bitcoincash'].includes(selectedChain);
+  const feeRateUnit = isUTXOChain ? 'sat/vB' : 'gwei';
+
   const estimatedFee = gasPrice && selectedAsset
-    ? getEstimatedNativeFeeAmount(selectedAsset.isNative).toFixed(6)
+    ? getEstimatedNativeFeeAmount(selectedAsset.isNative).toFixed(nativeDisplayDecimals)
     : '0';
 
   const getExplorerUrl = (hash: string) => {
@@ -1073,10 +1138,10 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                         ~5-10 min
                       </div>
                       <div className={`font-bold text-lg leading-none mb-0.5 ${selectedGas === 'slow' ? 'text-blue-600' : 'text-gray-900'}`}>
-                        {parseFloat(gasPrice.slow).toFixed(1)}
+                        {parseFloat(gasPrice.slow).toFixed(isUTXOChain ? 0 : 1)}
                       </div>
                       <div className="text-[9px] text-gray-400 uppercase tracking-wider">
-                        Gwei
+                        {feeRateUnit}
                       </div>
                     </button>
 
@@ -1108,10 +1173,10 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                         ✓ Recommended
                       </div>
                       <div className={`font-bold text-lg leading-none mb-0.5 ${selectedGas === 'standard' ? 'text-orange-600' : 'text-gray-900'}`}>
-                        {parseFloat(gasPrice.standard).toFixed(1)}
+                        {parseFloat(gasPrice.standard).toFixed(isUTXOChain ? 0 : 1)}
                       </div>
                       <div className="text-[9px] text-gray-400 uppercase tracking-wider">
-                        Gwei
+                        {feeRateUnit}
                       </div>
                     </button>
 
@@ -1143,10 +1208,10 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                         ~30 sec
                       </div>
                       <div className={`font-bold text-lg leading-none mb-0.5 ${selectedGas === 'fast' ? 'text-green-600' : 'text-gray-900'}`}>
-                        {parseFloat(gasPrice.fast).toFixed(1)}
+                        {parseFloat(gasPrice.fast).toFixed(isUTXOChain ? 0 : 1)}
                       </div>
                       <div className="text-[9px] text-gray-400 uppercase tracking-wider">
-                        Gwei
+                        {feeRateUnit}
                       </div>
                     </button>
                   </div>
@@ -1221,7 +1286,7 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
                   <span className="text-gray-900">Total</span>
                   <span className="text-gray-900">
                     {selectedAsset.isNative 
-                      ? (parseFloat(amount) + parseFloat(estimatedFee)).toFixed(6)
+                      ? (parseFloat(amount) + parseFloat(estimatedFee)).toFixed(nativeDisplayDecimals)
                       : amount
                     } {selectedAsset.symbol}
                   </span>
