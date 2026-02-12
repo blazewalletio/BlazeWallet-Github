@@ -1618,8 +1618,10 @@ export class OnramperService {
     onrampTransactionId?: string;
   } | null> {
     try {
-      if (!apiKey || !secretKey) {
-        logger.warn('⚠️ Onramper API key or secret key not provided for getTransaction');
+      const resolvedApiKey = this.cleanApiKey(apiKey || process.env.ONRAMPER_API_KEY);
+      const resolvedSecretKey = this.cleanApiKey(secretKey || process.env.ONRAMPER_SECRET_KEY);
+      if (!resolvedApiKey || !resolvedSecretKey) {
+        logger.warn('⚠️ Onramper API key or secret key not available for getTransaction');
         return null;
       }
 
@@ -1629,8 +1631,8 @@ export class OnramperService {
 
       const response = await fetch(url, {
         headers: {
-          'Authorization': apiKey,
-          'x-onramper-secret': secretKey, // Required for transaction endpoint
+          'Authorization': resolvedApiKey,
+          'x-onramper-secret': resolvedSecretKey, // Required for transaction endpoint
           'Accept': 'application/json',
         },
       });

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { OnramperService } from '@/lib/onramper-service';
 import { GeolocationService } from '@/lib/geolocation';
+import { apiRateLimiter } from '@/lib/api-rate-limiter';
+import { getClientIP } from '@/lib/rate-limiter';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +14,12 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET(req: NextRequest) {
   try {
+    const clientIp = getClientIP(req.headers);
+    const isAllowed = apiRateLimiter.check(`onramper:available-cryptos:${clientIp}`, 120, 60 * 1000);
+    if (!isAllowed) {
+      return NextResponse.json({ success: false, error: 'Too many requests' }, { status: 429 });
+    }
+
     const { searchParams } = new URL(req.url);
     const chainId = parseInt(searchParams.get('chainId') || '1');
     const fiatCurrency = searchParams.get('fiatCurrency') || 'EUR';
@@ -45,7 +53,7 @@ export async function GET(req: NextRequest) {
       success: true,
       chainId,
       fiatCurrency,
-      country: country || null,
+      country: country?.toUpperCase() || null,
       availableCryptos,
       nativeOnly: true, // Flag to indicate this is native-only mode
     });

@@ -4,6 +4,8 @@ import { OnramperService } from '@/lib/onramper-service';
 import { CHAINS } from '@/lib/chains';
 import { GeolocationService } from '@/lib/geolocation';
 import crypto from 'crypto';
+import { apiRateLimiter } from '@/lib/api-rate-limiter';
+import { getClientIP } from '@/lib/rate-limiter';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +23,15 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(req: NextRequest) {
   try {
+    const clientIp = getClientIP(req.headers);
+    const isAllowed = apiRateLimiter.check(`onramper:checkout:${clientIp}`, 30, 60 * 1000);
+    if (!isAllowed) {
+      return NextResponse.json(
+        { success: false, error: 'Too many requests', message: 'Rate limit exceeded for checkout requests' },
+        { status: 429 }
+      );
+    }
+
     const {
       fiatAmount,
       fiatCurrency,
@@ -526,6 +537,7 @@ export async function POST(req: NextRequest) {
         type: transactionInformation.type, // "iframe" or "redirect"
         params: transactionInformation.params, // iframe permissions if type is "iframe"
       },
+      effectiveCountry: detectedCountry?.toUpperCase() || null,
       // Also include session information if available (can be nested in message)
       sessionInformation: data.sessionInformation || data.message?.sessionInformation,
     });

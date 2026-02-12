@@ -173,9 +173,15 @@ export class UserOnRampPreferencesService {
     try {
       // Import OnramperService dynamically to avoid circular dependency
       const { OnramperService } = await import('./onramper-service');
+      const apiKey = process.env.ONRAMPER_API_KEY?.trim();
+      const secretKey = process.env.ONRAMPER_SECRET_KEY?.trim();
+      if (!apiKey || !secretKey) {
+        logger.warn('⚠️ Skipping Onramper preference sync: missing ONRAMPER_API_KEY or ONRAMPER_SECRET_KEY');
+        return false;
+      }
       
       // Get transaction details from Onramper
-      const transaction = await OnramperService.getTransaction(transactionId);
+      const transaction = await OnramperService.getTransaction(transactionId, apiKey, secretKey);
       
       if (!transaction) {
         logger.warn('⚠️ Transaction not found:', transactionId);

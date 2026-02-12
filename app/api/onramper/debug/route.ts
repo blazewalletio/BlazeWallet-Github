@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { OnramperService } from '@/lib/onramper-service';
 import { GeolocationService } from '@/lib/geolocation';
+import { apiRateLimiter } from '@/lib/api-rate-limiter';
+import { getClientIP } from '@/lib/rate-limiter';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +12,17 @@ export const dynamic = 'force-dynamic';
  * Comprehensive diagnostics for Onramper integration issues
  */
 export async function GET(req: NextRequest) {
+  const debugEnabled = process.env.ONRAMPER_DEBUG_LOGS === 'true';
+  if (process.env.NODE_ENV === 'production' && !debugEnabled) {
+    return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
+  }
+
+  const clientIp = getClientIP(req.headers);
+  const isAllowed = apiRateLimiter.check(`onramper:debug:${clientIp}`, 10, 60 * 1000);
+  if (!isAllowed) {
+    return NextResponse.json({ success: false, error: 'Too many requests' }, { status: 429 });
+  }
+
   const debugLogs: any[] = [];
   const addLog = (section: string, data: any) => {
     debugLogs.push({ section, timestamp: new Date().toISOString(), data });

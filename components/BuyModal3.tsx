@@ -11,7 +11,6 @@ import { ProviderSelector } from '@/lib/provider-selector';
 import { UserOnRampPreferencesService } from '@/lib/user-onramp-preferences';
 import { GeolocationService } from '@/lib/geolocation';
 import { logger } from '@/lib/logger';
-import { logTransactionEvent } from '@/lib/analytics-tracker';
 import { trackEvent } from '@/lib/analytics';
 import { supabase } from '@/lib/supabase';
 
@@ -51,6 +50,12 @@ interface PaymentMethod {
   fee: string;
 }
 
+interface PaymentMethodOverrideConfirmation {
+  provider: string;
+  requestedMethod: string;
+  actualMethod: string;
+}
+
 export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: BuyModal3Props) {
   useBlockBodyScroll(isOpen);
   const { currentChain, getCurrentAddress } = useWalletStore();
@@ -81,8 +86,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
   const [quote, setQuote] = useState<Quote | null>(null);
   const [providerQuotes, setProviderQuotes] = useState<ProviderQuote[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
-  const [usingFallbackQuotes, setUsingFallbackQuotes] = useState(false);
-  const [fallbackPaymentMethod, setFallbackPaymentMethod] = useState<string | null>(null);
+  const [pendingPaymentOverride, setPendingPaymentOverride] = useState<PaymentMethodOverrideConfirmation | null>(null);
   const [showProviderComparison, setShowProviderComparison] = useState(false);
   const [comparisonQuotes, setComparisonQuotes] = useState<ProviderQuote[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -92,6 +96,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
   const [cryptoCurrencies, setCryptoCurrencies] = useState<string[]>([]);
   const [widgetUrl, setWidgetUrl] = useState<string>('');
   const [lastTransactionId, setLastTransactionId] = useState<string | null>(null);
+  const [checkoutCreated, setCheckoutCreated] = useState(false);
 
   const supportedFiats = ['EUR', 'USD', 'GBP', 'CAD', 'AUD', 'JPY', 'CHF', 'NOK', 'SEK', 'DKK'];
 
@@ -151,12 +156,12 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
           setUserCountry(country);
           localStorage.setItem('user_country', country);
         } else {
-          console.warn('⚠️ [GEOLOCATION] Could not detect country, using default (NL)');
-          setUserCountry('NL'); // Default to Netherlands
+          console.warn('⚠️ [GEOLOCATION] Could not detect country, server will detect country');
+          setUserCountry(null);
         }
       } catch (error: any) {
         console.error('❌ [GEOLOCATION] Error detecting country:', error.message);
-        setUserCountry('NL'); // Fallback to Netherlands
+        setUserCountry(null);
       }
     };
 
@@ -193,8 +198,6 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       setSelectedProvider(null);
       setShowProviderComparison(false);
       setComparisonQuotes([]);
-      setUsingFallbackQuotes(false);
-      setFallbackPaymentMethod(null);
       return;
     }
     
@@ -212,6 +215,10 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       return () => clearTimeout(debounceTimer);
     }
   }, [paymentMethod]); // ⚠️ ONLY depend on paymentMethod - don't auto-fetch on amount/crypto changes
+
+  useEffect(() => {
+    setPendingPaymentOverride(null);
+  }, [paymentMethod, selectedProvider, cryptoCurrency, fiatAmount]);
 
   // Listen for messages from Onramper widget
   useEffect(() => {
@@ -258,6 +265,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       setWidgetUrl('');
       setError(null);
       setLoading(false);
+      setCheckoutCreated(false);
       setPaymentMethod(''); // ⚠️ CRITICAL: Reset payment method to prevent stale quotes
       setProviderQuotes([]);
       setQuote(null);
@@ -555,6 +563,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
     try {
       setLoading(true);
       setError(null);
+      setCheckoutCreated(false);
 
       // Fetch quotes from ALL providers
       const countryParam = userCountry ? `&country=${userCountry}` : '';
@@ -564,6 +573,9 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       console.log('🔍 [BUYMODAL] Fetching quotes with country:', userCountry || 'auto-detect');
 
       const data = await quoteResponse.json();
+      if (data?.effectiveCountry && typeof data.effectiveCountry === 'string') {
+        setUserCountry(data.effectiveCountry.toUpperCase());
+      }
 
       console.log('🔍 [BUYMODAL] Quote fetch response:', {
         success: data.success,
@@ -597,162 +609,8 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
           return;
         }
         
-        // ⚠️ CRITICAL: Double-check payment method support (backup filtering)
-        // Even though backend filters, we filter again here for 100% certainty
-        let quotesToUse = data.quotes;
-        if (paymentMethod) {
-          console.log(`🔍 [BUYMODAL] Filtering ${data.quotes.length} quotes for payment method: ${paymentMethod}`);
-          const paymentMethodLower = paymentMethod.toLowerCase();
-          const isIdeal = paymentMethodLower.includes('ideal');
-          
-          quotesToUse = data.quotes.filter((q: ProviderQuote) => {
-            // ⚠️ CRITICAL: If quote has the correct paymentMethod, accept it immediately
-            // This matches the backend logic - if Onramper set paymentMethod to the requested method,
-            // we trust that Onramper knows what it's doing, even if there are errors
-            if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower) {
-              console.log(`✅ [BUYMODAL] Accepting ${q.ramp}: paymentMethod=${q.paymentMethod} matches requested ${paymentMethodLower}`);
-              return true; // Trust Onramper's paymentMethod field
-            }
-            
-            // If quote doesn't have the payment method set, check for errors
-            // (but backend should have already filtered these, so this is just a safety check)
-            if (q.errors && q.errors.length > 0) {
-              return false;
-            }
-            
-            // If quote already has the payment method set, it's supported
-            if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower) {
-              return true;
-            }
-            
-            // Check availablePaymentMethods array
-            const methods = q.availablePaymentMethods || [];
-            return methods.some((pm: any) => {
-              const id = pm.paymentTypeId || pm.id || '';
-              const idLower = id.toLowerCase();
-              
-              // Exact match
-              if (idLower === paymentMethodLower) {
-                return true;
-              }
-              
-              // For iDEAL, also check for variants
-              if (isIdeal && idLower.includes('ideal')) {
-                return true;
-              }
-              
-              return false;
-            });
-          });
-          
-          console.log(`✅ [BUYMODAL] Filtered quotes: ${data.quotes.length} → ${quotesToUse.length} providers for ${paymentMethod}`);
-          console.log(`✅ [BUYMODAL] Providers after filtering:`, quotesToUse.map((q: ProviderQuote) => q.ramp));
-          
-          // Check if we have quotes but none have payout/rate (invalid quotes)
-          const validQuotes = quotesToUse.filter((q: ProviderQuote) => q.payout || q.rate);
-          const hasQuotesButNoValid = quotesToUse.length > 0 && validQuotes.length === 0;
-          
-          if (quotesToUse.length === 0 || hasQuotesButNoValid) {
-            if (hasQuotesButNoValid) {
-              console.warn(`⚠️ [BUYMODAL] Found ${quotesToUse.length} quotes but none have payout/rate for ${paymentMethod} + ${cryptoCurrency}!`);
-            } else {
-              console.warn(`⚠️ [BUYMODAL] NO providers support ${paymentMethod} for ${cryptoCurrency}!`);
-            }
-            console.warn(`⚠️ [BUYMODAL] Attempting to fetch fallback quotes from alternative payment methods...`);
-            
-            // Try alternative payment methods in order of preference
-            const fallbackPaymentMethods = ['creditcard', 'applepay', 'googlepay', 'debitcard', 'paypal'];
-            let fallbackQuotes: ProviderQuote[] = [];
-            let fallbackPaymentMethod: string | null = null;
-            
-            for (const fallbackPm of fallbackPaymentMethods) {
-              // Skip if it's the same as the requested payment method
-              if (fallbackPm.toLowerCase() === paymentMethod.toLowerCase()) {
-                continue;
-              }
-              
-              try {
-                console.log(`🔄 [BUYMODAL] Trying fallback payment method: ${fallbackPm}`);
-                const countryParam = userCountry ? `&country=${userCountry}` : '';
-                const fallbackUrl = `/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${fiatCurrency}&cryptoCurrency=${cryptoCurrency}&paymentMethod=${fallbackPm}${countryParam}`;
-                const fallbackResponse = await fetch(fallbackUrl);
-                const fallbackData = await fallbackResponse.json();
-                
-                if (fallbackResponse.ok && fallbackData.success && fallbackData.quotes && fallbackData.quotes.length > 0) {
-                  // Filter for valid quotes with payout/rate
-                  const validFallbackQuotes = fallbackData.quotes.filter((q: ProviderQuote) => 
-                    q.payout || q.rate
-                  );
-                  
-                  if (validFallbackQuotes.length > 0) {
-                    console.log(`✅ [BUYMODAL] Found ${validFallbackQuotes.length} fallback quotes for ${fallbackPm}`);
-                    fallbackQuotes = validFallbackQuotes;
-                    fallbackPaymentMethod = fallbackPm;
-                    break; // Use first successful fallback
-                  }
-                }
-              } catch (fallbackError: any) {
-                console.warn(`⚠️ [BUYMODAL] Fallback ${fallbackPm} failed:`, fallbackError.message);
-                continue;
-              }
-            }
-            
-            if (fallbackQuotes.length > 0 && fallbackPaymentMethod) {
-              console.log(`✅ [BUYMODAL] Using ${fallbackQuotes.length} fallback quotes from ${fallbackPaymentMethod}`);
-              // Use fallback quotes but keep the original payment method selected
-              // This allows user to see quotes while still being able to proceed with original payment method
-              quotesToUse = fallbackQuotes;
-              setUsingFallbackQuotes(true);
-              setFallbackPaymentMethod(fallbackPaymentMethod);
-            } else {
-              // No fallback quotes found either - show error but still try to show any available quotes
-              console.error(`❌ [BUYMODAL] No fallback quotes found either!`);
-              console.error(`❌ [BUYMODAL] Original quotes:`, 
-                data.quotes.map((q: ProviderQuote) => ({
-                  ramp: q.ramp,
-                  paymentMethod: q.paymentMethod,
-                  availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || [],
-                  hasErrors: !!(q.errors && q.errors.length > 0)
-                }))
-              );
-              
-              // Try to show ANY quotes from the original response (without payment method filter)
-              if (data.quotes && data.quotes.length > 0) {
-                const anyValidQuotes = data.quotes.filter((q: ProviderQuote) => q.payout || q.rate);
-                if (anyValidQuotes.length > 0) {
-                  console.log(`⚠️ [BUYMODAL] Showing ${anyValidQuotes.length} quotes without payment method filter as last resort`);
-                  quotesToUse = anyValidQuotes;
-                  setUsingFallbackQuotes(true);
-                  setFallbackPaymentMethod(null); // Unknown fallback
-                } else {
-                  // Really no quotes available
-                  setError(`No quotes available for ${cryptoCurrency}. Please try a different cryptocurrency.`);
-                  setQuote(null);
-                  setProviderQuotes([]);
-                  setSelectedProvider(null);
-                  return;
-                }
-              } else {
-                setError(`No quotes available for ${cryptoCurrency}. Please try a different cryptocurrency.`);
-                setQuote(null);
-                setProviderQuotes([]);
-                setSelectedProvider(null);
-                return;
-              }
-            }
-          } else {
-            console.log(`✅ [BUYMODAL] Filtered quotes details:`, 
-              quotesToUse.map((q: ProviderQuote) => ({
-                ramp: q.ramp,
-                paymentMethod: q.paymentMethod,
-                availableMethods: q.availablePaymentMethods?.map((pm: any) => pm.paymentTypeId || pm.id) || []
-              }))
-            );
-            // Reset fallback flags when we have quotes for the requested payment method
-            setUsingFallbackQuotes(false);
-            setFallbackPaymentMethod(null);
-          }
-        }
+        // Backend is the single source of truth for quote filtering and eligibility.
+        const quotesToUse = data.quotes;
         
         // Store filtered provider quotes
         console.log(`💾 [BUYMODAL] Storing ${quotesToUse.length} quotes in state`);
@@ -848,7 +706,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
     }
   };
 
-  const handleContinue = async () => {
+  const handleContinue = async (overrideConfirmed = false) => {
     // For iDEAL, allow proceeding even without quote (quote will be calculated during checkout)
     if (!quote && paymentMethod?.toLowerCase() !== 'ideal') {
       return;
@@ -921,6 +779,34 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       // use the payment method from the selected quote, NOT the original user selection
       const selectedQuote = providerToUse ? providerQuotes.find(q => q.ramp === providerToUse) : null;
       const actualPaymentMethod = selectedQuote?.paymentMethod || paymentMethod;
+      const requestedMethod = paymentMethod;
+      const hasMethodMismatch =
+        !!selectedQuote?.paymentMethod &&
+        requestedMethod.toLowerCase() !== selectedQuote.paymentMethod.toLowerCase();
+      if (hasMethodMismatch && !overrideConfirmed) {
+        if (currentUserId) {
+          await trackEvent(currentUserId, 'onramp_fallback_prompt_shown', {
+            provider: providerToUse,
+            requested_method: requestedMethod,
+            fallback_method: selectedQuote!.paymentMethod,
+          });
+        }
+        setPendingPaymentOverride({
+          provider: providerToUse,
+          requestedMethod,
+          actualMethod: selectedQuote!.paymentMethod,
+        });
+        setLoading(false);
+        return;
+      }
+      if (hasMethodMismatch && overrideConfirmed && currentUserId) {
+        await trackEvent(currentUserId, 'onramp_fallback_accepted', {
+          provider: providerToUse,
+          requested_method: requestedMethod,
+          fallback_method: selectedQuote!.paymentMethod,
+        });
+      }
+      setPendingPaymentOverride(null);
       
       logger.log(`💳 [BUYMODAL] Using payment method for checkout: ${actualPaymentMethod} (original: ${paymentMethod}, provider: ${providerToUse})`);
       
@@ -944,6 +830,9 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       });
 
       const data = await response.json();
+      if (data?.effectiveCountry && typeof data.effectiveCountry === 'string') {
+        setUserCountry(data.effectiveCountry.toUpperCase());
+      }
 
       if (data.success && data.transactionInformation) {
         // Track onramp purchase initiated
@@ -965,6 +854,15 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
 
         // Store transaction ID for tracking
         setLastTransactionId(transactionId);
+        setCheckoutCreated(true);
+        if (currentUserId) {
+          await trackEvent(currentUserId, 'onramp_checkout_created', {
+            transaction_id: transactionId,
+            provider: providerToUse,
+            payment_method: actualPaymentMethod,
+            country: userCountry,
+          });
+        }
 
         logger.log('✅ Onramper checkout intent created:', {
           transactionId,
@@ -1161,10 +1059,19 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
           setStep('widget');
         }
       } else {
+        setCheckoutCreated(false);
+        if (currentUserId) {
+          await trackEvent(currentUserId, 'onramp_checkout_failed', {
+            provider: providerToUse,
+            payment_method: actualPaymentMethod,
+            reason: data.error || data.message || 'unknown',
+          });
+        }
         setError(data.error || data.message || 'Failed to create transaction');
       }
     } catch (err: any) {
       logger.error('Failed to create Onramper checkout intent:', err);
+      setCheckoutCreated(false);
       setError('Failed to create transaction. Please try again.');
     } finally {
       setLoading(false);
@@ -1174,6 +1081,15 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
   const quickAmounts = ['50', '100', '250', '500'];
   const chain = CHAINS[currentChain];
   const supportedAssets = chain ? OnramperService.getSupportedAssets(chain.id) : [];
+  const quoteReady = (providerQuotes?.length || 0) > 0 || !!quote;
+  const providerSelected = !!selectedProvider;
+  const redirectedOrEmbedded = step === 'widget' || step === 'processing' || step === 'success';
+  const statusRailItems = [
+    { label: 'Quote ready', done: quoteReady },
+    { label: 'Provider selected', done: providerSelected },
+    { label: 'Checkout created', done: checkoutCreated || !!lastTransactionId },
+    { label: 'Redirected / Embedded', done: redirectedOrEmbedded },
+  ];
 
   // Use availableCryptosSet if available, otherwise use supportedAssets
   // Both are now native-only, so this ensures consistency
@@ -1576,6 +1492,21 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                 {/* STEP 4: Quotes Display */}
                 {flowStep === 'quotes' && (
                   <div className="space-y-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {statusRailItems.map((item) => (
+                        <div
+                          key={item.label}
+                          className={`rounded-lg px-3 py-2 border text-xs font-semibold text-center ${
+                            item.done
+                              ? 'bg-green-50 border-green-200 text-green-700'
+                              : 'bg-gray-50 border-gray-200 text-gray-500'
+                          }`}
+                        >
+                          {item.done ? '✓ ' : ''}{item.label}
+                        </div>
+                      ))}
+                    </div>
+
                     {/* Loading State */}
                     {loading && (
                       <div className="flex items-center justify-center py-12">
@@ -1667,8 +1598,39 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                               </div>
 
                               {/* Buy Now Button - Always visible */}
+                              {pendingPaymentOverride && (
+                                <div className="p-4 rounded-xl border border-amber-300 bg-amber-50 space-y-3">
+                                  <div className="flex items-start gap-2 text-amber-800">
+                                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                    <div className="text-sm">
+                                      <div className="font-semibold">Provider requires payment-method switch</div>
+                                      <div className="mt-1">
+                                        {pendingPaymentOverride.provider} cannot continue with {pendingPaymentOverride.requestedMethod}. Switch to {pendingPaymentOverride.actualMethod} to continue.
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => handleContinue(true)}
+                                      className="flex-1 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors"
+                                    >
+                                      Confirm switch
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setPendingPaymentOverride(null);
+                                        setFlowStep('payment');
+                                      }}
+                                      className="flex-1 py-2.5 rounded-lg bg-white border border-amber-300 hover:bg-amber-100 text-amber-800 text-sm font-semibold transition-colors"
+                                    >
+                                      Choose another method
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
                               <button
-                                onClick={handleContinue}
+                                onClick={() => handleContinue()}
                                 disabled={loading || (!quote && paymentMethod?.toLowerCase() !== 'ideal') || (paymentMethod?.toLowerCase() === 'ideal' && !selectedProvider)}
                                 className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-bold text-white text-lg transition-all shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
                               >

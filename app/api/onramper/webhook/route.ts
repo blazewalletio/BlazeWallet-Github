@@ -12,6 +12,8 @@ import { logger } from '@/lib/logger';
 import { supabase } from '@/lib/supabase';
 import crypto from 'crypto';
 import { trackEvent } from '@/lib/analytics';
+import { apiRateLimiter } from '@/lib/api-rate-limiter';
+import { getClientIP } from '@/lib/rate-limiter';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +51,26 @@ interface OnramperWebhookPayload {
   walletAddress?: string;
   timestamp?: number;
   signature?: string;
+}
+
+const WEBHOOK_TIMESTAMP_MAX_SKEW_MS = 10 * 60 * 1000;
+
+function parseWebhookTimestamp(req: NextRequest, payload: OnramperWebhookPayload): number | null {
+  const headerTimestamp =
+    req.headers.get('x-onramper-webhook-timestamp') ||
+    req.headers.get('x-onramper-timestamp');
+
+  const raw = headerTimestamp || (typeof payload.timestamp === 'number' ? String(payload.timestamp) : payload.statusDate);
+  if (!raw) return null;
+
+  const numericTs = Number(raw);
+  if (Number.isFinite(numericTs) && numericTs > 0) {
+    // Accept both seconds and milliseconds.
+    return numericTs < 1e12 ? numericTs * 1000 : numericTs;
+  }
+
+  const parsedDate = Date.parse(raw);
+  return Number.isFinite(parsedDate) ? parsedDate : null;
 }
 
 // Validate webhook signature with multiple format support
@@ -96,12 +118,22 @@ function validateWebhookSignature(
 
 export async function POST(req: NextRequest) {
   try {
+    const clientIp = getClientIP(req.headers);
+    const webhookRateKey = `onramper:webhook:${clientIp}`;
+    const isWebhookAllowed = apiRateLimiter.check(webhookRateKey, 120, 60 * 1000);
+    if (!isWebhookAllowed) {
+      return NextResponse.json({ error: 'Too many webhook requests' }, { status: 429 });
+    }
+
     // Get webhook secret from environment
     const webhookSecret = process.env.ONRAMPER_WEBHOOK_SECRET;
     
     if (!webhookSecret) {
-      logger.warn('⚠️ Onramper webhook secret not configured');
-      // Still process webhook but log warning
+      logger.error('❌ Onramper webhook secret not configured - rejecting webhook');
+      return NextResponse.json(
+        { error: 'Webhook secret not configured' },
+        { status: 503 }
+      );
     }
     
     // Get raw body for signature validation
@@ -111,34 +143,37 @@ export async function POST(req: NextRequest) {
                      req.headers.get('x-onramper-signature') || 
                      '';
     
-    // Validate signature if secret is configured
-    if (webhookSecret && signature) {
-      const isValid = validateWebhookSignature(rawBody, signature, webhookSecret);
-      if (!isValid) {
-        logger.error('❌ Invalid webhook signature', {
-          receivedSignature: signature.substring(0, 20) + '...',
-          signatureLength: signature.length,
-          hasSecret: !!webhookSecret,
-          payloadPreview: rawBody.substring(0, 100),
-        });
-        // ⚠️ CRITICAL: For now, log but don't reject (to debug signature issues)
-        // In production, you may want to reject invalid signatures
-        logger.warn('⚠️ Invalid signature but continuing for debugging - FIX THIS IN PRODUCTION');
-        // return NextResponse.json(
-        //   { error: 'Invalid signature' },
-        //   { status: 401 }
-        // );
-      } else {
-        logger.log('✅ Webhook signature validated successfully');
-      }
-    } else if (!webhookSecret) {
-      logger.warn('⚠️ Webhook secret not configured - skipping signature validation');
-    } else if (!signature) {
-      logger.warn('⚠️ No signature header found - skipping validation');
+    if (!signature) {
+      logger.error('❌ Missing webhook signature header');
+      return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
     }
+
+    const isValid = validateWebhookSignature(rawBody, signature, webhookSecret);
+    if (!isValid) {
+      logger.error('❌ Invalid webhook signature', {
+        receivedSignature: signature.substring(0, 20) + '...',
+        signatureLength: signature.length,
+        payloadPreview: rawBody.substring(0, 100),
+      });
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+    }
+    logger.log('✅ Webhook signature validated successfully');
     
     // Parse payload
     const payload: OnramperWebhookPayload = JSON.parse(rawBody);
+    const webhookTimestamp = parseWebhookTimestamp(req, payload);
+    if (webhookTimestamp) {
+      const skew = Math.abs(Date.now() - webhookTimestamp);
+      if (skew > WEBHOOK_TIMESTAMP_MAX_SKEW_MS) {
+        logger.error('❌ Webhook timestamp outside allowed skew', {
+          skewMs: skew,
+          maxSkewMs: WEBHOOK_TIMESTAMP_MAX_SKEW_MS,
+        });
+        return NextResponse.json({ error: 'Stale webhook timestamp' }, { status: 401 });
+      }
+    } else {
+      logger.warn('⚠️ Webhook timestamp not provided; replay protection reduced to idempotency checks');
+    }
     
     // Onramper uses 'status' field (not 'event')
     const status = payload.status || payload.event || 'UNKNOWN';
@@ -170,6 +205,10 @@ export async function POST(req: NextRequest) {
     // Update database with transaction status
     const normalizedStatus = status.toUpperCase();
     const statusLower = normalizedStatus.toLowerCase();
+    const eventFingerprint = crypto
+      .createHash('sha256')
+      .update(`${provider.toLowerCase()}|${transactionId}|${statusLower}|${payload.statusDate || payload.timestamp || ''}`)
+      .digest('hex');
     
     try {
       // Upsert transaction record
@@ -194,7 +233,7 @@ export async function POST(req: NextRequest) {
       // Try to find existing transaction or create new one
       const { data: existingTx, error: findError } = await supabase
         .from('onramp_transactions')
-        .select('id, user_id')
+        .select('id, user_id, status, provider_data')
         .eq('onramp_transaction_id', transactionId)
         .eq('provider', provider.toLowerCase())
         .maybeSingle();
@@ -203,6 +242,20 @@ export async function POST(req: NextRequest) {
         logger.error('❌ Error finding transaction:', findError);
       }
       
+      const existingFingerprint = (existingTx as any)?.provider_data?.eventFingerprint;
+      if (existingFingerprint && existingFingerprint === eventFingerprint) {
+        logger.log('ℹ️ Duplicate webhook event ignored (idempotent)', {
+          transactionId,
+          provider,
+          status: statusLower,
+        });
+        return NextResponse.json({
+          success: true,
+          received: true,
+          duplicate: true,
+        });
+      }
+
       // If we found an existing transaction, use its user_id
       if (existingTx && (existingTx as any).user_id && !userId) {
         transactionData.user_id = (existingTx as any).user_id;
@@ -210,6 +263,10 @@ export async function POST(req: NextRequest) {
       
       // Only proceed if we have a user_id
       if (transactionData.user_id) {
+        transactionData.provider_data = {
+          ...payload,
+          eventFingerprint,
+        };
         const { error: upsertError } = await supabase
           .from('onramp_transactions')
           .upsert(transactionData, {

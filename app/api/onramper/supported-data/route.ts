@@ -2,11 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { OnramperService } from '@/lib/onramper-service';
 import { GeolocationService } from '@/lib/geolocation';
+import { apiRateLimiter } from '@/lib/api-rate-limiter';
+import { getClientIP } from '@/lib/rate-limiter';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
+    const clientIp = getClientIP(req.headers);
+    const isAllowed = apiRateLimiter.check(`onramper:supported:${clientIp}`, 60, 60 * 1000);
+    if (!isAllowed) {
+      return NextResponse.json(
+        { success: false, error: 'Too many requests' },
+        { status: 429 }
+      );
+    }
+
     // CRITICAL: Trim API key to remove any whitespace/newlines
     const onramperApiKey = process.env.ONRAMPER_API_KEY?.trim();
     const { searchParams } = new URL(req.url);
@@ -24,6 +35,7 @@ export async function GET(req: NextRequest) {
     
     // Use null as fallback (let Onramper auto-detect if not provided)
     const countryForApi = country || undefined;
+    const effectiveCountry = countryForApi?.toUpperCase() || null;
     
     // If no API key, return fallback data so UI still works
     if (!onramperApiKey) {
@@ -40,6 +52,7 @@ export async function GET(req: NextRequest) {
         ],
         fiatCurrencies: ['EUR', 'USD', 'GBP'],
         cryptoCurrencies: ['ETH', 'USDT', 'USDC', 'BTC', 'SOL', 'MATIC', 'BNB', 'AVAX'],
+        detectedCountry: effectiveCountry,
       });
     }
 
@@ -63,6 +76,7 @@ export async function GET(req: NextRequest) {
         ],
         fiatCurrencies: ['EUR', 'USD', 'GBP'],
         cryptoCurrencies: ['ETH', 'USDT', 'USDC', 'BTC', 'SOL', 'MATIC', 'BNB', 'AVAX'],
+        detectedCountry: effectiveCountry,
       });
     }
 
@@ -72,7 +86,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       ...supportedData,
-      detectedCountry: countryForApi || null, // Include detected country
+      detectedCountry: effectiveCountry,
     });
 
   } catch (error: any) {
