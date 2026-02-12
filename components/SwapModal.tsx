@@ -228,6 +228,33 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     }
   }, [isOpen, hasUnsupportedPair]);
 
+  // On modal open, immediately move away from unsupported preselected chains.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fallbackChain = getFallbackLiFiChain();
+    let didAdjust = false;
+
+    if (!isChainLiFiEligible(fromChain)) {
+      setFromChain(fallbackChain);
+      setFromToken('native');
+      didAdjust = true;
+    }
+
+    if (!isChainLiFiEligible(toChain)) {
+      const destinationFallback = fallbackChain === 'solana' ? 'ethereum' : fallbackChain;
+      setToChain(isChainLiFiEligible(destinationFallback) ? destinationFallback : fallbackChain);
+      setToToken('native');
+      didAdjust = true;
+    }
+
+    if (didAdjust) {
+      setAmount('');
+      setQuote(null);
+      setQuoteError(null);
+    }
+  }, [isOpen, fromChain, toChain, isChainLiFiEligible, getFallbackLiFiChain]);
+
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -276,12 +303,6 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     try {
       if (!isChainLiFiEligible(fromChain) || !isChainLiFiEligible(toChain)) {
         throw new Error('This network pair is not supported for Li.Fi swaps yet. Please use Ethereum, Solana, or another supported EVM chain.');
-      }
-
-      // ⚠️ FANTOM CHECK: Li.Fi doesn't support Fantom (Chain ID 250)
-      // See COMPLETE_CHAIN_ANALYSIS.md for details
-      if (fromChain === 'fantom' || toChain === 'fantom') {
-        throw new Error('Fantom swaps are temporarily unavailable. We\'re working on adding support!');
       }
 
       const fromChainId = getLiFiChainId(fromChain);
@@ -348,7 +369,11 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.details || 'Failed to fetch quote');
+        const detailText =
+          typeof errorData.details === 'string'
+            ? errorData.details
+            : errorData.hint || '';
+        throw new Error(errorData.error || detailText || 'Failed to fetch quote');
       }
 
       const data = await response.json();

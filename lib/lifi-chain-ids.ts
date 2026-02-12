@@ -39,6 +39,11 @@ export const LIFI_CHAIN_IDS: Record<string, string | number> = {
   solana: '1151111081099710',
 };
 
+// Chains that exist in LI.FI mapping but are temporarily disabled in wallet UX/runtime.
+const TEMPORARILY_DISABLED_LIFI_CHAIN_KEYS = new Set<string>([
+  'fantom',
+]);
+
 /**
  * Get Li.Fi chain ID for a chain key
  */
@@ -46,10 +51,31 @@ export function getLiFiChainId(chainKey: string): string | number | undefined {
   return LIFI_CHAIN_IDS[chainKey];
 }
 
+export function isLiFiChainKeySupported(chainKey: string): boolean {
+  return Object.prototype.hasOwnProperty.call(LIFI_CHAIN_IDS, chainKey) &&
+    !TEMPORARILY_DISABLED_LIFI_CHAIN_KEYS.has(chainKey);
+}
+
+export function getLiFiSupportedChainKeys(): string[] {
+  return Object.keys(LIFI_CHAIN_IDS).filter(isLiFiChainKeySupported);
+}
+
 /**
  * Check if chain ID is Solana
  */
 export function isSolanaChainId(chainId: string | number): boolean {
   return chainId === '1151111081099710' || chainId === 101;
+}
+
+export function isLiFiChainIdSupported(chainId: string | number): boolean {
+  const normalizedChainId = typeof chainId === 'number' ? chainId.toString() : chainId;
+
+  return Object.entries(LIFI_CHAIN_IDS).some(([chainKey, mappedId]) => {
+    if (TEMPORARILY_DISABLED_LIFI_CHAIN_KEYS.has(chainKey)) {
+      return false;
+    }
+
+    return mappedId.toString() === normalizedChainId.toString();
+  });
 }
 

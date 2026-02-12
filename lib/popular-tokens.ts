@@ -1,3 +1,5 @@
+import { isLiFiChainKeySupported } from '@/lib/lifi-chain-ids';
+
 /**
  * 🎯 POPULAR TOKENS - Curated Lists per Chain
  * 
@@ -704,20 +706,6 @@ export const getPopularTokens = (chainKey: string): PopularToken[] => {
  * Check if chain is supported by Li.Fi (for search functionality)
  */
 export const isLiFiSupported = (chainKey: string): boolean => {
-  const lifiChains = [
-    'solana',      // ✅ Li.Fi supports Solana (chain ID: "1151111081099710")
-    'ethereum',
-    'polygon',
-    'arbitrum',
-    'base',
-    'optimism',
-    'bsc',
-    'avalanche',
-    'cronos',
-    'zksync',
-    'linea',
-    'fantom',      // ✅ Li.Fi supports Fantom
-  ];
-  return lifiChains.includes(chainKey);
+  return isLiFiChainKeySupported(chainKey);
 };
 

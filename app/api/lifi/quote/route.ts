@@ -1,26 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
-import { LiFiService } from '@/lib/lifi-service';
+import { LiFiQuoteError, LiFiService } from '@/lib/lifi-service';
+import { getLiFiChainId, isLiFiChainIdSupported } from '@/lib/lifi-chain-ids';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    // ✅ CRITICAL: Chain IDs can be numbers (EVM) or strings (Solana)
-    // Solana chain ID in Li.Fi is "1151111081099710" (string), not 101
-    const fromChainParam = searchParams.get('fromChain') || '1';
-    const toChainParam = searchParams.get('toChain') || '1';
+    const fromChainParam = searchParams.get('fromChain');
+    const toChainParam = searchParams.get('toChain');
+
+    if (!fromChainParam || !toChainParam) {
+      return NextResponse.json(
+        { error: 'Missing required parameters: fromChain, toChain' },
+        { status: 400 }
+      );
+    }
     
-    // ✅ CRITICAL: Solana chain ID must remain as string "1151111081099710"
-    // For EVM chains, convert to number. For Solana, keep as string.
     const SOLANA_CHAIN_ID = '1151111081099710';
-    const fromChain = fromChainParam === SOLANA_CHAIN_ID 
-      ? SOLANA_CHAIN_ID 
-      : (/^\d+$/.test(fromChainParam) ? parseInt(fromChainParam) : fromChainParam);
-    const toChain = toChainParam === SOLANA_CHAIN_ID 
-      ? SOLANA_CHAIN_ID 
-      : (/^\d+$/.test(toChainParam) ? parseInt(toChainParam) : toChainParam);
+
+    const normalizeChainParam = (value: string): string | number => {
+      if (value === SOLANA_CHAIN_ID) return SOLANA_CHAIN_ID;
+      return /^\d+$/.test(value) ? parseInt(value, 10) : value.toLowerCase();
+    };
+
+    const normalizedFromChain = normalizeChainParam(fromChainParam);
+    const normalizedToChain = normalizeChainParam(toChainParam);
+
+    const fromChain =
+      typeof normalizedFromChain === 'string' && normalizedFromChain !== SOLANA_CHAIN_ID && !/^\d+$/.test(normalizedFromChain)
+        ? getLiFiChainId(normalizedFromChain)
+        : normalizedFromChain;
+    const toChain =
+      typeof normalizedToChain === 'string' && normalizedToChain !== SOLANA_CHAIN_ID && !/^\d+$/.test(normalizedToChain)
+        ? getLiFiChainId(normalizedToChain)
+        : normalizedToChain;
+
+    if (!fromChain || !toChain || !isLiFiChainIdSupported(fromChain) || !isLiFiChainIdSupported(toChain)) {
+      return NextResponse.json(
+        {
+          error: 'Unsupported swap route',
+          details: 'Selected source or destination chain is not supported for Li.Fi swaps in this wallet.',
+        },
+        { status: 400 }
+      );
+    }
     
     const fromToken = searchParams.get('fromToken') || '';
     const toToken = searchParams.get('toToken') || '';
@@ -82,23 +107,6 @@ export async function GET(req: NextRequest) {
         toAddress // ✅ Pass toAddress for cross-chain swaps
       );
 
-      if (!quote) {
-        logger.error('❌ Li.Fi returned null quote', {
-          fromChain,
-          toChain,
-          fromToken: fromToken === 'native' ? 'native' : fromToken.substring(0, 20),
-          toToken: toToken.substring(0, 20),
-          fromAmount,
-        });
-        return NextResponse.json(
-          { 
-            error: 'Failed to fetch quote from Li.Fi. Please check if the token pair is supported.',
-            details: 'The LI.FI API returned null. Check server logs for more details.'
-          },
-          { status: 500 }
-        );
-      }
-
       logger.log('✅ Li.Fi quote received via API route');
       return NextResponse.json({ success: true, quote });
     } catch (error: any) {
@@ -115,8 +123,21 @@ export async function GET(req: NextRequest) {
                                toChain.toString() === '1151111081099710' ||
                                fromChain === 101 || toChain === 101; // Also check numeric 101 for backward compatibility
       
+      if (error instanceof LiFiQuoteError) {
+        return NextResponse.json(
+          {
+            error: error.message || 'Failed to fetch quote from Li.Fi',
+            details: error.details || 'No additional details available',
+            hint: isSolanaInvolved
+              ? 'Solana routes require supported token pairs and sufficient amount.'
+              : 'Please check token pair availability and minimum route amount.',
+          },
+          { status: error.httpStatus && error.httpStatus >= 400 && error.httpStatus < 500 ? error.httpStatus : 400 }
+        );
+      }
+
       return NextResponse.json(
-        { 
+        {
           error: 'Failed to fetch quote from Li.Fi',
           details: error.message || 'Unknown error',
           hint: isSolanaInvolved

@@ -146,6 +146,20 @@ export interface LiFiStatus {
   };
 }
 
+export class LiFiQuoteError extends Error {
+  httpStatus?: number;
+  lifiCode?: string | number;
+  details?: any;
+
+  constructor(message: string, options?: { httpStatus?: number; lifiCode?: string | number; details?: any }) {
+    super(message);
+    this.name = 'LiFiQuoteError';
+    this.httpStatus = options?.httpStatus;
+    this.lifiCode = options?.lifiCode;
+    this.details = options?.details;
+  }
+}
+
 export class LiFiService {
   private static isZeroAddress(address?: string): boolean {
     if (!address) return false;
@@ -192,7 +206,7 @@ export class LiFiService {
     order: 'RECOMMENDED' | 'CHEAPEST' | 'FASTEST' = 'RECOMMENDED',
     apiKey?: string,
     toAddress?: string // ✅ Optional: destination address for cross-chain swaps
-  ): Promise<LiFiQuote | null> {
+  ): Promise<LiFiQuote> {
     try {
       // ✅ CRITICAL: Validate and checksum addresses for EVM chains
       // Li.Fi requires proper EIP-55 checksum addresses for EVM chains
@@ -328,10 +342,28 @@ export class LiFiService {
           });
         }
         
-        // Store error info for debugging (will be logged server-side)
-        (errorData as any).__lifiErrorInfo = errorInfo;
-        
-        return null;
+        // Build a user-friendly error message that we can surface in UI directly.
+        const filteredReasons: string[] =
+          Array.isArray(errorData?.errors?.filteredOut)
+            ? errorData.errors.filteredOut
+                .map((item: any) => item?.reason)
+                .filter((reason: unknown): reason is string => typeof reason === 'string')
+            : [];
+
+        let userMessage =
+          errorData?.message ||
+          errorData?.error ||
+          'Unable to fetch a swap quote for this route right now.';
+
+        if (filteredReasons.some((reason) => reason.toLowerCase().includes('less than 1 usd'))) {
+          userMessage = 'Amount is too low for this bridge route. Please use at least about $1 equivalent.';
+        }
+
+        throw new LiFiQuoteError(userMessage, {
+          httpStatus: response.status,
+          lifiCode: errorData?.code || errorData?.errorCode,
+          details: errorInfo,
+        });
       }
 
       const data = await response.json();
@@ -344,7 +376,10 @@ export class LiFiService {
       return data;
     } catch (error) {
       logger.error('❌ Error fetching Li.Fi quote:', error);
-      return null;
+      if (error instanceof LiFiQuoteError) {
+        throw error;
+      }
+      throw new LiFiQuoteError('Failed to fetch quote from Li.Fi. Please try again in a moment.');
     }
   }
 
