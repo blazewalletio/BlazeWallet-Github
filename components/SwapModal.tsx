@@ -35,6 +35,7 @@ import SensitiveAction2FAModal from './SensitiveAction2FAModal';
 import { getIPFSGatewayUrl, isIPFSUrl, initIPFSErrorSuppression } from '@/lib/ipfs-utils';
 import { twoFactorSessionService } from '@/lib/2fa-session-service';
 import { supabase } from '@/lib/supabase';
+import { ChangeNowQuote } from '@/lib/changenow-service';
 
 interface SwapModalProps {
   isOpen: boolean;
@@ -76,12 +77,24 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   // Wallet state
   const { wallet, currentChain, getCurrentAddress, mnemonic, getChainTokens, tokens } = useWalletStore();
   const walletAddress = getCurrentAddress();
-  const { solanaAddress, address: evmAddress } = useWalletStore();
+  const { solanaAddress, address: evmAddress, bitcoinAddress, litecoinAddress, dogecoinAddress, bitcoincashAddress } = useWalletStore();
   
   // ✅ Helper to get the correct address for a chain
   const getAddressForChain = (chainKey: string): string | null => {
     if (chainKey === 'solana') {
       return solanaAddress || walletAddress;
+    }
+    if (chainKey === 'bitcoin') {
+      return bitcoinAddress || null;
+    }
+    if (chainKey === 'litecoin') {
+      return litecoinAddress || null;
+    }
+    if (chainKey === 'dogecoin') {
+      return dogecoinAddress || null;
+    }
+    if (chainKey === 'bitcoincash') {
+      return bitcoincashAddress || null;
     }
     return evmAddress || walletAddress;
   };
@@ -101,6 +114,8 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
 
   // Quote & Transaction State
   const [quote, setQuote] = useState<LiFiQuote | null>(null);
+  const [changeNowQuote, setChangeNowQuote] = useState<ChangeNowQuote | null>(null);
+  const [changeNowOrderId, setChangeNowOrderId] = useState<string | null>(null);
   const [isLoadingQuote, setIsLoadingQuote] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
@@ -157,7 +172,15 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
 
   const fromChainSupported = isChainLiFiEligible(fromChain);
   const toChainSupported = isChainLiFiEligible(toChain);
-  const hasUnsupportedPair = !fromChainSupported || !toChainSupported;
+  const isChangeNowEligibleRoute =
+    fromChain === 'bitcoin' &&
+    fromToken === 'native' &&
+    !!toToken &&
+    toChain !== 'bitcoin' &&
+    !CHAINS[toChain]?.isTestnet;
+  const hasSupportedRoute = isChangeNowEligibleRoute || (fromChainSupported && toChainSupported);
+  const hasUnsupportedPair = !hasSupportedRoute;
+  const routeEngine: 'lifi' | 'changenow' = isChangeNowEligibleRoute ? 'changenow' : 'lifi';
   const suggestedSourceChain = getSuggestedSourceChain();
 
   const handleSwitchToSupportedSourceChain = useCallback(() => {
@@ -214,6 +237,8 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       setQuoteError(null);
       setError(null);
       setTxHash(null);
+      setChangeNowQuote(null);
+      setChangeNowOrderId(null);
       setIsExecuting(false);
       setExecutionStep(0);
       setTotalSteps(0);
@@ -230,6 +255,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     if (!isOpen) return;
     if (hasUnsupportedPair) {
       setQuote(null);
+      setChangeNowQuote(null);
       setQuoteError(null);
     }
   }, [isOpen, hasUnsupportedPair]);
@@ -241,13 +267,13 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     const fallbackChain = getFallbackLiFiChain();
     let didAdjust = false;
 
-    if (!isChainLiFiEligible(fromChain)) {
+    if (!isChainLiFiEligible(fromChain) && fromChain !== 'bitcoin' && !isChangeNowEligibleRoute) {
       setFromChain(fallbackChain);
       setFromToken('native');
       didAdjust = true;
     }
 
-    if (!isChainLiFiEligible(toChain)) {
+    if (!isChainLiFiEligible(toChain) && !isChangeNowEligibleRoute) {
       const destinationFallback = fallbackChain === 'solana' ? 'ethereum' : fallbackChain;
       setToChain(isChainLiFiEligible(destinationFallback) ? destinationFallback : fallbackChain);
       setToToken('native');
@@ -259,7 +285,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       setQuote(null);
       setQuoteError(null);
     }
-  }, [isOpen, fromChain, toChain, isChainLiFiEligible, getFallbackLiFiChain]);
+  }, [isOpen, fromChain, toChain, isChainLiFiEligible, getFallbackLiFiChain, isChangeNowEligibleRoute]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -289,8 +315,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       amount &&
       parseFloat(amount) > 0 &&
       walletAddress &&
-      isChainLiFiEligible(fromChain) &&
-      isChainLiFiEligible(toChain)
+      hasSupportedRoute
     ) {
       const debounceTimer = setTimeout(() => {
         fetchQuote();
@@ -298,7 +323,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
 
       return () => clearTimeout(debounceTimer);
     }
-  }, [fromToken, toToken, amount, fromChain, toChain, slippage, walletAddress, isOpen, step, isChainLiFiEligible]);
+  }, [fromToken, toToken, amount, fromChain, toChain, slippage, walletAddress, isOpen, step, hasSupportedRoute]);
 
   const fetchQuote = async () => {
     if (!fromToken || !toToken || !amount || !walletAddress) return;
@@ -307,6 +332,65 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     setQuoteError(null);
 
     try {
+      if (isChangeNowEligibleRoute) {
+        const toSymbol = toToken === 'native'
+          ? CHAINS[toChain]?.nativeCurrency?.symbol || ''
+          : (toToken as LiFiToken)?.symbol || '';
+        if (!toSymbol) {
+          throw new Error('Unable to determine destination token symbol for ChangeNOW route');
+        }
+
+        const response = await fetch(
+          `/api/changenow/quote?` +
+          `fromChain=${fromChain}&` +
+          `toChain=${toChain}&` +
+          `fromAmount=${encodeURIComponent(amount)}&` +
+          `toSymbol=${encodeURIComponent(toSymbol)}&` +
+          `toIsNative=${toToken === 'native'}`
+        );
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data?.success || !data?.quote) {
+          throw new Error(data?.error || 'No quote available for this BTC route');
+        }
+
+        const cnQuote = data.quote as ChangeNowQuote;
+        setChangeNowQuote(cnQuote);
+
+        // Build a LiFi-like quote shape for existing UI rendering.
+        const toDecimals = toToken === 'native'
+          ? CHAINS[toChain]?.nativeCurrency?.decimals || 18
+          : (toToken as LiFiToken)?.decimals || 18;
+        const toAmountSmallest = ethers.parseUnits(cnQuote.toAmount.toString(), toDecimals).toString();
+        const fromDecimals = CHAINS[fromChain]?.nativeCurrency?.decimals || 8;
+        const fromAmountSmallest = ethers.parseUnits(amount, fromDecimals).toString();
+
+        setQuote({
+          id: `changenow-${Date.now()}`,
+          tool: 'ChangeNOW',
+          action: {
+            fromToken: {} as any,
+            toToken: {} as any,
+            fromAmount: fromAmountSmallest,
+            toAmount: toAmountSmallest,
+            slippage: slippage / 100,
+            fromChainId: 0,
+            toChainId: 0,
+          },
+          estimate: {
+            fromAmount: fromAmountSmallest,
+            toAmount: toAmountSmallest,
+            toAmountMin: toAmountSmallest,
+            approvalAddress: '',
+            feeCosts: [],
+            gasCosts: [],
+            executionDuration: 1800,
+          },
+        } as LiFiQuote);
+        setIsCrossChain(true);
+        return;
+      }
+
       if (!isChainLiFiEligible(fromChain) || !isChainLiFiEligible(toChain)) {
         throw new Error('This network pair is not supported for Li.Fi swaps yet. Please use Ethereum, Solana, or another supported EVM chain.');
       }
@@ -389,6 +473,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       }
 
       setQuote(data.quote);
+      setChangeNowQuote(null);
       logger.log('✅ Quote received:', {
         tool: data.quote.tool,
         steps: data.quote.steps?.length || 0,
@@ -398,13 +483,14 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       logger.error('❌ Quote error:', error);
       setQuoteError(error.message || 'Failed to fetch quote');
       setQuote(null);
+      setChangeNowQuote(null);
     } finally {
       setIsLoadingQuote(false);
     }
   };
 
   const handleSwap = async () => {
-    if (!quote || !wallet || !mnemonic || !walletAddress) {
+    if (!quote || !mnemonic || !walletAddress) {
       setError('Wallet not available. Please unlock your wallet.');
       return;
     }
@@ -412,8 +498,8 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     // 🔐 SESSION SHIELD: Check if 2FA is required
     if (userId) {
       // Estimate USD value from quote
-      const swapValueUSD = quote.estimate?.toAmountUSD 
-        ? parseFloat(quote.estimate.toAmountUSD) 
+      const swapValueUSD = quote.estimate?.toAmountUSD
+        ? parseFloat(quote.estimate.toAmountUSD)
         : 0;
       
       const sessionStatus = await twoFactorSessionService.checkActionRequires2FA(userId, {
@@ -443,8 +529,123 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
 
   // 🔐 Separated swap logic (called after 2FA if needed)
   const executeSwap = async () => {
-    if (!quote || !wallet || !mnemonic || !walletAddress) {
+    if (!quote || !mnemonic || !walletAddress) {
       setError('Wallet not available. Please unlock your wallet.');
+      return;
+    }
+
+    if (routeEngine === 'changenow') {
+      if (!changeNowQuote) {
+        setError('ChangeNOW quote unavailable. Please refresh quote.');
+        setStep('error');
+        return;
+      }
+
+      try {
+        const destinationAddress = getAddressForChain(toChain);
+        const refundAddress = getAddressForChain('bitcoin');
+        if (!destinationAddress || !refundAddress) {
+          throw new Error('Missing destination or refund address for BTC route');
+        }
+
+        setStep('executing');
+        setIsExecuting(true);
+        setError(null);
+        setExecutionStep(1);
+        setTotalSteps(2);
+
+        const toSymbol = toToken === 'native'
+          ? CHAINS[toChain]?.nativeCurrency?.symbol || ''
+          : (toToken as LiFiToken)?.symbol || '';
+        if (!toSymbol) {
+          throw new Error('Missing destination token symbol');
+        }
+
+        const createResponse = await fetch('/api/changenow/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fromChain: 'bitcoin',
+            toChain,
+            fromAmount: amount,
+            toSymbol,
+            toIsNative: toToken === 'native',
+            payoutAddress: destinationAddress,
+            refundAddress,
+          }),
+        });
+        const createData = await createResponse.json().catch(() => ({}));
+        if (!createResponse.ok || !createData?.success || !createData?.order?.payinAddress) {
+          throw new Error(createData?.error || 'Failed to create ChangeNOW order');
+        }
+
+        const order = createData.order;
+        setChangeNowOrderId(order.id || null);
+        setExecutionStep(2);
+
+        const btcService = MultiChainService.getInstance('bitcoin');
+        const sentTxHash = await btcService.sendTransaction(
+          mnemonic,
+          order.payinAddress,
+          amount,
+          '2'
+        );
+
+        setTxHash(sentTxHash as string);
+        setStep('success');
+
+        await logTransactionEvent({
+          eventType: 'swap_confirmed',
+          chainKey: fromChain,
+          tokenSymbol: typeof fromToken === 'string' ? fromToken : ((fromToken as any)?.symbol || 'BTC'),
+          valueUSD: 0,
+          status: 'success',
+          referenceId: sentTxHash as string,
+          metadata: {
+            provider: 'ChangeNOW',
+            orderId: order.id,
+            fromToken: 'BTC',
+            toToken: toSymbol,
+            fromAmount: amount,
+            toChain,
+            destinationAddress: destinationAddress.substring(0, 12) + '...',
+          },
+        });
+
+        // Background status monitoring (best effort)
+        if (order.id) {
+          const poll = async (attempt = 0) => {
+            if (attempt > 60) return;
+            try {
+              const statusResp = await fetch(`/api/changenow/status?id=${encodeURIComponent(order.id)}`);
+              const statusData = await statusResp.json().catch(() => ({}));
+              if (statusResp.ok && statusData?.success && statusData?.status?.status) {
+                const currentStatus = statusData.status.status.toLowerCase();
+                if (['finished', 'completed', 'success'].includes(currentStatus)) {
+                  logger.log('✅ ChangeNOW order completed:', order.id);
+                  return;
+                }
+                if (['failed', 'refunded', 'expired'].includes(currentStatus)) {
+                  logger.warn('⚠️ ChangeNOW order ended with non-success status:', statusData.status.status);
+                  return;
+                }
+              }
+            } catch (e) {
+              logger.warn('⚠️ ChangeNOW status polling failed:', e);
+            }
+            setTimeout(() => poll(attempt + 1), 10000);
+          };
+          poll();
+        }
+      } catch (swapError: any) {
+        logger.error('❌ ChangeNOW swap execution failed:', swapError);
+        setError(swapError?.message || 'Failed to execute BTC cross-chain swap');
+        setStep('error');
+      } finally {
+        setIsExecuting(false);
+      }
       return;
     }
 
@@ -931,6 +1132,14 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     // For native tokens, reserve gas
     if (fromToken === 'native') {
       const balanceNum = parseFloat(balance);
+
+      if (fromChain === 'bitcoin') {
+        // Reserve a small UTXO fee buffer to avoid max-send failures.
+        const btcReserve = 0.000003;
+        const maxAmount = Math.max(0, balanceNum - btcReserve);
+        setAmount(maxAmount.toFixed(8).replace(/\.?0+$/, ''));
+        return;
+      }
       
       // ✅ SMART GAS RESERVE: Use percentage-based reserve for small balances
       // This ensures users can swap even with tiny amounts like 0.002812 ETH
@@ -1093,12 +1302,10 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                             {Object.keys(CHAINS)
                               .filter(c => {
                                 const chain = CHAINS[c];
-                                // ✅ FIX: Include ALL supported chains (EVM + Solana)
-                                // Exclude UTXO chains (Bitcoin, Litecoin, Dogecoin, Bitcoin Cash) as Li.Fi doesn't support them
-                                // Exclude testnets
-                                return !chain.isTestnet && 
-                                       chain.chainType !== 'UTXO' &&
-                                       isLiFiSupported(c);
+                                // Show Li.Fi source chains + BTC (handled by ChangeNOW route engine).
+                                if (chain.isTestnet) return false;
+                                if (c === 'bitcoin') return true;
+                                return chain.chainType !== 'UTXO' && isLiFiSupported(c);
                               })
                               .sort((a, b) => {
                                 // Sort: Solana first, then EVM chains alphabetically
@@ -1114,7 +1321,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                                     onClick={() => {
                                       setFromChain(chainKey);
                                       setShowFromChainDropdown(false);
-                                      setFromToken(null);
+                                      setFromToken(chainKey === 'bitcoin' ? 'native' : null);
                                     }}
                                     className={`w-full px-4 py-3 flex items-center justify-between hover:bg-orange-50 transition-colors ${
                                       fromChain === chainKey ? 'bg-orange-50' : ''
@@ -1146,8 +1353,15 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
 
                       {/* Token Selector */}
                       <button
-                        onClick={() => setShowFromTokenModal(true)}
-                        className="flex-1 px-3 sm:px-4 py-3 bg-gradient-to-br from-orange-50 to-yellow-50 rounded-xl hover:from-orange-100 hover:to-yellow-100 transition-all flex items-center justify-between border-2 border-orange-200"
+                        onClick={() => {
+                          if (fromChain === 'bitcoin') {
+                            setFromToken('native');
+                            return;
+                          }
+                          setShowFromTokenModal(true);
+                        }}
+                        className="flex-1 px-3 sm:px-4 py-3 bg-gradient-to-br from-orange-50 to-yellow-50 rounded-xl hover:from-orange-100 hover:to-yellow-100 transition-all flex items-center justify-between border-2 border-orange-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                        disabled={fromChain === 'bitcoin'}
                       >
                         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                           <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center overflow-hidden border border-orange-200 flex-shrink-0">
@@ -1338,9 +1552,11 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                               Unsupported route in current selection
                             </div>
                             <p className="text-xs text-amber-700 mt-0.5">
-                              {!fromChainSupported
-                                ? `${CHAINS[fromChain]?.name || fromChain} is not supported as a source chain in this Li.Fi flow.`
-                                : `${CHAINS[toChain]?.name || toChain} is not supported as a destination chain in this Li.Fi flow.`}
+                              {routeEngine === 'changenow'
+                                ? 'This BTC route is currently unavailable from ChangeNOW for the selected destination.'
+                                : !fromChainSupported
+                                  ? `${CHAINS[fromChain]?.name || fromChain} is not supported as a source chain in this Li.Fi flow.`
+                                  : `${CHAINS[toChain]?.name || toChain} is not supported as a destination chain in this Li.Fi flow.`}
                             </p>
                           </div>
                         </div>
@@ -1609,6 +1825,11 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                     <p className="text-sm text-gray-600 mb-4">
                       Your swap has been completed successfully.
                     </p>
+                    {routeEngine === 'changenow' && changeNowOrderId && (
+                      <div className="text-xs text-gray-500 mb-3">
+                        Partner order: <span className="font-mono text-gray-700">{changeNowOrderId}</span>
+                      </div>
+                    )}
                     {txHash && (
                       <a
                         href={getTransactionExplorerUrl(fromChain, txHash)}

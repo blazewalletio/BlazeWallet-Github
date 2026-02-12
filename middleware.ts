@@ -55,6 +55,7 @@ export async function middleware(request: NextRequest) {
     '/api/onramper', // Onramper endpoints (quotes, create-transaction, supported-data, checkout-intent)
     '/api/moonpay', // MoonPay endpoints
     '/api/ramp', // Ramp Network endpoints
+    '/api/changenow', // ChangeNOW partner swap endpoints (validated server-side)
     '/api/utxo', // UTXO helper endpoints (balance, fees, utxos, history) with own validation/rate limits
     '/api/debug-log', // Debug logging (non-critical, should always work)
   ];
