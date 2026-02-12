@@ -1,19 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { LiFiService } from '@/lib/lifi-service';
+import { isLiFiChainIdSupported } from '@/lib/lifi-chain-ids';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const chainIds = searchParams.get('chainIds') || '1';
+    const chainIds = searchParams.get('chainIds');
     
-    const chainIdArray = chainIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+    if (!chainIds) {
+      return NextResponse.json(
+        { error: 'Missing required parameter: chainIds' },
+        { status: 400 }
+      );
+    }
+
+    const chainIdArray = chainIds
+      .split(',')
+      .map(id => parseInt(id.trim(), 10))
+      .filter(id => !isNaN(id) && isLiFiChainIdSupported(id));
     
     if (chainIdArray.length === 0) {
       return NextResponse.json(
-        { error: 'Invalid chainIds parameter' },
+        { error: 'Invalid or unsupported chainIds parameter' },
         { status: 400 }
       );
     }

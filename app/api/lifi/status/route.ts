@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { LiFiService } from '@/lib/lifi-service';
+import { getLiFiChainId, isLiFiChainIdSupported } from '@/lib/lifi-chain-ids';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,12 +10,30 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const txHash = searchParams.get('txHash') || '';
     const bridge = searchParams.get('bridge') || '';
-    const fromChain = parseInt(searchParams.get('fromChain') || '1');
-    const toChain = parseInt(searchParams.get('toChain') || '1');
+    const fromChainParam = searchParams.get('fromChain');
+    const toChainParam = searchParams.get('toChain');
 
-    if (!txHash || !bridge) {
+    if (!txHash || !bridge || !fromChainParam || !toChainParam) {
       return NextResponse.json(
-        { error: 'Missing required parameters' },
+        { error: 'Missing required parameters: txHash, bridge, fromChain, toChain' },
+        { status: 400 }
+      );
+    }
+
+    const normalizeChain = (value: string): string | number | undefined => {
+      const lowered = value.toLowerCase();
+      if (/^\d+$/.test(value)) {
+        return parseInt(value, 10);
+      }
+      return getLiFiChainId(lowered);
+    };
+
+    const fromChain = normalizeChain(fromChainParam);
+    const toChain = normalizeChain(toChainParam);
+
+    if (!fromChain || !toChain || !isLiFiChainIdSupported(fromChain) || !isLiFiChainIdSupported(toChain)) {
+      return NextResponse.json(
+        { error: 'Unsupported LI.FI chain pair for status tracking' },
         { status: 400 }
       );
     }
@@ -24,8 +43,8 @@ export async function GET(req: NextRequest) {
     const status = await LiFiService.getStatus(
       txHash,
       bridge,
-      fromChain,
-      toChain,
+      Number(fromChain),
+      Number(toChain),
       lifiApiKey
     );
 
