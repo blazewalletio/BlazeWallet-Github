@@ -452,34 +452,6 @@ export default function SendModal({ isOpen, onClose, prefillData }: SendModalPro
 
       let estimatedFeeAmount = getEstimatedNativeFeeAmount(true, effectiveGasPrice, selectedGas);
 
-      // For UTXO chains, use real UTXO-aware fee estimate for accurate MAX amount.
-      if (['bitcoin', 'litecoin', 'dogecoin', 'bitcoincash'].includes(selectedChain)) {
-        try {
-          const fromAddress = getAddressForChain(selectedChain);
-          if (fromAddress) {
-            const utxosRes = await fetch(
-              `/api/utxo/utxos?chain=${selectedChain}&address=${encodeURIComponent(fromAddress)}`
-            );
-            const utxosPayload = await utxosRes.json();
-            const utxos = Array.isArray(utxosPayload?.utxos) ? utxosPayload.utxos : [];
-
-            const feesRes = await fetch('/api/utxo/fees', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ chain: selectedChain, utxos, outputs: 2 }),
-            });
-            const feesPayload = await feesRes.json();
-            const speedTotalKey = `${selectedGas}Total` as 'slowTotal' | 'standardTotal' | 'fastTotal';
-            const totalFeeSats = Number(feesPayload?.fees?.[speedTotalKey] ?? 0);
-            if (!isNaN(totalFeeSats) && totalFeeSats > 0) {
-              estimatedFeeAmount = totalFeeSats / 100000000;
-            }
-          }
-        } catch (utxoFeeError) {
-          logger.warn('⚠️ [SendModal] UTXO-aware MAX fee estimate failed, using fallback estimate:', utxoFeeError);
-        }
-      }
-
       const max = Math.max(0, parseFloat(selectedAsset.balance) - estimatedFeeAmount);
       const chainDecimals = CHAINS[selectedChain]?.nativeCurrency?.decimals ?? selectedAsset.decimals ?? 8;
       const amountDecimals = Math.min(chainDecimals, 12);
