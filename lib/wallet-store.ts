@@ -12,6 +12,123 @@ import { logger } from '@/lib/logger';
 import { secureStorage } from './secure-storage';
 import { rateLimitService } from './rate-limit-service';
 
+const DEFAULT_AUTO_LOCK_TIMEOUT_MINUTES = 5;
+const AUTO_LOCK_TIMEOUT_KEY_PRIMARY = 'blaze_auto_lock_timeout_min';
+const AUTO_LOCK_TIMEOUT_KEY_LEGACY = 'autoLockTimeout';
+const SESSION_UNLOCK_FLAG_KEY = 'wallet_unlocked_this_session';
+const SESSION_LAST_ACTIVITY_KEY = 'last_activity';
+const SESSION_UNLOCK_EXPIRY_KEY = 'blaze_soft_unlock_expires_at';
+const SESSION_ADDRESS_SNAPSHOT_KEY = 'blaze_session_addresses';
+const AUTO_LOCK_WARNING_SHOWN_KEY = 'auto_lock_warning_shown';
+
+type SessionAddressSnapshot = {
+  address: string | null;
+  solanaAddress: string | null;
+  bitcoinAddress: string | null;
+  litecoinAddress: string | null;
+  dogecoinAddress: string | null;
+  bitcoincashAddress: string | null;
+};
+
+const normalizeTimeoutMinutes = (raw: string | null): number | null => {
+  if (!raw) return null;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return null;
+  // Accept 0 (never) and positive values. Negative values are invalid.
+  if (parsed < 0) return null;
+  return parsed;
+};
+
+const getConfiguredAutoLockTimeoutMinutes = (): number => {
+  if (typeof window === 'undefined') return DEFAULT_AUTO_LOCK_TIMEOUT_MINUTES;
+  const primary = normalizeTimeoutMinutes(localStorage.getItem(AUTO_LOCK_TIMEOUT_KEY_PRIMARY));
+  if (primary !== null) return primary;
+  const legacy = normalizeTimeoutMinutes(localStorage.getItem(AUTO_LOCK_TIMEOUT_KEY_LEGACY));
+  if (legacy !== null) return legacy;
+  return DEFAULT_AUTO_LOCK_TIMEOUT_MINUTES;
+};
+
+const getConfiguredAutoLockTimeoutMs = (): number | null => {
+  const minutes = getConfiguredAutoLockTimeoutMinutes();
+  if (minutes === 0) return null; // Never auto-lock
+  return Math.max(1, minutes * 60 * 1000);
+};
+
+const persistTimeoutToLocalStorage = (minutes: number) => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(AUTO_LOCK_TIMEOUT_KEY_PRIMARY, String(minutes));
+  // Keep legacy key in sync for backward compatibility.
+  localStorage.setItem(AUTO_LOCK_TIMEOUT_KEY_LEGACY, String(minutes));
+};
+
+const persistSessionAddressSnapshot = (snapshot: SessionAddressSnapshot) => {
+  if (typeof window === 'undefined') return;
+  sessionStorage.setItem(SESSION_ADDRESS_SNAPSHOT_KEY, JSON.stringify(snapshot));
+};
+
+const readSessionAddressSnapshot = (): SessionAddressSnapshot | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = sessionStorage.getItem(SESSION_ADDRESS_SNAPSHOT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SessionAddressSnapshot;
+    return {
+      address: parsed.address || null,
+      solanaAddress: parsed.solanaAddress || null,
+      bitcoinAddress: parsed.bitcoinAddress || null,
+      litecoinAddress: parsed.litecoinAddress || null,
+      dogecoinAddress: parsed.dogecoinAddress || null,
+      bitcoincashAddress: parsed.bitcoincashAddress || null,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const clearSessionLease = () => {
+  if (typeof window === 'undefined') return;
+  sessionStorage.removeItem(SESSION_UNLOCK_FLAG_KEY);
+  sessionStorage.removeItem(SESSION_LAST_ACTIVITY_KEY);
+  sessionStorage.removeItem(SESSION_UNLOCK_EXPIRY_KEY);
+  sessionStorage.removeItem(SESSION_ADDRESS_SNAPSHOT_KEY);
+  sessionStorage.removeItem(AUTO_LOCK_WARNING_SHOWN_KEY);
+};
+
+const isSessionLeaseValid = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const unlockedThisSession = sessionStorage.getItem(SESSION_UNLOCK_FLAG_KEY) === 'true';
+  if (!unlockedThisSession) return false;
+
+  const timeoutMs = getConfiguredAutoLockTimeoutMs();
+  if (timeoutMs === null) return true; // Never auto-lock
+
+  const now = Date.now();
+  const expiry = Number(sessionStorage.getItem(SESSION_UNLOCK_EXPIRY_KEY) || '0');
+  if (Number.isFinite(expiry) && expiry > 0) {
+    return now < expiry;
+  }
+
+  // Backward-compatible fallback when old sessions don't have expiry key yet.
+  const lastActivity = Number(sessionStorage.getItem(SESSION_LAST_ACTIVITY_KEY) || '0');
+  if (!Number.isFinite(lastActivity) || lastActivity <= 0) return false;
+  return now - lastActivity < timeoutMs;
+};
+
+const refreshSessionLease = () => {
+  if (typeof window === 'undefined') return;
+  const now = Date.now();
+  sessionStorage.setItem(SESSION_UNLOCK_FLAG_KEY, 'true');
+  sessionStorage.setItem(SESSION_LAST_ACTIVITY_KEY, String(now));
+  sessionStorage.removeItem(AUTO_LOCK_WARNING_SHOWN_KEY);
+
+  const timeoutMs = getConfiguredAutoLockTimeoutMs();
+  if (timeoutMs === null) {
+    sessionStorage.removeItem(SESSION_UNLOCK_EXPIRY_KEY);
+    return;
+  }
+  sessionStorage.setItem(SESSION_UNLOCK_EXPIRY_KEY, String(now + timeoutMs));
+};
+
 export interface WalletState {
   wallet: ethers.HDNodeWallet | null;
   address: string | null; // EVM address (for backward compatibility)
@@ -151,10 +268,35 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       // Check IndexedDB for encrypted wallet and password flag
       const encryptedWallet = await secureStorage.getItem('encrypted_wallet');
       const hasPasswordStored = await secureStorage.getItem('has_password') === 'true';
+      persistTimeoutToLocalStorage(getConfiguredAutoLockTimeoutMinutes());
       
       if (hasPasswordStored) {
-        // Update state to reflect that password exists
-        set({ hasPassword: true, isLocked: true });
+        const sessionValid = isSessionLeaseValid();
+        const sessionSnapshot = readSessionAddressSnapshot();
+        const savedChain = typeof window !== 'undefined'
+          ? localStorage.getItem('current_chain') || DEFAULT_CHAIN
+          : DEFAULT_CHAIN;
+
+        // Restore unlocked state on refresh when session lease is still valid.
+        if (sessionValid && sessionSnapshot) {
+          const lastActivity = Number(sessionStorage.getItem(SESSION_LAST_ACTIVITY_KEY) || `${Date.now()}`);
+          set({
+            hasPassword: true,
+            isLocked: false,
+            showUnlockModal: false,
+            currentChain: savedChain,
+            address: sessionSnapshot.address,
+            solanaAddress: sessionSnapshot.solanaAddress,
+            bitcoinAddress: sessionSnapshot.bitcoinAddress,
+            litecoinAddress: sessionSnapshot.litecoinAddress,
+            dogecoinAddress: sessionSnapshot.dogecoinAddress,
+            bitcoincashAddress: sessionSnapshot.bitcoincashAddress,
+            lastActivity: Number.isFinite(lastActivity) ? lastActivity : Date.now(),
+          });
+        } else {
+          // Update state to reflect that password exists and unlock is required.
+          set({ hasPassword: true, isLocked: true });
+        }
       }
       
       return { hasEncryptedWallet: !!encryptedWallet, hasPassword: hasPasswordStored };
@@ -201,6 +343,18 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       showUnlockModal: false, // ✅ Close modal after wallet creation
       lastActivity: Date.now(),
     });
+
+    if (typeof window !== 'undefined') {
+      persistSessionAddressSnapshot({
+        address: wallet.address,
+        solanaAddress,
+        bitcoinAddress,
+        litecoinAddress,
+        dogecoinAddress,
+        bitcoincashAddress,
+      });
+      refreshSessionLease();
+    }
 
     // ✅ SECURITY: DO NOT store addresses in localStorage
     // ✅ Addresses are ALWAYS derived from mnemonic on unlock
@@ -261,6 +415,18 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         showUnlockModal: false, // ✅ Close modal after import
         currentChain: savedChain,
       });
+
+      if (typeof window !== 'undefined') {
+        persistSessionAddressSnapshot({
+          address: wallet.address,
+          solanaAddress,
+          bitcoinAddress,
+          litecoinAddress,
+          dogecoinAddress,
+          bitcoincashAddress,
+        });
+        refreshSessionLease();
+      }
 
       // ✅ SECURITY: DO NOT store addresses in localStorage
       // ✅ Addresses are ALWAYS derived from mnemonic on unlock
@@ -420,8 +586,15 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
       // Set session flag + activity timestamp
       if (typeof window !== 'undefined') {
-        sessionStorage.setItem('wallet_unlocked_this_session', 'true');
-        sessionStorage.setItem('last_activity', Date.now().toString());
+        persistSessionAddressSnapshot({
+          address: wallet.address,
+          solanaAddress,
+          bitcoinAddress,
+          litecoinAddress,
+          dogecoinAddress,
+          bitcoincashAddress,
+        });
+        refreshSessionLease();
       }
 
     } catch (error) {
@@ -523,8 +696,15 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
         // Set session flag + activity timestamp
         if (typeof window !== 'undefined') {
-          sessionStorage.setItem('wallet_unlocked_this_session', 'true');
-          sessionStorage.setItem('last_activity', Date.now().toString());
+          persistSessionAddressSnapshot({
+            address: wallet.address,
+            solanaAddress,
+            bitcoinAddress,
+            litecoinAddress,
+            dogecoinAddress,
+            bitcoincashAddress,
+          });
+          refreshSessionLease();
         }
 
         secureLog.info('Email wallet unlocked with biometrics');
@@ -596,8 +776,15 @@ export const useWalletStore = create<WalletState>((set, get) => ({
 
         // Set session flag + activity timestamp
         if (typeof window !== 'undefined') {
-          sessionStorage.setItem('wallet_unlocked_this_session', 'true');
-          sessionStorage.setItem('last_activity', Date.now().toString());
+          persistSessionAddressSnapshot({
+            address: wallet.address,
+            solanaAddress,
+            bitcoinAddress,
+            litecoinAddress,
+            dogecoinAddress,
+            bitcoincashAddress,
+          });
+          refreshSessionLease();
         }
 
         secureLog.info('Seed phrase wallet unlocked with biometrics');
@@ -660,7 +847,7 @@ export const useWalletStore = create<WalletState>((set, get) => ({
     
     // ✅ Clean up session state to ensure unlock modal appears
     if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('wallet_unlocked_this_session');
+      clearSessionLease();
       sessionStorage.removeItem('pending_biometric_password');
       secureLog.info('🔒 Wallet locked - session state cleaned');
     }
@@ -708,6 +895,18 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         isLocked: false,
         showUnlockModal: false, // ✅ Close modal after successful unlock
       });
+
+      if (typeof window !== 'undefined') {
+        persistSessionAddressSnapshot({
+          address: wallet.address,
+          solanaAddress,
+          bitcoinAddress,
+          litecoinAddress,
+          dogecoinAddress,
+          bitcoincashAddress,
+        });
+        refreshSessionLease();
+      }
     } catch (error) {
       throw new Error('Invalid recovery phrase. Please check your words and checksum.');
     }
@@ -746,9 +945,8 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       localStorage.removeItem('biometric_protected_password');
       
       // Clear session storage
-      sessionStorage.removeItem('wallet_unlocked_this_session');
+      clearSessionLease();
       sessionStorage.removeItem('pending_biometric_password');
-      sessionStorage.removeItem('last_activity'); // ✅ NEW: Clear activity timestamp
       
       // ✅ NEW: Remove ALL biometric credentials (new wallet-indexed format)
       const webauthnService = WebAuthnService.getInstance();
@@ -918,28 +1116,34 @@ export const useWalletStore = create<WalletState>((set, get) => ({
   },
 
   updateActivity: () => {
-    set({ lastActivity: Date.now() });
-    
-    // ✅ SECURITY FIX: Store activity in sessionStorage for cross-tab sync
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('last_activity', Date.now().toString());
+    const now = Date.now();
+    set({ lastActivity: now });
+
+    // Keep activity lease alive only for unlocked sessions.
+    if (typeof window !== 'undefined' && !get().isLocked) {
+      refreshSessionLease();
     }
   },
 
   checkAutoLock: () => {
-    const { lastActivity, wallet, isLocked } = get();
-    
-    // ✅ SECURITY: Auto-lock after 30 minutes of inactivity
-    const AUTO_LOCK_TIME = 30 * 60 * 1000; // 30 minutes
-    const WARNING_TIME = 28 * 60 * 1000; // 28 minutes (2min warning)
-    
-    // Only lock if wallet is unlocked
-    if (wallet && !isLocked) {
-      const inactiveTime = Date.now() - lastActivity;
-      
-      // Show warning at 28 minutes (2min before lock)
-      if (inactiveTime > WARNING_TIME && inactiveTime < AUTO_LOCK_TIME) {
-        const secondsRemaining = Math.floor((AUTO_LOCK_TIME - inactiveTime) / 1000);
+    const { lastActivity, isLocked, hasPassword } = get();
+
+    const timeoutMs = getConfiguredAutoLockTimeoutMs();
+    if (timeoutMs === null) return; // Auto-lock disabled ("Never")
+
+    // Only lock if wallet session is currently unlocked.
+    if (!isLocked && hasPassword) {
+      const sessionLastActivity = typeof window !== 'undefined'
+        ? Number(sessionStorage.getItem(SESSION_LAST_ACTIVITY_KEY) || '0')
+        : 0;
+      const effectiveLastActivity = Math.max(lastActivity, Number.isFinite(sessionLastActivity) ? sessionLastActivity : 0);
+      const inactiveTime = Date.now() - effectiveLastActivity;
+
+      const warningWindow = Math.min(2 * 60 * 1000, Math.max(15 * 1000, Math.floor(timeoutMs * 0.2)));
+      const warningThreshold = timeoutMs - warningWindow;
+
+      if (inactiveTime > warningThreshold && inactiveTime < timeoutMs) {
+        const secondsRemaining = Math.floor((timeoutMs - inactiveTime) / 1000);
         if (typeof window !== 'undefined' && !sessionStorage.getItem('auto_lock_warning_shown')) {
           // Only show warning once
           sessionStorage.setItem('auto_lock_warning_shown', 'true');
@@ -952,9 +1156,8 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         }
       }
       
-      // Auto-lock at 30 minutes
-      if (inactiveTime > AUTO_LOCK_TIME) {
-        logger.log('🔒 [Security] Auto-locking wallet after 30 minutes of inactivity');
+      if (inactiveTime > timeoutMs) {
+        logger.log('🔒 [Security] Auto-locking wallet after configured inactivity timeout');
         
         // Clear warning flag
         if (typeof window !== 'undefined') {

@@ -15,6 +15,13 @@ import { supabase } from '@/lib/supabase';
 import { DeviceVerificationCheckV2 } from '@/lib/device-verification-check-v2'; // ← V2!
 import { persistEmailIdentity, selfHealIdentityFromSession } from '@/lib/account-identity';
 
+const DEFAULT_AUTO_LOCK_TIMEOUT_MINUTES = 5;
+const AUTO_LOCK_TIMEOUT_KEY_PRIMARY = 'blaze_auto_lock_timeout_min';
+const AUTO_LOCK_TIMEOUT_KEY_LEGACY = 'autoLockTimeout';
+const SESSION_UNLOCK_FLAG_KEY = 'wallet_unlocked_this_session';
+const SESSION_LAST_ACTIVITY_KEY = 'last_activity';
+const SESSION_UNLOCK_EXPIRY_KEY = 'blaze_soft_unlock_expires_at';
+
 export default function Home() {
   // ✅ REACTIVE APPROACH: Minimal local state, derive everything from wallet store
   const [hasWallet, setHasWallet] = useState<boolean | null>(null);
@@ -28,6 +35,32 @@ export default function Home() {
   
   // ✅ Read wallet store state (single source of truth)
   const { importWallet, hasPassword, isLocked, wallet, hasBiometric, isBiometricEnabled, setShowUnlockModal, initializeFromStorage } = useWalletStore();
+
+  const hasValidSessionLease = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    const unlockedThisSession = sessionStorage.getItem(SESSION_UNLOCK_FLAG_KEY) === 'true';
+    if (!unlockedThisSession) return false;
+
+    const rawTimeout =
+      localStorage.getItem(AUTO_LOCK_TIMEOUT_KEY_PRIMARY) ??
+      localStorage.getItem(AUTO_LOCK_TIMEOUT_KEY_LEGACY);
+    const timeoutMinutes = Number(rawTimeout);
+    const normalizedTimeout = Number.isFinite(timeoutMinutes) && timeoutMinutes >= 0
+      ? timeoutMinutes
+      : DEFAULT_AUTO_LOCK_TIMEOUT_MINUTES;
+
+    if (normalizedTimeout === 0) return true; // Never auto-lock
+
+    const now = Date.now();
+    const expiry = Number(sessionStorage.getItem(SESSION_UNLOCK_EXPIRY_KEY) || '0');
+    if (Number.isFinite(expiry) && expiry > 0) {
+      return now < expiry;
+    }
+
+    const lastActivity = Number(sessionStorage.getItem(SESSION_LAST_ACTIVITY_KEY) || '0');
+    if (!Number.isFinite(lastActivity) || lastActivity <= 0) return false;
+    return now - lastActivity < normalizedTimeout * 60 * 1000;
+  }, [hasPassword, isLocked, wallet]);
   
   // Initialize wallet store from IndexedDB on mount
   useEffect(() => {
@@ -49,15 +82,13 @@ export default function Home() {
     if (showQRLogin) return false;
     
     // Show unlock modal if wallet has password protection AND is locked
-    const needsUnlock = hasPassword && (!wallet || !wallet.address || isLocked);
+    const needsUnlock = hasPassword && (isLocked || ((!wallet || !wallet.address) && !hasValidSessionLease));
     return needsUnlock;
-  }, [hasWallet, hasPassword, wallet, isLocked, showPasswordSetup, showBiometricSetup, showQRLogin]);
+  }, [hasWallet, hasPassword, wallet, isLocked, showPasswordSetup, showBiometricSetup, showQRLogin, hasValidSessionLease]);
   
   // Set unlock modal state in store when needed
   useEffect(() => {
-    if (shouldShowUnlockModal) {
-      setShowUnlockModal(true);
-    }
+    setShowUnlockModal(shouldShowUnlockModal);
   }, [shouldShowUnlockModal, setShowUnlockModal]);
 
   useEffect(() => {

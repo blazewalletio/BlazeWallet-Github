@@ -87,6 +87,8 @@ interface TransactionStats {
 export default function AccountPage({ isOpen, onClose, onOpenSettings }: AccountPageProps) {
   const { currentChain, lockWallet, address } = useWalletStore(); // ✅ Get address from wallet store
   const activeChain = CHAINS[currentChain];
+  const AUTO_LOCK_TIMEOUT_KEY_PRIMARY = 'blaze_auto_lock_timeout_min';
+  const AUTO_LOCK_TIMEOUT_KEY_LEGACY = 'autoLockTimeout';
   const [account, setAccount] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [displayName, setDisplayName] = useState('');
@@ -135,12 +137,21 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
   const [showChangeEmail, setShowChangeEmail] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const hasEmailSession = Boolean(userEmail);
+  const [autoLockTimeout, setAutoLockTimeout] = useState(5);
+
+  const getLocalAutoLockTimeout = () => {
+    if (typeof window === 'undefined') return 5;
+    const raw = localStorage.getItem(AUTO_LOCK_TIMEOUT_KEY_PRIMARY) ?? localStorage.getItem(AUTO_LOCK_TIMEOUT_KEY_LEGACY);
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 5;
+  };
 
   useEffect(() => {
     const loadAccountData = async () => {
       if (isOpen) {
         logger.log('🔄 AccountPage opened - loading data...');
         setIsLoading(true);
+        setAutoLockTimeout(getLocalAutoLockTimeout());
         
         try {
           const currentAccount = await getCurrentAccount();
@@ -234,6 +245,11 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
             if (profile) {
               setUserProfile(profile);
               setDisplayName((profile as any).display_name || 'BLAZE User');
+              const profileTimeout = Number((profile as any).auto_lock_timeout);
+              const resolvedTimeout = Number.isFinite(profileTimeout) && profileTimeout >= 0
+                ? profileTimeout
+                : getLocalAutoLockTimeout();
+              setAutoLockTimeout(resolvedTimeout);
             } else {
               // Create profile if it doesn't exist
               const { data: newProfile } = await (supabase as any)
@@ -1500,8 +1516,11 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
       <AutoLockSettingsModal
         isOpen={showAutoLock}
         onClose={() => setShowAutoLock(false)}
-        currentTimeout={5}
-        onSuccess={handleReloadData}
+        currentTimeout={autoLockTimeout}
+        onSuccess={async () => {
+          setAutoLockTimeout(getLocalAutoLockTimeout());
+          await handleReloadData();
+        }}
       />
       
       <DeleteAccountModal

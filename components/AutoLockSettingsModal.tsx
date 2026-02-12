@@ -1,10 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Lock, Clock, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
+
+const AUTO_LOCK_TIMEOUT_KEY_PRIMARY = 'blaze_auto_lock_timeout_min';
+const AUTO_LOCK_TIMEOUT_KEY_LEGACY = 'autoLockTimeout';
 
 interface AutoLockSettingsModalProps {
   isOpen: boolean;
@@ -22,12 +25,15 @@ export default function AutoLockSettingsModal({
   const [selectedTimeout, setSelectedTimeout] = useState(currentTimeout);
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    setSelectedTimeout(currentTimeout);
+  }, [currentTimeout, isOpen]);
+
   const timeoutOptions = [
     { value: 1, label: '1 minute', description: 'Maximum security' },
     { value: 5, label: '5 minutes', description: 'Recommended' },
-    { value: 15, label: '15 minutes', description: 'Balanced' },
+    { value: 10, label: '10 minutes', description: 'Balanced' },
     { value: 30, label: '30 minutes', description: 'Relaxed' },
-    { value: 60, label: '1 hour', description: 'Minimal' },
     { value: 0, label: 'Never', description: 'Disabled (not recommended)' }
   ];
 
@@ -36,28 +42,32 @@ export default function AutoLockSettingsModal({
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
 
-      // Store in user_profiles (we'll add this column if it doesn't exist)
-      const { error } = await (supabase as any)
-        .from('user_profiles')
-        .update({ 
-          auto_lock_timeout: selectedTimeout
-        })
-        .eq('user_id', user.id);
+      // Store in localStorage for immediate effect (works for seed + email wallets)
+      localStorage.setItem(AUTO_LOCK_TIMEOUT_KEY_PRIMARY, selectedTimeout.toString());
+      localStorage.setItem(AUTO_LOCK_TIMEOUT_KEY_LEGACY, selectedTimeout.toString());
 
-      if (error) throw error;
+      // If signed in with Supabase, persist cross-device preference.
+      if (user) {
+        const { error } = await (supabase as any)
+          .from('user_profiles')
+          .update({
+            auto_lock_timeout: selectedTimeout
+          })
+          .eq('user_id', user.id);
 
-      // Also store in localStorage for immediate effect
-      localStorage.setItem('autoLockTimeout', selectedTimeout.toString());
+        if (error) throw error;
+      }
 
       // Log activity
+      if (user) {
         await (supabase as any).rpc('log_user_activity', {
-        p_user_id: user.id,
-        p_activity_type: 'settings_change',
-        p_description: `Auto-lock timeout set to ${selectedTimeout === 0 ? 'Never' : `${selectedTimeout} minutes`}`,
-        p_metadata: JSON.stringify({ timeout: selectedTimeout })
-      });
+          p_user_id: user.id,
+          p_activity_type: 'settings_change',
+          p_description: `Auto-lock timeout set to ${selectedTimeout === 0 ? 'Never' : `${selectedTimeout} minutes`}`,
+          p_metadata: JSON.stringify({ timeout: selectedTimeout })
+        });
+      }
 
       logger.log('Auto-lock settings updated');
       onSuccess();
