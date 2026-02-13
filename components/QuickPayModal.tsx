@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Zap, CreditCard, Scan, Check, Camera, AlertCircle, ArrowRight, Copy, User, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, AlertTriangle, ChevronDown, Search, Lock, ImagePlus } from 'lucide-react';
@@ -109,6 +109,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     to: string;
     address: string;
   } | null>(null);
+  const [signerPreflight, setSignerPreflight] = useState<{ ok: boolean; message: string } | null>(null);
 
   // Block body scroll when overlay is open
   useBlockBodyScroll(isOpen);
@@ -131,6 +132,22 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   }, [isOpen]);
 
   const amount = selectedAmount || parseFloat(customAmount) || 0;
+
+  const getSignerRequirement = useCallback((chainKey: string) => {
+    const requiresMnemonic =
+      chainKey === 'solana' ||
+      chainKey === 'bitcoin' ||
+      chainKey === 'litecoin' ||
+      chainKey === 'dogecoin' ||
+      chainKey === 'bitcoincash';
+
+    const available = requiresMnemonic ? Boolean(mnemonic) : Boolean(wallet);
+    return {
+      requiresMnemonic,
+      available,
+      chainLabel: CHAINS[chainKey]?.name || chainKey,
+    };
+  }, [mnemonic, wallet]);
 
 
   // Camera functions
@@ -483,6 +500,30 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       }
     };
   }, [mode]);
+
+  // Preflight signer check so user sees signer issues before tapping confirm
+  useEffect(() => {
+    if (mode !== 'confirm' || !(scannedAddress || recipientAddress)) {
+      setSignerPreflight(null);
+      return;
+    }
+
+    const signer = getSignerRequirement(currentChain);
+    if (signer.available) {
+      setSignerPreflight({
+        ok: true,
+        message: `${signer.chainLabel} signer ready`,
+      });
+      return;
+    }
+
+    setSignerPreflight({
+      ok: false,
+      message: signer.requiresMnemonic
+        ? `${signer.chainLabel} requires mnemonic signing on this device.`
+        : `${signer.chainLabel} requires an EVM wallet signer on this device.`,
+    });
+  }, [mode, scannedAddress, recipientAddress, currentChain, getSignerRequirement]);
 
   useEffect(() => {
     return () => {
@@ -1103,8 +1144,14 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   };
 
   const handleConfirmPayment = async () => {
-    if (!mnemonic && !wallet) {
-      setError('Wallet not initialized');
+    const signer = getSignerRequirement(currentChain);
+    if (!signer.available) {
+      setError(
+        signer.requiresMnemonic
+          ? `${signer.chainLabel} requires mnemonic signing on this device.`
+          : `${signer.chainLabel} requires an EVM wallet signer on this device.`
+      );
+      setStep('idle');
       return;
     }
     
@@ -1139,8 +1186,13 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
 
   // 🔐 Separated payment logic (called after 2FA if needed)
   const executePayment = async () => {
-    if (!mnemonic && !wallet) {
-      setError('Wallet not initialized');
+    const signerInfo = getSignerRequirement(currentChain);
+    if (!signerInfo.available) {
+      setError(
+        signerInfo.requiresMnemonic
+          ? `${signerInfo.chainLabel} requires mnemonic signing on this device.`
+          : `${signerInfo.chainLabel} requires an EVM wallet signer on this device.`
+      );
       return;
     }
     
@@ -1149,12 +1201,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     
     // Define toAddr early for error handling
     const toAddr = scannedAddress || recipientAddress;
-    const requiresMnemonic =
-      currentChain === 'solana' ||
-      currentChain === 'bitcoin' ||
-      currentChain === 'litecoin' ||
-      currentChain === 'dogecoin' ||
-      currentChain === 'bitcoincash';
+    const requiresMnemonic = signerInfo.requiresMnemonic;
 
     const signingCredential = requiresMnemonic ? mnemonic : wallet;
     if (!signingCredential) {
@@ -3016,6 +3063,20 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                       <span className="font-semibold text-gray-800">{QRParser.getChainInfo(currentChain as ChainType)?.name || currentChain}</span>
                     </div>
                     </div>
+
+                  {/* Signer preflight */}
+                  {signerPreflight && (
+                    <div className={`rounded-xl border p-3 ${signerPreflight.ok ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                      <div className={`flex items-start gap-2 text-sm ${signerPreflight.ok ? 'text-emerald-900' : 'text-amber-900'}`}>
+                        {signerPreflight.ok ? (
+                          <Check className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                        ) : (
+                          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                        )}
+                        <span>{signerPreflight.message}</span>
+                      </div>
+                    </div>
+                  )}
                     
                   {/* Error Display */}
                   {error && (
@@ -3057,7 +3118,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     <motion.button
                       whileTap={{ scale: 0.985 }}
                       onClick={handleConfirmPayment}
-                      disabled={step === 'sending'}
+                      disabled={step === 'sending' || signerPreflight?.ok === false}
                       className="w-full py-3 sm:py-3.5 px-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       {step === 'sending' ? (
