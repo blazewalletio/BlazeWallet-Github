@@ -2111,7 +2111,9 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                           <div className="absolute bottom-0 right-0 w-7 h-7 border-b-4 border-r-4 border-orange-400" />
                           
                           <div className="absolute inset-y-0 left-3 right-3 overflow-hidden">
-                            <div className="scan-line-smooth absolute left-0 right-0 top-0 h-[2px] bg-orange-400 shadow-lg shadow-orange-500/50 will-change-transform" />
+                            <div className="scan-line-carrier absolute inset-y-0 left-0 right-0 will-change-transform">
+                              <div className="absolute left-0 right-0 top-0 h-[2px] bg-orange-400 shadow-lg shadow-orange-500/50" />
+                            </div>
                           </div>
                         </div>
                         <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-black/50 backdrop-blur text-[11px] font-semibold text-white border border-white/20">
@@ -3111,16 +3113,16 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         />
       )}
       <style jsx>{`
-        @keyframes blazeScanLineSmooth {
+        @keyframes blazeScanLineCarrier {
           0% {
             transform: translate3d(0, 0, 0);
           }
           100% {
-            transform: translate3d(0, calc(100% - 2px), 0);
+            transform: translate3d(0, 100%, 0);
           }
         }
-        .scan-line-smooth {
-          animation: blazeScanLineSmooth 1.45s cubic-bezier(0.42, 0, 0.58, 1) infinite;
+        .scan-line-carrier {
+          animation: blazeScanLineCarrier 1.45s cubic-bezier(0.42, 0, 0.58, 1) infinite;
         }
       `}</style>
     </AnimatePresence>
