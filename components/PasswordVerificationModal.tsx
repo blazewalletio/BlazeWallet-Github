@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Lock, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
@@ -27,6 +27,16 @@ export default function PasswordVerificationModal({
   const [error, setError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [allowPasswordInput, setAllowPasswordInput] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    // Hard reset on every open so the password field is always empty.
+    setPassword('');
+    setError('');
+    setShowPassword(false);
+    setAllowPasswordInput(false);
+  }, [isOpen]);
 
   const handleVerify = async () => {
     if (!password) {
@@ -71,6 +81,8 @@ export default function PasswordVerificationModal({
   const handleClose = () => {
     setPassword('');
     setError('');
+    setShowPassword(false);
+    setAllowPasswordInput(false);
     onClose();
   };
 
@@ -119,7 +131,7 @@ export default function PasswordVerificationModal({
                 <AlertTriangle className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-semibold text-orange-900 mb-1">
-                    Security Check Required
+                    Security check required
                   </p>
                   <p className="text-xs text-orange-700">
                     {description}
@@ -147,6 +159,10 @@ export default function PasswordVerificationModal({
                     className="w-full p-4 pr-12 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
                     autoFocus
                     disabled={isVerifying}
+                    autoComplete="new-password"
+                    name="verification-password"
+                    readOnly={!allowPasswordInput}
+                    onFocus={() => setAllowPasswordInput(true)}
                   />
                   <button
                     type="button"
