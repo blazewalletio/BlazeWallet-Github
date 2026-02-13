@@ -10,7 +10,7 @@ import {
   Lock, Gift, Vote, Users, User, Palette, LogOut,
   Sparkles, Shield, Brain, MessageSquare, Send, Download, ShoppingCart,
   BarChart3, DollarSign, Flame, Target, Clock, CheckCircle2, XCircle, Inbox,
-  Copy, Check
+  Copy, Check, Coins
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useCurrency } from '@/contexts/CurrencyContext';
@@ -2267,7 +2267,9 @@ export default function Dashboard() {
 
           {tokens.length === 0 && (
             <div className="text-center py-8 text-slate-400">
-              <div className="text-3xl mb-2">🪙</div>
+              <div className="mx-auto mb-2 w-10 h-10 rounded-xl bg-gradient-to-r from-orange-500/15 to-yellow-500/15 border border-orange-300/30 flex items-center justify-center">
+                <Coins className="w-5 h-5 text-orange-500" />
+              </div>
               <p className="text-sm">No tokens yet</p>
               <button
                 onClick={() => setShowTokenSelector(true)}
