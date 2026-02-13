@@ -132,6 +132,15 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   }, [isOpen]);
 
   const amount = selectedAmount || parseFloat(customAmount) || 0;
+  const qrSuccessFiatUSD = (() => {
+    if (!(scannedAmount && parsedQR?.amount)) return null;
+    if (cryptoUSDValue !== null && Number.isFinite(cryptoUSDValue)) return cryptoUSDValue;
+    const scannedNum = Number(scannedAmount);
+    if (Number.isFinite(scannedNum) && scannedNum > 0 && nativePrice > 0) {
+      return scannedNum * nativePrice;
+    }
+    return null;
+  })();
 
   const getSignerRequirement = useCallback((chainKey: string) => {
     const requiresMnemonic =
@@ -3189,9 +3198,14 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     {scannedAmount && parsedQR?.amount ? (
                       `${scannedAmount} ${QRParser.getChainInfo(currentChain as ChainType)?.symbol}`
                     ) : (
-                      `€${amount.toFixed(2)}`
+                      `${symbol}${amount.toFixed(2)}`
                     )}
                   </div>
+                  {scannedAmount && parsedQR?.amount && qrSuccessFiatUSD !== null && (
+                    <div className="mt-2 text-lg text-gray-600 font-medium">
+                      ≈ {formatUSDSync(qrSuccessFiatUSD)}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
