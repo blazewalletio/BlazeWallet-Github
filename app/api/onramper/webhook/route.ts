@@ -14,6 +14,7 @@ import { trackEvent } from '@/lib/analytics';
 import { apiRateLimiter } from '@/lib/api-rate-limiter';
 import { getClientIP } from '@/lib/rate-limiter';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { dispatchNotification } from '@/lib/server/notification-dispatcher';
 
 export const dynamic = 'force-dynamic';
 
@@ -258,6 +259,7 @@ export async function POST(req: NextRequest) {
       }
 
       // If we found an existing transaction, use its user_id
+      const previousStatus = (existingTx as any)?.status || null;
       if (existingTx && (existingTx as any).user_id && !userId) {
         transactionData.user_id = (existingTx as any).user_id;
       }
@@ -278,6 +280,51 @@ export async function POST(req: NextRequest) {
           logger.error('❌ Error updating transaction in database:', upsertError);
         } else {
           logger.log(`✅ Transaction ${transactionId} updated in database with status: ${statusLower}`);
+          const statusChanged = !previousStatus || previousStatus !== statusLower;
+          if (statusChanged) {
+            try {
+              const amountText = payload.inAmount && payload.sourceCurrency
+                ? `${payload.inAmount} ${payload.sourceCurrency.toUpperCase()}`
+                : 'your payment';
+              let title = 'Buy update';
+              let message = `Your purchase status is now ${statusLower}.`;
+              if (statusLower === 'pending') {
+                title = 'Buy pending';
+                message = `We received ${amountText}. Provider confirmation is pending.`;
+              } else if (statusLower === 'processing') {
+                title = 'Buy processing';
+                message = `Your ${amountText} purchase is currently processing.`;
+              } else if (statusLower === 'completed') {
+                title = 'Buy completed';
+                message = `Your purchase completed successfully.`;
+              } else if (statusLower === 'failed') {
+                title = 'Buy failed';
+                message = `Your purchase failed. Please check provider details.`;
+              } else if (statusLower === 'cancelled') {
+                title = 'Buy cancelled';
+                message = `Your purchase was cancelled.`;
+              } else if (statusLower === 'refunded') {
+                title = 'Buy refunded';
+                message = `Your purchase was refunded by the provider.`;
+              }
+
+              await dispatchNotification({
+                userId: transactionData.user_id,
+                supabaseUserId: transactionData.user_id,
+                type: statusLower === 'failed' ? 'transaction_failed' : 'transaction_executed',
+                title,
+                message,
+                data: {
+                  provider: provider.toLowerCase(),
+                  transactionId,
+                  status: statusLower,
+                  url: '/?open=purchase-history',
+                },
+              });
+            } catch (notifyError) {
+              logger.warn('⚠️ Failed to dispatch onramp webhook notification:', notifyError);
+            }
+          }
         }
       } else {
         logger.warn('⚠️ No user_id found for transaction, skipping database update');

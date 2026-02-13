@@ -1,6 +1,76 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { dispatchNotification } from '@/lib/server/notification-dispatcher';
+import { CHAINS } from '@/lib/chains';
+
+function buildTransactionNotification(params: {
+  transactionType: string;
+  direction: string;
+  status: string;
+  amount: string | number;
+  tokenSymbol?: string | null;
+  chainKey: string;
+  txHash: string;
+}) {
+  const chainLabel = CHAINS[params.chainKey]?.name || params.chainKey;
+  const symbol = params.tokenSymbol || 'asset';
+  const amountLabel = `${params.amount} ${symbol}`;
+  const statusLower = (params.status || '').toLowerCase();
+  const isSwap = (params.transactionType || '').toLowerCase() === 'swap';
+
+  if (isSwap) {
+    if (statusLower === 'failed') {
+      return {
+        type: 'transaction_failed' as const,
+        title: 'Swap failed',
+        message: `Your swap on ${chainLabel} failed.`,
+      };
+    }
+    if (statusLower === 'confirmed') {
+      return {
+        type: 'transaction_executed' as const,
+        title: 'Swap completed',
+        message: `Your swap on ${chainLabel} has completed.`,
+      };
+    }
+    return {
+      type: 'transaction_scheduled' as const,
+      title: 'Swap submitted',
+      message: `Your swap was submitted on ${chainLabel}.`,
+    };
+  }
+
+  if ((params.direction || '').toLowerCase() === 'received') {
+    return {
+      type: 'transaction_executed' as const,
+      title: 'Funds received',
+      message: `You received ${amountLabel} on ${chainLabel}.`,
+    };
+  }
+
+  if (statusLower === 'failed') {
+    return {
+      type: 'transaction_failed' as const,
+      title: 'Transaction failed',
+      message: `Your ${amountLabel} transaction on ${chainLabel} failed.`,
+    };
+  }
+
+  if (statusLower === 'confirmed') {
+    return {
+      type: 'transaction_executed' as const,
+      title: 'Transaction confirmed',
+      message: `Your ${amountLabel} transaction on ${chainLabel} is confirmed.`,
+    };
+  }
+
+  return {
+    type: 'transaction_scheduled' as const,
+    title: 'Transaction sent',
+    message: `Your ${amountLabel} transaction was submitted on ${chainLabel}.`,
+  };
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,6 +107,15 @@ export async function POST(request: NextRequest) {
     }
 
     const supabaseAdmin = getSupabaseAdmin();
+    const { data: existingTransaction } = await supabaseAdmin
+      .from('user_transactions')
+      .select('status')
+      .eq('user_id', userId)
+      .eq('chain_key', chainKey)
+      .eq('tx_hash', txHash)
+      .maybeSingle();
+    const previousStatus = (existingTransaction as any)?.status || null;
+    const shouldNotify = !previousStatus || previousStatus !== status;
 
     // Primary path: database RPC (kept for backwards compatibility)
     const { data, error } = await supabaseAdmin.rpc('track_user_transaction', {
@@ -63,6 +142,37 @@ export async function POST(request: NextRequest) {
     });
 
     if (!error) {
+      if (shouldNotify) {
+        try {
+          const notification = buildTransactionNotification({
+            transactionType,
+            direction,
+            status,
+            amount,
+            tokenSymbol,
+            chainKey,
+            txHash,
+          });
+          await dispatchNotification({
+            userId,
+            supabaseUserId: userId,
+            type: notification.type,
+            title: notification.title,
+            message: notification.message,
+            data: {
+              txHash,
+              chainKey,
+              transactionType,
+              direction,
+              status,
+              url: '/?tab=history',
+            },
+          });
+        } catch (notifyError) {
+          logger.warn('⚠️ Failed to dispatch transaction notification:', notifyError);
+        }
+      }
+
       logger.log(`✅ Transaction tracked: ${txHash} (${direction} ${amountUSD ? `$${amountUSD}` : ''})`);
       return NextResponse.json({
         success: true,
@@ -120,6 +230,37 @@ export async function POST(request: NextRequest) {
         tracked: false,
         warning: 'tracking_temporarily_unavailable',
       });
+    }
+
+    if (shouldNotify) {
+      try {
+        const notification = buildTransactionNotification({
+          transactionType,
+          direction,
+          status,
+          amount,
+          tokenSymbol,
+          chainKey,
+          txHash,
+        });
+        await dispatchNotification({
+          userId,
+          supabaseUserId: userId,
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          data: {
+            txHash,
+            chainKey,
+            transactionType,
+            direction,
+            status,
+            url: '/?tab=history',
+          },
+        });
+      } catch (notifyError) {
+        logger.warn('⚠️ Failed to dispatch transaction notification (fallback path):', notifyError);
+      }
     }
 
     logger.log(`✅ Transaction tracked via fallback upsert: ${txHash}`);

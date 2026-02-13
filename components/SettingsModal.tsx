@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Key, Trash2, 
   Eye, EyeOff, Copy, Check, Bell, Settings, Fingerprint, CheckCircle, XCircle, Bug,
-  AlertTriangle, Lock, ChevronDown, DollarSign
+  AlertTriangle, Lock, ChevronDown, Coins
 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { supabase } from '@/lib/supabase';
@@ -570,7 +570,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   className="w-full flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <DollarSign className="w-5 h-5 text-green-500" />
+                    <Coins className="w-5 h-5 text-orange-500" />
                     <div className="text-left">
                       <div className="font-semibold text-sm text-gray-900">Currency</div>
                       <div className="text-xs text-gray-600">{symbol} {selectedCurrency}</div>

@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { MoonPayService } from '@/lib/moonpay-service';
 import { logger } from '@/lib/logger';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { dispatchNotification } from '@/lib/server/notification-dispatcher';
 
 export async function POST(request: NextRequest) {
   try {
@@ -122,6 +123,7 @@ export async function POST(request: NextRequest) {
           }
           
           // If we found an existing transaction, use its user_id
+          const previousStatus = (existingTx as any)?.status || null;
           if (existingTx && (existingTx as any).user_id && !userId) {
             transactionData.user_id = (existingTx as any).user_id;
           }
@@ -138,6 +140,42 @@ export async function POST(request: NextRequest) {
               logger.error('❌ Error updating MoonPay transaction in database:', upsertError);
             } else {
               logger.log(`✅ MoonPay transaction ${transaction.id} updated in database with status: ${normalizedStatus}`);
+              const statusChanged = !previousStatus || previousStatus !== normalizedStatus;
+              if (statusChanged) {
+                try {
+                  let title = 'Buy update';
+                  let message = `Your purchase status is now ${normalizedStatus}.`;
+                  if (normalizedStatus === 'pending') {
+                    title = 'Buy pending';
+                    message = 'Your purchase is pending confirmation.';
+                  } else if (normalizedStatus === 'processing') {
+                    title = 'Buy processing';
+                    message = 'Your purchase is being processed.';
+                  } else if (normalizedStatus === 'completed') {
+                    title = 'Buy completed';
+                    message = 'Your purchase completed successfully.';
+                  } else if (normalizedStatus === 'failed') {
+                    title = 'Buy failed';
+                    message = 'Your purchase failed. Please check provider details.';
+                  }
+
+                  await dispatchNotification({
+                    userId: transactionData.user_id,
+                    supabaseUserId: transactionData.user_id,
+                    type: normalizedStatus === 'failed' ? 'transaction_failed' : 'transaction_executed',
+                    title,
+                    message,
+                    data: {
+                      provider: 'moonpay',
+                      transactionId: transaction.id,
+                      status: normalizedStatus,
+                      url: '/?open=purchase-history',
+                    },
+                  });
+                } catch (notifyError) {
+                  logger.warn('⚠️ Failed to dispatch MoonPay notification:', notifyError);
+                }
+              }
             }
           } else {
             logger.warn('⚠️ No user_id found for MoonPay transaction, skipping database update');

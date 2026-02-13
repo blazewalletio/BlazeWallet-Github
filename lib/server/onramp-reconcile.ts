@@ -1,6 +1,7 @@
 import { logger } from '@/lib/logger';
 import { OnramperService } from '@/lib/onramper-service';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { dispatchNotification } from '@/lib/server/notification-dispatcher';
 
 type ReconcileTargetStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'refunded';
 
@@ -152,6 +153,7 @@ export async function reconcileOnrampTransactions(options: OnrampReconcileOption
         continue;
       }
 
+      const previousStatus = (row.status || '').toLowerCase();
       patch.status = nextStatus;
       const { error: updateError } = await supabaseAdmin
         .from('onramp_transactions')
@@ -167,6 +169,48 @@ export async function reconcileOnrampTransactions(options: OnrampReconcileOption
       else if (nextStatus === 'cancelled') result.cancelled += 1;
       else if (nextStatus === 'processing') result.processing += 1;
       else result.pending += 1;
+
+      if (previousStatus !== nextStatus) {
+        try {
+          let title = 'Buy update';
+          let message = `Your purchase status is now ${nextStatus}.`;
+          if (nextStatus === 'processing') {
+            title = 'Buy processing';
+            message = 'Your purchase is being processed.';
+          } else if (nextStatus === 'completed') {
+            title = 'Buy completed';
+            message = 'Your purchase completed successfully.';
+          } else if (nextStatus === 'failed') {
+            title = 'Buy failed';
+            message = 'Your purchase failed. Please check provider details.';
+          } else if (nextStatus === 'cancelled') {
+            title = 'Buy cancelled';
+            message = 'Your purchase was cancelled.';
+          } else if (nextStatus === 'refunded') {
+            title = 'Buy refunded';
+            message = 'Your purchase was refunded by the provider.';
+          } else if (nextStatus === 'pending') {
+            title = 'Buy pending';
+            message = 'Your purchase is pending provider confirmation.';
+          }
+
+          await dispatchNotification({
+            userId: row.user_id,
+            supabaseUserId: row.user_id,
+            type: nextStatus === 'failed' ? 'transaction_failed' : 'transaction_executed',
+            title,
+            message,
+            data: {
+              provider: row.provider,
+              transactionId: row.onramp_transaction_id,
+              status: nextStatus,
+              url: '/?open=purchase-history',
+            },
+          });
+        } catch (notifyError) {
+          logger.warn('⚠️ [OnrampReconcile] Failed to dispatch notification:', notifyError);
+        }
+      }
     } catch (error: any) {
       logger.error('❌ [OnrampReconcile] Failed transaction reconciliation:', {
         tx: row.onramp_transaction_id,

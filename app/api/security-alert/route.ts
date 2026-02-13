@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { EnhancedDeviceInfo } from '@/lib/device-fingerprint-pro';
 import { generateSecurityAlertEmailTemplate, sendEmail } from '@/lib/email-service';
+import { dispatchNotification } from '@/lib/server/notification-dispatcher';
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,6 +30,35 @@ export async function POST(request: NextRequest) {
     
     // Send security alert email
     await sendSecurityAlertEmail(email, deviceInfo, alertType);
+
+    let title = 'Security alert';
+    let message = 'Important security activity was detected on your account.';
+    if (alertType === 'suspicious_login_blocked') {
+      title = 'Suspicious login blocked';
+      message = 'A suspicious login attempt was blocked for your wallet.';
+    } else if (alertType === 'new_device_login') {
+      title = 'New device login';
+      message = 'A new device signed in to your wallet.';
+    } else if (alertType === 'password_changed') {
+      title = 'Password changed';
+      message = 'Your wallet password was changed successfully.';
+    }
+
+    await dispatchNotification({
+      userId,
+      supabaseUserId: userId,
+      type: 'security_alert',
+      title,
+      message,
+      data: {
+        alertType,
+        deviceName: deviceInfo.deviceName,
+        location: deviceInfo.location,
+        ipAddress: deviceInfo.ipAddress,
+        riskScore: deviceInfo.riskScore,
+        url: '/?open=account',
+      },
+    });
     
     return NextResponse.json({ success: true });
     
