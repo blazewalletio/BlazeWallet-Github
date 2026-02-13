@@ -718,11 +718,12 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       const nativeBalanceNum = parseFloat(nativeBalance);
       const nativeCurrency = CHAINS[fromChain]?.nativeCurrency?.symbol || 'native token';
       
-      // Estimate minimum gas needed (conservative estimate)
-      const estimatedGasCost = fromChain === 'ethereum' ? 0.01 : 0.001; // ETH needs more, others less
+      const estimatedGasCost = getEstimatedNativeGasCost();
       
       if (nativeBalanceNum < estimatedGasCost) {
-        setError(`Insufficient ${nativeCurrency} for gas fees. You have ${nativeBalanceNum.toFixed(6)} ${nativeCurrency} but need at least ${estimatedGasCost} ${nativeCurrency} to pay for the transaction.`);
+        setError(
+          `Insufficient ${nativeCurrency} for gas fees. You have ${nativeBalanceNum.toFixed(6)} ${nativeCurrency} but need at least ${estimatedGasCost.toFixed(6)} ${nativeCurrency} to pay for the transaction.`
+        );
         setStep('error'); // ✅ Show error screen
         return;
       }
@@ -1198,6 +1199,58 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     }
   };
 
+  const getFallbackNativeGasReserve = useCallback((chainKey: string): number => {
+    switch (chainKey) {
+      case 'ethereum':
+        return 0.003;
+      case 'arbitrum':
+      case 'optimism':
+      case 'base':
+        return 0.0005;
+      case 'bsc':
+        return 0.0004;
+      case 'polygon':
+        return 0.05;
+      case 'avalanche':
+        return 0.01;
+      case 'solana':
+        return 0.00001;
+      default:
+        return 0.001;
+    }
+  }, []);
+
+  const getEstimatedNativeGasCost = useCallback((): number => {
+    const nativeSymbol = CHAINS[fromChain]?.nativeCurrency?.symbol?.toUpperCase();
+    const gasCosts = (quote as any)?.estimate?.gasCosts;
+
+    if (Array.isArray(gasCosts) && gasCosts.length > 0 && nativeSymbol) {
+      const nativeGasItems = gasCosts.filter((gas: any) => {
+        const symbol = gas?.token?.symbol?.toUpperCase();
+        return symbol === nativeSymbol;
+      });
+
+      const costsToUse = nativeGasItems.length > 0 ? nativeGasItems : [gasCosts[0]];
+      const totalEstimated = costsToUse.reduce((sum: number, gas: any) => {
+        try {
+          const amountRaw = gas?.amount;
+          const decimals = Number(gas?.token?.decimals ?? 18);
+          if (!amountRaw) return sum;
+          const parsed = parseFloat(ethers.formatUnits(String(amountRaw), decimals));
+          return Number.isFinite(parsed) ? sum + parsed : sum;
+        } catch {
+          return sum;
+        }
+      }, 0);
+
+      if (totalEstimated > 0) {
+        return totalEstimated * 1.25; // Safety buffer
+      }
+    }
+
+    return getFallbackNativeGasReserve(fromChain);
+  }, [fromChain, getFallbackNativeGasReserve, quote]);
+
   const getTokenDisplay = (token: LiFiToken | 'native' | null, chain: string) => {
     if (!token) return { symbol: 'Select', name: 'Select token', logo: '' };
     if (token === 'native') {
@@ -1231,23 +1284,9 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         return;
       }
       
-      // ✅ SMART GAS RESERVE: Use percentage-based reserve for small balances
-      // This ensures users can swap even with tiny amounts like 0.002812 ETH
-      let gasReserve: number;
-      
-      if (balanceNum < 0.01) {
-        // For very small balances (< 0.01 ETH), reserve 5% for gas
-        gasReserve = balanceNum * 0.05;
-      } else if (balanceNum < 0.1) {
-        // For small balances (< 0.1 ETH), reserve 0.003 ETH
-        gasReserve = 0.003;
-      } else {
-        // For larger balances, use fixed reserves by chain
-        gasReserve = fromChain === 'ethereum' ? 0.005 : 
-                     fromChain === 'bsc' ? 0.01 :
-                     fromChain === 'polygon' ? 0.05 :
-                     fromChain === 'avalanche' ? 0.1 :
-                     0.01; // Default
+      let gasReserve = getEstimatedNativeGasCost();
+      if (balanceNum < gasReserve) {
+        gasReserve = Math.max(balanceNum * 0.05, gasReserve * 0.5);
       }
       
       const maxAmount = Math.max(0, balanceNum - gasReserve);
