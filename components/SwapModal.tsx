@@ -134,6 +134,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   const [isCrossChain, setIsCrossChain] = useState(false);
   const [symbolPricesUSD, setSymbolPricesUSD] = useState<Record<string, number>>({});
   const [completionStatus, setCompletionStatus] = useState<SwapCompletionStatus | null>(null);
+  const [isCalculatingMax, setIsCalculatingMax] = useState(false);
 
   // 🔐 2FA SESSION SHIELD states
   const [show2FAModal, setShow2FAModal] = useState(false);
@@ -1239,9 +1240,9 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     }
   }, []);
 
-  const getEstimatedNativeGasCost = useCallback((): number => {
+  const estimateNativeGasCostFromQuote = useCallback((quoteInput: any): number => {
     const nativeSymbol = CHAINS[fromChain]?.nativeCurrency?.symbol?.toUpperCase();
-    const steps = ((quote as any)?.steps || [quote]).filter(Boolean);
+    const steps = ((quoteInput as any)?.steps || [quoteInput]).filter(Boolean);
 
     const parseNativeCost = (entry: any): number => {
       try {
@@ -1288,7 +1289,73 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     }
 
     return getFallbackNativeGasReserve(fromChain);
-  }, [fromChain, fromToken, getApprovalNativeGasBuffer, getFallbackNativeGasReserve, quote]);
+  }, [fromChain, fromToken, getApprovalNativeGasBuffer, getFallbackNativeGasReserve]);
+
+  const getEstimatedNativeGasCost = useCallback((): number => {
+    return estimateNativeGasCostFromQuote(quote);
+  }, [estimateNativeGasCostFromQuote, quote]);
+
+  const estimateNativeGasCostForAmount = useCallback(async (probeAmount: string): Promise<number | null> => {
+    if (
+      fromToken !== 'native' ||
+      !toToken ||
+      !walletAddress ||
+      routeEngine !== 'lifi' ||
+      !isChainLiFiEligible(fromChain) ||
+      !isChainLiFiEligible(toChain)
+    ) {
+      return null;
+    }
+
+    try {
+      const fromChainId = getLiFiChainId(fromChain);
+      const toChainId = getLiFiChainId(toChain);
+      if (!fromChainId || !toChainId) return null;
+
+      const fromTokenAddress = 'native';
+      const toTokenAddress = toToken === 'native' ? 'native' : toToken.address;
+      const fromDecimals = CHAINS[fromChain]?.nativeCurrency?.decimals || 18;
+      const amountInSmallestUnit = ethers.parseUnits(probeAmount, fromDecimals).toString();
+
+      const sourceAddress = getAddressForChain(fromChain) || walletAddress;
+      const destinationAddress = fromChainId !== toChainId
+        ? (getAddressForChain(toChain) || walletAddress)
+        : sourceAddress;
+
+      const response = await fetch(
+        `/api/lifi/quote?` +
+        `fromChain=${fromChainId}&` +
+        `toChain=${toChainId}&` +
+        `fromToken=${fromTokenAddress}&` +
+        `toToken=${toTokenAddress}&` +
+        `fromAmount=${amountInSmallestUnit}&` +
+        `fromAddress=${sourceAddress}&` +
+        `toAddress=${destinationAddress}&` +
+        `slippage=${slippage / 100}&` +
+        `order=RECOMMENDED`
+      );
+
+      if (!response.ok) return null;
+      const data = await response.json().catch(() => ({}));
+      if (!data?.success || !data?.quote) return null;
+
+      return estimateNativeGasCostFromQuote(data.quote);
+    } catch (maxErr) {
+      logger.warn('⚠️ [SwapModal] MAX probe quote failed, using local reserve:', maxErr);
+      return null;
+    }
+  }, [
+    fromToken,
+    toToken,
+    walletAddress,
+    routeEngine,
+    isChainLiFiEligible,
+    fromChain,
+    toChain,
+    slippage,
+    estimateNativeGasCostFromQuote,
+    getAddressForChain
+  ]);
 
   const getTokenDisplay = (token: LiFiToken | 'native' | null, chain: string) => {
     if (!token) return { symbol: 'Select', name: 'Select token', logo: '' };
@@ -1307,7 +1374,8 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     };
   };
 
-  const handleMaxAmount = () => {
+  const handleMaxAmount = async () => {
+    if (isCalculatingMax) return;
     const balance = getTokenBalance(fromToken, fromChain);
     if (!balance || parseFloat(balance) === 0) return;
     
@@ -1323,21 +1391,38 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         return;
       }
       
-      let gasReserve = getEstimatedNativeGasCost();
-      if (balanceNum < gasReserve) {
-        gasReserve = Math.max(balanceNum * 0.05, gasReserve * 0.5);
+      setIsCalculatingMax(true);
+      try {
+        let gasReserve = getEstimatedNativeGasCost();
+        const fallbackReserve = getFallbackNativeGasReserve(fromChain);
+
+        // Probe a quote using near-full balance to make MAX deterministic and route-accurate.
+        // This prevents oscillating MAX values across repeated clicks while quote state catches up.
+        const probeInput = Math.max(balanceNum - fallbackReserve, 0).toFixed(8).replace(/\.?0+$/, '');
+        if (probeInput && parseFloat(probeInput) > 0) {
+          const probedReserve = await estimateNativeGasCostForAmount(probeInput);
+          if (probedReserve && Number.isFinite(probedReserve) && probedReserve > 0) {
+            gasReserve = probedReserve;
+          }
+        }
+
+        if (balanceNum < gasReserve) {
+          gasReserve = Math.max(balanceNum * 0.05, gasReserve * 0.5);
+        }
+        
+        const maxAmount = Math.max(0, balanceNum - gasReserve);
+        
+        // Ensure we don't set a too small amount (dust)
+        if (maxAmount < 0.000001) {
+          logger.warn('⚠️ [SwapModal] Balance too small after gas reserve');
+          return;
+        }
+        
+        setAmount(maxAmount.toFixed(6));
+        logger.log(`💰 [SwapModal] MAX: ${balanceNum} - ${gasReserve} gas = ${maxAmount.toFixed(6)}`);
+      } finally {
+        setIsCalculatingMax(false);
       }
-      
-      const maxAmount = Math.max(0, balanceNum - gasReserve);
-      
-      // Ensure we don't set a too small amount (dust)
-      if (maxAmount < 0.000001) {
-        logger.warn('⚠️ [SwapModal] Balance too small after gas reserve');
-        return;
-      }
-      
-      setAmount(maxAmount.toFixed(6));
-      logger.log(`💰 [SwapModal] MAX: ${balanceNum} - ${gasReserve} gas = ${maxAmount.toFixed(6)}`);
     } else {
       // For ERC20/SPL tokens, use full balance (no gas reserve needed)
       setAmount(parseFloat(balance).toFixed(6));
@@ -1634,10 +1719,10 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                       />
                       <button
                         onClick={handleMaxAmount}
-                        disabled={!fromToken || parseFloat(getTokenBalance(fromToken, fromChain)) === 0}
+                        disabled={!fromToken || parseFloat(getTokenBalance(fromToken, fromChain)) === 0 || isCalculatingMax}
                         className="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gradient-to-r from-orange-500 to-yellow-500 text-white text-xs sm:text-sm font-bold rounded-lg hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
                       >
-                        MAX
+                        {isCalculatingMax ? '...' : 'MAX'}
                       </button>
                     </div>
                     {fromFiatUSD > 0 && (
