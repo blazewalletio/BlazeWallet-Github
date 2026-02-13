@@ -38,6 +38,8 @@ export async function POST(req: NextRequest) {
       fiatCurrency,
       cryptoCurrency,
       walletAddress,
+      chainId,
+      chainKey,
       paymentMethod,
       email,
       country,
@@ -248,8 +250,23 @@ export async function POST(req: NextRequest) {
     
     // Provider is always 'banxa' - no need for fallback logic
 
-    // Determine network code based on crypto currency
+    // Determine network code based on explicit chain selection first, then crypto fallback.
     // Map crypto currency to chain ID, then to Onramper network code
+    const getNetworkFromChain = (rawChainId: unknown, rawChainKey: unknown): string | null => {
+      const parsedChainId = Number(rawChainId);
+      if (Number.isFinite(parsedChainId) && parsedChainId >= 0) {
+        return OnramperService.getNetworkCode(parsedChainId);
+      }
+
+      if (typeof rawChainKey === 'string' && rawChainKey.trim()) {
+        const chain = CHAINS[rawChainKey.trim()];
+        if (chain?.id !== undefined && chain?.id !== null) {
+          return OnramperService.getNetworkCode(Number(chain.id));
+        }
+      }
+      return null;
+    };
+
     const getNetworkFromCrypto = (crypto: string): string | null => {
       const cryptoUpper = crypto.toUpperCase();
       const cryptoLower = crypto.toLowerCase();
@@ -290,7 +307,7 @@ export async function POST(req: NextRequest) {
       return null; // Let Onramper determine
     };
     
-    const networkCode = getNetworkFromCrypto(cryptoCurrency);
+    const networkCode = getNetworkFromChain(chainId, chainKey) || getNetworkFromCrypto(cryptoCurrency);
     
     // Build request body for Onramper /checkout/intent API
     // IMPORTANT: Use correct field names per Onramper API documentation

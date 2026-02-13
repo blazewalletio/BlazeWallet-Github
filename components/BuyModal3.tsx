@@ -58,7 +58,15 @@ interface PaymentMethodOverrideConfirmation {
 
 export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: BuyModal3Props) {
   useBlockBodyScroll(isOpen);
-  const { currentChain, getCurrentAddress } = useWalletStore();
+  const {
+    currentChain,
+    address,
+    solanaAddress,
+    bitcoinAddress,
+    litecoinAddress,
+    dogecoinAddress,
+    bitcoincashAddress,
+  } = useWalletStore();
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // State management
@@ -78,6 +86,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
   // Form state
   const [fiatAmount, setFiatAmount] = useState('100');
   const [fiatCurrency, setFiatCurrency] = useState('EUR');
+  const [selectedChain, setSelectedChain] = useState<string>(currentChain);
   const [cryptoCurrency, setCryptoCurrency] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<string>('');
   const [userCountry, setUserCountry] = useState<string | null>(null);
@@ -168,15 +177,30 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
     detectCountry();
   }, []);
 
+  const getAddressForChain = (chainKey: string): string => {
+    if (chainKey === 'solana') return solanaAddress || '';
+    if (chainKey === 'bitcoin') return bitcoinAddress || '';
+    if (chainKey === 'litecoin') return litecoinAddress || '';
+    if (chainKey === 'dogecoin') return dogecoinAddress || '';
+    if (chainKey === 'bitcoincash') return bitcoincashAddress || '';
+    // EVM chains share the same address
+    return address || '';
+  };
+
   // Initialize default crypto based on current chain
   useEffect(() => {
-    if (isOpen && currentChain) {
-      const chain = CHAINS[currentChain];
+    if (isOpen && selectedChain) {
+      const chain = CHAINS[selectedChain];
       if (chain) {
         const defaultCrypto = OnramperService.getDefaultCrypto(chain.id);
         setCryptoCurrency(defaultCrypto);
       }
     }
+  }, [isOpen, selectedChain]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setSelectedChain(currentChain);
   }, [isOpen, currentChain]);
 
   // Fetch supported data when modal opens
@@ -293,10 +317,10 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
 
   // Fetch available cryptos for current chain when modal opens or chain changes
   useEffect(() => {
-    if (isOpen && currentChain) {
+    if (isOpen && selectedChain) {
       const fetchAvailableCryptos = async () => {
         try {
-          const chain = CHAINS[currentChain];
+          const chain = CHAINS[selectedChain];
           if (!chain) return;
 
           logger.log(`📊 Fetching available cryptos for chain: ${chain.name} (${chain.id})`);
@@ -320,7 +344,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
         } catch (error: any) {
           logger.error('Failed to fetch available cryptos:', error);
           // Fallback to supported assets
-          const chain = CHAINS[currentChain];
+          const chain = CHAINS[selectedChain];
           if (chain) {
             const supported = OnramperService.getSupportedAssets(chain.id);
             setAvailableCryptosSet(new Set(supported));
@@ -330,7 +354,24 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
 
       fetchAvailableCryptos();
     }
-  }, [isOpen, currentChain, fiatCurrency, userCountry, cryptoCurrencies]);
+  }, [isOpen, selectedChain, fiatCurrency, userCountry, cryptoCurrencies]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const chain = CHAINS[selectedChain];
+    if (!chain) return;
+    const native = OnramperService.getDefaultCrypto(chain.id);
+    setCryptoCurrency(native);
+    setPaymentMethod('');
+    setProviderQuotes([]);
+    setQuote(null);
+    setSelectedProvider(null);
+    setShowProviderComparison(false);
+    setComparisonQuotes([]);
+    setAvailablePaymentMethods(new Set());
+    setUnavailableReasons({});
+    setPendingPaymentOverride(null);
+  }, [selectedChain, isOpen]);
 
   const fetchSupportedData = async () => {
     try {
@@ -387,7 +428,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
   const checkPaymentMethodAvailability = async (crypto: string, paymentMethodId: string): Promise<boolean> => {
     try {
       const countryParam = userCountry ? `&country=${userCountry}` : '';
-      const url = `/api/onramper/quotes?fiatAmount=250&fiatCurrency=${fiatCurrency}&cryptoCurrency=${crypto}&paymentMethod=${paymentMethodId}${countryParam}`;
+      const url = `/api/onramper/quotes?fiatAmount=250&fiatCurrency=${fiatCurrency}&cryptoCurrency=${crypto}&chainId=${CHAINS[selectedChain]?.id || ''}&paymentMethod=${paymentMethodId}${countryParam}`;
       const response = await fetch(url);
       
       // ⚠️ CRITICAL: Check response status - 200 means API worked (even if 0 quotes)
@@ -416,7 +457,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
   const checkCryptoAvailability = async (crypto: string): Promise<boolean> => {
     try {
       const countryParam = userCountry ? `&country=${userCountry}` : '';
-      const url = `/api/onramper/quotes?fiatAmount=250&fiatCurrency=${fiatCurrency}&cryptoCurrency=${crypto}${countryParam}`;
+      const url = `/api/onramper/quotes?fiatAmount=250&fiatCurrency=${fiatCurrency}&cryptoCurrency=${crypto}&chainId=${CHAINS[selectedChain]?.id || ''}${countryParam}`;
       const response = await fetch(url);
       const data = await response.json();
       
@@ -567,7 +608,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
 
       // Fetch quotes from ALL providers
       const countryParam = userCountry ? `&country=${userCountry}` : '';
-      const quoteUrl = `/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${fiatCurrency}&cryptoCurrency=${cryptoCurrency}${paymentMethod ? `&paymentMethod=${paymentMethod}` : ''}${countryParam}`;
+      const quoteUrl = `/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${fiatCurrency}&cryptoCurrency=${cryptoCurrency}&chainId=${CHAINS[selectedChain]?.id || ''}${paymentMethod ? `&paymentMethod=${paymentMethod}` : ''}${countryParam}`;
       const quoteResponse = await fetch(quoteUrl);
 
       console.log('🔍 [BUYMODAL] Fetching quotes with country:', userCountry || 'auto-detect');
@@ -717,8 +758,9 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       return;
     }
 
-    const walletAddress = getCurrentAddress();
+    const walletAddress = getAddressForChain(selectedChain);
     if (!walletAddress) {
+      setError(`No wallet address found for ${CHAINS[selectedChain]?.name || selectedChain}`);
       return;
     }
 
@@ -826,6 +868,8 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
           fiatCurrency,
           cryptoCurrency,
           walletAddress,
+          chainId: CHAINS[selectedChain]?.id,
+          chainKey: selectedChain,
           paymentMethod: actualPaymentMethod,
           country: userCountry, // 🌍 USER'S country, not server's country
           onramp: providerToUse, // 🏢 Use selected provider (if any) for more specific error messages
@@ -1092,8 +1136,11 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
   };
 
   const quickAmounts = ['50', '100', '250', '500'];
-  const chain = CHAINS[currentChain];
+  const chain = CHAINS[selectedChain];
   const supportedAssets = chain ? OnramperService.getSupportedAssets(chain.id) : [];
+  const buyableChainOptions = Object.entries(CHAINS).filter(
+    ([chainKey, value]) => !value.isTestnet || chainKey === selectedChain
+  );
   const quoteReady = (providerQuotes?.length || 0) > 0 || !!quote;
   const providerSelected = !!selectedProvider;
   const redirectedOrEmbedded = step === 'widget' || step === 'processing' || step === 'success';
@@ -1374,6 +1421,21 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                 {flowStep === 'crypto' && (
                   <div className="space-y-6">
                     <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Network
+                      </label>
+                      <select
+                        value={selectedChain}
+                        onChange={(e) => setSelectedChain(e.target.value)}
+                        className="w-full mb-4 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white"
+                      >
+                        {buyableChainOptions.map(([chainKey, value]) => (
+                          <option key={chainKey} value={chainKey}>
+                            {value.name} ({value.nativeCurrency.symbol})
+                          </option>
+                        ))}
+                      </select>
+
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Select cryptocurrency</h3>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Cryptocurrency

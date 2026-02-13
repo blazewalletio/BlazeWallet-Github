@@ -1278,6 +1278,7 @@ export class OnramperService {
     fiatAmount: number,
     fiatCurrency: string,
     cryptoCurrency: string,
+    chainId?: number,
     paymentMethod?: string,
     country?: string,
     apiKey?: string
@@ -1307,6 +1308,14 @@ export class OnramperService {
       // Format: /quotes/{fiat}/{crypto}?amount={amount}&type=buy
       // Docs: https://docs.onramper.com/reference/get_quotes-fiat-crypto
       let url = `https://api.onramper.com/quotes/${fiatLower}/${cryptoLower}?amount=${fiatAmount}&type=buy`;
+
+      // If a chain is explicitly selected, pin network so ETH-like symbols route correctly.
+      if (typeof chainId === 'number' && Number.isFinite(chainId)) {
+        const network = this.getNetworkCode(chainId);
+        if (network) {
+          url += `&network=${network}`;
+        }
+      }
       
       // ⚠️ CRITICAL: Always use paymentMethod filter when provided
       // Testing shows that Onramper correctly returns quotes with paymentMethod set

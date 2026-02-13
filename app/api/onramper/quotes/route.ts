@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
     const fiatAmount = parseFloat(searchParams.get('fiatAmount') || '0');
     const fiatCurrency = searchParams.get('fiatCurrency') || 'EUR';
     const cryptoCurrency = searchParams.get('cryptoCurrency') || 'ETH';
+    const chainId = Number(searchParams.get('chainId') || 0) || undefined;
     const paymentMethod = searchParams.get('paymentMethod') || undefined;
     const country = searchParams.get('country') || undefined;
     
@@ -84,6 +85,7 @@ export async function GET(req: NextRequest) {
       fiatAmount,
       fiatCurrency,
       cryptoCurrency,
+        chainId,
       paymentMethod: paymentMethod || 'any',
       country: detectedCountry || 'auto-detect',
     });
@@ -99,6 +101,7 @@ export async function GET(req: NextRequest) {
       fiatAmount,
       fiatCurrency,
       cryptoCurrency,
+        chainId,
       paymentMethod: paymentMethod || 'NONE',
       country: detectedCountry || 'NONE',
       hasApiKey: !!onramperApiKey,
@@ -110,6 +113,7 @@ export async function GET(req: NextRequest) {
         fiatAmount,
         fiatCurrency,
         cryptoCurrency,
+        chainId,
         paymentMethod,
         detectedCountry || undefined,
         onramperApiKey
