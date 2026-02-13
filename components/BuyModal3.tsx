@@ -1428,7 +1428,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                 {flowStep === 'payment' && (
                   <div className="space-y-6">
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Payment Method</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Select payment method</h3>
                       {checkingAvailability && (
                         <div className="mb-4 flex items-center gap-2 text-sm text-gray-600">
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -1493,7 +1493,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                           </>
                         ) : (
                           <>
-                            Get Quotes
+                            Get quotes
                             <ArrowRight className="w-5 h-5" />
                           </>
                         )}
