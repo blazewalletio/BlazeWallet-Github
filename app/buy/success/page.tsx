@@ -47,9 +47,9 @@ function BuySuccessContent() {
       setLoading(false);
     }, 1000);
 
-    // Auto-redirect to home after 5 seconds
+    // Auto-redirect to wallet with purchase history view after 5 seconds
     const redirectTimer = setTimeout(() => {
-      router.push('/');
+      router.push('/?open=purchase-history');
     }, 5000);
 
     return () => clearTimeout(redirectTimer);
@@ -79,7 +79,7 @@ function BuySuccessContent() {
             </motion.div>
             
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Payment Successful! 🎉
+              Payment successful! 🎉
             </h1>
             
             <p className="text-gray-600 mb-6">
@@ -97,15 +97,15 @@ function BuySuccessContent() {
 
             <div className="space-y-3">
               <button
-                onClick={() => router.push('/')}
+                onClick={() => router.push('/?open=purchase-history')}
                 className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-lg transition-colors"
               >
-                View Wallet
+                View wallet
               </button>
             </div>
 
             <p className="text-xs text-gray-500 mt-6">
-              Redirecting to wallet in a few seconds...
+              Redirecting to purchase history in a few seconds...
             </p>
           </>
         )}

@@ -254,6 +254,20 @@ export default function Dashboard() {
 
   // Bottom navigation state
   const [activeTab, setActiveTab] = useState<TabType>('wallet');
+
+  // Allow deep-linking back into purchase history after provider success redirects.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const open = params.get('open');
+    if (open === 'purchase-history') {
+      setShowPurchaseHistory(true);
+      params.delete('open');
+      const query = params.toString();
+      const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash || ''}`;
+      window.history.replaceState({}, '', nextUrl);
+    }
+  }, []);
   
   // Get current chain state
   const currentState = getCurrentChainState();

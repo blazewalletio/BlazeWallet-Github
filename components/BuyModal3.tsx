@@ -1017,7 +1017,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                   try {
                     const popupUrl = popup.location.href;
                     if (popupUrl.includes('/buy/success') || popupUrl.includes('/status/')) {
-                      // Payment completed - close popup and redirect
+                      // Payment completed - close popup and keep user in in-app flow.
                       clearInterval(checkPopup);
                       popup.close();
                       
@@ -1031,8 +1031,17 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                         }
                       }
                       
-                      // Redirect to success page
-                      window.location.href = `/buy/success?provider=onramper&transactionId=${transactionId || Date.now()}`;
+                      // Trigger balance refresh event
+                      if (typeof window !== 'undefined') {
+                        window.dispatchEvent(new CustomEvent('balanceRefresh'));
+                      }
+
+                      if (onOpenPurchaseHistory) {
+                        onOpenPurchaseHistory();
+                      } else {
+                        setShowWidget(false);
+                        setStep('success');
+                      }
                     }
                   } catch (e) {
                     // Cross-origin restrictions - can't access popup.location
@@ -1882,7 +1891,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
             {step === 'success' && (
               <div className="glass-card p-12 text-center">
                 <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Payment Successful!</h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Payment successful!</h3>
                 <p className="text-gray-600 mb-6">
                   Your cryptocurrency will arrive in your wallet shortly.
                 </p>
