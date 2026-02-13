@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 
 const DEVICE_ID_KEY = 'device_id';
+let cachedPublicVapidKey: string | null = null;
 
 function urlBase64ToArrayBuffer(base64String: string): ArrayBuffer {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -25,6 +26,30 @@ async function getCsrfToken(): Promise<string> {
   const json = await res.json().catch(() => ({}));
   if (!json?.token) throw new Error('CSRF token unavailable');
   return json.token as string;
+}
+
+async function resolvePublicVapidKey(): Promise<string> {
+  if (cachedPublicVapidKey) return cachedPublicVapidKey;
+
+  const fromPublicEnv = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim();
+  if (fromPublicEnv) {
+    cachedPublicVapidKey = fromPublicEnv;
+    return fromPublicEnv;
+  }
+
+  const response = await fetch('/api/notifications/config', { method: 'GET' });
+  if (!response.ok) {
+    throw new Error('Push config endpoint unavailable');
+  }
+
+  const data = await response.json().catch(() => ({}));
+  const key = typeof data?.publicVapidKey === 'string' ? data.publicVapidKey.trim() : '';
+  if (!key) {
+    throw new Error('Push is not configured (missing VAPID public key)');
+  }
+
+  cachedPublicVapidKey = key;
+  return key;
 }
 
 function getPlatform(): 'web' | 'pwa' | 'ios' | 'android' {
@@ -64,10 +89,7 @@ export async function enablePushNotifications(): Promise<void> {
     throw new Error(support.reason || 'Push notifications not supported on this device');
   }
 
-  const publicVapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim();
-  if (!publicVapidKey) {
-    throw new Error('Push is not configured (missing VAPID public key)');
-  }
+  const publicVapidKey = await resolvePublicVapidKey();
 
   if (Notification.permission === 'denied') {
     throw new Error('Notifications are blocked in browser settings');

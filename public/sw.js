@@ -4,14 +4,25 @@
 const CACHE_NAME = 'blaze-wallet-v2';
 const urlsToCache = [
   '/',
-  '/manifest.json',
+  '/manifest.webmanifest',
 ];
 
 // Install event - cache essential resources
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(urlsToCache))
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      // Never fail SW install because one optional URL is unavailable.
+      await Promise.allSettled(
+        urlsToCache.map(async (url) => {
+          try {
+            await cache.add(new Request(url, { cache: 'reload' }));
+          } catch (error) {
+            console.warn('[SW] Failed to precache URL:', url, error);
+          }
+        })
+      );
+    })()
   );
   self.skipWaiting();
 });

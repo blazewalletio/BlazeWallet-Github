@@ -6,6 +6,7 @@ import { Toaster } from 'react-hot-toast';
 import CSRFTokenInitializer from "@/components/CSRFTokenInitializer";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import ServiceWorkerBootstrap from "@/components/ServiceWorkerBootstrap";
+import AuthSessionGuard from "@/components/AuthSessionGuard";
 import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import "@/lib/console-suppression"; // ✅ Suppress non-critical console errors
 import MoonPayProviderWrapper from "@/components/MoonPayProviderWrapper";
@@ -15,7 +16,7 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "BLAZE Wallet - Secure DeFi Wallet",
   description: "Secure crypto wallet with DeFi features, biometric authentication, and cross-device sync.",
-  manifest: "/manifest.json",
+  manifest: "/manifest.webmanifest",
   icons: {
     icon: [
       { url: '/icons/icon-512x512.png', type: 'image/png', sizes: '512x512' },
@@ -69,6 +70,7 @@ export default function RootLayout({
           <MoonPayProviderWrapper>
             <ErrorBoundary>
               <CSRFTokenInitializer />
+              <AuthSessionGuard />
               <ServiceWorkerBootstrap />
               <PWAInstallPrompt />
               <div className="h-[100dvh] overflow-hidden bg-gray-50">
