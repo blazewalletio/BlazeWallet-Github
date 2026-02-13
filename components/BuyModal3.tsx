@@ -760,11 +760,14 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
 
       // Get user ID for tracking
       let currentUserId: string | null = null;
+      let authAccessToken: string | null = null;
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           currentUserId = user.id;
         }
+        const { data: sessionData } = await supabase.auth.getSession();
+        authAccessToken = sessionData.session?.access_token || null;
       } catch (err) {
         logger.warn('Could not get user ID for checkout intent');
       }
@@ -816,6 +819,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(authAccessToken ? { Authorization: `Bearer ${authAccessToken}` } : {}),
         },
         body: JSON.stringify({
           fiatAmount: parseFloat(fiatAmount),

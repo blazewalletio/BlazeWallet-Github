@@ -6,6 +6,7 @@ import { GeolocationService } from '@/lib/geolocation';
 import crypto from 'crypto';
 import { apiRateLimiter } from '@/lib/api-rate-limiter';
 import { getClientIP } from '@/lib/rate-limiter';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,8 +42,20 @@ export async function POST(req: NextRequest) {
       email,
       country,
       onramp, // REQUIRED: Provider name (banxa, moonpay, etc.)
-      userId, // Optional: User ID for tracking
+      userId: requestedUserId, // Optional: legacy client hint, never trusted over verified token
     } = await req.json();
+
+    const supabaseAdmin = getSupabaseAdmin();
+    const authHeader = req.headers.get('authorization');
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+    let verifiedUserId: string | null = null;
+    if (bearerToken) {
+      const { data: verifiedUser, error: verifyError } = await supabaseAdmin.auth.getUser(bearerToken);
+      if (!verifyError && verifiedUser?.user?.id) {
+        verifiedUserId = verifiedUser.user.id;
+      }
+    }
+    const resolvedUserId = verifiedUserId || (typeof requestedUserId === 'string' ? requestedUserId : null);
 
     // Validate required fields
     if (!fiatAmount || !fiatCurrency || !cryptoCurrency || !walletAddress) {
@@ -327,9 +340,9 @@ export async function POST(req: NextRequest) {
       requestBody.country = detectedCountry.toUpperCase();
     }
 
-    // Add partner context for tracking (include userId if available)
-    requestBody.partnerContext = userId 
-      ? `userId:${userId}|blazewallet-${Date.now()}`
+    // Add partner context for tracking (include verified userId if available)
+    requestBody.partnerContext = resolvedUserId
+      ? `userId:${resolvedUserId}|blazewallet-${Date.now()}`
       : `blazewallet-${Date.now()}`;
 
     // Add redirect URLs for payment completion (success and error)
@@ -527,6 +540,42 @@ export async function POST(req: NextRequest) {
       type: transactionInformation.type, // "iframe" or "redirect"
       hasUrl: !!transactionInformation.url,
     });
+
+    // Create initial pending order immediately so Purchase History updates right after "Buy now".
+    if (resolvedUserId) {
+      const providerForRow = (onrampProvider || onramp || 'onramper').toLowerCase();
+      const nowIso = new Date().toISOString();
+      const pendingRow = {
+        user_id: resolvedUserId,
+        onramp_transaction_id: transactionInformation.transactionId,
+        provider: providerForRow,
+        fiat_amount: Number(fiatAmount),
+        fiat_currency: String(fiatCurrency).toUpperCase(),
+        crypto_currency: String(cryptoCurrency).toUpperCase(),
+        payment_method: paymentMethod ? String(paymentMethod).toLowerCase() : null,
+        wallet_address: String(walletAddress),
+        status: 'pending',
+        status_updated_at: nowIso,
+        updated_at: nowIso,
+        provider_data: {
+          lifecycle: {
+            source: 'checkout_intent',
+            checkout_created_at: nowIso,
+            last_reconciled_at: null,
+          },
+          effectiveCountry: detectedCountry?.toUpperCase() || null,
+          onrampProvider: providerForRow,
+        },
+      };
+
+      const { error: insertPendingError } = await supabaseAdmin
+        .from('onramp_transactions')
+        .upsert(pendingRow, { onConflict: 'onramp_transaction_id,provider' });
+
+      if (insertPendingError) {
+        logger.error('❌ Failed to create initial pending onramp transaction:', insertPendingError);
+      }
+    }
 
     // Return success with transaction information
     return NextResponse.json({

@@ -9,11 +9,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
-import { supabase } from '@/lib/supabase';
 import crypto from 'crypto';
 import { trackEvent } from '@/lib/analytics';
 import { apiRateLimiter } from '@/lib/api-rate-limiter';
 import { getClientIP } from '@/lib/rate-limiter';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export const dynamic = 'force-dynamic';
 
@@ -118,6 +118,7 @@ function validateWebhookSignature(
 
 export async function POST(req: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const clientIp = getClientIP(req.headers);
     const webhookRateKey = `onramper:webhook:${clientIp}`;
     const isWebhookAllowed = apiRateLimiter.check(webhookRateKey, 120, 60 * 1000);
@@ -231,7 +232,7 @@ export async function POST(req: NextRequest) {
       if (userId) transactionData.user_id = userId;
       
       // Try to find existing transaction or create new one
-      const { data: existingTx, error: findError } = await supabase
+      const { data: existingTx, error: findError } = await supabaseAdmin
         .from('onramp_transactions')
         .select('id, user_id, status, provider_data')
         .eq('onramp_transaction_id', transactionId)
@@ -267,7 +268,7 @@ export async function POST(req: NextRequest) {
           ...payload,
           eventFingerprint,
         };
-        const { error: upsertError } = await supabase
+        const { error: upsertError } = await supabaseAdmin
           .from('onramp_transactions')
           .upsert(transactionData, {
             onConflict: 'onramp_transaction_id,provider',

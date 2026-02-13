@@ -5,10 +5,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MoonPayService } from '@/lib/moonpay-service';
 import { logger } from '@/lib/logger';
-import { supabase } from '@/lib/supabase';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(request: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const body = await request.text();
     const signature = request.headers.get('x-moonpay-signature') || '';
 
@@ -109,7 +110,7 @@ export async function POST(request: NextRequest) {
           if (userId) transactionData.user_id = userId;
           
           // Try to find existing transaction
-          const { data: existingTx, error: findError } = await supabase
+          const { data: existingTx, error: findError } = await supabaseAdmin
             .from('onramp_transactions')
             .select('id, user_id')
             .eq('onramp_transaction_id', transaction.id)
@@ -127,7 +128,7 @@ export async function POST(request: NextRequest) {
           
           // Only proceed if we have a user_id
           if (transactionData.user_id) {
-            const { error: upsertError } = await supabase
+            const { error: upsertError } = await supabaseAdmin
               .from('onramp_transactions')
               .upsert(transactionData, {
                 onConflict: 'onramp_transaction_id,provider',
