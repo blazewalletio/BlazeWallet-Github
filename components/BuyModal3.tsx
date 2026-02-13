@@ -106,6 +106,11 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
   const [widgetUrl, setWidgetUrl] = useState<string>('');
   const [lastTransactionId, setLastTransactionId] = useState<string | null>(null);
   const [checkoutCreated, setCheckoutCreated] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [isQuoteStickyCompact, setIsQuoteStickyCompact] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const quoteCardRef = useRef<HTMLDivElement | null>(null);
+  const quoteCardStartTopRef = useRef<number | null>(null);
 
   const supportedFiats = ['EUR', 'USD', 'GBP', 'CAD', 'AUD', 'JPY', 'CHF', 'NOK', 'SEK', 'DKK'];
 
@@ -202,6 +207,15 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
     if (!isOpen) return;
     setSelectedChain(currentChain);
   }, [isOpen, currentChain]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const media = window.matchMedia('(max-width: 767px)');
+    const update = () => setIsMobileViewport(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
 
   // Fetch supported data when modal opens
   useEffect(() => {
@@ -372,6 +386,41 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
     setUnavailableReasons({});
     setPendingPaymentOverride(null);
   }, [selectedChain, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || step !== 'select' || flowStep !== 'quotes' || !quote || !isMobileViewport) {
+      setIsQuoteStickyCompact(false);
+      quoteCardStartTopRef.current = null;
+      return;
+    }
+
+    const container = scrollContainerRef.current;
+    const card = quoteCardRef.current;
+    if (!container || !card) return;
+
+    const recalcStartTop = () => {
+      const containerRect = container.getBoundingClientRect();
+      const cardRect = card.getBoundingClientRect();
+      quoteCardStartTopRef.current = cardRect.top - containerRect.top + container.scrollTop;
+    };
+
+    const onScroll = () => {
+      if (quoteCardStartTopRef.current === null) recalcStartTop();
+      const startTop = quoteCardStartTopRef.current ?? 0;
+      // Activate compact mode once the card reached sticky threshold.
+      setIsQuoteStickyCompact(container.scrollTop >= Math.max(0, startTop - 8));
+    };
+
+    recalcStartTop();
+    onScroll();
+    container.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', recalcStartTop);
+
+    return () => {
+      container.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', recalcStartTop);
+    };
+  }, [isOpen, step, flowStep, quote, isMobileViewport]);
 
   const fetchSupportedData = async () => {
     try {
@@ -1176,7 +1225,8 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
           height: '100dvh', // Dynamic viewport height (fallback to 100vh in older browsers)
         }}
       >
-        <div 
+        <div
+          ref={scrollContainerRef}
           className="h-full w-full overflow-y-auto" 
           style={{
             WebkitOverflowScrolling: 'touch',
@@ -1615,13 +1665,24 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                       <div className="space-y-4">
                         {/* Quote Summary Hero - Compact */}
                         {quote && (
-                          <div className="glass-card p-4 md:p-5 bg-gradient-to-br from-orange-50 to-yellow-50 border-2 border-orange-200 shadow-sm">
-                            <div className="space-y-3">
+                          <div
+                            ref={quoteCardRef}
+                            className={`glass-card bg-gradient-to-br from-orange-50 to-yellow-50 border-2 border-orange-200 transition-all duration-200 ${
+                              isMobileViewport
+                                ? 'sticky top-2 z-20'
+                                : ''
+                            } ${
+                              isQuoteStickyCompact
+                                ? 'p-3 shadow-md'
+                                : 'p-4 md:p-5 shadow-sm'
+                            }`}
+                          >
+                            <div className={`${isQuoteStickyCompact ? 'space-y-2.5' : 'space-y-3'}`}>
                               {/* Main Quote Display */}
-                              <div className="text-center pb-3 border-b border-orange-200">
-                                <div className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">You'll receive</div>
+                              <div className={`text-center border-b border-orange-200 ${isQuoteStickyCompact ? 'pb-2' : 'pb-3'}`}>
+                                <div className={`uppercase tracking-wide text-gray-500 ${isQuoteStickyCompact ? 'text-[10px] mb-0.5' : 'text-[11px] mb-1'}`}>You'll receive</div>
                                 {parseFloat(quote.cryptoAmount) > 0 ? (
-                                  <div className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight mb-0.5">
+                                  <div className={`font-bold text-gray-900 leading-tight ${isQuoteStickyCompact ? 'text-2xl' : 'text-3xl md:text-4xl'} mb-0.5`}>
                                     {parseFloat(quote.cryptoAmount).toFixed(6)} {quote.quoteCurrency}
                                   </div>
                                 ) : paymentMethod?.toLowerCase() === 'ideal' ? (
@@ -1637,9 +1698,9 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                                   </div>
                                 )}
                                 {selectedProvider && (
-                                  <div className="flex items-center justify-center gap-2 mt-1.5">
+                                  <div className={`flex items-center justify-center gap-2 ${isQuoteStickyCompact ? 'mt-1' : 'mt-1.5'}`}>
                                     <span className="text-[11px] text-gray-500">via</span>
-                                    <span className="text-base font-semibold capitalize text-orange-700">{selectedProvider}</span>
+                                    <span className={`${isQuoteStickyCompact ? 'text-sm' : 'text-base'} font-semibold capitalize text-orange-700`}>{selectedProvider}</span>
                                     {userPreferences?.verifiedProviders?.includes(selectedProvider) && (
                                       <span className="flex items-center gap-1 px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-[11px] font-medium">
                                         <Shield className="w-2.5 h-2.5" />
@@ -1651,7 +1712,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                               </div>
 
                               {/* Quote Details Grid */}
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                              <div className={`grid grid-cols-1 md:grid-cols-3 text-sm ${isQuoteStickyCompact ? 'gap-1.5' : 'gap-2'}`}>
                                 <div className="text-center md:text-left rounded-lg bg-white/55 px-3 py-2">
                                   <div className="text-gray-500 text-xs mb-0.5">Exchange rate</div>
                                   <div className="font-semibold text-gray-900">
@@ -1707,17 +1768,19 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                               <button
                                 onClick={() => handleContinue()}
                                 disabled={loading || (!quote && paymentMethod?.toLowerCase() !== 'ideal') || (paymentMethod?.toLowerCase() === 'ideal' && !selectedProvider)}
-                                className="w-full py-3 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-bold text-white text-base transition-all shadow-md hover:shadow-lg transform hover:scale-[1.01] active:scale-[0.98]"
+                                className={`w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-bold text-white transition-all shadow-md hover:shadow-lg transform hover:scale-[1.01] active:scale-[0.98] ${
+                                  isQuoteStickyCompact ? 'py-2.5 text-sm' : 'py-3 text-base'
+                                }`}
                               >
                                 {loading ? (
                                   <>
-                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                    <Loader2 className={`${isQuoteStickyCompact ? 'w-4 h-4' : 'w-5 h-5'} animate-spin`} />
                                     <span>Loading...</span>
                                   </>
                                 ) : (
                                   <>
                                     <span>Buy now</span>
-                                    <ArrowRight className="w-5 h-5" />
+                                    <ArrowRight className={isQuoteStickyCompact ? 'w-4 h-4' : 'w-5 h-5'} />
                                   </>
                                 )}
                               </button>
