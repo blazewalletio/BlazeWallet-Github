@@ -57,6 +57,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   
   // 📱 Mobile detection
   const [isMobile, setIsMobile] = useState(false);
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
   
   // 💵 USD conversion for QR amounts
   const [cryptoUSDValue, setCryptoUSDValue] = useState<number | null>(null);
@@ -315,6 +316,19 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       const checkMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       setIsMobile(checkMobile);
     }
+  }, []);
+
+  // Keep confirmation screen compact on shorter viewports
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const updateViewportMode = () => {
+      setIsCompactViewport(window.innerHeight <= 900);
+    };
+
+    updateViewportMode();
+    window.addEventListener('resize', updateViewportMode);
+    return () => window.removeEventListener('resize', updateViewportMode);
   }, []);
 
   // 💵 Fetch USD value when QR amount is scanned
@@ -1473,7 +1487,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
             </div>
 
             {/* Content */}
-            <div className="max-w-2xl mx-auto space-y-6">
+            <div className={`max-w-2xl mx-auto ${mode === 'confirm' ? 'space-y-3 sm:space-y-4' : 'space-y-6'}`}>
 
             {/* ⚡ CHAIN SWITCH DIALOG - User-friendly prompt for chain switching */}
             {showChainSwitchDialog && (
@@ -2857,38 +2871,40 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="space-y-4 sm:space-y-5"
+                  className={`space-y-3 sm:space-y-4 ${isCompactViewport ? 'min-h-[calc(100dvh-170px)] flex flex-col' : ''}`}
                 >
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Check className="w-8 h-8 text-white" />
+                  <div className={`text-center ${isCompactViewport ? 'mb-1' : ''}`}>
+                    <div className={`${isCompactViewport ? 'w-12 h-12 mb-2' : 'w-16 h-16 mb-4'} bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto`}>
+                      <Check className={`${isCompactViewport ? 'w-6 h-6' : 'w-8 h-8'} text-white`} />
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    <h3 className={`${isCompactViewport ? 'text-lg mb-1' : 'text-xl mb-2'} font-bold text-gray-900`}>
                       {paymentMethod === 'scanqr' ? 'QR code scanned!' : 'Review payment'}
                     </h3>
-                    <p className="text-sm text-gray-600">Review payment details below</p>
+                    {!isCompactViewport && (
+                      <p className="text-sm text-gray-600">Review payment details below</p>
+                    )}
                   </div>
 
                   {/* Label / message from QR */}
                   {parsedQR && (parsedQR.label || parsedQR.message) && (
-                    <div className="glass-card p-5 border border-blue-200/70 bg-gradient-to-br from-blue-50 to-indigo-50">
+                    <div className={`${isCompactViewport ? 'p-3' : 'p-5'} glass-card border border-blue-200/70 bg-gradient-to-br from-blue-50 to-indigo-50`}>
                       {parsedQR.label && (
-                        <div className="mb-3">
+                        <div className={parsedQR.message ? 'mb-2' : ''}>
                           <div className="text-xs text-blue-600 font-semibold mb-1 uppercase tracking-wide">Recipient</div>
-                          <div className="text-lg font-bold text-gray-900">{parsedQR.label}</div>
+                          <div className={`${isCompactViewport ? 'text-base' : 'text-lg'} font-bold text-gray-900 line-clamp-1`}>{parsedQR.label}</div>
                         </div>
                       )}
                       {parsedQR.message && (
                         <div>
                           <div className="text-xs text-blue-600 font-semibold mb-1 uppercase tracking-wide">Description</div>
-                          <div className="text-sm text-gray-700">{parsedQR.message}</div>
+                          <div className={`${isCompactViewport ? 'text-xs' : 'text-sm'} text-gray-700 line-clamp-2`}>{parsedQR.message}</div>
                         </div>
                       )}
                     </div>
                   )}
 
                   {/* Unified amount card */}
-                  <div className="glass-card p-5 sm:p-6 border border-orange-200/80 bg-gradient-to-br from-orange-50 to-yellow-50">
+                  <div className={`${isCompactViewport ? 'p-4' : 'p-5 sm:p-6'} glass-card border border-orange-200/80 bg-gradient-to-br from-orange-50 to-yellow-50`}>
                     <div className="flex items-center justify-between mb-2">
                       <div className="text-sm text-gray-600">You're sending</div>
                       {scannedAmount && parsedQR?.amount ? (
@@ -2905,31 +2921,23 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     {scannedAmount && parsedQR?.amount ? (
                       // QR amount: show once, clearly
                       <>
-                    <div className="text-[36px] leading-none sm:text-5xl font-bold text-gray-900 mb-2">
+                    <div className={`${isCompactViewport ? 'text-4xl' : 'text-[36px] sm:text-5xl'} leading-none font-bold text-gray-900 mb-2`}>
                           {scannedAmount} {QRParser.getChainInfo(currentChain as ChainType)?.symbol}
                     </div>
-                        <div className="text-sm text-gray-600">
+                        <div className={`${isCompactViewport ? 'text-xs' : 'text-sm'} text-gray-600`}>
                           Native {QRParser.getChainInfo(currentChain as ChainType)?.name} amount embedded in the QR code
                         </div>
                         {cryptoUSDValue !== null && (
-                          <div className="text-lg text-gray-700 mt-2 font-medium">
+                          <div className={`${isCompactViewport ? 'text-base mt-1' : 'text-lg mt-2'} text-gray-700 font-medium`}>
                             ≈ {formatUSDSync(cryptoUSDValue)}
                           </div>
                         )}
-                        <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-                          <div className="rounded-lg bg-white/70 border border-gray-200 px-3 py-2">
-                            <div className="text-gray-500">Network</div>
-                            <div className="font-semibold text-gray-900">
-                              {QRParser.getChainInfo(currentChain as ChainType)?.name || currentChain}
-                            </div>
-                          </div>
-                          <div className="rounded-lg bg-white/70 border border-gray-200 px-3 py-2">
-                            <div className="text-gray-500">Amount source</div>
-                            <div className="font-semibold text-gray-900">QR request</div>
-                          </div>
+                        <div className="mt-3 rounded-lg bg-white/70 border border-gray-200 px-3 py-2 text-xs flex items-center justify-between gap-2">
+                          <span className="text-gray-600">Network: <span className="font-semibold text-gray-900">{QRParser.getChainInfo(currentChain as ChainType)?.name || currentChain}</span></span>
+                          <span className="text-gray-600">Source: <span className="font-semibold text-gray-900">QR request</span></span>
                         </div>
                         {currentChain === 'bitcoin' && parseFloat(scannedAmount) >= 0.01 && (
-                          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                          <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5">
                             <div className="flex items-start gap-2 text-sm text-amber-900">
                               <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                               <span>Large BTC amount detected. Double-check recipient and amount before sending.</span>
@@ -2940,10 +2948,10 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     ) : (
                       // Manual amount
                       <>
-                        <div className="text-[36px] leading-none sm:text-5xl font-bold text-gray-900 mb-2">
+                        <div className={`${isCompactViewport ? 'text-4xl' : 'text-[36px] sm:text-5xl'} leading-none font-bold text-gray-900 mb-2`}>
                           {symbol}{amount.toFixed(2)}
                         </div>
-                        <div className="text-sm text-gray-600 flex items-center justify-start gap-2 mb-2">
+                        <div className={`${isCompactViewport ? 'text-xs' : 'text-sm'} text-gray-600 flex items-center justify-start gap-2 mb-2`}>
                           <span>{QRParser.getChainInfo(currentChain as ChainType)?.icon || '?'}</span>
                           Via {QRParser.getChainInfo(currentChain as ChainType)?.name || currentChain} network
                         </div>
@@ -2966,11 +2974,11 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   </div>
 
                   {/* Recipient Details */}
-                  <div className="glass-card p-4 border border-gray-200/80 space-y-3">
+                  <div className={`${isCompactViewport ? 'p-3 space-y-2' : 'p-4 space-y-3'} glass-card border border-gray-200/80`}>
                     <div className="flex justify-between items-start">
                       <span className="text-sm text-gray-600">To address</span>
                       <div className="text-right">
-                        <div className="font-mono text-sm font-medium text-gray-900 break-all">
+                        <div className={`${isCompactViewport ? 'text-xs' : 'text-sm'} font-mono font-medium text-gray-900 break-all`}>
                           {(scannedAddress || recipientAddress).slice(0, 6)}...{(scannedAddress || recipientAddress).slice(-4)}
                         </div>
                         <button
@@ -3006,29 +3014,33 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     </motion.div>
                   )}
 
-                  {/* Action Button */}
-                  <motion.button
-                    whileTap={{ scale: 0.98 }}
-                      onClick={handleConfirmPayment}
-                    disabled={step === 'sending'}
-                    className="w-full py-4 px-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {step === 'sending' ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        <span>Sending transaction...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Check className="w-5 h-5" />
-                        <span>Confirm & Send</span>
-                      </>
-                    )}
-                  </motion.button>
+                  <div className={`${isCompactViewport ? 'mt-auto pt-2' : ''} space-y-2`}>
+                    {/* Action Button */}
+                    <motion.button
+                      whileTap={{ scale: 0.98 }}
+                        onClick={handleConfirmPayment}
+                      disabled={step === 'sending'}
+                      className={`${isCompactViewport ? 'py-3' : 'py-4'} w-full px-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
+                    >
+                      {step === 'sending' ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          <span>Sending transaction...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-5 h-5" />
+                          <span>Confirm & Send</span>
+                        </>
+                      )}
+                    </motion.button>
 
-                  <p className="text-xs text-center text-gray-500">
-                    Confirm only if the address and network are correct
-                  </p>
+                    {!isCompactViewport && (
+                      <p className="text-xs text-center text-gray-500">
+                        Confirm only if the address and network are correct
+                      </p>
+                    )}
+                  </div>
                 </motion.div>
               )}
 
