@@ -180,12 +180,18 @@ export default function DeviceVerificationModal({
         // Decrypt wallet
         const csrfResponse = await fetch('/api/csrf-token');
         const { token: csrfToken } = await csrfResponse.json();
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+        if (!accessToken) {
+          throw new Error('No active session token');
+        }
         
         const walletResponse = await fetch('/api/get-wallet', {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
             'X-CSRF-Token': csrfToken,
+            'Authorization': `Bearer ${accessToken}`,
           },
           body: JSON.stringify({ userId: authData.user.id }),
         });

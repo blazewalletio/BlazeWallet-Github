@@ -2,6 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
+async function requireAuthenticatedUser(request: NextRequest): Promise<{ userId: string } | NextResponse> {
+  const authHeader = request.headers.get('authorization');
+  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+  if (!bearerToken) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { data, error } = await getSupabaseAdmin().auth.getUser(bearerToken);
+  if (error || !data?.user?.id) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  return { userId: data.user.id };
+}
+
 /**
  * Update/backup a user's wallet
  * Uses upsert to create if not exists, update if exists
@@ -12,11 +27,22 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
  */
 export async function POST(request: NextRequest) {
   try {
-    const { userId, encryptedMnemonic } = await request.json();
-    
-    if (!userId || !encryptedMnemonic) {
+    const authResult = await requireAuthenticatedUser(request);
+    if (authResult instanceof NextResponse) return authResult;
+
+    const { userId: requestedUserId, encryptedMnemonic } = await request.json();
+    const userId = authResult.userId;
+
+    if (requestedUserId && requestedUserId !== userId) {
       return NextResponse.json(
-        { success: false, error: 'Missing userId or encryptedMnemonic' },
+        { success: false, error: 'Forbidden: user mismatch' },
+        { status: 403 }
+      );
+    }
+
+    if (!encryptedMnemonic) {
+      return NextResponse.json(
+        { success: false, error: 'Missing encryptedMnemonic' },
         { status: 400 }
       );
     }

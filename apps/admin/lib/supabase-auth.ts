@@ -129,6 +129,20 @@ export interface SignInResult {
   mnemonic?: string;
 }
 
+async function getAuthenticatedRequestHeaders(csrfToken: string): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
+  if (!accessToken) {
+    throw new Error('No active session token');
+  }
+
+  return {
+    'Content-Type': 'application/json',
+    'X-CSRF-Token': csrfToken,
+    'Authorization': `Bearer ${accessToken}`,
+  };
+}
+
 /**
  * Sign up with email and password
  * Creates new wallet and uploads encrypted version to Supabase
@@ -178,10 +192,7 @@ export async function signUpWithEmail(
       
       const walletResponse = await fetch('/api/wallet/create', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': csrfToken,
-        },
+        headers: await getAuthenticatedRequestHeaders(csrfToken),
         body: JSON.stringify({
           userId: authData.user.id,
           encryptedMnemonic: encryptedWallet,
@@ -296,10 +307,7 @@ export async function signInWithEmail(
     
     const walletResponse = await fetch('/api/get-wallet', {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'X-CSRF-Token': csrfToken,
-      },
+      headers: await getAuthenticatedRequestHeaders(csrfToken),
       body: JSON.stringify({ userId: authData.user.id }),
     });
     
@@ -444,10 +452,7 @@ export async function hasCloudWallet(userId: string): Promise<boolean> {
     
     const response = await fetch('/api/wallet/exists', {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'X-CSRF-Token': csrfToken,
-      },
+      headers: await getAuthenticatedRequestHeaders(csrfToken),
       body: JSON.stringify({ userId }),
     });
     
@@ -477,10 +482,7 @@ export async function updateCloudWallet(
 
     const response = await fetch('/api/wallet/update', {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'X-CSRF-Token': csrfToken,
-      },
+      headers: await getAuthenticatedRequestHeaders(csrfToken),
       body: JSON.stringify({
         userId,
         encryptedMnemonic: encryptedWallet,
@@ -561,10 +563,7 @@ export async function upgradeToEmailAccount(
       
       const walletResponse = await fetch('/api/wallet/create', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': csrfToken,
-        },
+        headers: await getAuthenticatedRequestHeaders(csrfToken),
         body: JSON.stringify({
           userId: authData.user.id,
           encryptedMnemonic: encryptedWallet,

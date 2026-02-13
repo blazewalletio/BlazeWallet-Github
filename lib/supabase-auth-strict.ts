@@ -37,6 +37,20 @@ async function syncAutoLockTimeoutForUser(userId: string): Promise<void> {
   }
 }
 
+async function getAuthenticatedRequestHeaders(csrfToken: string): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
+  if (!accessToken) {
+    throw new Error('No active session token');
+  }
+
+  return {
+    'Content-Type': 'application/json',
+    'X-CSRF-Token': csrfToken,
+    'Authorization': `Bearer ${accessToken}`,
+  };
+}
+
 // =============================================================================
 // ENCRYPTION UTILITIES
 // =============================================================================
@@ -425,10 +439,7 @@ export async function strictSignInWithEmail(
         
         const walletResponse = await fetch('/api/get-wallet', {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': csrfToken2,
-          },
+          headers: await getAuthenticatedRequestHeaders(csrfToken2),
           body: JSON.stringify({ userId: data.user.id }),
         });
         
@@ -915,10 +926,7 @@ export async function confirmDeviceAndSignIn(
       
       const walletResponse = await fetch('/api/get-wallet', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': csrfToken,
-        },
+        headers: await getAuthenticatedRequestHeaders(csrfToken),
         body: JSON.stringify({ userId: authData.user.id }),
       });
       
@@ -1093,10 +1101,7 @@ export async function verifyDeviceAndSignIn(
       
       const walletResponse = await fetch('/api/get-wallet', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': csrfToken,
-        },
+        headers: await getAuthenticatedRequestHeaders(csrfToken),
         body: JSON.stringify({ userId: authData.user.id }),
       });
       
@@ -1286,10 +1291,7 @@ export async function signUpWithEmail(
       
       const walletResponse = await fetch('/api/wallet/create', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': csrfToken,
-        },
+        headers: await getAuthenticatedRequestHeaders(csrfToken),
         body: JSON.stringify({
           userId: authData.user.id,
           encryptedMnemonic: encryptedWallet,

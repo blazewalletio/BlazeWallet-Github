@@ -8,6 +8,20 @@ import { supabase } from './supabase';
 import { generateEnhancedFingerprint, EnhancedDeviceInfo } from './device-fingerprint-pro';
 import { logger } from './logger';
 
+async function getAuthenticatedRequestHeaders(csrfToken: string): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const accessToken = session?.access_token;
+  if (!accessToken) {
+    throw new Error('No active session token');
+  }
+
+  return {
+    'Content-Type': 'application/json',
+    'X-CSRF-Token': csrfToken,
+    'Authorization': `Bearer ${accessToken}`,
+  };
+}
+
 // Helper to decrypt mnemonic - supports BOTH old (WebCrypto) and new (crypto-utils) formats
 async function decryptMnemonic(encryptedData: string, password: string): Promise<string> {
   try {
@@ -187,10 +201,7 @@ export async function strictSignInWithEmail(
       
       const walletResponse = await fetch('/api/get-wallet', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': csrfToken,
-        },
+        headers: await getAuthenticatedRequestHeaders(csrfToken),
         body: JSON.stringify({ userId: data.user.id }),
       });
       
@@ -467,10 +478,7 @@ export async function verifyDeviceAndSignIn(
       
       const walletResponse = await fetch('/api/get-wallet', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': csrfToken,
-        },
+        headers: await getAuthenticatedRequestHeaders(csrfToken),
         body: JSON.stringify({ userId: authData.user.id }),
       });
       

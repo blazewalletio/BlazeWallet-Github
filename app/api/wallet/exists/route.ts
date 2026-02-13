@@ -2,6 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 
+async function requireAuthenticatedUser(request: NextRequest): Promise<{ userId: string } | NextResponse> {
+  const authHeader = request.headers.get('authorization');
+  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+  if (!bearerToken) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { data, error } = await getSupabaseAdmin().auth.getUser(bearerToken);
+  if (error || !data?.user?.id) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  return { userId: data.user.id };
+}
+
 /**
  * Check if a wallet exists for a user
  * Uses admin client for maximum security
@@ -11,15 +26,18 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
  */
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await request.json();
-    
-    if (!userId) {
+    const authResult = await requireAuthenticatedUser(request);
+    if (authResult instanceof NextResponse) return authResult;
+
+    const { userId: requestedUserId } = await request.json();
+    const userId = authResult.userId;
+    if (requestedUserId && requestedUserId !== userId) {
       return NextResponse.json(
-        { success: false, error: 'Missing userId' },
-        { status: 400 }
+        { success: false, error: 'Forbidden: user mismatch' },
+        { status: 403 }
       );
     }
-    
+
     logger.log('🔍 [WalletExists] Checking wallet for user:', userId);
     
     // Check if wallet exists with admin client (bypasses RLS)

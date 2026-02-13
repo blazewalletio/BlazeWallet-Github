@@ -149,13 +149,13 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
         // Check if already saved in localStorage
         const saved = localStorage.getItem('user_country');
         if (saved) {
-          console.log('✅ [GEOLOCATION] Using saved country:', saved);
+          logger.log('✅ [GEOLOCATION] Using saved country:', saved);
           setUserCountry(saved);
           return;
         }
 
         // Detect via Cloudflare trace (free, fast, reliable)
-        console.log('🌍 [GEOLOCATION] Detecting user country...');
+        logger.log('🌍 [GEOLOCATION] Detecting user country...');
         const response = await fetch('https://www.cloudflare.com/cdn-cgi/trace');
         const data = await response.text();
         
@@ -168,7 +168,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
           ?.toUpperCase();
         
         if (country && country.length === 2) {
-          console.log('✅ [GEOLOCATION] Detected country:', country);
+          logger.log('✅ [GEOLOCATION] Detected country:', country);
           setUserCountry(country);
           localStorage.setItem('user_country', country);
         } else {
@@ -249,7 +249,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
         paymentMethod) {
       // Debounce to prevent multiple calls
       const debounceTimer = setTimeout(() => {
-        console.log('🔄 [BUYMODAL] Auto-fetching quotes (all fields complete)');
+        logger.log('🔄 [BUYMODAL] Auto-fetching quotes (all fields complete)');
         fetchQuote();
       }, 500);
       return () => clearTimeout(debounceTimer);
@@ -501,7 +501,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       
       // ⚠️ CRITICAL: Check response status - 200 means API worked (even if 0 quotes)
       if (!response.ok) {
-        console.log(`❌ [AVAILABILITY] ${paymentMethodId} with ${crypto}: API error ${response.status}`);
+        logger.log(`❌ [AVAILABILITY] ${paymentMethodId} with ${crypto}: API error ${response.status}`);
         return false;
       }
       
@@ -509,11 +509,11 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       
       // ⚠️ CRITICAL: success=true means API worked, quotes.length > 0 means providers available
       if (data.success && Array.isArray(data.quotes) && data.quotes.length > 0) {
-        console.log(`✅ [AVAILABILITY] ${paymentMethodId} with ${crypto}: ${data.quotes.length} providers available`);
+        logger.log(`✅ [AVAILABILITY] ${paymentMethodId} with ${crypto}: ${data.quotes.length} providers available`);
         return true;
       }
       
-      console.log(`⚠️ [AVAILABILITY] ${paymentMethodId} with ${crypto}: 0 providers (valid - not available)`);
+      logger.log(`⚠️ [AVAILABILITY] ${paymentMethodId} with ${crypto}: 0 providers (valid - not available)`);
       return false;
     } catch (error: any) {
       console.error(`❌ [AVAILABILITY] ${paymentMethodId} with ${crypto}: Error:`, error.message);
@@ -543,7 +543,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
   useEffect(() => {
     if (cryptoCurrency && flowStep === 'payment' && paymentMethods.length > 0) {
       const updateAvailability = async () => {
-        console.log(`🔄 [AVAILABILITY] Starting availability check for ${cryptoCurrency}...`);
+        logger.log(`🔄 [AVAILABILITY] Starting availability check for ${cryptoCurrency}...`);
         setCheckingAvailability(true);
         const available = new Set<string>();
         const reasons: Record<string, string> = {};
@@ -558,10 +558,10 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
               const isAvailable = await checkPaymentMethodAvailability(cryptoCurrency, pm.id);
               if (isAvailable) {
                 available.add(pm.id);
-                console.log(`✅ [AVAILABILITY] ${pm.name} (${pm.id}): Available`);
+                logger.log(`✅ [AVAILABILITY] ${pm.name} (${pm.id}): Available`);
               } else {
                 reasons[pm.id] = `No providers available for ${pm.name} with ${cryptoCurrency}`;
-                console.log(`⚠️ [AVAILABILITY] ${pm.name} (${pm.id}): Not available`);
+                logger.log(`⚠️ [AVAILABILITY] ${pm.name} (${pm.id}): Not available`);
               }
             } catch (error: any) {
               reasons[pm.id] = `Error checking availability for ${pm.name}`;
@@ -577,7 +577,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
           }
         }
         
-        console.log(`✅ [AVAILABILITY] Check complete: ${available.size}/${paymentMethods.length} methods available`);
+        logger.log(`✅ [AVAILABILITY] Check complete: ${available.size}/${paymentMethods.length} methods available`);
         setAvailablePaymentMethods(available);
         setUnavailableReasons(reasons);
         setCheckingAvailability(false);
@@ -645,24 +645,24 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
   const fetchQuote = async () => {
     // ⚠️ CRITICAL: Only fetch quotes if ALL required fields are present
     if (!fiatAmount || parseFloat(fiatAmount) <= 0) {
-      console.log('⚠️ [BUYMODAL] Skipping quote fetch - invalid amount:', fiatAmount);
+      logger.log('⚠️ [BUYMODAL] Skipping quote fetch - invalid amount:', fiatAmount);
       setError('Please enter a valid amount');
       return;
     }
     
     if (!cryptoCurrency) {
-      console.log('⚠️ [BUYMODAL] Skipping quote fetch - no crypto selected');
+      logger.log('⚠️ [BUYMODAL] Skipping quote fetch - no crypto selected');
       setError('Please select a cryptocurrency');
       return;
     }
     
     if (!paymentMethod) {
-      console.log('⚠️ [BUYMODAL] Skipping quote fetch - no payment method selected');
+      logger.log('⚠️ [BUYMODAL] Skipping quote fetch - no payment method selected');
       setError('Please select a payment method');
       return;
     }
     
-    console.log('✅ [BUYMODAL] All fields complete, fetching quotes:', {
+    logger.log('✅ [BUYMODAL] All fields complete, fetching quotes:', {
       fiatAmount,
       fiatCurrency,
       cryptoCurrency,
@@ -679,14 +679,14 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
       const quoteUrl = `/api/onramper/quotes?fiatAmount=${fiatAmount}&fiatCurrency=${fiatCurrency}&cryptoCurrency=${cryptoCurrency}&chainId=${CHAINS[selectedChain]?.id || ''}${paymentMethod ? `&paymentMethod=${paymentMethod}` : ''}${countryParam}`;
       const quoteResponse = await fetch(quoteUrl);
 
-      console.log('🔍 [BUYMODAL] Fetching quotes with country:', userCountry || 'auto-detect');
+      logger.log('🔍 [BUYMODAL] Fetching quotes with country:', userCountry || 'auto-detect');
 
       const data = await quoteResponse.json();
       if (data?.effectiveCountry && typeof data.effectiveCountry === 'string') {
         setUserCountry(data.effectiveCountry.toUpperCase());
       }
 
-      console.log('🔍 [BUYMODAL] Quote fetch response:', {
+      logger.log('🔍 [BUYMODAL] Quote fetch response:', {
         success: data.success,
         quoteCount: data.quotes?.length || 0,
         requestedPaymentMethod: paymentMethod,
@@ -722,11 +722,11 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
         const quotesToUse = data.quotes;
         
         // Store filtered provider quotes
-        console.log(`💾 [BUYMODAL] Storing ${quotesToUse.length} quotes in state`);
+        logger.log(`💾 [BUYMODAL] Storing ${quotesToUse.length} quotes in state`);
         // Log BANXA quote structure for debugging
         const banxaQuote = quotesToUse.find((q: ProviderQuote) => q.ramp?.toLowerCase() === 'banxa');
         if (banxaQuote) {
-          console.log(`🔍 [BUYMODAL] BANXA quote structure:`, {
+          logger.log(`🔍 [BUYMODAL] BANXA quote structure:`, {
             ramp: banxaQuote.ramp,
             paymentMethod: banxaQuote.paymentMethod,
             payout: banxaQuote.payout,
@@ -743,14 +743,14 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
         // ⚠️ CRITICAL: Only select provider if we have quotes AND payment method
         if (quotesToUse.length > 0 && paymentMethod) {
           try {
-            console.log(`🎯 [BUYMODAL] Selecting provider from ${quotesToUse.length} filtered quotes`);
+            logger.log(`🎯 [BUYMODAL] Selecting provider from ${quotesToUse.length} filtered quotes`);
             const selection = await ProviderSelector.selectProvider(
               quotesToUse, // Use filtered quotes, not all quotes!
               userId,
               paymentMethod
             );
             
-            console.log(`✅ [BUYMODAL] Selected provider: ${selection.quote.ramp} (reason: ${selection.reason})`);
+            logger.log(`✅ [BUYMODAL] Selected provider: ${selection.quote.ramp} (reason: ${selection.reason})`);
             // Set selected provider
             setSelectedProvider(selection.quote.ramp);
             
@@ -795,7 +795,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
           }
         } else {
           // No payment method selected - clear quotes (shouldn't happen due to useEffect check, but safety)
-          console.log('⚠️ [BUYMODAL] No payment method selected, clearing quotes');
+          logger.log('⚠️ [BUYMODAL] No payment method selected, clearing quotes');
           setProviderQuotes([]);
           setQuote(null);
           setSelectedProvider(null);
@@ -1569,11 +1569,8 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                       {paymentMethods.length > 0 && (
                         <div className="grid grid-cols-2 gap-3">
                           {paymentMethods.map((pm) => {
-                            // ⚠️ TEMPORARY: Allow iDeal | Wero to be clicked even if availability check fails
-                            // This is because the availability check might be too strict or the API might not be returning quotes correctly
                             const isAvailable = availablePaymentMethods.has(pm.id);
-                            const isIdeal = pm.id.toLowerCase() === 'ideal';
-                            const isUnavailable = !isAvailable && !!cryptoCurrency && !checkingAvailability && !isIdeal;
+                            const isUnavailable = !isAvailable && !!cryptoCurrency && !checkingAvailability;
                             
                             return (
                               <button

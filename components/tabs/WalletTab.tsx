@@ -63,31 +63,31 @@ export default function WalletTab() {
 
   const fetchData = async (force = false) => {
     // 🔴 ULTRA-DEBUG: Log IMMEDIATELY at function entry
-    console.log(`\n🔴🔴🔴 [WalletTab] fetchData() CALLED - Chain: ${currentChain}, Force: ${force}`);
-    console.log(`   🔴 solanaAddress: ${solanaAddress ? solanaAddress.substring(0, 15) + '...' : 'NULL'}`);
-    console.log(`   🔴 address (EVM): ${address ? address.substring(0, 15) + '...' : 'NULL'}`);
-    console.log(`   🔴 getCurrentAddress exists: ${!!getCurrentAddress}`);
-    console.log(`   🔴 refreshingChains: [${Array.from(refreshingChains).join(', ')}]`);
+    logger.log(`\n🔴🔴🔴 [WalletTab] fetchData() CALLED - Chain: ${currentChain}, Force: ${force}`);
+    logger.log(`   🔴 solanaAddress: ${solanaAddress ? solanaAddress.substring(0, 15) + '...' : 'NULL'}`);
+    logger.log(`   🔴 address (EVM): ${address ? address.substring(0, 15) + '...' : 'NULL'}`);
+    logger.log(`   🔴 getCurrentAddress exists: ${!!getCurrentAddress}`);
+    logger.log(`   🔴 refreshingChains: [${Array.from(refreshingChains).join(', ')}]`);
     
     // ✅ Get correct address for current chain (Solana uses solanaAddress, EVM uses address)
     const displayAddress = getCurrentAddress ? getCurrentAddress() : (currentChain === 'solana' ? solanaAddress : address);
     
-    console.log(`   🔴 Resolved displayAddress: ${displayAddress ? displayAddress.substring(0, 15) + '...' : 'NULL'}`);
+    logger.log(`   🔴 Resolved displayAddress: ${displayAddress ? displayAddress.substring(0, 15) + '...' : 'NULL'}`);
     
     if (!displayAddress) {
-      console.log('⚠️ [WalletTab] ❌ EARLY RETURN: No address available for chain:', currentChain);
+      logger.log('⚠️ [WalletTab] ❌ EARLY RETURN: No address available for chain:', currentChain);
       return;
     }
     
     // ✅ FIX: Check if THIS SPECIFIC CHAIN is already refreshing (per-chain lock)
     if (refreshingChains.has(currentChain) && !force) {
-      console.log(`⚠️ [WalletTab] ❌ EARLY RETURN: Already refreshing ${currentChain}, skipping duplicate call`);
+      logger.log(`⚠️ [WalletTab] ❌ EARLY RETURN: Already refreshing ${currentChain}, skipping duplicate call`);
       return;
     }
     
-    console.log(`\n✅ [WalletTab] PASSED ALL CHECKS - Starting fetchData() for ${currentChain}`);
-    console.log(`   Address: ${displayAddress}`);
-    console.log(`   Force: ${force}`);
+    logger.log(`\n✅ [WalletTab] PASSED ALL CHECKS - Starting fetchData() for ${currentChain}`);
+    logger.log(`   Address: ${displayAddress}`);
+    logger.log(`   Force: ${force}`);
     
     // ✅ Add current chain to refreshing set
     setRefreshingChains(prev => new Set(prev).add(currentChain));
@@ -97,23 +97,23 @@ export default function WalletTab() {
       const timestamp = Date.now();
       
       if (currentChain === 'ethereum') {
-        console.log('\n═══════════════════════════════════════════════════════════');
-        console.log('💰 [WalletTab] ETHEREUM NATIVE BALANCE FETCHING');
-        console.log('═══════════════════════════════════════════════════════════');
-        console.log(`📍 Address: ${displayAddress}`);
-        console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
+        logger.log('\n═══════════════════════════════════════════════════════════');
+        logger.log('💰 [WalletTab] ETHEREUM NATIVE BALANCE FETCHING');
+        logger.log('═══════════════════════════════════════════════════════════');
+        logger.log(`📍 Address: ${displayAddress}`);
+        logger.log(`⏰ Timestamp: ${new Date().toISOString()}`);
       }
       
       logger.log(`[${timestamp}] Fetching balance for ${displayAddress} on ${currentChain}`);
       
-      console.log(`\n📡 [WalletTab] Fetching native ${chain.nativeCurrency.symbol} balance...`);
-      console.log(`   Address: ${displayAddress}`);
-      console.log(`   Chain: ${currentChain}`);
+      logger.log(`\n📡 [WalletTab] Fetching native ${chain.nativeCurrency.symbol} balance...`);
+      logger.log(`   Address: ${displayAddress}`);
+      logger.log(`   Chain: ${currentChain}`);
       
       let bal: string;
       try {
         bal = await blockchain.getBalance(displayAddress);
-        console.log(`✅ [WalletTab] Native balance: ${bal} ${chain.nativeCurrency.symbol}`);
+        logger.log(`✅ [WalletTab] Native balance: ${bal} ${chain.nativeCurrency.symbol}`);
       } catch (balanceError) {
         console.error(`❌ [WalletTab] FAILED to fetch native balance:`, balanceError);
         console.error(`   Error message:`, balanceError instanceof Error ? balanceError.message : 'Unknown');
@@ -127,13 +127,13 @@ export default function WalletTab() {
       // ✅ Batch fetch native token price + change24h (ONE API call instead of 2!)
       const nativeSymbol = chain.nativeCurrency.symbol;
       
-      console.log(`\n📡 [WalletTab] Fetching native ${nativeSymbol} price...`);
-      console.log(`   API call: priceService.getMultiplePrices(['${nativeSymbol}'])`);
+      logger.log(`\n📡 [WalletTab] Fetching native ${nativeSymbol} price...`);
+      logger.log(`   API call: priceService.getMultiplePrices(['${nativeSymbol}'])`);
       
       let nativePrices: Record<string, { price: number; change24h: number }>;
       try {
         nativePrices = await priceService.getMultiplePrices([nativeSymbol]);
-        console.log(`   Raw response:`, nativePrices);
+        logger.log(`   Raw response:`, nativePrices);
       } catch (priceError) {
         console.error(`❌ [WalletTab] FAILED to fetch native price:`, priceError);
         console.error(`   Error message:`, priceError instanceof Error ? priceError.message : 'Unknown');
@@ -150,10 +150,10 @@ export default function WalletTab() {
       // ✅ Store native value in state for display in native currency card
       setNativeValueUSD(nativeValueUSD);
       
-      console.log(`✅ [WalletTab] ${nativeSymbol} price: $${nativePrice.toFixed(2)}`);
-      console.log(`✅ [WalletTab] ${nativeSymbol} 24h change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
-      console.log(`✅ [WalletTab] ${nativeSymbol} value USD: $${nativeValueUSD.toFixed(2)}`);
-      console.log(`   Calculation: ${bal} ${nativeSymbol} × $${nativePrice.toFixed(2)} = $${nativeValueUSD.toFixed(2)}`);
+      logger.log(`✅ [WalletTab] ${nativeSymbol} price: $${nativePrice.toFixed(2)}`);
+      logger.log(`✅ [WalletTab] ${nativeSymbol} 24h change: ${nativeChange >= 0 ? '+' : ''}${nativeChange.toFixed(2)}%`);
+      logger.log(`✅ [WalletTab] ${nativeSymbol} value USD: $${nativeValueUSD.toFixed(2)}`);
+      logger.log(`   Calculation: ${bal} ${nativeSymbol} × $${nativePrice.toFixed(2)} = $${nativeValueUSD.toFixed(2)}`);
       
       logger.log(`[${timestamp}] Native balance details:`, {
         balance: bal,
@@ -166,15 +166,15 @@ export default function WalletTab() {
       
       // ✅ SOLANA: Fetch SPL tokens (like Dashboard does)
       if (currentChain === 'solana' && displayAddress) {
-        console.log('🪙 [WalletTab] Fetching SPL tokens for Solana...');
-        console.log('📍 [WalletTab] Solana Address:', displayAddress);
+        logger.log('🪙 [WalletTab] Fetching SPL tokens for Solana...');
+        logger.log('📍 [WalletTab] Solana Address:', displayAddress);
         
         try {
           const solanaService = blockchain as any; // Access Solana-specific methods
           const splTokens = await solanaService.getSPLTokenBalances(displayAddress);
           
-          console.log(`✅ [WalletTab] Found ${splTokens.length} SPL tokens`);
-          console.log('📊 [WalletTab] SPL Tokens:', splTokens.map((t: any) => ({
+          logger.log(`✅ [WalletTab] Found ${splTokens.length} SPL tokens`);
+          logger.log('📊 [WalletTab] SPL Tokens:', splTokens.map((t: any) => ({
             symbol: t.symbol,
             name: t.name,
             address: t.address,
@@ -185,16 +185,16 @@ export default function WalletTab() {
           if (splTokens.length > 0) {
             // ✅ Fetch prices for SPL tokens
             const splSymbols = splTokens.map((t: any) => t.symbol);
-            console.log('💰 [WalletTab] Fetching prices for SPL tokens:', splSymbols);
+            logger.log('💰 [WalletTab] Fetching prices for SPL tokens:', splSymbols);
             
             const splPricesMap = await priceService.getMultiplePrices(splSymbols);
-            console.log('💰 [WalletTab] SPL prices received:', splPricesMap);
+            logger.log('💰 [WalletTab] SPL prices received:', splPricesMap);
             
             // ✅ For tokens without a symbol price, try mint-based pricing (DexScreener)
             const tokensNeedingMintPrice = splTokens.filter((t: any) => !splPricesMap[t.symbol] || splPricesMap[t.symbol]?.price === 0);
             
             if (tokensNeedingMintPrice.length > 0) {
-              console.log(`🔍 [WalletTab] Fetching DexScreener prices for ${tokensNeedingMintPrice.length} tokens...`);
+              logger.log(`🔍 [WalletTab] Fetching DexScreener prices for ${tokensNeedingMintPrice.length} tokens...`);
               const mints = tokensNeedingMintPrice.map((t: any) => t.address);
               const mintPrices = await priceService.getPricesByMints(mints);
               
@@ -203,7 +203,7 @@ export default function WalletTab() {
                 const mintPrice = mintPrices.get(token.address);
                 if (mintPrice && mintPrice.price > 0) {
                   splPricesMap[token.symbol] = { price: mintPrice.price, change24h: mintPrice.change24h };
-                  console.log(`✅ [WalletTab] DexScreener: ${token.symbol} = $${mintPrice.price}`);
+                  logger.log(`✅ [WalletTab] DexScreener: ${token.symbol} = $${mintPrice.price}`);
                 }
               });
             }
@@ -214,7 +214,7 @@ export default function WalletTab() {
               const balanceNum = parseFloat(token.balance || '0');
               const balanceUSD = balanceNum * priceData.price;
               
-              console.log(`💰 [WalletTab] Token ${token.symbol}:`, {
+              logger.log(`💰 [WalletTab] Token ${token.symbol}:`, {
                 balance: token.balance,
                 price: priceData.price,
                 balanceUSD: balanceUSD,
@@ -230,7 +230,7 @@ export default function WalletTab() {
               };
             });
             
-            console.log(`✅ [WalletTab] Final Solana tokensWithValue: ${tokensWithValue.length} tokens`);
+            logger.log(`✅ [WalletTab] Final Solana tokensWithValue: ${tokensWithValue.length} tokens`);
           }
         } catch (error) {
           console.error('❌ [WalletTab] Solana token fetch failed:', error);
@@ -242,34 +242,34 @@ export default function WalletTab() {
       else if (currentChain !== 'solana' && currentChain !== 'bitcoin' && currentChain !== 'bitcoincash' && currentChain !== 'litecoin' && currentChain !== 'doge' && displayAddress) {
         let erc20Tokens: any[] = [];
         
-        console.log('\n═══════════════════════════════════════════════════════════');
-        console.log('🔮 [WalletTab] ETHEREUM TOKEN FETCHING START');
-        console.log('═══════════════════════════════════════════════════════════');
-        console.log(`📍 Chain: ${currentChain}`);
-        console.log(`📍 Address: ${displayAddress}`);
-        console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
+        logger.log('\n═══════════════════════════════════════════════════════════');
+        logger.log('🔮 [WalletTab] ETHEREUM TOKEN FETCHING START');
+        logger.log('═══════════════════════════════════════════════════════════');
+        logger.log(`📍 Chain: ${currentChain}`);
+        logger.log(`📍 Address: ${displayAddress}`);
+        logger.log(`⏰ Timestamp: ${new Date().toISOString()}`);
         
         try {
-          console.log('\n📡 STEP 1: Fetching ERC20 tokens via Alchemy...');
+          logger.log('\n📡 STEP 1: Fetching ERC20 tokens via Alchemy...');
           logger.log(`[WalletTab] 🔮 Attempting to fetch ALL ERC20 tokens via Alchemy...`);
           erc20Tokens = await blockchain.getERC20TokenBalances(displayAddress);
           
           if (erc20Tokens.length > 0) {
-            console.log(`✅ STEP 1 SUCCESS: Alchemy found ${erc20Tokens.length} ERC20 tokens`);
-            console.log('\n📊 RAW TOKEN DATA FROM ALCHEMY:');
+            logger.log(`✅ STEP 1 SUCCESS: Alchemy found ${erc20Tokens.length} ERC20 tokens`);
+            logger.log('\n📊 RAW TOKEN DATA FROM ALCHEMY:');
             erc20Tokens.forEach((t, idx) => {
-              console.log(`\n   Token ${idx + 1}/${erc20Tokens.length}:`);
-              console.log(`   ├─ Symbol: ${t.symbol || 'MISSING'}`);
-              console.log(`   ├─ Name: ${t.name || 'MISSING'}`);
-              console.log(`   ├─ Address: ${t.address || 'MISSING'}`);
-              console.log(`   ├─ Balance: ${t.balance || '0'}`);
-              console.log(`   ├─ Decimals: ${t.decimals || 'MISSING'}`);
-              console.log(`   └─ Logo: ${t.logo || 'MISSING'}`);
+              logger.log(`\n   Token ${idx + 1}/${erc20Tokens.length}:`);
+              logger.log(`   ├─ Symbol: ${t.symbol || 'MISSING'}`);
+              logger.log(`   ├─ Name: ${t.name || 'MISSING'}`);
+              logger.log(`   ├─ Address: ${t.address || 'MISSING'}`);
+              logger.log(`   ├─ Balance: ${t.balance || '0'}`);
+              logger.log(`   ├─ Decimals: ${t.decimals || 'MISSING'}`);
+              logger.log(`   └─ Logo: ${t.logo || 'MISSING'}`);
             });
             logger.log(`[WalletTab] ✅ Alchemy found ${erc20Tokens.length} ERC20 tokens with balance`);
           } else {
-            console.log(`⚠️ STEP 1: No tokens found via Alchemy`);
-            console.log(`   → Falling back to POPULAR_TOKENS`);
+            logger.log(`⚠️ STEP 1: No tokens found via Alchemy`);
+            logger.log(`   → Falling back to POPULAR_TOKENS`);
             logger.log(`[WalletTab] ℹ️ No tokens found via Alchemy, falling back to POPULAR_TOKENS`);
           }
         } catch (error) {
@@ -293,22 +293,22 @@ export default function WalletTab() {
         if (erc20Tokens.length > 0) {
           // ✅ Batch fetch prices by contract address (more accurate than symbol)
           const tokenAddresses = erc20Tokens.map(t => t.address);
-          console.log('\n📡 STEP 2: Fetching prices by contract address...');
-          console.log(`   Chain: ${currentChain}`);
-          console.log(`   Token addresses (${tokenAddresses.length}):`);
+          logger.log('\n📡 STEP 2: Fetching prices by contract address...');
+          logger.log(`   Chain: ${currentChain}`);
+          logger.log(`   Token addresses (${tokenAddresses.length}):`);
           tokenAddresses.forEach((addr, idx) => {
-            console.log(`   ${idx + 1}. ${addr}`);
+            logger.log(`   ${idx + 1}. ${addr}`);
           });
           
           const pricesByAddress = await priceService.getPricesByAddresses(tokenAddresses, currentChain);
           
-          console.log(`\n✅ STEP 2 COMPLETE: Received prices for ${pricesByAddress.size}/${tokenAddresses.length} tokens`);
-          console.log('\n💰 PRICE DATA:');
+          logger.log(`\n✅ STEP 2 COMPLETE: Received prices for ${pricesByAddress.size}/${tokenAddresses.length} tokens`);
+          logger.log('\n💰 PRICE DATA:');
           Array.from(pricesByAddress.entries()).forEach(([addr, data]) => {
             const token = erc20Tokens.find(t => t.address.toLowerCase() === addr.toLowerCase());
-            console.log(`\n   ${token?.symbol || 'UNKNOWN'} (${addr.substring(0, 10)}...):`);
-            console.log(`   ├─ Price: $${data.price.toFixed(6)}`);
-            console.log(`   └─ 24h Change: ${data.change24h >= 0 ? '+' : ''}${data.change24h.toFixed(2)}%`);
+            logger.log(`\n   ${token?.symbol || 'UNKNOWN'} (${addr.substring(0, 10)}...):`);
+            logger.log(`   ├─ Price: $${data.price.toFixed(6)}`);
+            logger.log(`   └─ 24h Change: ${data.change24h >= 0 ? '+' : ''}${data.change24h.toFixed(2)}%`);
           });
           logger.log(`[WalletTab] 💰 Received prices for ${pricesByAddress.size}/${tokenAddresses.length} tokens`);
           
@@ -320,15 +320,15 @@ export default function WalletTab() {
             token.logo.trim() === ''
           );
           
-          console.log(`\n📡 STEP 3: Fetching missing logos...`);
-          console.log(`   Tokens needing logos: ${tokensNeedingLogos.length}/${erc20Tokens.length}`);
+          logger.log(`\n📡 STEP 3: Fetching missing logos...`);
+          logger.log(`   Tokens needing logos: ${tokensNeedingLogos.length}/${erc20Tokens.length}`);
           
           if (tokensNeedingLogos.length > 0) {
-            console.log('\n🖼️ TOKENS NEEDING LOGOS:');
+            logger.log('\n🖼️ TOKENS NEEDING LOGOS:');
             tokensNeedingLogos.forEach((t, idx) => {
-              console.log(`   ${idx + 1}. ${t.symbol || 'UNKNOWN'}`);
-              console.log(`      Address: ${t.address}`);
-              console.log(`      Current logo: ${t.logo || 'MISSING'}`);
+              logger.log(`   ${idx + 1}. ${t.symbol || 'UNKNOWN'}`);
+              logger.log(`      Address: ${t.address}`);
+              logger.log(`      Current logo: ${t.logo || 'MISSING'}`);
             });
             
             logger.log(`[WalletTab] 🖼️ Fetching logos from CoinGecko for ${tokensNeedingLogos.length} tokens...`);
@@ -337,17 +337,17 @@ export default function WalletTab() {
             await Promise.all(
               tokensNeedingLogos.map(async (token: any) => {
                 try {
-                  console.log(`\n   🔍 Fetching logo for ${token.symbol}...`);
-                  console.log(`      Address: ${token.address}`);
+                  logger.log(`\n   🔍 Fetching logo for ${token.symbol}...`);
+                  logger.log(`      Address: ${token.address}`);
                   const logo = await getCurrencyLogo(token.symbol, token.address, currentChain);
-                  console.log(`      Result: ${logo}`);
+                  logger.log(`      Result: ${logo}`);
                   
                   if (logo && logo !== '/crypto-eth.png' && logo !== '/crypto-placeholder.png') {
                     token.logo = logo;
-                    console.log(`      ✅ Logo set successfully`);
+                    logger.log(`      ✅ Logo set successfully`);
                     logger.log(`[WalletTab] ✅ Fetched logo for ${token.symbol}: ${logo}`);
                   } else {
-                    console.log(`      ⚠️ Invalid logo (using fallback)`);
+                    logger.log(`      ⚠️ Invalid logo (using fallback)`);
                   }
                 } catch (error) {
                   console.error(`      ❌ Failed to fetch logo`);
@@ -357,19 +357,19 @@ export default function WalletTab() {
               })
             );
             
-            console.log(`\n✅ STEP 3 COMPLETE: Logo fetching finished`);
+            logger.log(`\n✅ STEP 3 COMPLETE: Logo fetching finished`);
           } else {
-            console.log(`✅ STEP 3 SKIPPED: All tokens already have logos`);
+            logger.log(`✅ STEP 3 SKIPPED: All tokens already have logos`);
           }
           
-          console.log(`\n📡 STEP 4: Calculating final token values...`);
+          logger.log(`\n📡 STEP 4: Calculating final token values...`);
           const tokensWithPrices = erc20Tokens.map((token: any) => {
             const addressLower = token.address.toLowerCase();
             const priceData = pricesByAddress.get(addressLower) || { price: 0, change24h: 0 };
             const balanceNum = parseFloat(token.balance || '0');
             const balanceUSD = balanceNum * priceData.price;
             
-            console.log(`   ${token.symbol}: ${balanceNum} × $${priceData.price.toFixed(8)} = $${balanceUSD.toFixed(8)}`);
+            logger.log(`   ${token.symbol}: ${balanceNum} × $${priceData.price.toFixed(8)} = $${balanceUSD.toFixed(8)}`);
             
             return {
               ...token,
@@ -384,23 +384,23 @@ export default function WalletTab() {
             t => parseFloat(t.balance || '0') > 0
           );
           
-          console.log(`\n✅ STEP 4 COMPLETE: Final token processing`);
-          console.log(`   Total tokens with balance: ${tokensWithValue.length}`);
-          console.log('\n📊 FINAL TOKEN SUMMARY:');
+          logger.log(`\n✅ STEP 4 COMPLETE: Final token processing`);
+          logger.log(`   Total tokens with balance: ${tokensWithValue.length}`);
+          logger.log('\n📊 FINAL TOKEN SUMMARY:');
           tokensWithValue.forEach((t, idx) => {
-            console.log(`\n   ${idx + 1}. ${t.symbol || 'UNKNOWN'}`);
-            console.log(`      ├─ Name: ${t.name || 'Unknown Token'}`);
-            console.log(`      ├─ Address: ${t.address}`);
-            console.log(`      ├─ Balance: ${t.balance} ${t.symbol}`);
-            console.log(`      ├─ Price: $${parseFloat(t.priceUSD || '0').toFixed(6)}`);
-            console.log(`      ├─ Value USD: $${parseFloat(t.balanceUSD || '0').toFixed(8)}`);
-            console.log(`      ├─ 24h Change: ${(t.change24h || 0) >= 0 ? '+' : ''}${(t.change24h || 0).toFixed(2)}%`);
-            console.log(`      └─ Logo: ${t.logo || 'MISSING'}`);
+            logger.log(`\n   ${idx + 1}. ${t.symbol || 'UNKNOWN'}`);
+            logger.log(`      ├─ Name: ${t.name || 'Unknown Token'}`);
+            logger.log(`      ├─ Address: ${t.address}`);
+            logger.log(`      ├─ Balance: ${t.balance} ${t.symbol}`);
+            logger.log(`      ├─ Price: $${parseFloat(t.priceUSD || '0').toFixed(6)}`);
+            logger.log(`      ├─ Value USD: $${parseFloat(t.balanceUSD || '0').toFixed(8)}`);
+            logger.log(`      ├─ 24h Change: ${(t.change24h || 0) >= 0 ? '+' : ''}${(t.change24h || 0).toFixed(2)}%`);
+            logger.log(`      └─ Logo: ${t.logo || 'MISSING'}`);
           });
           
-          console.log('\n═══════════════════════════════════════════════════════════');
-          console.log('✅ [WalletTab] ETHEREUM TOKEN FETCHING COMPLETE');
-          console.log('═══════════════════════════════════════════════════════════\n');
+          logger.log('\n═══════════════════════════════════════════════════════════');
+          logger.log('✅ [WalletTab] ETHEREUM TOKEN FETCHING COMPLETE');
+          logger.log('═══════════════════════════════════════════════════════════\n');
           logger.log(`[WalletTab] ✅ Final tokensWithValue: ${tokensWithValue.length} tokens`);
         }
         
@@ -443,7 +443,7 @@ export default function WalletTab() {
         return newSet;
       });
       setIsRefreshing(false);
-      console.log(`\n✅ [WalletTab] fetchData() COMPLETED for ${currentChain}`);
+      logger.log(`\n✅ [WalletTab] fetchData() COMPLETED for ${currentChain}`);
     }
   };
 

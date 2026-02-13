@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       email,
       country,
       onramp, // REQUIRED: Provider name (banxa, moonpay, etc.)
-      userId: requestedUserId, // Optional: legacy client hint, never trusted over verified token
+      userId: requestedUserId, // Optional legacy hint, ignored for ownership binding
     } = await req.json();
 
     const supabaseAdmin = getSupabaseAdmin();
@@ -57,7 +57,13 @@ export async function POST(req: NextRequest) {
         verifiedUserId = verifiedUser.user.id;
       }
     }
-    const resolvedUserId = verifiedUserId || (typeof requestedUserId === 'string' ? requestedUserId : null);
+    const resolvedUserId = verifiedUserId;
+    if (requestedUserId && verifiedUserId && requestedUserId !== verifiedUserId) {
+      logger.warn('⚠️ Ignoring mismatched requestedUserId in checkout intent', {
+        requestedUserId,
+        verifiedUserId,
+      });
+    }
 
     // Validate required fields
     if (!fiatAmount || !fiatCurrency || !cryptoCurrency || !walletAddress) {
