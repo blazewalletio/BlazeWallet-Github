@@ -2857,7 +2857,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="space-y-6"
+                  className="space-y-4 sm:space-y-5"
                 >
                   <div className="text-center">
                     <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -2869,71 +2869,84 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     <p className="text-sm text-gray-600">Review payment details below</p>
                   </div>
 
-                  {/* 🆕 LABEL & MESSAGE from QR code */}
+                  {/* Label / message from QR */}
                   {parsedQR && (parsedQR.label || parsedQR.message) && (
-                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-5">
+                    <div className="glass-card p-5 border border-blue-200/70 bg-gradient-to-br from-blue-50 to-indigo-50">
                       {parsedQR.label && (
                         <div className="mb-3">
-                          <div className="text-xs text-blue-600 font-semibold mb-1">Recipient</div>
+                          <div className="text-xs text-blue-600 font-semibold mb-1 uppercase tracking-wide">Recipient</div>
                           <div className="text-lg font-bold text-gray-900">{parsedQR.label}</div>
                         </div>
                       )}
                       {parsedQR.message && (
                         <div>
-                          <div className="text-xs text-blue-600 font-semibold mb-1">Description</div>
+                          <div className="text-xs text-blue-600 font-semibold mb-1 uppercase tracking-wide">Description</div>
                           <div className="text-sm text-gray-700">{parsedQR.message}</div>
                         </div>
                       )}
                     </div>
                   )}
 
-                  {/* ⚠️ AMOUNT WARNING - QR amount is in native crypto! */}
-                  {scannedAmount && parsedQR?.amount && (
-                    <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4">
-                      <div className="flex items-start gap-3">
-                        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                        <div className="text-sm">
-                          <div className="font-bold text-red-900 mb-1">Amount from QR code</div>
-                          <div className="text-red-700">
-                            The QR code specifies <strong>{scannedAmount} {QRParser.getChainInfo(currentChain as ChainType)?.symbol}</strong> (native cryptocurrency amount).
-                            {currentChain === 'bitcoin' && parseFloat(scannedAmount) >= 0.01 && (
-                              <span className="block mt-1 font-semibold">⚠️ This is a significant amount! Please verify.</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
+                  {/* Unified amount card */}
+                  <div className="glass-card p-5 sm:p-6 border border-orange-200/80 bg-gradient-to-br from-orange-50 to-yellow-50">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-sm text-gray-600">You're sending</div>
+                      {scannedAmount && parsedQR?.amount ? (
+                        <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-700 border border-rose-200">
+                          From QR code
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/80 text-gray-700 border border-gray-200">
+                          Manual entry
+                        </span>
+                      )}
                     </div>
-                  )}
 
-                  {/* Payment Summary Card */}
-                  <div className="bg-gradient-to-br from-orange-50 to-yellow-50 border-2 border-orange-200 rounded-xl p-6">
-                    <div className="text-sm text-gray-600 mb-2">You're sending</div>
                     {scannedAmount && parsedQR?.amount ? (
-                      // Amount from QR code - show in native crypto
+                      // QR amount: show once, clearly
                       <>
-                    <div className="text-4xl font-bold text-gray-900 mb-1">
+                    <div className="text-[36px] leading-none sm:text-5xl font-bold text-gray-900 mb-2">
                           {scannedAmount} {QRParser.getChainInfo(currentChain as ChainType)?.symbol}
                     </div>
-                        <div className="text-sm text-gray-500">
-                          Native {QRParser.getChainInfo(currentChain as ChainType)?.name} amount from QR code
+                        <div className="text-sm text-gray-600">
+                          Native {QRParser.getChainInfo(currentChain as ChainType)?.name} amount embedded in the QR code
                         </div>
                         {cryptoUSDValue !== null && (
-                          <div className="text-lg text-gray-600 mt-2">
+                          <div className="text-lg text-gray-700 mt-2 font-medium">
                             ≈ {formatUSDSync(cryptoUSDValue)}
+                          </div>
+                        )}
+                        <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                          <div className="rounded-lg bg-white/70 border border-gray-200 px-3 py-2">
+                            <div className="text-gray-500">Network</div>
+                            <div className="font-semibold text-gray-900">
+                              {QRParser.getChainInfo(currentChain as ChainType)?.name || currentChain}
+                            </div>
+                          </div>
+                          <div className="rounded-lg bg-white/70 border border-gray-200 px-3 py-2">
+                            <div className="text-gray-500">Amount source</div>
+                            <div className="font-semibold text-gray-900">QR request</div>
+                          </div>
+                        </div>
+                        {currentChain === 'bitcoin' && parseFloat(scannedAmount) >= 0.01 && (
+                          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                            <div className="flex items-start gap-2 text-sm text-amber-900">
+                              <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                              <span>Large BTC amount detected. Double-check recipient and amount before sending.</span>
+                            </div>
                           </div>
                         )}
                       </>
                     ) : (
-                      // Manual amount - show in user's currency + crypto
+                      // Manual amount
                       <>
-                        <div className="text-4xl font-bold text-gray-900 mb-1">
+                        <div className="text-[36px] leading-none sm:text-5xl font-bold text-gray-900 mb-2">
                           {symbol}{amount.toFixed(2)}
                         </div>
-                        <div className="text-sm text-gray-600 flex items-center justify-center gap-2 mb-2">
+                        <div className="text-sm text-gray-600 flex items-center justify-start gap-2 mb-2">
                           <span>{QRParser.getChainInfo(currentChain as ChainType)?.icon || '?'}</span>
                           Via {QRParser.getChainInfo(currentChain as ChainType)?.name || currentChain} network
                         </div>
-                        {/* Crypto equivalent */}
                         <div className="bg-white/60 backdrop-blur rounded-lg p-3 mt-3">
                           <div className="flex items-center justify-between text-sm">
                             <span className="text-gray-600">Crypto amount:</span>
@@ -2953,7 +2966,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   </div>
 
                   {/* Recipient Details */}
-                  <div className="bg-white border-2 border-gray-200 rounded-xl p-4 space-y-3">
+                  <div className="glass-card p-4 border border-gray-200/80 space-y-3">
                     <div className="flex justify-between items-start">
                       <span className="text-sm text-gray-600">To address</span>
                       <div className="text-right">
@@ -2970,6 +2983,10 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                           Copy full address
                         </button>
                       </div>
+                    </div>
+                    <div className="pt-1 border-t border-gray-200/80 flex items-center justify-between text-xs">
+                      <span className="text-gray-500">Network</span>
+                      <span className="font-semibold text-gray-800">{QRParser.getChainInfo(currentChain as ChainType)?.name || currentChain}</span>
                     </div>
                     </div>
                     
@@ -3010,7 +3027,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                   </motion.button>
 
                   <p className="text-xs text-center text-gray-500">
-                    Make sure the details are correct before confirming
+                    Confirm only if the address and network are correct
                   </p>
                 </motion.div>
               )}
