@@ -2971,17 +2971,8 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
 
                   {/* Unified amount card */}
                   <div className={`${isCompactViewport ? 'p-4' : 'p-5 sm:p-6'} glass-card border border-orange-200/80 bg-gradient-to-br from-orange-50 to-yellow-50`}>
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="mb-2">
                       <div className="text-sm text-gray-600">You're sending</div>
-                      {scannedAmount && parsedQR?.amount ? (
-                        <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-rose-100 text-rose-700 border border-rose-200">
-                          From QR code
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/80 text-gray-700 border border-gray-200">
-                          Manual entry
-                        </span>
-                      )}
                     </div>
 
                     {scannedAmount && parsedQR?.amount ? (
