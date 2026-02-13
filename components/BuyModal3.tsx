@@ -1158,7 +1158,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900">Buy crypto</h2>
                     <p className="text-sm text-gray-600">
-                      Fast & secure with card or bank transfer
+                      Compare providers and pay with available methods
                     </p>
                   </div>
                 </div>
