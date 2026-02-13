@@ -3,7 +3,7 @@
 ## 🎯 Overzicht
 
 Arc Wallet heeft nu **100% werkende** functionaliteit voor:
-1. **Crypto kopen** met fiat (iDEAL, creditcard, etc.) via Ramp Network
+1. **Crypto kopen** met fiat (iDeal | Wero, creditcard, etc.) via Ramp Network
 2. **Crypto swappen** tussen tokens via 1inch DEX Aggregator
 
 ---
@@ -14,14 +14,14 @@ Arc Wallet heeft nu **100% werkende** functionaliteit voor:
 
 **Beste keuze op de markt:**
 - ✅ **Laagste fees**: 1-2% (vs 4-5% bij concurrenten)
-- ✅ **iDEAL support**: Perfect voor Nederlandse gebruikers!
+- ✅ **iDeal | Wero support**: Perfect voor Nederlandse gebruikers!
 - ✅ **Non-custodial**: Crypto gaat direct naar Arc wallet address
 - ✅ **Instant**: Transacties binnen enkele minuten
 - ✅ **Veilig**: PSD2 compliant, gereguleerd
 
 ### Betaalmethodes
 
-- iDEAL (Nederland)
+- iDeal | Wero (Nederland)
 - Creditcard (Visa, Mastercard)
 - Bankoverschrijving (SEPA)
 - Apple Pay
@@ -58,7 +58,7 @@ Arc Wallet heeft nu **100% werkende** functionaliteit voor:
 2. BuyModal opent met popular tokens
 3. User selecteert crypto (bijv. USDT)
 4. Ramp widget opent in popup window
-5. User kiest betaalmethode (bijv. iDEAL)
+5. User kiest betaalmethode (bijv. iDeal | Wero)
 6. User voltooit betaling
 7. Crypto komt **direct** in Arc wallet!
 
@@ -192,7 +192,7 @@ const tx = await wallet.sendTransaction(txData);
    - BuyModal opent
    - Selecteert USDT
    - Ramp widget opent
-   - Betaalt €100 met iDEAL
+   - Betaalt €100 met iDeal | Wero
    - Ontvangt ~95 USDT (na fees)
 
 3. **User klikt "Swap"**
@@ -220,7 +220,7 @@ const tx = await wallet.sendTransaction(txData);
 
 **Voorbeeld:**
 ```
-€100 via iDEAL
+€100 via iDeal | Wero
 - Ramp fee (1.5%): €1.50
 - Network fee: €0.40
 - Ontvangen: ~€98.10 in crypto

@@ -18,7 +18,7 @@ Dit document beschrijft het **perfecte voorstel** voor de custom Onramper Buy Mo
     <div>
       <h2 className="text-2xl font-bold text-gray-900">Buy crypto</h2>
       <p className="text-sm text-gray-600">
-        Purchase crypto with iDEAL, credit card or bank transfer
+        Purchase crypto with iDeal | Wero, credit card or bank transfer
       </p>
     </div>
   </div>
@@ -445,7 +445,7 @@ Dit document beschrijft het **perfecte voorstel** voor de custom Onramper Buy Mo
 ### **Flow Steps:**
 1. **Amount Selection** → User kiest fiat amount en crypto
 2. **Quote Display** → Real-time quote met breakdown
-3. **Payment Method** → User kiest iDEAL/credit card/bank
+3. **Payment Method** → User kiest iDeal | Wero/credit card/bank
 4. **Review & Confirm** → User bevestigt details
 5. **Payment Redirect** → Redirect naar Onramper payment
 6. **Status Tracking** → Real-time status updates via webhook

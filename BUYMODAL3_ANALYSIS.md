@@ -21,10 +21,10 @@
 
 ### ❌ **NOT WORKING COMBINATIONS**
 
-1. **iDEAL + ANY CRYPTO:** ❌ 0 quotes for ETH, USDC, BTC
-   - **Root Cause:** Onramper API returns 0 providers that support iDEAL
-   - **Analysis:** iDEAL is listed in supported payment methods, but NO providers actually support it via Onramper's API
-   - **Impact:** Users cannot use iDEAL to buy crypto through Onramper
+1. **iDeal | Wero + ANY CRYPTO:** ❌ 0 quotes for ETH, USDC, BTC
+   - **Root Cause:** Onramper API returns 0 providers that support iDeal | Wero
+   - **Analysis:** iDeal | Wero is listed in supported payment methods, but NO providers actually support it via Onramper's API
+   - **Impact:** Users cannot use iDeal | Wero to buy crypto through Onramper
 
 2. **USDC + ANY PAYMENT METHOD:** ❌ All fail
    - **Root Cause:** Onramper API returns empty quotes array for USDC
@@ -59,7 +59,7 @@
 ┌─────────────────────────────────────────────────────────┐
 │ STEP 3: SELECT PAYMENT METHOD                          │
 │ - Show available payment methods                        │
-│ - ⚠️ DISABLE iDEAL if not supported for selected crypto│
+│ - ⚠️ DISABLE iDeal | Wero if not supported for selected crypto│
 │ - Show processing time and fees                        │
 │ - Real-time availability check                         │
 └─────────────────────────────────────────────────────────┘
@@ -97,7 +97,7 @@
 ```typescript
 // Before showing payment methods, check availability
 const availablePaymentMethods = paymentMethods.filter(pm => {
-  // Skip iDEAL if no providers support it for this crypto
+  // Skip iDeal | Wero if no providers support it for this crypto
   if (pm.id === 'ideal') {
     return checkIdealSupport(cryptoCurrency);
   }
@@ -159,10 +159,10 @@ const checkPaymentMethodAvailability = async (paymentMethod: string, crypto: str
 - **Status:** ✅ Fixed in code (commit b1c22e2e)
 - **Action:** Wait for deployment
 
-### **Bug 2: iDEAL Not Actually Supported**
-- **Issue:** iDEAL listed in supported methods, but 0 providers support it
+### **Bug 2: iDeal | Wero Not Actually Supported**
+- **Issue:** iDeal | Wero listed in supported methods, but 0 providers support it
 - **Status:** ⚠️ Onramper API limitation
-- **Action:** Disable iDEAL or show warning that it's not available
+- **Action:** Disable iDeal | Wero or show warning that it's not available
 
 ### **Bug 3: USDC Not Supported**
 - **Issue:** USDC listed in supported cryptos, but no providers offer it
@@ -187,7 +187,7 @@ const checkPaymentMethodAvailability = async (paymentMethod: string, crypto: str
 
 ### **3. Alternative Suggestions**
 - When a combination doesn't work, suggest alternatives:
-  - "iDEAL not available. Try Credit Card or Apple Pay"
+  - "iDeal | Wero not available. Try Credit Card or Apple Pay"
   - "USDC not available. Try ETH or BTC"
 
 ### **4. Loading States**
@@ -196,7 +196,7 @@ const checkPaymentMethodAvailability = async (paymentMethod: string, crypto: str
 - Show partial results as they come in
 
 ### **5. Error Messages**
-- Be specific: "No providers support iDEAL for ETH"
+- Be specific: "No providers support iDeal | Wero for ETH"
 - Be helpful: "Try Credit Card or Apple Pay instead"
 - Be actionable: Show working alternatives
 
@@ -206,7 +206,7 @@ const checkPaymentMethodAvailability = async (paymentMethod: string, crypto: str
 
 ### **IMMEDIATE FIXES:**
 1. ✅ Fix response fields (already done, wait for deployment)
-2. ⚠️ Disable iDEAL or show "Not Available" badge
+2. ⚠️ Disable iDeal | Wero or show "Not Available" badge
 3. ⚠️ Remove USDC or show "Not Available" badge
 4. ✅ Improve error messages for 0 quotes
 

@@ -69,7 +69,7 @@ async function testBanxaWithoutPaymentMethod() {
         const id = (pm.paymentTypeId || pm.id || '').toLowerCase();
         return id.includes('ideal');
       });
-      console.log(`\n✅ BANXA supports iDEAL: ${hasIdeal}`);
+      console.log(`\n✅ BANXA supports iDeal | Wero: ${hasIdeal}`);
     } else {
       console.log('❌ BANXA quote not found');
     }
@@ -130,13 +130,13 @@ async function testBanxaWithoutPaymentMethod() {
     console.log(`  - Has payout: ${!!banxaQuote1?.payout}`);
     console.log(`  - Has rate: ${!!banxaQuote1?.rate}`);
     console.log(`  - Has errors: ${!!banxaQuote1?.errors?.length}`);
-    console.log(`  - Supports iDEAL: ${banxaQuote1?.availablePaymentMethods?.some((pm: any) => (pm.paymentTypeId || pm.id || '').toLowerCase().includes('ideal')) || false}`);
+    console.log(`  - Supports iDeal | Wero: ${banxaQuote1?.availablePaymentMethods?.some((pm: any) => (pm.paymentTypeId || pm.id || '').toLowerCase().includes('ideal')) || false}`);
 
     console.log('\nWITH paymentMethod=ideal filter:');
     console.log(`  - Has payout: ${!!banxaQuote2?.payout}`);
     console.log(`  - Has rate: ${!!banxaQuote2?.rate}`);
     console.log(`  - Has errors: ${!!banxaQuote2?.errors?.length}`);
-    console.log(`  - Supports iDEAL: ${banxaQuote2?.availablePaymentMethods?.some((pm: any) => (pm.paymentTypeId || pm.id || '').toLowerCase().includes('ideal')) || false}`);
+    console.log(`  - Supports iDeal | Wero: ${banxaQuote2?.availablePaymentMethods?.some((pm: any) => (pm.paymentTypeId || pm.id || '').toLowerCase().includes('ideal')) || false}`);
 
   } catch (error: any) {
     console.error('❌ Error:', error.message);

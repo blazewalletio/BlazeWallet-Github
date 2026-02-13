@@ -10,7 +10,7 @@ Dit document beschrijft de **allerbeste, meest perfecte en flawless** manier om 
 
 ### Voordelen t.o.v. Transak:
 - ✅ **Betere UX**: Naadloze widget integratie
-- ✅ **Meer payment methods**: iDEAL, creditcard, bank transfer, Apple Pay, Google Pay
+- ✅ **Meer payment methods**: iDeal | Wero, creditcard, bank transfer, Apple Pay, Google Pay
 - ✅ **Betere rates**: Aggregeert meerdere providers voor beste prijzen
 - ✅ **Multi-chain native**: Ondersteunt alle chains out-of-the-box
 - ✅ **Webhook support**: Real-time transactie updates

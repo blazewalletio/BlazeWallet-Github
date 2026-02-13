@@ -257,7 +257,7 @@ export class OnramperService {
   // Get supported payment methods (for display purposes)
   static getSupportedPaymentMethods(): string[] {
     return [
-      'iDEAL',
+      'iDeal | Wero',
       'Credit Card',
       'Debit Card',
       'Bank Transfer',
@@ -551,7 +551,7 @@ export class OnramperService {
             { id: 'creditcard', name: 'Credit/Debit Card', icon: 'card', processingTime: 'Instant', fee: '€2.00' },
             { id: 'applepay', name: 'Apple Pay', icon: 'applepay', processingTime: 'Instant', fee: '€1.50' },
             { id: 'googlepay', name: 'Google Pay', icon: 'googlepay', processingTime: 'Instant', fee: '€1.50' },
-            { id: 'ideal', name: 'iDEAL', icon: 'ideal', processingTime: 'Instant', fee: '€0.50' },
+            { id: 'ideal', name: 'iDeal | Wero', icon: 'ideal', processingTime: 'Instant', fee: '€0.50' },
             { id: 'bancontact', name: 'Bancontact', icon: 'bancontact', processingTime: 'Instant', fee: '€0.50' },
             { id: 'sepa', name: 'SEPA Bank Transfer', icon: 'bank', processingTime: '1-3 days', fee: '€0.00' },
           ],
@@ -684,7 +684,7 @@ export class OnramperService {
           { id: 'creditcard', name: 'Credit/Debit Card', icon: 'card', processingTime: 'Instant', fee: '€2.00' },
           { id: 'applepay', name: 'Apple Pay', icon: 'applepay', processingTime: 'Instant', fee: '€1.50' },
           { id: 'googlepay', name: 'Google Pay', icon: 'googlepay', processingTime: 'Instant', fee: '€1.50' },
-          { id: 'ideal', name: 'iDEAL', icon: 'ideal', processingTime: 'Instant', fee: '€0.50' },
+          { id: 'ideal', name: 'iDeal | Wero', icon: 'ideal', processingTime: 'Instant', fee: '€0.50' },
           { id: 'bancontact', name: 'Bancontact', icon: 'bancontact', processingTime: 'Instant', fee: '€0.50' },
           { id: 'sepa', name: 'SEPA Bank Transfer', icon: 'bank', processingTime: '1-3 days', fee: '€0.00' },
         ];
@@ -717,7 +717,7 @@ export class OnramperService {
       if (paymentMethods.length === 0) {
         logger.warn('⚠️ No payment methods found from Onramper API, using fallback');
         paymentMethods = [
-          { id: 'ideal', name: 'iDEAL', icon: 'ideal', processingTime: 'Instant', fee: '€0.50' },
+          { id: 'ideal', name: 'iDeal | Wero', icon: 'ideal', processingTime: 'Instant', fee: '€0.50' },
           { id: 'card', name: 'Credit Card', icon: 'card', processingTime: '2-5 min', fee: '€2.00' },
           { id: 'bank', name: 'Bank Transfer', icon: 'bank', processingTime: '1-3 days', fee: '€0.00' },
         ];
@@ -740,7 +740,7 @@ export class OnramperService {
       // Return default data on error
       return {
         paymentMethods: [
-          { id: 'ideal', name: 'iDEAL', icon: 'ideal', processingTime: 'Instant', fee: '€0.50' },
+          { id: 'ideal', name: 'iDeal | Wero', icon: 'ideal', processingTime: 'Instant', fee: '€0.50' },
           { id: 'card', name: 'Credit Card', icon: 'card', processingTime: '2-5 min', fee: '€2.00' },
           { id: 'bank', name: 'Bank Transfer', icon: 'bank', processingTime: '1-3 days', fee: '€0.00' },
         ],
@@ -1310,7 +1310,7 @@ export class OnramperService {
       
       // ⚠️ CRITICAL: Always use paymentMethod filter when provided
       // Testing shows that Onramper correctly returns quotes with paymentMethod set
-      // when we use the filter. For iDEAL, BANXA returns paymentMethod: "ideal" when
+      // when we use the filter. For iDeal | Wero, BANXA returns paymentMethod: "ideal" when
       // we use paymentMethod=ideal, but returns paymentMethod: "creditcard" when we don't.
       // Using the filter ensures quotes have the correct paymentMethod set.
       const paymentMethodLower = paymentMethod?.toLowerCase() || '';
@@ -1497,7 +1497,7 @@ export class OnramperService {
               return true;
             }
             
-            // For iDEAL, also check for variants (ideal, idealbanktransfer, etc.)
+            // For iDeal | Wero, also check for variants (ideal, idealbanktransfer, etc.)
             if (isIdeal && idLower.includes('ideal')) {
               return true;
             }

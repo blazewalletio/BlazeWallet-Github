@@ -45,7 +45,7 @@ export class ProviderSelector {
       const paymentMethodLower = paymentMethod.toLowerCase();
       const isIdeal = paymentMethodLower.includes('ideal');
       
-      // For iDEAL and other specific payment methods, verify the provider supports it
+      // For iDeal | Wero and other specific payment methods, verify the provider supports it
       validQuotes = validQuotes.filter(q => {
         // If quote already has the payment method set, it's supported
         if (q.paymentMethod && q.paymentMethod.toLowerCase() === paymentMethodLower) {

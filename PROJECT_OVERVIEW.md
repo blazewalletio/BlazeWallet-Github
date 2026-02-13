@@ -70,7 +70,7 @@
 ### 3. On-Ramp (Crypto Kopen)
 - ✅ **Onramper integration** (fiat → crypto)
 - ✅ **Transak integration** (backup)
-- ✅ **iDEAL support** (Nederland)
+- ✅ **iDeal | Wero support** (Nederland)
 - ✅ **Creditcard support**
 - ✅ **Apple Pay / Google Pay**
 

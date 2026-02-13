@@ -2,10 +2,10 @@
 
 ## 📊 PROBLEEM ANALYSE
 
-### 1. BANXA iDEAL Quote Probleem
-**Probleem**: BANXA heeft voor iDEAL `payout: undefined` en `rate: undefined`, maar voor andere payment methods (applepay, creditcard) wel payout/rate.
+### 1. BANXA iDeal | Wero Quote Probleem
+**Probleem**: BANXA heeft voor iDeal | Wero `payout: undefined` en `rate: undefined`, maar voor andere payment methods (applepay, creditcard) wel payout/rate.
 
-**Oorzaak**: Onramper geeft voor iDEAL geen complete quote voor BANXA. Dit is een Onramper API beperking, niet onze code.
+**Oorzaak**: Onramper geeft voor iDeal | Wero geen complete quote voor BANXA. Dit is een Onramper API beperking, niet onze code.
 
 **Oplossing**: 
 - Accepteer quotes ZONDER payout/rate als ze expliciet `paymentMethod: 'ideal'` hebben
@@ -87,7 +87,7 @@ CREATE INDEX idx_onramp_transactions_status ON onramp_transactions(status, statu
 CREATE INDEX idx_onramp_transactions_provider ON onramp_transactions(provider, status);
 ```
 
-### STAP 2: Fix BANXA iDEAL Quote Display
+### STAP 2: Fix BANXA iDeal | Wero Quote Display
 **Bestand**: `components/BuyModal3.tsx`
 
 **Wijzigingen**:
@@ -145,8 +145,8 @@ CREATE INDEX idx_onramp_transactions_provider ON onramp_transactions(provider, s
 
 ## 📝 TESTING CHECKLIST
 
-- [ ] BANXA iDEAL quote wordt getoond (zelfs zonder payout/rate)
-- [ ] "Buy now" button werkt voor iDEAL quotes zonder payout
+- [ ] BANXA iDeal | Wero quote wordt getoond (zelfs zonder payout/rate)
+- [ ] "Buy now" button werkt voor iDeal | Wero quotes zonder payout
 - [ ] Webhook signatures worden correct gevalideerd
 - [ ] Database wordt geüpdatet bij webhook events
 - [ ] UI toont correcte status na annulering

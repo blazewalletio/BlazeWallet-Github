@@ -5,7 +5,7 @@
  * 1. Quote fetching flow
  * 2. Payment method selection
  * 3. Provider filtering
- * 4. iDEAL support
+ * 4. iDeal | Wero support
  * 5. API responses
  * 6. State management
  * 
@@ -94,7 +94,7 @@ const testQuotesWithoutPaymentMethod = async () => {
   }
 };
 
-// Test 4: Test Quotes WITH iDEAL for ETH
+// Test 4: Test Quotes WITH iDeal | Wero for ETH
 const testQuotesWithIdealEth = async () => {
   try {
     const url = `${BASE_URL}/api/onramper/quotes?fiatAmount=250&fiatCurrency=EUR&cryptoCurrency=ETH&paymentMethod=ideal`;
@@ -105,7 +105,7 @@ const testQuotesWithIdealEth = async () => {
       const quotes = data.quotes || [];
       const validQuotes = quotes.filter((q: any) => !q.errors || q.errors.length === 0);
       
-      // Check which providers support iDEAL
+      // Check which providers support iDeal | Wero
       const idealProviders = validQuotes.filter((q: any) => {
         const methods = q.availablePaymentMethods || [];
         return methods.some((pm: any) => {
@@ -114,7 +114,7 @@ const testQuotesWithIdealEth = async () => {
         });
       });
       
-      addResult('Quotes WITH iDEAL (ETH)', true, undefined, {
+      addResult('Quotes WITH iDeal | Wero (ETH)', true, undefined, {
         totalQuotes: quotes.length,
         validQuotes: validQuotes.length,
         idealProviders: idealProviders.length,
@@ -122,14 +122,14 @@ const testQuotesWithIdealEth = async () => {
         hasBanxa: idealProviders.some((q: any) => q.ramp?.toLowerCase() === 'banxa')
       });
     } else {
-      addResult('Quotes WITH iDEAL (ETH)', false, data.error || 'Unknown error', data);
+      addResult('Quotes WITH iDeal | Wero (ETH)', false, data.error || 'Unknown error', data);
     }
   } catch (error: any) {
-    addResult('Quotes WITH iDEAL (ETH)', false, error.message);
+    addResult('Quotes WITH iDeal | Wero (ETH)', false, error.message);
   }
 };
 
-// Test 5: Test Quotes WITH iDEAL for USDC
+// Test 5: Test Quotes WITH iDeal | Wero for USDC
 const testQuotesWithIdealUsdc = async () => {
   try {
     const url = `${BASE_URL}/api/onramper/quotes?fiatAmount=250&fiatCurrency=EUR&cryptoCurrency=USDC&paymentMethod=ideal`;
@@ -140,7 +140,7 @@ const testQuotesWithIdealUsdc = async () => {
       const quotes = data.quotes || [];
       const validQuotes = quotes.filter((q: any) => !q.errors || q.errors.length === 0);
       
-      // Check which providers support iDEAL
+      // Check which providers support iDeal | Wero
       const idealProviders = validQuotes.filter((q: any) => {
         const methods = q.availablePaymentMethods || [];
         return methods.some((pm: any) => {
@@ -149,7 +149,7 @@ const testQuotesWithIdealUsdc = async () => {
         });
       });
       
-      addResult('Quotes WITH iDEAL (USDC)', true, undefined, {
+      addResult('Quotes WITH iDeal | Wero (USDC)', true, undefined, {
         totalQuotes: quotes.length,
         validQuotes: validQuotes.length,
         idealProviders: idealProviders.length,
@@ -157,10 +157,10 @@ const testQuotesWithIdealUsdc = async () => {
         hasBanxa: idealProviders.some((q: any) => q.ramp?.toLowerCase() === 'banxa')
       });
     } else {
-      addResult('Quotes WITH iDEAL (USDC)', false, data.error || 'Unknown error', data);
+      addResult('Quotes WITH iDeal | Wero (USDC)', false, data.error || 'Unknown error', data);
     }
   } catch (error: any) {
-    addResult('Quotes WITH iDEAL (USDC)', false, error.message);
+    addResult('Quotes WITH iDeal | Wero (USDC)', false, error.message);
   }
 };
 
@@ -229,7 +229,7 @@ const testBackendFiltering = async () => {
     const allQuotesResponse = await fetch(`${BASE_URL}/api/onramper/quotes?fiatAmount=250&fiatCurrency=EUR&cryptoCurrency=ETH`);
     const allQuotesData = await allQuotesResponse.json();
     
-    // Get quotes WITH iDEAL
+    // Get quotes WITH iDeal | Wero
     const idealQuotesResponse = await fetch(`${BASE_URL}/api/onramper/quotes?fiatAmount=250&fiatCurrency=EUR&cryptoCurrency=ETH&paymentMethod=ideal`);
     const idealQuotesData = await idealQuotesResponse.json();
     
@@ -237,7 +237,7 @@ const testBackendFiltering = async () => {
       const allQuotes = allQuotesData.quotes || [];
       const idealQuotes = idealQuotesData.quotes || [];
       
-      // Check which providers from "all" support iDEAL
+      // Check which providers from "all" support iDeal | Wero
       const providersWithIdeal = allQuotes.filter((q: any) => {
         const methods = q.availablePaymentMethods || [];
         return methods.some((pm: any) => {

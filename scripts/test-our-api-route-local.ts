@@ -1,7 +1,7 @@
 /**
  * 🧪 TEST: Our API route locally
  * 
- * Test what our API route returns for iDEAL
+ * Test what our API route returns for iDeal | Wero
  * Run: npx tsx scripts/test-our-api-route-local.ts
  * 
  * NOTE: Make sure dev server is running (npm run dev)

@@ -17,7 +17,7 @@ De Buy-functionaliteit is nu **volledig geïmplementeerd** met Onramper als fiat
 - **Full-screen overlay modal** - Perfecte UX zoals bij andere wallets
 - **Real-time quotes** - Live exchange rates van Onramper API
 - **Multi-chain support** - Automatische crypto selectie per chain
-- **Payment method selection** - iDEAL, creditcard, Apple Pay, etc.
+- **Payment method selection** - iDeal | Wero, creditcard, Apple Pay, etc.
 - **Quote display** - Duidelijke breakdown van fees en exchange rates
 - **Popup payment** - Betere UX dan iframe (geen popup blockers)
 - **Error handling** - Duidelijke foutmeldingen
@@ -179,7 +179,7 @@ Elke chain heeft zijn eigen lijst van supported assets die automatisch wordt gel
 ## 💳 PAYMENT METHODS
 
 ### Ondersteunde Methoden
-- ✅ **iDEAL** - Instant, €0.50 fee (Nederland)
+- ✅ **iDeal | Wero** - Instant, €0.50 fee (Nederland)
 - ✅ **Credit/Debit Card** - Instant, €2.00 fee
 - ✅ **Apple Pay** - Instant, €1.50 fee
 - ✅ **Google Pay** - Instant, €1.50 fee

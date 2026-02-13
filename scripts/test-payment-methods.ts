@@ -70,18 +70,18 @@ async function analyzePaymentMethods() {
     };
   });
 
-  // Show providers that support iDEAL
-  console.log('🎯 PROVIDERS WITH iDEAL SUPPORT:');
+  // Show providers that support iDeal | Wero
+  console.log('🎯 PROVIDERS WITH iDeal | Wero SUPPORT:');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
   const idealProviders = Object.values(providers).filter(p => p.hasIdeal && !p.errors);
   
   if (idealProviders.length === 0) {
-    console.log('❌ No providers found with iDEAL support!\n');
+    console.log('❌ No providers found with iDeal | Wero support!\n');
   } else {
     idealProviders.forEach((provider) => {
       console.log(`✅ ${provider.ramp.toUpperCase()}`);
-      console.log(`   iDEAL Variants: ${provider.idealVariants.join(', ')}`);
+      console.log(`   iDeal | Wero Variants: ${provider.idealVariants.join(', ')}`);
       console.log(`   All Payment Methods: ${provider.availablePaymentMethods.slice(0, 5).join(', ')}${provider.availablePaymentMethods.length > 5 ? '...' : ''}`);
       console.log('');
     });
@@ -102,14 +102,14 @@ async function analyzePaymentMethods() {
       } else {
         console.log(`   Payment Methods (${provider.availablePaymentMethods.length}): ${provider.availablePaymentMethods.slice(0, 8).join(', ')}${provider.availablePaymentMethods.length > 8 ? '...' : ''}`);
         if (provider.hasIdeal) {
-          console.log(`   🎯 iDEAL: ${provider.idealVariants.join(', ')}`);
+          console.log(`   🎯 iDeal | Wero: ${provider.idealVariants.join(', ')}`);
         }
       }
       console.log('');
     });
 
-  // Test different iDEAL payment method IDs
-  console.log('\n🧪 TESTING DIFFERENT iDEAL PAYMENT METHOD IDs:');
+  // Test different iDeal | Wero payment method IDs
+  console.log('\n🧪 TESTING DIFFERENT iDeal | Wero PAYMENT METHOD IDs:');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
   const idealVariants = ['ideal', 'idealbanktransfer', 'idealbank', 'idealnl'];

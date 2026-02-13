@@ -346,8 +346,8 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
         
         if (data.paymentMethods) {
           // ⚠️ FILTER: Bancontact only for Belgian users (BE country code)
-          // ⚠️ NOTE: iDEAL is supported by BANXA (verified via Onramper API)
-          // Availability checking will determine if iDEAL is available for selected crypto
+          // ⚠️ NOTE: iDeal | Wero is supported by BANXA (verified via Onramper API)
+          // Availability checking will determine if iDeal | Wero is available for selected crypto
           const filteredPaymentMethods = data.paymentMethods.filter((pm: PaymentMethod) => {
             const pmId = pm.id.toLowerCase();
             
@@ -707,12 +707,12 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
   };
 
   const handleContinue = async (overrideConfirmed = false) => {
-    // For iDEAL, allow proceeding even without quote (quote will be calculated during checkout)
+    // For iDeal | Wero, allow proceeding even without quote (quote will be calculated during checkout)
     if (!quote && paymentMethod?.toLowerCase() !== 'ideal') {
       return;
     }
     
-    // For iDEAL without quote, we still need a provider selected
+    // For iDeal | Wero without quote, we still need a provider selected
     if (paymentMethod?.toLowerCase() === 'ideal' && !selectedProvider) {
       return;
     }
@@ -1438,7 +1438,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                       {paymentMethods.length > 0 && (
                         <div className="grid grid-cols-2 gap-3">
                           {paymentMethods.map((pm) => {
-                            // ⚠️ TEMPORARY: Allow iDEAL to be clicked even if availability check fails
+                            // ⚠️ TEMPORARY: Allow iDeal | Wero to be clicked even if availability check fails
                             // This is because the availability check might be too strict or the API might not be returning quotes correctly
                             const isAvailable = availablePaymentMethods.has(pm.id);
                             const isIdeal = pm.id.toLowerCase() === 'ideal';

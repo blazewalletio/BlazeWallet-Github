@@ -123,7 +123,7 @@ async function runTests() {
     baseHeaders
   ));
 
-  // Test 4: Quotes endpoint (EUR -> ETH, with iDEAL)
+  // Test 4: Quotes endpoint (EUR -> ETH, with iDeal | Wero)
   results.push(await testEndpoint(
     '4. GET /quotes (EUR -> ETH, paymentMethod=ideal)',
     'https://api.onramper.com/quotes/eur/eth?amount=100&paymentMethod=ideal&country=NL',

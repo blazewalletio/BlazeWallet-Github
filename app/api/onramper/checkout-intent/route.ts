@@ -212,7 +212,7 @@ export async function POST(req: NextRequest) {
             
             if (supportingProviders.length > 0) {
               // Use the first provider (or we could choose based on best rates)
-              // According to Onramper docs, Banxa is the only provider that supports iDEAL for EUR -> SOL
+              // According to Onramper docs, Banxa is the only provider that supports iDeal | Wero for EUR -> SOL
               onrampProvider = supportingProviders[0];
               logger.log('✅ Found onramp provider from /supported/payment-types:', {
                 provider: onrampProvider,

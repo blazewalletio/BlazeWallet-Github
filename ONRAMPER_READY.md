@@ -151,7 +151,7 @@ Webhook receives status (optional)
 ## 💳 Payment Methods
 
 Onramper ondersteunt:
-- ✅ iDEAL (Nederland)
+- ✅ iDeal | Wero (Nederland)
 - ✅ Credit Card (Visa, Mastercard)
 - ✅ Debit Card
 - ✅ Bank Transfer (SEPA)

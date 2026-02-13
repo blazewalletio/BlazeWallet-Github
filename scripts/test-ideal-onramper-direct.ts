@@ -1,5 +1,5 @@
 /**
- * 🧪 TEST: iDEAL via Onramper API (direct)
+ * 🧪 TEST: iDeal | Wero via Onramper API (direct)
  * 
  * Test what Onramper returns with and without paymentMethod=ideal
  * Run: npx tsx scripts/test-ideal-onramper-direct.ts
@@ -16,7 +16,7 @@ const BASE_URL = 'https://api.onramper.com';
 
 async function testIdealOnramperDirect() {
   console.log(`\n${'='.repeat(80)}`);
-  console.log(`🧪 TEST: iDEAL via Onramper API (direct)`);
+  console.log(`🧪 TEST: iDeal | Wero via Onramper API (direct)`);
   console.log(`${'='.repeat(80)}\n`);
   
   if (!ONRAMPER_API_KEY) {
@@ -28,7 +28,7 @@ async function testIdealOnramperDirect() {
   const fiatCurrency = 'EUR';
   const cryptoCurrency = 'ETH';
   
-  // Test 1: WITHOUT paymentMethod (what we currently do for iDEAL)
+  // Test 1: WITHOUT paymentMethod (what we currently do for iDeal | Wero)
   console.log(`📊 TEST 1: Fetching quotes WITHOUT paymentMethod=ideal...`);
   try {
     const url1 = `${BASE_URL}/quotes/${fiatCurrency.toLowerCase()}/${cryptoCurrency.toLowerCase()}?amount=${fiatAmount}`;

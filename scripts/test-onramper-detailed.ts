@@ -81,7 +81,7 @@ async function analyzeQuotes(fiatCurrency: string, cryptoCurrency: string, amoun
     console.log('');
   });
 
-  // Check for iDEAL specifically
+  // Check for iDeal | Wero specifically
   if (paymentMethod?.toLowerCase().includes('ideal')) {
     const idealQuotes = validQuotes.filter((q: any) => {
       const pm = q.paymentMethod?.toLowerCase() || '';
@@ -91,7 +91,7 @@ async function analyzeQuotes(fiatCurrency: string, cryptoCurrency: string, amoun
       return pm.includes('ideal') || available;
     });
 
-    console.log(`   🎯 iDEAL-Specific Quotes: ${idealQuotes.length}`);
+    console.log(`   🎯 iDeal | Wero-Specific Quotes: ${idealQuotes.length}`);
     if (idealQuotes.length > 0) {
       idealQuotes.slice(0, 3).forEach((q: any) => {
         console.log(`      - ${q.ramp}: ${q.payout?.toFixed(6) || 'N/A'} ${cryptoCurrency}`);
@@ -114,13 +114,13 @@ async function runAnalysis() {
   // Test 1: EUR -> ETH, no payment method
   await analyzeQuotes('EUR', 'ETH', 100);
 
-  // Test 2: EUR -> ETH, with iDEAL, NL
+  // Test 2: EUR -> ETH, with iDeal | Wero, NL
   await analyzeQuotes('EUR', 'ETH', 100, 'ideal', 'NL');
 
   // Test 3: EUR -> SOL
   await analyzeQuotes('EUR', 'SOL', 100);
 
-  // Test 4: EUR -> ETH, with iDEAL, BE
+  // Test 4: EUR -> ETH, with iDeal | Wero, BE
   await analyzeQuotes('EUR', 'ETH', 250, 'ideal', 'BE');
 
   console.log('\n╔═══════════════════════════════════════════════════════════════╗');
@@ -128,7 +128,7 @@ async function runAnalysis() {
   console.log('╚═══════════════════════════════════════════════════════════════╝\n');
   console.log('✅ All endpoints are working correctly!');
   console.log('✅ Quotes are being returned from multiple providers!');
-  console.log('✅ iDEAL payment method is supported!');
+  console.log('✅ iDeal | Wero payment method is supported!');
   console.log('✅ Ready for production use in Blaze Wallet! 🚀\n');
 }
 

@@ -37,7 +37,7 @@ async function checkSupportedPaymentMethods() {
 
   console.log(`✅ Found ${Array.isArray(paymentTypes) ? paymentTypes.length : 'unknown'} payment types\n`);
 
-  // Look for iDEAL
+  // Look for iDeal | Wero
   const idealMethods = Array.isArray(paymentTypes) 
     ? paymentTypes.filter((pm: any) => {
         const id = pm.id || pm.paymentTypeId || pm.code || '';
@@ -46,11 +46,11 @@ async function checkSupportedPaymentMethods() {
       })
     : [];
 
-  console.log('🎯 iDEAL PAYMENT METHODS IN SUPPORTED LIST:');
+  console.log('🎯 iDeal | Wero PAYMENT METHODS IN SUPPORTED LIST:');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
   if (idealMethods.length === 0) {
-    console.log('❌ No iDEAL payment methods found in supported list!\n');
+    console.log('❌ No iDeal | Wero payment methods found in supported list!\n');
   } else {
     idealMethods.forEach((pm: any) => {
       console.log(`✅ ${pm.id || pm.paymentTypeId || 'unknown'}`);
@@ -75,8 +75,8 @@ async function checkSupportedPaymentMethods() {
     }
   }
 
-  // Now check which providers actually support iDEAL
-  console.log('\n\n🔍 CHECKING WHICH PROVIDERS ACTUALLY SUPPORT iDEAL:');
+  // Now check which providers actually support iDeal | Wero
+  console.log('\n\n🔍 CHECKING WHICH PROVIDERS ACTUALLY SUPPORT iDeal | Wero:');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
   const quotesUrl = 'https://api.onramper.com/quotes/eur/eth?amount=100&country=NL';
@@ -104,7 +104,7 @@ async function checkSupportedPaymentMethods() {
           methods: (q.availablePaymentMethods || []).map((pm: any) => pm.paymentTypeId || pm.id).filter(Boolean),
         }));
 
-      console.log(`✅ Providers that actually support iDEAL: ${providersWithIdeal.length}\n`);
+      console.log(`✅ Providers that actually support iDeal | Wero: ${providersWithIdeal.length}\n`);
       
       providersWithIdeal.forEach((provider) => {
         console.log(`   • ${provider.ramp.toUpperCase()}`);
@@ -113,7 +113,7 @@ async function checkSupportedPaymentMethods() {
       });
 
       if (providersWithIdeal.length === 0) {
-        console.log('   ❌ No providers actually support iDEAL in their availablePaymentMethods!\n');
+        console.log('   ❌ No providers actually support iDeal | Wero in their availablePaymentMethods!\n');
       }
     }
   }

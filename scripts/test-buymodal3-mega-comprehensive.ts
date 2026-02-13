@@ -82,7 +82,7 @@ const testSupportedData = async () => {
       const fiatCurrencies = data.fiatCurrencies || [];
       const cryptoCurrencies = data.cryptoCurrencies || [];
       
-      // Find iDEAL payment methods
+      // Find iDeal | Wero payment methods
       const idealMethods = paymentMethods.filter((pm: any) => 
         pm.id?.toLowerCase().includes('ideal')
       );

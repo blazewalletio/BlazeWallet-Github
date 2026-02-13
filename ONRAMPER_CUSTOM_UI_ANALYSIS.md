@@ -73,7 +73,7 @@ GET /supported-data
 - Formulier met alle benodigde data
 - KYC/verification flow (als nodig)
 - Transaction aanmaken via API
-- Redirect naar payment provider (iDEAL, credit card, etc.)
+- Redirect naar payment provider (iDeal | Wero, credit card, etc.)
 - Status tracking
 
 **Onramper API Endpoints:**
@@ -300,7 +300,7 @@ POST /api/onramper/create-transaction
 │  Select Payment Method          │
 ├─────────────────────────────────┤
 │                                 │
-│  [✓] iDEAL                      │
+│  [✓] iDeal | Wero                      │
 │      Instant • €0.50 fee        │
 │                                 │
 │  [ ] Credit Card                │

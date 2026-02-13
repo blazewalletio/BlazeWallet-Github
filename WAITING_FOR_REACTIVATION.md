@@ -100,7 +100,7 @@ npm run dev
    - ✅ Credit/Debit Card
    - ✅ Apple Pay
    - ✅ Google Pay
-   - ✅ iDEAL
+   - ✅ iDeal | Wero
    - ✅ Bancontact
    - ✅ SEPA Bank Transfer
 

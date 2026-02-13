@@ -197,7 +197,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Test with different country codes
-    addLog('7. Testing with NL/BE country codes', { note: 'iDEAL is only available in Netherlands/Belgium' });
+    addLog('7. Testing with NL/BE country codes', { note: 'iDeal | Wero is only available in Netherlands/Belgium' });
     for (const testCountry of ['NL', 'BE']) {
       try {
         const quotesUrl = `https://api.onramper.com/quotes/${fiatCurrency.toLowerCase()}/${cryptoCurrency.toLowerCase()}?amount=${fiatAmount}&paymentMethod=${paymentMethod}&country=${testCountry}`;
@@ -229,13 +229,13 @@ export async function GET(req: NextRequest) {
     const diagnosis: string[] = [];
     
     if (detectedCountry && detectedCountry !== 'NL' && detectedCountry !== 'BE') {
-      diagnosis.push(`⚠️ Country detected as "${detectedCountry}" but iDEAL only works in NL/BE`);
+      diagnosis.push(`⚠️ Country detected as "${detectedCountry}" but iDeal | Wero only works in NL/BE`);
     }
     
     if (quotesWithMethod && Array.isArray(quotesWithMethod)) {
       const validCount = quotesWithMethod.filter((q: any) => !q.errors).length;
       if (validCount === 0) {
-        diagnosis.push(`❌ 0 providers support iDEAL with current country: ${detectedCountry || 'auto-detect'}`);
+        diagnosis.push(`❌ 0 providers support iDeal | Wero with current country: ${detectedCountry || 'auto-detect'}`);
       }
     }
     
@@ -244,9 +244,9 @@ export async function GET(req: NextRequest) {
         pm.id === 'ideal' || pm.id === 'idealbanktransfer'
       );
       if (idealMethod) {
-        diagnosis.push(`✅ iDEAL is in supported payment methods (ID: ${idealMethod.id})`);
+        diagnosis.push(`✅ iDeal | Wero is in supported payment methods (ID: ${idealMethod.id})`);
       } else {
-        diagnosis.push(`⚠️ iDEAL not found in supported payment methods list`);
+        diagnosis.push(`⚠️ iDeal | Wero not found in supported payment methods list`);
       }
     }
 

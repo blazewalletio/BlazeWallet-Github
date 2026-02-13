@@ -1,5 +1,5 @@
 /**
- * Test script to understand BANXA quote structure for iDEAL
+ * Test script to understand BANXA quote structure for iDeal | Wero
  * This helps us understand why quotes aren't showing in the UI
  */
 
@@ -9,7 +9,7 @@ dotenv.config({ path: '.env.local' });
 const ONRAMPER_API_KEY = process.env.ONRAMPER_API_KEY?.trim().replace(/^["']|["']$/g, '') || '';
 
 async function testBanxaQuotes() {
-  console.log('🧪 Testing BANXA quotes for iDEAL...\n');
+  console.log('🧪 Testing BANXA quotes for iDeal | Wero...\n');
 
   if (!ONRAMPER_API_KEY) {
     console.error('❌ ONRAMPER_API_KEY not found in .env.local');

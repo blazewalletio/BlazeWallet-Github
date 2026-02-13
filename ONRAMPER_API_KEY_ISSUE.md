@@ -1,7 +1,7 @@
 # Onramper API Key Issue - 26 Jan 2026
 
 ## Probleem
-Bij het testen van de buy functionaliteit zagen we dat alleen iDEAL als beschikbare payment method werd getoond, terwijl alle andere methods (creditcard, applepay, googlepay, etc.) als "not available" werden gemarkeerd.
+Bij het testen van de buy functionaliteit zagen we dat alleen iDeal | Wero als beschikbare payment method werd getoond, terwijl alle andere methods (creditcard, applepay, googlepay, etc.) als "not available" werden gemarkeerd.
 
 ## Root Cause Analyse
 

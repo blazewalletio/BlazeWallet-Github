@@ -1,7 +1,7 @@
 /**
- * 🧪 TEST: iDEAL + BANXA Availability
+ * 🧪 TEST: iDeal | Wero + BANXA Availability
  * 
- * Test why iDEAL is marked as unavailable when BANXA supports it
+ * Test why iDeal | Wero is marked as unavailable when BANXA supports it
  * Run: npx tsx scripts/test-ideal-banxa.ts
  */
 
@@ -16,7 +16,7 @@ const BASE_URL = 'https://api.onramper.com';
 
 async function testIdealBanxa() {
   console.log(`\n${'='.repeat(80)}`);
-  console.log(`🧪 TEST: iDEAL + BANXA Availability`);
+  console.log(`🧪 TEST: iDeal | Wero + BANXA Availability`);
   console.log(`${'='.repeat(80)}\n`);
   
   if (!ONRAMPER_API_KEY) {
@@ -66,21 +66,21 @@ async function testIdealBanxa() {
         return `${id} (${name})`;
       }).join(', ') || 'none');
       
-      // Check specifically for iDEAL
+      // Check specifically for iDeal | Wero
       const hasIdeal = banxaQuote.availablePaymentMethods?.some((pm: any) => {
         const id = (pm.paymentTypeId || pm.id || '').toLowerCase();
         return id.includes('ideal');
       });
       
-      console.log(`\n   🔍 iDEAL Support Check:`);
-      console.log(`      Has iDEAL in availablePaymentMethods: ${hasIdeal ? '✅ YES' : '❌ NO'}`);
+      console.log(`\n   🔍 iDeal | Wero Support Check:`);
+      console.log(`      Has iDeal | Wero in availablePaymentMethods: ${hasIdeal ? '✅ YES' : '❌ NO'}`);
       
       if (hasIdeal) {
         const idealMethods = banxaQuote.availablePaymentMethods?.filter((pm: any) => {
           const id = (pm.paymentTypeId || pm.id || '').toLowerCase();
           return id.includes('ideal');
         });
-        console.log(`      iDEAL Methods Found:`, idealMethods?.map((pm: any) => {
+        console.log(`      iDeal | Wero Methods Found:`, idealMethods?.map((pm: any) => {
           const id = pm.paymentTypeId || pm.id || '';
           const name = pm.name || '';
           return `${id} (${name})`;
@@ -157,9 +157,9 @@ async function testIdealBanxa() {
     console.log(`❌ Error:`, error.message);
   }
   
-  // Test 3: Test with different iDEAL variants
+  // Test 3: Test with different iDeal | Wero variants
   console.log(`\n${'='.repeat(80)}`);
-  console.log(`📊 TEST 3: Testing different iDEAL variants...`);
+  console.log(`📊 TEST 3: Testing different iDeal | Wero variants...`);
   
   const idealVariants = ['ideal', 'idealbanktransfer', 'idealinstant'];
   

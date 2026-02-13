@@ -1,7 +1,7 @@
 /**
- * 🧪 TEST: iDEAL via our API route
+ * 🧪 TEST: iDeal | Wero via our API route
  * 
- * Test why our API route returns 0 quotes for iDEAL when BANXA supports it
+ * Test why our API route returns 0 quotes for iDeal | Wero when BANXA supports it
  * Run: npx tsx scripts/test-ideal-api-route.ts
  */
 
@@ -15,7 +15,7 @@ const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
 async function testIdealApiRoute() {
   console.log(`\n${'='.repeat(80)}`);
-  console.log(`🧪 TEST: iDEAL via our API route`);
+  console.log(`🧪 TEST: iDeal | Wero via our API route`);
   console.log(`${'='.repeat(80)}\n`);
   
   const fiatAmount = 250;

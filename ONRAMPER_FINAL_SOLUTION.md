@@ -25,7 +25,7 @@ We hebben al een **perfecte custom UI** (BuyModal.tsx)! We moeten gewoon de Onra
 
 ### 🔍 HET ECHTE PROBLEEM
 
-De `/checkout/intent` API returnt een **payment provider URL** (bijvoorbeeld Mollie voor iDEAL), NIET de Onramper widget!
+De `/checkout/intent` API returnt een **payment provider URL** (bijvoorbeeld Mollie voor iDeal | Wero), NIET de Onramper widget!
 
 **Voorbeeld response:**
 ```json

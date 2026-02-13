@@ -65,7 +65,7 @@ Ensure 100% perfect Onramper integration according to official documentation:
 - ✅ Detailed error logging
 
 #### ⚠️ Potential Issues:
-- Need to verify if `paymentMethod` value format is correct (e.g., "ideal" vs "iDEAL")
+- Need to verify if `paymentMethod` value format is correct (e.g., "ideal" vs "iDeal | Wero")
 - Need to verify if all required fields are present
 
 ---
@@ -168,7 +168,7 @@ Ensure 100% perfect Onramper integration according to official documentation:
 
 1. **Payment Method Format**: 
    - What is the correct format for `paymentMethod` in createTransaction?
-   - Is it "ideal", "iDEAL", "idealpay", or something else?
+   - Is it "ideal", "iDeal | Wero", "idealpay", or something else?
 
 2. **Supported Data Response**:
    - What is the actual structure of `/supported` endpoint response?

@@ -89,7 +89,7 @@ vercel --prod
 3. Selecteer amount (bijv. €100)
 4. Selecteer crypto (bijv. ETH)
 5. Wacht op quote
-6. Selecteer payment method (bijv. iDEAL)
+6. Selecteer payment method (bijv. iDeal | Wero)
 7. Klik "Continue to Payment"
 8. Voltooi betaling in popup
 

@@ -288,7 +288,7 @@ export async function GET(req: NextRequest) {
             return true;
           }
           
-          // For iDEAL, also check for variants (ideal, idealbanktransfer, etc.)
+          // For iDeal | Wero, also check for variants (ideal, idealbanktransfer, etc.)
           if (isIdeal && idLower.includes('ideal')) {
             return true;
           }

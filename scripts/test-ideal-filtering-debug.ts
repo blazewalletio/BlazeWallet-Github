@@ -1,5 +1,5 @@
 /**
- * 🧪 TEST: Debug iDEAL filtering logic
+ * 🧪 TEST: Debug iDeal | Wero filtering logic
  * 
  * Test what happens when we get quotes from Onramper with paymentMethod=ideal
  * Run: npx tsx scripts/test-ideal-filtering-debug.ts
@@ -16,7 +16,7 @@ const BASE_URL = 'https://api.onramper.com';
 
 async function testIdealFilteringDebug() {
   console.log(`\n${'='.repeat(80)}`);
-  console.log(`🧪 TEST: Debug iDEAL Filtering Logic`);
+  console.log(`🧪 TEST: Debug iDeal | Wero Filtering Logic`);
   console.log(`${'='.repeat(80)}\n`);
   
   if (!ONRAMPER_API_KEY) {
