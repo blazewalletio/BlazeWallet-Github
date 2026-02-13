@@ -1725,6 +1725,11 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
                         {isCalculatingMax ? '...' : 'MAX'}
                       </button>
                     </div>
+                    {isCalculatingMax && (
+                      <div className="text-xs text-orange-600 mt-1.5 font-medium">
+                        Calculating max...
+                      </div>
+                    )}
                     {fromFiatUSD > 0 && (
                       <div className="text-xs text-gray-500 mt-1.5">
                         ≈ {formatUSDSync(fromFiatUSD)}
