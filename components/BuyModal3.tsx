@@ -1550,37 +1550,37 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
 
                     {/* Quotes Display */}
                     {!loading && !error && (quote || providerQuotes.length > 0) && (
-                      <div className="space-y-6">
-                        {/* Quote Summary Hero - Sticky on scroll */}
+                      <div className="space-y-4">
+                        {/* Quote Summary Hero - Compact */}
                         {quote && (
-                          <div className="sticky top-4 z-10 glass-card p-6 bg-gradient-to-br from-orange-50 to-yellow-50 border-2 border-orange-200 shadow-lg">
-                            <div className="space-y-4">
+                          <div className="glass-card p-4 md:p-5 bg-gradient-to-br from-orange-50 to-yellow-50 border-2 border-orange-200 shadow-sm">
+                            <div className="space-y-3">
                               {/* Main Quote Display */}
-                              <div className="text-center pb-4 border-b border-orange-200">
-                                <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">You'll receive</div>
+                              <div className="text-center pb-3 border-b border-orange-200">
+                                <div className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">You'll receive</div>
                                 {parseFloat(quote.cryptoAmount) > 0 ? (
-                                  <div className="text-4xl md:text-5xl font-bold text-gray-900 mb-1">
+                                  <div className="text-3xl md:text-4xl font-bold text-gray-900 leading-tight mb-0.5">
                                     {parseFloat(quote.cryptoAmount).toFixed(6)} {quote.quoteCurrency}
                                   </div>
                                 ) : paymentMethod?.toLowerCase() === 'ideal' ? (
-                                  <div className="flex items-center justify-center gap-2 py-2">
-                                    <Info className="w-5 h-5 text-blue-500" />
-                                    <span className="text-base text-blue-600 font-medium">
+                                  <div className="flex items-center justify-center gap-2 py-1.5">
+                                    <Info className="w-4 h-4 text-blue-500" />
+                                    <span className="text-sm text-blue-600 font-medium">
                                       Quote will be calculated during checkout
                                     </span>
                                   </div>
                                 ) : (
-                                  <div className="text-lg text-gray-500 py-2">
+                                  <div className="text-base text-gray-500 py-1.5">
                                     Quote not available
                                   </div>
                                 )}
                                 {selectedProvider && (
-                                  <div className="flex items-center justify-center gap-2 mt-2">
-                                    <span className="text-xs text-gray-500">via</span>
-                                    <span className="text-sm font-semibold capitalize text-orange-700">{selectedProvider}</span>
+                                  <div className="flex items-center justify-center gap-2 mt-1.5">
+                                    <span className="text-[11px] text-gray-500">via</span>
+                                    <span className="text-base font-semibold capitalize text-orange-700">{selectedProvider}</span>
                                     {userPreferences?.verifiedProviders?.includes(selectedProvider) && (
-                                      <span className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                                        <Shield className="w-3 h-3" />
+                                      <span className="flex items-center gap-1 px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-[11px] font-medium">
+                                        <Shield className="w-2.5 h-2.5" />
                                         Verified
                                       </span>
                                     )}
@@ -1589,22 +1589,22 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                               </div>
 
                               {/* Quote Details Grid */}
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                <div className="text-center md:text-left">
-                                  <div className="text-gray-500 mb-1">Exchange rate</div>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                                <div className="text-center md:text-left rounded-lg bg-white/55 px-3 py-2">
+                                  <div className="text-gray-500 text-xs mb-0.5">Exchange rate</div>
                                   <div className="font-semibold text-gray-900">
                                     1 {quote.quoteCurrency} = {quote.baseCurrency} {parseFloat(quote.exchangeRate).toFixed(2)}
                                   </div>
                                 </div>
-                                <div className="text-center md:text-left">
-                                  <div className="text-gray-500 mb-1">Service fee</div>
+                                <div className="text-center md:text-left rounded-lg bg-white/55 px-3 py-2">
+                                  <div className="text-gray-500 text-xs mb-0.5">Service fee</div>
                                   <div className="font-semibold text-gray-900">
                                     {quote.baseCurrency} {parseFloat(quote.fee).toFixed(2)}
                                   </div>
                                 </div>
-                                <div className="text-center md:text-left">
-                                  <div className="text-gray-500 mb-1">Total</div>
-                                  <div className="font-bold text-lg text-gray-900">
+                                <div className="text-center md:text-left rounded-lg bg-white/55 px-3 py-2">
+                                  <div className="text-gray-500 text-xs mb-0.5">Total</div>
+                                  <div className="font-bold text-base text-gray-900">
                                     {quote.baseCurrency} {quote.totalAmount}
                                   </div>
                                 </div>
@@ -1645,17 +1645,17 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                               <button
                                 onClick={() => handleContinue()}
                                 disabled={loading || (!quote && paymentMethod?.toLowerCase() !== 'ideal') || (paymentMethod?.toLowerCase() === 'ideal' && !selectedProvider)}
-                                className="w-full py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-bold text-white text-lg transition-all shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
+                                className="w-full py-3 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-bold text-white text-base transition-all shadow-md hover:shadow-lg transform hover:scale-[1.01] active:scale-[0.98]"
                               >
                                 {loading ? (
                                   <>
-                                    <Loader2 className="w-6 h-6 animate-spin" />
+                                    <Loader2 className="w-5 h-5 animate-spin" />
                                     <span>Loading...</span>
                                   </>
                                 ) : (
                                   <>
                                     <span>Buy now</span>
-                                    <ArrowRight className="w-6 h-6" />
+                                    <ArrowRight className="w-5 h-5" />
                                   </>
                                 )}
                               </button>
