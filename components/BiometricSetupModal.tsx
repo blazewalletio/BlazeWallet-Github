@@ -83,6 +83,19 @@ export default function BiometricSetupModal({ isOpen, onClose, onSuccess }: Biom
       
       const webauthnService = WebAuthnService.getInstance();
       const biometricStore = BiometricStore.getInstance();
+
+      if (!webauthnService.isOnProductionDomain()) {
+        throw new Error('Biometric unlock is not available on this domain');
+      }
+
+      if (!webauthnService.isSupported()) {
+        throw new Error('This browser does not support biometric authentication');
+      }
+
+      const isPlatformAvailable = await webauthnService.isPlatformAuthenticatorAvailable();
+      if (!isPlatformAvailable) {
+        throw new Error('No platform authenticator found on this device');
+      }
       
       // ✅ WALLET-SPECIFIC: Get identifier for THIS wallet
       const walletIdentifier = useWalletStore.getState().getWalletIdentifier();
@@ -91,12 +104,14 @@ export default function BiometricSetupModal({ isOpen, onClose, onSuccess }: Biom
       }
       
       // ✅ WALLET-SPECIFIC: Detect wallet type
-      const createdWithEmail = localStorage.getItem('wallet_created_with_email') === 'true';
+      const { resolveCurrentIdentity, selfHealIdentityFromSession } = await import('@/lib/account-identity');
+      const identity = await resolveCurrentIdentity() || await selfHealIdentityFromSession();
+      const createdWithEmail = !!identity;
       const walletType: 'email' | 'seed' = createdWithEmail ? 'email' : 'seed';
       
       // Create display name (first 8 chars for EVM, email for email wallets)
       const displayName = walletType === 'email' 
-        ? (localStorage.getItem('wallet_email') || 'BLAZE User')
+        ? (identity?.email || 'BLAZE User')
         : `Wallet ${walletIdentifier.substring(0, 8)}...`;
       
       logger.log(`🔐 Setting up biometric for ${walletType} wallet:`, displayName);

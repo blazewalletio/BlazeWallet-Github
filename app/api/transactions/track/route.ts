@@ -153,26 +153,110 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get transaction stats
-    const { data, error } = await getSupabaseAdmin().rpc('get_user_transaction_stats', {
-      p_user_id: userId
-    });
+    const supabaseAdmin = getSupabaseAdmin();
 
-    if (error) {
-      logger.error('Failed to get transaction stats:', error);
-      return NextResponse.json(
-        { success: false, error: 'Failed to get stats' },
-        { status: 500 }
-      );
+    // Source of truth: aggregate from transaction rows to avoid stale/inflated counters.
+    const { data: txRows, error: txError } = await supabaseAdmin
+      .from('user_transactions')
+      .select('direction, amount_usd, timestamp, status')
+      .eq('user_id', userId)
+      .neq('status', 'failed');
+
+    // Include onramp purchases so the "Transactions" number reflects buy operations too.
+    const { data: onrampRows, error: onrampError } = await supabaseAdmin
+      .from('onramp_transactions')
+      .select('status, fiat_amount, created_at, status_updated_at')
+      .eq('user_id', userId)
+      .in('status', ['pending', 'processing', 'completed']);
+
+    if (txError) {
+      logger.error('Failed to aggregate user_transactions stats:', txError);
+    }
+    if (onrampError) {
+      logger.error('Failed to aggregate onramp_transactions stats:', onrampError);
     }
 
-    const stats = data && data.length > 0 ? data[0] : {
-      total_transactions: 0,
-      total_volume_usd: 0,
-      total_sent: 0,
-      total_received: 0,
+    // Fallback to legacy RPC if both row-based queries are unavailable.
+    if (txError && onrampError) {
+      const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc('get_user_transaction_stats', {
+        p_user_id: userId
+      });
+
+      if (rpcError) {
+        return NextResponse.json(
+          { success: false, error: 'Failed to get stats' },
+          { status: 500 }
+        );
+      }
+
+      const legacy = rpcData && rpcData.length > 0 ? rpcData[0] : {
+        total_transactions: 0,
+        total_volume_usd: 0,
+        total_sent: 0,
+        total_received: 0,
+        total_gas_spent: 0,
+        last_transaction_at: null,
+      };
+
+      return NextResponse.json({
+        success: true,
+        stats: {
+          ...legacy,
+          sent_transactions: 0,
+          received_transactions: 0,
+          buy_transactions: 0,
+          onchain_transactions: Number(legacy.total_transactions || 0),
+          source: 'legacy_rpc_fallback',
+        },
+      });
+    }
+
+    const sentTransactions = (txRows || []).filter((row: any) => row.direction === 'sent').length;
+    const receivedTransactions = (txRows || []).filter((row: any) => row.direction === 'received').length;
+    const onchainTransactions = sentTransactions + receivedTransactions;
+    const buyTransactions = (onrampRows || []).length;
+
+    const totalSent = (txRows || []).reduce((sum: number, row: any) => {
+      if (row.direction !== 'sent') return sum;
+      return sum + (Number(row.amount_usd) || 0);
+    }, 0);
+    const totalReceived = (txRows || []).reduce((sum: number, row: any) => {
+      if (row.direction !== 'received') return sum;
+      return sum + (Number(row.amount_usd) || 0);
+    }, 0);
+    const totalBuy = (onrampRows || []).reduce((sum: number, row: any) => {
+      return sum + (Number(row.fiat_amount) || 0);
+    }, 0);
+
+    const timestamps: number[] = [];
+    for (const row of txRows || []) {
+      const t = Date.parse(row.timestamp);
+      if (!Number.isNaN(t)) timestamps.push(t);
+    }
+    for (const row of onrampRows || []) {
+      const t = Date.parse(row.status_updated_at || row.created_at);
+      if (!Number.isNaN(t)) timestamps.push(t);
+    }
+
+    const lastTransactionAt = timestamps.length > 0
+      ? new Date(Math.max(...timestamps)).toISOString()
+      : null;
+
+    const stats = {
+      total_transactions: onchainTransactions + buyTransactions,
+      total_volume_usd: Number((totalSent + totalReceived + totalBuy).toFixed(2)),
+      total_sent: Number(totalSent.toFixed(2)),
+      total_received: Number(totalReceived.toFixed(2)),
+      total_buy: Number(totalBuy.toFixed(2)),
       total_gas_spent: 0,
-      last_transaction_at: null
+      last_transaction_at: lastTransactionAt,
+      favorite_token: null,
+      updated_at: new Date().toISOString(),
+      sent_transactions: sentTransactions,
+      received_transactions: receivedTransactions,
+      buy_transactions: buyTransactions,
+      onchain_transactions: onchainTransactions,
+      source: 'row_aggregate',
     };
 
     return NextResponse.json({

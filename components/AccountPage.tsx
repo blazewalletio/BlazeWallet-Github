@@ -76,9 +76,15 @@ interface TrustedDevice {
 
 interface TransactionStats {
   total_transactions: number;
-  total_sent: string;
-  total_received: string;
-  total_gas_spent: string;
+  total_sent: number | string;
+  total_received: number | string;
+  total_buy?: number | string;
+  total_gas_spent: number | string;
+  sent_transactions?: number;
+  received_transactions?: number;
+  buy_transactions?: number;
+  onchain_transactions?: number;
+  source?: string;
   favorite_token: string | null;
   last_transaction_at?: string | null;
   updated_at?: string;
@@ -329,9 +335,14 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
               // Set default empty stats
               setTransactionStats({
                 total_transactions: 0,
-                total_sent: '0',
-                total_received: '0',
-                total_gas_spent: '0',
+                total_sent: 0,
+                total_received: 0,
+                total_buy: 0,
+                total_gas_spent: 0,
+                sent_transactions: 0,
+                received_transactions: 0,
+                buy_transactions: 0,
+                onchain_transactions: 0,
                 favorite_token: null,
                 last_transaction_at: null,
                 updated_at: new Date().toISOString()
@@ -1098,6 +1109,9 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <div className="text-2xl font-bold text-gray-900">
                   {transactionStats?.total_transactions || 0}
                 </div>
+                <div className="text-[10px] text-gray-500 leading-tight mt-1" title="Outgoing / Incoming / Buy transactions">
+                  O {transactionStats?.sent_transactions || 0} • I {transactionStats?.received_transactions || 0} • B {transactionStats?.buy_transactions || 0}
+                </div>
               </div>
               
               {/* Volume */}
@@ -1105,8 +1119,11 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                 <div className="text-xs text-gray-600 mb-1">Total volume</div>
                 <div className="text-2xl font-bold text-gray-900">
                   {transactionStats ? (
-                    `$${(parseFloat(transactionStats.total_sent) + parseFloat(transactionStats.total_received)).toFixed(2)}`
+                    `$${(Number(transactionStats.total_sent || 0) + Number(transactionStats.total_received || 0) + Number(transactionStats.total_buy || 0)).toFixed(2)}`
                   ) : '$0.00'}
+                </div>
+                <div className="text-[10px] text-gray-500 leading-tight mt-1">
+                  Sent + received + buy
                 </div>
               </div>
               

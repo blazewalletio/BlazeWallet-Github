@@ -142,6 +142,61 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
   const [userId, setUserId] = useState<string | null>(null);
   const { formatUSDSync } = useCurrency();
 
+  const trackSwapTransaction = useCallback(async (params: {
+    txHash: string;
+    toAddress: string;
+    amount: string;
+    amountUSD?: number | null;
+    status?: 'pending' | 'confirmed';
+  }) => {
+    if (!userId) return;
+
+    try {
+      let csrfToken = '';
+      try {
+        const csrfResponse = await fetch('/api/csrf-token');
+        if (csrfResponse.ok) {
+          const csrfData = await csrfResponse.json();
+          csrfToken = csrfData?.token || '';
+        }
+      } catch {
+        // best-effort only
+      }
+
+      await fetch('/api/transactions/track', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+        },
+        body: JSON.stringify({
+          userId,
+          chainKey: fromChain,
+          txHash: params.txHash,
+          transactionType: 'swap',
+          direction: 'sent',
+          fromAddress: walletAddress,
+          toAddress: params.toAddress,
+          tokenSymbol: typeof fromToken === 'string' ? fromToken : ((fromToken as any)?.symbol || 'UNKNOWN'),
+          tokenAddress: typeof fromToken === 'string' ? null : ((fromToken as any)?.address || null),
+          tokenDecimals: typeof fromToken === 'string' ? 18 : ((fromToken as any)?.decimals || 18),
+          isNative: fromToken === 'native',
+          amount: params.amount,
+          amountUSD: params.amountUSD ?? null,
+          status: params.status || 'pending',
+          metadata: {
+            category: 'swap',
+            fromChain,
+            toChain,
+            toToken: typeof toToken === 'string' ? toToken : ((toToken as any)?.symbol || 'unknown'),
+          },
+        }),
+      });
+    } catch (trackError) {
+      logger.error('Failed to track swap transaction:', trackError);
+    }
+  }, [userId, fromChain, toChain, fromToken, toToken, walletAddress]);
+
   const getChainListLabel = useCallback((chainKey: string): string => {
     if (chainKey === 'bsc') return 'BNB Chain';
     return CHAINS[chainKey]?.name || chainKey;
@@ -649,6 +704,14 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
         });
         setStep('success');
 
+        await trackSwapTransaction({
+          txHash: sentTxHash as string,
+          toAddress: order.payinAddress,
+          amount,
+          amountUSD: Number(changeNowQuote?.fromAmount || 0) || null,
+          status: 'pending',
+        });
+
         await logTransactionEvent({
           eventType: 'swap_confirmed',
           chainKey: fromChain,
@@ -761,6 +824,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       setTotalSteps(steps.length);
 
       // Execute each step sequentially
+      let finalStepTxHash: string | null = null;
       for (let i = 0; i < steps.length; i++) {
         setExecutionStep(i + 1);
         
@@ -1050,6 +1114,10 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
           });
           pollTransactionStatus(stepTxHash, step.tool || 'unknown');
         }
+
+        if (stepTxHash) {
+          finalStepTxHash = stepTxHash;
+        }
       }
 
       if (!isCrossChain) {
@@ -1061,6 +1129,16 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       }
 
       setStep('success');
+
+      if (finalStepTxHash) {
+        await trackSwapTransaction({
+          txHash: finalStepTxHash,
+          toAddress: walletAddress,
+          amount,
+          amountUSD: Number(quote?.estimate?.fromAmountUSD || 0) || null,
+          status: 'pending',
+        });
+      }
       
       // Track successful swap
       await logTransactionEvent({
@@ -1126,6 +1204,7 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
       setIsExecuting(false);
     }
   };
+
 
   const pollTransactionStatus = async (hash: string, bridge: string) => {
     // Poll status for cross-chain swaps

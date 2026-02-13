@@ -70,7 +70,9 @@ export default function BiometricAuthModal({
         }
         
         // ✅ WALLET-SPECIFIC: Detect wallet type
-        const createdWithEmail = localStorage.getItem('wallet_created_with_email') === 'true';
+        const { resolveCurrentIdentity, selfHealIdentityFromSession } = await import('@/lib/account-identity');
+        const identity = await resolveCurrentIdentity() || await selfHealIdentityFromSession();
+        const createdWithEmail = !!identity;
         const walletType: 'email' | 'seed' = createdWithEmail ? 'email' : 'seed';
         
         const result = await webauthnService.register(walletIdentifier, username, walletType);
@@ -109,7 +111,7 @@ export default function BiometricAuthModal({
         const credential = webauthnService.getStoredCredential(walletIdentifier);
         
         if (!credential) {
-          setError('Geen biometrische credentials gevonden. Registreer eerst je biometrie.');
+          setError('No biometric credential found. Please set up biometric unlock first.');
           return;
         }
 
@@ -132,7 +134,7 @@ export default function BiometricAuthModal({
       }
     } catch (error: any) {
       logger.error('Biometric auth error:', error);
-      setError(error.message || 'Er is een fout opgetreden');
+      setError(error.message || 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -199,7 +201,7 @@ export default function BiometricAuthModal({
                   <span className="text-sm font-medium">Biometrics not available</span>
                 </div>
                 <p className="text-sm text-orange-600 mt-1">
-                  Dit apparaat ondersteunt geen vingerafdruk of Face ID authenticatie.
+                  This device does not support Face ID / Touch ID authentication.
                 </p>
               </div>
             )}
