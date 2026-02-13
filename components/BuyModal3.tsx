@@ -1320,9 +1320,9 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                 {flowStep === 'amount' && (
                   <div className="space-y-6">
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Amount</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Select amount</h3>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Amount to Spend
+                        Amount to spend
                       </label>
                       <div className="flex gap-2">
                         <div className="flex-1">
@@ -1374,7 +1374,7 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                 {flowStep === 'crypto' && (
                   <div className="space-y-6">
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Cryptocurrency</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Select cryptocurrency</h3>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Cryptocurrency
                       </label>
