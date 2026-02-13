@@ -149,6 +149,18 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     };
   }, [mnemonic, wallet]);
 
+  const getEffectiveSendAmount = useCallback((): string => {
+    const qrAmount = (scannedAmount || '').trim();
+    const manualAmount = (cryptoAmount || '').trim();
+
+    const qrNum = Number(qrAmount);
+    if (qrAmount && Number.isFinite(qrNum) && qrNum > 0) {
+      return qrAmount;
+    }
+
+    return manualAmount;
+  }, [scannedAmount, cryptoAmount]);
+
 
   // Camera functions
   const getCameraErrorMessage = (error: any): string => {
@@ -1144,6 +1156,14 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   };
 
   const handleConfirmPayment = async () => {
+    const effectiveAmount = getEffectiveSendAmount();
+    const effectiveAmountNum = Number(effectiveAmount);
+    if (!effectiveAmount || !Number.isFinite(effectiveAmountNum) || effectiveAmountNum <= 0) {
+      setError('Invalid send amount. Please rescan the QR code or enter a valid amount.');
+      setStep('idle');
+      return;
+    }
+
     const signer = getSignerRequirement(currentChain);
     if (!signer.available) {
       setError(
@@ -1157,7 +1177,10 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     
     // 🔐 SESSION SHIELD: Check if 2FA is required
     if (userId) {
-      const sendValueUSD = parseFloat(cryptoAmount) * nativePrice;
+      const sendValueUSD =
+        (scannedAmount && cryptoUSDValue !== null && Number.isFinite(cryptoUSDValue))
+          ? cryptoUSDValue
+          : (effectiveAmountNum * nativePrice);
       
       const sessionStatus = await twoFactorSessionService.checkActionRequires2FA(userId, {
         action: 'send',
@@ -1186,6 +1209,15 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
 
   // 🔐 Separated payment logic (called after 2FA if needed)
   const executePayment = async () => {
+    const effectiveAmount = getEffectiveSendAmount();
+    const effectiveAmountNum = Number(effectiveAmount);
+    if (!effectiveAmount || !Number.isFinite(effectiveAmountNum) || effectiveAmountNum <= 0) {
+      setError('Invalid send amount. Please rescan the QR code or enter a valid amount.');
+      setStep('idle');
+      setMode('confirm');
+      return;
+    }
+
     const signerInfo = getSignerRequirement(currentChain);
     if (!signerInfo.available) {
       setError(
@@ -1215,7 +1247,11 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     }
     
     // Track send initiation
-    const sendValueUSD = pendingPaymentData?.sendValueUSD || (parseFloat(cryptoAmount) * nativePrice);
+    const sendValueUSD =
+      pendingPaymentData?.sendValueUSD ||
+      ((scannedAmount && cryptoUSDValue !== null && Number.isFinite(cryptoUSDValue))
+        ? cryptoUSDValue
+        : (effectiveAmountNum * nativePrice));
     await logTransactionEvent({
       eventType: 'send_initiated',
       chainKey: currentChain,
@@ -1236,7 +1272,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       
       const isSolana = currentChain === 'solana';
       
-      logger.log(`🚀 [QuickPay] Sending ${cryptoAmount} ${selectedToken?.symbol || CHAINS[currentChain].nativeCurrency.symbol} to ${toAddr}...`);
+      logger.log(`🚀 [QuickPay] Sending ${effectiveAmount} ${selectedToken?.symbol || CHAINS[currentChain].nativeCurrency.symbol} to ${toAddr}...`);
       
       // Send transaction (native or token)
       let tx;
@@ -1245,7 +1281,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         tx = await blockchain.sendTransaction(
           signingCredential,
           toAddr,
-          cryptoAmount,
+          effectiveAmount,
           gas
         );
       } else {
@@ -1254,7 +1290,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
           signingCredential,
           selectedToken.address,
           toAddr,
-          cryptoAmount,
+          effectiveAmount,
           selectedToken.decimals,
           gas
         );
@@ -1317,7 +1353,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
               tokenSymbol: CHAINS[currentChain].nativeCurrency.symbol,
               tokenDecimals: CHAINS[currentChain].nativeCurrency.decimals,
               isNative: true,
-              amount: cryptoAmount,
+              amount: effectiveAmount,
               amountUSD: sendValueUSD,
               gasCostUSD: estimatedGasUSD,
               status: 'confirmed',
