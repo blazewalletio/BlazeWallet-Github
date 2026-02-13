@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Zap, CreditCard, Scan, Check, Camera, AlertCircle, ArrowRight, Copy, User, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, AlertTriangle, ChevronDown, Search, Lock } from 'lucide-react';
+import { X, Zap, CreditCard, Scan, Check, Camera, AlertCircle, ArrowRight, Copy, User, RefreshCw, ArrowUpRight, ArrowDownLeft, Loader2, AlertTriangle, ChevronDown, Search, Lock, ImagePlus } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
 import { useBlockBodyScroll } from '@/hooks/useBlockBodyScroll';
 import QRCode from 'qrcode';
@@ -45,6 +45,8 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   const [showSuccess, setShowSuccess] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [isStartingCamera, setIsStartingCamera] = useState(false);
+  const [scanFeedback, setScanFeedback] = useState<string | null>(null);
   const [scannedAddress, setScannedAddress] = useState<string>('');
   const [scannedAmount, setScannedAmount] = useState<string>('');
   
@@ -76,6 +78,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const scanIntervalRef = useRef<number | null>(null);
+  const qrImageInputRef = useRef<HTMLInputElement>(null);
   
   const { address, currentChain, switchChain, wallet, mnemonic, getCurrentAddress, tokens } = useWalletStore();
   const { formatUSDSync, symbol, convertUSD, selectedCurrency } = useCurrency();
@@ -130,29 +133,62 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
 
 
   // Camera functions
+  const getCameraErrorMessage = (error: any): string => {
+    const name = error?.name || '';
+    if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+      return 'Camera permission was denied. Allow camera access and try again.';
+    }
+    if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+      return 'No camera was found on this device. You can upload a QR image instead.';
+    }
+    if (name === 'NotReadableError' || name === 'TrackStartError') {
+      return 'Camera is currently in use by another app. Close it and retry.';
+    }
+    if (name === 'OverconstrainedError') {
+      return 'Camera constraints are not supported on this device. Please retry.';
+    }
+    return 'Could not access camera. Please grant camera permissions.';
+  };
+
   const startCamera = async () => {
     try {
+      if (typeof window === 'undefined') return;
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setCameraError('Camera scanning is not supported in this browser. Upload a QR image instead.');
+        setScanning(false);
+        return;
+      }
+
+      stopCamera();
+      setIsStartingCamera(true);
       setCameraError(null);
-      setScanning(true);
+      setScanFeedback(null);
       
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        }
       });
       
       streamRef.current = stream;
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        await videoRef.current.play();
+        setScanning(true);
         
         scanIntervalRef.current = window.setInterval(() => {
           scanQRCode();
-        }, 100);
+        }, 140);
       }
     } catch (error: any) {
       logger.error('Camera error:', error);
-      setCameraError('Could not access camera. Please grant camera permissions.');
+      setCameraError(getCameraErrorMessage(error));
       setScanning(false);
+    } finally {
+      setIsStartingCamera(false);
     }
   };
 
@@ -168,6 +204,55 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     }
     
     setScanning(false);
+  };
+
+  const handleQRImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    stopCamera();
+    setCameraError(null);
+    setScanFeedback(null);
+    setIsStartingCamera(true);
+
+    try {
+      const imageUrl = URL.createObjectURL(file);
+      const img = new window.Image();
+
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = imageUrl;
+      });
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        throw new Error('Canvas not available');
+      }
+
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      URL.revokeObjectURL(imageUrl);
+
+      if (!code?.data) {
+        setScanFeedback('No readable QR code found in the selected image.');
+        toast.error('No QR code found in image');
+        return;
+      }
+
+      handleQRCodeDetected(code.data);
+    } catch (uploadError) {
+      logger.error('Failed to scan uploaded QR image:', uploadError);
+      setScanFeedback('Could not read this image. Try another screenshot/photo.');
+      toast.error('Could not scan QR image');
+    } finally {
+      event.target.value = '';
+      setIsStartingCamera(false);
+    }
   };
 
   // ⚡ LIGHTNING PAYMENT MONITORING
@@ -306,37 +391,16 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       });
       
       // Check if QR is valid
-      if (!parsed.isValid || parsed.chain === 'unknown') {
+      if (!parsed.isValid || parsed.chain === 'unknown' || !parsed.address) {
         logger.error('❌ [QuickPay] Invalid QR detected:', {
           isValid: parsed.isValid,
           chain: parsed.chain,
           warnings: parsed.warnings,
           rawData: data,
         });
-        
-        // More helpful error message
-        let errorMessage = '❌ Invalid QR Code\n\n';
-        
-        if (parsed.warnings && parsed.warnings.length > 0) {
-          errorMessage += parsed.warnings.join('\n') + '\n\n';
-      } else {
-          errorMessage += 'Could not recognize blockchain address.\n\n';
-        }
-        
-        // Add troubleshooting tips
-        errorMessage += '💡 Troubleshooting:\n';
-        errorMessage += '• Make sure the QR code is clear\n';
-        errorMessage += '• Try better lighting\n';
-        errorMessage += '• Supported chains:\n';
-        errorMessage += '  - Ethereum & EVM chains\n';
-        errorMessage += '  - Solana\n';
-        errorMessage += '  - Bitcoin\n';
-        errorMessage += '  - Litecoin\n';
-        errorMessage += '  - Dogecoin\n';
-        errorMessage += '  - Bitcoin Cash\n';
-        errorMessage += '\n📋 Scanned data:\n' + data.substring(0, 100);
-        
-        alert(errorMessage);
+        const issue = parsed.warnings?.[0] || 'Could not recognize a supported blockchain address from this QR code.';
+        setScanFeedback(issue);
+        toast.error('Invalid QR code');
         setMode('scan');
         startCamera();
         return;
@@ -359,7 +423,8 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       }
     } catch (error) {
       logger.error('❌ Error parsing QR code:', error);
-      toast('Could not parse QR code. Please try again.');
+      setScanFeedback('Could not parse QR code. Try better lighting or upload a clear QR screenshot.');
+      toast.error('Could not parse QR code');
       setMode('scan');
       startCamera();
     }
@@ -667,6 +732,8 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     setPaymentMethod(method);
     
     if (method === 'scanqr') {
+      setScanFeedback(null);
+      setCameraError(null);
       setMode('scan');
     } else if (method === 'manual') {
       // 🆕 Fetch available tokens when entering manual send flow
@@ -2008,9 +2075,10 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                 <motion.div
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="space-y-6"
+                  className="space-y-4"
                 >
-                  <div className="relative aspect-square rounded-2xl overflow-hidden bg-black">
+                  <div className="glass-card p-3 sm:p-4">
+                  <div className="relative aspect-square rounded-2xl overflow-hidden bg-black ring-1 ring-white/20">
                     <video
                       ref={videoRef}
                       className="absolute inset-0 w-full h-full object-cover"
@@ -2022,17 +2090,20 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     
                     {scanning && (
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-64 h-64 border-4 border-orange-500 rounded-2xl relative">
-                          <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-orange-500" />
-                          <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-orange-500" />
-                          <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-orange-500" />
-                          <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-orange-500" />
+                        <div className="w-[70%] h-[70%] max-w-[310px] max-h-[310px] border-2 border-orange-400/90 rounded-2xl relative">
+                          <div className="absolute top-0 left-0 w-7 h-7 border-t-4 border-l-4 border-orange-400" />
+                          <div className="absolute top-0 right-0 w-7 h-7 border-t-4 border-r-4 border-orange-400" />
+                          <div className="absolute bottom-0 left-0 w-7 h-7 border-b-4 border-l-4 border-orange-400" />
+                          <div className="absolute bottom-0 right-0 w-7 h-7 border-b-4 border-r-4 border-orange-400" />
                           
                           <motion.div
-                            className="absolute left-0 right-0 h-1 bg-orange-500 shadow-lg shadow-orange-500/50"
+                            className="absolute left-3 right-3 h-[2px] bg-orange-400 shadow-lg shadow-orange-500/50"
                             animate={{ top: ['0%', '100%'] }}
-                            transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                            transition={{ duration: 1.6, repeat: Infinity, ease: 'linear' }}
                           />
+                        </div>
+                        <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-black/50 backdrop-blur text-[11px] font-semibold text-white border border-white/20">
+                          Live
                         </div>
                       </div>
                     )}
@@ -2043,12 +2114,20 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                           <Camera className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                           <div className="text-white font-semibold mb-2">Camera access required</div>
                           <div className="text-sm text-gray-400 mb-4">{cameraError}</div>
-                          <button
-                            onClick={startCamera}
-                            className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
-                          >
-                            Try again
-                          </button>
+                          <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                            <button
+                              onClick={startCamera}
+                              className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                            >
+                              Try again
+                            </button>
+                            <button
+                              onClick={() => qrImageInputRef.current?.click()}
+                              className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold transition-colors border border-white/20 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-gray-900"
+                            >
+                              Upload image
+                            </button>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -2056,14 +2135,54 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     {!scanning && !cameraError && (
                       <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50">
                         <div className="text-center">
-                          <Scan className="w-16 h-16 text-green-500 mx-auto mb-4 animate-pulse" />
-                          <div className="text-lg font-semibold text-gray-900 mb-2">Starting camera...</div>
+                          {isStartingCamera ? (
+                            <Loader2 className="w-12 h-12 text-green-500 mx-auto mb-4 animate-spin" />
+                          ) : (
+                            <Scan className="w-16 h-16 text-green-500 mx-auto mb-4 animate-pulse" />
+                          )}
+                          <div className="text-lg font-semibold text-gray-900 mb-2">
+                            {isStartingCamera ? 'Starting camera...' : 'Preparing scanner...'}
+                          </div>
                         </div>
                       </div>
                     )}
                   </div>
+                  </div>
                   
-                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-4">
+                  <input
+                    ref={qrImageInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleQRImageUpload}
+                    className="hidden"
+                  />
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={startCamera}
+                      className="glass-card px-3 py-2.5 text-sm font-semibold text-gray-800 hover:bg-white/70 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                    >
+                      Restart camera
+                    </button>
+                    <button
+                      onClick={() => qrImageInputRef.current?.click()}
+                      className="glass-card px-3 py-2.5 text-sm font-semibold text-gray-800 hover:bg-white/70 transition-colors flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+                    >
+                      <ImagePlus className="w-4 h-4" />
+                      Upload QR image
+                    </button>
+                  </div>
+
+                  {scanFeedback && (
+                    <div className="glass-card p-4 border border-amber-200 bg-amber-50/80">
+                      <div className="flex items-start gap-2 text-sm text-amber-900">
+                        <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                        <span>{scanFeedback}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="glass-card p-4 bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200/80">
                     <div className="text-sm text-gray-700 font-medium mb-3 flex items-center gap-2">
                       <Camera className="w-5 h-5 text-green-600" />
                       <span>Scanning Tips</span>
@@ -2079,7 +2198,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                       </div>
                       <div className="flex items-start gap-2">
                         <span className="text-green-600 font-bold">✓</span>
-                        <span>Supports: Ethereum, Solana, Bitcoin QR codes</span>
+                        <span>Supports EVM chains, Solana and UTXO chains</span>
                       </div>
                     </div>
                   </div>
