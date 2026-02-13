@@ -23,6 +23,8 @@ const nextConfig = {
     const cspHeader = `
       default-src 'self';
       script-src 'self' 'unsafe-eval' 'unsafe-inline' https://vercel.live https://static.moonpay.com https://*.banxa.com https://orlt.banxa.com;
+      worker-src 'self' blob:;
+      child-src 'self' blob:;
       style-src 'self' 'unsafe-inline' https://*.banxa.com https://orlt.banxa.com;
       img-src 'self' blob: data: https:;
       font-src 'self' https://*.banxa.com https://orlt.banxa.com;
