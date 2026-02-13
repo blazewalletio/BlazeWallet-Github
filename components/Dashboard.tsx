@@ -25,6 +25,7 @@ import { tokenBalanceCache } from '@/lib/token-balance-cache';
 import { refreshTokenMetadata } from '@/lib/spl-token-metadata';
 import { logger } from '@/lib/logger';
 import { supabase } from '@/lib/supabase';
+import { syncWalletChainAddresses } from '@/lib/wallet-chain-address-sync';
 import ChainSelector from './ChainSelector';
 import TokenSelector from './TokenSelector';
 import toast from 'react-hot-toast';
@@ -80,6 +81,10 @@ export default function Dashboard() {
   const { 
     address, // EVM address (for backward compat)
     solanaAddress, // Solana address
+    bitcoinAddress,
+    litecoinAddress,
+    dogecoinAddress,
+    bitcoincashAddress,
     balance, 
     updateBalance, 
     currentChain, 
@@ -102,6 +107,7 @@ export default function Dashboard() {
   // ✅ Memoize to prevent unnecessary re-renders
   // Recalculate when currentChain or any address changes (so it updates when wallet is loaded)
   const displayAddress = useMemo(() => getCurrentAddress(), [currentChain, address, solanaAddress]);
+  const chainAddressSyncSignatureRef = useRef<string>('');
 
   // Founder/Developer wallet addresses (add your addresses here)
   const founderAddresses = [
@@ -199,6 +205,42 @@ export default function Dashboard() {
     tokensRef.current = tokens;
     balanceRef.current = balance;
   }, [tokens, balance]);
+
+  useEffect(() => {
+    const run = async () => {
+      const chainAddresses: Record<string, string> = {};
+      if (address) {
+        chainAddresses.ethereum = address;
+        chainAddresses.polygon = address;
+        chainAddresses.arbitrum = address;
+        chainAddresses.base = address;
+        chainAddresses.sepolia = address;
+        chainAddresses.bsc = address;
+        chainAddresses.bscTestnet = address;
+        chainAddresses.optimism = address;
+        chainAddresses.avalanche = address;
+        chainAddresses.fantom = address;
+        chainAddresses.cronos = address;
+        chainAddresses.zksync = address;
+        chainAddresses.linea = address;
+      }
+      if (solanaAddress) chainAddresses.solana = solanaAddress;
+      if (bitcoinAddress) chainAddresses.bitcoin = bitcoinAddress;
+      if (litecoinAddress) chainAddresses.litecoin = litecoinAddress;
+      if (dogecoinAddress) chainAddresses.dogecoin = dogecoinAddress;
+      if (bitcoincashAddress) chainAddresses.bitcoincash = bitcoincashAddress;
+
+      const signature = JSON.stringify(chainAddresses);
+      if (!signature || signature === '{}' || chainAddressSyncSignatureRef.current === signature) return;
+
+      chainAddressSyncSignatureRef.current = signature;
+      await syncWalletChainAddresses(chainAddresses);
+    };
+
+    run().catch((error) => {
+      logger.warn('[Dashboard] Failed to sync chain addresses:', error);
+    });
+  }, [address, solanaAddress, bitcoinAddress, litecoinAddress, dogecoinAddress, bitcoincashAddress]);
   
   // Helper: Get current chain state
   const getCurrentChainState = (): ChainState => {
