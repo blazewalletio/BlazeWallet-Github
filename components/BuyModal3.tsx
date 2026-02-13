@@ -107,11 +107,11 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
   const [lastTransactionId, setLastTransactionId] = useState<string | null>(null);
   const [checkoutCreated, setCheckoutCreated] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
-  const [isQuoteStickyCompact, setIsQuoteStickyCompact] = useState(false);
+  const [showMiniStickyQuoteBar, setShowMiniStickyQuoteBar] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const quoteCardRef = useRef<HTMLDivElement | null>(null);
-  const quoteCardStartTopRef = useRef<number | null>(null);
-  const quoteCompactStateRef = useRef(false);
+  const quoteCardTriggerRef = useRef<number | null>(null);
+  const miniBarStateRef = useRef(false);
   const quoteScrollRafRef = useRef<number | null>(null);
 
   const supportedFiats = ['EUR', 'USD', 'GBP', 'CAD', 'AUD', 'JPY', 'CHF', 'NOK', 'SEK', 'DKK'];
@@ -391,9 +391,9 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
 
   useEffect(() => {
     if (!isOpen || step !== 'select' || flowStep !== 'quotes' || !quote || !isMobileViewport) {
-      setIsQuoteStickyCompact(false);
-      quoteCompactStateRef.current = false;
-      quoteCardStartTopRef.current = null;
+      setShowMiniStickyQuoteBar(false);
+      miniBarStateRef.current = false;
+      quoteCardTriggerRef.current = null;
       if (quoteScrollRafRef.current) {
         cancelAnimationFrame(quoteScrollRafRef.current);
         quoteScrollRafRef.current = null;
@@ -405,35 +405,35 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
     const card = quoteCardRef.current;
     if (!container || !card) return;
 
-    const recalcStartTop = () => {
+    const recalcTrigger = () => {
       const containerRect = container.getBoundingClientRect();
       const cardRect = card.getBoundingClientRect();
-      quoteCardStartTopRef.current = cardRect.top - containerRect.top + container.scrollTop;
+      // Show mini sticky bar only when user has scrolled past the full quote card block.
+      quoteCardTriggerRef.current = cardRect.top - containerRect.top + container.scrollTop + cardRect.height + 8;
     };
 
     const onScroll = () => {
       if (quoteScrollRafRef.current) return;
       quoteScrollRafRef.current = requestAnimationFrame(() => {
         quoteScrollRafRef.current = null;
-        if (quoteCardStartTopRef.current === null) recalcStartTop();
-        const startTop = quoteCardStartTopRef.current ?? 0;
-        // Activate compact mode once the card reached sticky threshold.
-        const shouldCompact = container.scrollTop >= Math.max(0, startTop - 8);
-        if (shouldCompact !== quoteCompactStateRef.current) {
-          quoteCompactStateRef.current = shouldCompact;
-          setIsQuoteStickyCompact(shouldCompact);
+        if (quoteCardTriggerRef.current === null) recalcTrigger();
+        const trigger = quoteCardTriggerRef.current ?? Number.POSITIVE_INFINITY;
+        const shouldShowMiniBar = container.scrollTop >= trigger;
+        if (shouldShowMiniBar !== miniBarStateRef.current) {
+          miniBarStateRef.current = shouldShowMiniBar;
+          setShowMiniStickyQuoteBar(shouldShowMiniBar);
         }
       });
     };
 
-    recalcStartTop();
+    recalcTrigger();
     onScroll();
     container.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', recalcStartTop);
+    window.addEventListener('resize', recalcTrigger);
 
     return () => {
       container.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', recalcStartTop);
+      window.removeEventListener('resize', recalcTrigger);
       if (quoteScrollRafRef.current) {
         cancelAnimationFrame(quoteScrollRafRef.current);
         quoteScrollRafRef.current = null;
@@ -1682,112 +1682,101 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                     {/* Quotes Display */}
                     {!loading && !error && (quote || providerQuotes.length > 0) && (
                       <div className="space-y-4">
+                        {quote && isMobileViewport && showMiniStickyQuoteBar && (
+                          <div className="sticky top-2 z-30 rounded-lg border border-orange-200/90 bg-white/95 backdrop-blur-sm px-2.5 py-2 shadow-md">
+                            <div className="flex items-center gap-2">
+                              <div className="min-w-0 flex-1">
+                                <div className="text-[10px] uppercase tracking-wide text-gray-500">You'll receive</div>
+                                {parseFloat(quote.cryptoAmount) > 0 ? (
+                                  <div className="text-base font-bold text-gray-900 leading-tight truncate">
+                                    {parseFloat(quote.cryptoAmount).toFixed(6)} {quote.quoteCurrency}
+                                  </div>
+                                ) : (
+                                  <div className="text-xs text-blue-600 font-medium truncate">Quote during checkout</div>
+                                )}
+                                <div className="text-[11px] text-gray-600 truncate">
+                                  {selectedProvider ? (
+                                    <>
+                                      via <span className="font-semibold capitalize text-orange-700">{selectedProvider}</span> • {quote.baseCurrency} {quote.totalAmount}
+                                    </>
+                                  ) : (
+                                    <>Total: {quote.baseCurrency} {quote.totalAmount}</>
+                                  )}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleContinue()}
+                                disabled={loading || (!quote && paymentMethod?.toLowerCase() !== 'ideal') || (paymentMethod?.toLowerCase() === 'ideal' && !selectedProvider)}
+                                className="shrink-0 h-9 px-3 rounded-lg bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 text-white text-xs font-semibold transition-all duration-200"
+                              >
+                                {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
+                                <span>Buy now</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Quote Summary Hero - Compact */}
                         {quote && (
                           <div
                             ref={quoteCardRef}
-                            className={`glass-card bg-gradient-to-br from-orange-50 to-yellow-50 border-2 border-orange-200 transition-all duration-200 ${
-                              isMobileViewport
-                                ? 'sticky top-2 z-20'
-                                : ''
-                            } ${
-                              isQuoteStickyCompact
-                                ? 'p-3 shadow-md'
-                                : 'p-4 md:p-5 shadow-sm'
-                            }`}
+                            className="glass-card bg-gradient-to-br from-orange-50 to-yellow-50 border-2 border-orange-200 p-4 md:p-5 shadow-sm transition-all duration-200"
                           >
-                            <div className={`${isQuoteStickyCompact ? 'space-y-2' : 'space-y-3'}`}>
-                              {/* Ultra-compact sticky mobile bar */}
-                              {isQuoteStickyCompact && isMobileViewport && !pendingPaymentOverride ? (
-                                <div className="rounded-lg border border-orange-200/90 bg-white/90 backdrop-blur-sm px-2.5 py-2 flex items-center gap-2 transition-all duration-200">
-                                  <div className="min-w-0 flex-1">
-                                    <div className="text-[10px] uppercase tracking-wide text-gray-500">You'll receive</div>
-                                    {parseFloat(quote.cryptoAmount) > 0 ? (
-                                      <div className="text-base font-bold text-gray-900 leading-tight truncate">
-                                        {parseFloat(quote.cryptoAmount).toFixed(6)} {quote.quoteCurrency}
-                                      </div>
-                                    ) : (
-                                      <div className="text-xs text-blue-600 font-medium truncate">
-                                        Quote during checkout
-                                      </div>
-                                    )}
-                                    <div className="text-[11px] text-gray-600 truncate">
-                                      {selectedProvider ? (
-                                        <>
-                                          via <span className="font-semibold capitalize text-orange-700">{selectedProvider}</span> • {quote.baseCurrency} {quote.totalAmount}
-                                        </>
-                                      ) : (
-                                        <>Total: {quote.baseCurrency} {quote.totalAmount}</>
-                                      )}
-                                    </div>
+                            <div className="space-y-3">
+                              {/* Main Quote Display */}
+                              <div className="text-center border-b border-orange-200 pb-3">
+                                <div className="uppercase tracking-wide text-gray-500 text-[11px] mb-1">You'll receive</div>
+                                {parseFloat(quote.cryptoAmount) > 0 ? (
+                                  <div className="font-bold text-gray-900 leading-tight text-3xl md:text-4xl mb-0.5">
+                                    {parseFloat(quote.cryptoAmount).toFixed(6)} {quote.quoteCurrency}
                                   </div>
-                                  <button
-                                    onClick={() => handleContinue()}
-                                    disabled={loading || (!quote && paymentMethod?.toLowerCase() !== 'ideal') || (paymentMethod?.toLowerCase() === 'ideal' && !selectedProvider)}
-                                    className="shrink-0 h-9 px-3 rounded-lg bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 text-white text-xs font-semibold transition-all duration-200"
-                                  >
-                                    {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
-                                    <span>Buy now</span>
-                                  </button>
-                                </div>
-                              ) : (
-                                <>
-                                  {/* Main Quote Display */}
-                                  <div className={`text-center border-b border-orange-200 ${isQuoteStickyCompact ? 'pb-2' : 'pb-3'}`}>
-                                    <div className={`uppercase tracking-wide text-gray-500 ${isQuoteStickyCompact ? 'text-[10px] mb-0.5' : 'text-[11px] mb-1'}`}>You'll receive</div>
-                                    {parseFloat(quote.cryptoAmount) > 0 ? (
-                                      <div className={`font-bold text-gray-900 leading-tight ${isQuoteStickyCompact ? 'text-2xl' : 'text-3xl md:text-4xl'} mb-0.5`}>
-                                        {parseFloat(quote.cryptoAmount).toFixed(6)} {quote.quoteCurrency}
-                                      </div>
-                                    ) : paymentMethod?.toLowerCase() === 'ideal' ? (
-                                      <div className="flex items-center justify-center gap-2 py-1.5">
-                                        <Info className="w-4 h-4 text-blue-500" />
-                                        <span className="text-sm text-blue-600 font-medium">
-                                          Quote will be calculated during checkout
-                                        </span>
-                                      </div>
-                                    ) : (
-                                      <div className="text-base text-gray-500 py-1.5">
-                                        Quote not available
-                                      </div>
-                                    )}
-                                    {selectedProvider && (
-                                      <div className={`flex items-center justify-center gap-2 ${isQuoteStickyCompact ? 'mt-1' : 'mt-1.5'}`}>
-                                        <span className="text-[11px] text-gray-500">via</span>
-                                        <span className={`${isQuoteStickyCompact ? 'text-sm' : 'text-base'} font-semibold capitalize text-orange-700`}>{selectedProvider}</span>
-                                        {userPreferences?.verifiedProviders?.includes(selectedProvider) && (
-                                          <span className="flex items-center gap-1 px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-[11px] font-medium">
-                                            <Shield className="w-2.5 h-2.5" />
-                                            Verified
-                                          </span>
-                                        )}
-                                      </div>
+                                ) : paymentMethod?.toLowerCase() === 'ideal' ? (
+                                  <div className="flex items-center justify-center gap-2 py-1.5">
+                                    <Info className="w-4 h-4 text-blue-500" />
+                                    <span className="text-sm text-blue-600 font-medium">
+                                      Quote will be calculated during checkout
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="text-base text-gray-500 py-1.5">
+                                    Quote not available
+                                  </div>
+                                )}
+                                {selectedProvider && (
+                                  <div className="flex items-center justify-center gap-2 mt-1.5">
+                                    <span className="text-[11px] text-gray-500">via</span>
+                                    <span className="text-base font-semibold capitalize text-orange-700">{selectedProvider}</span>
+                                    {userPreferences?.verifiedProviders?.includes(selectedProvider) && (
+                                      <span className="flex items-center gap-1 px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-[11px] font-medium">
+                                        <Shield className="w-2.5 h-2.5" />
+                                        Verified
+                                      </span>
                                     )}
                                   </div>
+                                )}
+                              </div>
 
-                                  {/* Quote Details Grid */}
-                                  <div className={`grid grid-cols-1 md:grid-cols-3 text-sm ${isQuoteStickyCompact ? 'gap-1.5' : 'gap-2'}`}>
-                                    <div className="text-center md:text-left rounded-lg bg-white/55 px-3 py-2">
-                                      <div className="text-gray-500 text-xs mb-0.5">Exchange rate</div>
-                                      <div className="font-semibold text-gray-900">
-                                        1 {quote.quoteCurrency} = {quote.baseCurrency} {parseFloat(quote.exchangeRate).toFixed(2)}
-                                      </div>
-                                    </div>
-                                    <div className="text-center md:text-left rounded-lg bg-white/55 px-3 py-2">
-                                      <div className="text-gray-500 text-xs mb-0.5">Service fee</div>
-                                      <div className="font-semibold text-gray-900">
-                                        {quote.baseCurrency} {parseFloat(quote.fee).toFixed(2)}
-                                      </div>
-                                    </div>
-                                    <div className="text-center md:text-left rounded-lg bg-white/55 px-3 py-2">
-                                      <div className="text-gray-500 text-xs mb-0.5">Total</div>
-                                      <div className="font-bold text-base text-gray-900">
-                                        {quote.baseCurrency} {quote.totalAmount}
-                                      </div>
-                                    </div>
+                              {/* Quote Details Grid */}
+                              <div className="grid grid-cols-1 md:grid-cols-3 text-sm gap-2">
+                                <div className="text-center md:text-left rounded-lg bg-white/55 px-3 py-2">
+                                  <div className="text-gray-500 text-xs mb-0.5">Exchange rate</div>
+                                  <div className="font-semibold text-gray-900">
+                                    1 {quote.quoteCurrency} = {quote.baseCurrency} {parseFloat(quote.exchangeRate).toFixed(2)}
                                   </div>
-                                </>
-                              )}
+                                </div>
+                                <div className="text-center md:text-left rounded-lg bg-white/55 px-3 py-2">
+                                  <div className="text-gray-500 text-xs mb-0.5">Service fee</div>
+                                  <div className="font-semibold text-gray-900">
+                                    {quote.baseCurrency} {parseFloat(quote.fee).toFixed(2)}
+                                  </div>
+                                </div>
+                                <div className="text-center md:text-left rounded-lg bg-white/55 px-3 py-2">
+                                  <div className="text-gray-500 text-xs mb-0.5">Total</div>
+                                  <div className="font-bold text-base text-gray-900">
+                                    {quote.baseCurrency} {quote.totalAmount}
+                                  </div>
+                                </div>
+                              </div>
 
                               {/* Buy Now Button - Always visible */}
                               {pendingPaymentOverride && (
@@ -1821,27 +1810,23 @@ export default function BuyModal3({ isOpen, onClose, onOpenPurchaseHistory }: Bu
                                 </div>
                               )}
 
-                              {!(isQuoteStickyCompact && isMobileViewport && !pendingPaymentOverride) && (
-                                <button
-                                  onClick={() => handleContinue()}
-                                  disabled={loading || (!quote && paymentMethod?.toLowerCase() !== 'ideal') || (paymentMethod?.toLowerCase() === 'ideal' && !selectedProvider)}
-                                  className={`w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-bold text-white transition-all shadow-md hover:shadow-lg transform hover:scale-[1.01] active:scale-[0.98] ${
-                                    isQuoteStickyCompact ? 'py-2.5 text-sm' : 'py-3 text-base'
-                                  }`}
-                                >
-                                  {loading ? (
-                                    <>
-                                      <Loader2 className={`${isQuoteStickyCompact ? 'w-4 h-4' : 'w-5 h-5'} animate-spin`} />
-                                      <span>Loading...</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <span>Buy now</span>
-                                      <ArrowRight className={isQuoteStickyCompact ? 'w-4 h-4' : 'w-5 h-5'} />
-                                    </>
-                                  )}
-                                </button>
-                              )}
+                              <button
+                                onClick={() => handleContinue()}
+                                disabled={loading || (!quote && paymentMethod?.toLowerCase() !== 'ideal') || (paymentMethod?.toLowerCase() === 'ideal' && !selectedProvider)}
+                                className="w-full bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 rounded-xl font-bold text-white transition-all shadow-md hover:shadow-lg transform hover:scale-[1.01] active:scale-[0.98] py-3 text-base"
+                              >
+                                {loading ? (
+                                  <>
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                    <span>Loading...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span>Buy now</span>
+                                    <ArrowRight className="w-5 h-5" />
+                                  </>
+                                )}
+                              </button>
                             </div>
                           </div>
                         )}
