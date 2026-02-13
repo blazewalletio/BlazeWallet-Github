@@ -364,7 +364,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     
     if (!ctx || video.readyState !== video.HAVE_ENOUGH_DATA) return;
     
@@ -1149,6 +1149,23 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
     
     // Define toAddr early for error handling
     const toAddr = scannedAddress || recipientAddress;
+    const requiresMnemonic =
+      currentChain === 'solana' ||
+      currentChain === 'bitcoin' ||
+      currentChain === 'litecoin' ||
+      currentChain === 'dogecoin' ||
+      currentChain === 'bitcoincash';
+
+    const signingCredential = requiresMnemonic ? mnemonic : wallet;
+    if (!signingCredential) {
+      setError(
+        requiresMnemonic
+          ? `${CHAINS[currentChain]?.name || currentChain} requires mnemonic for transaction signing on this device.`
+          : `Missing signer for ${CHAINS[currentChain]?.name || currentChain}.`
+      );
+      setStep('idle');
+      return;
+    }
     
     // Track send initiation
     const sendValueUSD = pendingPaymentData?.sendValueUSD || (parseFloat(cryptoAmount) * nativePrice);
@@ -1179,7 +1196,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       if (!selectedToken || selectedToken.address === 'native') {
         // Native token
         tx = await blockchain.sendTransaction(
-          isSolana ? mnemonic! : wallet!,
+          signingCredential,
           toAddr,
           cryptoAmount,
           gas
@@ -1187,7 +1204,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       } else {
         // ERC20/SPL token
         tx = await blockchain.sendTokenTransaction(
-          isSolana ? mnemonic! : wallet!,
+          signingCredential,
           selectedToken.address,
           toAddr,
           cryptoAmount,
@@ -1281,6 +1298,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
         await tx.wait();
       }
       
+      setStep('success');
       setMode('success');
       setShowSuccess(true);
       
@@ -1318,6 +1336,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
       }
       
       setError(userMessage);
+      setStep('idle');
       setMode('confirm');
       
       // Track failed send
