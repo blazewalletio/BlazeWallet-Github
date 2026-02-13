@@ -12,6 +12,7 @@ import { logger } from '@/lib/logger';
 import { logTransactionEvent } from '@/lib/analytics-tracker';
 import { MultiChainService } from '@/lib/multi-chain-service';
 import { CHAINS } from '@/lib/chains';
+import { supabase } from '@/lib/supabase';
 
 interface LastSeenTransaction {
   chain: string;
@@ -223,6 +224,53 @@ export class IncomingTransactionMonitor {
           isToken: !!tx.tokenSymbol,
         },
       });
+
+      // Also persist as tracked transaction so server can fan out in-app/push notifications.
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id) {
+          let csrfToken = '';
+          try {
+            const csrfResponse = await fetch('/api/csrf-token');
+            if (csrfResponse.ok) {
+              const csrfData = await csrfResponse.json().catch(() => ({}));
+              csrfToken = csrfData?.token || '';
+            }
+          } catch {
+            // best-effort only
+          }
+
+          await fetch('/api/transactions/track', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+            },
+            body: JSON.stringify({
+              userId: user.id,
+              chainKey,
+              txHash: tx.hash,
+              transactionType: 'receive',
+              direction: 'received',
+              fromAddress: tx.from || 'unknown',
+              toAddress: address,
+              tokenSymbol,
+              tokenAddress: tx.tokenAddress || null,
+              tokenDecimals: tx.tokenDecimals || 18,
+              isNative: !tx.tokenSymbol,
+              amount: tx.value || '0',
+              amountUSD: Number.isFinite(valueUSD) ? valueUSD : null,
+              status: 'confirmed',
+              timestamp: tx.timestamp ? new Date(tx.timestamp).toISOString() : new Date().toISOString(),
+              metadata: {
+                source: 'incoming_monitor',
+              },
+            }),
+          });
+        }
+      } catch (trackError) {
+        logger.warn('[IncomingTxMonitor] Failed to persist incoming transaction for notifications:', trackError);
+      }
 
       logger.log(`✅ [IncomingTxMonitor] Analytics logged for incoming ${tokenSymbol}`);
     } catch (error) {
