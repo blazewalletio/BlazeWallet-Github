@@ -1220,36 +1220,75 @@ export default function SwapModal({ isOpen, onClose, prefillData }: SwapModalPro
     }
   }, []);
 
+  const getApprovalNativeGasBuffer = useCallback((chainKey: string): number => {
+    switch (chainKey) {
+      case 'ethereum':
+        return 0.0012;
+      case 'arbitrum':
+      case 'optimism':
+      case 'base':
+        return 0.0002;
+      case 'bsc':
+        return 0.00015;
+      case 'polygon':
+        return 0.02;
+      case 'avalanche':
+        return 0.004;
+      default:
+        return 0.0005;
+    }
+  }, []);
+
   const getEstimatedNativeGasCost = useCallback((): number => {
     const nativeSymbol = CHAINS[fromChain]?.nativeCurrency?.symbol?.toUpperCase();
-    const gasCosts = (quote as any)?.estimate?.gasCosts;
+    const steps = ((quote as any)?.steps || [quote]).filter(Boolean);
 
-    if (Array.isArray(gasCosts) && gasCosts.length > 0 && nativeSymbol) {
-      const nativeGasItems = gasCosts.filter((gas: any) => {
-        const symbol = gas?.token?.symbol?.toUpperCase();
-        return symbol === nativeSymbol;
-      });
+    const parseNativeCost = (entry: any): number => {
+      try {
+        const amountRaw = entry?.amount;
+        const symbol = entry?.token?.symbol?.toUpperCase();
+        const decimals = Number(entry?.token?.decimals ?? 18);
+        if (!amountRaw || !nativeSymbol || symbol !== nativeSymbol) return 0;
+        const parsed = parseFloat(ethers.formatUnits(String(amountRaw), decimals));
+        return Number.isFinite(parsed) ? parsed : 0;
+      } catch {
+        return 0;
+      }
+    };
 
-      const costsToUse = nativeGasItems.length > 0 ? nativeGasItems : [gasCosts[0]];
-      const totalEstimated = costsToUse.reduce((sum: number, gas: any) => {
-        try {
-          const amountRaw = gas?.amount;
-          const decimals = Number(gas?.token?.decimals ?? 18);
-          if (!amountRaw) return sum;
-          const parsed = parseFloat(ethers.formatUnits(String(amountRaw), decimals));
-          return Number.isFinite(parsed) ? sum + parsed : sum;
-        } catch {
-          return sum;
-        }
-      }, 0);
+    let totalEstimated = 0;
+    let needsApprovalBuffer = false;
 
-      if (totalEstimated > 0) {
-        return totalEstimated * 1.25; // Safety buffer
+    for (const step of steps) {
+      const gasCosts = step?.estimate?.gasCosts;
+      if (Array.isArray(gasCosts)) {
+        totalEstimated += gasCosts.reduce((sum: number, gas: any) => sum + parseNativeCost(gas), 0);
+      }
+
+      const feeCosts = step?.estimate?.feeCosts;
+      if (Array.isArray(feeCosts)) {
+        totalEstimated += feeCosts.reduce((sum: number, fee: any) => sum + parseNativeCost(fee), 0);
+      }
+
+      if (
+        step?.estimate?.approvalAddress &&
+        fromToken !== 'native' &&
+        CHAINS[fromChain]?.chainType === 'EVM'
+      ) {
+        needsApprovalBuffer = true;
       }
     }
 
+    if (needsApprovalBuffer) {
+      totalEstimated += getApprovalNativeGasBuffer(fromChain);
+    }
+
+    if (totalEstimated > 0) {
+      return totalEstimated * 1.2; // Safety buffer on top of route estimate
+    }
+
     return getFallbackNativeGasReserve(fromChain);
-  }, [fromChain, getFallbackNativeGasReserve, quote]);
+  }, [fromChain, fromToken, getApprovalNativeGasBuffer, getFallbackNativeGasReserve, quote]);
 
   const getTokenDisplay = (token: LiFiToken | 'native' | null, chain: string) => {
     if (!token) return { symbol: 'Select', name: 'Select token', logo: '' };
