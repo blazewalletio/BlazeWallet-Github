@@ -15,6 +15,14 @@ import CurrencyModal from './CurrencyModal';
 import AutoLockSettingsModal from './AutoLockSettingsModal';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { logger } from '@/lib/logger';
+import toast from 'react-hot-toast';
+import {
+  disablePushNotifications,
+  enablePushNotifications,
+  fetchNotificationPreferences,
+  getPushSupportState,
+  sendNotificationTest,
+} from '@/lib/push-notifications-client';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -30,6 +38,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [biometricSupported, setBiometricSupported] = useState(false);
   const [biometricLoading, setBiometricLoading] = useState(false);
   const [biometricError, setBiometricError] = useState('');
   const [showBiometricSetup, setShowBiometricSetup] = useState(false);
@@ -40,6 +49,8 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   
   // ✅ NEW: Notifications state
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [notificationsBusy, setNotificationsBusy] = useState(false);
+  const [notificationStatusHint, setNotificationStatusHint] = useState<string>('');
   const [autoLockTimeout, setAutoLockTimeout] = useState(5);
   
   // Supabase user ID (for syncing settings)
@@ -101,6 +112,16 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           }
           
           logger.log('✅ Settings loaded from Supabase:', profile);
+
+          // Pull canonical notification preferences (if present).
+          try {
+            const cloudPrefs = await fetchNotificationPreferences();
+            if (cloudPrefs && typeof cloudPrefs.notifications_enabled === 'boolean') {
+              setNotificationsEnabled(cloudPrefs.notifications_enabled);
+            }
+          } catch (prefError) {
+            logger.warn('⚠️ Failed to load notification preferences via API:', prefError);
+          }
         } else {
           // No profile yet, use defaults
           loadFromLocalStorage();
@@ -149,18 +170,45 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   };
 
   const handleToggleNotifications = async () => {
+    if (notificationsBusy) return;
     const newValue = !notificationsEnabled;
-    setNotificationsEnabled(newValue);
-    
-    // Save to localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('notifications_enabled', String(newValue));
+    setNotificationsBusy(true);
+
+    try {
+      if (!supabaseUserId) {
+        throw new Error('Notifications require an email session');
+      }
+
+      if (newValue) {
+        const support = getPushSupportState();
+        if (!support.supported) {
+          throw new Error(support.reason || 'Push notifications are not supported on this device');
+        }
+
+        await enablePushNotifications();
+        await sendNotificationTest();
+        setNotificationStatusHint('Enabled on this device');
+        toast.success('Notifications enabled');
+      } else {
+        await disablePushNotifications();
+        setNotificationStatusHint('Disabled');
+        toast.success('Notifications disabled');
+      }
+
+      setNotificationsEnabled(newValue);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('notifications_enabled', String(newValue));
+      }
+      await saveToSupabase({ notifications_enabled: newValue });
+      logger.log(`✅ Notifications ${newValue ? 'enabled' : 'disabled'}`);
+    } catch (error: any) {
+      logger.error('Failed to toggle notifications:', error);
+      const message = error?.message || 'Failed to update notification settings';
+      setNotificationStatusHint(message);
+      toast.error(message);
+    } finally {
+      setNotificationsBusy(false);
     }
-    
-    // Sync to Supabase
-    await saveToSupabase({ notifications_enabled: newValue });
-    
-    logger.log(`✅ Notifications ${newValue ? 'enabled' : 'disabled'}`);
   };
 
   // Check biometric status on mount - WALLET-SPECIFIC
@@ -179,9 +227,15 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           if (!webauthnService.isOnProductionDomain()) {
             logger.log('🚫 Biometric disabled: Not on production domain (my.blazewallet.io)');
             setBiometricEnabled(false);
-            setIsMobile(false);
+            setBiometricSupported(false);
             return;
           }
+
+          const supported = webauthnService.isSupported();
+          const available = supported
+            ? await webauthnService.isPlatformAuthenticatorAvailable()
+            : false;
+          setBiometricSupported(supported && available);
           
           const walletIdentifier = useWalletStore.getState().getWalletIdentifier();
           if (walletIdentifier) {
@@ -195,6 +249,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         } catch (error) {
           logger.error('Error checking biometric status:', error);
           setBiometricEnabled(false);
+          setBiometricSupported(false);
         }
       };
       
@@ -202,6 +257,15 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       
       const mobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       setIsMobile(mobile);
+
+      const support = getPushSupportState();
+      if (!support.supported) {
+        setNotificationStatusHint(support.reason || 'Push notifications unsupported');
+      } else if (Notification.permission === 'denied') {
+        setNotificationStatusHint('Blocked in browser settings');
+      } else {
+        setNotificationStatusHint('');
+      }
     }
   }, [isOpen]);
 
@@ -407,7 +471,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 )}
                 
                 {/* ✅ NEW: Biometric Authentication Section */}
-                {isMobile && (
+                {biometricSupported && (
                   <div className="pt-4 border-t border-gray-200">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
@@ -483,7 +547,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     <Bell className="w-5 h-5 text-orange-500" />
                     <div>
                       <div className="font-semibold text-sm text-gray-900">Notifications</div>
-                      <div className="text-xs text-gray-600">Transaction updates</div>
+                      <div className="text-xs text-gray-600">
+                        {notificationStatusHint || 'Transaction updates'}
+                      </div>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -491,9 +557,10 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       type="checkbox" 
                       className="sr-only peer" 
                       checked={notificationsEnabled}
+                      disabled={notificationsBusy}
                       onChange={handleToggleNotifications}
                     />
-                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                    <div className={`w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500 ${notificationsBusy ? 'opacity-60 cursor-not-allowed' : ''}`}></div>
                   </label>
                 </div>
 

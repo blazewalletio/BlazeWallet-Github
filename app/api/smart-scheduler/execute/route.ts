@@ -10,6 +10,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { gasPriceService } from '@/lib/gas-price-service';
 import { priceService } from '@/lib/price-service';
 import { logger } from '@/lib/logger';
+import { dispatchNotification } from '@/lib/server/notification-dispatcher';
 
 const CRON_SECRET = (process.env.CRON_SECRET || 'dev-secret-change-in-production').trim();
 
@@ -187,19 +188,19 @@ export async function GET(req: NextRequest) {
           p_was_scheduled: true,
         });
 
-        // Create notification
-        await getSupabaseAdmin().from('notifications').insert({
-          user_id: tx.user_id,
-          supabase_user_id: tx.supabase_user_id,
+        await dispatchNotification({
+          userId: tx.user_id,
+          supabaseUserId: tx.supabase_user_id || null,
           type: 'transaction_executed',
-          title: 'Transaction Executed',
-          message: savings > 0 
-            ? `Your transaction was executed! You saved $${savings.toFixed(2)} on gas fees`
-            : `Your scheduled transaction was executed`,
+          title: 'Transaction executed',
+          message: savings > 0
+            ? `Your transaction was executed. You saved $${savings.toFixed(2)} on gas fees.`
+            : 'Your scheduled transaction was executed.',
           data: {
             scheduled_transaction_id: tx.id,
             chain: tx.chain,
             savings_usd: savings,
+            url: '/?open=history',
           },
         });
 

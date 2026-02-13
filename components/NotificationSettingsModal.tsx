@@ -1,10 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Bell, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/lib/logger';
+import toast from 'react-hot-toast';
+import {
+  disablePushNotifications,
+  enablePushNotifications,
+  fetchNotificationPreferences,
+  updateNotificationPreferences,
+} from '@/lib/push-notifications-client';
 
 interface NotificationSettingsModalProps {
   isOpen: boolean;
@@ -28,6 +35,31 @@ export default function NotificationSettingsModal({
     promotions: false
   });
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let mounted = true;
+    (async () => {
+      try {
+        const prefs = await fetchNotificationPreferences();
+        if (!prefs || !mounted) return;
+        setSettings({
+          all: !!prefs.notifications_enabled,
+          transactions: !!prefs.transactions_enabled,
+          security: !!prefs.security_enabled,
+          priceAlerts: !!prefs.price_alerts_enabled,
+          news: !!prefs.news_enabled,
+          promotions: !!prefs.promotions_enabled,
+        });
+      } catch (error) {
+        logger.warn('Failed to load notification preferences:', error);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [isOpen]);
 
   const handleToggle = (key: keyof typeof settings) => {
     setSettings(prev => {
@@ -54,29 +86,48 @@ export default function NotificationSettingsModal({
     setIsLoading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      if (settings.all) {
+        await enablePushNotifications();
+      } else {
+        await disablePushNotifications();
+      }
 
-      const { error } = await (supabase as any)
-        .from('user_profiles')
-        .update({ notifications_enabled: settings.all })
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      // Log activity
-      await (supabase as any).rpc('log_user_activity', {
-        p_user_id: user.id,
-        p_activity_type: 'settings_change',
-        p_description: `Notifications ${settings.all ? 'enabled' : 'disabled'}`,
-        p_metadata: JSON.stringify(settings)
+      await updateNotificationPreferences({
+        notifications_enabled: settings.all,
+        in_app_enabled: settings.all,
+        push_enabled: settings.all,
+        transactions_enabled: settings.transactions,
+        security_enabled: settings.security,
+        price_alerts_enabled: settings.priceAlerts,
+        news_enabled: settings.news,
+        promotions_enabled: settings.promotions,
       });
 
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.id) {
+        await (supabase as any)
+          .from('user_profiles')
+          .update({ notifications_enabled: settings.all })
+          .eq('user_id', user.id);
+      }
+
+      // Log activity
+      if (user?.id) {
+        await (supabase as any).rpc('log_user_activity', {
+          p_user_id: user.id,
+          p_activity_type: 'settings_change',
+          p_description: `Notifications ${settings.all ? 'enabled' : 'disabled'}`,
+          p_metadata: JSON.stringify(settings)
+        });
+      }
+
       logger.log('Notification settings updated');
+      toast.success('Notification settings saved');
       onSuccess();
       onClose();
     } catch (err: any) {
       logger.error('Update error:', err);
+      toast.error(err?.message || 'Failed to save notification settings');
     } finally {
       setIsLoading(false);
     }

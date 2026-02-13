@@ -28,6 +28,7 @@ export interface WebAuthnResponse {
 
 export class WebAuthnService {
   private static instance: WebAuthnService;
+  private static readonly CHALLENGE_LENGTH = 32;
   
   public static getInstance(): WebAuthnService {
     if (!WebAuthnService.instance) {
@@ -53,7 +54,64 @@ export class WebAuthnService {
   public isOnProductionDomain(): boolean {
     if (typeof window === 'undefined') return false;
     const hostname = window.location.hostname;
-    return hostname === 'my.blazewallet.io' || hostname === 'localhost';
+    const configuredAllowedHosts = (process.env.NEXT_PUBLIC_WEBAUTHN_ALLOWED_HOSTS || '')
+      .split(',')
+      .map((host) => host.trim().toLowerCase())
+      .filter(Boolean);
+    const defaultAllowed = ['my.blazewallet.io', 'localhost', '127.0.0.1'];
+    const allowlist = new Set([...defaultAllowed, ...configuredAllowedHosts]);
+    return allowlist.has(hostname.toLowerCase());
+  }
+
+  private getRpId(): string {
+    if (typeof window === 'undefined') return 'my.blazewallet.io';
+    const configuredRpId = process.env.NEXT_PUBLIC_WEBAUTHN_RP_ID?.trim();
+    return configuredRpId || window.location.hostname;
+  }
+
+  private getExpectedOrigin(): string {
+    if (typeof window === 'undefined') return 'https://my.blazewallet.io';
+    return window.location.origin;
+  }
+
+  private generateChallenge(): ArrayBuffer {
+    const challenge = new Uint8Array(WebAuthnService.CHALLENGE_LENGTH);
+    window.crypto.getRandomValues(challenge);
+    return challenge.buffer as ArrayBuffer;
+  }
+
+  private encodeBase64Url(buffer: ArrayBufferLike): string {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  }
+
+  private decodeClientDataJSON(clientDataJSON: ArrayBuffer): any | null {
+    try {
+      const decoded = new TextDecoder().decode(clientDataJSON);
+      return JSON.parse(decoded);
+    } catch {
+      return null;
+    }
+  }
+
+  private validateClientData(params: {
+    clientDataJSON: ArrayBuffer;
+    expectedType: 'webauthn.create' | 'webauthn.get';
+    challenge: ArrayBuffer;
+  }): boolean {
+    const parsed = this.decodeClientDataJSON(params.clientDataJSON);
+    if (!parsed) return false;
+    if (parsed.type !== params.expectedType) return false;
+
+    const expectedChallenge = this.encodeBase64Url(params.challenge);
+    if (parsed.challenge !== expectedChallenge) return false;
+
+    const expectedOrigin = this.getExpectedOrigin();
+    return parsed.origin === expectedOrigin;
   }
 
   /**
@@ -95,13 +153,12 @@ export class WebAuthnService {
         return { success: false, error: 'Biometric authentication not available on this device' };
       }
 
-      // ✅ PRODUCTION DOMAIN: Always use my.blazewallet.io for WebAuthn
-      // This ensures credentials work across all deployments
-      const rpId = 'my.blazewallet.io';
-      
-      // Generate challenge
-      const challenge = new Uint8Array(32);
-      window.crypto.getRandomValues(challenge);
+      if (!this.isOnProductionDomain()) {
+        return { success: false, error: 'Biometric authentication is disabled on this domain' };
+      }
+
+      const rpId = this.getRpId();
+      const challenge = this.generateChallenge();
 
       // ✅ WALLET-SPECIFIC: Use walletIdentifier as userId (unique per wallet!)
       const userId = new TextEncoder().encode(walletIdentifier);
@@ -129,7 +186,7 @@ export class WebAuthnService {
             residentKey: "preferred"
           },
           timeout: 60000,
-          attestation: "direct"
+          attestation: "none"
         }
       }) as PublicKeyCredential;
 
@@ -137,11 +194,20 @@ export class WebAuthnService {
         return { success: false, error: 'Failed to create credential' };
       }
 
+      const attestationResponse = credential.response as AuthenticatorAttestationResponse;
+      const isValidClientData = this.validateClientData({
+        clientDataJSON: attestationResponse.clientDataJSON,
+        expectedType: 'webauthn.create',
+        challenge,
+      });
+      if (!isValidClientData) {
+        return { success: false, error: 'Credential response validation failed' };
+      }
+
       // Convert to storage format
-      const publicKeyCredential = credential.response as AuthenticatorAttestationResponse;
       const credentialData: WebAuthnCredential = {
         id: credential.id,
-        publicKey: this.arrayBufferToBase64(publicKeyCredential.getPublicKey()!),
+        publicKey: this.arrayBufferToBase64(attestationResponse.getPublicKey()!),
         counter: 0,
         createdAt: Date.now(),
         lastUsed: 0,
@@ -176,9 +242,11 @@ export class WebAuthnService {
     }
 
     try {
-      // Generate challenge
-      const challenge = new Uint8Array(32);
-      window.crypto.getRandomValues(challenge);
+      if (!this.isOnProductionDomain()) {
+        return { success: false, error: 'Biometric authentication is disabled on this domain' };
+      }
+
+      const challenge = this.generateChallenge();
 
       // Convert credential ID
       const credentialIdBuffer = this.base64ToArrayBuffer(credentialId);
@@ -199,6 +267,16 @@ export class WebAuthnService {
 
       if (!credential) {
         return { success: false, error: 'Authentication failed' };
+      }
+
+      const assertionResponse = credential.response as AuthenticatorAssertionResponse;
+      const isValidClientData = this.validateClientData({
+        clientDataJSON: assertionResponse.clientDataJSON,
+        expectedType: 'webauthn.get',
+        challenge,
+      });
+      if (!isValidClientData) {
+        return { success: false, error: 'Authentication response validation failed' };
       }
       
       // Update last used time

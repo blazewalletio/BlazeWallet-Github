@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { logger } from '@/lib/logger';
+import { dispatchNotification } from '@/lib/server/notification-dispatcher';
 
 
 export async function POST(req: NextRequest) {
@@ -53,16 +54,16 @@ export async function POST(req: NextRequest) {
 
     logger.log('✅ Scheduled transaction cancelled:', transaction_id);
 
-    // Create notification
-    await getSupabaseAdmin().from('notifications').insert({
-      user_id: user_id,
-      supabase_user_id: data.supabase_user_id || null,
+    await dispatchNotification({
+      userId: user_id,
+      supabaseUserId: data.supabase_user_id || null,
       type: 'transaction_cancelled',
-      title: 'Transaction Cancelled',
-      message: `Your scheduled ${data.token_symbol || 'native'} transaction has been cancelled`,
+      title: 'Transaction cancelled',
+      message: `Your scheduled ${data.token_symbol || 'native'} transaction has been cancelled.`,
       data: {
         scheduled_transaction_id: transaction_id,
         chain: data.chain,
+        url: '/?open=history',
       },
     });
 

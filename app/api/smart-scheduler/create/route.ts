@@ -10,6 +10,7 @@ import { getSupabaseAdmin } from '@/lib/supabase-admin';
 import { encryptEphemeralKeySymmetric } from '@/lib/scheduled-tx-crypto';
 import { apiRateLimiter } from '@/lib/api-rate-limiter';
 import { sanitizeError, sanitizeErrorResponse } from '@/lib/error-handler';
+import { dispatchNotification } from '@/lib/server/notification-dispatcher';
 
 interface CreateScheduleRequest {
   user_id: string;
@@ -165,18 +166,18 @@ export async function POST(req: NextRequest) {
 
     logger.log('✅ Scheduled transaction created:', data.id);
 
-    // Create notification
-    await supabase.from('notifications').insert({
-      user_id: body.user_id,
-      supabase_user_id: body.supabase_user_id || null,
+    await dispatchNotification({
+      userId: body.user_id,
+      supabaseUserId: body.supabase_user_id || null,
       type: 'transaction_scheduled',
-      title: 'Transaction Scheduled',
-      message: `Your ${body.token_symbol || 'native'} transaction will be executed at optimal gas price`,
+      title: 'Transaction scheduled',
+      message: `Your ${body.token_symbol || 'native'} transaction will be executed at optimal gas price.`,
       data: {
         scheduled_transaction_id: data.id,
         chain: body.chain,
         amount: body.amount,
         token_symbol: body.token_symbol,
+        url: '/?open=history',
       },
     });
 

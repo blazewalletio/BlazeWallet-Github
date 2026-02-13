@@ -18,6 +18,7 @@ import { logger, secureLogger } from '@/lib/logger';
 import { apiRateLimiter } from '@/lib/api-rate-limiter';
 import { sanitizeErrorResponse } from '@/lib/error-handler';
 import { getSupabaseAdmin } from '@/lib/supabase-admin';
+import { dispatchNotification } from '@/lib/server/notification-dispatcher';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 minutes max
@@ -388,21 +389,19 @@ async function trackSavings(tx: any, actualGasPrice: number, actualGasCostUSD: n
  */
 async function sendNotification(tx: any, result: any) {
   try {
-    // Store notification in database for client to fetch
-    await getSupabaseAdmin()
-      .from('notifications')
-      .insert({
-        user_id: tx.user_id,
-        type: 'transaction_executed',
-        title: 'Smart Send Completed',
-        message: `Your ${tx.amount} ${tx.token_symbol} transaction was sent successfully!`,
-        data: {
-          transaction_hash: result.txHash,
-          chain: tx.chain,
-          savings: tx.actual_savings_usd,
-        },
-        read: false,
-      });
+    await dispatchNotification({
+      userId: tx.user_id,
+      supabaseUserId: tx.supabase_user_id || null,
+      type: 'transaction_executed',
+      title: 'Smart send completed',
+      message: `Your ${tx.amount} ${tx.token_symbol} transaction was sent successfully.`,
+      data: {
+        transaction_hash: result.txHash,
+        chain: tx.chain,
+        savings: tx.actual_savings_usd,
+        url: '/?open=history',
+      },
+    });
 
     logger.log(`   📧 Notification queued`);
 

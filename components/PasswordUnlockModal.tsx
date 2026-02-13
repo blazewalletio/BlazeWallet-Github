@@ -130,6 +130,17 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
           setBiometricAvailable(false);
           return;
         }
+
+        if (!webauthnService.isSupported()) {
+          setBiometricAvailable(false);
+          return;
+        }
+
+        const platformAvailable = await webauthnService.isPlatformAuthenticatorAvailable();
+        if (!platformAvailable) {
+          setBiometricAvailable(false);
+          return;
+        }
         
         // Get wallet identifier for this wallet
         const walletIdentifier = useWalletStore.getState().getWalletIdentifier();
@@ -708,11 +719,16 @@ export default function PasswordUnlockModal({ isOpen, onComplete, onFallback }: 
     } catch (error: any) {
       // Check if biometric is still available after the error
       const { BiometricStore } = await import('@/lib/biometric-store');
+      const { WebAuthnService } = await import('@/lib/webauthn-service');
       const biometricStore = BiometricStore.getInstance();
+      const webauthnService = WebAuthnService.getInstance();
       const walletIdentifier = useWalletStore.getState().getWalletIdentifier();
       
       if (walletIdentifier) {
-        const hasStoredPassword = biometricStore.hasStoredPassword(walletIdentifier);
+        const hasStoredPassword =
+          webauthnService.isSupported() &&
+          await webauthnService.isPlatformAuthenticatorAvailable() &&
+          biometricStore.hasStoredPassword(walletIdentifier);
         setBiometricAvailable(hasStoredPassword);
       } else {
         setBiometricAvailable(false);

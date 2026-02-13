@@ -675,13 +675,11 @@ export const useWalletStore = create<WalletState>((set, get) => ({
         throw new Error('Could not retrieve password');
       }
 
-      // Check if wallet was created with email
-      const createdWithEmail = typeof window !== 'undefined' 
-        ? localStorage.getItem('wallet_created_with_email') === 'true'
-        : false;
-      const email = typeof window !== 'undefined'
-        ? localStorage.getItem('wallet_email')
-        : null;
+      // Resolve identity from secure source first (cross-tab/session resilient).
+      const { resolveCurrentIdentity, selfHealIdentityFromSession } = await import('./account-identity');
+      const identity = await resolveCurrentIdentity() || await selfHealIdentityFromSession();
+      const createdWithEmail = !!identity;
+      const email = identity?.email || null;
 
       logger.log('🔍 [wallet-store] Wallet type:', { createdWithEmail, email });
 
@@ -852,14 +850,14 @@ export const useWalletStore = create<WalletState>((set, get) => ({
       }
       
       // ✅ WALLET-SPECIFIC: Detect wallet type
-      const createdWithEmail = typeof window !== 'undefined' 
-        ? localStorage.getItem('wallet_created_with_email') === 'true'
-        : false;
+      const { resolveCurrentIdentity, selfHealIdentityFromSession } = await import('./account-identity');
+      const identity = await resolveCurrentIdentity() || await selfHealIdentityFromSession();
+      const createdWithEmail = !!identity;
       const walletType: 'email' | 'seed' = createdWithEmail ? 'email' : 'seed';
       
       // Create display name
       const displayName = walletType === 'email' 
-        ? (localStorage.getItem('wallet_email') || 'BLAZE User')
+        ? (identity?.email || 'BLAZE User')
         : `Wallet ${walletIdentifier.substring(0, 8)}...`;
 
       const result = await webauthnService.register(walletIdentifier, displayName, walletType);
