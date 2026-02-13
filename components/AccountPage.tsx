@@ -1261,13 +1261,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                     <span className="text-sm font-medium text-gray-900">Two-factor authentication</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border ${
-                        userProfile?.two_factor_enabled
-                          ? 'bg-white text-green-700 border-green-200'
-                          : 'bg-white text-gray-600 border-gray-200'
-                      }`}
-                    >
+                    <span className="text-xs text-gray-600">
                       {userProfile?.two_factor_enabled ? 'Enabled' : 'Not enabled'}
                     </span>
                     <ChevronRight className="w-4 h-4 text-gray-400" />
