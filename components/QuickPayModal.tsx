@@ -2110,11 +2110,9 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                           <div className="absolute bottom-0 left-0 w-7 h-7 border-b-4 border-l-4 border-orange-400" />
                           <div className="absolute bottom-0 right-0 w-7 h-7 border-b-4 border-r-4 border-orange-400" />
                           
-                          <motion.div
-                            className="absolute left-3 right-3 h-[2px] bg-orange-400 shadow-lg shadow-orange-500/50"
-                            animate={{ top: ['0%', '100%'] }}
-                            transition={{ duration: 1.6, repeat: Infinity, ease: 'linear' }}
-                          />
+                          <div className="absolute inset-y-0 left-3 right-3 overflow-hidden">
+                            <div className="scan-line-smooth absolute left-0 right-0 top-0 h-[2px] bg-orange-400 shadow-lg shadow-orange-500/50 will-change-transform" />
+                          </div>
                         </div>
                         <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-black/50 backdrop-blur text-[11px] font-semibold text-white border border-white/20">
                           Live
@@ -2871,7 +2869,7 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className={`space-y-3 sm:space-y-4 ${isCompactViewport ? 'min-h-[calc(100dvh-170px)] flex flex-col' : ''}`}
+                  className={`space-y-3 sm:space-y-4 pb-28 sm:pb-32 ${isCompactViewport ? 'min-h-[calc(100dvh-170px)] flex flex-col' : ''}`}
                 >
                   <div className={`text-center ${isCompactViewport ? 'mb-1' : ''}`}>
                     <div className={`${isCompactViewport ? 'w-12 h-12 mb-2' : 'w-16 h-16 mb-4'} bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto`}>
@@ -3014,13 +3012,32 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                     </motion.div>
                   )}
 
-                  <div className={`${isCompactViewport ? 'mt-auto pt-2' : ''} space-y-2`}>
-                    {/* Action Button */}
+                  {!isCompactViewport && (
+                    <p className="text-xs text-center text-gray-500">
+                      Confirm only if the address and network are correct
+                    </p>
+                  )}
+                </motion.div>
+              )}
+
+            {/* Sticky confirm action (always visible in confirm mode) */}
+            {mode === 'confirm' && (scannedAddress || recipientAddress) && (
+              <div className="fixed inset-x-0 bottom-0 z-[55] pointer-events-none">
+                <div className="max-w-2xl mx-auto px-6 pb-[calc(env(safe-area-inset-bottom)+10px)]">
+                  <div className="pointer-events-auto rounded-t-2xl sm:rounded-2xl border border-white/60 bg-gray-50/95 backdrop-blur-md px-3 pt-3 pb-2 shadow-[0_-8px_30px_rgba(0,0,0,0.08)]">
+                    <div className="mb-2 flex items-center justify-between text-[11px] text-gray-600">
+                      <span className="truncate pr-2">
+                        {scannedAmount && parsedQR?.amount
+                          ? `${scannedAmount} ${QRParser.getChainInfo(currentChain as ChainType)?.symbol || ''}`
+                          : `${parseFloat(cryptoAmount || '0').toFixed(6)} ${selectedToken?.symbol || CHAINS[currentChain].nativeCurrency.symbol}`}
+                      </span>
+                      <span className="font-medium">{QRParser.getChainInfo(currentChain as ChainType)?.name || currentChain}</span>
+                    </div>
                     <motion.button
-                      whileTap={{ scale: 0.98 }}
-                        onClick={handleConfirmPayment}
+                      whileTap={{ scale: 0.985 }}
+                      onClick={handleConfirmPayment}
                       disabled={step === 'sending'}
-                      className={`${isCompactViewport ? 'py-3' : 'py-4'} w-full px-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
+                      className="w-full py-3 sm:py-3.5 px-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       {step === 'sending' ? (
                         <>
@@ -3034,15 +3051,10 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
                         </>
                       )}
                     </motion.button>
-
-                    {!isCompactViewport && (
-                      <p className="text-xs text-center text-gray-500">
-                        Confirm only if the address and network are correct
-                      </p>
-                    )}
                   </div>
-                </motion.div>
-              )}
+                </div>
+              </div>
+            )}
 
             {/* PROCESSING */}
             {mode === 'processing' && (
@@ -3098,6 +3110,19 @@ export default function QuickPayModal({ isOpen, onClose, initialMethod }: QuickP
           amountUSD={pendingPaymentData?.sendValueUSD}
         />
       )}
+      <style jsx>{`
+        @keyframes blazeScanLineSmooth {
+          0% {
+            transform: translate3d(0, 0, 0);
+          }
+          100% {
+            transform: translate3d(0, calc(100% - 2px), 0);
+          }
+        }
+        .scan-line-smooth {
+          animation: blazeScanLineSmooth 1.45s cubic-bezier(0.42, 0, 0.58, 1) infinite;
+        }
+      `}</style>
     </AnimatePresence>
   );
 }
