@@ -45,6 +45,17 @@ export default function TokenSearchModal({
 
   const chainConfig = CHAINS[chainKey];
   const chainId = chainConfig?.id;
+  const nativeAddressForChain = chainConfig ? LiFiService.getNativeTokenAddress(chainId) : '';
+
+  const isNativeTokenAddress = (address?: string): boolean => {
+    if (!address) return false;
+    const zeroAddress = '0x0000000000000000000000000000000000000000';
+    return (
+      address === zeroAddress ||
+      address === nativeAddressForChain ||
+      (chainKey === 'solana' && address === 'So11111111111111111111111111111111111111112')
+    );
+  };
 
   useBlockBodyScroll(isOpen);
 
@@ -250,8 +261,9 @@ export default function TokenSearchModal({
             });
           });
         
+        const nonNativeWalletTokens = walletTokensList.filter(t => !isNativeTokenAddress(t.address));
         const popularSymbols = ['USDC', 'USDT', 'WETH', 'WBTC', 'DAI', 'MATIC', 'BNB', 'AVAX', 'SOL', 'ETH'];
-        const popular = walletTokensList.filter(t => 
+        const popular = nonNativeWalletTokens.filter(t => 
           popularSymbols.includes(t.symbol.toUpperCase())
         ).sort((a, b) => {
           const aIndex = popularSymbols.indexOf(a.symbol.toUpperCase());
@@ -262,7 +274,7 @@ export default function TokenSearchModal({
           return a.symbol.localeCompare(b.symbol);
         });
         
-        const others = walletTokensList.filter(t => 
+        const others = nonNativeWalletTokens.filter(t => 
           !popular.some(p => p.address.toLowerCase() === t.address.toLowerCase())
         ).sort((a, b) => a.symbol.localeCompare(b.symbol));
         
@@ -318,23 +330,17 @@ export default function TokenSearchModal({
           };
         });
 
-      // ✅ FIX: Separate tokens by type (native, stablecoins, others)
-      // Native token markers: '0x0000000000000000000000000000000000000000' (EVM) or check isNative flag
-      const isNativeAddress = (addr: string) => 
-        addr === '0x0000000000000000000000000000000000000000' || 
-        curatedTokens.find(ct => ct.address === addr)?.isNative;
-      
-      const nativeToken = tokensList.filter(t => isNativeAddress(t.address));
-      const stablecoins = tokensList.filter(t => {
+      // ✅ Keep native token only in the dedicated top row (prevents duplicate SOL/ETH entries).
+      const nonNativeTokens = tokensList.filter(t => !isNativeTokenAddress(t.address));
+      const stablecoins = nonNativeTokens.filter(t => {
         const popularToken = curatedTokens.find(ct => ct.address === t.address);
-        return popularToken?.isStablecoin && !isNativeAddress(t.address);
+        return popularToken?.isStablecoin;
       });
-      const others = tokensList.filter(t => 
-        !isNativeAddress(t.address) &&
+      const others = nonNativeTokens.filter(t => 
         !curatedTokens.find(ct => ct.address === t.address)?.isStablecoin
       );
 
-      const sortedTokens = [...nativeToken, ...stablecoins, ...others];
+      const sortedTokens = [...stablecoins, ...others];
       
       setPopularTokens(sortedTokens);
       setTokens(sortedTokens);
@@ -684,9 +690,10 @@ export default function TokenSearchModal({
         return a.address < b.address;
       }
 
-      setTokens(cleanResults);
+      const nonNativeResults = cleanResults.filter(token => !isNativeTokenAddress(token.address));
+      setTokens(nonNativeResults);
       setPopularTokens([]); // Clear popular tokens when searching
-      logger.log(`✅ [TokenSearchModal] Found ${cleanResults.length} quality tokens matching "${query}" (${data?.length || 0} before deduplication, filtered by quality!)`);
+      logger.log(`✅ [TokenSearchModal] Found ${nonNativeResults.length} quality non-native tokens matching "${query}" (${data?.length || 0} before deduplication, filtered by quality!)`);
     } catch (err: any) {
       logger.error('❌ [TokenSearchModal] Search failed:', err);
       setError('Search failed. Please try again.');
@@ -712,12 +719,8 @@ export default function TokenSearchModal({
   };
 
   const handleSelectToken = (token: LiFiToken) => {
-    const zeroAddress = '0x0000000000000000000000000000000000000000';
-    const nativeAddressForChain = chainConfig ? LiFiService.getNativeTokenAddress(chainId) : '';
     const isNativeMarker =
-      token.address === zeroAddress ||
-      token.address === nativeAddressForChain ||
-      (chainKey === 'solana' && token.address === 'So11111111111111111111111111111111111111112') ||
+      isNativeTokenAddress(token.address) ||
       Boolean((token as any).isNative);
 
     if (isNativeMarker) {
