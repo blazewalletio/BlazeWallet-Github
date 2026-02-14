@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, CheckCircle2, Copy, Check, Sparkles, Shield, Zap, Lock, AlertTriangle, Eye, EyeOff, ArrowRight, Mail, Key, Usb, FileText, Fingerprint, X, Brain, Flame, Vote, Rocket, Gift, CreditCard, Users, Palette, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { useWalletStore } from '@/lib/wallet-store';
@@ -75,16 +75,37 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const { createWallet, importWallet } = useWalletStore();
 
   // Keep focused fields visible above the mobile keyboard.
-  const ensureFieldVisible = (ref: React.RefObject<HTMLInputElement>) => {
-    if (!ref.current) return;
-    window.setTimeout(() => {
-      ref.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-        inline: 'nearest',
-      });
-    }, 180);
-  };
+  // Uses explicit viewport-safe calculations to avoid iOS "field behind keyboard" issues.
+  const ensureFieldVisible = useCallback((ref: React.RefObject<HTMLInputElement>) => {
+    if (!ref.current || typeof window === 'undefined') return;
+
+    const input = ref.current;
+    const scroller = formContainerRef.current;
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const reservedBottom = Math.max(130, keyboardInset + 92); // keyboard + sticky CTA/safe margin
+    const safeBottom = viewportHeight - reservedBottom;
+    const safeTop = 80;
+    const rect = input.getBoundingClientRect();
+
+    if (rect.bottom > safeBottom) {
+      const delta = rect.bottom - safeBottom + 14;
+      if (scroller) {
+        scroller.scrollBy({ top: delta, behavior: 'smooth' });
+      } else {
+        window.scrollBy({ top: delta, behavior: 'smooth' });
+      }
+      return;
+    }
+
+    if (rect.top < safeTop) {
+      const delta = safeTop - rect.top + 10;
+      if (scroller) {
+        scroller.scrollBy({ top: -delta, behavior: 'smooth' });
+      } else {
+        window.scrollBy({ top: -delta, behavior: 'smooth' });
+      }
+    }
+  }, [keyboardInset]);
 
   // ✅ NEW: Email validation
   const validateEmail = (email: string): boolean => {
@@ -172,6 +193,28 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       return () => window.removeEventListener('resize', handleResize);
     }
   }, [isMobileDevice]);
+
+  // Re-apply focus positioning after keyboard/viewport settles (especially iOS touch focus).
+  useEffect(() => {
+    if (!isMobileDevice || step !== 'email-auth' || !activeField) return;
+
+    const targetRef =
+      activeField === 'email'
+        ? emailRef
+        : activeField === 'password'
+          ? passwordRef
+          : activeField === 'confirmPassword'
+            ? confirmPasswordRef
+            : null;
+
+    if (!targetRef?.current) return;
+
+    const timer = window.setTimeout(() => {
+      ensureFieldVisible(targetRef);
+    }, isKeyboardOpen ? 90 : 180);
+
+    return () => window.clearTimeout(timer);
+  }, [activeField, isKeyboardOpen, keyboardInset, isMobileDevice, step, ensureFieldVisible]);
 
   // Detect mobile device on mount
   useEffect(() => {
