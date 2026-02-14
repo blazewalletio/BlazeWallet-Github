@@ -589,7 +589,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 </div>
 
                 <div className="text-center mb-5">
-                  <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Welcome to Blaze</h1>
+                  <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 mb-2">Welcome to Blaze</h1>
                   <p className="text-gray-600 text-sm sm:text-base">The crypto wallet built for speed, security, and clarity.</p>
                 </div>
 
@@ -653,7 +653,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <div className="w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-5 lg:mb-6 shadow-lg">
                   <Sparkles className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 text-white" />
                 </div>
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2 sm:mb-3 lg:mb-4">Create a wallet</h2>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 mb-2 sm:mb-3">Create a wallet</h2>
                 <p className="text-gray-600 text-sm sm:text-base lg:text-lg">Choose how you want to create your wallet</p>
               </div>
 
@@ -751,7 +751,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <div className="w-20 h-20 lg:w-24 lg:h-24 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-2xl flex items-center justify-center mx-auto mb-4 lg:mb-5 shadow-lg">
                   <Download className="w-10 h-10 lg:w-12 lg:h-12 text-white" />
                 </div>
-                <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2 lg:mb-3">Add a wallet</h2>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 mb-2">Add a wallet</h2>
                 <p className="text-gray-600 text-sm lg:text-base">Login or import an existing wallet</p>
               </div>
 
@@ -808,7 +808,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
                 {/* Header */}
                 <div className="mb-6">
-                  <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">
+                  <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">
                     {emailAuthMode === 'signup' ? 'Create with email' : 'Login with email'}
                   </h2>
                   <p className="text-gray-600 mt-2">
@@ -1137,7 +1137,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   className="w-full py-3 text-gray-600 hover:text-gray-900 text-sm font-semibold transition-colors disabled:opacity-50"
                 >
                   {emailAuthMode === 'signup' 
-                    ? 'Already have an account? Login' 
+                    ? 'Already have an account? Log in' 
                     : 'Need an account? Sign up'}
               </button>
             </form>
@@ -1187,7 +1187,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                   <Download className="w-10 h-10 text-white" />
                 </div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">Import wallet</h2>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 mb-2">Import wallet</h2>
                 <p className="text-gray-600 text-sm">Enter your 12-word recovery phrase</p>
               </div>
 
@@ -1319,7 +1319,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
               {/* Header */}
               <div className="text-center mb-6">
-                <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Save your recovery phrase</h2>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 mb-2">Save your recovery phrase</h2>
                 <p className="text-gray-600 text-sm sm:text-base">Write down these 12 words in order on paper. Do NOT take a screenshot!</p>
               </div>
 
@@ -1441,7 +1441,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                   <CheckCircle2 className="w-10 h-10 text-white" />
                 </div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">Verify recovery phrase</h2>
+                <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 mb-2">Verify recovery phrase</h2>
                 <p className="text-gray-600 text-sm">Enter these specific words to verify you saved them correctly</p>
             </div>
 
@@ -1525,7 +1525,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                     <Mail className="w-10 h-10 text-white" />
                   </div>
-                  <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                  <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 mb-2">
                     Verify your device
                   </h2>
                   <p className="text-gray-600 text-sm">
@@ -1648,7 +1648,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   ) : (
                     <>
                       <Shield className="w-5 h-5" />
-                      Verify Device
+                      Verify device
                     </>
                   )}
               </button>
@@ -1687,7 +1687,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
                     <Fingerprint className="w-10 h-10 text-white" />
                   </div>
-                  <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                  <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 mb-2">
                     Enable biometric security
                   </h2>
                   <p className="text-gray-600 text-sm">
@@ -1817,7 +1817,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     }}
                     className="w-full py-3 text-gray-600 hover:text-gray-900 text-sm font-semibold transition-colors"
                   >
-                    Skip
+                    Skip for now
               </button>
                 </div>
 
