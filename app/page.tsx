@@ -374,10 +374,25 @@ export default function Home() {
             walletAddress: wallet?.address?.substring(0, 12) || 'null'
           });
           
-          if (unlockedThisSession && wallet && !isLocked) {
-            logger.log('✅ [DEBUG] Wallet already unlocked in store (fresh onboarding session)');
+          if (unlockedThisSession) {
+            logger.log('✅ [DEBUG] Active unlocked session detected - refreshing soft lock lease');
             const now = Date.now();
             sessionStorage.setItem('last_activity', now.toString());
+            const rawTimeout =
+              localStorage.getItem(AUTO_LOCK_TIMEOUT_KEY_PRIMARY) ??
+              localStorage.getItem(AUTO_LOCK_TIMEOUT_KEY_LEGACY);
+            const timeoutMinutes = Number(rawTimeout);
+            const normalizedTimeout = Number.isFinite(timeoutMinutes) && timeoutMinutes >= 0
+              ? timeoutMinutes
+              : DEFAULT_AUTO_LOCK_TIMEOUT_MINUTES;
+            if (normalizedTimeout === 0) {
+              sessionStorage.removeItem(SESSION_UNLOCK_EXPIRY_KEY);
+            } else {
+              sessionStorage.setItem(
+                SESSION_UNLOCK_EXPIRY_KEY,
+                String(now + normalizedTimeout * 60 * 1000)
+              );
+            }
           } else {
             logger.log('ℹ️  [DEBUG] Wallet needs unlock (unlock modal will show)');
           }

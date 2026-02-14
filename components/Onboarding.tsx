@@ -1718,6 +1718,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                         // Register WebAuthn credential
                         const { WebAuthnService } = await import('@/lib/webauthn-service');
                         const { BiometricStore } = await import('@/lib/biometric-store');
+                        const { resolveCurrentIdentity, selfHealIdentityFromSession } = await import('@/lib/account-identity');
                         
                         const webauthnService = WebAuthnService.getInstance();
                         const biometricStore = BiometricStore.getInstance();
@@ -1729,13 +1730,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                           throw new Error('Cannot determine wallet identifier for biometric setup');
                         }
                         
-                        // ✅ WALLET-SPECIFIC: Detect wallet type
-                        const createdWithEmail = localStorage.getItem('wallet_created_with_email') === 'true';
-                        const walletType: 'email' | 'seed' = createdWithEmail ? 'email' : 'seed';
+                        // ✅ WALLET-SPECIFIC: Detect wallet type from identity resolver (not fragile local flags)
+                        const identity = await resolveCurrentIdentity() || await selfHealIdentityFromSession();
+                        const walletType: 'email' | 'seed' = identity ? 'email' : 'seed';
                         
                         // Create display name
                         const displayName = walletType === 'email' 
-                          ? (localStorage.getItem('wallet_email') || 'BLAZE User')
+                          ? (identity?.email || 'BLAZE User')
                           : `Wallet ${walletIdentifier.substring(0, 8)}...`;
                         
                         logger.log(`🔐 Registering biometric credential for ${walletType} wallet...`);

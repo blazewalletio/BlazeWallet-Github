@@ -1123,6 +1123,12 @@ export async function verifyDeviceAndSignIn(
       );
       
       logger.log('✅ [StrictAuth] Device verification complete - wallet unlocked');
+      // Ensure email identity is immediately consistent for downstream biometric binding.
+      await persistEmailIdentity({
+        email: authData.user.email || email,
+        userId: authData.user.id,
+        markSessionUnlocked: true,
+      });
       await syncAutoLockTimeoutForUser(authData.user.id);
       
       return {
