@@ -20,7 +20,18 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const ONBOARDING_SOFT_INFO_PANEL =
     'rounded-xl border border-orange-200/70 bg-orange-50/65 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]';
 
-  const [step, setStep] = useState<'carousel' | 'create-options' | 'add-wallet' | 'mnemonic' | 'verify' | 'import-seed' | 'email-auth' | 'device-verification' | 'biometric-setup'>('carousel');
+  const getInitialStep = (): 'carousel' | 'create-options' | 'add-wallet' | 'mnemonic' | 'verify' | 'import-seed' | 'email-auth' | 'device-verification' | 'biometric-setup' | 'oauth-bootstrap' => {
+    if (typeof window === 'undefined') return 'carousel';
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('oauth') === 'new_user' && params.get('show_mnemonic') === 'true') {
+      return 'oauth-bootstrap';
+    }
+    if (params.get('oauth') === 'new_user') {
+      return 'create-options';
+    }
+    return 'carousel';
+  };
+  const [step, setStep] = useState<'carousel' | 'create-options' | 'add-wallet' | 'mnemonic' | 'verify' | 'import-seed' | 'email-auth' | 'device-verification' | 'biometric-setup' | 'oauth-bootstrap'>(getInitialStep);
   const [mnemonic, setMnemonic] = useState<string>('');
   const [importInput, setImportInput] = useState<string>('');
   const [verifyWords, setVerifyWords] = useState<{ [key: number]: string }>({});
@@ -254,6 +265,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       setStep('create-options');
       return;
     }
+    setStep('oauth-bootstrap');
 
     const bootstrapOAuthWallet = async () => {
       try {
@@ -614,6 +626,29 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       {/* 🎯 CONTENT WRAPPER - Perfect centering for all screen sizes */}
       <div className="w-full max-w-md sm:max-w-lg lg:max-w-2xl xl:max-w-3xl relative z-10 px-4 sm:px-6 lg:px-8">
         <AnimatePresence mode="wait">
+          {step === 'oauth-bootstrap' && (
+            <motion.div
+              key="oauth-bootstrap"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.2 }}
+              className={`w-full max-w-md sm:max-w-lg lg:max-w-xl mx-auto ${ONBOARDING_CARD_SHELL} p-6 sm:p-7 lg:p-8`}
+            >
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-orange-500 to-yellow-500 flex items-center justify-center shadow-lg mb-4">
+                  <Loader2 className="w-8 h-8 text-white animate-spin" />
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 mb-2">
+                  Preparing your wallet
+                </h2>
+                <p className="text-sm sm:text-base text-gray-600">
+                  Setting up your secure recovery phrase...
+                </p>
+              </div>
+            </motion.div>
+          )}
+
           {/* Welcome screen */}
           {step === 'carousel' && (
           <motion.div
