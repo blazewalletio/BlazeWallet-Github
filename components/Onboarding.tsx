@@ -30,6 +30,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const [createdViaEmail, setCreatedViaEmail] = useState(false);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isOAuthLoading, setIsOAuthLoading] = useState<null | 'google' | 'apple'>(null);
   const [showAllWordsOnVerify, setShowAllWordsOnVerify] = useState(false);
   
   // Interactive security checklist state
@@ -525,6 +526,38 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
   const words = mnemonic.split(' ');
 
+  const handleGoogleOAuth = async () => {
+    try {
+      setError('');
+      setIsOAuthLoading('google');
+      const result = await signInWithGoogle();
+      if (!result.success) {
+        setError(result.error || 'Google sign-in failed. Please try again.');
+        setIsOAuthLoading(null);
+      }
+      // On success, Supabase OAuth redirect will navigate away.
+    } catch (err: any) {
+      setError(err?.message || 'Google sign-in failed. Please try again.');
+      setIsOAuthLoading(null);
+    }
+  };
+
+  const handleAppleOAuth = async () => {
+    try {
+      setError('');
+      setIsOAuthLoading('apple');
+      const result = await signInWithApple();
+      if (!result.success) {
+        setError(result.error || 'Apple sign-in failed. Please try again.');
+        setIsOAuthLoading(null);
+      }
+      // On success, Supabase OAuth redirect will navigate away.
+    } catch (err: any) {
+      setError(err?.message || 'Apple sign-in failed. Please try again.');
+      setIsOAuthLoading(null);
+    }
+  };
+
   return (
     <div className="min-h-[100dvh] bg-[#f4f6fb] relative flex items-center justify-center py-6 sm:py-10 lg:py-14">
       {/* Subtle dashboard-like backdrop */}
@@ -828,8 +861,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 {/* Social Buttons */}
                 <div className="space-y-3 mb-6">
                   <button
-                    disabled
-                    className={`w-full py-3 sm:py-4 px-4 ${ONBOARDING_INNER_PANEL} text-gray-500 font-semibold flex items-center gap-3 opacity-60 cursor-not-allowed`}
+                    type="button"
+                    onClick={handleGoogleOAuth}
+                    disabled={isLoading || !!isOAuthLoading}
+                    className={`w-full py-3 sm:py-4 px-4 ${ONBOARDING_INNER_PANEL} text-gray-700 font-semibold flex items-center gap-3 transition-all ${
+                      isLoading || isOAuthLoading ? 'opacity-60 cursor-not-allowed' : 'hover:bg-white'
+                    }`}
                   >
                     <svg className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -837,21 +874,23 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
                       <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                     </svg>
-                    <span className="flex-1 text-center text-sm sm:text-base pr-20 sm:pr-24">Continue with Google</span>
-                    <span className="px-2 py-1 bg-orange-500/10 border border-orange-500/30 rounded-md text-[10px] sm:text-xs text-orange-600 font-semibold whitespace-nowrap flex-shrink-0">
-                      Coming soon
+                    <span className="flex-1 text-center text-sm sm:text-base pr-8">
+                      {isOAuthLoading === 'google' ? 'Redirecting to Google...' : 'Continue with Google'}
                     </span>
                   </button>
                   <button
-                    disabled
-                    className={`w-full py-3 sm:py-4 px-4 ${ONBOARDING_INNER_PANEL} text-gray-500 font-semibold flex items-center gap-3 opacity-60 cursor-not-allowed`}
+                    type="button"
+                    onClick={handleAppleOAuth}
+                    disabled={isLoading || !!isOAuthLoading}
+                    className={`w-full py-3 sm:py-4 px-4 ${ONBOARDING_INNER_PANEL} text-gray-700 font-semibold flex items-center gap-3 transition-all ${
+                      isLoading || isOAuthLoading ? 'opacity-60 cursor-not-allowed' : 'hover:bg-white'
+                    }`}
                   >
                     <svg className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
                     </svg>
-                    <span className="flex-1 text-center text-sm sm:text-base pr-20 sm:pr-24">Continue with Apple</span>
-                    <span className="px-2 py-1 bg-orange-500/10 border border-orange-500/30 rounded-md text-[10px] sm:text-xs text-orange-600 font-semibold whitespace-nowrap flex-shrink-0">
-                      Coming soon
+                    <span className="flex-1 text-center text-sm sm:text-base pr-8">
+                      {isOAuthLoading === 'apple' ? 'Redirecting to Apple...' : 'Continue with Apple'}
                     </span>
                   </button>
                 </div>
