@@ -519,9 +519,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const words = mnemonic.split(' ');
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative flex items-center justify-center py-8 sm:py-12 lg:py-16">
-      {/* Subtle background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-yellow-500/5 pointer-events-none" />
+    <div className="min-h-[100dvh] bg-[#f4f6fb] relative flex items-center justify-center py-6 sm:py-10 lg:py-14">
+      {/* Subtle dashboard-like backdrop */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(249,115,22,0.10),transparent_55%)] pointer-events-none" />
       
       {/* 🎯 CONTENT WRAPPER - Perfect centering for all screen sizes */}
       <div className="w-full max-w-md sm:max-w-lg lg:max-w-2xl xl:max-w-3xl relative z-10 px-4 sm:px-6 lg:px-8">
@@ -534,7 +534,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-md sm:max-w-lg lg:max-w-xl mx-auto"
+              className="w-full max-w-md sm:max-w-lg lg:max-w-xl mx-auto rounded-3xl border border-gray-200 bg-white shadow-xl p-5 sm:p-6 lg:p-7"
             >
               <div className="bg-white/80 backdrop-blur-md border border-gray-200/80 rounded-3xl shadow-xl p-5 sm:p-6 lg:p-8 mb-6">
                 <div className="relative h-52 sm:h-56 lg:h-60 mb-5">
@@ -733,7 +733,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-md lg:max-w-xl mx-auto"
+              className="w-full max-w-md lg:max-w-xl mx-auto rounded-3xl border border-gray-200 bg-white shadow-xl p-5 sm:p-6 lg:p-7"
             >
               {/* Back button */}
               <div className="mb-8 lg:mb-10">
@@ -789,93 +789,71 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
               className={`w-full max-w-md sm:max-w-lg lg:max-w-xl xl:max-w-2xl mx-auto ${
-                isMobileDevice ? 'max-h-[calc(100vh-0.75rem)] overflow-y-auto overscroll-contain pb-2' : ''
+                isMobileDevice ? 'max-h-[calc(100dvh-0.75rem)] overflow-y-auto overscroll-contain' : ''
               }`}
-              style={isMobileDevice && isKeyboardOpen ? { paddingBottom: `${keyboardInset + 16}px` } : undefined}
               ref={formContainerRef}
             >
-              {/* 📱 SMART COMPACT: Dynamic Header - Shrinks on keyboard open */}
-              <motion.div
-                initial={false}
-                animate={{
-                  scale: isKeyboardOpen && isMobileDevice ? 0.7 : 1,
-                  opacity: isKeyboardOpen && isMobileDevice ? 0.7 : 1,
-                  marginBottom: isKeyboardOpen && isMobileDevice ? '0.5rem' : undefined,
-                }}
-                transition={{ duration: 0.3, ease: 'easeInOut' }}
-                className="origin-top"
-              >
-                {/* Back Button - CONSISTENT SPACING */}
-                <div className="mb-8 sm:mb-10 lg:mb-12">
+              <div className="rounded-3xl border border-gray-200 bg-white shadow-xl p-4 sm:p-6 lg:p-7">
+                {/* Back Button */}
+                <div className="mb-5">
                   <button
                     onClick={() => setStep(emailAuthMode === 'signup' ? 'create-options' : 'add-wallet')}
                     disabled={isLoading}
                     className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors disabled:opacity-50"
                   >
-                    <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6 rotate-180" />
-                    <span className="text-sm sm:text-base lg:text-lg">Back</span>
+                    <ArrowRight className="w-5 h-5 rotate-180" />
+                    <span className="text-sm font-semibold">Back</span>
                   </button>
                 </div>
 
-                {/* Header - CONSISTENT SPACING */}
-                <div className="text-center mb-8 sm:mb-10 lg:mb-12">
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-5 lg:mb-6 shadow-lg">
-                    <Mail className="w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 text-white" />
-                  </div>
-                  <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2 sm:mb-3 lg:mb-4">
+                {/* Header */}
+                <div className="mb-6">
+                  <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">
                     {emailAuthMode === 'signup' ? 'Create with email' : 'Login with email'}
                   </h2>
-                  <p className="text-gray-600 text-sm sm:text-base lg:text-lg">
-                    {emailAuthMode === 'signup' ? 'Set up your wallet with email authentication' : 'Access your existing wallet'}
+                  <p className="text-gray-600 mt-2">
+                    {emailAuthMode === 'signup'
+                      ? 'Set up your wallet with email authentication'
+                      : 'Access your existing wallet'}
                   </p>
                 </div>
 
-                {/* 📱 SMART COMPACT: Hide social buttons when keyboard is open (mobile) */}
-                {!(isKeyboardOpen && isMobileDevice) && (
-                  <>
-                    {/* Social Buttons - FIXED LAYOUT - Badge doesn't overlap text */}
-                    <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
-                      <button
-                        disabled
-                        className="w-full py-3 sm:py-4 px-4 bg-white border-2 border-gray-200 rounded-xl text-gray-500 font-semibold flex items-center gap-3 opacity-60 cursor-not-allowed"
-                      >
-                        {/* Google Icon SVG */}
-                        <svg className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                        </svg>
-                        <span className="flex-1 text-center text-sm sm:text-base pr-20 sm:pr-24">Continue with Google</span>
-                        <span className="px-2 py-1 bg-orange-500/10 border border-orange-500/30 rounded-md text-[10px] sm:text-xs text-orange-600 font-semibold whitespace-nowrap flex-shrink-0">
-                          Coming soon
-                        </span>
-                      </button>
+                {/* Social Buttons */}
+                <div className="space-y-3 mb-6">
+                  <button
+                    disabled
+                    className="w-full py-3 sm:py-4 px-4 bg-white border-2 border-gray-200 rounded-xl text-gray-500 font-semibold flex items-center gap-3 opacity-60 cursor-not-allowed"
+                  >
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    </svg>
+                    <span className="flex-1 text-center text-sm sm:text-base pr-20 sm:pr-24">Continue with Google</span>
+                    <span className="px-2 py-1 bg-orange-500/10 border border-orange-500/30 rounded-md text-[10px] sm:text-xs text-orange-600 font-semibold whitespace-nowrap flex-shrink-0">
+                      Coming soon
+                    </span>
+                  </button>
+                  <button
+                    disabled
+                    className="w-full py-3 sm:py-4 px-4 bg-white border-2 border-gray-200 rounded-xl text-gray-500 font-semibold flex items-center gap-3 opacity-60 cursor-not-allowed"
+                  >
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+                    </svg>
+                    <span className="flex-1 text-center text-sm sm:text-base pr-20 sm:pr-24">Continue with Apple</span>
+                    <span className="px-2 py-1 bg-orange-500/10 border border-orange-500/30 rounded-md text-[10px] sm:text-xs text-orange-600 font-semibold whitespace-nowrap flex-shrink-0">
+                      Coming soon
+                    </span>
+                  </button>
+                </div>
 
-                      <button
-                        disabled
-                        className="w-full py-3 sm:py-4 px-4 bg-white border-2 border-gray-200 rounded-xl text-gray-500 font-semibold flex items-center gap-3 opacity-60 cursor-not-allowed"
-                      >
-                        {/* Apple Icon SVG */}
-                        <svg className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-                        </svg>
-                        <span className="flex-1 text-center text-sm sm:text-base pr-20 sm:pr-24">Continue with Apple</span>
-                        <span className="px-2 py-1 bg-orange-500/10 border border-orange-500/30 rounded-md text-[10px] sm:text-xs text-orange-600 font-semibold whitespace-nowrap flex-shrink-0">
-                          Coming soon
-                        </span>
-                      </button>
-                    </div>
-
-                    {/* Divider */}
-                    <div className="flex items-center gap-4 mb-6">
-                      <div className="flex-1 h-px bg-gray-300"></div>
-                      <span className="text-sm text-gray-500">Or continue with email</span>
-                      <div className="flex-1 h-px bg-gray-300"></div>
-                    </div>
-                  </>
-                )}
-              </motion.div>
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="flex-1 h-px bg-gray-300" />
+                  <span className="text-sm text-gray-500">Or continue with email</span>
+                  <div className="flex-1 h-px bg-gray-300" />
+                </div>
 
               {/* ✅ IMPROVED: Form with Enter key support and auto-scroll */}
             <form 
@@ -1119,12 +1097,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   </motion.div>
                 )}
 
-                {/* 📱 SMART COMPACT: Sticky Submit Button (fixed on mobile when keyboard open) */}
+                {/* Stable sticky CTA: avoids iOS keyboard jump caused by fixed overlays */}
               <div 
-                  className={`
-                    ${isKeyboardOpen && isMobileDevice ? 'fixed left-0 right-0 p-4 pb-safe bg-white/95 backdrop-blur-sm border-t border-gray-200 shadow-2xl z-50' : ''}
-                  `}
-                  style={isKeyboardOpen && isMobileDevice ? { bottom: `${keyboardInset}px` } : undefined}
+                  className={`sticky bottom-0 -mx-4 sm:-mx-5 px-4 sm:px-5 pt-3 border-t border-gray-200 bg-white/95 backdrop-blur ${
+                    isMobileDevice ? 'pb-[max(env(safe-area-inset-bottom),12px)]' : 'pb-0'
+                  }`}
                 >
                   <button
                   type="submit"
@@ -1141,9 +1118,6 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   )}
                 </button>
                 </div>
-
-                {/* 📱 SMART COMPACT: Spacer to prevent content from hiding behind sticky button (mobile only) */}
-                {isKeyboardOpen && isMobileDevice && <div style={{ height: `${96 + keyboardInset}px` }} />}
 
                 {/* Toggle login/signup */}
                 <button
@@ -1182,6 +1156,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   </div>
                 </div>
               )}
+              </div>
           </motion.div>
         )}
 
@@ -1193,7 +1168,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-md lg:max-w-xl mx-auto"
+              className="w-full max-w-md lg:max-w-xl mx-auto rounded-3xl border border-gray-200 bg-white shadow-xl p-5 sm:p-6 lg:p-7"
             >
               {/* Back button */}
               <div className="mb-8">
@@ -1459,7 +1434,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="max-w-md lg:max-w-xl mx-auto w-full"
+              className="max-w-md lg:max-w-xl mx-auto w-full rounded-3xl border border-gray-200 bg-white shadow-xl p-5 sm:p-6 lg:p-7"
             >
               {/* Header */}
             <div className="text-center mb-8">
@@ -1542,7 +1517,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-md lg:max-w-xl mx-auto"
+              className="w-full max-w-md lg:max-w-xl mx-auto rounded-3xl border border-gray-200 bg-white shadow-xl p-5 sm:p-6 lg:p-7"
             >
               <div className="w-full">
                 {/* Icon & Header */}
@@ -1704,7 +1679,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-md lg:max-w-xl mx-auto"
+              className="w-full max-w-md lg:max-w-xl mx-auto rounded-3xl border border-gray-200 bg-white shadow-xl p-5 sm:p-6 lg:p-7"
             >
               <div className="w-full">
                 {/* Icon & Header - NO CARD */}
