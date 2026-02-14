@@ -4,6 +4,8 @@ export interface HistoryLogoItem {
   key: string;
   isNative: boolean;
   address?: string;
+  symbol?: string;
+  name?: string;
 }
 
 type CachedEntry = { url: string | null; expiresAt: number };
@@ -12,9 +14,12 @@ const TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MISS_TTL_MS = 10 * 60 * 1000;
 
 function buildCacheKey(chainKey: string, item: HistoryLogoItem): string {
-  return item.isNative
-    ? `${chainKey}:native`
-    : `${chainKey}:${(item.address || '').toLowerCase()}`;
+  if (item.isNative) return `${chainKey}:native`;
+  const address = (item.address || '').toLowerCase();
+  if (address) return `${chainKey}:addr:${address}`;
+  const symbol = (item.symbol || '').trim().toLowerCase();
+  const name = (item.name || '').trim().toLowerCase();
+  return `${chainKey}:meta:${symbol}:${name}`;
 }
 
 function getCached(cacheKey: string): string | null | undefined {

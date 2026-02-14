@@ -46,10 +46,17 @@ const logoCache = new Map<string, CacheEntry>();
 const SUCCESS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MISS_TTL_MS = 6 * 60 * 60 * 1000;
 
-function getCacheKey(chainKey: string, isNative: boolean, address?: string): string {
-  return isNative
-    ? `${chainKey.toLowerCase()}:native`
-    : `${chainKey.toLowerCase()}:${(address || '').toLowerCase()}`;
+function getCacheKey(
+  chainKey: string,
+  isNative: boolean,
+  address?: string,
+  symbol?: string,
+  name?: string
+): string {
+  if (isNative) return `${chainKey.toLowerCase()}:native`;
+  const normalizedAddress = (address || '').toLowerCase();
+  if (normalizedAddress) return `${chainKey.toLowerCase()}:addr:${normalizedAddress}`;
+  return `${chainKey.toLowerCase()}:meta:${(symbol || '').trim().toLowerCase()}:${(name || '').trim().toLowerCase()}`;
 }
 
 function getCached(key: string): string | null | undefined {
@@ -78,9 +85,11 @@ export async function resolveCoinGeckoHistoryLogo(input: {
   chainKey: string;
   isNative: boolean;
   address?: string;
+  symbol?: string;
+  name?: string;
 }): Promise<string | null> {
   const chainKey = input.chainKey;
-  const cacheKey = getCacheKey(chainKey, input.isNative, input.address);
+  const cacheKey = getCacheKey(chainKey, input.isNative, input.address, input.symbol, input.name);
   const cached = getCached(cacheKey);
   if (cached !== undefined) {
     return cached;
@@ -136,6 +145,71 @@ export async function resolveCoinGeckoHistoryLogo(input: {
       if (response.ok) {
         const data = await response.json();
         url = getImageUrl(data);
+      }
+
+      // Fallback for tokens where CoinGecko contract endpoint misses data:
+      // try CoinGecko search by symbol/name and resolve image from coin details.
+      if (!url) {
+        const query = (input.name || input.symbol || '').trim();
+        if (query.length >= 2) {
+          const searchUrl =
+            `${COINGECKO_PRO_API_BASE}/search?query=${encodeURIComponent(query)}` +
+            `&x_cg_pro_api_key=${encodeURIComponent(COINGECKO_API_KEY)}`;
+          const searchResponse = await fetch(searchUrl, {
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(7000),
+          });
+
+          if (searchResponse.ok) {
+            const searchData = await searchResponse.json();
+            const candidates = Array.isArray(searchData?.coins) ? searchData.coins.slice(0, 10) : [];
+            const symbol = (input.symbol || '').trim().toLowerCase();
+            const name = (input.name || '').trim().toLowerCase();
+            const ranked = candidates.sort((a: any, b: any) => {
+              const aSymbol = String(a?.symbol || '').toLowerCase();
+              const bSymbol = String(b?.symbol || '').toLowerCase();
+              const aName = String(a?.name || '').toLowerCase();
+              const bName = String(b?.name || '').toLowerCase();
+              const score = (s: string, n: string) =>
+                (symbol && s === symbol ? 3 : 0) +
+                (name && n === name ? 2 : 0) +
+                (symbol && s.includes(symbol) ? 1 : 0) +
+                (name && n.includes(name) ? 1 : 0);
+              return score(bSymbol, bName) - score(aSymbol, aName);
+            });
+
+            for (const candidate of ranked) {
+              const coinId = String(candidate?.id || '').trim();
+              if (!coinId) continue;
+              const coinUrl =
+                `${COINGECKO_PRO_API_BASE}/coins/${encodeURIComponent(coinId)}` +
+                `?x_cg_pro_api_key=${encodeURIComponent(COINGECKO_API_KEY)}` +
+                '&localization=false&tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false';
+              const coinResponse = await fetch(coinUrl, {
+                headers: { Accept: 'application/json' },
+                signal: AbortSignal.timeout(7000),
+              });
+              if (!coinResponse.ok) continue;
+              const coinData = await coinResponse.json();
+
+              // If address is known, strongly prefer exact platform contract match.
+              if (address && platform) {
+                const normalizedAddress = address.toLowerCase();
+                const detailPlatforms = coinData?.detail_platforms || {};
+                const platformData = detailPlatforms?.[platform];
+                const cgAddress = String(platformData?.contract_address || '').toLowerCase();
+                if (cgAddress && cgAddress === normalizedAddress) {
+                  url = getImageUrl(coinData);
+                  break;
+                }
+              } else {
+                // Without address: accept best ranked symbol/name match image.
+                url = getImageUrl(coinData);
+                if (url) break;
+              }
+            }
+          }
+        }
       }
     }
 

@@ -5,6 +5,8 @@ interface HistoryLogoRequestItem {
   key: string;
   isNative: boolean;
   address?: string;
+  symbol?: string;
+  name?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -33,6 +35,8 @@ export async function POST(request: NextRequest) {
           chainKey,
           isNative: Boolean(item.isNative),
           address: item.address,
+          symbol: item.symbol,
+          name: item.name,
         });
         logos[key] = logo;
       })

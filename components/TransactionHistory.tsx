@@ -24,6 +24,7 @@ import { apiQueue } from '@/lib/api-queue';
 import { logger } from '@/lib/logger';
 import { supabase } from '@/lib/supabase';
 import { getTransactionExplorerUrl } from '@/lib/explorer-links';
+import { getHistoryLogosBatch, type HistoryLogoItem } from '@/lib/history-logo-service';
 
 interface Transaction {
   hash: string;
@@ -139,6 +140,40 @@ export default function TransactionHistory() {
 
       // Convert map to array and sort by timestamp (newest first)
       const allTransactions = Array.from(txMap.values()).sort((a, b) => b.timestamp - a.timestamp);
+
+      // Resolve missing history logos through CoinGecko Pro API (with symbol/name fallback).
+      const logoItems: HistoryLogoItem[] = allTransactions
+        .map((tx) => {
+          const tokenAddress = String(
+            (tx as any).tokenAddress ||
+            (tx as any).contractAddress ||
+            (tx as any).address ||
+            tx.mint ||
+            ''
+          ).trim();
+          const symbol = String(tx.tokenSymbol || '').trim();
+          const name = String(tx.tokenName || '').trim();
+          const nativeSymbol = chain.nativeCurrency.symbol.toUpperCase();
+          const isNative = !tokenAddress && (!!symbol ? symbol.toUpperCase() === nativeSymbol : true);
+          return {
+            key: tx.hash,
+            isNative,
+            address: tokenAddress || undefined,
+            symbol: symbol || undefined,
+            name: name || undefined,
+          } as HistoryLogoItem;
+        })
+        .filter((item) => item.isNative || item.address || item.symbol || item.name);
+
+      if (logoItems.length > 0) {
+        const logoMap = await getHistoryLogosBatch(currentChain, logoItems);
+        allTransactions.forEach((tx) => {
+          const resolved = logoMap[tx.hash];
+          if (resolved) {
+            tx.logoUrl = resolved;
+          }
+        });
+      }
 
       // ✅ DEBUG: Log transaction details
       logger.log('📋 [TransactionHistory] Combined transactions:', {
