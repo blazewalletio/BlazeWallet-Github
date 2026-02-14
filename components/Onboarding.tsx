@@ -79,6 +79,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const [keyboardInset, setKeyboardInset] = useState(0);
   const [activeField, setActiveField] = useState<string | null>(null);
   const formContainerRef = useRef<HTMLDivElement>(null);
+  const oauthBootstrapHandledRef = useRef(false);
 
   const { createWallet, importWallet } = useWalletStore();
 
@@ -231,6 +232,53 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       logger.log('📱 Device detection:', { isMobile });
     }
   }, []);
+
+  // OAuth new-user deep link: route directly into wallet creation flow.
+  useEffect(() => {
+    if (typeof window === 'undefined' || oauthBootstrapHandledRef.current) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const isOAuthNewUser = params.get('oauth') === 'new_user';
+    if (!isOAuthNewUser) return;
+
+    oauthBootstrapHandledRef.current = true;
+    const shouldShowMnemonic = params.get('show_mnemonic') === 'true';
+
+    // Clear one-shot OAuth query params to avoid re-triggering on refresh/back.
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.delete('oauth');
+    nextUrl.searchParams.delete('show_mnemonic');
+    window.history.replaceState({}, '', `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+
+    if (!shouldShowMnemonic) {
+      setStep('create-options');
+      return;
+    }
+
+    const bootstrapOAuthWallet = async () => {
+      try {
+        setError('');
+        setIsLoading(true);
+        const phrase = await createWallet();
+        setMnemonic(phrase);
+        setCreatedViaEmail(false);
+        setStep('mnemonic');
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('wallet_just_created', 'true');
+          localStorage.setItem('force_password_setup', 'true');
+        }
+      } catch (err) {
+        logger.error('Error bootstrapping OAuth new-user wallet:', err);
+        setError('Something went wrong creating your wallet. Please try again.');
+        setStep('create-options');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    bootstrapOAuthWallet();
+  }, [createWallet]);
 
   useEffect(() => {
     if (deviceResendCooldown <= 0) return;

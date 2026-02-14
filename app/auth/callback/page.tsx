@@ -136,11 +136,17 @@ export default function AuthCallback() {
           }
 
           // Check if user has a wallet in Supabase
-          const { data: wallet } = await supabase
+          const { data: wallet, error: walletLookupError } = await supabase
             .from('wallets')
             .select('id')
             .eq('user_id', session.user.id)
-            .single();
+            .maybeSingle();
+
+          if (walletLookupError) {
+            logger.error('❌ [OAuth] Failed to check wallet existence:', walletLookupError);
+            router.push('/?error=wallet_check_failed');
+            return;
+          }
 
           if (!wallet) {
             // New user from OAuth - needs to create wallet

@@ -41,10 +41,9 @@ export async function syncWalletToSupabase(
       .from('wallets')
       .select('id')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
     
-    if (checkError && checkError.code !== 'PGRST116') {
-      // PGRST116 = not found, which is OK
+    if (checkError) {
       throw checkError;
     }
     
@@ -110,15 +109,16 @@ export async function syncWalletFromSupabase(
       .from('wallets')
       .select('encrypted_wallet, last_synced_at')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
     
     if (error) {
-      if (error.code === 'PGRST116') {
-        // Wallet not found in Supabase
-        logger.log('ℹ️  [WalletSync] No wallet found in Supabase');
-        return { success: true, synced: false };
-      }
       throw error;
+    }
+    
+    if (!wallet) {
+      // Wallet not found in Supabase
+      logger.log('ℹ️  [WalletSync] No wallet found in Supabase');
+      return { success: true, synced: false };
     }
     
     if (!wallet || !wallet.encrypted_wallet) {
@@ -168,7 +168,7 @@ export async function needsWalletSync(userId: string): Promise<boolean> {
       .from('wallets')
       .select('id')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
     
     if (error || !wallet) {
       // Supabase also empty, no sync needed
