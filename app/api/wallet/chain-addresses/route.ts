@@ -6,6 +6,18 @@ import { CHAINS } from '@/lib/chains';
 
 type ChainAddressMap = Record<string, string>;
 
+function isSchemaNotReadyError(error: any): boolean {
+  const code = String(error?.code || '');
+  const message = String(error?.message || '').toLowerCase();
+  return (
+    code === '42P01' || // undefined_table
+    code === '42P10' || // invalid_column_reference / missing ON CONFLICT target
+    message.includes('does not exist') ||
+    message.includes('relation') ||
+    message.includes('constraint')
+  );
+}
+
 function normalizeAddress(chainKey: string, address: string): string {
   const trimmed = String(address || '').trim();
   if (!trimmed) return '';
@@ -73,6 +85,15 @@ export async function POST(req: NextRequest) {
     .eq('is_active', true);
 
   if (currentError) {
+    if (isSchemaNotReadyError(currentError)) {
+      return NextResponse.json({
+        success: true,
+        upserted: 0,
+        deactivated: 0,
+        skipped: true,
+        reason: 'incoming_watch_schema_not_ready',
+      });
+    }
     return NextResponse.json({ error: currentError.message || 'Failed to load current addresses' }, { status: 500 });
   }
 
@@ -92,6 +113,15 @@ export async function POST(req: NextRequest) {
     .upsert(desiredRows, { onConflict: 'user_id,chain_key,address' });
 
   if (upsertError) {
+    if (isSchemaNotReadyError(upsertError)) {
+      return NextResponse.json({
+        success: true,
+        upserted: 0,
+        deactivated: toDeactivate.length,
+        skipped: true,
+        reason: 'incoming_watch_schema_not_ready',
+      });
+    }
     return NextResponse.json({ error: upsertError.message || 'Failed to sync addresses' }, { status: 500 });
   }
 
