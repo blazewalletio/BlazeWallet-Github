@@ -227,7 +227,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
               .from('user_email_verification_status')
               .select('is_verified')
               .eq('user_id', user.id)
-              .single();
+              .maybeSingle();
             
             setIsEmailVerified((verificationStatus as any)?.is_verified || false);
             
@@ -246,7 +246,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
               .from('user_profiles')
               .select('*')
               .eq('user_id', user.id)
-              .single();
+              .maybeSingle();
             
             if (profile) {
               setUserProfile(profile);
@@ -324,7 +324,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
                   .from('user_transaction_stats')
                   .select('*')
                   .eq('user_id', user.id)
-                  .single();
+                  .maybeSingle();
                 
                 if (stats) {
                   setTransactionStats(stats);
@@ -720,7 +720,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
       .from('user_profiles')
       .select('*')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
     
     if (profile) {
       setUserProfile(profile);
@@ -735,7 +735,7 @@ export default function AccountPage({ isOpen, onClose, onOpenSettings }: Account
       .from('user_security_scores')
       .select('*')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
     
     if (secScore) {
       setSecurityScore(secScore);
