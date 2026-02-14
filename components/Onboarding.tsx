@@ -791,12 +791,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className={`w-full max-w-md sm:max-w-lg lg:max-w-xl xl:max-w-2xl mx-auto ${
+              className={`w-full max-w-md sm:max-w-lg lg:max-w-xl xl:max-w-2xl mx-auto ${ONBOARDING_CARD_SHELL} p-4 sm:p-6 lg:p-7 ${
                 isMobileDevice ? 'max-h-[calc(100dvh-0.75rem)] overflow-y-auto overscroll-contain' : ''
               }`}
               ref={formContainerRef}
             >
-              <div className={`${ONBOARDING_CARD_SHELL} p-4 sm:p-6 lg:p-7`}>
+              <div>
                 {/* Back Button */}
                 <div className="mb-5">
                   <button
