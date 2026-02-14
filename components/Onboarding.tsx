@@ -1374,60 +1374,71 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               transition={{ duration: 0.3 }}
               className={`max-w-2xl mx-auto ${ONBOARDING_CARD_SHELL} p-5 sm:p-6 lg:p-7`}
             >
-              {/* Critical security warning */}
-              <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-3xl p-1 mb-6 shadow-2xl">
-                <div className="bg-white rounded-[22px] p-5 sm:p-6">
-                  <div className="flex items-start gap-3 sm:gap-4">
-                    <div className="flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg">
-                      <Lock className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+              {/* Recovery phrase guidance */}
+              <div className="mb-6 rounded-3xl border border-orange-200/80 bg-gradient-to-br from-orange-50/90 via-white to-amber-50/70 shadow-lg p-4 sm:p-5">
+                <div className="flex items-start gap-3 sm:gap-4">
+                  <div className="flex-shrink-0 w-11 h-11 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-xl flex items-center justify-center shadow-md">
+                    <Lock className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-100 text-orange-700 text-[11px] font-semibold px-2.5 py-1 mb-2">
+                      <Shield className="w-3 h-3" />
+                      Important
                     </div>
-                    <div className="flex-1">
-                      <h3 className="text-red-900 font-bold text-base sm:text-lg mb-2 flex items-center gap-2">
-                        🔒 CRITICAL: Your Recovery Phrase
-                      </h3>
-                      <div className="text-red-800 text-xs sm:text-sm space-y-2">
-                        <p className="font-semibold">This is the ONLY way to recover your wallet. If you lose it, your funds are gone forever.</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
-                          <div className="space-y-1.5">
-                            <div className="flex items-start gap-2">
-                              <span className="text-red-600 flex-shrink-0 mt-0.5">⛔</span>
-                              <span>NEVER share with ANYONE (not even support)</span>
-                            </div>
-                            <div className="flex items-start gap-2">
-                              <span className="text-red-600 flex-shrink-0 mt-0.5">⛔</span>
-                              <span>NEVER take screenshots (can be hacked)</span>
-                            </div>
-                            <div className="flex items-start gap-2">
-                              <span className="text-red-600 flex-shrink-0 mt-0.5">⛔</span>
-                              <span>NEVER store digitally (no photos, emails, cloud)</span>
-                            </div>
-                          </div>
-                          <div className="space-y-1.5">
-                            <div className="flex items-start gap-2">
-                              <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
-                              <span>Write on PAPER and store in a SAFE place</span>
-                            </div>
-                            <div className="flex items-start gap-2">
-                              <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
-                              <span>Make MULTIPLE physical copies</span>
-                            </div>
-                            <div className="flex items-start gap-2">
-                              <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
-                              <span>Store in DIFFERENT secure locations</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="bg-red-100 border border-red-300 rounded-xl p-3 mt-3">
-                          <p className="font-bold text-red-900 flex items-center gap-2">
-                            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                            Anyone with these 12 words can STEAL ALL your crypto!
-                          </p>
-                        </div>
+                    <h3 className="text-gray-900 font-bold text-base sm:text-lg mb-1">
+                      Protect your recovery phrase
+                    </h3>
+                    <p className="text-gray-700 text-xs sm:text-sm leading-relaxed">
+                      Your 12-word phrase is the only way to recover this wallet. Keep it offline and private.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="rounded-xl border border-red-200/70 bg-red-50/70 p-3">
+                    <p className="text-[11px] font-semibold text-red-700 mb-1.5">Do not</p>
+                    <div className="space-y-1.5 text-xs sm:text-sm text-red-800">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                        <span>Share it with anyone, including support.</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                        <span>Store it digitally (photos, email, cloud).</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                        <span>Take screenshots.</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/70 p-3">
+                    <p className="text-[11px] font-semibold text-emerald-700 mb-1.5">Best practice</p>
+                    <div className="space-y-1.5 text-xs sm:text-sm text-emerald-800">
+                      <div className="flex items-start gap-2">
+                        <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                        <span>Write it on paper.</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                        <span>Keep copies in separate secure locations.</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                        <span>Verify every word and order carefully.</span>
                       </div>
                     </div>
                   </div>
                 </div>
-            </div>
+
+                <div className="mt-3 rounded-xl border border-orange-300/70 bg-orange-100/80 p-2.5">
+                  <p className="text-[12px] sm:text-sm font-semibold text-orange-900 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                    Anyone with this phrase can fully control your funds.
+                  </p>
+                </div>
+              </div>
 
               {/* Header */}
               <div className="text-center mb-6">
