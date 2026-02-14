@@ -82,11 +82,10 @@ export default function AuthCallback() {
             logger.error('❌ [OAuth] Error checking device:', deviceError);
           }
 
-          // TRUSTED DEVICE - Allow immediate access
+          // For OAuth logins, trust current device after provider verification to keep UX smooth.
+          // Email/password login keeps strict device-code verification flow.
           if (existingDevice && (existingDevice as any).verified_at) {
             logger.log('✅ [OAuth] TRUSTED device detected');
-
-            // Update last_used_at
             await (supabase as any)
               .from('trusted_devices')
               .update({
@@ -94,72 +93,62 @@ export default function AuthCallback() {
                 is_current: true
               })
               .eq('id', (existingDevice as any).id);
+          } else {
+            logger.log('✅ [OAuth] Trusting current OAuth device and storing as verified');
+            // Ensure one current device per user.
+            await (supabase as any)
+              .from('trusted_devices')
+              .update({ is_current: false })
+              .eq('user_id', session.user.id);
 
-            // Track login
-            try {
-              const { trackAuth } = await import('@/lib/analytics');
-              await trackAuth(session.user.id, 'login', {
-                success: true,
-                method: 'oauth',
-                provider: 'google_or_apple'
+            await (supabase as any)
+              .from('trusted_devices')
+              .upsert({
+                user_id: session.user.id,
+                device_name: deviceInfo.deviceName,
+                device_fingerprint: deviceInfo.fingerprint,
+                ip_address: deviceInfo.ipAddress || 'Unknown',
+                user_agent: navigator.userAgent,
+                browser: deviceInfo.browser,
+                os: deviceInfo.os,
+                is_current: true,
+                verified_at: new Date().toISOString(),
+                verification_token: null,
+                verification_code: null,
+                verification_code_expires_at: null,
+                verification_expires_at: null,
+                last_used_at: new Date().toISOString(),
+              }, {
+                onConflict: 'user_id,device_fingerprint'
               });
-            } catch (err) {
-              console.error('Failed to track login:', err);
-            }
-
-            // Check if user has a wallet in Supabase
-            const { data: wallet } = await supabase
-              .from('wallets')
-              .select('id')
-              .eq('user_id', session.user.id)
-              .single();
-
-            if (!wallet) {
-              // New user from OAuth - needs to create wallet
-              router.push('/?oauth=new_user&show_mnemonic=true');
-            } else {
-              // Existing user - wallet will be loaded automatically
-              router.push('/');
-            }
-            return;
           }
 
-          // NEW/UNVERIFIED DEVICE - Require verification
-          logger.log('⚠️ [OAuth] NEW device detected - requiring verification');
-
-          // Store device verification token in localStorage
-          const verificationToken = crypto.randomUUID();
-          localStorage.setItem('device_verification_pending', 'true');
-          localStorage.setItem('device_verification_token', verificationToken);
-          localStorage.setItem('device_verification_user_id', session.user.id);
-
-          // Send verification email via API
+          // Track login
           try {
-            await fetch('/api/verify-device', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                userId: session.user.id,
-                email: session.user.email,
-                deviceInfo: {
-                  fingerprint: deviceInfo.fingerprint,
-                  deviceName: deviceInfo.deviceName,
-                  browser: deviceInfo.browser,
-                  os: deviceInfo.os,
-                  location: deviceInfo.location,
-                  ipAddress: deviceInfo.ipAddress || 'Unknown',
-                  userAgent: navigator.userAgent,
-                }
-              })
+            const { trackAuth } = await import('@/lib/analytics');
+            await trackAuth(session.user.id, 'login', {
+              success: true,
+              method: 'oauth',
+              provider: 'google_or_apple'
             });
-
-            logger.log('✅ [OAuth] Verification email sent');
-          } catch (emailError) {
-            logger.error('❌ [OAuth] Failed to send verification email:', emailError);
+          } catch (err) {
+            console.error('Failed to track login:', err);
           }
 
-          // Redirect to device verification page
-          router.push('/?device_verification_required=true');
+          // Check if user has a wallet in Supabase
+          const { data: wallet } = await supabase
+            .from('wallets')
+            .select('id')
+            .eq('user_id', session.user.id)
+            .single();
+
+          if (!wallet) {
+            // New user from OAuth - needs to create wallet
+            router.push('/?oauth=new_user&show_mnemonic=true');
+          } else {
+            // Existing user - wallet will be loaded automatically
+            router.push('/');
+          }
         } else {
           // If callback carried auth params but session is still missing, fail explicitly.
           const hasOAuthParams = Boolean(code || accessToken || queryParams.get('error') || hashParams.get('error'));
