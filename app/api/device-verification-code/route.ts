@@ -14,9 +14,39 @@ function generateVerificationCodeEmail(deviceName: string, code: string, locatio
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, email, deviceInfo } = await request.json();
-    
-    if (!userId || !email || !deviceInfo) {
+    const body = await request.json();
+    let userId = body.userId as string | undefined;
+    let email = body.email as string | undefined;
+    let deviceInfo = body.deviceInfo as any;
+    const deviceToken = body.deviceToken as string | undefined;
+
+    // Backward-compatible token flow: resolve user/device from verification token
+    if ((!userId || !email || !deviceInfo) && deviceToken) {
+      const { data: tokenDevice, error: tokenDeviceError } = await getSupabaseAdmin()
+        .from('trusted_devices')
+        .select('user_id, device_name, device_fingerprint, ip_address, user_agent, browser, os, verification_token')
+        .eq('verification_token', deviceToken)
+        .maybeSingle();
+
+      if (!tokenDeviceError && tokenDevice) {
+        userId = tokenDevice.user_id as string;
+        deviceInfo = {
+          deviceName: tokenDevice.device_name,
+          fingerprint: tokenDevice.device_fingerprint,
+          ipAddress: tokenDevice.ip_address,
+          userAgent: tokenDevice.user_agent,
+          browser: tokenDevice.browser,
+          os: tokenDevice.os,
+        };
+
+        const { data: authUser, error: authUserError } = await getSupabaseAdmin().auth.admin.getUserById(userId);
+        if (!authUserError && authUser?.user?.email) {
+          email = authUser.user.email;
+        }
+      }
+    }
+
+    if (!userId || !email || !deviceInfo?.fingerprint) {
       return NextResponse.json(
         { success: false, error: 'Missing required fields' },
         { status: 400 }

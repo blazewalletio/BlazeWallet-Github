@@ -32,22 +32,24 @@ export default function DeviceVerificationCodeModal({
   const [codeSent, setCodeSent] = useState(false);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
-  const [isSending, setIsSending] = useState(false);
 
-  // Send code on mount (only once when modal opens)
+  // Initial code is sent upstream when device verification is triggered.
+  // Avoid auto-sending here to prevent duplicate emails/codes.
   useEffect(() => {
-    if (isOpen && !codeSent && !isSending) {
-      sendCode();
+    if (isOpen) {
+      setCodeSent(true);
+      const expires = new Date(Date.now() + 10 * 60 * 1000);
+      setExpiresAt(expires);
+      setTimeRemaining(10 * 60);
     }
-    // Reset codeSent when modal closes
     if (!isOpen) {
       setCodeSent(false);
       setCode(['', '', '', '', '', '']);
       setError('');
-      setIsSending(false);
+      setExpiresAt(null);
+      setTimeRemaining(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]); // Only depend on isOpen to avoid re-triggers when codeSent/isSending changes
+  }, [isOpen]);
 
   // Countdown timer
   useEffect(() => {
@@ -65,75 +67,18 @@ export default function DeviceVerificationCodeModal({
     return () => clearInterval(interval);
   }, [expiresAt]);
 
-  const sendCode = async () => {
-    // Prevent multiple simultaneous calls
-    if (isSending) {
-      logger.log('⏳ [VerifyDeviceCode] Code send already in progress, skipping...');
-      return;
-    }
-    
-    if (codeSent) {
-      logger.log('✅ [VerifyDeviceCode] Code already sent, skipping...');
-      return;
-    }
-    
-    try {
-      setIsSending(true);
-      setError('');
-      
-      // Validate required fields before sending
-      if (!userId) {
-        logger.error('❌ [VerifyDeviceCode] Missing userId in sendCode');
-        throw new Error('User ID is required. Please try logging in again.');
-      }
-      
-      if (!email) {
-        logger.error('❌ [VerifyDeviceCode] Missing email in sendCode');
-        throw new Error('Email is required. Please try logging in again.');
-      }
-      
-      if (!deviceInfo || !deviceInfo.fingerprint) {
-        logger.error('❌ [VerifyDeviceCode] Missing deviceInfo.fingerprint in sendCode');
-        throw new Error('Device information is incomplete. Please try again.');
-      }
-      
-      const response = await fetch('/api/device-verification-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          email,
-          deviceInfo
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to send verification code');
-      }
-
-      setCodeSent(true);
-      setExpiresAt(new Date(data.expiresAt));
-      logger.log('✅ Verification code sent');
-    } catch (err: any) {
-      logger.error('Failed to send code:', err);
-      setError(err.message || 'Failed to send verification code');
-      setCodeSent(false); // Reset on error so user can retry
-    } finally {
-      setIsSending(false);
-    }
-  };
-
   const handleResend = async () => {
     setIsResending(true);
     setError('');
     setCode(['', '', '', '', '', '']);
-    setCodeSent(false); // Reset so sendCode can run again
     
     try {
       await onResend();
-      await sendCode();
+      setCodeSent(true);
+      const expires = new Date(Date.now() + 10 * 60 * 1000);
+      setExpiresAt(expires);
+      setTimeRemaining(10 * 60);
+      logger.log('✅ Verification code resent');
     } catch (err: any) {
       setError(err.message || 'Failed to resend code');
     } finally {

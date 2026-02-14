@@ -91,7 +91,8 @@ export async function POST(request: NextRequest) {
           os: `${deviceInfo.os}`,
           verification_token: deviceToken,
           verification_code: verificationCode,
-          verification_expires_at: expiresAt.toISOString(),
+          verification_code_expires_at: expiresAt.toISOString(),
+          verification_expires_at: expiresAt.toISOString(), // Legacy compatibility
         })
         .eq('id', existingDeviceId)
         .select()
@@ -134,7 +135,8 @@ export async function POST(request: NextRequest) {
           os: `${deviceInfo.os}`,
           verification_token: deviceToken,
           verification_code: verificationCode,
-          verification_expires_at: expiresAt.toISOString(),
+          verification_code_expires_at: expiresAt.toISOString(),
+          verification_expires_at: expiresAt.toISOString(), // Legacy compatibility
           is_current: true,
         }, {
           onConflict: 'user_id,device_fingerprint',

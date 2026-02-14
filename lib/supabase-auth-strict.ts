@@ -1001,7 +1001,8 @@ export async function verifyDeviceAndSignIn(
     }
     
     // Check expiry
-    if (new Date(device.verification_expires_at) < new Date()) {
+    const codeExpiry = (device as any).verification_code_expires_at || (device as any).verification_expires_at;
+    if (codeExpiry && new Date(codeExpiry) < new Date()) {
       logger.error('❌ Verification code expired');
       return {
         success: false,
@@ -1046,7 +1047,8 @@ export async function verifyDeviceAndSignIn(
         is_current: true,
         verification_token: null, // Clear token
         verification_code: null, // Clear code
-        verification_expires_at: null,
+        verification_code_expires_at: null,
+        verification_expires_at: null, // Legacy compatibility
         session_token: sessionToken, // ← NEW: For grace period
         last_verified_session_at: new Date().toISOString(), // ← NEW
       })
