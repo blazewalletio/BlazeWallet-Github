@@ -15,6 +15,10 @@ interface OnboardingProps {
 export default function Onboarding({ onComplete }: OnboardingProps) {
   const ONBOARDING_CARD_SHELL =
     'rounded-3xl border border-gray-200/80 bg-white/80 backdrop-blur-md shadow-xl';
+  const ONBOARDING_INNER_PANEL =
+    'rounded-2xl border border-gray-200/75 bg-white/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]';
+  const ONBOARDING_SOFT_INFO_PANEL =
+    'rounded-xl border border-orange-200/70 bg-orange-50/65 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]';
 
   const [step, setStep] = useState<'carousel' | 'create-options' | 'add-wallet' | 'mnemonic' | 'verify' | 'import-seed' | 'email-auth' | 'device-verification' | 'biometric-setup'>('carousel');
   const [mnemonic, setMnemonic] = useState<string>('');
@@ -597,15 +601,15 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-1">
-                  <div className="rounded-xl border border-orange-200/70 bg-orange-50/70 px-3 py-2">
+                  <div className={`${ONBOARDING_SOFT_INFO_PANEL} px-3 py-2`}>
                     <p className="text-xs font-semibold text-gray-900">Self-custody</p>
                     <p className="text-[11px] text-gray-600 mt-0.5">You keep full control</p>
                   </div>
-                  <div className="rounded-xl border border-orange-200/70 bg-orange-50/70 px-3 py-2">
+                  <div className={`${ONBOARDING_SOFT_INFO_PANEL} px-3 py-2`}>
                     <p className="text-xs font-semibold text-gray-900">Multi-chain</p>
                     <p className="text-[11px] text-gray-600 mt-0.5">All your assets in one place</p>
                   </div>
-                  <div className="rounded-xl border border-orange-200/70 bg-orange-50/70 px-3 py-2">
+                  <div className={`${ONBOARDING_SOFT_INFO_PANEL} px-3 py-2`}>
                     <p className="text-xs font-semibold text-gray-900">Private by default</p>
                     <p className="text-[11px] text-gray-600 mt-0.5">Encrypted local security</p>
                   </div>
@@ -714,7 +718,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               </div>
 
               {/* Info Note - LAUNCHPAD STYLE */}
-              <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 lg:p-5">
+              <div className={`${ONBOARDING_SOFT_INFO_PANEL} p-4 lg:p-5`}>
                 <div className="flex items-start gap-3 lg:gap-4">
                   <div className="w-8 h-8 lg:w-10 lg:h-10 bg-orange-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
                     <Shield className="w-4 h-4 lg:w-5 lg:h-5 text-orange-500" />
@@ -825,7 +829,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 <div className="space-y-3 mb-6">
                   <button
                     disabled
-                    className="w-full py-3 sm:py-4 px-4 bg-white border-2 border-gray-200 rounded-xl text-gray-500 font-semibold flex items-center gap-3 opacity-60 cursor-not-allowed"
+                    className={`w-full py-3 sm:py-4 px-4 ${ONBOARDING_INNER_PANEL} text-gray-500 font-semibold flex items-center gap-3 opacity-60 cursor-not-allowed`}
                   >
                     <svg className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -840,7 +844,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   </button>
                   <button
                     disabled
-                    className="w-full py-3 sm:py-4 px-4 bg-white border-2 border-gray-200 rounded-xl text-gray-500 font-semibold flex items-center gap-3 opacity-60 cursor-not-allowed"
+                    className={`w-full py-3 sm:py-4 px-4 ${ONBOARDING_INNER_PANEL} text-gray-500 font-semibold flex items-center gap-3 opacity-60 cursor-not-allowed`}
                   >
                     <svg className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
@@ -1147,7 +1151,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
               {/* Security Note - LAUNCHPAD INFO BOX STYLE */}
               {emailAuthMode === 'signup' && (
-                <div className="mt-6 bg-orange-500/10 border border-orange-500/20 rounded-xl p-4">
+                <div className={`mt-6 ${ONBOARDING_SOFT_INFO_PANEL} p-4`}>
                   <div className="flex items-start gap-3">
                     <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
                       <Shield className="w-4 h-4 text-orange-500" />
@@ -1226,7 +1230,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               </div>
 
               {/* Info Note - LAUNCHPAD STYLE */}
-              <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 mb-6">
+              <div className={`${ONBOARDING_SOFT_INFO_PANEL} p-4 mb-6`}>
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
                     <Shield className="w-4 h-4 text-orange-500" />
@@ -1386,7 +1390,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             </div>
 
               {/* Security Checklist - LAUNCHPAD STYLE */}
-              <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 sm:p-5 mb-6">
+              <div className={`${ONBOARDING_SOFT_INFO_PANEL} p-4 sm:p-5 mb-6`}>
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
                     <CheckCircle2 className="w-5 h-5 text-orange-500" />
@@ -1483,7 +1487,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             )}
 
               {/* Info box - LAUNCHPAD STYLE */}
-              <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 mb-6">
+              <div className={`${ONBOARDING_SOFT_INFO_PANEL} p-4 mb-6`}>
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
                     <Sparkles className="w-4 h-4 text-orange-500" />
@@ -1537,7 +1541,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             </div>
 
                 {/* Info box */}
-                <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 mb-6">
+                <div className={`${ONBOARDING_SOFT_INFO_PANEL} p-4 mb-6`}>
                   <div className="flex items-start gap-3">
                     <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
                       <Shield className="w-4 h-4 text-orange-500" />
@@ -1699,7 +1703,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             </div>
 
                 {/* Benefits - LAUNCHPAD INFO BOX STYLE */}
-                <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 mb-6">
+                <div className={`${ONBOARDING_SOFT_INFO_PANEL} p-4 mb-6`}>
                   <div className="space-y-3">
                     <div className="flex items-start gap-3">
                       <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
