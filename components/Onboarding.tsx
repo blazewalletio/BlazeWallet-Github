@@ -62,6 +62,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   
   // ✅ NEW: Real-time validation states
   const [emailValid, setEmailValid] = useState<boolean | null>(null);
+  const [emailTouched, setEmailTouched] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState<'weak' | 'medium' | 'strong' | null>(null);
   const [passwordsMatch, setPasswordsMatch] = useState<boolean | null>(null);
   
@@ -311,6 +312,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     try {
       setError('');
       setIsLoading(true);
+      setEmailTouched(true);
 
       // Validation
       if (!email || !password) {
@@ -846,6 +848,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   <label className="block text-sm font-semibold text-gray-900 mb-2">
                     Email address
                   </label>
+                  {(() => {
+                    const showEmailInvalid = emailTouched && emailValid === false && email.length > 0;
+                    return (
                   <div className="relative">
                     <input
                       ref={emailRef}
@@ -859,7 +864,10 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                         setActiveField('email');
                         if (isMobileDevice) ensureFieldVisible(emailRef);
                       }}
-                      onBlur={() => setActiveField(null)}
+                      onBlur={() => {
+                        setActiveField(null);
+                        setEmailTouched(true);
+                      }}
                       onKeyPress={(e) => {
                         // ✅ Enter → Focus password field
                         if (e.key === 'Enter' && email && emailValid) {
@@ -872,31 +880,33 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       autoComplete="email"
                       disabled={isLoading}
                       className={`w-full px-4 py-2 sm:py-3 ${
-                        emailValid === false ? 'pr-10' : ''
+                        showEmailInvalid ? 'pr-10' : ''
                       } bg-white border-2 ${
-                        emailValid === false 
+                        showEmailInvalid
                           ? 'border-red-300 focus:border-red-500' 
-                          : emailValid === true
+                          : emailValid === true && email.length > 0
                           ? 'border-green-300 focus:border-green-500'
                           : 'border-gray-200 focus:border-orange-500'
                       } rounded-xl focus:outline-none transition-colors text-gray-900 placeholder-gray-400 disabled:opacity-50`}
                     />
                     
                     {/* ✅ Real-time validation icon - PERFECTLY CENTERED */}
-                    {emailValid === true && (
+                    {emailValid === true && email.length > 0 && (
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
                         <CheckCircle className="w-5 h-5 text-green-500" />
                       </div>
                     )}
-                    {emailValid === false && (
+                    {showEmailInvalid && (
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
                         <XCircle className="w-5 h-5 text-red-500" />
                       </div>
                     )}
                   </div>
+                    );
+                  })()}
                   
                   {/* ✅ Inline email validation message */}
-                  {emailValid === false && email.length > 0 && (
+                  {emailTouched && emailValid === false && email.length > 0 && (
                     <motion.p
                       initial={{ opacity: 0, y: -5 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -1103,6 +1113,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     setPassword('');
                     setConfirmPassword('');
                     setEmailValid(null);
+                    setEmailTouched(false);
                     setPasswordStrength(null);
                     setPasswordsMatch(null);
                     setEmailAuthMode(emailAuthMode === 'signup' ? 'login' : 'signup');
