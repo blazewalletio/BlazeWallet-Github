@@ -13,6 +13,9 @@ interface OnboardingProps {
 }
 
 export default function Onboarding({ onComplete }: OnboardingProps) {
+  const ONBOARDING_CARD_SHELL =
+    'rounded-3xl border border-gray-200/80 bg-white/80 backdrop-blur-md shadow-xl';
+
   const [step, setStep] = useState<'carousel' | 'create-options' | 'add-wallet' | 'mnemonic' | 'verify' | 'import-seed' | 'email-auth' | 'device-verification' | 'biometric-setup'>('carousel');
   const [mnemonic, setMnemonic] = useState<string>('');
   const [importInput, setImportInput] = useState<string>('');
@@ -534,7 +537,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-md sm:max-w-lg lg:max-w-xl mx-auto rounded-3xl border border-gray-200 bg-white shadow-xl p-5 sm:p-6 lg:p-7"
+              className={`w-full max-w-md sm:max-w-lg lg:max-w-xl mx-auto ${ONBOARDING_CARD_SHELL} p-5 sm:p-6 lg:p-7`}
             >
               <div className="bg-white/80 backdrop-blur-md border border-gray-200/80 rounded-3xl shadow-xl p-5 sm:p-6 lg:p-8 mb-6">
                 <div className="relative h-52 sm:h-56 lg:h-60 mb-5">
@@ -635,7 +638,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-md sm:max-w-lg lg:max-w-xl mx-auto"
+              className={`w-full max-w-md sm:max-w-lg lg:max-w-xl mx-auto ${ONBOARDING_CARD_SHELL} p-5 sm:p-6 lg:p-7`}
             >
               {/* Back button - CONSISTENT SPACING */}
               <div className="mb-8 sm:mb-10 lg:mb-12">
@@ -733,7 +736,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-md lg:max-w-xl mx-auto rounded-3xl border border-gray-200 bg-white shadow-xl p-5 sm:p-6 lg:p-7"
+              className={`w-full max-w-md lg:max-w-xl mx-auto ${ONBOARDING_CARD_SHELL} p-5 sm:p-6 lg:p-7`}
             >
               {/* Back button */}
               <div className="mb-8 lg:mb-10">
@@ -793,7 +796,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               }`}
               ref={formContainerRef}
             >
-              <div className="rounded-3xl border border-gray-200 bg-white shadow-xl p-4 sm:p-6 lg:p-7">
+              <div className={`${ONBOARDING_CARD_SHELL} p-4 sm:p-6 lg:p-7`}>
                 {/* Back Button */}
                 <div className="mb-5">
                   <button
@@ -1168,7 +1171,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-md lg:max-w-xl mx-auto rounded-3xl border border-gray-200 bg-white shadow-xl p-5 sm:p-6 lg:p-7"
+              className={`w-full max-w-md lg:max-w-xl mx-auto ${ONBOARDING_CARD_SHELL} p-5 sm:p-6 lg:p-7`}
             >
               {/* Back button */}
               <div className="mb-8">
@@ -1260,7 +1263,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="max-w-2xl mx-auto"
+              className={`max-w-2xl mx-auto ${ONBOARDING_CARD_SHELL} p-5 sm:p-6 lg:p-7`}
             >
               {/* Critical security warning */}
               <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-3xl p-1 mb-6 shadow-2xl">
@@ -1434,7 +1437,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="max-w-md lg:max-w-xl mx-auto w-full rounded-3xl border border-gray-200 bg-white shadow-xl p-5 sm:p-6 lg:p-7"
+              className={`max-w-md lg:max-w-xl mx-auto w-full ${ONBOARDING_CARD_SHELL} p-5 sm:p-6 lg:p-7`}
             >
               {/* Header */}
             <div className="text-center mb-8">
@@ -1517,7 +1520,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-md lg:max-w-xl mx-auto rounded-3xl border border-gray-200 bg-white shadow-xl p-5 sm:p-6 lg:p-7"
+              className={`w-full max-w-md lg:max-w-xl mx-auto ${ONBOARDING_CARD_SHELL} p-5 sm:p-6 lg:p-7`}
             >
               <div className="w-full">
                 {/* Icon & Header */}
@@ -1679,7 +1682,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -100 }}
               transition={{ duration: 0.3 }}
-              className="w-full max-w-md lg:max-w-xl mx-auto rounded-3xl border border-gray-200 bg-white shadow-xl p-5 sm:p-6 lg:p-7"
+              className={`w-full max-w-md lg:max-w-xl mx-auto ${ONBOARDING_CARD_SHELL} p-5 sm:p-6 lg:p-7`}
             >
               <div className="w-full">
                 {/* Icon & Header - NO CARD */}
