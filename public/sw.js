@@ -46,6 +46,13 @@ self.addEventListener('activate', (event) => {
 // Fetch event - serve from cache or network
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+  const requestUrl = request.url || '';
+  const isHttpScheme = requestUrl.startsWith('http://') || requestUrl.startsWith('https://');
+
+  // Ignore browser extension / unsupported schemes to avoid Cache.put runtime errors.
+  if (!isHttpScheme) {
+    return;
+  }
   
   // ✅ FIX: Don't cache POST, PUT, DELETE, PATCH requests
   if (request.method !== 'GET' && request.method !== 'HEAD') {
@@ -85,7 +92,9 @@ self.addEventListener('fetch', (event) => {
           if (request.url.match(/\.(js|css|png|jpg|jpeg|svg|gif|woff|woff2|ttf|eot)$/)) {
             caches.open(CACHE_NAME)
               .then((cache) => {
-                cache.put(request, responseToCache);
+                cache.put(request, responseToCache).catch((cacheError) => {
+                  console.warn('[SW] cache.put skipped:', request.url, cacheError);
+                });
               });
           }
           
