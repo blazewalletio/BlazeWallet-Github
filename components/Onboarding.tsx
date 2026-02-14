@@ -82,7 +82,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     const input = ref.current;
     const scroller = formContainerRef.current;
     const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-    const reservedBottom = Math.max(130, keyboardInset + 92); // keyboard + sticky CTA/safe margin
+    // visualViewport.height already excludes keyboard space, so do not subtract keyboardInset again.
+    const reservedBottom = isKeyboardOpen ? 96 : 24; // sticky CTA/safe margin only
     const safeBottom = viewportHeight - reservedBottom;
     const safeTop = 80;
     const rect = input.getBoundingClientRect();
@@ -105,7 +106,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
         window.scrollBy({ top: -delta, behavior: 'smooth' });
       }
     }
-  }, [keyboardInset]);
+  }, [isKeyboardOpen]);
 
   // ✅ NEW: Email validation
   const validateEmail = (email: string): boolean => {
@@ -199,9 +200,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     if (!isMobileDevice || step !== 'email-auth' || !activeField) return;
 
     const targetRef =
-      activeField === 'email'
-        ? emailRef
-        : activeField === 'password'
+      activeField === 'password'
           ? passwordRef
           : activeField === 'confirmPassword'
             ? confirmPasswordRef
@@ -905,7 +904,6 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       }}
                       onFocus={() => {
                         setActiveField('email');
-                        if (isMobileDevice) ensureFieldVisible(emailRef);
                       }}
                       onBlur={() => {
                         setActiveField(null);
