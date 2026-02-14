@@ -11,11 +11,29 @@ export async function syncWalletChainAddresses(addresses: Record<string, string>
   const { data: { session } } = await supabase.auth.getSession();
   if (!session?.access_token) return;
 
+  let csrfToken = '';
+  try {
+    const csrfResponse = await fetch('/api/csrf-token', { method: 'GET' });
+    if (csrfResponse.ok) {
+      const csrfData = await csrfResponse.json().catch(() => ({}));
+      csrfToken = String(csrfData?.token || '');
+    }
+  } catch (error) {
+    logger.warn('[ChainAddressSync] Failed to fetch CSRF token:', error);
+    return;
+  }
+
+  if (!csrfToken) {
+    logger.warn('[ChainAddressSync] Missing CSRF token, skipping sync call');
+    return;
+  }
+
   const payload = Object.fromEntries(sanitizedEntries);
   const response = await fetch('/api/wallet/chain-addresses', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'X-CSRF-Token': csrfToken,
       Authorization: `Bearer ${session.access_token}`,
     },
     body: JSON.stringify({ addresses: payload }),
